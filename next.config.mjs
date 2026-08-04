@@ -5,9 +5,14 @@ const nextConfig = {
   async headers() {
     return [
       {
-        // 資料檔內容跟著 build 走，長快取＋重新驗證即可，不用每次重抓。
+        // meta 是版本入口，必須每次回伺服器確認，否則資料更新了使用者也拿不到。
+        source: "/data/meta.json",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
+        // 其餘資料檔的網址帶著 meta 的建置時間當版本號，內容不會變，可以放心長快取。
         source: "/data/:path*",
-        headers: [{ key: "Cache-Control", value: "public, max-age=3600, stale-while-revalidate=86400" }],
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
       {
         source: "/assets/:path*",
