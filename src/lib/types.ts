@@ -69,6 +69,9 @@ export type Item = {
 };
 
 export type QuestRef = { id: number; n: string; c?: number };
+
+/** 獎勵道具。rand=1 代表是「一堆裡隨機給一樣」，job 代表只有該職業拿得到。 */
+export type QuestReward = QuestRef & { rand?: 1; job?: number };
 export type QuestNpc = { id: number; n: string; map?: number; mapName?: string };
 
 /** 任務敘述的一段：可接前／進行中／完成後 */
@@ -104,11 +107,11 @@ export type Quest = {
   exp?: number;
   money?: number;
   pop?: number;
-  rewardItems?: QuestRef[];
+  rewardItems?: QuestReward[];
   rewardSkills?: number[];
   /** 接受任務當下就給的 */
   startExp?: number;
-  startGiven?: QuestRef[];
+  startGiven?: QuestReward[];
 
   medal?: string;
   /** 1 = 起始地點在楓之島，離島後接不到 */

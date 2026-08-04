@@ -450,10 +450,10 @@ function buildQuests(artale, maps) {
       exp: rewards.exp ?? undefined,
       money: rewards.money ?? undefined,
       pop: rewards.pop ?? undefined,
-      rewardItems: rowRefs(rewards.items),
+      rewardItems: rewardRefs(rewards.items),
       rewardSkills: skillRefs(rewards.skills),
       startExp: startRewards.exp ?? undefined,
-      startGiven: rowRefs(startRewards.items),
+      startGiven: rewardRefs(startRewards.items),
 
       medal: quest.medalCategory || undefined,
 
@@ -539,6 +539,30 @@ function npcRef(npc, maps) {
 function rowRefs(rows) {
   if (!Array.isArray(rows) || !rows.length) return undefined;
   return rows.map(row => dropEmpty({ id: Number(row.id), n: row.name || "", c: row.count ?? undefined }));
+}
+
+/**
+ * 獎勵道具。
+ *
+ * 客戶端把「給你」跟「收走」放在同一個獎勵清單裡，靠 action 分辨——
+ * 847 筆裡有 387 筆是 action=remove，那是完成時被收走的任務道具，不是獎勵。
+ * 全部照列會讓玩家以為拿得到一堆根本不會進背包的東西。
+ *
+ * 另外 250 筆是 random（一堆裡隨機給一樣）、167 筆綁職業，這兩種都標記起來，
+ * 前端才有辦法照實說「隨機給一樣」而不是「這些全拿」。
+ */
+function rewardRefs(rows) {
+  if (!Array.isArray(rows) || !rows.length) return undefined;
+  const kept = rows
+    .filter(row => row?.action !== "remove")
+    .map(row => dropEmpty({
+      id: Number(row.id),
+      n: row.name || "",
+      c: row.count ?? undefined,
+      rand: row.random ? 1 : undefined,
+      job: row.job || undefined,
+    }));
+  return kept.length ? kept : undefined;
 }
 
 function dropEmpty(object) {

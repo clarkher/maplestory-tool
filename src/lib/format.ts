@@ -32,6 +32,19 @@ export function formatNumber(value: number | undefined | null): string {
   return value.toLocaleString("zh-TW");
 }
 
+/**
+ * 大數字縮寫成「萬」。
+ * 任務獎勵動輒六七位數，完整寫出來在手機上塞不下也不好比大小。
+ */
+export function formatCompact(value: number): string {
+  if (value >= 100000000) return `${(value / 100000000).toFixed(1)}億`;
+  if (value >= 10000) {
+    const wan = value / 10000;
+    return `${wan >= 100 ? Math.round(wan) : wan.toFixed(1)}萬`;
+  }
+  return value.toLocaleString("zh-TW");
+}
+
 /** 任務給的獎勵通常同時有經驗、楓幣、人氣，湊成一句話比排三個欄位好讀。 */
 export function rewardSummary(exp?: number, money?: number, pop?: number): string {
   const parts: string[] = [];

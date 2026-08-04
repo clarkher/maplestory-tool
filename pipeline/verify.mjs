@@ -78,6 +78,13 @@ function main() {
   check("初心者專屬任務有被標記", beginnerOnly >= 40, `${beginnerOnly} 個`);
   const island = (quests ?? []).filter(quest => quest.island).length;
   check("楓之島任務有被標記", island >= 40, `${island} 個`);
+  // 獎勵清單裡混著 action=remove（完成時收走的道具），曾經被當成獎勵列出來
+  const rewardRows = (quests ?? []).reduce((sum, quest) => sum + (quest.rewardItems?.length ?? 0), 0);
+  check("獎勵道具沒把收走的算進去", rewardRows > 300 && rewardRows < 600, `${rewardRows} 列`);
+  const randomRows = (quests ?? []).reduce(
+    (sum, quest) => sum + (quest.rewardItems?.filter(item => item.rand).length ?? 0), 0);
+  check("隨機獎勵有被標記", randomRows >= 100, `${randomRows} 列`);
+
   const priced = (items ?? []).filter(item => item.price).length;
   check("道具有商店價格的筆數", priced >= 300, `${priced} 個`);
 

@@ -422,10 +422,15 @@ export type BundleTarget = {
 export type QuestBundle = {
   map: number;
   /** 在這張圖能同時推進的任務 */
-  quests: Array<{ id: string; name: string }>;
+  quests: Array<{ id: string; name: string; exp?: number; money?: number; pop?: number }>;
   targets: BundleTarget[];
   /** 這些目標在這張圖的刷怪點總數 */
   spawn: number;
+  /**
+   * 這一趟全部完成能拿到的總獎勵——玩家真正在比較的數字。
+   * items 只算一定拿得到的；隨機給或綁職業的另外算進 maybeItems，不能混為一談。
+   */
+  reward: { exp: number; money: number; pop: number; items: number; maybeItems: number };
 };
 
 /**
@@ -442,16 +447,16 @@ export function planQuestBundles(
   monsters: Map<number, Monster>,
   limit = 20,
 ): QuestBundle[] {
-  type Need = { kind: "item" | "mob"; id: number; name: string; count: number; questId: string; questName: string };
+  type Need = { kind: "item" | "mob"; id: number; name: string; count: number; quest: Quest };
 
   const needs: Need[] = [];
   for (const plan of planQuests(profile, quests)) {
     if (plan.blockedBy.length) continue;
     for (const item of plan.quest.needItems || []) {
-      needs.push({ kind: "item", id: item.id, name: item.n, count: item.c ?? 1, questId: plan.quest.id, questName: plan.quest.n });
+      needs.push({ kind: "item", id: item.id, name: item.n, count: item.c ?? 1, quest: plan.quest });
     }
     for (const mob of plan.quest.needMobs || []) {
-      needs.push({ kind: "mob", id: mob.id, name: mob.n, count: mob.c ?? 1, questId: plan.quest.id, questName: plan.quest.n });
+      needs.push({ kind: "mob", id: mob.id, name: mob.n, count: mob.c ?? 1, quest: plan.quest });
     }
   }
   if (!needs.length) return [];
@@ -459,7 +464,7 @@ export function planQuestBundles(
   // 每個需求對應到哪些地圖
   const perMap = new Map<number, {
     spawn: number;
-    quests: Map<string, string>;
+    quests: Map<string, Quest>;
     targets: Map<string, BundleTarget>;
   }>();
 
@@ -470,7 +475,7 @@ export function planQuestBundles(
       perMap.set(mapId, bucket);
     }
     bucket.spawn += spawn;
-    bucket.quests.set(need.questId, need.questName);
+    bucket.quests.set(need.quest.id, need.quest);
 
     const key = `${need.kind}:${need.id}`;
     let target = bucket.targets.get(key);
@@ -479,8 +484,8 @@ export function planQuestBundles(
       bucket.targets.set(key, target);
     }
     // 同一個任務同一個目標只算一次，不要因為對應到多隻怪就重複加總
-    if (!target.from.some(entry => entry.questId === need.questId)) {
-      target.from.push({ questId: need.questId, questName: need.questName, count: need.count });
+    if (!target.from.some(entry => entry.questId === need.quest.id)) {
+      target.from.push({ questId: need.quest.id, questName: need.quest.n, count: need.count });
       // 討伐數是各任務同時累加的：A 要 99、B 要 999，打滿 999 兩個一起完成，不是 1098。
       // 收集品則相反，交出去就被收走，所以要相加。
       target.total = need.kind === "mob"
@@ -499,14 +504,37 @@ export function planQuestBundles(
   }
 
   return [...perMap.entries()]
-    .map(([map, bucket]) => ({
-      map,
-      quests: [...bucket.quests.entries()].map(([id, name]) => ({ id, name })),
-      targets: [...bucket.targets.values()].sort((a, b) => b.total - a.total),
-      spawn: bucket.spawn,
-    }))
-    // 一趟能推進的任務數是重點，其次才是怪密不密
-    .sort((a, b) => b.quests.length - a.quests.length || b.spawn - a.spawn)
+    .map(([map, bucket]) => {
+      const list = [...bucket.quests.values()];
+      const reward = { exp: 0, money: 0, pop: 0, items: 0, maybeItems: 0 };
+      for (const quest of list) {
+        reward.exp += quest.exp ?? 0;
+        reward.money += quest.money ?? 0;
+        reward.pop += quest.pop ?? 0;
+        for (const item of quest.rewardItems || []) {
+          if (item.rand || item.job) reward.maybeItems += 1;
+          else reward.items += 1;
+        }
+      }
+      return {
+        map,
+        quests: list.map(quest => ({
+          id: quest.id,
+          name: quest.n,
+          exp: quest.exp,
+          money: quest.money,
+          pop: quest.pop,
+        })),
+        targets: [...bucket.targets.values()].sort((a, b) => b.total - a.total),
+        spawn: bucket.spawn,
+        reward,
+      };
+    })
+    // 玩家在比的是「這趟划不划算」，所以先看總經驗，再看能一次推進幾個任務
+    .sort((a, b) =>
+      b.reward.exp - a.reward.exp
+      || b.quests.length - a.quests.length
+      || b.spawn - a.spawn)
     .filter(bundle => bundle.quests.length > 0)
     .slice(0, limit);
 }

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { itemImage, mapName, npcImage } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
-import type { MapRecord, Quest, QuestRef } from "@/lib/types";
+import type { MapRecord, Quest, QuestRef, QuestReward } from "@/lib/types";
 
 /**
  * 任務細節。任務規劃與任務資料庫共用同一份，避免兩邊顯示的東西不一樣。
@@ -99,7 +99,14 @@ export function QuestDetailBody({
         <Block title="完成後拿到">
           <div className="space-y-1.5">
           {reward ? <p className="font-bold text-[color:var(--gold)]">{reward}</p> : null}
-          {quest.rewardItems?.length ? <ItemChips rows={quest.rewardItems} /> : null}
+              {quest.rewardItems?.length ? (
+            <>
+              <ItemChips rows={quest.rewardItems} />
+              {quest.rewardItems.some(item => item.rand) ? (
+                <p className="text-[11px] ink-faint">標「隨機」的是從裡面隨機給一樣，不是全拿</p>
+              ) : null}
+            </>
+          ) : null}
           {quest.rewardSkills?.length ? (
             <p className="ink-soft">附贈技能 {quest.rewardSkills.length} 個</p>
           ) : null}
@@ -158,7 +165,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function ItemChips({ rows, linkToFarm = false }: { rows: QuestRef[]; linkToFarm?: boolean }) {
+function ItemChips({ rows, linkToFarm = false }: { rows: Array<QuestRef | QuestReward>; linkToFarm?: boolean }) {
   return (
     <ul className="flex flex-wrap gap-1.5">
       {rows.map((row, index) => (
@@ -172,6 +179,12 @@ function ItemChips({ rows, linkToFarm = false }: { rows: QuestRef[]; linkToFarm?
             <span className="text-[13px] font-bold">{row.n}</span>
             {row.c && row.c > 1 ? (
               <span className="text-[11px] tabular-nums text-[color:var(--maple)]">×{row.c}</span>
+            ) : null}
+            {"rand" in row && row.rand ? (
+              <span className="rounded-full bg-[color:var(--sky-wash)] px-1.5 text-[10px] font-bold text-[color:var(--sky)]">隨機</span>
+            ) : null}
+            {"job" in row && row.job ? (
+              <span className="rounded-full bg-[color:var(--gold-wash)] px-1.5 text-[10px] font-bold text-[color:var(--gold)]">職業限定</span>
             ) : null}
           </Link>
         </li>
