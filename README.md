@@ -63,6 +63,10 @@ npm run data:all      # 以上全跑
 - 重建後跑 `verify.mjs`，通過才 commit；commit 進 `main` 觸發 Vercel 部署
 - 也可以手動觸發，勾 `force` 可略過版本比對
 
+Vercel 這端接的是 GitHub 整合（production branch = `main`），
+所以資料 commit 進 `main` 之後不需要另外下指令。
+注意別在本機用還沒 `git pull` 的工作樹跑 `vercel deploy --prod`，那會把新的部署蓋回舊資料。
+
 ## 技術
 
 Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScript。
