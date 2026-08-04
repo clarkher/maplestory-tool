@@ -1,11 +1,11 @@
 {
   "gameVersion": "1.13.1",
-  "dataGeneratedAt": "2026-08-04T14:45:00+08:00",
-  "dataGeneratedAtText": "2026-08-04 14:45:00 GMT+8",
+  "dataGeneratedAt": "2026-08-04T18:08:58+08:00",
+  "dataGeneratedAtText": "2026-08-04 18:08:58 GMT+8",
   "ingest": {
     "origin": "upstream",
     "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-08-04T06:56:55.986Z"
+    "fetchedAt": "2026-08-04T10:42:03.031Z"
   },
   "mapSource": {
     "source": "MapleStory v83 Map.wz XML export",
@@ -20,7 +20,7 @@
   },
   "counts": {
     "monsters": 343,
-    "items": 13574,
+    "items": 13577,
     "quests": 499,
     "skills": 730,
     "maps": 5842,
@@ -37,5 +37,5 @@
     "monstersWithoutSpawnData": 44,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-08-04T10:40:08.563Z"
+  "builtAt": "2026-08-04T10:42:14.173Z"
 }
