@@ -64,10 +64,15 @@ export type Item = {
   qq?: string[];
   sh?: number;
   cf?: number[];
+  /** NPC 商店的最高標價，用來估「撿了值不值得」 */
+  price?: number;
 };
 
 export type QuestRef = { id: number; n: string; c?: number };
 export type QuestNpc = { id: number; n: string; map?: number; mapName?: string };
+
+/** 任務敘述的一段：可接前／進行中／完成後 */
+export type QuestText = { k: string; label: string; text: string };
 
 export type Quest = {
   id: string;
@@ -76,19 +81,39 @@ export type Quest = {
   parent?: string;
   minLv?: number;
   maxLv?: number;
-  /** 可接的職業代碼；沒有這個欄位代表不限職業 */
+  /**
+   * 可接的職業代碼。沒有這個欄位代表不限職業；
+   * `[0]` 是初心者專屬（轉職前任務與楓之島任務），不是不限職業。
+   */
   jobs?: number[];
   pre?: string[];
   next?: string;
   sNpc?: QuestNpc;
   eNpc?: QuestNpc;
+  /** 這個任務還牽涉到的其他 NPC */
+  npcs?: QuestNpc[];
+
+  /** 完成條件 */
   needItems?: QuestRef[];
   needMobs?: QuestRef[];
+  /** 接取條件 */
+  startItems?: QuestRef[];
+  startSkills?: number[];
+
+  /** 完成獎勵 */
   exp?: number;
   money?: number;
   pop?: number;
   rewardItems?: QuestRef[];
-  texts?: Record<string, string>;
+  rewardSkills?: number[];
+  /** 接受任務當下就給的 */
+  startExp?: number;
+  startGiven?: QuestRef[];
+
+  medal?: string;
+  /** 1 = 起始地點在楓之島，離島後接不到 */
+  island?: 1;
+  texts?: QuestText[];
 };
 
 export type Skill = {

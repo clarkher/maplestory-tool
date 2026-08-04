@@ -8,6 +8,7 @@ import { MoonIcon, SunIcon } from "./Icons";
 
 const NAV = [
   { href: "/", label: "規劃" },
+  { href: "/plan/bundle", label: "打包", match: "/plan/bundle" },
   { href: "/db/monsters", label: "怪物", match: "/db/monsters" },
   { href: "/db/items", label: "道具", match: "/db/items" },
   { href: "/db/quests", label: "任務", match: "/db/quests" },

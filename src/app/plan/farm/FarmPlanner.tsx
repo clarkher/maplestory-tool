@@ -6,37 +6,39 @@ import { useEffect, useMemo, useState } from "react";
 import { CloseIcon, SearchIcon } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
 import {
-  itemImage, loadFarming, loadItems, loadMaps, loadMonsters, mapName, monsterImage,
+  itemImage, loadFarming, loadItems, loadMaps, loadMonsters, loadQuests, mapName, monsterImage,
 } from "@/lib/data";
-import { planFarming, searchItems } from "@/lib/planner";
+import { planFarming, searchItems, suggestFarming } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
-import type { FarmingRow, Item, MapRecord, Monster } from "@/lib/types";
+import type { FarmingRow, Item, MapRecord, Monster, Quest } from "@/lib/types";
 
 export function FarmPlanner() {
   const params = useSearchParams();
-  const { profile, setProfile } = useProfile();
+  const { profile, setProfile, loaded } = useProfile();
 
   const [items, setItems] = useState<Item[] | null>(null);
   const [farming, setFarming] = useState<Record<string, FarmingRow[]> | null>(null);
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
   const [monsters, setMonsters] = useState<Monster[] | null>(null);
+  const [quests, setQuests] = useState<Quest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
   const [targets, setTargets] = useState<number[]>([]);
 
   useEffect(() => {
-    Promise.all([loadItems(), loadFarming(), loadMaps(), loadMonsters()])
-      .then(([itemData, farmData, mapData, monsterData]) => {
+    Promise.all([loadItems(), loadFarming(), loadMaps(), loadMonsters(), loadQuests()])
+      .then(([itemData, farmData, mapData, monsterData, questData]) => {
         setItems(itemData);
         setFarming(farmData);
         setMaps(mapData);
         setMonsters(monsterData);
+        setQuests(questData);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  // 從任務頁點「這個道具去哪打」進來時，先幫他勾好
+  // 從任務或道具頁點「這個去哪打」進來時，先幫他勾好
   useEffect(() => {
     const want = params.get("want");
     if (!want) return;
@@ -51,16 +53,18 @@ export function FarmPlanner() {
   );
 
   const suggestions = useMemo(() => {
-    if (!items) return [];
-    return searchItems(items, query, 12);
-  }, [items, query]);
+    if (!items || !quests || !farming || profile.level <= 0) return [];
+    return suggestFarming(profile, items, quests, farming);
+  }, [items, quests, farming, profile]);
+
+  const searchResults = useMemo(() => (items ? searchItems(items, query, 12) : []), [items, query]);
 
   const picks = useMemo(() => {
     if (!farming || targets.length === 0) return [];
     return planFarming(targets, farming);
   }, [farming, targets]);
 
-  const ready = Boolean(items && farming && maps && monsters);
+  const ready = Boolean(items && farming && maps && monsters && quests);
 
   function toggle(itemId: number) {
     setTargets(previous =>
@@ -70,10 +74,10 @@ export function FarmPlanner() {
   return (
     <PlanShell
       title="刷寶物"
-      lead="勾幾樣你想要的，排出哪一張圖一趟能收最多。"
+      lead="不用自己想要刷什麼——下面直接列你這等級該收的東西，勾起來就排地圖。"
       profile={profile}
       onProfileChange={setProfile}
-      needsProfile={false}
+      needsProfile={loaded && profile.level <= 0}
     >
       {error ? (
         <EmptyBlock title="資料載入失敗" hint={error} />
@@ -81,101 +85,35 @@ export function FarmPlanner() {
         <LoadingBlock label="載入道具資料…" />
       ) : (
         <>
-          <div className="rounded-[var(--radius-card)] glass wood-frame p-3.5 sm:p-4">
-            <label className="mb-1.5 block text-sm font-bold">你想要什麼？</label>
-            <div className="flex items-center gap-2 rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 focus-within:border-[color:var(--maple)]">
-              <SearchIcon size={17} className="shrink-0 text-[color:var(--ink-faint)]" />
-              <input
-                value={query}
-                onChange={event => setQuery(event.target.value)}
-                placeholder="輸入道具名稱，例如 楓葉、藥水、弓"
-                className="tap-safe w-full bg-transparent py-2.5 outline-none"
-                aria-label="搜尋道具"
-              />
-            </div>
-
-            {suggestions.length ? (
-              <ul className="mt-2 flex flex-wrap gap-1.5">
-                {suggestions.map(item => {
-                  const picked = targets.includes(item.id);
-                  return (
-                    <li key={item.id}>
-                      <button
-                        type="button"
-                        onClick={() => toggle(item.id)}
-                        className={[
-                          "tap-safe inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[13px] font-bold transition-colors",
-                          picked
-                            ? "bg-[color:var(--leaf)] text-white"
-                            : "bg-[color:var(--paper-deep)] hover:bg-[color:var(--maple-wash)]",
-                        ].join(" ")}
-                      >
-                        <Image
-                          src={itemImage(item.id)}
-                          alt=""
-                          width={20}
-                          height={20}
-                          className="size-5 object-contain"
-                          unoptimized
-                        />
-                        {item.n}
-                      </button>
-                    </li>
-                  );
-                })}
+          {targets.length ? (
+            <section className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
+              <p className="mb-2 text-sm font-bold">已選 {targets.length} 樣</p>
+              <ul className="flex flex-wrap gap-1.5">
+                {targets.map(itemId => (
+                  <li key={itemId}>
+                    <button
+                      type="button"
+                      onClick={() => toggle(itemId)}
+                      className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--leaf-wash)] py-1 pl-1 pr-2 text-[13px] font-bold text-[color:var(--leaf)]"
+                      aria-label={`移除 ${itemIndex.get(itemId)?.n ?? itemId}`}
+                    >
+                      <Image src={itemImage(itemId)} alt="" width={20} height={20} className="size-5 object-contain" unoptimized />
+                      {itemIndex.get(itemId)?.n ?? itemId}
+                      <CloseIcon size={13} />
+                    </button>
+                  </li>
+                ))}
               </ul>
-            ) : query.trim() ? (
-              <p className="mt-2 text-sm ink-faint">找不到打得到的道具。商店買得到的東西不會出現在這裡。</p>
-            ) : null}
+            </section>
+          ) : null}
 
-            {targets.length ? (
-              <div className="mt-3 border-t border-[color:var(--paper-edge)] pt-3">
-                <p className="mb-1.5 text-sm font-bold">目標清單（{targets.length}）</p>
-                <ul className="flex flex-wrap gap-1.5">
-                  {targets.map(itemId => {
-                    const item = itemIndex.get(itemId);
-                    return (
-                      <li key={itemId}>
-                        <button
-                          type="button"
-                          onClick={() => toggle(itemId)}
-                          className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--leaf-wash)] py-1 pl-1 pr-2 text-[13px] font-bold text-[color:var(--leaf)]"
-                          aria-label={`移除 ${item?.n ?? itemId}`}
-                        >
-                          <Image
-                            src={itemImage(itemId)}
-                            alt=""
-                            width={20}
-                            height={20}
-                            className="size-5 object-contain"
-                            unoptimized
-                          />
-                          {item?.n ?? itemId}
-                          <CloseIcon size={13} />
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
-          </div>
-
-          {targets.length === 0 ? (
-            <EmptyBlock title="先勾幾樣想要的東西" hint="可以一次勾多樣，會幫你找同時掉最多的地圖。" />
-          ) : picks.length === 0 ? (
-            <EmptyBlock
-              title="這些東西沒有已知的怪會掉"
-              hint="可能來自任務獎勵、商店或合成。"
-            />
-          ) : (
-            <>
-              <p className="rounded-xl bg-[color:var(--sky-wash)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[color:var(--ink-soft)]">
+          {picks.length ? (
+            <section className="space-y-3">
+              <div className="rounded-xl bg-[color:var(--sky-wash)] px-3.5 py-2.5 text-[13px] leading-relaxed text-[color:var(--ink-soft)]">
                 官方沒有公開掉落機率，所以這裡
                 <strong className="font-bold">不給百分比</strong>
                 。排序看的是可以查證的事實：這張圖同時掉你幾樣目標、會掉的怪有多少刷怪點。
-              </p>
-
+              </div>
               <ul className="space-y-3">
                 {picks.map(pick => (
                   <li key={pick.map} className="rounded-[var(--radius-card)] glass wood-frame p-3.5 sm:p-4">
@@ -194,18 +132,8 @@ export function FarmPlanner() {
 
                     <ul className="mt-2 flex flex-wrap gap-1.5">
                       {pick.items.map(itemId => (
-                        <li
-                          key={itemId}
-                          className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2"
-                        >
-                          <Image
-                            src={itemImage(itemId)}
-                            alt=""
-                            width={20}
-                            height={20}
-                            className="size-5 object-contain"
-                            unoptimized
-                          />
+                        <li key={itemId} className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2">
+                          <Image src={itemImage(itemId)} alt="" width={20} height={20} className="size-5 object-contain" unoptimized />
                           <span className="text-[12px] font-bold">{itemIndex.get(itemId)?.n ?? itemId}</span>
                         </li>
                       ))}
@@ -218,14 +146,7 @@ export function FarmPlanner() {
                         if (!monster) return null;
                         return (
                           <span key={monsterId} className="inline-flex items-center gap-1">
-                            <Image
-                              src={monsterImage(monsterId)}
-                              alt=""
-                              width={22}
-                              height={22}
-                              className="size-[22px] object-contain"
-                              unoptimized
-                            />
+                            <Image src={monsterImage(monsterId)} alt="" width={22} height={22} className="size-[22px] object-contain" unoptimized />
                             <span className="text-[12px] font-bold">{monster.n}</span>
                             <span className="text-[11px] tabular-nums ink-faint">Lv{monster.lv}</span>
                           </span>
@@ -242,8 +163,105 @@ export function FarmPlanner() {
                   </li>
                 ))}
               </ul>
-            </>
-          )}
+            </section>
+          ) : null}
+
+          {suggestions.length ? (
+            <section className="space-y-4">
+              {suggestions.map(group => (
+                <div key={group.key} className="space-y-2">
+                  <h2 className="px-1">
+                    <span className="text-[15px] font-black">{group.title}</span>
+                    <span className="ml-2 text-xs ink-faint">{group.lead}</span>
+                  </h2>
+                  <ul className="grid gap-1.5 sm:grid-cols-2">
+                    {group.items.map(suggestion => {
+                      const picked = targets.includes(suggestion.item.id);
+                      return (
+                        <li key={suggestion.item.id}>
+                          <button
+                            type="button"
+                            onClick={() => toggle(suggestion.item.id)}
+                            className={[
+                              "tap-safe flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors",
+                              picked
+                                ? "bg-[color:var(--leaf-wash)] ring-1 ring-[color:var(--leaf)]"
+                                : "glass wood-frame hover:bg-[color:var(--maple-wash)]",
+                            ].join(" ")}
+                          >
+                            <Image
+                              src={itemImage(suggestion.item.id)}
+                              alt=""
+                              width={30}
+                              height={30}
+                              className="size-[30px] shrink-0 object-contain"
+                              unoptimized
+                            />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[14px] font-bold">{suggestion.item.n}</span>
+                              <span className="block truncate text-[11px] ink-faint">{suggestion.reason}</span>
+                            </span>
+                            <span
+                              className="shrink-0 text-[11px] font-bold"
+                              style={{ color: picked ? "var(--leaf)" : "var(--ink-faint)" }}
+                            >
+                              {picked ? "已選" : "＋"}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
+            </section>
+          ) : profile.level > 0 && !targets.length ? (
+            <EmptyBlock
+              title={`Lv.${profile.level} 目前沒有推薦`}
+              hint="可以用下面的搜尋自己找。"
+            />
+          ) : null}
+
+          <section className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
+            <label className="mb-1.5 block text-sm font-bold">
+              自己找
+              <span className="ml-1.5 text-xs font-normal ink-faint">知道要什麼就直接搜</span>
+            </label>
+            <div className="flex items-center gap-2 rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 focus-within:border-[color:var(--maple)]">
+              <SearchIcon size={17} className="shrink-0 text-[color:var(--ink-faint)]" />
+              <input
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="輸入道具名稱，例如 楓葉、藥水、弓"
+                className="tap-safe w-full bg-transparent py-2.5 outline-none"
+                aria-label="搜尋道具"
+              />
+            </div>
+            {searchResults.length ? (
+              <ul className="mt-2 flex flex-wrap gap-1.5">
+                {searchResults.map(item => {
+                  const picked = targets.includes(item.id);
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => toggle(item.id)}
+                        className={[
+                          "tap-safe inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[13px] font-bold transition-colors",
+                          picked ? "bg-[color:var(--leaf)] text-white" : "bg-[color:var(--paper-deep)] hover:bg-[color:var(--maple-wash)]",
+                        ].join(" ")}
+                      >
+                        <Image src={itemImage(item.id)} alt="" width={20} height={20} className="size-5 object-contain" unoptimized />
+                        {item.n}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : query.trim() ? (
+              <p className="mt-2 text-sm ink-faint">找不到打得到的道具。商店買得到的東西不會出現在這裡。</p>
+            ) : null}
+          </section>
         </>
       )}
     </PlanShell>

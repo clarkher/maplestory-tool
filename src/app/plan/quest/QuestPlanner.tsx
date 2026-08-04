@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertIcon, CheckIcon, ChevronDown, PinIcon } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
+import { QuestDetailBody } from "@/components/QuestDetailBody";
 import { itemImage, loadMaps, loadQuests, mapName, npcImage } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
 import { planQuests, QUEST_BUCKET_LABEL, type QuestPlan } from "@/lib/planner";
@@ -216,59 +217,13 @@ function QuestCard({ plan, maps }: { plan: QuestPlan; maps: Record<string, MapRe
       </div>
 
       {open ? (
-        <div className="space-y-3 border-t border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]/50 p-3.5 text-sm">
-          {quest.parent ? (
-            <p><span className="ink-faint">任務鏈：</span><strong>{quest.parent}</strong></p>
-          ) : null}
+        <div className="border-t border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]/50 p-3.5">
           {blocked ? (
-            <p className="text-[color:var(--maple)]">
+            <p className="mb-3 rounded-xl bg-[color:var(--maple-wash)] px-3 py-2 text-[13px] font-bold text-[color:var(--maple)]">
               前置任務還沒完成：{plan.blockedBy.join("、")}
             </p>
           ) : null}
-          {quest.eNpc ? (
-            <p>
-              <span className="ink-faint">回報給：</span>
-              <strong>{quest.eNpc.n}</strong>
-              {quest.eNpc.map ? <>（在 {mapName(maps, quest.eNpc.map)}）</> : null}
-              {quest.eNpc.map && quest.eNpc.map !== startMap ? (
-                <Link
-                  href={`/go?to=${quest.eNpc.map}`}
-                  className="ml-2 font-bold text-[color:var(--maple)] hover:underline"
-                >
-                  帶我去回報
-                </Link>
-              ) : null}
-            </p>
-          ) : null}
-          {quest.rewardItems?.length ? (
-            <div>
-              <p className="mb-1 ink-faint">完成後拿到</p>
-              <ul className="flex flex-wrap gap-1.5">
-                {quest.rewardItems.map(item => (
-                  <li
-                    key={item.id}
-                    className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper)] py-0.5 pl-0.5 pr-2"
-                  >
-                    <Image
-                      src={itemImage(item.id)}
-                      alt=""
-                      width={20}
-                      height={20}
-                      className="size-5 object-contain"
-                      unoptimized
-                    />
-                    <span className="text-[12px] font-bold">{item.n}</span>
-                    {item.c && item.c > 1 ? (
-                      <span className="text-[11px] tabular-nums ink-faint">×{item.c}</span>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-          {quest.texts?.say ? (
-            <p className="whitespace-pre-wrap leading-relaxed ink-soft">{quest.texts.say}</p>
-          ) : null}
+          <QuestDetailBody quest={quest} maps={maps} />
         </div>
       ) : null}
     </li>

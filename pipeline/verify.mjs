@@ -69,6 +69,18 @@ function main() {
   check("怪物有刷怪點資料的比例", withSpawn / Math.max(monsters?.length ?? 1, 1) >= 0.7,
     `${withSpawn}/${monsters?.length}`);
 
+  // 任務細節曾經整批漏掉（texts 被當成物件而不是陣列），加上檢查避免再犯
+  const withTexts = (quests ?? []).filter(quest => Array.isArray(quest.texts) && quest.texts.length).length;
+  check("任務有敘述的比例", withTexts / Math.max(quests?.length ?? 1, 1) >= 0.9, `${withTexts}/${quests?.length}`);
+  const withMobs = (quests ?? []).filter(quest => quest.needMobs?.length).length;
+  check("有打怪需求的任務", withMobs >= 50, `${withMobs} 個`);
+  const beginnerOnly = (quests ?? []).filter(quest => quest.jobs?.length === 1 && quest.jobs[0] === 0).length;
+  check("初心者專屬任務有被標記", beginnerOnly >= 40, `${beginnerOnly} 個`);
+  const island = (quests ?? []).filter(quest => quest.island).length;
+  check("楓之島任務有被標記", island >= 40, `${island} 個`);
+  const priced = (items ?? []).filter(item => item.price).length;
+  check("道具有商店價格的筆數", priced >= 300, `${priced} 個`);
+
   console.log("=== 資料檢查 ===");
   for (const line of notes) console.log(line);
   if (failures.length) {

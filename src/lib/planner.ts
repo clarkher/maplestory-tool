@@ -5,9 +5,15 @@ import type { FarmingRow, Item, MapRecord, Monster, Profile, Quest, TrainingRow 
 /**
  * 一個職業的所有前身。三轉遊俠做得了獵人時期的任務，反過來不行，
  * 所以任務的職業條件要拿「自己 + 前身」去比對。
- * 代碼規則：312 → 310 → 300 → 0；皇家騎士團 1112 → 1110 → 1100 → 1000 → 0。
+ * 代碼規則：312 → 310 → 300；皇家騎士團 1112 → 1110 → 1100 → 1000。
+ *
+ * 注意這裡**不會**把 0 加進去。
+ * 資料裡 `jobs: [0]` 的 58 個任務是「初心者專屬」（弓箭手之路、戰士之路、
+ * 整批楓之島任務），不是「不限職業」——不限職業的任務根本沒有 jobs 欄位。
+ * 之前無條件補一個 0，結果 Lv.52 的盜賊也看得到楓之島的新手任務。
  */
 export function jobLineage(job: number): number[] {
+  if (job <= 0) return [0];
   const chain: number[] = [];
   let current = job;
   while (current > 0) {
@@ -17,7 +23,6 @@ export function jobLineage(job: number): number[] {
     else if (current % 1000 !== 0) current -= current % 1000;
     else current = 0;
   }
-  chain.push(0);
   return chain;
 }
 
@@ -57,6 +62,8 @@ export function planQuests(profile: Profile, quests: Quest[]): QuestPlan[] {
     if (quest.minLv !== undefined && profile.level < quest.minLv) return false;
     if (quest.maxLv !== undefined && profile.level > quest.maxLv) return false;
     if (quest.jobs?.length && !quest.jobs.some(job => lineage.has(job))) return false;
+    // 楓之島離島之後就回不去了，已轉職的角色不用再看那邊的任務
+    if (quest.island && profile.job !== 0) return false;
     return true;
   });
 
@@ -252,6 +259,255 @@ export function planFarming(
       score: bucket.items.size * 1000 + bucket.spawn,
     }))
     .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+}
+
+/* -------------------------------------------------------- 打寶：主動推薦 */
+
+export type FarmSuggestion = {
+  item: Item;
+  /** 為什麼推薦這個 */
+  reason: string;
+  /** 排序權重，同一組內用 */
+  weight: number;
+};
+
+export type FarmSuggestionGroup = {
+  key: "quest" | "gear" | "money";
+  title: string;
+  lead: string;
+  items: FarmSuggestion[];
+};
+
+/**
+ * 玩家不會知道自己該搜什麼。
+ * 與其給一個空搜尋框，不如直接回答「你這等級現在該刷什麼」，分三種動機：
+ *
+ *   任務要交的  最硬的需求，直接從你現在接得到的任務推出來
+ *   換裝備      這等級穿得上、職業用得到、而且打得到的
+ *   順路撿的錢  NPC 收購價高的掉落物
+ *
+ * 三組都只列「真的有怪會掉」的東西（farming 索引查得到），不列商店貨。
+ */
+export function suggestFarming(
+  profile: Profile,
+  items: Item[],
+  quests: Quest[],
+  farming: Record<string, FarmingRow[]>,
+): FarmSuggestionGroup[] {
+  const byId = new Map(items.map(item => [item.id, item]));
+  const farmable = (id: number) => Boolean(farming[String(id)]?.length);
+
+  // 1) 你現在接得到的任務要交什麼
+  const questNeed = new Map<number, { count: number; names: string[] }>();
+  for (const plan of planQuests(profile, quests)) {
+    if (plan.blockedBy.length) continue;
+    for (const need of plan.quest.needItems || []) {
+      if (!farmable(need.id)) continue;
+      const bucket = questNeed.get(need.id) || { count: 0, names: [] };
+      bucket.count += 1;
+      if (bucket.names.length < 3) bucket.names.push(plan.quest.n);
+      questNeed.set(need.id, bucket);
+    }
+  }
+  const questItems: FarmSuggestion[] = [...questNeed.entries()]
+    .map(([id, bucket]) => {
+      const item = byId.get(id);
+      if (!item) return null;
+      return {
+        item,
+        reason: bucket.count > 1
+          ? `${bucket.count} 個任務要：${bucket.names.join("、")}…`
+          : `${bucket.names[0]} 要交`,
+        weight: bucket.count,
+      };
+    })
+    .filter((row): row is FarmSuggestion => row !== null)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 12);
+
+  // 2) 這等級掉得到的裝備。
+  // 不依職業過濾——別的職業的裝備一樣打得到、一樣賣得掉，濾掉反而少了收入來源。
+  // 武器種類直接寫在說明裡，自己一眼判斷穿不穿得上。
+  const gearItems: FarmSuggestion[] = items
+    .filter(item => {
+      if (item.un || !item.eq || !farmable(item.id)) return false;
+      const reqLevel = Number(item.eq.reqLevel ?? 0);
+      return reqLevel <= profile.level && reqLevel >= profile.level - 20;
+    })
+    .map(item => ({
+      item,
+      reason: `Lv.${item.eq?.reqLevel ?? 0} ${item.s ?? item.c}${gearHighlight(item)}`,
+      // 需求等級越接近你的等級越值得換
+      weight: Number(item.eq?.reqLevel ?? 0) * 10 + gearScore(item),
+    }))
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 16);
+
+  // 3) 順路撿的錢：NPC 收購價高的掉落物
+  const moneyItems: FarmSuggestion[] = items
+    .filter(item => !item.un && (item.price ?? 0) >= 300 && farmable(item.id) && !item.eq)
+    .map(item => ({
+      item,
+      reason: `商店收 ${(item.price ?? 0).toLocaleString()} 楓幣`,
+      weight: item.price ?? 0,
+    }))
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 12);
+
+  const groups: FarmSuggestionGroup[] = [];
+  if (questItems.length) {
+    groups.push({
+      key: "quest",
+      title: "任務要交的",
+      lead: "從你現在接得到的任務推出來的，先刷這些最不會白費",
+      items: questItems,
+    });
+  }
+  if (gearItems.length) {
+    groups.push({
+      key: "gear",
+      title: "這等級該換的裝備",
+      lead: "這等級掉得到的，不分職業——穿不上的也賣得掉",
+      items: gearItems,
+    });
+  }
+  if (moneyItems.length) {
+    groups.push({
+      key: "money",
+      title: "順路撿的錢",
+      lead: "怪會掉、NPC 商店收購價又高的東西",
+      items: moneyItems,
+    });
+  }
+  return groups;
+}
+
+/** 裝備的主要賣點，寫在推薦理由裡讓玩家一眼看出值不值得換。 */
+function gearHighlight(item: Item): string {
+  const stats = item.eq;
+  if (!stats) return "";
+  const parts: string[] = [];
+  const pad = Number(stats.incPAD ?? 0);
+  const mad = Number(stats.incMAD ?? 0);
+  const pdd = Number(stats.incPDD ?? 0);
+  if (pad) parts.push(`物攻 +${pad}`);
+  if (mad) parts.push(`魔攻 +${mad}`);
+  if (!pad && !mad && pdd) parts.push(`物防 +${pdd}`);
+  return parts.length ? ` · ${parts.join(" ")}` : "";
+}
+
+function gearScore(item: Item): number {
+  const stats = item.eq;
+  if (!stats) return 0;
+  return Number(stats.incPAD ?? 0) * 3 + Number(stats.incMAD ?? 0) * 3 + Number(stats.incPDD ?? 0);
+}
+
+/* -------------------------------------------------------- 任務打包（同場打） */
+
+export type BundleTarget = {
+  kind: "item" | "mob";
+  id: number;
+  name: string;
+  /**
+   * 實際要收/要打的總量。
+   * 道具是相加（交出去就被收走，下一個任務要重新收）；
+   * 討伐是取最大值（擊殺數各任務同時累加，打最多的那個就全部達成）。
+   */
+  total: number;
+  /** 哪些任務要、各要幾個 */
+  from: Array<{ questId: string; questName: string; count: number }>;
+};
+
+export type QuestBundle = {
+  map: number;
+  /** 在這張圖能同時推進的任務 */
+  quests: Array<{ id: string; name: string }>;
+  targets: BundleTarget[];
+  /** 這些目標在這張圖的刷怪點總數 */
+  spawn: number;
+};
+
+/**
+ * 任務打包：同一張圖能一次推進哪幾個任務。
+ *
+ * 例如 A 任務要藍菇菇 50 個、B 任務要 40 個，就該一趟打 90 個，
+ * 而不是分兩次跑。這裡按「你實際要去的地圖」聚合，把各任務的需求量加總，
+ * 讓你出門前就知道這趟要收滿多少。
+ */
+export function planQuestBundles(
+  profile: Profile,
+  quests: Quest[],
+  farming: Record<string, FarmingRow[]>,
+  monsters: Map<number, Monster>,
+  limit = 20,
+): QuestBundle[] {
+  type Need = { kind: "item" | "mob"; id: number; name: string; count: number; questId: string; questName: string };
+
+  const needs: Need[] = [];
+  for (const plan of planQuests(profile, quests)) {
+    if (plan.blockedBy.length) continue;
+    for (const item of plan.quest.needItems || []) {
+      needs.push({ kind: "item", id: item.id, name: item.n, count: item.c ?? 1, questId: plan.quest.id, questName: plan.quest.n });
+    }
+    for (const mob of plan.quest.needMobs || []) {
+      needs.push({ kind: "mob", id: mob.id, name: mob.n, count: mob.c ?? 1, questId: plan.quest.id, questName: plan.quest.n });
+    }
+  }
+  if (!needs.length) return [];
+
+  // 每個需求對應到哪些地圖
+  const perMap = new Map<number, {
+    spawn: number;
+    quests: Map<string, string>;
+    targets: Map<string, BundleTarget>;
+  }>();
+
+  const touch = (mapId: number, spawn: number, need: Need) => {
+    let bucket = perMap.get(mapId);
+    if (!bucket) {
+      bucket = { spawn: 0, quests: new Map(), targets: new Map() };
+      perMap.set(mapId, bucket);
+    }
+    bucket.spawn += spawn;
+    bucket.quests.set(need.questId, need.questName);
+
+    const key = `${need.kind}:${need.id}`;
+    let target = bucket.targets.get(key);
+    if (!target) {
+      target = { kind: need.kind, id: need.id, name: need.name, total: 0, from: [] };
+      bucket.targets.set(key, target);
+    }
+    // 同一個任務同一個目標只算一次，不要因為對應到多隻怪就重複加總
+    if (!target.from.some(entry => entry.questId === need.questId)) {
+      target.from.push({ questId: need.questId, questName: need.questName, count: need.count });
+      // 討伐數是各任務同時累加的：A 要 99、B 要 999，打滿 999 兩個一起完成，不是 1098。
+      // 收集品則相反，交出去就被收走，所以要相加。
+      target.total = need.kind === "mob"
+        ? Math.max(target.total, need.count)
+        : target.total + need.count;
+    }
+  };
+
+  for (const need of needs) {
+    if (need.kind === "item") {
+      for (const [mapId, spawn] of farming[String(need.id)] || []) touch(mapId, spawn, need);
+    } else {
+      const monster = monsters.get(need.id);
+      for (const [mapId, count] of monster?.sp || []) touch(mapId, count, need);
+    }
+  }
+
+  return [...perMap.entries()]
+    .map(([map, bucket]) => ({
+      map,
+      quests: [...bucket.quests.entries()].map(([id, name]) => ({ id, name })),
+      targets: [...bucket.targets.values()].sort((a, b) => b.total - a.total),
+      spawn: bucket.spawn,
+    }))
+    // 一趟能推進的任務數是重點，其次才是怪密不密
+    .sort((a, b) => b.quests.length - a.quests.length || b.spawn - a.spawn)
+    .filter(bundle => bundle.quests.length > 0)
     .slice(0, limit);
 }
 

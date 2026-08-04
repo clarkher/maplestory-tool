@@ -373,6 +373,8 @@ function buildItems(artale) {
       qq: pluckStrings(sources.questRequirements, "questId"),
       sh: sources.shops?.length || undefined,
       cf: pluckIds(sources.crafts, "recipeId"),
+      // 商店最高售價，拿來估「撿了值不值得」。這是 NPC 店家的標價，不是玩家間的行情。
+      price: shopPrice(sources.shops),
     };
     for (const field of Object.keys(record)) {
       const value = record[field];
@@ -381,6 +383,13 @@ function buildItems(artale) {
     return record;
   });
   return { list, byId: new Map(list.map(item => [item.id, item])) };
+}
+
+/** NPC 商店的最高標價。同一個道具在不同店家可能不同價，取最高的當參考。 */
+function shopPrice(shops) {
+  if (!Array.isArray(shops) || !shops.length) return undefined;
+  const prices = shops.map(shop => Number(shop?.price) || 0).filter(price => price > 0);
+  return prices.length ? Math.max(...prices) : undefined;
 }
 
 function pluckIds(rows, key = "id") {
@@ -428,16 +437,91 @@ function buildQuests(artale, maps) {
       next: quest.nextQuest ? String(quest.nextQuest) : undefined,
       sNpc: npcRef(quest.startNpc, maps),
       eNpc: npcRef(quest.endNpc, maps),
+
+      // 完成條件
       needItems: rowRefs(complete.items),
       needMobs: rowRefs(complete.monsters),
-      exp: rewards.exp ?? startRewards.exp ?? undefined,
-      money: rewards.money ?? startRewards.money ?? undefined,
-      pop: rewards.pop ?? startRewards.pop ?? undefined,
+
+      // 接取條件：有些任務要先帶著道具、或先練到某個技能才接得到
+      startItems: rowRefs(start.items),
+      startSkills: skillRefs(start.skills),
+
+      // 獎勵。接受時就給的跟完成才給的分開，不要混成一筆
+      exp: rewards.exp ?? undefined,
+      money: rewards.money ?? undefined,
+      pop: rewards.pop ?? undefined,
       rewardItems: rowRefs(rewards.items),
-      texts: quest.texts || undefined,
+      rewardSkills: skillRefs(rewards.skills),
+      startExp: startRewards.exp ?? undefined,
+      startGiven: rowRefs(startRewards.items),
+
+      medal: quest.medalCategory || undefined,
+
+      // 起始地圖在楓之島（地圖編號小於一億就是楓之島）。
+      // 離島之後回不去，所以這些任務對已轉職的角色沒有意義。
+      island: onMapleIsland(quest.startNpc) ? 1 : undefined,
+
+      // 任務敘述是「可接／進行中／完成後」三段的陣列，先前被當成物件而整段沒顯示出來
+      texts: questTexts(quest.texts, maps),
+
+      // 這個任務牽涉到的其他 NPC，不只起訖兩個
+      npcs: relatedNpcs(quest, maps),
     });
   });
   return { list };
+}
+
+/**
+ * 任務敘述。
+ * 上游把 NPC 位置直接寫進內文，碰到沒有中文名的地圖就變成「未命名地圖 211000001」，
+ * 玩家看了也不知道在哪。這裡換成 v83 的原名與所屬區域。
+ */
+function questTexts(texts, maps) {
+  if (!Array.isArray(texts) || !texts.length) return undefined;
+  const rows = texts
+    .filter(entry => entry?.text)
+    .map(entry => ({
+      k: String(entry.key ?? ""),
+      label: entry.label || "",
+      text: replaceUnnamedMaps(String(entry.text), maps),
+    }));
+  return rows.length ? rows : undefined;
+}
+
+function replaceUnnamedMaps(text, maps) {
+  return text.replace(/未命名地圖\s*(\d+)/g, (whole, id) => {
+    const record = maps.records[id];
+    const name = record?.zh || record?.en;
+    if (!name) return whole;
+    return record.st ? `${name}（${record.st}）` : name;
+  });
+}
+
+/**
+ * 楓之谷的地圖編號規則：region = 編號 ÷ 一億。楓之島是第 0 區，
+ * 所以編號小於一億（楓之路 40000、楓葉村 1010004、楓之港口 2000000）都算楓之島。
+ */
+function onMapleIsland(npc) {
+  const mapId = Number(npc?.maps?.[0]?.id);
+  return Number.isFinite(mapId) && mapId < 100000000;
+}
+
+function skillRefs(rows) {
+  if (!Array.isArray(rows) || !rows.length) return undefined;
+  const ids = rows.map(row => Number(row?.id ?? row)).filter(Number.isFinite);
+  return ids.length ? ids : undefined;
+}
+
+function relatedNpcs(quest, maps) {
+  const startId = Number(quest.startNpc?.id);
+  const endId = Number(quest.endNpc?.id);
+  const seen = new Map();
+  for (const npc of quest.refs?.npcs || []) {
+    const id = Number(npc?.id);
+    if (!Number.isFinite(id) || id === startId || id === endId || seen.has(id)) continue;
+    seen.set(id, npcRef(npc, maps));
+  }
+  return seen.size ? [...seen.values()] : undefined;
 }
 
 function npcRef(npc, maps) {

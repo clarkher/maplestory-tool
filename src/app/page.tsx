@@ -31,8 +31,8 @@ const MODES = [
   {
     href: "/plan/farm",
     label: "刷寶物",
-    lead: "想要的東西去哪打最快",
-    detail: "一次勾好幾樣，排出一趟能收最多的地圖",
+    lead: "這等級該收什麼，直接列給你",
+    detail: "任務要交的、該換的裝備、值錢的掉落物，勾了就排地圖",
     Icon: ChestIcon,
     tone: "var(--leaf)",
     wash: "var(--leaf-wash)",
@@ -103,6 +103,19 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-3 sm:grid-cols-2">
+        <Link
+          href="/plan/bundle"
+          className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-4 transition-transform hover:-translate-y-0.5"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color:var(--gold-wash)] text-[color:var(--gold)]">
+            <ScrollIcon size={20} />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-bold">任務打包</span>
+            <span className="block text-sm ink-soft">要跑同一張圖的任務併成一趟，數量直接加總</span>
+          </span>
+        </Link>
+
         <Link
           href="/go"
           className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-4 transition-transform hover:-translate-y-0.5"

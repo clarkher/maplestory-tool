@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
 import { GoButton } from "@/components/PlanShell";
-import { itemImage, loadMaps, loadQuests, mapName, npcImage } from "@/lib/data";
+import { QuestDetailBody } from "@/components/QuestDetailBody";
+import { loadMaps, loadQuests, mapName, npcImage } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
 import type { MapRecord, Quest } from "@/lib/types";
 
@@ -24,6 +25,7 @@ export function QuestDb() {
   }, []);
 
   const questIndex = useMemo(() => new Map((quests ?? []).map(quest => [quest.id, quest])), [quests]);
+  const questNames = useMemo(() => new Map((quests ?? []).map(quest => [quest.id, quest.n])), [quests]);
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -68,7 +70,7 @@ export function QuestDb() {
       renderDetail={id => {
         const quest = questIndex.get(id);
         if (!quest || !maps) return null;
-        return <QuestDetail quest={quest} maps={maps} questIndex={questIndex} />;
+        return <QuestDetail quest={quest} maps={maps} questNames={questNames} />;
       }}
     />
   );
@@ -77,11 +79,11 @@ export function QuestDb() {
 function QuestDetail({
   quest,
   maps,
-  questIndex,
+  questNames,
 }: {
   quest: Quest;
   maps: Record<string, MapRecord>;
-  questIndex: Map<string, Quest>;
+  questNames: Map<string, string>;
 }) {
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
 
@@ -103,86 +105,7 @@ function QuestDetail({
         {quest.eNpc ? <NpcBlock title="回報" npc={quest.eNpc} maps={maps} /> : null}
       </div>
 
-      {quest.needItems?.length ? (
-        <Section title="要交的東西">
-          <ul className="flex flex-wrap gap-1.5">
-            {quest.needItems.map(item => (
-              <li key={item.id}>
-                <Link
-                  href={`/plan/farm?want=${item.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 hover:bg-[color:var(--maple-wash)]"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={itemImage(item.id)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />
-                  <span className="text-[13px] font-bold">{item.n}</span>
-                  {item.c ? <span className="text-[11px] tabular-nums ink-faint">×{item.c}</span> : null}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {quest.needMobs?.length ? (
-        <Section title="要打的怪">
-          <ul className="flex flex-wrap gap-1.5">
-            {quest.needMobs.map(mob => (
-              <li key={mob.id}>
-                <Link
-                  href={`/db/monsters?id=${mob.id}`}
-                  className="rounded-full bg-[color:var(--paper-deep)] px-3 py-1 text-[13px] font-bold hover:bg-[color:var(--maple-wash)]"
-                >
-                  {mob.n}{mob.c ? ` ×${mob.c}` : ""}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {quest.rewardItems?.length ? (
-        <Section title="完成後拿到">
-          <ul className="flex flex-wrap gap-1.5">
-            {quest.rewardItems.map(item => (
-              <li key={item.id}>
-                <Link
-                  href={`/db/items?id=${item.id}`}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 hover:bg-[color:var(--maple-wash)]"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={itemImage(item.id)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />
-                  <span className="text-[13px] font-bold">{item.n}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {quest.pre?.length ? (
-        <Section title="前置任務">
-          <ul className="space-y-1">
-            {quest.pre.map(preId => (
-              <li key={preId}>
-                <Link
-                  href={`/db/quests?id=${preId}`}
-                  className="block rounded-lg bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold hover:text-[color:var(--maple)]"
-                >
-                  {questIndex.get(preId)?.n ?? `任務 ${preId}`}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
-      {quest.texts?.say ? (
-        <Section title="任務內容">
-          <p className="whitespace-pre-wrap rounded-xl bg-[color:var(--paper-deep)] p-3 text-sm leading-relaxed ink-soft">
-            {quest.texts.say}
-          </p>
-        </Section>
-      ) : null}
+      <QuestDetailBody quest={quest} maps={maps} questNames={questNames} />
     </DetailCard>
   );
 }

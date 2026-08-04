@@ -123,7 +123,21 @@ function sliceBlock(xml, blockName) {
 
 function readValue(chunk, name) {
   const match = chunk.match(new RegExp(`<\\w+ name="${name}" value="([^"]*)"`));
-  return match ? match[1] : undefined;
+  return match ? decodeXml(match[1]) : undefined;
+}
+
+/**
+ * XML 匯出會把符號跳脫，不解回來就會在畫面上看到
+ * 「Chief&apos;s Residence」這種東西。
+ */
+function decodeXml(value) {
+  return value
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#(\d+);/g, (_whole, code) => String.fromCharCode(Number(code)))
+    .replace(/&amp;/g, "&");
 }
 
 function splitEntries(block) {
