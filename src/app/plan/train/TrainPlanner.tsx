@@ -68,21 +68,32 @@ export function TrainPlanner() {
             ——那要知道你的清怪速度，我們不知道，硬算出來會是假數字。
           </p>
 
-          <ul className="space-y-3">
-            {picks.map(pick => (
-              <TrainCard
-                key={pick.row.m}
-                row={pick.row}
-                score={index.get(pick.row.m) ?? 0}
-                needAcc={pick.needAcc}
-                warn={pick.warn}
-                topGap={pick.topGap}
-                maps={maps!}
-                monsterIndex={monsterIndex}
-                playerLevel={profile.level}
-              />
-            ))}
-          </ul>
+          {([
+            { key: "safe", title: "這等級穩穩打", hint: "怪不會高過你 5 級", rows: picks.filter(p => p.topGap <= 5) },
+            { key: "risky", title: "拚一點，經驗更高", hint: "有比你高的怪，確認打得動再去", rows: picks.filter(p => p.topGap > 5) },
+          ] as const).map(group => group.rows.length ? (
+            <section key={group.key} className="space-y-2.5">
+              <h2 className="flex flex-wrap items-baseline gap-x-2 px-1">
+                <span className="text-[15px] font-black">{group.title}</span>
+                <span className="text-xs ink-faint">{group.hint} · {group.rows.length} 張</span>
+              </h2>
+              <ul className="space-y-3">
+                {group.rows.map(pick => (
+                  <TrainCard
+                    key={pick.row.m}
+                    row={pick.row}
+                    score={index.get(pick.row.m) ?? 0}
+                    needAcc={pick.needAcc}
+                    warn={pick.warn}
+                    topGap={pick.topGap}
+                    maps={maps!}
+                    monsterIndex={monsterIndex}
+                    playerLevel={profile.level}
+                  />
+                ))}
+              </ul>
+            </section>
+          ) : null)}
 
           {meta ? (
             <p className="px-1 text-xs leading-relaxed ink-faint">
@@ -135,7 +146,7 @@ function TrainCard({
           ) : null}
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            {row.mobs.slice(0, 4).map(([mobId, count]) => {
+            {row.mobs.filter(([id]) => !monsterIndex.get(id)?.un).slice(0, 4).map(([mobId, count]) => {
               const monster = monsterIndex.get(mobId);
               if (!monster) return null;
               return (

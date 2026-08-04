@@ -53,9 +53,9 @@ export function FarmPlanner() {
   );
 
   const suggestions = useMemo(() => {
-    if (!items || !quests || !farming || profile.level <= 0) return [];
-    return suggestFarming(profile, items, quests, farming);
-  }, [items, quests, farming, profile]);
+    if (!items || !quests || !farming || !monsters || profile.level <= 0) return [];
+    return suggestFarming(profile, items, quests, farming, monsters);
+  }, [items, quests, farming, monsters, profile]);
 
   const searchResults = useMemo(() => (items ? searchItems(items, query, 12) : []), [items, query]);
 

@@ -140,13 +140,18 @@ export function requiredAccuracy(playerLevel: number, monster: Pick<Monster, "lv
 
 /**
  * 等級適配度。
- * 怪比你低太多沒經驗、比你高太多打不動，中間那段才是練功帶。
+ *
+ * 原本上緣開到 +10 太寬鬆，結果 Lv.27 會被推去打 Lv.35 的小幽靈，
+ * 命中需求 47、還得打得動——那不是練功，那是送死。
+ * 經典版實際的練功帶是「跟你同級到高你 5 級」，高過去命中與傷害掉得很快。
  */
 export function levelFit(playerLevel: number, mapLevel: number): number {
   const diff = mapLevel - playerLevel;
-  if (diff >= -3 && diff <= 10) return 1;
-  if (diff > 10) return Math.max(0, 1 - (diff - 10) / 12);
-  return Math.max(0.05, 1 - (Math.abs(diff) - 3) / 18);
+  if (diff >= 0 && diff <= 5) return 1;            // 甜蜜區：同級到高 5 級
+  if (diff > 5 && diff <= 10) return 1 - (diff - 5) / 8;  // 高 10 級只剩 0.38
+  if (diff > 10) return Math.max(0, 0.38 - (diff - 10) / 10);
+  if (diff >= -5) return 0.9;                      // 略低於你，經驗差一點但打得順
+  return Math.max(0.05, 0.9 - (Math.abs(diff) - 5) / 15);
 }
 
 /**
@@ -154,12 +159,25 @@ export function levelFit(playerLevel: number, mapLevel: number): number {
  *
  * 實際踩到的例子：Lv.52 的角色被推薦「試煉之洞Ⅲ」，因為那張圖同時有 Lv43 小獵犬
  * 跟 Lv51 火精靈把平均拉到 52 上下——但圖裡還站著 Lv90 的煉獄獵犬。
- * 所以另外用「最高等怪跟你差多少」再壓一次分數，超過 8 級就開始扣。
+ * 所以另外用「最高等怪跟你差多少」再壓一次分數。
+ * 門檻從 8 級收到 5 級、衰減也加快，否則同樣會推出打不動的圖。
  */
 export function dangerPenalty(playerLevel: number, topMobLevel: number): number {
   const gap = topMobLevel - playerLevel;
-  if (gap <= 8) return 1;
-  return Math.max(0.08, 1 - (gap - 8) / 25);
+  if (gap <= 5) return 1;
+  return Math.max(0.05, 1 - (gap - 5) / 8);
+}
+
+/**
+ * 命中需求要看「你實際會打的那些怪」。
+ *
+ * 地圖裡常常插著一隻 ×1 的強怪（例如地鐵的冥界幽靈），拿它算命中會跳出 2119
+ * 這種嚇死人又沒意義的數字。所以只看撐起這張圖的主力怪——刷怪點佔比夠的那些。
+ */
+function mainMobs(row: TrainingRow): Array<[number, number, number]> {
+  const threshold = Math.max(2, row.sp * 0.08);
+  const main = row.mobs.filter(([, count]) => count >= threshold);
+  return main.length ? main : row.mobs;
 }
 
 export function planTraining(
@@ -173,10 +191,11 @@ export function planTraining(
     const fit = levelFit(profile.level, row.lv);
     if (fit <= 0.05) continue;
     const danger = dangerPenalty(profile.level, row.lvMax);
-    if (danger <= 0.1) continue;
+    // 最高等怪高你 15 級以上就別列了，列出來也只是害人白跑一趟
+    if (danger <= 0.2) continue;
 
     let needAcc = 0;
-    for (const [mobId] of row.mobs) {
+    for (const [mobId] of mainMobs(row)) {
       const monster = monsters.get(mobId);
       if (monster) needAcc = Math.max(needAcc, requiredAccuracy(profile.level, monster));
     }
@@ -190,7 +209,7 @@ export function planTraining(
       needAcc,
       score: row.eff * fit * danger,
       topGap,
-      warn: topGap > 8 ? "too-strong" : row.lv - profile.level < -10 ? "too-weak" : undefined,
+      warn: topGap > 5 ? "too-strong" : row.lv - profile.level < -8 ? "too-weak" : undefined,
     });
   }
   picks.sort((a, b) => b.score - a.score);
@@ -294,6 +313,7 @@ export function suggestFarming(
   items: Item[],
   quests: Quest[],
   farming: Record<string, FarmingRow[]>,
+  monsters: Monster[],
 ): FarmSuggestionGroup[] {
   const byId = new Map(items.map(item => [item.id, item]));
   const farmable = (id: number) => Boolean(farming[String(id)]?.length);
@@ -344,16 +364,56 @@ export function suggestFarming(
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 16);
 
-  // 3) 順路撿的錢：NPC 收購價高的掉落物
-  const moneyItems: FarmSuggestion[] = items
-    .filter(item => !item.un && (item.price ?? 0) >= 300 && farmable(item.id) && !item.eq)
+  // 3) 市場上有人要的。
+  // 本站沒有玩家之間的行情資料，所以不假裝算得出市價，改用三個查得到的訊號：
+  // 類型（卷軸與技能書永遠有人收）、稀有度（會掉的怪越少越難拿）、
+  // 以及「掉它的怪你現在打不打得動」——打不到的東西列出來沒意義。
+  const killable = new Set(
+    monsters.filter(monster => (monster.lv ?? 0) <= profile.level + 5).map(monster => monster.id),
+  );
+  const canFarmNow = (item: Item) => (item.dm || []).some(id => killable.has(id));
+
+  const rarityOf = (item: Item) => {
+    const droppers = item.dm?.length ?? 99;
+    return droppers <= 1 ? 3 : droppers <= 3 ? 2 : 1;
+  };
+
+  // 卷軸與技能書：不管幾等都有人收，是最穩的收入
+  const scrolls: FarmSuggestion[] = items
+    .filter(item => !item.un && farmable(item.id) && canFarmNow(item)
+      && (item.s === "卷軸" || item.s === "技能書"))
     .map(item => ({
       item,
-      reason: `商店收 ${(item.price ?? 0).toLocaleString()} 楓幣`,
-      weight: item.price ?? 0,
+      reason: `${item.s} · ${item.dm?.length ?? 0} 隻怪會掉`,
+      weight: rarityOf(item) * 100 + (item.price ?? 0) / 1000,
     }))
     .sort((a, b) => b.weight - a.weight)
-    .slice(0, 12);
+    .slice(0, 8);
+
+  // 稀有武器：會掉的怪很少又有攻擊力，海神叉那類才是有人搶的。
+  // 需求等級要落在你附近的等級帶，否則只會排出一堆 Lv.10 的木劍——
+  // 攻擊除以等級的比值最高，但沒人要買。
+  const rareGear: FarmSuggestion[] = items
+    .filter(item => {
+      if (item.un || !item.eq || !farmable(item.id) || !canFarmNow(item)) return false;
+      const attack = Number(item.eq.incPAD ?? 0) + Number(item.eq.incMAD ?? 0);
+      if (attack <= 0 || (item.dm?.length ?? 99) > 5) return false;
+      const reqLevel = Number(item.eq.reqLevel ?? 0);
+      return reqLevel >= profile.level - 20 && reqLevel <= profile.level + 20;
+    })
+    .map(item => {
+      const attack = Number(item.eq?.incPAD ?? 0) + Number(item.eq?.incMAD ?? 0);
+      return {
+        item,
+        reason: `Lv.${item.eq?.reqLevel ?? 0} ${item.s ?? ""} · 攻擊 +${attack} · 只有 ${item.dm?.length ?? 0} 隻怪會掉`,
+        weight: attack + rarityOf(item) * 10,
+      };
+    })
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 8);
+
+  // 兩類各留一半，不要讓其中一邊把版面吃光
+  const marketItems = [...scrolls, ...rareGear];
 
   const groups: FarmSuggestionGroup[] = [];
   if (questItems.length) {
@@ -372,12 +432,12 @@ export function suggestFarming(
       items: gearItems,
     });
   }
-  if (moneyItems.length) {
+  if (marketItems.length) {
     groups.push({
       key: "money",
-      title: "順路撿的錢",
-      lead: "怪會掉、NPC 商店收購價又高的東西",
-      items: moneyItems,
+      title: "市場上有人要的",
+      lead: "卷軸、技能書與稀有武器，而且是你現在打得到的",
+      items: marketItems,
     });
   }
   return groups;
