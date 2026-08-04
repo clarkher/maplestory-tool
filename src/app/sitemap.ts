@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const SITE_URL = "https://maplestory-tool.vercel.app";
+const SITE_URL = "https://maplestory-tool-three.vercel.app";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();

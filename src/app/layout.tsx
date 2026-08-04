@@ -11,7 +11,7 @@ const notoTC = Noto_Sans_TC({
   display: "swap",
 });
 
-const SITE_URL = "https://maplestory-tool.vercel.app";
+const SITE_URL = "https://maplestory-tool-three.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
