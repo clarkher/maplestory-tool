@@ -1,0 +1,35 @@
+{
+  "targets": 163,
+  "exported": 156,
+  "missing": 7,
+  "skipped": [
+    {
+      "id": 2004,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 2005,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 900040,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 1012110,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 1032105,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9010017,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 20200010,
+      "reason": "missing sprite"
+    }
+  ]
+}

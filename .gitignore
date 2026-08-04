@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+.env*
+!.env.example
+.vercel
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts
+
+# 抓取／解壓的中間產物，可重建，不進版控
+data/cache/
+
+# 上游同步下來的原始檔，每次 CI 都會重抓，沒必要留在歷史裡（27MB）
+data/raw/artale.json

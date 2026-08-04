@@ -1,0 +1,203 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
+import { itemImage, loadItems, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
+import { equipStatLabel } from "@/lib/format";
+import type { Item, Monster, Quest } from "@/lib/types";
+
+export function ItemDb() {
+  const [items, setItems] = useState<Item[] | null>(null);
+  const [monsters, setMonsters] = useState<Monster[] | null>(null);
+  const [quests, setQuests] = useState<Quest[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState("");
+  const [onlyDroppable, setOnlyDroppable] = useState(false);
+
+  useEffect(() => {
+    Promise.all([loadItems(), loadMonsters(), loadQuests()])
+      .then(([itemData, monsterData, questData]) => {
+        setItems(itemData);
+        setMonsters(monsterData);
+        setQuests(questData);
+      })
+      .catch(loadError => setError(String(loadError.message ?? loadError)));
+  }, []);
+
+  const itemIndex = useMemo(() => new Map((items ?? []).map(item => [String(item.id), item])), [items]);
+  const monsterIndex = useMemo(
+    () => new Map((monsters ?? []).map(monster => [monster.id, monster])),
+    [monsters],
+  );
+  const questIndex = useMemo(() => new Map((quests ?? []).map(quest => [quest.id, quest])), [quests]);
+
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of items ?? []) if (item.c) set.add(item.c);
+    return [...set].sort();
+  }, [items]);
+
+  const entries = useMemo<DbEntry[]>(() => {
+    if (!items) return [];
+    return items
+      .filter(item => !item.un)
+      .filter(item => !category || item.c === category)
+      .filter(item => !onlyDroppable || item.dm?.length)
+      .map(item => ({
+        id: String(item.id),
+        name: item.n,
+        note: item.s || item.c,
+        image: itemImage(item.id),
+        keywords: item.d,
+      }));
+  }, [items, category, onlyDroppable]);
+
+  return (
+    <DbBrowser
+      title="道具"
+      lead="裝備數值、道具說明，以及最重要的：這東西誰會掉、哪個任務給。"
+      entries={entries}
+      loading={!items || !monsters || !quests}
+      error={error}
+      filters={
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={category}
+            onChange={event => setCategory(event.target.value)}
+            className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+            aria-label="道具分類"
+          >
+            <option value="">全部分類</option>
+            {categories.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          <label className="flex items-center gap-2 text-[13px] ink-soft">
+            <input
+              type="checkbox"
+              checked={onlyDroppable}
+              onChange={event => setOnlyDroppable(event.target.checked)}
+              className="size-4 accent-[color:var(--maple)]"
+            />
+            只看打得到的
+          </label>
+        </div>
+      }
+      renderDetail={id => {
+        const item = itemIndex.get(id);
+        if (!item) return null;
+        return <ItemDetail item={item} monsterIndex={monsterIndex} questIndex={questIndex} />;
+      }}
+    />
+  );
+}
+
+function ItemDetail({
+  item,
+  monsterIndex,
+  questIndex,
+}: {
+  item: Item;
+  monsterIndex: Map<number, Monster>;
+  questIndex: Map<string, Quest>;
+}) {
+  const equipRows = item.eq
+    ? Object.entries(item.eq).map(([key, value]) => [equipStatLabel(key), String(value)] as [string, string])
+    : [];
+
+  return (
+    <DetailCard>
+      <header className="flex items-start gap-3">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={itemImage(item.id)} alt="" width={48} height={48} className="size-12 object-contain" />
+        <div className="min-w-0">
+          <h2 className="text-2xl font-black leading-tight">{item.n}</h2>
+          <p className="mt-0.5 text-sm ink-soft">
+            {item.c}
+            {item.s ? ` · ${item.s}` : ""}
+            <span className="ml-2 text-xs ink-faint">#{item.id}</span>
+          </p>
+        </div>
+      </header>
+
+      {item.d ? <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{item.d}</p> : null}
+
+      {equipRows.length ? (
+        <Section title="裝備數值">
+          <StatGrid rows={equipRows} />
+        </Section>
+      ) : null}
+
+      {item.dm?.length ? (
+        <Section title="哪些怪會掉" extra="官方未公開機率">
+          <ul className="flex flex-wrap gap-1.5">
+            {item.dm.map(monsterId => {
+              const monster = monsterIndex.get(monsterId);
+              return (
+                <li key={monsterId}>
+                  <Link
+                    href={`/db/monsters?id=${monsterId}`}
+                    className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={monsterImage(monsterId)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />
+                    <span className="text-[13px] font-bold">{monster?.n ?? `#${monsterId}`}</span>
+                    {monster?.lv ? <span className="text-[11px] tabular-nums ink-faint">Lv{monster.lv}</span> : null}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          <Link
+            href={`/plan/farm?want=${item.id}`}
+            className="tap-safe mt-1 inline-flex rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-white"
+          >
+            排出哪張圖收最快
+          </Link>
+        </Section>
+      ) : null}
+
+      {item.qr?.length ? (
+        <Section title="哪些任務會給">
+          <ul className="space-y-1">
+            {item.qr.map(questId => (
+              <li key={questId}>
+                <Link
+                  href={`/db/quests?id=${questId}`}
+                  className="block rounded-lg bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold hover:text-[color:var(--maple)]"
+                >
+                  {questIndex.get(questId)?.n ?? `任務 ${questId}`}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {item.qq?.length ? (
+        <Section title="哪些任務要用到">
+          <ul className="space-y-1">
+            {item.qq.map(questId => (
+              <li key={questId}>
+                <Link
+                  href={`/db/quests?id=${questId}`}
+                  className="block rounded-lg bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold hover:text-[color:var(--maple)]"
+                >
+                  {questIndex.get(questId)?.n ?? `任務 ${questId}`}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Section>
+      ) : null}
+
+      {!item.dm?.length && !item.qr?.length && !item.qq?.length ? (
+        <p className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2.5 text-sm ink-soft">
+          客戶端資料裡沒有記錄這個道具的來源。
+          {item.sh ? `商店有販售（${item.sh} 個販賣點）。` : ""}
+        </p>
+      ) : null}
+    </DetailCard>
+  );
+}

@@ -1,0 +1,97 @@
+name: 資料自動更新
+
+# 雙軌更新：
+#  1. 本機抽檔（data/raw/artale.local.json）—— 有的話一律優先，那是從遊戲客戶端直接抽的
+#  2. 上游資料庫 —— 沒有本機抽檔時才用，每天排程比對版本，有變才重建
+#
+# v83 地圖資料（傳送門、刷怪點、回生秒數）是凍結版本，已進版控，不會在這裡重抓。
+
+on:
+  schedule:
+    # 台灣時間每天早上 8:20 與晚上 8:20 各檢查一次
+    - cron: "20 0,12 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "即使版本沒變也強制重建"
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      # 有人上傳新的本機抽檔就立刻重建
+      - "data/raw/artale.local.json"
+      - "pipeline/**"
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 記下更新前的版本
+        id: before
+        run: |
+          if [ -f public/data/meta.json ]; then
+            echo "stamp=$(node -p "require('./public/data/meta.json').dataGeneratedAt ?? ''")" >> "$GITHUB_OUTPUT"
+          else
+            echo "stamp=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: 取得 Artale 資料
+        run: node pipeline/fetch-artale.mjs
+
+      - name: 比對版本
+        id: check
+        run: |
+          AFTER=$(node -p "require('./data/raw/artale.json').metadata?.generatedAt ?? ''")
+          echo "stamp=$AFTER" >> "$GITHUB_OUTPUT"
+          if [ "$AFTER" = "${{ steps.before.outputs.stamp }}" ] && [ "${{ inputs.force }}" != "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "上游版本沒變（$AFTER），跳過重建"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "版本從 ${{ steps.before.outputs.stamp }} 變成 $AFTER，重建"
+          fi
+
+      - name: 安裝相依套件
+        if: steps.check.outputs.changed == 'true'
+        run: npm ci
+
+      - name: 重建資料檔
+        if: steps.check.outputs.changed == 'true'
+        run: node pipeline/build.mjs
+
+      - name: 確認產出沒有壞掉
+        if: steps.check.outputs.changed == 'true'
+        run: node pipeline/verify.mjs
+
+      - name: 建置一次確保網站編得過
+        if: steps.check.outputs.changed == 'true'
+        run: npm run build
+
+      - name: 提交更新
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          git config user.name "maplestory-tool bot"
+          git config user.email "actions@github.com"
+          git add public/data public/assets
+          if git diff --cached --quiet; then
+            echo "檔案內容其實沒變，不用提交"
+            exit 0
+          fi
+          VERSION=$(node -p "require('./public/data/meta.json').gameVersion ?? '?'")
+          git commit -m "data: 同步遊戲版本 ${VERSION}（${{ steps.check.outputs.stamp }}）"
+          git push

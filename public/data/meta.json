@@ -1,0 +1,41 @@
+{
+  "gameVersion": "1.13.1",
+  "dataGeneratedAt": "2026-08-04T14:45:00+08:00",
+  "dataGeneratedAtText": "2026-08-04 14:45:00 GMT+8",
+  "ingest": {
+    "origin": "upstream",
+    "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
+    "fetchedAt": "2026-08-04T06:56:55.986Z"
+  },
+  "mapSource": {
+    "source": "MapleStory v83 Map.wz XML export",
+    "url": "https://ia600107.us.archive.org/1/items/rulaxingcommunityrepackv1/xml.zip",
+    "extractedAt": "2026-08-04T07:15:46.949Z"
+  },
+  "assumptions": {
+    "defaultRespawnSeconds": 7,
+    "expNote": "本站不提供每小時經驗值——那需要知道你的清怪速度。提供的是可查證的事實：一輪清完的總經驗、刷怪點數、回生秒數，以及據此換算的相對效率指數。",
+    "dropNote": "官方未公開掉落機率，本站不提供百分比。打寶排序依據是同一張圖能同時收到幾個目標與刷怪密度。",
+    "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
+  },
+  "counts": {
+    "monsters": 343,
+    "items": 13574,
+    "quests": 499,
+    "skills": 730,
+    "maps": 5842,
+    "mapsWithChineseName": 247,
+    "portalEdges": 4041,
+    "towns": 343,
+    "regions": 40,
+    "walkableAreas": 4005,
+    "trainingMaps": 626,
+    "farmableItems": 2273
+  },
+  "coverage": {
+    "monstersWithSpawnData": 299,
+    "monstersWithoutSpawnData": 44,
+    "largestWalkableArea": 294
+  },
+  "builtAt": "2026-08-04T07:20:37.565Z"
+}

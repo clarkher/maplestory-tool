@@ -1,0 +1,313 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } from "@/components/Icons";
+import { MapPicker } from "@/components/MapPicker";
+import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
+import { loadGraph, loadMaps, loadNearestTown, loadRegions, mapName, minimapImage } from "@/lib/data";
+import { portalHint } from "@/lib/format";
+import { findRoute, suggestStart, type RouteStep } from "@/lib/route";
+import type { MapRecord, PortalEdge, Region } from "@/lib/types";
+
+export function GoNavigator() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const target = Number(params.get("to")) || null;
+  const forcedStart = Number(params.get("from")) || null;
+
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
+  const [graph, setGraph] = useState<Record<string, PortalEdge[]> | null>(null);
+  const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(null);
+  const [regions, setRegions] = useState<Region[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([loadMaps(), loadGraph(), loadNearestTown(), loadRegions()])
+      .then(([mapData, graphData, townData, regionData]) => {
+        setMaps(mapData);
+        setGraph(graphData);
+        setNearestTown(townData);
+        setRegions(regionData);
+      })
+      .catch(loadError => setError(String(loadError.message ?? loadError)));
+  }, []);
+
+  const start = useMemo(() => {
+    if (forcedStart) return forcedStart;
+    if (!graph || !maps || !nearestTown || !target) return null;
+    return suggestStart(graph, maps, nearestTown, target);
+  }, [forcedStart, graph, maps, nearestTown, target]);
+
+  const plan = useMemo(() => {
+    if (!graph || !target || !start) return null;
+    return findRoute(graph, start, target);
+  }, [graph, start, target]);
+
+  const setParam = useCallback(
+    (key: string, value: number | null) => {
+      const next = new URLSearchParams(params.toString());
+      if (value === null) next.delete(key);
+      else next.set(key, String(value));
+      router.replace(`/go?${next.toString()}`);
+    },
+    [params, router],
+  );
+
+  const ready = Boolean(maps && graph && nearestTown && regions);
+
+  return (
+    <div className="space-y-5 py-3 sm:py-6">
+      <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
+        <Link href="/" className="hover:text-[color:var(--maple)]">今天想幹嘛</Link>
+        <ChevronRight size={13} />
+        <span className="text-[color:var(--ink-soft)]">帶我去</span>
+      </nav>
+
+      <header>
+        <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">帶我去</h1>
+        <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">
+          一段一段告訴你走哪個傳送門。預設從最近的城鎮出發，不對就自己改。
+        </p>
+      </header>
+
+      {error ? (
+        <EmptyBlock title="資料載入失敗" hint={error} />
+      ) : !ready ? (
+        <LoadingBlock label="載入地圖資料…" />
+      ) : (
+        <>
+          <div className="grid gap-3 rounded-[var(--radius-card)] glass wood-frame p-3.5 sm:grid-cols-2 sm:p-4">
+            <MapPicker
+              label="從哪裡出發"
+              value={start}
+              maps={maps!}
+              onSelect={mapId => setParam("from", mapId)}
+              placeholder="預設是最近的城鎮"
+            />
+            <MapPicker
+              label="要去哪裡"
+              value={target}
+              maps={maps!}
+              onSelect={mapId => setParam("to", mapId)}
+              placeholder="輸入地圖名稱"
+            />
+          </div>
+
+          {!target ? (
+            <EmptyBlock title="先選一個目的地" hint="或從練功、任務、打寶的結果直接按「帶我去」。" />
+          ) : !start ? (
+            <EmptyBlock
+              title="找不到可以走過去的起點"
+              hint="這張圖在客戶端資料裡沒有連到任何城鎮，可能是活動地圖或副本。"
+            />
+          ) : plan?.ok ? (
+            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} />
+          ) : plan && plan.reason === "different-area" ? (
+            <CrossAreaNotice
+              maps={maps!}
+              regions={regions!}
+              from={start}
+              to={target}
+              onPickStart={mapId => setParam("from", mapId)}
+            />
+          ) : (
+            <EmptyBlock title="算不出路線" hint="兩張圖之間沒有傳送門相連。" />
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function RouteList({
+  steps,
+  maps,
+  hops,
+}: {
+  steps: RouteStep[];
+  maps: Record<string, MapRecord>;
+  hops: number;
+}) {
+  return (
+    <section aria-label="路線">
+      <div className="mb-3 flex items-center gap-2 rounded-xl bg-[color:var(--leaf-wash)] px-3.5 py-2.5">
+        <RouteIcon size={18} className="shrink-0 text-[color:var(--leaf)]" />
+        <p className="text-sm font-bold">
+          {hops === 0 ? "你已經在目的地了" : `共 ${hops} 段，經過 ${steps.length} 張圖`}
+        </p>
+      </div>
+
+      <ol className="space-y-2">
+        {steps.map((step, index) => (
+          <RouteCard
+            key={`${step.map}-${index}`}
+            step={step}
+            index={index}
+            total={steps.length}
+            maps={maps}
+          />
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function RouteCard({
+  step,
+  index,
+  total,
+  maps,
+}: {
+  step: RouteStep;
+  index: number;
+  total: number;
+  maps: Record<string, MapRecord>;
+}) {
+  const [open, setOpen] = useState(false);
+  const record = maps[String(step.map)];
+  const name = mapName(maps, step.map);
+  const isStart = index === 0;
+  const isEnd = index === total - 1;
+
+  return (
+    <li className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
+      <div className="flex items-start gap-3 p-3.5">
+        <div className="flex shrink-0 flex-col items-center">
+          <span
+            className="grid size-8 place-items-center rounded-full text-sm font-black tabular-nums"
+            style={{
+              backgroundColor: isEnd ? "var(--maple)" : isStart ? "var(--leaf)" : "var(--paper-deep)",
+              color: isEnd || isStart ? "#fff" : "var(--ink-soft)",
+            }}
+          >
+            {isEnd ? <PinIcon size={16} /> : index + 1}
+          </span>
+          {!isEnd ? <span className="mt-1 h-full min-h-6 w-px bg-[color:var(--paper-edge)]" /> : null}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-[17px] font-black leading-tight">{name}</span>
+            {record?.st ? <span className="text-xs ink-faint">{record.st}</span> : null}
+          </p>
+
+          {isStart ? (
+            <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點</p>
+          ) : (
+            <p className="mt-0.5 text-sm ink-soft">
+              從上一張圖
+              <span className="mx-1 font-bold text-[color:var(--ink)]">{portalHint(step.via).text}</span>
+              的傳送門進來
+              {portalHint(step.via).known ? (
+                <span className="ml-1 text-[11px] ink-faint">（{portalHint(step.via).raw}）</span>
+              ) : null}
+            </p>
+          )}
+          {isEnd && !isStart ? (
+            <p className="mt-0.5 text-sm font-bold text-[color:var(--maple)]">到了</p>
+          ) : null}
+
+          {record?.mm ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setOpen(value => !value)}
+                className="tap-safe mt-1 inline-flex items-center gap-1 text-[13px] font-bold ink-soft hover:text-[color:var(--maple)]"
+                aria-expanded={open}
+              >
+                {open ? "收起小地圖" : "看小地圖"}
+                <ChevronDown size={14} className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+              </button>
+              {open ? (
+                <figure className="mt-2 overflow-hidden rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-2">
+                  <Image
+                    src={minimapImage(step.map)}
+                    alt={`${name} 小地圖`}
+                    width={640}
+                    height={200}
+                    className="mx-auto h-auto w-full object-contain"
+                    unoptimized
+                  />
+                  {step.x !== undefined && !isStart ? (
+                    <figcaption className="mt-1 text-center text-[11px] ink-faint">
+                      進來的傳送門在上一張圖的座標 ({step.x}, {step.y})
+                    </figcaption>
+                  ) : null}
+                </figure>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/**
+ * 走不到就照實說，並指出目標所在區域的城鎮。
+ * 楓之谷跨大陸本來就要搭船或計程車，那一段不是傳送門，我們不假裝算得出來。
+ */
+function CrossAreaNotice({
+  maps,
+  regions,
+  from,
+  to,
+  onPickStart,
+}: {
+  maps: Record<string, MapRecord>;
+  regions: Region[];
+  from: number;
+  to: number;
+  onPickStart: (mapId: number) => void;
+}) {
+  const targetRegion = regions.find(region => region.maps.includes(to));
+  const townsInRegion = (targetRegion?.maps || [])
+    .filter(mapId => maps[String(mapId)]?.t)
+    .slice(0, 8);
+
+  return (
+    <section className="space-y-3">
+      <div className="flex items-start gap-2.5 rounded-[var(--radius-card)] bg-[color:var(--gold-wash)] p-3.5">
+        <BoatIcon size={20} className="mt-0.5 shrink-0 text-[color:var(--gold)]" />
+        <div className="min-w-0 text-sm leading-relaxed">
+          <p className="font-bold">
+            {mapName(maps, from)} 走不到 {mapName(maps, to)}
+          </p>
+          <p className="mt-1 ink-soft">
+            這兩張圖不在同一個可步行區域。楓之谷跨大陸要搭船或計程車，那一段沒有傳送門資料，
+            所以我們不會編一條路線給你。先在遊戲裡搭車過去，再從下面挑一個當地城鎮重算路線。
+          </p>
+        </div>
+      </div>
+
+      {townsInRegion.length ? (
+        <div className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
+          <p className="mb-2 text-sm font-bold">
+            {targetRegion?.title ? `${targetRegion.title} 的城鎮` : "目標所在區域的城鎮"}
+          </p>
+          <ul className="flex flex-wrap gap-2">
+            {townsInRegion.map(mapId => (
+              <li key={mapId}>
+                <button
+                  type="button"
+                  onClick={() => onPickStart(mapId)}
+                  className="tap-safe rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold transition-colors hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--maple)]"
+                >
+                  從 {mapName(maps, mapId)} 出發
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <div className="flex items-start gap-2 rounded-[var(--radius-card)] glass p-3.5 text-sm ink-soft">
+          <AlertIcon size={17} className="mt-0.5 shrink-0" />
+          <p>目標區域在資料裡找不到城鎮，可能是副本或活動地圖。</p>
+        </div>
+      )}
+    </section>
+  );
+}

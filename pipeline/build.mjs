@@ -1,0 +1,612 @@
+/**
+ * 把原始資料合成前端要用的正規化檔案。
+ *
+ *  data/raw/artale.json     Artale 客戶端匯出：怪物數值、掉落、道具、任務、技能（中文，玩家實際玩的版本）
+ *  data/raw/v83-maps.json   v83 Map.wz：傳送門連線、刷怪點與回生秒數、回城點、世界地圖區域
+ *  data/raw/msio-maps.json  maplestory.io：只用來標記哪些地圖有小地圖圖檔（選用）
+ *
+ * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸與刷怪密度用 v83 補。
+ * 對不起來的一律標記，不猜、不補假值。
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
+
+const ROOT = path.resolve(import.meta.dirname, "..");
+const RAW = path.join(ROOT, "data", "raw");
+const OUT = path.join(ROOT, "public", "data");
+
+/**
+ * 一般怪物沒有指定 mobTime 時的回生秒數。
+ * 客戶端只在 boss 之類的刷怪點填 mobTime，一般圖留 0 代表走伺服器預設節奏。
+ * 這個 7 秒是經典版社群通用估值，用途是地圖之間互相比較，不是宣稱實際每小時經驗。
+ */
+const DEFAULT_RESPAWN_SECONDS = 7;
+
+function main() {
+  const artale = readJson(path.join(RAW, "artale.json"));
+  const v83 = readJson(path.join(RAW, "v83-maps.json"));
+  const msio = readJson(path.join(RAW, "msio-maps.json"), null);
+  if (!artale) throw new Error("缺 data/raw/artale.json，先跑 npm run data:artale");
+  if (!v83) throw new Error("缺 data/raw/v83-maps.json，先跑 npm run data:v83");
+
+  fs.mkdirSync(OUT, { recursive: true });
+
+  const jobs = buildJobs(artale);
+  const zhNames = collectChineseMapNames(artale);
+  const regions = buildRegions(v83);
+  const maps = buildMaps(v83, zhNames, regions, msio);
+  const graph = buildGraph(v83, maps);
+  const components = labelComponents(graph, maps);
+  const nearestTown = computeNearestTowns(maps, graph, v83);
+  const monsters = buildMonsters(artale, v83);
+  const items = buildItems(artale);
+  const quests = buildQuests(artale, maps);
+  const skills = buildSkills(artale);
+  const training = buildTraining(maps, v83, monsters);
+  const farming = buildFarmingIndex(items, monsters);
+  const search = buildSearch({ monsters, items, quests, skills, maps });
+
+  const report = {};
+  report["maps.json"] = write("maps.json", maps.records);
+  report["graph.json"] = write("graph.json", graph.edges);
+  report["regions.json"] = write("regions.json", regions.list);
+  report["nearest-town.json"] = write("nearest-town.json", nearestTown);
+  report["monsters.json"] = write("monsters.json", monsters.list);
+  report["items.json"] = write("items.json", items.list);
+  report["quests.json"] = write("quests.json", quests.list);
+  report["skills.json"] = write("skills.json", skills.list);
+  report["jobs.json"] = write("jobs.json", jobs);
+  report["training.json"] = write("training.json", training);
+  report["farming.json"] = write("farming.json", farming);
+  report["search.json"] = write("search.json", search);
+
+  const meta = {
+    gameVersion: artale.metadata?.gameVersion ?? null,
+    dataGeneratedAt: artale.metadata?.generatedAt ?? null,
+    dataGeneratedAtText: artale.metadata?.generatedAtText ?? null,
+    ingest: artale.ingest ?? null,
+    mapSource: { source: v83.source, url: v83.sourceUrl, extractedAt: v83.extractedAt },
+    assumptions: {
+      defaultRespawnSeconds: DEFAULT_RESPAWN_SECONDS,
+      expNote: "本站不提供每小時經驗值——那需要知道你的清怪速度。提供的是可查證的事實：一輪清完的總經驗、刷怪點數、回生秒數，以及據此換算的相對效率指數。",
+      dropNote: "官方未公開掉落機率，本站不提供百分比。打寶排序依據是同一張圖能同時收到幾個目標與刷怪密度。",
+      routeNote: "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。",
+    },
+    counts: {
+      monsters: monsters.list.length,
+      items: items.list.length,
+      quests: quests.list.length,
+      skills: skills.list.length,
+      maps: Object.keys(maps.records).length,
+      mapsWithChineseName: Object.values(maps.records).filter(map => map.zh).length,
+      portalEdges: Object.values(graph.edges).reduce((sum, list) => sum + list.length, 0),
+      towns: Object.values(maps.records).filter(map => map.t).length,
+      regions: regions.list.length,
+      walkableAreas: components.count,
+      trainingMaps: training.length,
+      farmableItems: Object.keys(farming).length,
+    },
+    coverage: {
+      monstersWithSpawnData: monsters.withSpawnData,
+      monstersWithoutSpawnData: monsters.list.length - monsters.withSpawnData,
+      largestWalkableArea: components.largest,
+    },
+    builtAt: new Date().toISOString(),
+  };
+  report["meta.json"] = write("meta.json", meta, true);
+
+  console.log("=== 輸出 ===");
+  for (const [name, size] of Object.entries(report)) console.log(`  ${name.padEnd(18)} ${humanBytes(size)}`);
+  console.log("\n=== 統計 ===");
+  console.log(JSON.stringify(meta.counts, null, 2));
+  console.log(JSON.stringify(meta.coverage, null, 2));
+}
+
+function write(name, value, pretty = false) {
+  return writeJson(path.join(OUT, name), value, { pretty });
+}
+
+/* ------------------------------------------------------------------ 職業 */
+
+/** 職業代碼對照從技能資料反推——那是唯一同時有代碼與中文名的地方。 */
+function buildJobs(artale) {
+  const byId = new Map();
+  for (const skill of artale.skills || []) {
+    const id = Number(skill.jobId);
+    if (!Number.isFinite(id) || byId.has(id)) continue;
+    byId.set(id, {
+      id,
+      name: skill.jobName || "",
+      group: skill.jobGroup || "",
+      groupOrder: skill.jobGroupOrder ?? 99,
+      adv: skill.advancement || "",
+      advOrder: skill.advancementOrder ?? 99,
+    });
+  }
+  return [...byId.values()].sort((a, b) =>
+    a.groupOrder - b.groupOrder || a.advOrder - b.advOrder || a.id - b.id);
+}
+
+/* ------------------------------------------------------------------ 地圖 */
+
+function collectChineseMapNames(artale) {
+  const zh = new Map();
+  const absorb = entry => {
+    if (!entry || entry.unnamed) return;
+    const id = Number(entry.id);
+    if (!Number.isFinite(id) || zh.has(id)) return;
+    zh.set(id, {
+      name: entry.name || "",
+      street: entry.street || "",
+      mark: entry.markKey || "",
+      region: entry.regionName || "",
+    });
+  };
+  for (const monster of artale.monsters || []) for (const map of monster.maps || []) absorb(map);
+  for (const quest of artale.quests || []) {
+    for (const key of ["startNpc", "endNpc"]) for (const map of quest[key]?.maps || []) absorb(map);
+  }
+  return zh;
+}
+
+/** 世界地圖 → 每張地圖屬於哪個區域，以及它在世界地圖上的座標。 */
+function buildRegions(v83) {
+  const list = [];
+  const mapToRegion = new Map();
+  const titleOf = new Map();
+
+  // 母地圖（WorldMap.img）的 spot 帶有大陸標題，先收起來當名稱來源
+  for (const region of v83.regions || []) {
+    for (const spot of region.spots) {
+      if (spot.title) for (const mapId of spot.maps) titleOf.set(mapId, spot.title);
+    }
+  }
+
+  for (const region of v83.regions || []) {
+    if (!region.parent) continue; // WorldMap.img 本身是總表，不算一個區域
+    const maps = [];
+    const spots = [];
+    for (const spot of region.spots) {
+      for (const mapId of spot.maps) {
+        maps.push(mapId);
+        if (!mapToRegion.has(mapId)) mapToRegion.set(mapId, region.key);
+      }
+      spots.push([spot.maps[0], spot.x ?? 0, spot.y ?? 0]);
+    }
+    const title = maps.map(id => titleOf.get(id)).find(Boolean) || region.key;
+    list.push({ key: region.key, title, maps: [...new Set(maps)], spots });
+  }
+  return { list, mapToRegion };
+}
+
+function buildMaps(v83, zhNames, regions, msio) {
+  const records = {};
+  const hasMinimap = new Set(msio ? Object.keys(msio.maps).filter(id => msio.maps[id].mm) : []);
+
+  // 客戶端的 town 旗標有 1290 張圖是 1，那不是「城鎮」而是「可在此復活」的旗標。
+  // 玩家心裡的城鎮 = 別的地圖會回到這裡的那個點，所以用 returnMap 的目標集合來認定。
+  const townSet = new Set();
+  for (const raw of Object.values(v83.maps)) if (raw.ret) townSet.add(raw.ret);
+
+  const ids = new Set([...Object.keys(v83.maps), ...[...zhNames.keys()].map(String)]);
+  for (const key of ids) {
+    const id = Number(key);
+    const raw = v83.maps[key] || {};
+    const zh = zhNames.get(id);
+    const en = v83.names[key] || ["", ""];
+
+    const record = {
+      zh: zh?.name || "",
+      en: en[0] || "",
+      st: zh?.street || en[1] || "",
+      t: townSet.has(id) ? 1 : undefined,
+      ret: raw.ret,
+      mk: zh?.mark || raw.mk || undefined,
+      rg: regions.mapToRegion.get(id) || undefined,
+      rate: raw.rate,
+      mm: hasMinimap.has(key) ? 1 : undefined,
+    };
+    for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
+    records[id] = record;
+  }
+  return { records };
+}
+
+/**
+ * 傳送門圖。走得過去的門原則上走得回來，所以一般傳送門（pt 2、3）建成雙向；
+ * 只有腳本型／單向門保持有向，避免規劃出走不通的路。
+ */
+function buildGraph(v83, maps) {
+  const edges = {};
+  const addEdge = (from, to, name, x, y) => {
+    const list = (edges[from] ||= []);
+    if (list.some(edge => edge[0] === to)) return;
+    list.push([to, name, x, y]);
+  };
+
+  for (const [key, raw] of Object.entries(v83.maps)) {
+    const from = Number(key);
+    for (const [to, portalName, targetName, type, x, y] of raw.p || []) {
+      if (!maps.records[to] || to === from) continue;
+      addEdge(from, to, portalName || "", x, y);
+      // pt 2/3 是玩家走進去的一般門，反向必然存在；其餘（腳本、隱藏）不臆測
+      if (type === 2 || type === 3) addEdge(to, from, targetName || "", 0, 0);
+    }
+  }
+  return { edges };
+}
+
+/** 標出各個「走得到彼此」的區塊，跨區塊就是要搭船／計程車。 */
+function labelComponents(graph, maps) {
+  const seen = new Set();
+  let count = 0;
+  let largest = 0;
+  for (const key of Object.keys(maps.records)) {
+    const start = Number(key);
+    if (seen.has(start)) continue;
+    count += 1;
+    let size = 0;
+    const stack = [start];
+    seen.add(start);
+    while (stack.length) {
+      const current = stack.pop();
+      size += 1;
+      for (const [next] of graph.edges[current] || []) {
+        if (!seen.has(next)) {
+          seen.add(next);
+          stack.push(next);
+        }
+      }
+    }
+    largest = Math.max(largest, size);
+  }
+  return { count, largest };
+}
+
+/**
+ * 每張圖的預設出發城鎮。
+ * 客戶端的 returnMap 就是玩家死掉／回城會到的那個點，直接拿來用最準；
+ * 沒有 returnMap 的圖再從所有城鎮做一次反向 BFS 找最近的。
+ */
+function computeNearestTowns(maps, graph, v83) {
+  const result = {};
+  for (const [key, raw] of Object.entries(v83.maps)) {
+    if (raw.ret && maps.records[raw.ret] && raw.ret !== Number(key)) result[key] = [raw.ret, 0];
+  }
+
+  const reverse = {};
+  for (const [from, list] of Object.entries(graph.edges)) {
+    for (const [to] of list) (reverse[to] ||= []).push(Number(from));
+  }
+  const queue = [];
+  for (const [key, record] of Object.entries(maps.records)) {
+    if (!record.t) continue;
+    result[key] = [Number(key), 0];
+    queue.push(Number(key));
+  }
+  for (let head = 0; head < queue.length; head += 1) {
+    const current = queue[head];
+    const [town, distance] = result[current];
+    for (const previous of reverse[current] || []) {
+      if (result[previous]) continue;
+      result[previous] = [town, distance + 1];
+      queue.push(previous);
+    }
+  }
+  return result;
+}
+
+/* ---------------------------------------------------------------- 怪物 */
+
+function buildMonsters(artale, v83) {
+  // 反查：怪物 id → 出現在哪些地圖、各幾個刷怪點、回生秒數
+  const spawnOf = new Map();
+  for (const [key, raw] of Object.entries(v83.maps)) {
+    for (const [mobId, count, mobTime] of raw.m || []) {
+      if (!spawnOf.has(mobId)) spawnOf.set(mobId, []);
+      spawnOf.get(mobId).push([Number(key), count, mobTime || 0]);
+    }
+  }
+
+  let withSpawnData = 0;
+  const list = (artale.monsters || []).map(monster => {
+    const id = Number(monster.id);
+    const stats = monster.stats || {};
+    const declaredMaps = (monster.maps || []).map(map => Number(map.id)).filter(Number.isFinite);
+    const spawns = spawnOf.get(id) || [];
+    if (spawns.length) withSpawnData += 1;
+
+    const record = {
+      id,
+      n: monster.name || "",
+      un: monster.unnamed ? 1 : undefined,
+      lv: monster.level ?? stats.level ?? null,
+      exp: stats.exp ?? 0,
+      hp: stats.maxHP ?? 0,
+      pad: stats.PADamage ?? 0,
+      pdd: stats.PDDamage ?? 0,
+      mad: stats.MADamage ?? 0,
+      mdd: stats.MDDamage ?? 0,
+      acc: stats.acc ?? 0,
+      eva: stats.eva ?? 0,
+      spd: stats.speed ?? 0,
+      und: stats.undead ? 1 : undefined,
+      el: compactElemental(monster.elemental),
+      maps: declaredMaps,
+      sp: spawns.length ? spawns : undefined,
+      drops: (monster.drops || []).map(drop => Number(drop.id)).filter(Number.isFinite),
+    };
+    for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
+    return record;
+  });
+
+  return { list, withSpawnData, byId: new Map(list.map(monster => [monster.id, monster])) };
+}
+
+function compactElemental(elemental) {
+  if (!elemental?.values) return undefined;
+  const short = { immune: "i", strong: "s", weak: "w", normal: "n" };
+  const out = {};
+  for (const [element, value] of Object.entries(elemental.values)) {
+    if (value && value !== "normal") out[element[0]] = short[value] || value[0];
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/* ---------------------------------------------------------------- 道具 */
+
+function buildItems(artale) {
+  const list = (artale.items || []).map(item => {
+    const sources = item.sources || {};
+    const record = {
+      id: Number(item.id),
+      n: item.name || "",
+      d: item.desc || undefined,
+      c: item.category || "",
+      s: item.subcategory || undefined,
+      un: item.unnamed ? 1 : undefined,
+      eq: compactEquip(item.equipStats),
+      // 每種來源的識別欄位名稱不同（monsterId / questId / recipeId），不能一律當 id 抓
+      dm: pluckIds(sources.monsterDrops, "monsterId"),
+      qr: pluckStrings(sources.questRewards, "questId"),
+      qq: pluckStrings(sources.questRequirements, "questId"),
+      sh: sources.shops?.length || undefined,
+      cf: pluckIds(sources.crafts, "recipeId"),
+    };
+    for (const field of Object.keys(record)) {
+      const value = record[field];
+      if (value === undefined || (Array.isArray(value) && !value.length)) delete record[field];
+    }
+    return record;
+  });
+  return { list, byId: new Map(list.map(item => [item.id, item])) };
+}
+
+function pluckIds(rows, key = "id") {
+  if (!Array.isArray(rows) || !rows.length) return undefined;
+  const ids = [...new Set(rows.map(row => Number(row?.[key] ?? row?.id ?? row)).filter(Number.isFinite))];
+  return ids.length ? ids : undefined;
+}
+
+function pluckStrings(rows, key = "id") {
+  if (!Array.isArray(rows) || !rows.length) return undefined;
+  const ids = [...new Set(rows.map(row => String(row?.[key] ?? row?.id ?? row)).filter(value => value && value !== "undefined"))];
+  return ids.length ? ids : undefined;
+}
+
+function compactEquip(stats) {
+  if (!stats) return undefined;
+  const keep = ["reqLevel", "reqJob", "reqSTR", "reqDEX", "reqINT", "reqLUK", "incSTR", "incDEX",
+    "incINT", "incLUK", "incMHP", "incMMP", "incPAD", "incMAD", "incPDD", "incMDD",
+    "incACC", "incEVA", "incSpeed", "incJump", "tuc", "islot", "attackSpeed"];
+  const out = {};
+  for (const key of keep) {
+    const value = stats[key];
+    if (value !== undefined && value !== null && value !== 0 && value !== "") out[key] = value;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/* ---------------------------------------------------------------- 任務 */
+
+function buildQuests(artale, maps) {
+  const list = (artale.quests || []).map(quest => {
+    const start = quest.startRequirements || {};
+    const complete = quest.completeRequirements || {};
+    const rewards = quest.completeRewards || {};
+    const startRewards = quest.startRewards || {};
+    return dropEmpty({
+      id: String(quest.id),
+      n: quest.name || "",
+      cat: quest.category || "",
+      parent: quest.parent || undefined,
+      minLv: quest.minLevel ?? undefined,
+      maxLv: quest.maxLevel ?? undefined,
+      jobs: start.jobs?.length ? start.jobs : undefined,
+      pre: start.quests?.length ? start.quests.map(entry => String(entry.id ?? entry)) : undefined,
+      next: quest.nextQuest ? String(quest.nextQuest) : undefined,
+      sNpc: npcRef(quest.startNpc, maps),
+      eNpc: npcRef(quest.endNpc, maps),
+      needItems: rowRefs(complete.items),
+      needMobs: rowRefs(complete.monsters),
+      exp: rewards.exp ?? startRewards.exp ?? undefined,
+      money: rewards.money ?? startRewards.money ?? undefined,
+      pop: rewards.pop ?? startRewards.pop ?? undefined,
+      rewardItems: rowRefs(rewards.items),
+      texts: quest.texts || undefined,
+    });
+  });
+  return { list };
+}
+
+function npcRef(npc, maps) {
+  if (!npc) return undefined;
+  const mapId = Number(npc.maps?.[0]?.id);
+  const record = Number.isFinite(mapId) ? maps.records[mapId] : null;
+  return dropEmpty({
+    id: Number(npc.id),
+    n: npc.name || "",
+    map: Number.isFinite(mapId) ? mapId : undefined,
+    mapName: record ? record.zh || record.en || "" : undefined,
+  });
+}
+
+function rowRefs(rows) {
+  if (!Array.isArray(rows) || !rows.length) return undefined;
+  return rows.map(row => dropEmpty({ id: Number(row.id), n: row.name || "", c: row.count ?? undefined }));
+}
+
+function dropEmpty(object) {
+  for (const key of Object.keys(object)) {
+    const value = object[key];
+    if (value === undefined || value === null || value === "" || (Array.isArray(value) && !value.length)) {
+      delete object[key];
+    }
+  }
+  return object;
+}
+
+/* ---------------------------------------------------------------- 技能 */
+
+function buildSkills(artale) {
+  const list = (artale.skills || []).map(skill => dropEmpty({
+    id: Number(skill.id),
+    n: skill.name || "",
+    job: Number(skill.jobId),
+    jobName: skill.jobName || "",
+    group: skill.jobGroup || "",
+    adv: skill.advancement || "",
+    max: skill.maxLevel ?? undefined,
+    desc: skill.description || undefined,
+    formula: skill.formula || undefined,
+    labels: skill.valueLabels || undefined,
+    levels: (skill.levels || []).map(level => level.values || {}),
+  }));
+  return { list };
+}
+
+/* ------------------------------------------------------------ 練功索引 */
+
+/**
+ * 每張圖一列練功資料。
+ *
+ * 刻意不輸出「每小時經驗」這種數字：那需要知道玩家的清怪速度，我們不知道，
+ * 硬算出來會是一分鐘上百萬經驗這種假數字。這裡只給可驗證的事實——
+ * 一輪清完的總經驗、刷怪點數、回生秒數——外加一個純粹用來排序的密度值 eff，
+ * 前端會把它換算成同等級帶內的相對指數再顯示。
+ */
+function buildTraining(maps, v83, monsters) {
+  const rows = [];
+  for (const [key, raw] of Object.entries(v83.maps)) {
+    const mapId = Number(key);
+    const record = maps.records[mapId];
+    if (!record || !raw.m?.length) continue;
+
+    let totalSpawn = 0;
+    let density = 0;
+    let expPerClear = 0;
+    let hpPerClear = 0;
+    let levelWeighted = 0;
+    let respawnWeighted = 0;
+    let minLevel = Infinity;
+    let maxLevel = -Infinity;
+    let unknownSpawn = 0;
+    const mobs = [];
+
+    for (const [mobId, count, mobTime] of raw.m) {
+      const monster = monsters.byId.get(mobId);
+      if (!monster || !monster.lv) {
+        unknownSpawn += count;
+        continue;
+      }
+      const respawn = mobTime > 0 ? mobTime : DEFAULT_RESPAWN_SECONDS;
+      totalSpawn += count;
+      expPerClear += (monster.exp || 0) * count;
+      hpPerClear += (monster.hp || 0) * count;
+      density += ((monster.exp || 0) * count) / respawn;
+      levelWeighted += monster.lv * count;
+      respawnWeighted += respawn * count;
+      minLevel = Math.min(minLevel, monster.lv);
+      maxLevel = Math.max(maxLevel, monster.lv);
+      mobs.push([mobId, count, mobTime || 0]);
+    }
+    if (!totalSpawn || !expPerClear) continue;
+
+    rows.push({
+      m: mapId,
+      sp: totalSpawn,
+      exp1: expPerClear,
+      hp: hpPerClear,
+      // 排序用的密度值：經驗 ÷ 回生秒數。不是每秒經驗，只有相對大小有意義。
+      eff: Math.round(density * 100) / 100,
+      resp: Math.round(respawnWeighted / totalSpawn),
+      lv: Math.round(levelWeighted / totalSpawn),
+      lvMin: minLevel,
+      lvMax: maxLevel,
+      // 這張圖有多少刷怪點是 Artale 圖鑑查不到的怪，UI 要照實標
+      unk: unknownSpawn || undefined,
+      mobs: mobs.sort((a, b) => b[1] - a[1]),
+    });
+  }
+  for (const row of rows) if (row.unk === undefined) delete row.unk;
+  return rows.sort((a, b) => b.eff - a.eff);
+}
+
+/* ------------------------------------------------------------ 打寶索引 */
+
+/**
+ * 道具 → 會掉的怪 → 怪出沒的地圖。
+ * 沒有官方掉率，所以排序依據是刷怪密度與同圖目標數，也就是「一趟收最多」。
+ */
+function buildFarmingIndex(items, monsters) {
+  const byItem = {};
+  for (const item of items.list) {
+    const dropperIds = item.dm || [];
+    if (!dropperIds.length) continue;
+    const perMap = new Map();
+    for (const monsterId of dropperIds) {
+      const monster = monsters.byId.get(monsterId);
+      if (!monster) continue;
+      const spawns = monster.sp?.length
+        ? monster.sp.map(([mapId, count]) => [mapId, count])
+        : (monster.maps || []).map(mapId => [mapId, 0]);
+      for (const [mapId, count] of spawns) {
+        const bucket = perMap.get(mapId) || { mobs: [], spawn: 0 };
+        bucket.mobs.push(monsterId);
+        bucket.spawn += count;
+        perMap.set(mapId, bucket);
+      }
+    }
+    if (!perMap.size) continue;
+    byItem[item.id] = [...perMap.entries()]
+      .sort((a, b) => b[1].spawn - a[1].spawn || b[1].mobs.length - a[1].mobs.length)
+      .slice(0, 30)
+      .map(([mapId, bucket]) => [mapId, bucket.spawn, bucket.mobs]);
+  }
+  return byItem;
+}
+
+/* ------------------------------------------------------------ 搜尋索引 */
+
+function buildSearch({ monsters, items, quests, skills, maps }) {
+  const rows = [];
+  for (const monster of monsters.list) {
+    if (monster.un) continue;
+    rows.push(["m", monster.id, monster.n, monster.lv ?? 0]);
+  }
+  for (const item of items.list) {
+    if (item.un) continue;
+    rows.push(["i", item.id, item.n, item.c]);
+  }
+  for (const quest of quests.list) rows.push(["q", quest.id, quest.n, quest.minLv ?? 0]);
+  for (const skill of skills.list) rows.push(["s", skill.id, skill.n, skill.jobName]);
+  for (const [key, record] of Object.entries(maps.records)) {
+    const name = record.zh || record.en;
+    if (!name) continue;
+    rows.push(["p", Number(key), name, record.st || ""]);
+  }
+  return rows;
+}
+
+main();

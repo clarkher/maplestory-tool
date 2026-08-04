@@ -1,0 +1,32 @@
+{
+  "name": "maplestory-tool",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "data:artale": "node pipeline/fetch-artale.mjs",
+    "data:msio": "node pipeline/fetch-msio.mjs",
+    "data:build": "node pipeline/build.mjs",
+    "data:all": "npm run data:artale && npm run data:v83 && npm run data:build && npm run data:verify",
+    "data:v83": "node pipeline/extract-v83-maps.mjs",
+    "data:verify": "node pipeline/verify.mjs"
+  },
+  "dependencies": {
+    "next": "^16.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "postcss": "^8.5.25",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2"
+  }
+}

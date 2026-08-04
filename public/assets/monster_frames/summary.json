@@ -1,0 +1,56 @@
+{
+  "exported": 326,
+  "indexed": 322,
+  "fallback": 4,
+  "skipped": [
+    {
+      "id": "8200004",
+      "reason": "missing rects"
+    },
+    {
+      "id": "9300139",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8200003",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8220000",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8200006",
+      "reason": "missing rects"
+    },
+    {
+      "id": "7220001",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8200011",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8140001",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8200007",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8200008",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8200010",
+      "reason": "missing rects"
+    },
+    {
+      "id": "8200012",
+      "reason": "missing rects"
+    }
+  ],
+  "skippedCount": 12
+}

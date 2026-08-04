@@ -1,0 +1,173 @@
+@import "tailwindcss";
+
+/*
+  設計方向：楓之谷復古感 × 現代玻璃質感。
+  復古來自木質邊框、羊皮紙底色、楓葉暖色調；現代來自毛玻璃面板、柔和陰影、大留白。
+  兩套主題都要能看，深色是「夜楓」不是純黑。
+*/
+
+@theme {
+  --font-sans: var(--font-noto-tc), ui-sans-serif, system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
+
+  --radius-card: 1.125rem;
+  --radius-pill: 999px;
+}
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --paper: #fbf5ea;
+  --paper-deep: #f1e5d1;
+  --paper-edge: #e2d2b6;
+
+  --glass: rgb(255 253 249 / 0.74);
+  --glass-strong: rgb(255 253 249 / 0.92);
+  --glass-border: rgb(255 255 255 / 0.85);
+  --glass-shadow: 0 10px 30px -12px rgb(89 58 28 / 0.28), 0 2px 6px -2px rgb(89 58 28 / 0.14);
+
+  --ink: #2c2015;
+  --ink-soft: #6d5943;
+  --ink-faint: #9c8a72;
+
+  --wood: #8a5a32;
+  --wood-deep: #5f3c1f;
+
+  --maple: #d84f26;
+  --maple-soft: #f0784a;
+  --maple-wash: rgb(216 79 38 / 0.1);
+
+  --leaf: #4a8636;
+  --leaf-wash: rgb(74 134 54 / 0.12);
+
+  --sky: #2b7ba5;
+  --sky-wash: rgb(43 123 165 / 0.12);
+
+  --gold: #b8862a;
+  --gold-wash: rgb(184 134 42 / 0.14);
+
+  --grid-line: rgb(138 90 50 / 0.07);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #16110c;
+  --paper-deep: #0e0b07;
+  --paper-edge: #33261a;
+
+  --glass: rgb(56 43 30 / 0.52);
+  --glass-strong: rgb(46 35 24 / 0.86);
+  --glass-border: rgb(255 226 186 / 0.14);
+  --glass-shadow: 0 14px 40px -16px rgb(0 0 0 / 0.75), 0 2px 6px -2px rgb(0 0 0 / 0.5);
+
+  --ink: #f6ead9;
+  --ink-soft: #c3ae93;
+  --ink-faint: #8d7a63;
+
+  --wood: #b3814f;
+  --wood-deep: #7a5330;
+
+  --maple: #ff8148;
+  --maple-soft: #ffa273;
+  --maple-wash: rgb(255 129 72 / 0.14);
+
+  --leaf: #7ec263;
+  --leaf-wash: rgb(126 194 99 / 0.14);
+
+  --sky: #6cb8e0;
+  --sky-wash: rgb(108 184 224 / 0.14);
+
+  --gold: #e6b453;
+  --gold-wash: rgb(230 180 83 / 0.16);
+
+  --grid-line: rgb(255 210 160 / 0.05);
+}
+
+* {
+  border-color: var(--paper-edge);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100dvh;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  /* 羊皮紙的織紋：兩層極淡的斜線 + 中心暈光，避免大片死板的純色 */
+  background-image:
+    radial-gradient(120% 90% at 50% -10%, var(--maple-wash), transparent 62%),
+    repeating-linear-gradient(45deg, var(--grid-line) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-45deg, var(--grid-line) 0 1px, transparent 1px 11px);
+  background-attachment: fixed;
+  overscroll-behavior-y: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@utility glass {
+  background-color: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+}
+
+@utility glass-solid {
+  background-color: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+
+/* 木框：外深內淺的雙線，模仿遊戲介面的雕刻邊，但不用貼圖 */
+@utility wood-frame {
+  border: 1px solid color-mix(in srgb, var(--wood) 45%, transparent);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, #fff 45%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--wood) 12%, transparent),
+    var(--glass-shadow);
+}
+
+@utility ink-soft { color: var(--ink-soft); }
+@utility ink-faint { color: var(--ink-faint); }
+
+@utility tap-safe {
+  min-height: 44px;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* 手機優先：橫向捲動的資料列要能自己滑，body 永遠不橫捲 */
+@utility scroll-x {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+
+::selection {
+  background-color: var(--maple);
+  color: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--maple);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* 捲軸配色跟著主題走，深色模式不要出現亮白捲軸 */
+* {
+  scrollbar-color: color-mix(in srgb, var(--wood) 50%, transparent) transparent;
+}
