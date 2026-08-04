@@ -76,6 +76,7 @@ export function TrainPlanner() {
                 score={index.get(pick.row.m) ?? 0}
                 needAcc={pick.needAcc}
                 warn={pick.warn}
+                topGap={pick.topGap}
                 maps={maps!}
                 monsterIndex={monsterIndex}
                 playerLevel={profile.level}
@@ -100,6 +101,7 @@ function TrainCard({
   score,
   needAcc,
   warn,
+  topGap,
   maps,
   monsterIndex,
   playerLevel,
@@ -108,6 +110,7 @@ function TrainCard({
   score: number;
   needAcc: number;
   warn?: "too-strong" | "too-weak";
+  topGap: number;
   maps: Record<string, MapRecord>;
   monsterIndex: Map<number, Monster>;
   playerLevel: number;
@@ -159,6 +162,7 @@ function TrainCard({
           </div>
 
           <dl className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px]">
+            <Stat label="怪物等級" value={row.lvMin === row.lvMax ? `Lv${row.lvMax}` : `Lv${row.lvMin}–${row.lvMax}`} tone={topGap > 8 ? "warn" : undefined} />
             <Stat label="刷怪點" value={`${row.sp} 個`} />
             <Stat label="回生" value={`${row.resp} 秒`} />
             <Stat label="清一輪" value={`${row.exp1.toLocaleString()} 經驗`} />
@@ -173,7 +177,7 @@ function TrainCard({
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-[color:var(--maple-wash)] px-2 py-1 text-[12px] font-bold text-[color:var(--maple)]">
               <AlertIcon size={13} />
               {warn === "too-strong"
-                ? `怪比你高 ${row.lv - playerLevel} 級，打不動就先別來`
+                ? `這張圖有 Lv${row.lvMax} 的怪，比你高 ${topGap} 級，先確認打得動再來`
                 : `怪比你低 ${playerLevel - row.lv} 級，經驗會很差`}
             </p>
           ) : null}

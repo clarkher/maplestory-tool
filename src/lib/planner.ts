@@ -115,6 +115,8 @@ export type TrainPick = {
   score: number;
   /** 打到不會 miss 需要的命中，取這張圖最難命中的怪 */
   needAcc: number;
+  /** 這張圖最高等的怪比你高幾級（負數代表比你低） */
+  topGap: number;
   /** 打不打得動的提示 */
   warn?: "too-strong" | "too-weak";
 };
@@ -140,6 +142,19 @@ export function levelFit(playerLevel: number, mapLevel: number): number {
   return Math.max(0.05, 1 - (Math.abs(diff) - 3) / 18);
 }
 
+/**
+ * 只看平均等級會害死人。
+ *
+ * 實際踩到的例子：Lv.52 的角色被推薦「試煉之洞Ⅲ」，因為那張圖同時有 Lv43 小獵犬
+ * 跟 Lv51 火精靈把平均拉到 52 上下——但圖裡還站著 Lv90 的煉獄獵犬。
+ * 所以另外用「最高等怪跟你差多少」再壓一次分數，超過 8 級就開始扣。
+ */
+export function dangerPenalty(playerLevel: number, topMobLevel: number): number {
+  const gap = topMobLevel - playerLevel;
+  if (gap <= 8) return 1;
+  return Math.max(0.08, 1 - (gap - 8) / 25);
+}
+
 export function planTraining(
   profile: Profile,
   training: TrainingRow[],
@@ -150,6 +165,8 @@ export function planTraining(
   for (const row of training) {
     const fit = levelFit(profile.level, row.lv);
     if (fit <= 0.05) continue;
+    const danger = dangerPenalty(profile.level, row.lvMax);
+    if (danger <= 0.1) continue;
 
     let needAcc = 0;
     for (const [mobId] of row.mobs) {
@@ -158,14 +175,15 @@ export function planTraining(
     }
 
     const lead = monsters.get(row.mobs[0]?.[0]);
-    const diff = row.lv - profile.level;
+    const topGap = row.lvMax - profile.level;
     picks.push({
       row,
       lead,
       fit,
       needAcc,
-      score: row.eff * fit,
-      warn: diff > 10 ? "too-strong" : diff < -10 ? "too-weak" : undefined,
+      score: row.eff * fit * danger,
+      topGap,
+      warn: topGap > 8 ? "too-strong" : row.lv - profile.level < -10 ? "too-weak" : undefined,
     });
   }
   picks.sort((a, b) => b.score - a.score);
