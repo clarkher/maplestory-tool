@@ -1,0 +1,529 @@
+{
+  "summary": {
+    "targets": 50,
+    "downloaded": 0,
+    "resolved": 0,
+    "failed": 50,
+    "skipped": 0,
+    "byKind": {
+      "monster": {
+        "targets": 1,
+        "downloaded": 0,
+        "failed": 1
+      },
+      "skill": {
+        "targets": 49,
+        "downloaded": 0,
+        "failed": 49
+      }
+    },
+    "mode": "missing",
+    "types": [
+      "items",
+      "monsters",
+      "skills"
+    ]
+  },
+  "rows": [
+    {
+      "kind": "monster",
+      "localId": "9300274",
+      "name": "怪物 9300274",
+      "resourceId": "mob/9300274.img",
+      "output": "assets/monster_frames/9300274.png",
+      "index": 1,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1018",
+      "name": "雪吉拉騎士",
+      "resourceId": "skill/000.img/skill/0001018",
+      "output": "assets/skills/1018.png",
+      "index": 2,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1019",
+      "name": "魔女掃把",
+      "resourceId": "skill/000.img/skill/0001019",
+      "output": "assets/skills/1019.png",
+      "index": 3,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1025",
+      "name": "小木馬",
+      "resourceId": "skill/000.img/skill/0001025",
+      "output": "assets/skills/1025.png",
+      "index": 4,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1027",
+      "name": "黑鱷魚",
+      "resourceId": "skill/000.img/skill/0001027",
+      "output": "assets/skills/1027.png",
+      "index": 5,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1028",
+      "name": "越野機車",
+      "resourceId": "skill/000.img/skill/0001028",
+      "output": "assets/skills/1028.png",
+      "index": 6,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1029",
+      "name": "粉紅迪歐",
+      "resourceId": "skill/000.img/skill/0001029",
+      "output": "assets/skills/1029.png",
+      "index": 7,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1030",
+      "name": "筋斗雲",
+      "resourceId": "skill/000.img/skill/0001030",
+      "output": "assets/skills/1030.png",
+      "index": 8,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1031",
+      "name": "巴洛古",
+      "resourceId": "skill/000.img/skill/0001031",
+      "output": "assets/skills/1031.png",
+      "index": 9,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1033",
+      "name": "F1賽車",
+      "resourceId": "skill/000.img/skill/0001033",
+      "output": "assets/skills/1033.png",
+      "index": 10,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1034",
+      "name": "狂暴的老虎",
+      "resourceId": "skill/000.img/skill/0001034",
+      "output": "assets/skills/1034.png",
+      "index": 11,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1035",
+      "name": "迷霧巴洛古",
+      "resourceId": "skill/000.img/skill/0001035",
+      "output": "assets/skills/1035.png",
+      "index": 12,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1042",
+      "name": "神鳥",
+      "resourceId": "skill/000.img/skill/0001042",
+      "output": "assets/skills/1042.png",
+      "index": 13,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1044",
+      "name": "菇菇寶貝",
+      "resourceId": "skill/000.img/skill/0001044",
+      "output": "assets/skills/1044.png",
+      "index": 14,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1049",
+      "name": "夢魘",
+      "resourceId": "skill/000.img/skill/0001049",
+      "output": "assets/skills/1049.png",
+      "index": 15,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1050",
+      "name": "雪吉拉",
+      "resourceId": "skill/000.img/skill/0001050",
+      "output": "assets/skills/1050.png",
+      "index": 16,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1051",
+      "name": "鴕鳥",
+      "resourceId": "skill/000.img/skill/0001051",
+      "output": "assets/skills/1051.png",
+      "index": 17,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1052",
+      "name": "粉紅熊熱氣球",
+      "resourceId": "skill/000.img/skill/0001052",
+      "output": "assets/skills/1052.png",
+      "index": 18,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "1053",
+      "name": "變形金剛",
+      "resourceId": "skill/000.img/skill/0001053",
+      "output": "assets/skills/1053.png",
+      "index": 19,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4301001",
+      "name": "三重斬",
+      "resourceId": "skill/430.img/skill/4301001",
+      "output": "assets/skills/4301001.png",
+      "index": 20,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4301002",
+      "name": "神速雙刀",
+      "resourceId": "skill/430.img/skill/4301002",
+      "output": "assets/skills/4301002.png",
+      "index": 21,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4310000",
+      "name": "恢復術",
+      "resourceId": "skill/431.img/skill/4310000",
+      "output": "assets/skills/4310000.png",
+      "index": 22,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4311001",
+      "name": "自我速度激發",
+      "resourceId": "skill/431.img/skill/4311001",
+      "output": "assets/skills/4311001.png",
+      "index": 23,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4311002",
+      "name": "分身斬",
+      "resourceId": "skill/431.img/skill/4311002",
+      "output": "assets/skills/4311002.png",
+      "index": 24,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4311003",
+      "name": "狂刃風暴",
+      "resourceId": "skill/431.img/skill/4311003",
+      "output": "assets/skills/4311003.png",
+      "index": 25,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4321000",
+      "name": "雙刃旋",
+      "resourceId": "skill/432.img/skill/4321000",
+      "output": "assets/skills/4321000.png",
+      "index": 26,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4321001",
+      "name": "[TW]토네이도 스핀(어택)",
+      "resourceId": "skill/432.img/skill/4321001",
+      "output": "assets/skills/4321001.png",
+      "index": 27,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4321002",
+      "name": "閃光彈",
+      "resourceId": "skill/432.img/skill/4321002",
+      "output": "assets/skills/4321002.png",
+      "index": 28,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4321003",
+      "name": "二段跳",
+      "resourceId": "skill/432.img/skill/4321003",
+      "output": "assets/skills/4321003.png",
+      "index": 29,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4330001",
+      "name": "進階隱身術",
+      "resourceId": "skill/433.img/skill/4330001",
+      "output": "assets/skills/4330001.png",
+      "index": 30,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4331000",
+      "name": "血雨暴風狂斬",
+      "resourceId": "skill/433.img/skill/4331000",
+      "output": "assets/skills/4331000.png",
+      "index": 31,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4331003",
+      "name": "貓頭鷹召喚",
+      "resourceId": "skill/433.img/skill/4331003",
+      "output": "assets/skills/4331003.png",
+      "index": 32,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4331004",
+      "name": "躍空斬",
+      "resourceId": "skill/433.img/skill/4331004",
+      "output": "assets/skills/4331004.png",
+      "index": 33,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4331005",
+      "name": "翔空落葉斬",
+      "resourceId": "skill/433.img/skill/4331005",
+      "output": "assets/skills/4331005.png",
+      "index": 34,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4340001",
+      "name": "飛毒殺",
+      "resourceId": "skill/434.img/skill/4340001",
+      "output": "assets/skills/4340001.png",
+      "index": 35,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4341000",
+      "name": "楓葉祝福",
+      "resourceId": "skill/434.img/skill/4341000",
+      "output": "assets/skills/4341000.png",
+      "index": 36,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4341002",
+      "name": "絕殺刃",
+      "resourceId": "skill/434.img/skill/4341002",
+      "output": "assets/skills/4341002.png",
+      "index": 37,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4341003",
+      "name": "怪物大爆炸",
+      "resourceId": "skill/434.img/skill/4341003",
+      "output": "assets/skills/4341003.png",
+      "index": 38,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4341004",
+      "name": "[TW]써든 레이드",
+      "resourceId": "skill/434.img/skill/4341004",
+      "output": "assets/skills/4341004.png",
+      "index": 39,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4341005",
+      "name": "隱‧鎖鏈地獄",
+      "resourceId": "skill/434.img/skill/4341005",
+      "output": "assets/skills/4341005.png",
+      "index": 40,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4341007",
+      "name": "荊棘特效",
+      "resourceId": "skill/434.img/skill/4341007",
+      "output": "assets/skills/4341007.png",
+      "index": 41,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "4341008",
+      "name": "楓葉淨化",
+      "resourceId": "skill/434.img/skill/4341008",
+      "output": "assets/skills/4341008.png",
+      "index": 42,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "10000013",
+      "name": "幫手",
+      "resourceId": "skill/1000.img/skill/10000013",
+      "output": "assets/skills/10000013.png",
+      "index": 43,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "22101000",
+      "name": "火圈",
+      "resourceId": "skill/2210.img/skill/22101000",
+      "output": "assets/skills/22101000.png",
+      "index": 44,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "22101001",
+      "name": "超級瞬移之石",
+      "resourceId": "skill/2210.img/skill/22101001",
+      "output": "assets/skills/22101001.png",
+      "index": 45,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "22111000",
+      "name": "閃電球",
+      "resourceId": "skill/2211.img/skill/22111000",
+      "output": "assets/skills/22111000.png",
+      "index": 46,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "22111001",
+      "name": "魔心防禦",
+      "resourceId": "skill/2211.img/skill/22111001",
+      "output": "assets/skills/22111001.png",
+      "index": 47,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "22121000",
+      "name": "雪嵐陣",
+      "resourceId": "skill/2212.img/skill/22121000",
+      "output": "assets/skills/22121000.png",
+      "index": 48,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "22121001",
+      "name": "自然力重置",
+      "resourceId": "skill/2212.img/skill/22121001",
+      "output": "assets/skills/22121001.png",
+      "index": 49,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    },
+    {
+      "kind": "skill",
+      "localId": "22131000",
+      "name": "魔光殺",
+      "resourceId": "skill/2213.img/skill/22131000",
+      "output": "assets/skills/22131000.png",
+      "index": 50,
+      "error": "resource_not_found",
+      "status": "resource_not_found"
+    }
+  ]
+}
