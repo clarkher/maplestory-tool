@@ -1,11 +1,11 @@
 {
   "gameVersion": "1.13.1",
-  "dataGeneratedAt": "2026-08-04T14:45:00+08:00",
-  "dataGeneratedAtText": "2026-08-04 14:45:00 GMT+8",
+  "dataGeneratedAt": "2026-08-05T04:19:56+08:00",
+  "dataGeneratedAtText": "2026-08-05 04:19:56 GMT+8",
   "ingest": {
     "origin": "upstream",
     "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-08-04T06:56:55.986Z"
+    "fetchedAt": "2026-08-05T01:58:22.025Z"
   },
   "mapSource": {
     "source": "MapleStory v83 Map.wz XML export",
@@ -31,23 +31,23 @@
     "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
   },
   "counts": {
-    "monsters": 70,
-    "items": 13574,
+    "monsters": 71,
+    "items": 13577,
     "quests": 358,
     "skills": 373,
-    "maps": 5842,
-    "mapsWithChineseName": 247,
+    "maps": 5844,
+    "mapsWithChineseName": 249,
     "portalEdges": 4041,
     "towns": 343,
     "regions": 40,
-    "walkableAreas": 4005,
+    "walkableAreas": 4007,
     "trainingMaps": 197,
     "farmableItems": 946
   },
   "coverage": {
-    "monstersWithSpawnData": 63,
+    "monstersWithSpawnData": 64,
     "monstersWithoutSpawnData": 7,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-08-05T01:56:28.695Z"
+  "builtAt": "2026-08-05T01:58:26.250Z"
 }

@@ -1,7 +1,7 @@
 {
-  "targets": 177,
-  "exported": 170,
-  "missing": 7,
+  "targets": 282,
+  "exported": 248,
+  "missing": 34,
   "skipped": [
     {
       "id": 2004,
@@ -24,7 +24,115 @@
       "reason": "missing sprite"
     },
     {
+      "id": 1052116,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 2082014,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9000069,
+      "reason": "missing sprite"
+    },
+    {
       "id": 9010017,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9110002,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9110003,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9110004,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9110005,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9110006,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9110007,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9120000,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9120002,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9120004,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9120019,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9201058,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9201059,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9201060,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9201099,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9201101,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270019,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270020,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270021,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270022,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270027,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270055,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270056,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270057,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9270065,
       "reason": "missing sprite"
     },
     {

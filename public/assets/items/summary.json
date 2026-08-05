@@ -1,7 +1,7 @@
 {
-  "requested": 13570,
-  "exported": 12510,
-  "missing": 1060,
+  "requested": 13577,
+  "exported": 12526,
+  "missing": 1051,
   "missingSample": [
     30430,
     30431,
@@ -143,7 +143,7 @@
     },
     "spritesheet_631a1e3068991baaee1cfa048357fd49.bundle": {
       "groups": 0,
-      "equipment": 4505,
+      "equipment": 4521,
       "avatar": 3316,
       "pet": 0
     }
