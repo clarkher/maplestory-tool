@@ -129,7 +129,6 @@ function TrainCard({
   const [open, setOpen] = useState(false);
   const record = maps[String(row.m)];
   const name = mapName(maps, row.m);
-  const englishOnly = Boolean(record && !record.zh && record.en);
 
   return (
     <li className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
@@ -141,9 +140,6 @@ function TrainCard({
             <h3 className="text-[17px] font-black leading-tight">{name}</h3>
             {record?.st ? <span className="text-xs ink-faint">{record.st}</span> : null}
           </div>
-          {englishOnly ? (
-            <p className="mt-0.5 text-[11px] ink-faint">此圖客戶端資料沒有中文名，顯示的是英文原名</p>
-          ) : null}
 
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {row.mobs.filter(([id]) => !monsterIndex.get(id)?.un).slice(0, 4).map(([mobId, count]) => {

@@ -51,7 +51,7 @@ export function MapPicker({
   }, [rows, query]);
 
   const current = value !== null ? maps[String(value)] : null;
-  const currentName = current ? current.zh || current.en || `地圖 ${value}` : "";
+  const currentName = current?.zh || (value !== null ? "未開放地圖" : "");
 
   return (
     <div ref={boxRef} className="relative">

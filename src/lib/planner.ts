@@ -618,5 +618,5 @@ export function searchItems(items: Item[], keyword: string, limit = 40): Item[] 
 }
 
 export function mapDisplayLevel(record: MapRecord | undefined, fallback: string) {
-  return record?.zh || record?.en || fallback;
+  return record?.zh || fallback;
 }

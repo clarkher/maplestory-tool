@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { loadJobs } from "@/lib/data";
+import { LEVEL_CAP } from "@/lib/profile";
 import type { Job, Profile } from "@/lib/types";
 
 /**
@@ -43,7 +44,7 @@ export function ProfileForm({
 
   function commitLevel(raw: string) {
     const value = Number(raw.replace(/[^0-9]/g, ""));
-    const level = Number.isFinite(value) ? Math.max(0, Math.min(200, value)) : 0;
+    const level = Number.isFinite(value) ? Math.max(0, Math.min(LEVEL_CAP, value)) : 0;
     onChange({ ...profile, level });
   }
 
@@ -56,13 +57,16 @@ export function ProfileForm({
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
         <label className="flex-1">
-          <span className="mb-1.5 block text-sm font-bold">你的等級</span>
+          <span className="mb-1.5 block text-sm font-bold">
+            你的等級
+            <span className="ml-1.5 text-xs font-normal ink-faint">目前開放到 {LEVEL_CAP}</span>
+          </span>
           <input
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
             value={levelText}
-            placeholder="例如 35"
+            placeholder={`1–${LEVEL_CAP}`}
             onChange={event => {
               setLevelText(event.target.value);
               commitLevel(event.target.value);
@@ -75,7 +79,7 @@ export function ProfileForm({
         <label className="flex-[2]">
           <span className="mb-1.5 block text-sm font-bold">
             你的職業
-            <span className="ml-1.5 text-xs font-normal ink-faint">選了才會過濾任務</span>
+            <span className="ml-1.5 text-xs font-normal ink-faint">目前開放到二轉</span>
           </span>
           <select
             value={profile.job}

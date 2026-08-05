@@ -68,18 +68,14 @@ export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
 
-/** 地圖顯示名稱：中文優先，缺了才退回英文，兩個都沒有就給編號。 */
+/**
+ * 地圖顯示名稱。
+ * 只用中文——沒有中文名的地圖屬於還沒開放的內容，顯示英文原名對玩家沒有幫助
+ * （遊戲裡看到的是中文），套別的版本的中文名又會給錯地名。
+ */
 export function mapName(maps: Record<string, MapRecord>, id: number | undefined | null): string {
   if (id === undefined || id === null) return "未知地圖";
-  const record = maps[String(id)];
-  if (!record) return `地圖 ${id}`;
-  return record.zh || record.en || `地圖 ${id}`;
-}
-
-/** 這張圖的名字是不是只有英文——UI 要據此標註「僅有英文名」。 */
-export function isEnglishOnly(maps: Record<string, MapRecord>, id: number): boolean {
-  const record = maps[String(id)];
-  return Boolean(record && !record.zh && record.en);
+  return maps[String(id)]?.zh || "未開放地圖";
 }
 
 export function mapStreet(maps: Record<string, MapRecord>, id: number): string {

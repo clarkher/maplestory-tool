@@ -23,6 +23,29 @@ const OUT = path.join(ROOT, "public", "data");
  */
 const DEFAULT_RESPAWN_SECONDS = 7;
 
+/**
+ * 台服《新楓之谷：經典版》目前開放的範圍。
+ *
+ * 這不是 Artale，也不是 GMS Classic——是遊戲橘子代理、2026-07-29 上線的 V001，
+ * 等級上限 100、只到二轉，地區只有楓之島與維多利亞島（含奇幻村、螞蟻礦坑）。
+ *
+ * 客戶端資產包含尚未開放的內容（神木村、玩具城、冰原雪域、Lv.180 的怪、四轉技能都在裡面），
+ * 但只有已開放的地圖帶中文名。實測對照官方公告的地區：
+ *   奇幻村、螞蟻礦坑、弓箭手訓練場、墮落城市 → 有中文名
+ *   玩具城、冰原雪域、神木村 → 沒有
+ * 所以「有沒有中文名」就是可靠的已開放判準，拿它把未開放內容濾掉，
+ * 免得推薦玩家去一個進不去的地方。
+ */
+const RELEASE = {
+  version: "V001",
+  operator: "遊戲橘子（NEXON Korea 授權）",
+  launchedAt: "2026-07-29",
+  levelCap: 100,
+  maxAdvancementOrder: 2,
+  regions: ["楓之島", "維多利亞島"],
+  note: "客戶端資產含未開放內容，本站只保留已開放的部分：地圖以是否有中文名判斷，任務與職業以等級上限與轉職階段判斷。",
+};
+
 function main() {
   const artale = readJson(path.join(RAW, "artale.json"));
   const v83 = readJson(path.join(RAW, "v83-maps.json"));
@@ -32,19 +55,20 @@ function main() {
 
   fs.mkdirSync(OUT, { recursive: true });
 
-  const jobs = buildJobs(artale);
+  const allJobs = buildJobs(artale);
+  const jobs = releasedJobs(allJobs);
   const zhNames = collectChineseMapNames(artale);
   const regions = buildRegions(v83);
   const maps = buildMaps(v83, zhNames, regions, msio);
   const graph = buildGraph(v83, maps);
   const components = labelComponents(graph, maps);
   const nearestTown = computeNearestTowns(maps, graph, v83);
-  const monsters = buildMonsters(artale, v83);
-  const items = buildItems(artale);
-  const quests = buildQuests(artale, maps);
-  const skills = buildSkills(artale);
+  const monsters = buildMonsters(artale, v83, maps);
+  const items = buildItems(artale, monsters);
+  const quests = buildQuests(artale, maps, allJobs);
+  const skills = buildSkills(artale, allJobs);
   const training = buildTraining(maps, v83, monsters);
-  const farming = buildFarmingIndex(items, monsters);
+  const farming = buildFarmingIndex(items, monsters, maps);
   const search = buildSearch({ monsters, items, quests, skills, maps });
 
   const report = {};
@@ -67,6 +91,7 @@ function main() {
     dataGeneratedAtText: artale.metadata?.generatedAtText ?? null,
     ingest: artale.ingest ?? null,
     mapSource: { source: v83.source, url: v83.sourceUrl, extractedAt: v83.extractedAt },
+    release: RELEASE,
     assumptions: {
       defaultRespawnSeconds: DEFAULT_RESPAWN_SECONDS,
       expNote: "本站不提供每小時經驗值——那需要知道你的清怪速度。提供的是可查證的事實：一輪清完的總經驗、刷怪點數、回生秒數，以及據此換算的相對效率指數。",
@@ -126,6 +151,14 @@ function buildJobs(artale) {
   }
   return [...byId.values()].sort((a, b) =>
     a.groupOrder - b.groupOrder || a.advOrder - b.advOrder || a.id - b.id);
+}
+
+/** 玩家選單只列得到的職業：遊戲開放到二轉，管理與活動用的也不算職業。 */
+function releasedJobs(jobs) {
+  return jobs.filter(job =>
+    job.advOrder <= RELEASE.maxAdvancementOrder
+    && !job.group.includes("管理")
+    && !job.group.includes("特殊"));
 }
 
 /* ------------------------------------------------------------------ 地圖 */
@@ -194,12 +227,12 @@ function buildMaps(v83, zhNames, regions, msio) {
     const id = Number(key);
     const raw = v83.maps[key] || {};
     const zh = zhNames.get(id);
-    const en = v83.names[key] || ["", ""];
 
+    // 只輸出中文。上游沒給中文名的地圖就留空——與其顯示玩家在遊戲裡
+    // 根本找不到的英文名（或別的版本翻錯的中文名），不如誠實留白。
     const record = {
       zh: zh?.name || "",
-      en: en[0] || "",
-      st: zh?.street || en[1] || "",
+      st: zh?.street || "",
       t: townSet.has(id) ? 1 : undefined,
       ret: raw.ret,
       mk: zh?.mark || raw.mk || undefined,
@@ -299,7 +332,7 @@ function computeNearestTowns(maps, graph, v83) {
 
 /* ---------------------------------------------------------------- 怪物 */
 
-function buildMonsters(artale, v83) {
+function buildMonsters(artale, v83, maps) {
   // 反查：怪物 id → 出現在哪些地圖、各幾個刷怪點、回生秒數
   const spawnOf = new Map();
   for (const [key, raw] of Object.entries(v83.maps)) {
@@ -309,8 +342,15 @@ function buildMonsters(artale, v83) {
     }
   }
 
+  const released = new Set(
+    Object.entries(maps.records).filter(([, record]) => record.zh).map(([key]) => Number(key)),
+  );
+
   let withSpawnData = 0;
-  const list = (artale.monsters || []).map(monster => {
+  const list = (artale.monsters || [])
+    // 只有出現在已開放地圖上的怪才算進得去；其餘是客戶端裡尚未開放的內容
+    .filter(monster => (monster.maps || []).some(map => released.has(Number(map.id))))
+    .map(monster => {
     const id = Number(monster.id);
     const stats = monster.stats || {};
     const declaredMaps = (monster.maps || []).map(map => Number(map.id)).filter(Number.isFinite);
@@ -356,7 +396,7 @@ function compactElemental(elemental) {
 
 /* ---------------------------------------------------------------- 道具 */
 
-function buildItems(artale) {
+function buildItems(artale, monsters) {
   const list = (artale.items || []).map(item => {
     const sources = item.sources || {};
     const record = {
@@ -368,7 +408,7 @@ function buildItems(artale) {
       un: item.unnamed ? 1 : undefined,
       eq: compactEquip(item.equipStats),
       // 每種來源的識別欄位名稱不同（monsterId / questId / recipeId），不能一律當 id 抓
-      dm: pluckIds(sources.monsterDrops, "monsterId"),
+      dm: pluckIds(sources.monsterDrops, "monsterId")?.filter(id => monsters.byId.has(id)),
       qr: pluckStrings(sources.questRewards, "questId"),
       qq: pluckStrings(sources.questRequirements, "questId"),
       sh: sources.shops?.length || undefined,
@@ -419,8 +459,18 @@ function compactEquip(stats) {
 
 /* ---------------------------------------------------------------- 任務 */
 
-function buildQuests(artale, maps) {
-  const list = (artale.quests || []).map(quest => {
+function buildQuests(artale, maps, jobs) {
+  const advOf = new Map(jobs.map(job => [job.id, job.advOrder]));
+  const reachableJob = (codes) => {
+    if (!codes?.length) return true;
+    // 職業代碼查不到轉職階段時不擋，寧可多列也不要漏掉不限職業的任務
+    return codes.some(code => (advOf.get(code) ?? 0) <= RELEASE.maxAdvancementOrder);
+  };
+
+  const list = (artale.quests || [])
+    .filter(quest => (quest.minLevel ?? 0) <= RELEASE.levelCap)
+    .filter(quest => reachableJob(quest.startRequirements?.jobs))
+    .map(quest => {
     const start = quest.startRequirements || {};
     const complete = quest.completeRequirements || {};
     const rewards = quest.completeRewards || {};
@@ -462,7 +512,7 @@ function buildQuests(artale, maps) {
       island: onMapleIsland(quest.startNpc) ? 1 : undefined,
 
       // 任務敘述是「可接／進行中／完成後」三段的陣列，先前被當成物件而整段沒顯示出來
-      texts: questTexts(quest.texts, maps),
+      texts: questTexts(quest.texts),
 
       // 這個任務牽涉到的其他 NPC，不只起訖兩個
       npcs: relatedNpcs(quest, maps),
@@ -472,29 +522,20 @@ function buildQuests(artale, maps) {
 }
 
 /**
- * 任務敘述。
- * 上游把 NPC 位置直接寫進內文，碰到沒有中文名的地圖就變成「未命名地圖 211000001」，
- * 玩家看了也不知道在哪。這裡換成 v83 的原名與所屬區域。
+ * 任務敘述。原文照留。
+ * 曾經把內文的「未命名地圖 211000001」換成 v83 的英文名，但玩家在遊戲裡看到的是中文，
+ * 英文名對他沒有用；別的版本的中文名又對不上這版的地圖。沒有正確中文就不要亂填。
  */
-function questTexts(texts, maps) {
+function questTexts(texts) {
   if (!Array.isArray(texts) || !texts.length) return undefined;
   const rows = texts
     .filter(entry => entry?.text)
     .map(entry => ({
       k: String(entry.key ?? ""),
       label: entry.label || "",
-      text: replaceUnnamedMaps(String(entry.text), maps),
+      text: String(entry.text),
     }));
   return rows.length ? rows : undefined;
-}
-
-function replaceUnnamedMaps(text, maps) {
-  return text.replace(/未命名地圖\s*(\d+)/g, (whole, id) => {
-    const record = maps.records[id];
-    const name = record?.zh || record?.en;
-    if (!name) return whole;
-    return record.st ? `${name}（${record.st}）` : name;
-  });
 }
 
 /**
@@ -577,8 +618,12 @@ function dropEmpty(object) {
 
 /* ---------------------------------------------------------------- 技能 */
 
-function buildSkills(artale) {
-  const list = (artale.skills || []).map(skill => dropEmpty({
+function buildSkills(artale, allJobs) {
+  const advOf = new Map(allJobs.map(job => [job.id, job.advOrder]));
+  const list = (artale.skills || [])
+    // 三轉四轉的技能現在學不到，列出來只會讓人以為練得到
+    .filter(skill => (advOf.get(Number(skill.jobId)) ?? 9) <= RELEASE.maxAdvancementOrder)
+    .map(skill => dropEmpty({
     id: Number(skill.id),
     n: skill.name || "",
     job: Number(skill.jobId),
@@ -609,7 +654,8 @@ function buildTraining(maps, v83, monsters) {
   for (const [key, raw] of Object.entries(v83.maps)) {
     const mapId = Number(key);
     const record = maps.records[mapId];
-    if (!record || !raw.m?.length) continue;
+    // 沒有中文名的地圖不進推薦——玩家在遊戲裡找不到它
+    if (!record || !record.zh || !raw.m?.length) continue;
 
     let totalSpawn = 0;
     let density = 0;
@@ -667,7 +713,7 @@ function buildTraining(maps, v83, monsters) {
  * 道具 → 會掉的怪 → 怪出沒的地圖。
  * 沒有官方掉率，所以排序依據是刷怪密度與同圖目標數，也就是「一趟收最多」。
  */
-function buildFarmingIndex(items, monsters) {
+function buildFarmingIndex(items, monsters, maps) {
   const byItem = {};
   for (const item of items.list) {
     const dropperIds = item.dm || [];
@@ -680,6 +726,7 @@ function buildFarmingIndex(items, monsters) {
         ? monster.sp.map(([mapId, count]) => [mapId, count])
         : (monster.maps || []).map(mapId => [mapId, 0]);
       for (const [mapId, count] of spawns) {
+        if (!maps.records[mapId]?.zh) continue;
         const bucket = perMap.get(mapId) || { mobs: [], spawn: 0 };
         bucket.mobs.push(monsterId);
         bucket.spawn += count;
@@ -710,9 +757,8 @@ function buildSearch({ monsters, items, quests, skills, maps }) {
   for (const quest of quests.list) rows.push(["q", quest.id, quest.n, quest.minLv ?? 0]);
   for (const skill of skills.list) rows.push(["s", skill.id, skill.n, skill.jobName]);
   for (const [key, record] of Object.entries(maps.records)) {
-    const name = record.zh || record.en;
-    if (!name) continue;
-    rows.push(["p", Number(key), name, record.st || ""]);
+    if (!record.zh) continue;
+    rows.push(["p", Number(key), record.zh, record.st || ""]);
   }
   return rows;
 }

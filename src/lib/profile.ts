@@ -5,6 +5,9 @@ import type { Profile } from "./types";
 
 const STORAGE_KEY = "ms-profile";
 
+/** 台服經典版 V001 目前的等級上限。開放三轉時要一起改這裡與 pipeline 的 RELEASE。 */
+export const LEVEL_CAP = 100;
+
 const EMPTY: Profile = { level: 0, job: 0 };
 
 function read(): Profile {
@@ -15,7 +18,7 @@ function read(): Profile {
     const level = Number(parsed.level);
     const job = Number(parsed.job);
     return {
-      level: Number.isFinite(level) && level > 0 ? Math.min(200, Math.floor(level)) : 0,
+      level: Number.isFinite(level) && level > 0 ? Math.min(LEVEL_CAP, Math.floor(level)) : 0,
       job: Number.isFinite(job) && job >= 0 ? Math.floor(job) : 0,
     };
   } catch {

@@ -22,6 +22,29 @@ export function AboutContent() {
         站上的每個數字都有出處。這頁把來源、更新方式、還有我們做不到的事情一次講清楚。
       </p>
 
+      {meta?.release ? (
+        <section className="rounded-[var(--radius-card)] bg-[color:var(--gold-wash)] p-4 sm:p-5">
+          <h2 className="mb-2 text-lg font-black">這個站是對應哪個版本</h2>
+          <div className="space-y-2 text-[15px] leading-relaxed">
+            <p>
+              台服《新楓之谷：經典版》<strong>{meta.release.version}</strong>，
+              {meta.release.operator}，{meta.release.launchedAt} 上線。
+              目前開放到 <strong>Lv.{meta.release.levelCap}、二轉</strong>，
+              地區只有 {meta.release.regions.join("、")}（含奇幻村、螞蟻礦坑）。
+            </p>
+            <p className="ink-soft">
+              這<strong>不是 Artale，也不是 GMS Classic</strong>。那些是不同地區的產品，
+              數值與內容不通用，本站不會把它們的數字搬過來當這裡的答案。
+            </p>
+            <p className="ink-soft">
+              客戶端資產裡本來就包含還沒開放的東西（神木村、玩具城、冰原雪域、四轉技能、Lv.180 的怪都在裡面）。
+              本站已經把那些濾掉，只留現在真的進得去、練得到的內容——
+              推薦一張還沒開放的地圖，比不推薦更糟。
+            </p>
+          </div>
+        </section>
+      ) : null}
+
       {meta ? (
         <section className="rounded-[var(--radius-card)] glass wood-frame p-4 sm:p-5">
           <h2 className="mb-3 text-lg font-black">目前這份資料</h2>
@@ -30,6 +53,7 @@ export function AboutContent() {
             <Row label="資料產生時間" value={meta.dataGeneratedAtText ?? "—"} />
             <Row label="取得方式" value={meta.ingest?.origin === "local" ? "本機客戶端抽檔" : "上游資料庫同步"} />
             <Row label="地圖資料" value={meta.mapSource.source} />
+            <Row label="開放範圍" value={`Lv.${meta.release.levelCap} · 二轉`} />
           </dl>
           <ul className="mt-3 grid gap-1.5 text-sm ink-soft sm:grid-cols-2">
             <li>怪物 {meta.counts.monsters} 隻</li>
@@ -92,9 +116,18 @@ export function AboutContent() {
         <p className="mt-2">這不是官方公開的公式，是社群長年驗證的通用式，僅供參考。</p>
       </Block>
 
-      <Block title="地圖名稱為什麼有些是英文">
-        客戶端匯出的資料只替出現過怪物或任務 NPC 的地圖命名，其餘沒有中文名。
-        那些地圖我們改顯示 v83 檔案裡的英文原名，並在卡片上標註——總比顯示「未命名地圖 106021500」好。
+      <Block title="怎麼判斷一張地圖開放了沒">
+        <p>
+          客戶端只替已開放的地圖附上中文名。實測比對官方公告的地區：
+          奇幻村、螞蟻礦坑、弓箭手訓練場、墮落城市都有中文名；
+          玩具城、冰原雪域、神木村沒有。所以「有沒有中文名」就是可靠的判準。
+        </p>
+        <p className="mt-2">
+          我們曾經拿 v83 的英文原名或別的版本的中文名去補，兩種都不行——
+          英文名你在遊戲裡看不到也搜不到；別的版本改版過，地圖被重做，
+          套過來會給你錯的地名（例如同一個編號在台服現行版是「瑪亞的家」，在經典版是「弓箭手村民宅」）。
+          沒有正確的中文名就不填。
+        </p>
       </Block>
     </article>
   );

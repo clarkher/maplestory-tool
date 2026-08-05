@@ -1,10 +1,8 @@
 /** 對應 pipeline/build.mjs 輸出的資料格式。欄位刻意用短名，檔案要小。 */
 
 export type MapRecord = {
-  /** Artale 給的中文名，沒有就是空字串 */
+  /** 中文名。沒有中文名代表這張圖屬於尚未開放的內容 */
   zh: string;
-  /** v83 String.wz 的英文名，中文缺漏時當備援 */
-  en: string;
   /** 所屬街道／區域名 */
   st: string;
   /** 1 = 這是別的地圖的回城點，也就是玩家心中的城鎮 */
@@ -180,6 +178,15 @@ export type Meta = {
   dataGeneratedAtText: string | null;
   ingest: { origin: string; ref: string; fetchedAt: string } | null;
   mapSource: { source: string; url: string; extractedAt: string };
+  release: {
+    version: string;
+    operator: string;
+    launchedAt: string;
+    levelCap: number;
+    maxAdvancementOrder: number;
+    regions: string[];
+    note: string;
+  };
   assumptions: {
     defaultRespawnSeconds: number;
     expNote: string;

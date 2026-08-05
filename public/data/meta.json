@@ -1,16 +1,28 @@
 {
   "gameVersion": "1.13.1",
-  "dataGeneratedAt": "2026-08-04T20:19:12+08:00",
-  "dataGeneratedAtText": "2026-08-04 20:19:12 GMT+8",
+  "dataGeneratedAt": "2026-08-04T14:45:00+08:00",
+  "dataGeneratedAtText": "2026-08-04 14:45:00 GMT+8",
   "ingest": {
     "origin": "upstream",
     "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-08-04T14:44:23.756Z"
+    "fetchedAt": "2026-08-04T06:56:55.986Z"
   },
   "mapSource": {
     "source": "MapleStory v83 Map.wz XML export",
     "url": "https://ia600107.us.archive.org/1/items/rulaxingcommunityrepackv1/xml.zip",
     "extractedAt": "2026-08-04T09:30:11.459Z"
+  },
+  "release": {
+    "version": "V001",
+    "operator": "遊戲橘子（NEXON Korea 授權）",
+    "launchedAt": "2026-07-29",
+    "levelCap": 100,
+    "maxAdvancementOrder": 2,
+    "regions": [
+      "楓之島",
+      "維多利亞島"
+    ],
+    "note": "客戶端資產含未開放內容，本站只保留已開放的部分：地圖以是否有中文名判斷，任務與職業以等級上限與轉職階段判斷。"
   },
   "assumptions": {
     "defaultRespawnSeconds": 7,
@@ -19,23 +31,23 @@
     "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
   },
   "counts": {
-    "monsters": 343,
-    "items": 13577,
-    "quests": 499,
-    "skills": 730,
+    "monsters": 70,
+    "items": 13574,
+    "quests": 358,
+    "skills": 373,
     "maps": 5842,
     "mapsWithChineseName": 247,
     "portalEdges": 4041,
     "towns": 343,
     "regions": 40,
     "walkableAreas": 4005,
-    "trainingMaps": 626,
-    "farmableItems": 2273
+    "trainingMaps": 197,
+    "farmableItems": 946
   },
   "coverage": {
-    "monstersWithSpawnData": 299,
-    "monstersWithoutSpawnData": 44,
+    "monstersWithSpawnData": 63,
+    "monstersWithoutSpawnData": 7,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-08-04T14:44:33.830Z"
+  "builtAt": "2026-08-05T01:56:28.695Z"
 }
