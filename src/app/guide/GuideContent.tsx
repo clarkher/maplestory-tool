@@ -9,6 +9,9 @@ import { monsterImage } from "@/lib/data";
 import {
   COMMON_ROUTE, GUIDE_SOURCES, GUIDE_UPDATED_AT, JOB_GUIDES, type GuideStep, type JobGuide,
 } from "@/lib/guide-data";
+import {
+  KpqAnswerTable, KpqBarrelDiagram, MoonBunnySeedDiagram, PqEntryBanner, PqStageList,
+} from "./PqVisuals";
 
 export function GuideContent() {
   const [job, setJob] = useState<string>("warrior");
@@ -90,6 +93,72 @@ export function GuideContent() {
           ))}
         </ul>
       </section>
+    </div>
+  );
+}
+
+/** 月妙圖解：入口 → 種子位置圖 → 三步流程 → 年糕帽提示 */
+function MoonBunnyGuide() {
+  return (
+    <div className="space-y-3">
+      <PqEntryBanner
+        npcId={1012112}
+        npcName="達爾利"
+        place="邱比特公園"
+        party="3~6 人"
+        exp="1,600 經驗／場"
+        time="熟練約 2.5~4.5 分鐘"
+      />
+      <PqStageList
+        stages={[
+          { n: "1", title: "打花草怪收種子", text: "地圖下方敲花草怪，掉六種顏色的種子。" },
+          { n: "2", title: "照位置種種子", text: "六個平台各有指定顏色，照下面這張圖種。" },
+        ]}
+      />
+      <MoonBunnySeedDiagram />
+      <PqStageList
+        stages={[
+          { n: "3", title: "保護月妙搗年糕", text: "月妙被怪打到會停下來哭、不搗年糕——這是最常見的失敗原因。清好周圍的怪，搗滿 10 個。", npcId: 1012114, npcName: "興兒" },
+          { n: "4", title: "交年糕給興兒", text: "拿 10 個年糕給地圖下方的老虎興兒，結算 1,600 經驗。" },
+        ]}
+      />
+      <p className="rounded-xl bg-[color:var(--sky-wash)] px-3 py-2 text-[13px] leading-relaxed">
+        累積 20 個年糕可以換「頭頂上的一個年糕」帽子（+50 HP）。
+        組隊訣竅：頻道 1 揪人、組好一起換頻道，避開排隊人潮。
+      </p>
+    </div>
+  );
+}
+
+/** 超綠圖解：入口 → 五關流程（含每關經驗）→ 答題表 → 跳桶圖 → 注意事項 */
+function KpqGuide() {
+  return (
+    <div className="space-y-3">
+      <PqEntryBanner
+        npcId={9020000}
+        npcName="拉克里斯"
+        place="墮落城市"
+        party="4 人（全隊 21~30 等）"
+        exp="4,800 經驗／場"
+        time="建議 25 等後再下場"
+      />
+      <PqStageList
+        stages={[
+          { n: "1", title: "打鱷魚收優惠券＋答題", text: "依克魯特的題目繳對應張數的優惠券，對照表在下面。", exp: 700 },
+          { n: "2", title: "爬繩找組合", text: "三人各找一條繩子爬上去；錯了就順時針輪到隔壁的空繩再試。", exp: 300 },
+          { n: "3", title: "站平台找組合", text: "跟爬繩同邏輯，每人一輪移動兩次逐步排除。", exp: 500 },
+          { n: "4", title: "跳木桶", text: "三人站上正確的三個桶。照下面的金字塔圖與順序試。", exp: 800 },
+          { n: "5", title: "王關：超級綠水靈", text: "清完小怪打王。需要 10 張票券。", exp: 2500 },
+        ]}
+      />
+      <KpqAnswerTable />
+      <KpqBarrelDiagram />
+      <div className="space-y-1.5 rounded-xl bg-[color:var(--maple-wash)] px-3 py-2.5 text-[13px] leading-relaxed">
+        <p className="font-bold text-[color:var(--maple)]">三件會翻車的事</p>
+        <p>死亡會吞掉身上的優惠券——進王關前先把券丟在地上。</p>
+        <p>王關 BOSS 有機率掉「黏稠稠鞋子」（浮動素質），不是通關必得，同隊先講好分配。</p>
+        <p>板上有「超綠不收劍士」的風氣（打飛行怪吃命中，無官方限制）——被拒收就找只刷第一關的逃課團。</p>
+      </div>
     </div>
   );
 }
@@ -191,6 +260,8 @@ function StepCard({
 
       {open ? (
         <div className="space-y-3 border-t border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]/50 p-3.5">
+          {step.pq === "moon" ? <MoonBunnyGuide /> : null}
+          {step.pq === "kpq" ? <KpqGuide /> : null}
           {step.detail ? (
             <p className="text-sm leading-relaxed">{step.detail}</p>
           ) : null}

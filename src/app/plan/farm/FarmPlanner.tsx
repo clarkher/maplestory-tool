@@ -8,6 +8,7 @@ import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/Plan
 import {
   itemImage, loadFarming, loadItems, loadMaps, loadMonsters, loadQuests, mapName, monsterImage,
 } from "@/lib/data";
+import { MARKET_NOTES, MARKET_SOURCES, MARKET_UPDATED_AT } from "@/lib/market-data";
 import { planFarming, searchItems, suggestFarming } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import type { FarmingRow, Item, MapRecord, Monster, Quest } from "@/lib/types";
@@ -212,6 +213,25 @@ export function FarmPlanner() {
                       );
                     })}
                   </ul>
+                  {group.key === "money" ? (
+                    <div className="space-y-1 rounded-xl bg-[color:var(--paper-deep)] px-3 py-2.5 text-[12px] leading-relaxed ink-soft">
+                      {MARKET_NOTES.map(note => (
+                        <p key={note}>{note}</p>
+                      ))}
+                      <p className="pt-1 ink-faint">
+                        行情整理自
+                        {MARKET_SOURCES.map((source, index) => (
+                          <span key={source.url}>
+                            {index > 0 ? "、" : ""}
+                            <a href={source.url} target="_blank" rel="noopener noreferrer" className="mx-0.5 font-bold text-[color:var(--sky)] hover:underline">
+                              {source.name}
+                            </a>
+                          </span>
+                        ))}
+                        · 更新於 {MARKET_UPDATED_AT}
+                      </p>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </section>

@@ -1,3 +1,4 @@
+import { MARKET_PICKS } from "./market-data";
 import type { FarmingRow, Item, MapRecord, Monster, Profile, Quest, TrainingRow } from "./types";
 
 /* ------------------------------------------------------------------ 職業 */
@@ -378,9 +379,21 @@ export function suggestFarming(
     return droppers <= 1 ? 3 : droppers <= 3 ? 2 : 1;
   };
 
+  // 社群行情精選放最前面——「市場上有人要」是人的判斷，不是演算法推得出來的。
+  // 只列打得到、而且掉它的怪你現在打得動的。
+  const curatedIds = new Set<number>();
+  const curated: FarmSuggestion[] = [];
+  for (const pick of MARKET_PICKS) {
+    if (pick.id === null) continue;
+    const item = byId.get(pick.id);
+    if (!item || !farmable(item.id) || !canFarmNow(item)) continue;
+    curatedIds.add(item.id);
+    curated.push({ item, reason: pick.why, weight: pick.tier === "hot" ? 2 : 1 });
+  }
+
   // 卷軸與技能書：不管幾等都有人收，是最穩的收入
   const scrolls: FarmSuggestion[] = items
-    .filter(item => !item.un && farmable(item.id) && canFarmNow(item)
+    .filter(item => !item.un && !curatedIds.has(item.id) && farmable(item.id) && canFarmNow(item)
       && (item.s === "卷軸" || item.s === "技能書"))
     .map(item => ({
       item,
@@ -395,7 +408,7 @@ export function suggestFarming(
   // 攻擊除以等級的比值最高，但沒人要買。
   const rareGear: FarmSuggestion[] = items
     .filter(item => {
-      if (item.un || !item.eq || !farmable(item.id) || !canFarmNow(item)) return false;
+      if (item.un || curatedIds.has(item.id) || !item.eq || !farmable(item.id) || !canFarmNow(item)) return false;
       const attack = Number(item.eq.incPAD ?? 0) + Number(item.eq.incMAD ?? 0);
       if (attack <= 0 || (item.dm?.length ?? 99) > 5) return false;
       const reqLevel = Number(item.eq.reqLevel ?? 0);
@@ -412,8 +425,8 @@ export function suggestFarming(
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 8);
 
-  // 兩類各留一半，不要讓其中一邊把版面吃光
-  const marketItems = [...scrolls, ...rareGear];
+  // 精選在前，其餘卷軸與稀有武器補滿；兩類各留一半，不讓單邊吃光版面
+  const marketItems = [...curated, ...scrolls.slice(0, 6), ...rareGear.slice(0, 6)];
 
   const groups: FarmSuggestionGroup[] = [];
   if (questItems.length) {
@@ -436,7 +449,7 @@ export function suggestFarming(
     groups.push({
       key: "money",
       title: "市場上有人要的",
-      lead: "卷軸、技能書與稀有武器，而且是你現在打得到的",
+      lead: "前幾個是社群行情點名的硬通貨（出處見說明），其餘是打得到的卷軸與稀有武器",
       items: marketItems,
     });
   }
