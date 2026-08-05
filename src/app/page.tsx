@@ -104,6 +104,19 @@ export default function HomePage() {
 
       <section className="grid gap-3 sm:grid-cols-2">
         <Link
+          href="/guide"
+          className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-4 transition-transform hover:-translate-y-0.5"
+        >
+          <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color:var(--maple-wash)] text-[color:var(--maple)]">
+            <ScrollIcon size={20} />
+          </span>
+          <span className="min-w-0">
+            <span className="block font-bold">1–30 懶人包</span>
+            <span className="block text-sm ink-soft">新手任務 → 月妙 → 超綠，一條路帶你到 30</span>
+          </span>
+        </Link>
+
+        <Link
           href="/plan/bundle"
           className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-4 transition-transform hover:-translate-y-0.5"
         >

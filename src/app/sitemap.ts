@@ -10,6 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/plan/train", priority: 0.9 },
     { path: "/plan/farm", priority: 0.9 },
     { path: "/plan/bundle", priority: 0.9 },
+    { path: "/guide", priority: 0.9 },
     { path: "/go", priority: 0.8 },
     { path: "/db/monsters", priority: 0.7 },
     { path: "/db/items", priority: 0.7 },
