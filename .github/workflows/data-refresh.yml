@@ -29,6 +29,7 @@ concurrency:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   refresh:
@@ -82,8 +83,10 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: npm run build
 
-      - name: 提交更新
+      - name: 開 PR 並自動合併
         if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.name "maplestory-tool bot"
           git config user.email "actions@github.com"
@@ -93,5 +96,11 @@ jobs:
             exit 0
           fi
           VERSION=$(node -p "require('./public/data/meta.json').gameVersion ?? '?'")
-          git commit -m "data: 同步遊戲版本 ${VERSION}（${{ steps.check.outputs.stamp }}）"
-          git push
+          STAMP="${{ steps.check.outputs.stamp }}"
+          BRANCH="data/refresh-$(echo "$STAMP" | tr -dc '0-9' | head -c 14)"
+          git checkout -b "$BRANCH"
+          git commit -m "data: 同步遊戲版本 ${VERSION}（${STAMP}）"
+          git push -u origin "$BRANCH"
+          # verify.mjs 已在前面把關過才會走到這裡，PR 開了就直接合
+          gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）"             --body "自動資料更新。verify.mjs 全數通過、next build 成功。合併後 Vercel 會自動部署。"             --base main --head "$BRANCH"
+          gh pr merge "$BRANCH" --squash --delete-branch --admin
