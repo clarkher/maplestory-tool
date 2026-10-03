@@ -73,7 +73,12 @@ npm run data:all      # 以上全跑
 #### 用自己電腦上的客戶端資料（優先來源）
 
 把從 `maplestory_classic.zip` 抽出來的 JSON 放成 `data/raw/artale.local.json`，
-`data:artale` 就會改用它，不再同步上游。格式與上游的 `drops.json` 相同。
+`data:artale` 就會改用它，不再同步上游。格式就是組好的單一 payload
+（`metadata`、`monsters`、`items`、`quests`、`skills`），跟 `data/raw/artale.json` 一樣。
+
+上游 2026-08-05 起不再提供 `drops.json`，改成 `data.js`／`items-data.js`／`quests-data.js`／`skills-data.js`
+四支 `window.MS_*_DB = {...};` 檔；`fetch-artale.mjs` 會只剝外殼、`JSON.parse` 後組回單一 payload（不執行對方的 JS）。
+圖檔只鏡像本站原本那幾個目錄（見 `ASSET_DIRS`），上游另外的 `map_renders` 等 300MB+ 不搬。
 
 推上 `main` 之後 GitHub Actions 會自動重建並部署。
 
@@ -83,7 +88,7 @@ npm run data:all      # 以上全跑
 
 - 每天兩次（台灣時間 08:20、20:20）比對上游的 `generatedAt`，有變才重建
 - `data/raw/artale.local.json` 或 `pipeline/` 有異動時立即重建
-- 重建後跑 `verify.mjs`，通過才 commit；commit 進 `main` 觸發 Vercel 部署
+- 重建後跑 `verify.mjs`，通過才開 `data/refresh-*` PR → 自動 squash 合併 → 刪分支；進 `main` 觸發 Vercel 部署
 - 也可以手動觸發，勾 `force` 可略過版本比對
 
 Vercel 這端接的是 GitHub 整合（production branch = `main`），
