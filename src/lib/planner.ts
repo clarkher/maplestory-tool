@@ -55,18 +55,21 @@ const FRESH_WINDOW = 10;
  * 玩家真正在意的順序是：快過期的先做（過了就沒了），再來是剛解鎖的（通常是主線），
  * 剩下的才是隨時能補的。
  */
+/** 這個等級、這個職業現在接得到嗎（不管前置任務做了沒）。 */
+export function questEligible(quest: Quest, profile: Profile, lineage = new Set(jobLineage(profile.job))): boolean {
+  if (quest.minLv !== undefined && profile.level < quest.minLv) return false;
+  if (quest.maxLv !== undefined && profile.level > quest.maxLv) return false;
+  if (quest.jobs?.length && !quest.jobs.some(job => lineage.has(job))) return false;
+  // 楓之島離島之後就回不去了，已轉職的角色不用再看那邊的任務
+  if (quest.island && profile.job !== 0) return false;
+  return true;
+}
+
 export function planQuests(profile: Profile, quests: Quest[]): QuestPlan[] {
   const lineage = new Set(jobLineage(profile.job));
   const byId = new Map(quests.map(quest => [quest.id, quest]));
 
-  const eligible = quests.filter(quest => {
-    if (quest.minLv !== undefined && profile.level < quest.minLv) return false;
-    if (quest.maxLv !== undefined && profile.level > quest.maxLv) return false;
-    if (quest.jobs?.length && !quest.jobs.some(job => lineage.has(job))) return false;
-    // 楓之島離島之後就回不去了，已轉職的角色不用再看那邊的任務
-    if (quest.island && profile.job !== 0) return false;
-    return true;
-  });
+  const eligible = quests.filter(quest => questEligible(quest, profile, lineage));
 
   const rank: Record<QuestBucket, number> = { expiring: 0, fresh: 1, backlog: 2 };
 

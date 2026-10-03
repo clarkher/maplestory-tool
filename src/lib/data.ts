@@ -1,7 +1,8 @@
 "use client";
 
 import type {
-  FarmingRow, Item, Job, MapRecord, Meta, Monster, PortalEdge, Quest, Region, SearchRow, Skill, TrainingRow,
+  FarmingRow, GuideCommon, GuideJob, Item, Job, MapRecord, Meta, Monster, PortalEdge, Quest, Region, SearchRow, Skill,
+  TrainingRow,
 } from "./types";
 
 /**
@@ -67,6 +68,38 @@ export const loadTraining = () => load<TrainingRow[]>("training");
 export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
+/**
+ * 玩家攻略跟遊戲資料是兩條獨立的更新線，不能共用 meta 的版本號——
+ * 攻略改了但遊戲資料沒變時，瀏覽器會一直拿快取的舊攻略。
+ * 所以 common.json 每次回伺服器確認，每職一檔的攻略掛 common 的建置時間當版本號。
+ */
+let guideCommon: Promise<GuideCommon> | null = null;
+
+export function loadGuideCommon(): Promise<GuideCommon> {
+  if (!guideCommon) {
+    guideCommon = fetch("/data/guides/common.json", { cache: "no-cache" }).then(response => {
+      if (!response.ok) throw new Error(`載入攻略失敗（${response.status}）`);
+      return response.json() as Promise<GuideCommon>;
+    });
+  }
+  return guideCommon;
+}
+
+/** 每個職業一檔，只載自己職業的 */
+export function loadGuide(job: number): Promise<GuideJob> {
+  const name = `guides/${job}`;
+  let pending = cache.get(name) as Promise<GuideJob> | undefined;
+  if (!pending) {
+    pending = loadGuideCommon()
+      .then(common => fetch(`/data/${name}.json?v=${encodeURIComponent(common.builtAt)}`, { cache: "force-cache" }))
+      .then(response => {
+        if (!response.ok) throw new Error(`載入攻略失敗（${response.status}）`);
+        return response.json() as Promise<GuideJob>;
+      });
+    cache.set(name, pending);
+  }
+  return pending;
+}
 
 /**
  * 地圖顯示名稱。
@@ -92,6 +125,10 @@ export function itemImage(id: number) {
 
 export function npcImage(id: number) {
   return `/assets/npcs/${id}.png`;
+}
+
+export function skillImage(id: number) {
+  return `/assets/skills/${id}.png`;
 }
 
 export function minimapImage(id: number) {

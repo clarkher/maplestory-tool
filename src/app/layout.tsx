@@ -16,26 +16,26 @@ const SITE_URL = "https://maplestory-tool-three.vercel.app";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "楓谷幫手｜新楓之谷經典版 練功、任務、打寶規劃",
+    default: "楓谷幫手｜新楓之谷經典版 各職業升級路線、技能配點、必解任務",
     template: "%s｜楓谷幫手",
   },
   description:
-    "告訴你等級跟職業，就知道現在該去哪練功、能接哪些任務、想要的東西去哪打，還會帶你一步步走過去。新楓之谷經典版 Artale 專用。",
-  keywords: ["新楓之谷經典版", "Artale", "楓之谷", "練功地圖", "任務攻略", "掉落查詢", "MapleStory Classic"],
+    "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解、材料先存什麼。17 個職業一路排到 Lv.100，還會帶你一步步走過去。台服新楓之谷經典版專用。",
+  keywords: ["新楓之谷經典版", "楓之谷", "練功地圖", "技能配點", "必解任務", "任務攻略", "轉職", "MapleStory Classic"],
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
     locale: "zh_TW",
     url: SITE_URL,
     siteName: "楓谷幫手",
-    title: "楓谷幫手｜新楓之谷經典版 練功、任務、打寶規劃",
-    description: "說出等級跟職業，馬上知道去哪練、接什麼任務、想要的東西去哪打，還會帶你走過去。",
+    title: "楓谷幫手｜新楓之谷經典版 各職業升級路線",
+    description: "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解、材料先存什麼。",
     images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "楓谷幫手" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "楓谷幫手｜新楓之谷經典版 練功、任務、打寶規劃",
-    description: "說出等級跟職業，馬上知道去哪練、接什麼任務、想要的東西去哪打。",
+    title: "楓谷幫手｜新楓之谷經典版 各職業升級路線",
+    description: "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解。",
     images: ["/og.jpg"],
   },
   robots: { index: true, follow: true },

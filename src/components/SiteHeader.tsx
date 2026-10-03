@@ -7,13 +7,9 @@ import { useEffect, useState } from "react";
 import { MoonIcon, SunIcon } from "./Icons";
 
 const NAV = [
-  { href: "/", label: "規劃" },
-  { href: "/guide", label: "懶人包", match: "/guide" },
-  { href: "/plan/bundle", label: "打包", match: "/plan/bundle" },
-  { href: "/db/monsters", label: "怪物", match: "/db/monsters" },
-  { href: "/db/items", label: "道具", match: "/db/items" },
-  { href: "/db/quests", label: "任務", match: "/db/quests" },
-  { href: "/db/skills", label: "技能", match: "/db/skills" },
+  { href: "/", label: "我的路線" },
+  { href: "/go", label: "帶我去", match: "/go" },
+  { href: "/db", label: "查資料", match: ["/db", "/plan", "/guide"] },
 ];
 
 export function SiteHeader() {
@@ -21,7 +17,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[color:var(--paper-edge)] glass">
-      <div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-6">
+      <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 tap-safe" aria-label="楓谷幫手首頁">
           <Image
             src="/brand-emblem.png"
@@ -31,19 +27,20 @@ export function SiteHeader() {
             priority
             className="size-[30px] shrink-0"
           />
-          <span className="text-[17px] font-black tracking-tight">楓谷幫手</span>
+          <span className="hidden text-[17px] font-black tracking-tight min-[400px]:inline">楓谷幫手</span>
         </Link>
 
         <nav className="scroll-x -mx-1 flex flex-1 items-center gap-1 px-1" aria-label="主選單">
           {NAV.map(item => {
-            const active = item.match ? pathname.startsWith(item.match) : pathname === "/";
+            const matches = typeof item.match === "string" ? [item.match] : item.match;
+            const active = matches ? matches.some(prefix => pathname.startsWith(prefix)) : pathname === "/";
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
+                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold transition-colors",
                   active
                     ? "bg-[color:var(--maple)] text-white shadow-sm"
                     : "text-[color:var(--ink-soft)] hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--ink)]",
