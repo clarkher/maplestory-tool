@@ -211,3 +211,69 @@ export type Profile = {
   /** 職業代碼；0 代表初心者／未選 */
   job: number;
 };
+
+/* ------------------------------------------------------------------ 玩家攻略（pipeline/build-guides.mjs 輸出） */
+
+/** tw = 台服經典版玩家實測；legacy = BigBang 前舊版經驗；community = 經典版社群整理、沒說實測 */
+export type Verified = "tw" | "legacy" | "community";
+
+export type GuideSkillStep = { id: number | null; name: string; to: number; note?: string };
+
+export type GuideBuild = {
+  label: string;
+  /** 研究時判定為主流點法 */
+  main: boolean;
+  v: Verified;
+  s: string[];
+  steps: GuideSkillStep[];
+};
+
+export type GuideTrain = {
+  from: number;
+  to: number;
+  kind: "solo" | "party";
+  /** 站內地圖 id；沒有中文名（未開放或跨多圖）時為 null，不能導航 */
+  map: number | null;
+  name: string;
+  mobs: number[];
+  why: string;
+  v: Verified;
+  s: string[];
+};
+
+export type GuideJob = {
+  job: number;
+  name: string;
+  stat: Array<{ t: string; v: Verified; s: string[] }>;
+  builds: GuideBuild[];
+  train: GuideTrain[];
+  notes: Array<{ t: string; s: string[] }>;
+  /** 研究時確認「這段找不到可靠攻略」的等級區間與說明 */
+  gaps: Array<{ from: number; to: number; t: string; s: string[] }>;
+  notOpenYet: Array<{ from: number; to: number; place: string; s: string[] }>;
+};
+
+export type GuideMustDo = {
+  q: string;
+  /** 同一條任務線的其他任務 id，一起標成推薦 */
+  chain: string[];
+  name: string;
+  lv: string;
+  why: string;
+  v: Verified;
+  s: string[];
+};
+
+export type GuideCommon = {
+  researchedAt: string;
+  builtAt: string;
+  expTable: {
+    /** toNext[n] = 從 Lv.n 升到 n+1 要的經驗；toNext[0] 不用 */
+    toNext: number[];
+    conflicts: Array<{ level: number; values: Array<{ value: number; source: string; note?: string }> }>;
+    v: Verified;
+    s: string[];
+  };
+  mustDo: GuideMustDo[];
+  notWorth: Array<{ q: string; related: string[]; name: string; why: string; s: string[] }>;
+};

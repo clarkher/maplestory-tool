@@ -1,0 +1,2970 @@
+{
+  "researchedAt": "2026-10-03",
+  "scope": "台服《新楓之谷：經典版》V001（等級上限 100、只開到二轉、楓之島＋維多利亞島）。verified：tw＝台服經典版開服後玩家實測或實玩心得；legacy＝BigBang 前舊版經驗；community＝經典版社群／整理站彙整但未明講實測。el 代碼依站內 monsters.json：w 弱、r 抗、i 免疫。",
+  "jobs": [
+    {
+      "jobId": 200,
+      "name": "法師",
+      "statBuild": [
+        {
+          "text": "主流＝全智力：能力點全部投入智力，8 等轉職時先拿轉職送的新手短杖，二轉後繼續全智。一轉之前能力值為自動配點、一轉時會重置，所以轉職前不必管配點。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "「全智 vs 裝備法」是台服經典版開服後板上最大的法師配點爭議。裝備法＝前期一樣先全智，有預算後把幸運補到想穿的法師裝備需求（板上常見說法：幸運約＝等級＋3，或「裝備要幾等幸運就點到哪」），靠裝備上的智力與魔攻追回差距；優點是能穿一般法師武器與防具、物防／迴避較高、被撞較不痛，缺點是裸裝智力較低、升級 MP 少一點，而且會隨黃色雨傘等關鍵裝備的物價來回翻面。兩派共識：前期先全智完全沒問題，要不要轉自行取捨。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1414",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=835",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "全智路線的核心武器是不吃幸運的「黃色雨傘」（青螃蟹／海龜沙灘掉落，約 50 魔攻）。開服初期極貴（上千萬楓幣），8 月初一度崩到約 100 萬、8 月中又回到 700～800 萬、8 月底約 580～620 萬——所以「該不該全智」的結論會跟著當天拍賣價變，不要把某一天的價格當長期答案；還沒拿到黃傘前就衝新手短杖的短杖 100%／60% 卷，耳環、披風衝智力卷。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "法師 8 等就可以一轉（其他職業 10 等）。板上有附截圖的 10 等轉職實測主張轉職後會補回技能點（8 等轉 67 點、9 等 64、10 等 61，依每級 3 點計算）；另有玩家說晚轉會讓法師的 MP 成長少一些（一說少 40 點以上），板上回報彼此矛盾，轉完以遊戲內技能視窗為準。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=32",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=139",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/guides/launch-leveling-guide/"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "主流：先補魔力擴展，再開魔靈彈／魔力爪",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 2000000,
+              "skillName": "魔力淨化",
+              "to": 5,
+              "note": "魔力擴展的前置"
+            },
+            {
+              "skillId": 2000001,
+              "skillName": "魔力擴展",
+              "to": 10,
+              "note": "剛轉職先把這招點滿再開始用攻擊技練功；板上多寫成「魔力擴充」"
+            },
+            {
+              "skillId": 2001004,
+              "skillName": "魔靈彈",
+              "to": 1,
+              "note": "魔力爪的前置；板上多寫成「魔法彈」"
+            },
+            {
+              "skillId": 2001005,
+              "skillName": "魔力爪",
+              "to": 20,
+              "note": "約 14 等點出後改用魔力爪練功，之前用新手技「嫩寶投擲術」（固定 40 傷害、只耗 MP）打怪更穩"
+            },
+            {
+              "skillId": 2000000,
+              "skillName": "魔力淨化",
+              "to": 16,
+              "note": ""
+            },
+            {
+              "skillId": 2001002,
+              "skillName": "魔心防禦",
+              "to": 20,
+              "note": "8 等轉職（67 點）才點得到 20；9 等轉停在 17、10 等轉停在 14。魔力之盾不點。"
+            }
+          ],
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=919",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "先出魔靈彈再補被動（楓錄版）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2001004,
+              "skillName": "魔靈彈",
+              "to": 1,
+              "note": "轉職先取得攻擊手段"
+            },
+            {
+              "skillId": 2000000,
+              "skillName": "魔力淨化",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 2000001,
+              "skillName": "魔力擴展",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 2001005,
+              "skillName": "魔力爪",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2000000,
+              "skillName": "魔力淨化",
+              "to": 16,
+              "note": ""
+            },
+            {
+              "skillId": 2001002,
+              "skillName": "魔心防禦",
+              "to": 20,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "無課冰雷版：捨魔心防禦、改點魔力之盾省白水",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2000000,
+              "skillName": "魔力淨化",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 2000001,
+              "skillName": "魔力擴展",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 2001004,
+              "skillName": "魔靈彈",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2001005,
+              "skillName": "魔力爪",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2001002,
+              "skillName": "魔心防禦",
+              "to": 3,
+              "note": "只點到魔力之盾的前置"
+            },
+            {
+              "skillId": 2001003,
+              "skillName": "魔力之盾",
+              "to": 20,
+              "note": "作者認為現階段魔心防禦完全用不到，魔力之盾給的 40 防禦非常有用"
+            },
+            {
+              "skillId": 2000000,
+              "skillName": "魔力淨化",
+              "to": 13,
+              "note": "剩餘 8 點；作者建議之後等冰錐術 30 再用一轉 SP 重置卷把魔力爪洗去點魔心防禦"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 8,
+          "levelTo": 13,
+          "kind": "solo",
+          "mapName": "弓箭手村東部草叢",
+          "mapId": 100020000,
+          "mobs": [
+            {
+              "name": "肥肥",
+              "id": 1210100,
+              "lv": 7
+            },
+            {
+              "name": "緞帶肥肥",
+              "id": 1210101,
+              "lv": 10
+            }
+          ],
+          "why": "剛出楓之島、轉完職的第一站。先在東側草叢解法師轉職教官給的 4 個任務（8／9／10／11 等，殺綠水靈與黑木妖）拿一大堆免費藥水，再在這條長形圖慢慢敲肥肥；怪弱、空圖多，順手收任務要用的肥肥頭。缺點是地形容易吃掉技能。",
+          "sources": [
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://mapleclassictools.com/#cm-picks"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 10,
+          "levelTo": 21,
+          "kind": "party",
+          "mapName": "邱比特公園",
+          "mapId": 100000200,
+          "mobs": [],
+          "why": "月妙組隊任務（入口弓箭手村・邱比特公園）：單場約 1,600 經驗、可重複刷，是法師最缺的「不花水錢」練法；板上多數法師心得都把 10～21 等交給月妙，獎勵關掉裝率高也能存第一桶金。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1914"
+          ],
+          "verified": "tw",
+          "note": "站內 maps.json 只有入口「邱比特公園」(100000200)，副本內部地圖未對應。"
+        },
+        {
+          "levelFrom": 13,
+          "levelTo": 21,
+          "kind": "solo",
+          "mapName": "肥肥海岸",
+          "mapId": 104010001,
+          "mobs": [
+            {
+              "name": "肥肥",
+              "id": 1210100,
+              "lv": 7
+            },
+            {
+              "name": "緞帶肥肥",
+              "id": 1210101,
+              "lv": 10
+            }
+          ],
+          "why": "組不到月妙隊時的單練備選，三叉路中間平台黃花處看板進入的隱藏圖；肥肥血量低、一爪穩殺，掉肥肥頭與黃金母礦可解任務。無課冰雷心得是 15～21 在這裡打緞帶肥肥。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 10,
+          "levelTo": 15,
+          "kind": "solo",
+          "mapName": "菇菇山",
+          "mapId": 104030001,
+          "mobs": [
+            {
+              "name": "菇菇寶貝",
+              "id": 1210102,
+              "lv": 8
+            }
+          ],
+          "why": "無課冰雷心得的 10～15 等單練點：菇菇寶貝血量低、地形平坦好抓怪，「找能 1～2 下魔力爪打死的怪」原則下很好用。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922"
+          ],
+          "verified": "tw",
+          "note": "來源寫「菇菇山丘」，站內名稱為「菇菇山」(104030001)。"
+        },
+        {
+          "levelFrom": 15,
+          "levelTo": 20,
+          "kind": "solo",
+          "mapName": "南部森林訓練場Ⅲ",
+          "mapId": 100040003,
+          "mobs": [
+            {
+              "name": "綠菇菇",
+              "id": 1110100,
+              "lv": 15
+            }
+          ],
+          "why": "僧侶攻略列的 15 等怪點：綠菇菇掉落可解任務、有機會掉鍋蓋（法師可用盾）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 15,
+          "levelTo": 25,
+          "kind": "solo",
+          "mapName": "地鐵一號線[地區01]",
+          "mapId": 103000101,
+          "mobs": [
+            {
+              "name": "藍水靈",
+              "id": 1210103,
+              "lv": 15
+            }
+          ],
+          "why": "藍水靈整條線都是、密度高，法師 1～2 爪可解；無課冰雷 21～25 在這裡打藍水靈與蝙蝠（蝙蝠很會掉藍水，省不少）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 19,
+          "levelTo": 22,
+          "kind": "solo",
+          "mapName": "北方工地頂端",
+          "mapId": 102040001,
+          "mobs": [
+            {
+              "name": "三眼章魚",
+              "id": 1120100,
+              "lv": 12
+            }
+          ],
+          "why": "墮落城市北方工地跳到最上面、盜賊轉職教官旁電線杆進入的隱藏圖，作者稱「為練等而生的地圖」，總經驗比月妙高一點點；三眼章魚弱雷，二轉冰雷之後還會回來電。",
+          "sources": [
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 20,
+          "levelTo": 21,
+          "kind": "solo",
+          "mapName": "藍菇菇樹林",
+          "mapId": 100030001,
+          "mobs": [
+            {
+              "name": "藍菇菇",
+              "id": 2220100,
+              "lv": 20
+            },
+            {
+              "name": "刺菇菇",
+              "id": 2110200,
+              "lv": 22
+            }
+          ],
+          "why": "弓箭手村東部森林最上面路燈處按上進入的隱藏圖，藍菇菇會掉黃金母礦可解任務。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 21,
+          "levelTo": 31,
+          "kind": "party",
+          "mapName": "墮落城市",
+          "mapId": 103000000,
+          "mobs": [],
+          "why": "超級綠水靈組隊任務（入口墮落城市）：站長實測約 25 等下場較順，單場合計約 3,000 經驗（2026-08-05 更正，原值誤引自 Artale）。法師在超綠特別強——「21 等就打得動鱷魚」，一路解到 30～31 等還能拿到大量手套／套服敏捷卷賣錢，是法師前期最大的收入來源。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1914",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263"
+          ],
+          "verified": "tw",
+          "note": "站內只對應入口「墮落城市」(103000000)；副本內部地圖（組隊訓練場）未填。"
+        },
+        {
+          "levelFrom": 21,
+          "levelTo": 25,
+          "kind": "solo",
+          "mapName": "遺跡發掘地Ⅰ",
+          "mapId": 101030101,
+          "mobs": [
+            {
+              "name": "發芽木妖",
+              "id": 1140100,
+              "lv": 19
+            },
+            {
+              "name": "木面怪人",
+              "id": 2230110,
+              "lv": 23
+            }
+          ],
+          "why": "不想在超綠人擠人的「發財路線」：法師 23 等左右一爪秒殺發芽木妖，怪掉 32～48 楓幣＋苗木可賣，掉套服／手套敏捷 60% 卷與鑽石母礦，練功打寶兩不誤、基本不虧錢；木面怪人 21～32 等要兩爪，有機會掉披風智力卷。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=524",
+            "https://mapleclassictools.com/#cm-picks"
+          ],
+          "verified": "tw",
+          "note": "另有開服第一天憑記憶的老玩家質疑「原版純路過圖、密度可能是別版本調高的」，楓錄兩說並列。"
+        },
+        {
+          "levelFrom": 22,
+          "levelTo": 30,
+          "kind": "solo",
+          "mapName": "螞蟻洞Ⅰ",
+          "mapId": 105050000,
+          "mobs": [
+            {
+              "name": "刺菇菇",
+              "id": 2110200,
+              "lv": 22
+            },
+            {
+              "name": "殭屍菇菇",
+              "id": 2230101,
+              "lv": 24
+            }
+          ],
+          "why": "上層刺菇菇（22）能一擊秒殺的話是公認效率很高的圖，下層殭屍菇菇（24）經驗更高；板上全智法師 23 等能穩定一爪秒藍水靈、綠菇菇、刺菇菇。缺點：螞蟻洞「打一定是負收益」，被撞一下 70～80，能撐多久看水錢。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1430",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://mapleclassictools.com/#cm-picks"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 25,
+          "levelTo": 31,
+          "kind": "solo",
+          "mapName": "遺跡發掘地Ⅲ",
+          "mapId": 101030103,
+          "mobs": [
+            {
+              "name": "木面怪人",
+              "id": 2230110,
+              "lv": 23
+            },
+            {
+              "name": "石面怪人",
+              "id": 2230111,
+              "lv": 24
+            }
+          ],
+          "why": "俗稱「木面石面」，三層結構、兩種怪移動都很慢，能明顯減輕水錢壓力；石面怪人掉 30 等弓、30 等手套、耳環智力卷（約 40 萬行情）與槍攻卷，是目前公認獎勵豐厚、法師向為主的熱門圖。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=524",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 25,
+          "levelTo": 31,
+          "kind": "solo",
+          "mapName": "黑肥肥領土Ⅱ",
+          "mapId": 101030001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            }
+          ],
+          "why": "無課冰雷 25～31 在黑肥肥領土打黑肥肥；冰雷廚攻略 20～30 推黑肥肥領土 II（勇士之村東部最右上木樁隱藏傳點），這張沒有會上異常狀態的幼魔精靈，建議最多 2 人。黑肥肥掉落公認好，是存錢圖，但前期裝備沒到位會被圍毆、虧藥水錢。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "notes": [
+        {
+          "text": "一轉練功原則：「找能 1～2 下魔力爪打死的怪」；14 等魔力爪出來前用新手技嫩寶投擲術（固定 40 傷害）更穩。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ]
+        },
+        {
+          "text": "法師前期其實不缺水：維多利亞港坤送新手藥水、月妙打豬團、肥肥圖掉裝賣商店、23～24 轉超綠到 30～31，超綠的敏捷卷在可交易後全丟拍賣（套敏 1 張曾達 150 萬）。「只要你不是火毒，練功大概都是正收益。」",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1914"
+          ]
+        },
+        {
+          "text": "魔心防禦不是要全程開的技能：MP 水價是 HP 水的 2 倍，開魔心等於大幅增加楓幣消耗，初期除緊急情況不建議開。",
+          "sources": [
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ]
+        },
+        {
+          "text": "法師修練場（轉職試煉）與二轉條件：30 等、一轉 SP 點完（30～70 共 121 點），魔法森林→魔法圖書館→NPC 漢斯，收 30 個黑珠換英雄證明；三分支共用同一轉職點。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=59",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=60",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=562"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 210,
+      "name": "火毒巫師",
+      "statBuild": [
+        {
+          "text": "主流＝全智力：能力點全部投入智力，8 等轉職時先拿轉職送的新手短杖，二轉後繼續全智。一轉之前能力值為自動配點、一轉時會重置，所以轉職前不必管配點。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "「全智 vs 裝備法」是台服經典版開服後板上最大的法師配點爭議。裝備法＝前期一樣先全智，有預算後把幸運補到想穿的法師裝備需求（板上常見說法：幸運約＝等級＋3，或「裝備要幾等幸運就點到哪」），靠裝備上的智力與魔攻追回差距；優點是能穿一般法師武器與防具、物防／迴避較高、被撞較不痛，缺點是裸裝智力較低、升級 MP 少一點，而且會隨黃色雨傘等關鍵裝備的物價來回翻面。兩派共識：前期先全智完全沒問題，要不要轉自行取捨。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1414",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=835",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "全智路線的核心武器是不吃幸運的「黃色雨傘」（青螃蟹／海龜沙灘掉落，約 50 魔攻）。開服初期極貴（上千萬楓幣），8 月初一度崩到約 100 萬、8 月中又回到 700～800 萬、8 月底約 580～620 萬——所以「該不該全智」的結論會跟著當天拍賣價變，不要把某一天的價格當長期答案；還沒拿到黃傘前就衝新手短杖的短杖 100%／60% 卷，耳環、披風衝智力卷。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "法師 8 等就可以一轉（其他職業 10 等）。板上有附截圖的 10 等轉職實測主張轉職後會補回技能點（8 等轉 67 點、9 等 64、10 等 61，依每級 3 點計算）；另有玩家說晚轉會讓法師的 MP 成長少一些（一說少 40 點以上），板上回報彼此矛盾，轉完以遊戲內技能視窗為準。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=32",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=139",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/guides/launch-leveling-guide/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "火毒目前趨勢是全智（黃傘過渡）；「爛職業就別搞裝啦」是板上對火毒裝備法的回覆之一。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1909",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1430"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "楓錄／Threads 整理：火焰箭先滿，再補瞬移與精神強化，毒霧後滿",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2101004,
+              "skillName": "火焰箭",
+              "to": 30,
+              "note": "主輸出先滿；火焰箭只能打一隻，對冰屬性怪大傷"
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 3,
+              "note": "精神強化前置"
+            },
+            {
+              "skillId": 2101001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2101005,
+              "skillName": "毒霧",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": null,
+              "skillName": "自由配點（未指定）",
+              "to": 1,
+              "note": "楓錄原文寫「自由配點 1」，沒有指定技能；舊版各點法這 1 點多放緩速術"
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "舊版・專精火系",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": "與瞬間移動先各 1，順序隨便"
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2101004,
+              "skillName": "火焰箭",
+              "to": 15,
+              "note": "點到 15 後存約 15 點 SP 再補滿"
+            },
+            {
+              "skillId": 2101004,
+              "skillName": "火焰箭",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 2101001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": "舊文寫「精神強力」＝站內精神強化"
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "瞬間移動 20 與魔力吸收 20 先後皆可"
+            },
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2101005,
+              "skillName": "毒霧",
+              "to": 15,
+              "note": "存點後補到 30"
+            },
+            {
+              "skillId": 2101005,
+              "skillName": "毒霧",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2101003,
+              "skillName": "緩速術",
+              "to": 1,
+              "note": "剩餘 1 點看自己喜好"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=59",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版・專精毒系",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2101005,
+              "skillName": "毒霧",
+              "to": 15,
+              "note": "存點後補到 30"
+            },
+            {
+              "skillId": 2101005,
+              "skillName": "毒霧",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2101001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2101004,
+              "skillName": "火焰箭",
+              "to": 15,
+              "note": "存點後補到 30"
+            },
+            {
+              "skillId": 2101004,
+              "skillName": "火焰箭",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2101003,
+              "skillName": "緩速術",
+              "to": 1,
+              "note": "剩餘 1 點隨喜好；舊文註明此派為單一固定順序"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=59",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版・火毒雙修",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2101004,
+              "skillName": "火焰箭",
+              "to": 30,
+              "note": "15 存點後補滿"
+            },
+            {
+              "skillId": 2101005,
+              "skillName": "毒霧",
+              "to": 30,
+              "note": "15 存點後補滿"
+            },
+            {
+              "skillId": 2101002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "或走另一支：魔力吸收 3→精神強化 20→魔力吸收 20→瞬間移動 20"
+            },
+            {
+              "skillId": 2100000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2101001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2101003,
+              "skillName": "緩速術",
+              "to": 1,
+              "note": "剩餘 1 點隨喜好"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=59",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "http://www.crazygame.idv.tw/maple/job0102.html"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 30,
+          "levelTo": 42,
+          "kind": "solo",
+          "mapName": "火焰之地Ⅱ",
+          "mapId": 106000110,
+          "mobs": [
+            {
+              "name": "火肥肥",
+              "id": 3210100,
+              "lv": 32
+            }
+          ],
+          "why": "（可單人全吃也可 3 人團練）楓錄職業攻略：「火毒主要靠火焰之地 2 的火肥肥撐著練級」；楓錄推薦地點卡片：「火毒法師則是把這裡當作二轉後的主力練級圖」，實測玩家多半 37～42 等才把這裡當主力。板上另一條新手建議：30～40 等冰雷／火毒先點單體招去打火肥肥，不要太早點群攻。",
+          "sources": [
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"
+          ],
+          "verified": "community",
+          "note": "警告：站內 monsters.json 火肥肥 el={f:r, i:w}＝抗火、弱冰，用火焰箭打會打折，實際應是用毒霧／魔力爪。楓錄把這句的出處標為巴哈〈職業心得〉(snA=226)，但該文並未提到火肥肥。詳見 unresolved。"
+        }
+      ],
+      "notes": [
+        {
+          "text": "火焰箭只能打一隻怪、毒霧要等中毒慢慢扣血，二轉前期「打一隻都吃力」，加上這個等級段可打的怪經驗本來就不高；板上評價是三條法師線裡最普通、最「坐牢」的，甚至有人說「等雪原開了再練火毒啦，現在是勇村冰雷跟天使猴大幽僧侶的天下」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=226",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=216",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1914"
+          ]
+        },
+        {
+          "text": "官方 9/3 開機公告曾列出火、毒巫師的中毒技能沒有效果（板上 8/23 已有人回報毒霧點滿 30、打混種石巨人等任何怪中毒都不扣血），9/10 開機公告已列為修正；8 月的火毒心得是修正前的情境，毒系效率要重新實測。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1432",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=82647"
+          ]
+        },
+        {
+          "text": "站內 monsters.json 中弱火（f:w）的現有怪：木妖、黑木妖、黑斧木妖、小幽靈、鱷魚、冰獨眼獸、冰龍（64）；板上也有人說「弱火的高等怪只有冰獨眼跟冰龍，相差 20 等」。這只是屬性對照，不是任何來源推薦的練功路線。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1909"
+          ]
+        },
+        {
+          "text": "舊版（2008）火毒總結：火箭 15 就能去天空之城藍光公園打幼藍獨角獅、毒霧法師屬大器晚成要靠組隊任務——這些地圖現在都沒開。",
+          "sources": [
+            "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 220,
+      "name": "冰雷巫師",
+      "statBuild": [
+        {
+          "text": "主流＝全智力：能力點全部投入智力，8 等轉職時先拿轉職送的新手短杖，二轉後繼續全智。一轉之前能力值為自動配點、一轉時會重置，所以轉職前不必管配點。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "「全智 vs 裝備法」是台服經典版開服後板上最大的法師配點爭議。裝備法＝前期一樣先全智，有預算後把幸運補到想穿的法師裝備需求（板上常見說法：幸運約＝等級＋3，或「裝備要幾等幸運就點到哪」），靠裝備上的智力與魔攻追回差距；優點是能穿一般法師武器與防具、物防／迴避較高、被撞較不痛，缺點是裸裝智力較低、升級 MP 少一點，而且會隨黃色雨傘等關鍵裝備的物價來回翻面。兩派共識：前期先全智完全沒問題，要不要轉自行取捨。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1414",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=835",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "全智路線的核心武器是不吃幸運的「黃色雨傘」（青螃蟹／海龜沙灘掉落，約 50 魔攻）。開服初期極貴（上千萬楓幣），8 月初一度崩到約 100 萬、8 月中又回到 700～800 萬、8 月底約 580～620 萬——所以「該不該全智」的結論會跟著當天拍賣價變，不要把某一天的價格當長期答案；還沒拿到黃傘前就衝新手短杖的短杖 100%／60% 卷，耳環、披風衝智力卷。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "法師 8 等就可以一轉（其他職業 10 等）。板上有附截圖的 10 等轉職實測主張轉職後會補回技能點（8 等轉 67 點、9 等 64、10 等 61，依每級 3 點計算）；另有玩家說晚轉會讓法師的 MP 成長少一些（一說少 40 點以上），板上回報彼此矛盾，轉完以遊戲內技能視窗為準。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=32",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=139",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/guides/launch-leveling-guide/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "無課冰雷 1～70 心得：目前環境裝備法在傷害上完全沒優勢，黃傘全智只輸裝備法 10～30 AP、放到傷害浮動裡很無感；裝備法贏的是防禦（被撞很有感），「全智法就是省的錢都拿去買水」，起手選全智、後面要不要轉看個人；前期裝備重點是撐防禦＞智力（年糕頭、工地手套、桑拿服衝防、鍋蓋、55 等披風、超綠鞋）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "45 等全智冰雷實測機體：AP295、耳環 100% 衝滿、55AP 黃傘；另有裝備法 48 等冰雷 38 套＋38 武器刷迷宮 3 的回報。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "主流：先滿電閃雷鳴，再瞬移／魔吸／精神強化，冰錐術最後（楓錄／Threads 整理）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 30,
+              "note": "全體範圍技，社群普遍建議先滿雷再點冰，清怪快、經驗來得快"
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 2201001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": null,
+              "skillName": "自由配點（未指定）",
+              "to": 1,
+              "note": "楓錄原文「自由配點 1」，沒有指定技能"
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "無課冰雷 1～70 心得：雷滿→瞬移滿→魔吸滿→精神強化→冰錐",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "作者：魔吸不先滿是因為現階段只有猴森能有效吸回來；瞬移先滿減少跑圖 MP 消耗，效率高於先滿魔吸省下的"
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 30,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "冰雷 1～50／1～70 攻略（abdc0303）：雷滿→魔吸滿→看玩法選瞬移或精神強化",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 30,
+              "note": "38 等左右開始電閃雷鳴就是主要練功技能"
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": "留言反駁：螃蟹 MP 只有約 10 吸不到魔、要打猴子（MP 約 100）才先魔吸，龜螃蟹的話先點瞬移"
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "想省水錢、常用瞬移→瞬移先滿"
+            },
+            {
+              "skillId": 2201001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": "不缺錢、想提高傷害→精神強化先"
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 30,
+              "note": "想拚雷鏢（打赤龍）→冰錐術滿再精神強化；原 1～50 版另建議想省水可先點冰錐術去火肥肥「一發幾乎秒怪」"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=919",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "冰雷廚（噗貓）版：雷滿→瞬移→魔吸→精神強化，冰錐只點 11、緩速術點滿",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": "作者：經典服魔力吸收是最早的版本，總吸收量要再除以怪物數量，實際效益很難比瞬間移動高"
+            },
+            {
+              "skillId": 2201001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 11,
+              "note": "作者認為緩速術比冰錐術實用（未來推王用）；留言多問為何捨冰錐，屬少數派"
+            },
+            {
+              "skillId": 2201003,
+              "skillName": "緩速術",
+              "to": 20,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "舊版・專精雷系",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": "與瞬間移動先各 1，順序隨便"
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 15,
+              "note": "存約 15 點後補滿"
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "舊文此處即寫瞬間移動 20"
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 2201001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 15,
+              "note": "存點後補滿"
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2201003,
+              "skillName": "緩速術",
+              "to": 1,
+              "note": "剩餘 1 點隨喜好"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=60",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版・專精冰系",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 15,
+              "note": "存點後補滿"
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 2201001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "與魔力吸收 20 先後皆可"
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 15,
+              "note": "存點後補滿"
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2201003,
+              "skillName": "緩速術",
+              "to": 1,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=60",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版・冰雷雙修",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2201004,
+              "skillName": "冰錐術",
+              "to": 30,
+              "note": "15 存點後補滿"
+            },
+            {
+              "skillId": 2201005,
+              "skillName": "電閃雷鳴",
+              "to": 30,
+              "note": "15 存點後補滿"
+            },
+            {
+              "skillId": 2201002,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "或另一支：魔力吸收 3→精神強化 20→魔力吸收 20→瞬間移動 20"
+            },
+            {
+              "skillId": 2200000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201001,
+              "skillName": "精神強化",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2201003,
+              "skillName": "緩速術",
+              "to": 1,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=60",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 30,
+          "levelTo": 35,
+          "kind": "solo",
+          "mapName": "黑肥肥領土",
+          "mapId": 101040001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "幼魔精靈",
+              "id": 3230300,
+              "lv": 35
+            }
+          ],
+          "why": "剛二轉最「牢」的一段：雷還沒成形，只能當「抓癢的」一直爪黑肥肥／火獨眼獸／殭屍菇菇；板上建議「電閃 28 前都別去打別的，乖乖在黑肥蹲好，電閃 15 只用來補刀殘血或怪太多時用」。黑肥肥領土有幼魔精靈會上狀態，打掉最上面祭壇可一口氣清掉。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 31,
+          "levelTo": 35,
+          "kind": "party",
+          "mapName": "螞蟻洞Ⅰ",
+          "mapId": 105050000,
+          "mobs": [
+            {
+              "name": "刺菇菇",
+              "id": 2110200,
+              "lv": 22
+            },
+            {
+              "name": "殭屍菇菇",
+              "id": 2230101,
+              "lv": 24
+            }
+          ],
+          "why": "二轉法師初期維多利亞島選項之一：螞蟻洞 1 團練，到 35 左右開始有較高機率殭屍菇菇一刀；板上實測「31～35 還是螞蟻洞團練最快」，缺點是越打越沒錢。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 32,
+          "levelTo": 38,
+          "kind": "party",
+          "mapName": "火焰之地Ⅱ",
+          "mapId": 106000110,
+          "mobs": [
+            {
+              "name": "火肥肥",
+              "id": 3210100,
+              "lv": 32
+            }
+          ],
+          "why": "有逐級實測：32～38 等全智冰雷 3 人組隊，火肥肥＝魔力爪×2（魔攻 211 後幾乎不補刀，4 隻以上才電），10 分鐘約 13,000～18,900 經驗、正收益，約 30～40 分鐘打到玻璃鞋。火肥肥弱冰（站內 el i:w），走冰錐術的冰雷「一發幾乎就能秒怪」，但冰系成形較慢。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=919",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 34,
+          "levelTo": 37,
+          "kind": "solo",
+          "mapName": "北方工地頂端",
+          "mapId": 102040001,
+          "mobs": [
+            {
+              "name": "三眼章魚",
+              "id": 1120100,
+              "lv": 12
+            }
+          ],
+          "why": "三眼章魚弱雷（站內 el l:w），35 後基本一發電死；無課心得說練起來不輸黑肥肥還省水賺錢，另一位 34 等實測電閃雷鳴×1～2、10 分鐘 11,167 經驗、小幅正收益。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 35,
+          "levelTo": 40,
+          "kind": "solo",
+          "mapName": "樹林底層",
+          "mapId": 100040110,
+          "mobs": [
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "電閃雷鳴約 15 級、角色 35 等後，可到樹妖王那張圖「把群怪拉在一起電，散怪仍用爪」；38～40 等實測 10 分鐘 17,322→24,580 經驗，40 等滿級雷「各平台常聚滿猴子＋刺菇菇很適合群體」，但 38 等時每 10 分鐘倒貼約 1.7 萬。猴子 MP 約 100，魔力吸收吸得到。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1581"
+          ],
+          "verified": "tw",
+          "note": "1537 原文寫「樹妖王那張圖」未寫地圖名，此處依 1309／PIKA 對應到「樹林底層」(100040110)；站內樹妖王(3220000) 沒有出沒地圖資料。"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 40,
+          "kind": "solo",
+          "mapName": "火獨眼獸洞穴I",
+          "mapId": 105070100,
+          "mobs": [
+            {
+              "name": "火獨眼獸",
+              "id": 2230100,
+              "lv": 27
+            }
+          ],
+          "why": "「只要能 3 下電死就能轉來這」：從頂端往下走只找 4 隻以上的打，打到底進商城再退出可回頂部；37 等實測 10 分鐘 17,111 經驗（略虧 7 千），不要組隊以免效率被分掉。被幼魔精靈上狀態可直接登出再登入解除。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1471"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 38,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "紅螃蟹海灘II",
+          "mapId": 110020001,
+          "mobs": [
+            {
+              "name": "紅螃蟹",
+              "id": 3230102,
+              "lv": 37
+            }
+          ],
+          "why": "紅螃蟹弱雷（站內 el l:w），冰雷「專屬神圖」：維多利亞港付 2,000 楓幣搭船→黃金海岸→熱帶沙灘→紅螃蟹海灘；地形嚴重依賴瞬移，幾乎沒人搶。實測：36 等雷 17 級去電是負收益（10 分鐘 -31,488），45 前 3 下一隻約 28,000／10 分、45 後 32,000 不賺不虧，另有人電到 45 等還沒負收益過。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1471",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537"
+          ],
+          "verified": "tw",
+          "note": "731／1263 寫紅螃蟹海灘 1 或 2 皆有人用；站內 紅螃蟹海灘Ⅰ(110020000) 紅螃蟹×35＋猴子×5、紅螃蟹海灘II(110020001) 紅螃蟹×18。"
+        },
+        {
+          "levelFrom": 38,
+          "levelTo": 57,
+          "kind": "party",
+          "mapName": "猴子森林Ⅱ",
+          "mapId": 100040103,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "目前全遊戲最熱門的圖（板上多稱「猴子森林 2／猴森」），地圖小、怪密、重生快，冰雷電上下底三層；有玩家 38 電猴子到 48、第一名的冰雷電猴子到 65。問題是 24 小時都有人、出現押金／租圖與搶圖，社群不建議把付費卡位當必要成本；楓錄回報冰雷從 38 等進駐一路到 50 等收益才轉正，中間淨消耗 400～500 萬。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 38,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "猴子沼澤地Ⅱ",
+          "mapId": 107000402,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "猴子森林的平替：地形單純的隱藏圖、幾乎沒人；45 等全智冰雷（AP295、55AP 黃傘）單練實測 10 分鐘 32,500 經驗（×1.1）、楓幣與掉裝正收益，跑法是上到下六個平台跑兩輪再去最下面殺蛇。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 40,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "寺院入口",
+          "mapId": 105090400,
+          "mobs": [
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            }
+          ],
+          "why": "40 等附近的刷法：寺院入口由上往下刷，到底進寺院通道 1 換頻會回到入口前一張圖；當年很受歡迎的團練圖，卡點多，但怪物碰撞加地圖噴氣陷阱傷害高，水喝很兇。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=790",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw",
+          "note": "冰獨眼獸站內 el={f:w, i:r}＝弱火、抗冰，冰錐術不適合，雷不受影響。"
+        },
+        {
+          "levelFrom": 43,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "森林迷宮III",
+          "mapId": 105040303,
+          "mobs": [
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            },
+            {
+              "name": "石巨人",
+              "id": 5130101,
+              "lv": 55
+            },
+            {
+              "name": "風獨眼獸",
+              "id": 3230100,
+              "lv": 35
+            }
+          ],
+          "why": "無課冰雷「40～70 住到死」的圖：40～50 只打 1、2、4 層（3 層黑曜石巨人先不打，善用瞬移拉打、爪清），50 後開始打黑曜石巨人；48 等冰雷「商城回頂」跑法實測 10 分鐘約 43,000，沒掉寶時小虧、43→48 期間掉 2 梅之鏢、1 雪花鏢、5 古代卷、2 地契與 30 多件裝備，長刷為正。切記石巨人圖裡不要瞬移（撞怪有機率觸發寵物不喝水暴死）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/#cm-picks"
+          ],
+          "verified": "tw",
+          "note": "站內 森林迷宮III(105040303) 的怪是冰獨眼獸×22、森林迷宮IV/V 才有石巨人／黑曜石巨人，與社群說的「迷宮森林 3」內容不符，見 unresolved。"
+        },
+        {
+          "levelFrom": 45,
+          "levelTo": 70,
+          "kind": "solo",
+          "mapName": "海龜沙灘",
+          "mapId": 110040000,
+          "mobs": [
+            {
+              "name": "烏龜",
+              "id": 4130101,
+              "lv": 46
+            },
+            {
+              "name": "青螃蟹",
+              "id": 4230104,
+              "lv": 48
+            }
+          ],
+          "why": "「低耗損純賭博」圖：烏龜跟螃蟹打人都不痛，有隱藏通道能順順打；青螃蟹弱雷掉黃色雨傘，烏龜掉手攻 10%、力披 60%，70 等冰雷約 1 分鐘 5,300 經驗、45 分鐘一隻王。注意只有約 1/3 是可電的青螃蟹、2/3 是烏龜（站內 海龜沙灘：烏龜×25、青螃蟹×13）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 80,
+          "kind": "solo",
+          "mapName": "巫婆森林Ⅰ",
+          "mapId": 100040105,
+          "mobs": [
+            {
+              "name": "巫婆",
+              "id": 5300100,
+              "lv": 55
+            },
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            }
+          ],
+          "why": "「高耗損高收益」：50 等冰雷 10 分鐘 50,000～55,000 但每 10 分鐘倒貼 3～4 萬（魔吸只點 10 時特別明顯）；64 等 55,000、66 等巫婆 5 下 67,000～75,000；70 等約 1 分鐘 5,800、每 45 分鐘出殭屍猴王，可賭高浮動裝備，作者說打到 80＋都沒問題。要上下拉巫婆、會斷線、被撞一下 260。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288",
+            "https://mapleclassictools.com/#cm-picks"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 57,
+          "levelTo": 75,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "「收益普通但經驗多」：70 等冰雷團練約 1 分鐘 6,600（±10%），是這批 Lv.70 測試裡最高，但要付蛇夫錢、中間會停下換蛇夫或隊友；上層黑鱷魚與下層青蛇共用生怪上限，所以隊伍要有人專門清蛇。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw",
+          "note": "1537 原文只寫「鱷魚圖」，依 Lv.70 與蛇夫描述對應到黑鱷魚的鱷魚潭Ⅱ(107000400)。"
+        },
+        {
+          "levelFrom": 55,
+          "levelTo": 75,
+          "kind": "party",
+          "mapName": "巨人之林",
+          "mapId": 105040306,
+          "mobs": [
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            },
+            {
+              "name": "石巨人",
+              "id": 5130101,
+              "lv": 55
+            }
+          ],
+          "why": "「非常看隊友」：隊友刷得夠快時冰雷常能電 4 隻以上，70～75 等約 1 分鐘 6,300；但冰雷被碰到常要喝溢出的白水，寵物補血時序有時會被坑死，作者不太推冰雷來。石巨人系掉梅之鏢、手攻 60% 等。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 70,
+          "levelTo": 83,
+          "kind": "solo",
+          "mapName": "寺院通道Ⅱ",
+          "mapId": 105090600,
+          "mobs": [
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            },
+            {
+              "name": "月牙牛魔王",
+              "id": 7130100,
+              "lv": 70
+            }
+          ],
+          "why": "純打寶、經驗普：1 分鐘約 5,109 經驗，全程開魔心一小時燒 2,800 藍水，沒有明確掉寶目標不建議久留。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://mapleclassictools.com/#cm-picks"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 57,
+          "levelTo": 70,
+          "kind": "solo",
+          "mapName": "冰獨眼獸洞穴Ⅱ",
+          "mapId": 105090100,
+          "mobs": [
+            {
+              "name": "赤龍",
+              "id": 6130100,
+              "lv": 60
+            },
+            {
+              "name": "青龍",
+              "id": 5130100,
+              "lv": 50
+            }
+          ],
+          "why": "走冰系的冰雷在 50～60 這段被建議去打赤龍（赤龍弱冰，站內 el i:w）、拚雷鏢；冰雷廚回覆想打赤龍拚雷鏢的話 50～60 等開始點冰錐。板上另有「赤龍都是腳本」「學了冰沒學雷 57 等只能冰赤龍，經驗少掉寶一般」的負評。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=790",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "community",
+          "note": "波波把赤龍寫在「危險的峽谷Ⅱ」(106000002)，但站內該圖是火肥肥×29，赤龍只出現在 冰獨眼獸洞穴Ⅱ(105090100) 與 龍穴(105090300)；此處先對應站內資料，見 unresolved。"
+        }
+      ],
+      "notes": [
+        {
+          "text": "「千萬不要太早點電閃雷鳴」：沒有 40 等以上的技能點數與魔力吸收加持，太早用群攻只會讓藍水瞬間秒空；37 等冰雷「20 等雷電暴斃刷不了了」的告解串也在。另一個技巧是存點把電閃雷鳴卡在消耗 20 MP、熟練度最高的等級（約 15）過渡。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"
+          ]
+        },
+        {
+          "text": "魔力吸收機制（實測）：滿等 30% 機率吸怪物總 MP 的 40%，打多隻時總量會除以命中數（含 MISS），期望值固定 12%；猴子 MP 約 100、螃蟹約 10，所以電螃蟹幾乎吸不到魔。永動需要怪物 MP 333 以上，現有地圖做不到。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1581",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=919",
+            "https://mapleclassictools.com/#guides-jobs"
+          ]
+        },
+        {
+          "text": "換圖判斷建議固定測 10 分鐘，至少記 EXP、藍水、白水與賣店收入；「只看經驗最高的圖很容易練到破產」。鱷魚團練最高（約 66,000／10 分）、巫婆約 58,000、海龜約 53,000、石巨人約 63,000、寺院通道 2 約 51,090——這組數字都是同一位 Lv.70 冰雷的相對比較。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+            "https://mapleclassictools.com/#cm-picks"
+          ]
+        },
+        {
+          "text": "石巨人圖裡不要瞬移：瞬移撞怪有機率觸發寵物不喝水，「不知道的人前面 80% 死於這個」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922"
+          ]
+        },
+        {
+          "text": "冰雷適合單人開荒、刷怪快、搶怪沒人搶得贏，但後期團隊打王輸出難起來、三轉後會被物理職業甩開；除僧侶外，冰雷火毒後面都是「素材農夫」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1533",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1026",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=226"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 230,
+      "name": "僧侶",
+      "statBuild": [
+        {
+          "text": "主流＝全智力：能力點全部投入智力，8 等轉職時先拿轉職送的新手短杖，二轉後繼續全智。一轉之前能力值為自動配點、一轉時會重置，所以轉職前不必管配點。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "「全智 vs 裝備法」是台服經典版開服後板上最大的法師配點爭議。裝備法＝前期一樣先全智，有預算後把幸運補到想穿的法師裝備需求（板上常見說法：幸運約＝等級＋3，或「裝備要幾等幸運就點到哪」），靠裝備上的智力與魔攻追回差距；優點是能穿一般法師武器與防具、物防／迴避較高、被撞較不痛，缺點是裸裝智力較低、升級 MP 少一點，而且會隨黃色雨傘等關鍵裝備的物價來回翻面。兩派共識：前期先全智完全沒問題，要不要轉自行取捨。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1414",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=835",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://mapleclassictools.com/#guides-jobs"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "全智路線的核心武器是不吃幸運的「黃色雨傘」（青螃蟹／海龜沙灘掉落，約 50 魔攻）。開服初期極貴（上千萬楓幣），8 月初一度崩到約 100 萬、8 月中又回到 700～800 萬、8 月底約 580～620 萬——所以「該不該全智」的結論會跟著當天拍賣價變，不要把某一天的價格當長期答案；還沒拿到黃傘前就衝新手短杖的短杖 100%／60% 卷，耳環、披風衝智力卷。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "法師 8 等就可以一轉（其他職業 10 等）。板上有附截圖的 10 等轉職實測主張轉職後會補回技能點（8 等轉 67 點、9 等 64、10 等 61，依每級 3 點計算）；另有玩家說晚轉會讓法師的 MP 成長少一些（一說少 40 點以上），板上回報彼此矛盾，轉完以遊戲內技能視窗為準。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=32",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=139",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://home.gamer.com.tw/artwork.php?sn=6374051",
+            "https://mapleclassictools.com/guides/launch-leveling-guide/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "僧侶是三分支裡最被建議走裝備法的：群體治癒公式「最大值 (智力×1.2＋幸運×1.0)×魔攻/1000×技能%」，幸運係數 1.0 高於智力平均 0.75，所以裝備法用 1 幸換 1 魔攻在治癒上特別賺；原串以 Lv.40 試算裝備法（28 短杖浮動 3）有效輸出高全智（新手杖）約 24%，即使全智拿黃傘仍輸 9～20%。建議先全智、2X 等有錢就開始轉（最晚二轉前）。反方：全智平均傷害也吃得到智力加成，而且實際不會出現「補不死」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=32",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1954"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "裝備法實測（花 1,000 元洗點）：65 長杖過 5 張 60%＋斗笠／48 套／60 手鞋／戒指＝有效魔攻 46，與黃傘全智（有效 46）魔攻皆 402；裝備法物防多 39、迴避多 22、升級 MP 少 4，巫婆一撞 260→180、混種 380→260。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "台服實玩僧侶攻略的配裝：全智＝8 等武器→黃色雨傘（用到黑傘或楓葉武器）、超綠鞋、褐色斗笠→骷髏頭盔、桑拿服、工地手套、綠葉耳環（耳智 100%）、木盾／鍋蓋→鑽盾（鑽盾吃幸運，全智要靠裝備幸運卷撐 35 幸）；裝備法＝8→18→28→38→45→55／58→65／75 等武器，幸運≈等級＋3，用裝備上的幸運撐、稍多一點補血會穩一點。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "法師系技能一律不吃武器攻速（舊版只有三轉火毒末日烈焰例外），群體治癒也一樣；拿黃傘或職業武器施法速度沒差，選魔攻／有效 AP 高的就好。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1266"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "主流：群體治癒先滿→瞬移→魔吸→神聖之光→天使祝福，神聖之箭只點 11",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": "舊版寫「魔力吸收或瞬間移動先各 1」；楓錄版只先點瞬移 1"
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 30,
+              "note": "僧侶練功用補血打不死系，先滿；舊版建議 15 後存點補滿。「治癒點滿再用治癒練」"
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "幽靈系地圖拖怪／跑圖，瞬移滿有奇效"
+            },
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 20,
+              "note": "物傷減免，作者標必點"
+            },
+            {
+              "skillId": 2301004,
+              "skillName": "天使祝福",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301005,
+              "skillName": "神聖之箭",
+              "to": 11,
+              "note": "剩餘點數"
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=562",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "台服實玩版（wert246）：不點神聖之箭，剩點回頭補一轉魔力之盾",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 30,
+              "note": "轉職完建議優先點魔力擴展類被動的同樣邏輯：群體治癒先滿"
+            },
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": "留言：魔吸點滿打黑肥肥基本不耗藍水"
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 5,
+              "note": "天使祝福前置"
+            },
+            {
+              "skillId": 2301004,
+              "skillName": "天使祝福",
+              "to": 20,
+              "note": "留言問可否與神聖之光對調，作者答：看隊友，中期幾乎都組隊練"
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2001003,
+              "skillName": "魔力之盾",
+              "to": 20,
+              "note": "剩餘 11 點回頭點一轉魔力之盾（實際能點多少以剩點為準）；作者認為神聖之箭後面用不到所以不點"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "舊版 PART1：瞬移→神聖之箭→神聖之光→（魔吸 20＋天祝 1）或天祝 20",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": "與瞬間移動先各 1"
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 15,
+              "note": "存約 15 點 SP 再補滿"
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301005,
+              "skillName": "神聖之箭",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": "二選一：魔力吸收 20＋天使祝福 1，或直接天使祝福 20"
+            },
+            {
+              "skillId": 2301004,
+              "skillName": "天使祝福",
+              "to": 1,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=562",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版 PART2：瞬移後二選一（聖箭 30→聖光→天祝 20／魔吸 20→聖光→天祝→聖箭 11）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 30,
+              "note": "15 存點後補滿"
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301005,
+              "skillName": "神聖之箭",
+              "to": 30,
+              "note": "左支；右支改為魔力吸收 20"
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301004,
+              "skillName": "天使祝福",
+              "to": 20,
+              "note": "右支最後補神聖之箭 11"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=562",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版 PART3：瞬移後二選一（聖箭→聖光→魔吸→天祝 1／聖光→天祝→魔吸→聖箭 11）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301005,
+              "skillName": "神聖之箭",
+              "to": 30,
+              "note": "左支；右支為神聖之光 20→天使祝福 20→魔力吸收 20→神聖之箭 11"
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301004,
+              "skillName": "天使祝福",
+              "to": 1,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=562",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版 PART4：捨棄瞬移省點版",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": "停在 1"
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2301005,
+              "skillName": "神聖之箭",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2301004,
+              "skillName": "天使祝福",
+              "to": 20,
+              "note": "舊文誤寫 21，上限 20"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=562",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "2006 舊版〈僧侶真經〉單練型（維多利亞）：含幾等點什麼",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 1,
+              "note": "Lv.30，為打小幽靈拖怪先做準備"
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 15,
+              "note": "Lv.31～35 打 30～35 等怪或殭屍菇菇"
+            },
+            {
+              "skillId": 2301002,
+              "skillName": "群體治癒",
+              "to": 30,
+              "note": "Lv.35 去小幽靈"
+            },
+            {
+              "skillId": 2300000,
+              "skillName": "魔力吸收",
+              "to": 20,
+              "note": "Lv.41 打天使猴（有 MP 可吸）"
+            },
+            {
+              "skillId": 2301001,
+              "skillName": "瞬間移動",
+              "to": 20,
+              "note": "Lv.48 去地鐵大幽靈"
+            },
+            {
+              "skillId": 2301003,
+              "skillName": "神聖之光",
+              "to": 20,
+              "note": "Lv.55 殭屍（亡者之林，未開放）"
+            },
+            {
+              "skillId": 2301005,
+              "skillName": "神聖之箭",
+              "to": 30,
+              "note": "Lv.62"
+            },
+            {
+              "skillId": 2301004,
+              "skillName": "天使祝福",
+              "to": 1,
+              "note": "Lv.70；此法放棄天祝"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=1490272"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 30,
+          "levelTo": 40,
+          "kind": "solo",
+          "mapName": "黑肥肥領土",
+          "mapId": 101040001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "幼魔精靈",
+              "id": 3230300,
+              "lv": 35
+            }
+          ],
+          "why": "群體治癒點滿前僧侶只能靠魔力爪過渡，板上公認「黑肥最佳解」：一刀黑肥肥的效益被低估，地圖簡單密度高、幾乎不耗 HP、有機會打到值錢裝；很多法師黑肥練到快 40、「在黑肥肥區看到都是僧侶」。魔吸點滿後打黑肥肥基本不耗藍水。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1533",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1241",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1061"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 30,
+          "levelTo": 35,
+          "kind": "party",
+          "mapName": "螞蟻洞Ⅰ",
+          "mapId": 105050000,
+          "mobs": [
+            {
+              "name": "刺菇菇",
+              "id": 2110200,
+              "lv": 22
+            },
+            {
+              "name": "殭屍菇菇",
+              "id": 2230101,
+              "lv": 24
+            }
+          ],
+          "why": "僧侶 30 等後團練螞蟻洞或黑肥肥，等治癒術點高了再去團練天使猴；殭屍菇菇是不死系（站內 el h:w），是舊版〈僧侶真經〉30～35 等建議用群體治癒練的怪。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1061",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=1490272"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 32,
+          "levelTo": 39,
+          "kind": "solo",
+          "mapName": "東方岩石山Ⅳ",
+          "mapId": 101030403,
+          "mobs": [
+            {
+              "name": "斧木妖",
+              "id": 1130100,
+              "lv": 17
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            }
+          ],
+          "why": "不喜歡團練喝水壓力、想「慢慢打坐輪椅恢復省水錢」的僧侶玩家：斧木妖一下、黑斧木妖偶爾兩下，32～39 都在這裡才轉小幽靈，自認效率比黑肥肥好，而且斧木妖噴垃圾裝機率高（打到四面 8 萬盾），第一桶金從這存。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752"
+          ],
+          "verified": "tw",
+          "note": "原文沒寫地圖名，只寫「斧木妖＋黑斧木妖」；站內同時有這兩種怪的圖為 東方岩石山Ⅳ(101030403)、東方岩石山Ⅴ(101030404)、西部岩山Ⅲ(102020200)，此處取其一，mapId 僅供參考。"
+        },
+        {
+          "levelFrom": 35,
+          "levelTo": 40,
+          "kind": "solo",
+          "mapName": "地鐵一號線[地區02]",
+          "mapId": 103000103,
+          "mobs": [
+            {
+              "name": "小幽靈",
+              "id": 3230101,
+              "lv": 35
+            },
+            {
+              "name": "蝙蝠",
+              "id": 2300100,
+              "lv": 20
+            }
+          ],
+          "why": "小幽靈是不死系（站內 el h:w、f:w），群體治癒點高後的第一個「補怪」目標，舊版路線是 35 等去小幽、靠瞬移拖怪；但台服實測回饋分歧：「黑肥打到能兩下火肥、38～39 再去小幽靈，實測經驗沒比火肥快多少、水錢花很兇」「小幽靈怪太散效益不高」「要去上面的洞（地區 01／02）不要跑到 201」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=1490272",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 40,
+          "levelTo": 52,
+          "kind": "party",
+          "mapName": "猴子沼澤地Ⅲ",
+          "mapId": 107000403,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "天使猴是不死系（el h:w）且 MP 約 100 有魔可吸，是僧侶 40～52 的主線：「組 6 人隊天使猴」「團練天使猴到 45 轉大幽靈」「團練天使猴一路到 52 以後再轉軍 1」；板上稱「沼澤 3」，六人團 10 分鐘約 3 萬。天使猴迴避高，39～40 等補會狂 MISS，約 46 等後穩定；底下青蛇要有人清（掃地僧）。楓錄另收 Threads 實測：40 等沼澤 3 打天使猴、43～45 後轉大幽靈。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1061",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1241",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1954",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "tw",
+          "note": "板上「沼澤 3／沼澤地 3」指天使猴時依站內資料對應到猴子沼澤地Ⅲ(107000403，天使猴×30＋青蛇×14)；站內另有鱷魚的沼澤地Ⅲ(107000200)。"
+        },
+        {
+          "levelFrom": 40,
+          "levelTo": 52,
+          "kind": "party",
+          "mapName": "猴子森林I",
+          "mapId": 100040101,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "「猴森 1 裡面的天使猴洞其實是僧侶經典練等圖」「要打天使猴不一定要去沼澤，去魔法森林的天使猴洞」，但外掛多；僧侶攻略也列猴子森林 II 為二轉初期熱圖（爭議最多）。35 等僧侶也可跟著冰雷「跟補猴森 2」吸經驗，但只靠吸經驗值不多。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1241",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 40,
+          "levelTo": 53,
+          "kind": "solo",
+          "mapName": "遺跡之墓Ⅰ",
+          "mapId": 101030105,
+          "mobs": [
+            {
+              "name": "骷髏犬",
+              "id": 4230125,
+              "lv": 44
+            },
+            {
+              "name": "木乃伊犬",
+              "id": 4230126,
+              "lv": 47
+            }
+          ],
+          "why": "骷髏犬／木乃伊犬都是不死系（el h:w）、有點寶：「40 我進去打狗了，比小幽靈舒服」「骷髏犬直上 53 打軍 1 1F」；但骷髏犬 MP 為 0、魔力吸收完全沒作用（41 等僧侶回報），熱門時段經常沒圖。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1061",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://mapleclassictools.com/#cm-picks"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 43,
+          "levelTo": 94,
+          "kind": "solo",
+          "mapName": "地鐵一號線[地區03]",
+          "mapId": 103000104,
+          "mobs": [
+            {
+              "name": "大幽靈",
+              "id": 4230102,
+              "lv": 48
+            },
+            {
+              "name": "小幽靈",
+              "id": 3230101,
+              "lv": 35
+            }
+          ],
+          "why": "大幽靈（不死系 el h:w）是「僧侶練等固定班底，還能打紅鞭」：47 等僧侶回報瞬移點滿、引怪打，掉的錢與水錢持平、43 等就不虧（回報者未明說是骷髏犬或大幽靈）；另有「大幽靈 10 分鐘 4 萬、藍水消耗少、穩穩正收益」；一路可練到 70，甚至 88 等 10 分鐘 8.1 萬、94 等 9.2 萬。地鐵有兩線（一號線[地區03／04]、二號線[地區02／03]），下面那線不好跑圖所以人少、地形反而較優。楓錄收的 Threads 4 小時實測：約 3,000 藍水、產出 8 組怪藥、6 件裝備、2 張大幽靈卡、約 50 萬楓幣。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1061",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1241",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1954",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1192",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=1490272"
+          ],
+          "verified": "tw",
+          "note": "站內 地鐵一號線[地區03](103000104) 大幽靈×54＋小幽靈×33；[地區04](103000105) 大幽靈×56；地鐵二號線[地區02](103000201)／[地區03](103000202) 大幽靈×60／×68。"
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "第1軍營",
+          "mapId": 101030110,
+          "mobs": [
+            {
+              "name": "骷髏士兵",
+              "id": 5150001,
+              "lv": 57
+            },
+            {
+              "name": "骷髏士官",
+              "id": 6230602,
+              "lv": 63
+            }
+          ],
+          "why": "俗稱「軍 1／僧侶的家」：骷髏士兵（57）與士官（63）都是不死系（el h:w）。60 等裝備法僧侶實測 5 分鐘：單人整圖約 2.2 萬、雙人分上下 2.5～2.6 萬、四人分層 2F 最好（2.5～2.6 萬、士官最多最有寶）、1F／4F 2.3～2.4 萬、3F 幾乎沒士官又會被撞下去最坐牢；63 等 5 人全 62＋高效團 10 分鐘 54,804。55 等以下輸出不夠打士官（MISS 又扛血），建議挑純士兵樓層；板上多在 50～53 等進場，到 56～58 順便解完精明獵人勳章。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1192",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1669",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1954",
+            "https://mapleclassictools.com/#cm-picks",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 60,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "第2軍營",
+          "mapId": 101030111,
+          "mobs": [
+            {
+              "name": "骷髏士兵",
+              "id": 5150001,
+              "lv": 57
+            },
+            {
+              "name": "骷髏士官",
+              "id": 6230602,
+              "lv": 63
+            }
+          ],
+          "why": "60 等以上僧侶在軍 1、遺跡、大幽靈都滿人時的去處：「軍 2 花錢找 2 樓，經驗都贏軍 1」「軍 1 找不到位置都去軍 2」；對岸已有軍 2／軍 3／遺跡 4 的穩定團練（軍 2 請骷髏夫、遺跡 4 左上左中掃地位置最好）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1954"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "巨人之林",
+          "mapId": 105040306,
+          "mobs": [
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "波波練功路線頁：石人系「社群說法僧侶特別適合」、本服有少數巨人之林組隊建議，但沒有每小時經驗實測；黑曜石巨人站內 el h:w（弱聖），石巨人／混種則無聖弱點。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "community",
+          "note": "本輪沒有找到任何台服僧侶在巨人之林的實測回報。"
+        }
+      ],
+      "notes": [
+        {
+          "text": "僧侶 SOP：「1～31 新手村＋組隊任務，31 之後一路團練黑肥肥、鱷魚，等治癒術點高之後換天使猴、軍 1 骷髏，想去哪就去哪」；「治癒點滿才能用治癒練，魔吸點滿才算能用」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1241",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ]
+        },
+        {
+          "text": "僧侶從 35 等開始永遠不用買 HP 水，魔吸點滿（50 幾等）後身上只帶幾百瓶藍水；但在經典版打天使猴、軍 1 仍無法完全不喝藍水，打 200MP 的骷髏指揮官才可以。「要正收幾乎只有雙猴、青龍這種 MP100 以上的」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1533",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1581",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1192"
+          ]
+        },
+        {
+          "text": "經典版組隊獎勵從 2 人＋10% 開始、之後每多一人只多 5%，而且經驗大多來自自己擊殺（自己殺拿 80%／隊友殺給 20%），所以組隊的前提是不卡手、不減少自己的擊殺數。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1192",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"
+          ]
+        },
+        {
+          "text": "天使猴迴避很高：39～40 等補天使猴狂 MISS，約 42～46 等才穩；單刷不舒服、組隊較佳。命中板上說法：智/10＋幸/10 無條件捨去。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"
+          ]
+        },
+        {
+          "text": "僧侶被封為「頂級工具人」，練級跟賺錢都不錯、組隊幾乎不會找不到人；單人開荒首選、正收益；缺點是二轉後期在維多利亞島沒有真正好練的圖、賺錢偏慢。",
+          "sources": [
+            "https://mapleclassictools.com/#guides-jobs",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1533"
+          ]
+        }
+      ]
+    }
+  ],
+  "notOpenYet": [
+    {
+      "jobId": 230,
+      "levelFrom": 55,
+      "levelTo": 70,
+      "place": "亡者之林（殭屍）——2006 舊版〈僧侶真經〉55 等後、以及 2026 板上「三轉後僧侶通常就是打殭屍，以前熱門程度像現在的猴森」",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=1490272",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2110"
+      ]
+    },
+    {
+      "jobId": 230,
+      "levelFrom": 36,
+      "levelTo": 55,
+      "place": "玩具城：小妖魔（36）→進化妖魔（42）→妖魔隊長（55），以及玩具城 101 組隊任務（舊版〈僧侶真經〉第二章）",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=1490272"
+      ]
+    },
+    {
+      "jobId": 230,
+      "levelFrom": 70,
+      "levelTo": 100,
+      "place": "天空之城／冰原雪域（10/15 開放）：白狼人、雪吉拉等，板上說怪很散、打人痛，等開放再試",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2110"
+      ]
+    },
+    {
+      "jobId": 210,
+      "levelFrom": 30,
+      "levelTo": 51,
+      "place": "墮落城市／玩具城 怪物擂台賽、玩具城 愛奧斯塔 101 時空的裂縫（組隊任務）",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860"
+      ]
+    },
+    {
+      "jobId": 210,
+      "levelFrom": 35,
+      "levelTo": 50,
+      "place": "天空之城 藍光公園 幼藍獨角獅（火焰箭 15 即可去）、天空之城塔 1、2 樓 小企鵝王（火焰箭滿）",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860"
+      ]
+    },
+    {
+      "jobId": 210,
+      "levelFrom": 40,
+      "levelTo": 50,
+      "place": "桃花仙境 修練場 訓練用稻草人（火法）",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860"
+      ]
+    },
+    {
+      "jobId": 210,
+      "levelFrom": 51,
+      "levelTo": 70,
+      "place": "日本神社 消失的村落 河童、天空之城 女神任務、冰原雪域 冰面 I 小雪球、天空之城 藍光庭院 藍獨角獅、摩登 101 時尚大道 三色香水；板上另提三轉後玩具城綠船／PW 毒練",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1909"
+      ]
+    },
+    {
+      "jobId": 220,
+      "levelFrom": 58,
+      "levelTo": 100,
+      "place": "天空之城開放後的冰雷去處——作者回覆「天空之城跟主修雷的冰雷沒啥關係」",
+      "sources": [
+        "https://home.gamer.com.tw/artwork.php?sn=6374051"
+      ]
+    },
+    {
+      "jobId": 200,
+      "levelFrom": 70,
+      "levelTo": 100,
+      "place": "波波彙整舊攻略提到但經典版 V001 沒有的地方：玩具城／摩登 101、天空之城／天空之塔、神木村、冰原雪域、武陵、水世界、怪物擂台、101 組隊任務、地球防衛總部、亡者之林（全法師系通用）",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+      ]
+    }
+  ],
+  "unresolved": [
+    "【火毒最大缺口】火毒巫師 30～70 等找不到任何台服經典版開服後的實測練功回報：巴哈板搜「火毒／巫師／毒霧／火焰箭／火法」只有 4 串（火箭只能打一隻、毒霧 BUG、裝備/全智請益、一位 36 等火毒在閒聊串出現），都沒有地圖與效率。唯一的路線說法是楓錄「火毒主要靠火焰之地 2 的火肥肥撐著練級」，但 (a) 楓錄把出處標為巴哈〈職業心得〉snA=226，該文沒有這句；(b) 站內 monsters.json 火肥肥 el={f:r,i:w} 是抗火怪，用火焰箭打會打折。主資料只收了這一筆並標 community＋警告。",
+    "【火毒 mainstream 不確定】火毒二轉點法只有楓錄（引 Threads @lacoste_0355）一條台服時期版本，其餘三條是 2005～2008 舊板精華區；哪一條是現在的主流沒有板上討論可證，mainstream 標在楓錄版純因它是唯一台服時期來源。",
+    "【地圖資料矛盾：危險的峽谷】波波練功路線頁寫「危險的峽谷（土龍 Lv45）→危險的峽谷Ⅱ（赤龍 Lv60）」，站內 maps/monsters 卻是 危險的峽谷(106000001)=黑肥肥×24＋火肥肥×5、危險的峽谷Ⅱ(106000002)=火肥肥×29；赤龍只在 冰獨眼獸洞穴Ⅱ(105090100)／龍穴(105090300)，土龍只在 龍族狩獵場(105080000)／冰獨眼獸洞穴Ⅰ(105090000)。板上串名「危險的峽谷外掛冰雷到底什麼時候要抓」(snA=1289) 與「冰系可以 35 直接去冰火肥」較符合站內資料（火肥肥弱冰）。冰雷「赤龍」那段先對應站內的冰獨眼獸洞穴Ⅱ。",
+    "【地圖資料矛盾：森林迷宮編號】社群／實測說「森林迷宮 2＝風獨眼獸頂端」「森林迷宮 3／迷宮森林 3＝石巨人、黑曜石巨人（1、2、4 層打、3 層黑曜石）＋風獨眼獸」「50～ 森林迷宮III LV58 黑耀石巨人」，但站內 森林迷宮I=猴子、II=天使猴、III=冰獨眼獸×22、IV/V=石巨人＋黑曜石巨人，且站內沒有任何森林迷宮有風獨眼獸。主資料仍填同名的 105040303，請核對站內 forest-maze 一帶的地圖資料。",
+    "【地圖資料矛盾：南部森林訓練場Ⅳ】冰雷廚攻略說 17～22 等去南部森林訓練場IV 打綠菇菇＋刺菇菇（底下少量綠水靈、藍菇菇）、僧侶攻略也把 22／24 等（刺菇菇／殭屍菇菇）列在螞蟻洞 1「或南部森林訓練場Ⅳ」；站內 南部森林訓練場Ⅳ(100040004) 只有藍水靈×19。未收進主資料。",
+    "【地圖資料矛盾：火焰之地的混怪】楓錄說每張火焰之地都混黑斧木妖（Lv.22）、Ⅳ／Ⅴ 還有猴子；僧侶攻略也把 Lv.22 怪列在火焰之地；站內 火焰之地Ⅰ(106000101) 是火肥肥×20＋黑肥肥×11、Ⅱ 只有火肥肥×13，沒有黑斧木妖。",
+    "【地圖資料矛盾：弓箭手訓練場】波波（舊版佐證）寫弓箭手訓練場（綠水靈 Lv6）；站內 弓箭手訓練場Ⅰ(104040000) 是藍寶／菇菇仔／紅寶／肥肥，Ⅱ／Ⅲ 是肥肥、緞帶肥肥、菇菇寶貝、綠菇菇，沒有綠水靈。",
+    "【地圖資料矛盾：菇菇王出沒地】abdc0303 1～70 路線寫「50+ 菇菇王出沒地：鋼之肥肥＋蘑菇王（有日鏢）」；站內 菇菇王出沒地(100000005) 是刺菇菇×13＋蘑菇王，鋼之肥肥在火焰之地Ⅲ／Ⅳ。未收進主資料。",
+    "【怪物以圖示呈現】巴哈 snA=1291（僧侶推薦練等地圖）每段怪物只放圖片＋等級（如「LV.39／LV.40 猴子沼澤地III 或猴子迷宮I」），本檔是用「等級＋地圖」對站內資料推定怪名；其中 LV.39 在站內沒有對應怪（猴子 Lv37／天使猴 Lv40），疑為原文誤植。",
+    "【1537「樹妖王那張圖」】C235QWE 寫 35 等後「到樹妖王那張圖用 15 等雷群電」，沒寫地圖名；站內樹妖王(3220000) 無出沒圖資料，本檔依 1309／噗貓攻略的「樹林底層」對應，屬推定。",
+    "【1537「鱷魚圖」】Lv.70 冰雷團練「鱷魚圖 1 分鐘 6,600、付蛇夫錢」沒寫地圖名；依蛇夫機制與等級推定為黑鱷魚的鱷魚潭Ⅱ(107000400)，也可能是鱷魚潭Ⅰ。",
+    "【僧侶主流點法分歧】台服 wert246（GP41）版不點神聖之箭、剩點回補一轉魔力之盾；楓錄／舊版 PART2 右支／波波 C 方案是神聖之箭 11；舊版 PART1、3、4 都把神聖之箭點滿 30。本檔把「神聖之箭 11」版標 mainstream（出現在三個來源），但沒有板上投票或統計可證。另有單一玩家回報（snA=1676）升等點神聖之箭時「好像要點一轉的魔力之盾」才能點，1、2 轉重置卷都無效，留言建議回報客服——只有一筆、未驗證。",
+    "【冰雷：瞬移與魔吸先後】919（abdc0303）主張雷滿後先滿魔力吸收，留言批「螃蟹 MP 約 10 吸不到、猴子 MP 約 100 才先魔吸」；1922／噗貓主張先滿瞬移；snA=1581（qqxx54321＋aseeme555076 錄影逐幀）實測魔力吸收打多隻時總吸收量會除以命中數（含 MISS），期望值固定 12%，45 等冰雷樹林底層 10 分鐘藍水 74（魔吸 5）→65（10）→53（15）瓶，瞬移每分鐘超過 7～8 次則先點瞬移效益較高。兩派都收進 skillBuilds，mainstream 給楓錄「瞬 10→吸 3→精神 20→吸 20→瞬 20」的折衷版。",
+    "【法師 8 等 vs 10 等轉職】板上有附截圖的 10 等轉職實測說會補回技能點（heyimhy，GP39），也有人回報 9 等只拿到部分點；噗貓說 10 等再轉 MP 會少 40 點以上、另有人說差不了那一些；沒有官方公式，波波也不寫成逐級表。",
+    "【1309／PIKA 的「森林迷宮 2 風獨眼獸」】aseeme555076 37 等冰雷實測「森林迷宮 2 頂端 2～3 路 風獨眼獸」10 分鐘 12,809（虧 1.5 萬）；站內 森林迷宮II(105040302) 只有天使猴×26，風獨眼獸在 黑森林狩獵場II／北部森林訓練場Ⅸ。未收進主資料。",
+    "【Threads 來源未能直接讀取】楓錄引用的 Threads @lacoste_0355〈法師前期懶人包〉〈全智法配裝 拓荒一路到 70〉、@tingting__0519、@juichun_chien（僧侶 40 沼澤 3→大幽靈 4 小時實測）、@isignaling 等，本次用 WebFetch 打 Threads 個人頁看不到任何楓之谷貼文（只看到 3C／AI 貼文），所以這些內容都只能以楓錄頁面為出處。",
+    "【抓不到的頁面】楓錄〈新楓之谷經典版舊版練功地點大全 Lv.1~113〉(https://mapleclassictools.com/guides/legacy-leveling-spots/) 直接打 404，sitemap.xml 與 /guides/ 索引也都沒有這篇，應已下架；巴哈 snA=357〈全職業 1～30 練功路線〉已由原作者 abdc0303 刪除；snA=1263 首篇為影片型文章，正文已另行擷取；snA=956 首篇已刪。",
+    "【波波「他版」條目未採用】波波練功路線頁標「他版」（整理自巴哈 MapleStory Worlds＝Artale 板精華區）的 35～40 紅螃蟹海灘Ⅱ（弱雷）、地鐵小幽靈（弱火）、45～50 青螃蟹海灘Ⅱ（弱雷），依任務規則不以 Artale 當出處；紅螃蟹／青螃蟹已有台服來源另收，小幽靈弱火對火毒則沒有任何台服來源推薦。附帶：站內 el 資料確認 紅螃蟹／青螃蟹／三眼章魚 l:w、小幽靈 f:w＋h:w、火肥肥 i:w＋f:r、冰獨眼獸 f:w＋i:r、赤龍 i:w＋f:r、天使猴／大幽靈／骷髏犬／木乃伊犬／殭屍菇菇／巫婆／骷髏士兵／骷髏士官／黑曜石巨人 h:w，與來源說法一致；注意站內 el 的「抗」是寫 r 不是 s。",
+    "【站內資料可能漏怪】1309 實測與噗貓都說樹林底層平台「猴子＋刺菇菇」，站內 樹林底層(100040110) 只有猴子×27；楓錄說紅螃蟹海灘 1 有紅螃蟹＋猴子（站內有×5，一致）。",
+    "【僧侶巨人之林】波波說「社群說法僧侶特別適合」石人系，本輪在板上沒找到任何僧侶在巨人之林／石人寺院的實測，只有弩弓手／刺客／冰雷的回報；已標 community 並加註。",
+    "【abdc0303（Goku）系列攻略可信度】snA=731／919／1263 皆為同一位影片創作者的文字版，GP 僅 5～9、留言多負評（「全錯」「全職業(X) 法爺(O)」）；內容多與其他來源一致才收，衝突處（魔吸先滿）已在 note 註明。",
+    "【1291 的「地鐵一號線[地區02] 寵物速度 10% 卷」等掉落資訊】未查核，與練功無關未收。"
+  ],
+  "sourcesRead": {
+    "reachable": [
+      "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+      "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+      "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+      "https://mapleclassictools.com/",
+      "https://mapleclassictools.com/guides/launch-leveling-guide/",
+      "https://mapleclassictools.com/guides/job-selection-guide/",
+      "https://mapleclassictools.com/guides/job-advancement-guide/",
+      "https://mapleclassictools.com/guides/",
+      "https://mapleclassictools.com/sitemap.xml",
+      "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=59",
+      "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=60",
+      "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=562",
+      "https://home.gamer.com.tw/artwork.php?sn=6374051",
+      "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=1490272",
+      "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860",
+      "http://www.crazygame.idv.tw/maple/job0102.html",
+      "https://www.4gamers.com.tw/saged/detail/mwqd953wlll33x",
+      "https://tech-fz.com/maplestory-classic-guide/",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=32",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=139",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=185",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=216",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=226",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=334",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=351",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=385",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=472",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=524",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=752",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=790",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=835",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=919",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=920",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=928",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=956",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1026",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1061",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1074",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1192",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1241",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1263",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1266",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1285",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1414",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1430",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1432",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1471",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1533",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1537",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1581",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1669",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1676",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1850",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1909",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1914",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1954",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2022",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2110",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2139"
+    ],
+    "unreachableOrEmpty": [
+      "https://mapleclassictools.com/guides/legacy-leveling-spots/ (404，已下架)",
+      "https://maplevip.com/guides/ (404；首頁 WebFetch 摘要誤給的網域)",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=357 (原作者已刪除)",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=956 (首篇已刪)",
+      "https://www.threads.com/@lacoste_0355 (個人頁看不到楓之谷貼文)"
+    ],
+    "excludedAsOutOfScope": [
+      "techbang／pixnet 的《傳說 LEGEND》法師配點（BigBang 後版本）",
+      "maplestw.com、dcard、jisu 等 Artale 攻略",
+      "MapleStory Worlds 板精華區（波波「他版」來源）"
+    ]
+  }
+}

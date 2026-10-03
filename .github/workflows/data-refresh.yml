@@ -75,6 +75,10 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/build.mjs
 
+      - name: 重編玩家攻略（遊戲資料變了要重新驗 id）
+        if: steps.check.outputs.changed == 'true'
+        run: node pipeline/build-guides.mjs
+
       - name: 確認產出沒有壞掉
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/verify.mjs

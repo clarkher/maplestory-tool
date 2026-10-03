@@ -1,0 +1,4705 @@
+{
+  "researchedAt": "2026-10-03",
+  "jobs": [
+    {
+      "jobId": 100,
+      "name": "劍士",
+      "statBuild": [
+        {
+          "text": "30 等前保守點法：3 力 2 敏（自動配點就是這個比例），不然打轉職怪也會 MISS；呆小笨寫「敏捷＝等級×2 直到二轉（60 敏），二轉後全力」。劍士裝備沒有敏捷需求，敏捷純粹為了命中，到 60 以後「直接力量就對了，後面缺命中靠裝備補」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=107"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "波波攻略島彙整：敏捷＝等級、其餘全力，穿得上同等裝即可，後期洗掉敏捷改全力；另一派抓敏捷約「等級＋20」——方向相同，差在敏捷留多少，依實際命中調整。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+          ],
+          "verified": "community"
+        },
+        {
+          "text": "板上實測：剛轉職用系統自動配點會持續投入敏捷，有玩家自動配點後打綠菇菇與腐木妖仍 MISS；共識是「現在這版全力劍玩不動」，敏捷要靠命中計算機算打目標怪需要多少（例：33 等打冰獨眼獸 100% 命中需 59；40 等打天使猴需 92）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=107",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1413"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "舊版經驗：命中＝敏捷×0.8＋幸運×0.5＋技能；敏捷以 5 的倍數點最不浪費；不要迷信「敏＝等級×2」，依要打的怪算。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12525&sn=401"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "省水流（2026 開服後主流，呆小笨達人攻略）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1000000,
+              "skillName": "生命淨化",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 1000001,
+              "skillName": "生命擴展",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 1,
+              "note": "10~15 等先把生命擴展點滿，剩 1 點給魔天"
+            },
+            {
+              "skillId": 1000002,
+              "skillName": "生命恢復",
+              "to": 3,
+              "note": "自身強化前置"
+            },
+            {
+              "skillId": 1001003,
+              "skillName": "自身強化",
+              "to": 20,
+              "note": "16~23 等點；物防讓劍士被撞傷害大減、省水"
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 3,
+              "note": "劍氣同時扣 HP/MP，前期先不點滿，二轉後再回補 20"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "輸出優先（不點自身強化；波波攻略島與板上多數回覆）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1000000,
+              "skillName": "生命淨化",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 1000001,
+              "skillName": "生命擴展",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 20,
+              "note": "板上多數主張魔天先滿：單體穩、前期好打怪、減少碰撞傷害"
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": "前期太燒水、AE 場合少，最後再滿"
+            },
+            {
+              "skillId": 1000000,
+              "skillName": "生命淨化",
+              "to": 11,
+              "note": "剩 6 點放生命淨化或生命恢復（生命淨化 5＋生命恢復 6 亦可）"
+            }
+          ],
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=214",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1080"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "劍氣先滿（舊版傳統點法／範圍練功優先）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1000000,
+              "skillName": "生命淨化",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 1000001,
+              "skillName": "生命擴展",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1000002,
+              "skillName": "生命恢復",
+              "to": 3,
+              "note": "原文寫「恢復術 3」＝站內生命恢復"
+            },
+            {
+              "skillId": 1001003,
+              "skillName": "自身強化",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 4,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=214",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "舊版精華區：魔天 10 後分攻擊型／防禦型",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1000000,
+              "skillName": "生命淨化",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 1000001,
+              "skillName": "生命擴展",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 20,
+              "note": "攻擊型 1：存 10 點一次滿魔天"
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1000002,
+              "skillName": "生命恢復",
+              "to": 6,
+              "note": "防禦型改為 生命恢復 3→自身強化 13"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12525&sn=49",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12525&sn=213"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 10,
+          "levelTo": 13,
+          "kind": "solo",
+          "mapName": "野外之地／勇士之村東入口（教官新手任務：木妖→黑木妖）",
+          "mapId": 101040002,
+          "mobs": [
+            {
+              "name": "木妖",
+              "id": 130100,
+              "lv": 4
+            },
+            {
+              "name": "黑木妖",
+              "id": 1110101,
+              "lv": 10
+            }
+          ],
+          "why": "剛轉職先解教官的新手任務（燈泡回報），打木妖、最後黑木妖，可拿不少免費藥水；呆小笨與楓錄都把「先把免費藥水拿滿再燒水錢」當劍士起手。站內無「教官任務」專屬地圖，野外之地與勇士之村東入口都有木妖／黑木妖，mapId 取野外之地。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 12,
+          "levelTo": 17,
+          "kind": "solo",
+          "mapName": "菇菇山（來源寫「菇菇山丘」，弓箭手村西部小山進入的隱藏圖）",
+          "mapId": 104030001,
+          "mobs": [
+            {
+              "name": "菇菇寶貝",
+              "id": 1210102,
+              "lv": 8
+            },
+            {
+              "name": "菇菇仔",
+              "id": 120100,
+              "lv": 2
+            },
+            {
+              "name": "綠菇菇",
+              "id": 1110100,
+              "lv": 15
+            }
+          ],
+          "why": "15 等點完生命擴展前都用嫩寶丟擲術，菇菇寶貝的血剛好是丟兩次嫩寶的量；地形平坦好抓怪。15 等後改點魔天一擊，5 級前只耗 4MP、有機會一擊打死菇菇寶貝，是劍士前期打平或正收益的存錢段；其他怪物請用普攻省 MP。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=479",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 13,
+          "levelTo": 20,
+          "kind": "party",
+          "mapName": "月妙組隊任務（弓箭手村邱比特公園；站內無對應地圖名）",
+          "mapId": null,
+          "mobs": [],
+          "why": "省水錢的主流：單場約 1,600 經驗可重複刷；劍士在月妙只要跟著節奏，不用燒 HP/MP 水。呆小笨路線 13~20 等走月妙，不想打月妙才去菇菇山。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 15,
+          "levelTo": 20,
+          "kind": "solo",
+          "mapName": "南部森林訓練場Ⅰ／弓箭手訓練場Ⅰ／肥肥海岸（三選一）",
+          "mapId": 104010001,
+          "mobs": [
+            {
+              "name": "綠水靈",
+              "id": 210100,
+              "lv": 6
+            },
+            {
+              "name": "肥肥",
+              "id": 1210100,
+              "lv": 7
+            },
+            {
+              "name": "緞帶肥肥",
+              "id": 1210101,
+              "lv": 10
+            }
+          ],
+          "why": "呆小笨列的 15~20 等單練備選：綠水靈洞（南部森林訓練場Ⅰ）、弓箭手訓練場Ⅰ、肥肥海岸，都是低碰撞傷害、劍士普攻就打得動的怪；15 等先買戰士上下衣（約 6,200 楓幣）。mapId 取肥肥海岸（104010001），另兩張為 100040001、104040000。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 20,
+          "levelTo": 25,
+          "kind": "solo",
+          "mapName": "小心掉落（墮落城市左側）",
+          "mapId": 103010001,
+          "mobs": [
+            {
+              "name": "三眼章魚",
+              "id": 1120100,
+              "lv": 12
+            },
+            {
+              "name": "藍菇菇",
+              "id": 2220100,
+              "lv": 20
+            }
+          ],
+          "why": "20 等解紅寶王前置「蝸牛的傳說」拿 3 萬楓幣買「幻影」（12,000），站在圍欄平台上可無傷敲三眼章魚；只用普攻幾乎穩定正收益，25 等出圖通常能存 5~7 萬。留 100 個章魚腳交內拉任務。小心藍菇菇會故意把你撞下平台。多位劍士（含 9 月的無資源實測）都回報這條可以純普攻一路到 30。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=479",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1757"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 25,
+          "levelTo": 30,
+          "kind": "solo",
+          "mapName": "地鐵一號線[地區01]（藍水靈）",
+          "mapId": 103000101,
+          "mobs": [
+            {
+              "name": "藍水靈",
+              "id": 1210103,
+              "lv": 15
+            }
+          ],
+          "why": "換 25 等裝、自身強化點滿後，藍水靈撞劍士只剩 1~5 滴，配攻速快的白銀之錘可直接普攻敲死，水錢極低；順便收 50 顆藍水靈珠交內拉委託。想轉槍騎可蹲「海神叉」，不走槍騎收完任務材料就走（qqads1223：「聰明的劍士不會被海神叉騙到」）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=479"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 25,
+          "levelTo": 30,
+          "kind": "solo",
+          "mapName": "黑肥肥領土／黑肥肥領土Ⅱ",
+          "mapId": 101040001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "幼魔精靈",
+              "id": 3230300,
+              "lv": 35
+            }
+          ],
+          "why": "自身強化滿後黑肥肥撞也只有 10~20 滴；想轉狂戰或見習可在這打「高原之劍」。但 qqads1223 認為 25 等打黑肥肥「實在太吃力」只建議解完珍與黑肥肥任務就走——兩種說法並列。黑肥肥領土Ⅱ隱藏入口在勇士之村東部右上，沒有幼魔精靈。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=479"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 25,
+          "levelTo": 30,
+          "kind": "party",
+          "mapName": "超級綠水靈組隊任務（墮落城市；站內僅有最後關隘 910340500）",
+          "mapId": 910340500,
+          "mobs": [
+            {
+              "name": "超級綠水靈",
+              "id": 9300003,
+              "lv": 40
+            }
+          ],
+          "why": "經驗最好但「願意組劍士的機率嘛……」：劍士打鱷魚關耗水且命中不足（25 等劍士命中 48 才 100% 打到超綠鱷魚），板上多篇都說劍士在超綠常沒人要。要黏稠稠鞋子建議 28 等以上或自己當隊長，隊伍至少要有一個法師。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=479",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 25,
+          "levelTo": 30,
+          "kind": "party",
+          "mapName": "螞蟻洞Ⅰ（野團）",
+          "mapId": 105050000,
+          "mobs": [
+            {
+              "name": "刺菇菇",
+              "id": 2110200,
+              "lv": 22
+            },
+            {
+              "name": "殭屍菇菇",
+              "id": 2230101,
+              "lv": 24
+            }
+          ],
+          "why": "qqads1223 的走法：25 等解完任務後用奇幻村卷軸過去「能團練盡量團練」牢到 30；打法是第一下魔天再接普攻穿插。他明講「在螞蟻洞打一定是負收益」，能撐多久看水錢；近戰單刷血厚的菇菇容易越打越窮。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=479",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 20,
+          "levelTo": 30,
+          "kind": "party",
+          "mapName": "月妙組隊任務「打豬」（鋼之肥肥；站內無對應地圖名）",
+          "mapId": null,
+          "mobs": [
+            {
+              "name": "鋼之肥肥",
+              "id": 4230103,
+              "lv": 42
+            }
+          ],
+          "why": "gappyhay493（劍士心得）20~30 等走「月妙打豬」，打豬容易存到買海神叉的錢；他認為這時期自己去打藍水靈並不划算，25 等以前不要提前去超綠（命中低就算有人帶效益也很差）。與呆小笨的地鐵路線並列。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "notes": [
+        {
+          "text": "自身強化要不要點是板上直接對立的爭議：省水派（呆小笨、gappyhay493「想省水錢就滿自身強化」）vs 輸出派（「自身強化後面沒什麼用、點了二轉還要洗回來、洗點錢換水錢更划算」）。gappyhay493 另補充：自身強化不會與反射之盾互蓋，但會被禦魔陣蓋掉。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1080",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1057"
+          ]
+        },
+        {
+          "text": "魔天 vs 劍氣：gappyhay493 說「只有少數場合劍氣才好用，有時群怪用劍氣跟用魔天的刀數相同」；T1080 的狂戰視角則因黑肥、骷髏狗、冰獨都是量多 AOE 圖而選劍氣先滿——無共識。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1080"
+          ]
+        },
+        {
+          "text": "二轉轉職：等級 30、一轉 SP 點完；勇士之村→勇士聖殿→武術教練，蒐集 30 個黑珠換英雄証明（三分支共用）。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4965"
+          ]
+        },
+        {
+          "text": "劍士不要越等打怪，命中需求會很高；約 36 等精準系點高後命中與傷害浮動才明顯改善。關鍵裝備：女角 25 等天藍騎士上下衣加跑速（男角沒有，買一般 25 等裝加防禦），武器白銀之錘攻速快，盾牌靠「修理酋長的家」任務。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=479"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 110,
+      "name": "狂戰士",
+      "statBuild": [
+        {
+          "text": "一轉點到敏 60 後「二轉後全力」（呆小笨）；板上狂戰多用自動配點 4 力 1 敏到敏 60 左右，敏點到 60~70 之後再多就靠裝備（命中手套、套敏）補；40 等要打天使猴需命中 85~92。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=754",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1413",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1798"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "狂戰士二轉轉職瞬間給的血量比另外兩劍職多，同等級裸裝 HP 狂戰最高、槍騎第二、見習最低；生命擴展晚點 3 點只差十幾滴血。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1832"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "波波彙整：劍士敏捷＝等級或等級＋20、其餘全力，後期洗敏改全力。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "community"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "省水流二轉（回補劍氣；呆小笨，121 點）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": "19 跟 20 只差 1 命中"
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 6,
+              "note": "約 1 分鐘，寵物自動放"
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": "一轉只點 3，二轉回補到 20"
+            },
+            {
+              "skillId": 1101006,
+              "skillName": "激勵",
+              "to": 3,
+              "note": "反射之盾前置"
+            },
+            {
+              "skillId": 1101007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1101006,
+              "skillName": "激勵",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1100002,
+              "skillName": "終極之劍",
+              "to": 30,
+              "note": "激勵／反射之盾／終極之劍順序可交換；終極有爭議，作者把它放最後、有疑慮先不點"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "不點終極（qqads1223、隨心等板上多數回覆）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1101006,
+              "skillName": "激勵",
+              "to": 20,
+              "note": "團練必備、「必點神技」；a7415820：激勵先滿"
+            },
+            {
+              "skillId": 1101007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": "反 4 成傷害、自己只吃 6 成，比防禦有用、省水；先反盾省水或先激勵加傷害看你在不在乎水錢"
+            },
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1001004,
+              "skillName": "魔天一擊",
+              "to": 20,
+              "note": "剩餘點回補一轉：一轉點了自身強化的人把魔天或劍氣補滿（timephoenix：快速之劍點高只是降消耗，沒必要，15 點全給一轉只有 3 等的那招）"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=754",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1057",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1080"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "終極點滿（水肥大隊、薛鬥、joseph 版 121 點）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1101006,
+              "skillName": "激勵",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1100002,
+              "skillName": "終極之劍",
+              "to": 30,
+              "note": "存 30 點一次點滿；薛鬥：點下去清怪體感有差；秋田哥哥公式：打 1~2 隻終極賺、3 隻打平、4 隻以上虧"
+            },
+            {
+              "skillId": 1101007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 20,
+              "note": "剩 15 點回補一轉或快速之劍"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=754",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1057",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1080",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "雙修劍斧（70 等狂戰 joseph891012，為三轉準備、不點終極）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1101006,
+              "skillName": "激勵",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1101007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1100001,
+              "skillName": "精準之斧",
+              "to": 20,
+              "note": "斧頭與斧卷比劍便宜太多，80／90 等雙手斧攻速普通不吃虧"
+            },
+            {
+              "skillId": 1101005,
+              "skillName": "快速之斧",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1101005,
+              "skillName": "快速之斧",
+              "to": 12,
+              "note": "高原之劍用到 60 再決定拿劍或斧"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "舊版精華區：精準→存點終極→快速→激勵→反盾（劍系／斧系同構）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1100000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": "19 or 20"
+            },
+            {
+              "skillId": 1100002,
+              "skillName": "終極之劍",
+              "to": 30,
+              "note": "存 15~20 點一次點；另一分支先激勵 20 再終極"
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 1101006,
+              "skillName": "激勵",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1101007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1101004,
+              "skillName": "快速之劍",
+              "to": 20,
+              "note": "剩 1~2 點隨喜好；斧系把三招改成精準之斧／終極之斧／快速之斧"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4965",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4951",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4961",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 30,
+          "levelTo": 35,
+          "kind": "solo",
+          "mapName": "黑肥肥領土（會掉高原之劍）",
+          "mapId": 101040001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "幼魔精靈",
+              "id": 3230300,
+              "lv": 35
+            }
+          ],
+          "why": "gappyhay493 二轉起手點：黑肥肥血少、傷害低，很好存錢，又掉狂戰／見習要用的高原之劍。精準未滿前傷害飄，先打弱怪最穩。人多時四人分站上／中／左下／右下；再多就去黑肥肥領土Ⅱ（最多 2 人）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 31,
+          "levelTo": 35,
+          "kind": "party",
+          "mapName": "超級綠水靈組隊任務（打到 31 等）",
+          "mapId": 910340500,
+          "mobs": [
+            {
+              "name": "超級綠水靈",
+              "id": 9300003,
+              "lv": 40
+            }
+          ],
+          "why": "呆小笨與 gappyhay493 都提「月妙到 28、超綠到 30」或打超綠到 31 等；二轉後精準點起來，劍士在鱷魚關的貢獻比一轉時好很多。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1757",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 35,
+          "levelTo": 40,
+          "kind": "party",
+          "mapName": "沼澤地Ⅰ～Ⅲ（鱷魚；會掉雙天戟）",
+          "mapId": 107000200,
+          "mobs": [
+            {
+              "name": "鱷魚",
+              "id": 3110100,
+              "lv": 32
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "35~40 的主流下一站，地圖大、怪多，組隊效率最高；鱷魚不會亂跳、跑得慢，近戰推怪輕鬆。槍騎在這能打 40 等雙天戟。沼澤地Ⅲ底下的青蛇要有人定期清理上面才會正常出怪，找有僧侶的團較省水。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 42,
+          "kind": "solo",
+          "mapName": "火焰之地Ⅱ（火肥肥）",
+          "mapId": 106000110,
+          "mobs": [
+            {
+              "name": "火肥肥",
+              "id": 3210100,
+              "lv": 32
+            }
+          ],
+          "why": "火肥肥雖是 32 等怪，但近戰實測 37~42 等才能「一下一隻」（武器過 60% 卷＋攻擊藥水）；可 3 人團或單人跑圖全吃。人多可退到勇士之村迷宮入口（106000300，黑斧木妖＋刺菇菇）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 40,
+          "levelTo": 44,
+          "kind": "solo",
+          "mapName": "森林迷宮III／寺院入口（冰獨眼獸）",
+          "mapId": 105040303,
+          "mobs": [
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            }
+          ],
+          "why": "gappyhay493：40 等打冰獨眼獸（33 等打它 100% 命中需 59）。獸皇補充寺院入口由上往下刷、到底進寺院通道Ⅰ換頻會回到入口前一張，人少但碰撞＋噴氣傷害耗水。森林迷宮III（105040303）也是冰獨眼獸圖，37 等打手單練 23,000/10 分（含通行證）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=790",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 44,
+          "levelTo": 48,
+          "kind": "solo",
+          "mapName": "遺跡之墓Ⅰ（骷髏犬／木乃伊犬）",
+          "mapId": 101030105,
+          "mobs": [
+            {
+              "name": "骷髏犬",
+              "id": 4230125,
+              "lv": 44
+            },
+            {
+              "name": "木乃伊犬",
+              "id": 4230126,
+              "lv": 47
+            }
+          ],
+          "why": "gappyhay493：44 等打骷髏狗。反方意見（買樂）：移速沒 120 會被撞成白癡、41 等去命中沒 70+ 會 MISS，同圖木乃伊犬更容易 MISS、要喝命中藥水，而且滿滿僧侶搶不到圖；他 41 後改龜北部森林訓練場Ⅲ打風獨眼獸順便解每天的 999。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 42,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "猴子森林I／猴子沼澤地Ⅲ（天使猴）",
+          "mapId": 100040101,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "近戰 42 等就能進猴子森林 1 單練，但要兩下一隻、換 50 等武器才一下一隻；猴子會跳起來害你空招、沒秒掉會轉遠攻，命中需求高（40 等 92 才全中）。uranus7：42~50 蹭僧侶的天使猴省白水很爽但命中要撐很高。熱門圖要有換頻心理準備。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1798",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 45,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "北部森林訓練場Ⅸ（風獨眼獸）",
+          "mapId": 101020010,
+          "mobs": [
+            {
+              "name": "風獨眼獸",
+              "id": 3230100,
+              "lv": 35
+            }
+          ],
+          "why": "45 狂戰單人實測 17,000/10 分：魔天一刀機率只有兩成、劍氣 3 下，數字不高但沒人搶；買樂也把風獨眼獸當 41 等後避開猴森僧侶潮的備案。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "青螃蟹海灘II／海龜沙灘（青螃蟹）",
+          "mapId": 110030001,
+          "mobs": [
+            {
+              "name": "青螃蟹",
+              "id": 4230104,
+              "lv": 48
+            },
+            {
+              "name": "烏龜",
+              "id": 4130101,
+              "lv": 46
+            }
+          ],
+          "why": "gappyhay493：48 等練膩了可去青螃蟹「效益不好，跟朋友打打雨傘還可以」；海龜沙灘 47~50 打手單練 31,000→39,000/10 分，碰撞輕、耗損低但烏龜防高。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 55,
+          "kind": "solo",
+          "mapName": "鱷魚潭Ⅰ／鱷魚潭Ⅱ（黑鱷魚）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "gappyhay493 52 等去黑鱷魚；打手 47 等單練鱷魚潭Ⅰ 27,645、鱷魚潭Ⅱ 33,743/10 分、正收益，鱷魚很乖不亂跳、推起來輕鬆、有些位置可無傷。旋風斬要 100% 擊退黑鱷魚需最小傷害 500。劍士 47~52 單打「水錢約等於撿的錢」，掉裝才賺。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1788"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 58,
+          "kind": "solo",
+          "mapName": "龍族狩獵場（青龍／土龍）",
+          "mapId": 105080000,
+          "mobs": [
+            {
+              "name": "青龍",
+              "id": 5130100,
+              "lv": 50
+            },
+            {
+              "name": "土龍",
+              "id": 4130100,
+              "lv": 45
+            }
+          ],
+          "why": "riryka 狂戰單練青龍 3 刀一隻偶爾 4 刀、25,000/10 分、正收益；打手 52~57 泡在龍族狩獵場沒組隊打了 800 多萬。青龍掉龍皮與暴龍之血（舊版就視為劍士好補品）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 52,
+          "levelTo": 65,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ（黑鱷魚 6 人團＋蛇夫）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "暗影老師（狂戰）穩 2 刀、6 人團有蛇夫約 48,000/10 分；槍騎平均 3 刀清下兩層、隊友 5X 等 43,000/10 分。下層青蛇與上層黑鱷魚共用生怪上限，所以需要蛇夫；劍士當蛇夫命中 80 多仍會 MISS、近 90 才穩。掉裝機率不低，正收益。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1788",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 53,
+          "levelTo": 60,
+          "kind": "solo",
+          "mapName": "森林迷宮IV（石巨人／黑曜石巨人）",
+          "mapId": 105040304,
+          "mobs": [
+            {
+              "name": "石巨人",
+              "id": 5130101,
+              "lv": 55
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "54 槍騎單練森林迷宮 3、4 回報 39,000~40,000/10 分；53 槍騎在「遺跡 2」30,000~31,000/10 分（來源未寫全名，站內有遺跡發掘地Ⅱ與遺跡之墓Ⅱ兩張，以 53 等判斷較可能是遺跡之墓Ⅱ 101030106，未能確認）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 55,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "巨人之林（混種石巨人／黑曜石巨人；板上多寫「巨人之森」）",
+          "mapId": 105040306,
+          "mobs": [
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "gappyhay493 59 等去混種石巨人；70 狂戰（不點終極、雙修劍斧）與合適隊友 6 人團每 10 分 65,000~70,000；57 打手＋68 狂戰＋78 刺客 3 人打最上兩層 10 分 7 萬。弩手 77 等回報常見組合「高等劍士打 1、2 層」。82 槍騎建議石巨人 6X 再去、70 等拿九龍刀才有機率兩刀。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 57,
+          "levelTo": 65,
+          "kind": "party",
+          "mapName": "第1軍營／第2軍營（骷髏士兵／骷髏士官）",
+          "mapId": 101030110,
+          "mobs": [
+            {
+              "name": "骷髏士兵",
+              "id": 5150001,
+              "lv": 57
+            },
+            {
+              "name": "骷髏士官",
+              "id": 6230602,
+              "lv": 63
+            }
+          ],
+          "why": "軍營是僧侶聖地，劍職資料只有打手玩家「我沒去那邊打」與 60 刺客單練軍 2 42,000/10 分；對劍職而言只是找不到隊友時的備案，沒有本職實測數字。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "community"
+        },
+        {
+          "levelFrom": 70,
+          "levelTo": 100,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ（黑鱷魚）／巨人之林（石巨人）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            }
+          ],
+          "why": "82 等槍騎（跳蛋ㄅ）：「50 等黑鱷魚吧，黑鱷魚可以一路幹到 100，至於石巨人最好 6X 再去」；70 等九龍刀已有機率兩刀石巨人。見習騎士 70 等玩家的畢業路線最後兩站也是黑鱷魚→石巨人，並點名赤龍／冰龍／黑龍「都很不友善（遠距離魔法攻擊），練等效率一坨」，魔龍與月牙牛魔王可兼顧刷寶但速度遠不如石巨人或有蛇夫的黑鱷魚。70 以後只有這些零星回報，沒有逐段數據。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "notes": [
+        {
+          "text": "終極之劍是本版最大爭議：反對方說會卡一下動作、打 1~2 下就死的怪會空揮，52 狂戰實測點到 21 後經驗反降 5%；支持方算出單目標 DPS 為純魔天 124%、雙目標 117%、三目標 102%、四隻以上虧，且三轉十字軍集氣可能受影響。二轉技能重置卷一組漲到 90 萬以上，洗掉終極很貴——建議終極放最後再決定。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1765",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1080",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1057",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615"
+          ]
+        },
+        {
+          "text": "武器：狂戰現階段「無條件雙手」，高原之劍（35 等、攻速快）是前期核心，也可考慮紅鞭與 45 等單手劍；劍卷一張可買五張以上棍／斧卷，所以 70 等玩家推雙修劍斧。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=993",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615"
+          ]
+        },
+        {
+          "text": "激勵與自身強化：先放激勵再放自身強化，會保留激勵加攻並套用自身強化加防；把自身強化丟給寵物放會在激勵後秒補。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1057"
+          ]
+        },
+        {
+          "text": "70 等以後拿到的點數是三轉技能點，點進二轉技能等三轉開放要洗回來或就只能這樣；板上建議 70 後不要再動技能點。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1794"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 120,
+      "name": "見習騎士",
+      "statBuild": [
+        {
+          "text": "與狂戰相同：一轉敏到 60、二轉後全力；44 騎士玩家實際是精準 19、降魔 3、剩下反盾並以團練為主。舊版見習玩家 45 等敏 75（為了打天使猴）、50 等敏＋裝 82 後定型全力。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1057",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=456"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "波波彙整：劍士敏捷＝等級或等級＋20、其餘全力。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "community"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "省水流二轉（回補劍氣；呆小笨，121 點）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1200000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1201004,
+              "skillName": "快速之劍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": "回補一轉"
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 3,
+              "note": "反射之盾前置"
+            },
+            {
+              "skillId": 1201007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1200002,
+              "skillName": "終極之劍",
+              "to": 30,
+              "note": "反射之盾與終極之劍順序可交換；終極有爭議"
+            },
+            {
+              "skillId": 1201004,
+              "skillName": "快速之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1200000,
+              "skillName": "精準之劍",
+              "to": 20,
+              "note": "剩 1 點隨意"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "波波攻略島：精準→存點終極→快速→降魔→反盾（劍系；棍系同構）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1200000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": "19~20"
+            },
+            {
+              "skillId": 1200002,
+              "skillName": "終極之劍",
+              "to": 30,
+              "note": "存 15~20 點一次點"
+            },
+            {
+              "skillId": 1201004,
+              "skillName": "快速之劍",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1201007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1201004,
+              "skillName": "快速之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 20,
+              "note": "剩 1~2 點隨喜好；棍系改點精準之棍／終極之棍／快速之棍"
+            }
+          ],
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=57"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "不點終極、團練向（44 騎士玩家「隨便拉」）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1200000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1201007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": "「因為都團練我覺得沒差」；但打到猴森看練很快的都是終極先滿"
+            },
+            {
+              "skillId": 1201004,
+              "skillName": "快速之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1200000,
+              "skillName": "精準之劍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 20,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1057"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "舊版見習 1~40 心得（追風ａ智仔）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1200000,
+              "skillName": "精準之劍",
+              "to": 19,
+              "note": "19 或 20"
+            },
+            {
+              "skillId": 1200002,
+              "skillName": "終極之劍",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1201004,
+              "skillName": "快速之劍",
+              "to": 9,
+              "note": ""
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1201007,
+              "skillName": "反射之盾",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1201004,
+              "skillName": "快速之劍",
+              "to": 12,
+              "note": ""
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 20,
+              "note": "剩下可點快速"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=790"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版棍騎 1~55 心得",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1200001,
+              "skillName": "精準之棍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1201005,
+              "skillName": "快速之棍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1200003,
+              "skillName": "終極之棍",
+              "to": 15,
+              "note": ""
+            },
+            {
+              "skillId": 1201006,
+              "skillName": "降魔咒",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1201007,
+              "skillName": "反射之盾",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1200003,
+              "skillName": "終極之棍",
+              "to": 27,
+              "note": "原文只寫到作者當時等級，未給完整終值"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=3224"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 30,
+          "levelTo": 35,
+          "kind": "solo",
+          "mapName": "黑肥肥領土（會掉高原之劍）",
+          "mapId": 101040001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "幼魔精靈",
+              "id": 3230300,
+              "lv": 35
+            }
+          ],
+          "why": "gappyhay493 二轉起手點：黑肥肥血少、傷害低，很好存錢，又掉狂戰／見習要用的高原之劍。精準未滿前傷害飄，先打弱怪最穩。人多時四人分站上／中／左下／右下；再多就去黑肥肥領土Ⅱ（最多 2 人）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 31,
+          "levelTo": 35,
+          "kind": "party",
+          "mapName": "超級綠水靈組隊任務（打到 31 等）",
+          "mapId": 910340500,
+          "mobs": [
+            {
+              "name": "超級綠水靈",
+              "id": 9300003,
+              "lv": 40
+            }
+          ],
+          "why": "呆小笨與 gappyhay493 都提「月妙到 28、超綠到 30」或打超綠到 31 等；二轉後精準點起來，劍士在鱷魚關的貢獻比一轉時好很多。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1757",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 35,
+          "levelTo": 40,
+          "kind": "party",
+          "mapName": "沼澤地Ⅰ～Ⅲ（鱷魚；會掉雙天戟）",
+          "mapId": 107000200,
+          "mobs": [
+            {
+              "name": "鱷魚",
+              "id": 3110100,
+              "lv": 32
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "35~40 的主流下一站，地圖大、怪多，組隊效率最高；鱷魚不會亂跳、跑得慢，近戰推怪輕鬆。槍騎在這能打 40 等雙天戟。沼澤地Ⅲ底下的青蛇要有人定期清理上面才會正常出怪，找有僧侶的團較省水。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 42,
+          "kind": "solo",
+          "mapName": "火焰之地Ⅱ（火肥肥）",
+          "mapId": 106000110,
+          "mobs": [
+            {
+              "name": "火肥肥",
+              "id": 3210100,
+              "lv": 32
+            }
+          ],
+          "why": "火肥肥雖是 32 等怪，但近戰實測 37~42 等才能「一下一隻」（武器過 60% 卷＋攻擊藥水）；可 3 人團或單人跑圖全吃。人多可退到勇士之村迷宮入口（106000300，黑斧木妖＋刺菇菇）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 40,
+          "levelTo": 44,
+          "kind": "solo",
+          "mapName": "森林迷宮III／寺院入口（冰獨眼獸）",
+          "mapId": 105040303,
+          "mobs": [
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            }
+          ],
+          "why": "gappyhay493：40 等打冰獨眼獸（33 等打它 100% 命中需 59）。獸皇補充寺院入口由上往下刷、到底進寺院通道Ⅰ換頻會回到入口前一張，人少但碰撞＋噴氣傷害耗水。森林迷宮III（105040303）也是冰獨眼獸圖，37 等打手單練 23,000/10 分（含通行證）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=790",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 44,
+          "levelTo": 48,
+          "kind": "solo",
+          "mapName": "遺跡之墓Ⅰ（骷髏犬／木乃伊犬）",
+          "mapId": 101030105,
+          "mobs": [
+            {
+              "name": "骷髏犬",
+              "id": 4230125,
+              "lv": 44
+            },
+            {
+              "name": "木乃伊犬",
+              "id": 4230126,
+              "lv": 47
+            }
+          ],
+          "why": "gappyhay493：44 等打骷髏狗。反方意見（買樂）：移速沒 120 會被撞成白癡、41 等去命中沒 70+ 會 MISS，同圖木乃伊犬更容易 MISS、要喝命中藥水，而且滿滿僧侶搶不到圖；他 41 後改龜北部森林訓練場Ⅲ打風獨眼獸順便解每天的 999。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 42,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "猴子森林I／猴子沼澤地Ⅲ（天使猴）",
+          "mapId": 100040101,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "近戰 42 等就能進猴子森林 1 單練，但要兩下一隻、換 50 等武器才一下一隻；猴子會跳起來害你空招、沒秒掉會轉遠攻，命中需求高（40 等 92 才全中）。uranus7：42~50 蹭僧侶的天使猴省白水很爽但命中要撐很高。熱門圖要有換頻心理準備。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1798",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 45,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "北部森林訓練場Ⅸ（風獨眼獸）",
+          "mapId": 101020010,
+          "mobs": [
+            {
+              "name": "風獨眼獸",
+              "id": 3230100,
+              "lv": 35
+            }
+          ],
+          "why": "45 狂戰單人實測 17,000/10 分：魔天一刀機率只有兩成、劍氣 3 下，數字不高但沒人搶；買樂也把風獨眼獸當 41 等後避開猴森僧侶潮的備案。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "青螃蟹海灘II／海龜沙灘（青螃蟹）",
+          "mapId": 110030001,
+          "mobs": [
+            {
+              "name": "青螃蟹",
+              "id": 4230104,
+              "lv": 48
+            },
+            {
+              "name": "烏龜",
+              "id": 4130101,
+              "lv": 46
+            }
+          ],
+          "why": "gappyhay493：48 等練膩了可去青螃蟹「效益不好，跟朋友打打雨傘還可以」；海龜沙灘 47~50 打手單練 31,000→39,000/10 分，碰撞輕、耗損低但烏龜防高。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 55,
+          "kind": "solo",
+          "mapName": "鱷魚潭Ⅰ／鱷魚潭Ⅱ（黑鱷魚）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "gappyhay493 52 等去黑鱷魚；打手 47 等單練鱷魚潭Ⅰ 27,645、鱷魚潭Ⅱ 33,743/10 分、正收益，鱷魚很乖不亂跳、推起來輕鬆、有些位置可無傷。旋風斬要 100% 擊退黑鱷魚需最小傷害 500。劍士 47~52 單打「水錢約等於撿的錢」，掉裝才賺。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1788"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 58,
+          "kind": "solo",
+          "mapName": "龍族狩獵場（青龍／土龍）",
+          "mapId": 105080000,
+          "mobs": [
+            {
+              "name": "青龍",
+              "id": 5130100,
+              "lv": 50
+            },
+            {
+              "name": "土龍",
+              "id": 4130100,
+              "lv": 45
+            }
+          ],
+          "why": "riryka 狂戰單練青龍 3 刀一隻偶爾 4 刀、25,000/10 分、正收益；打手 52~57 泡在龍族狩獵場沒組隊打了 800 多萬。青龍掉龍皮與暴龍之血（舊版就視為劍士好補品）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 52,
+          "levelTo": 65,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ（黑鱷魚 6 人團＋蛇夫）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "暗影老師（狂戰）穩 2 刀、6 人團有蛇夫約 48,000/10 分；槍騎平均 3 刀清下兩層、隊友 5X 等 43,000/10 分。下層青蛇與上層黑鱷魚共用生怪上限，所以需要蛇夫；劍士當蛇夫命中 80 多仍會 MISS、近 90 才穩。掉裝機率不低，正收益。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1788",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 53,
+          "levelTo": 60,
+          "kind": "solo",
+          "mapName": "森林迷宮IV（石巨人／黑曜石巨人）",
+          "mapId": 105040304,
+          "mobs": [
+            {
+              "name": "石巨人",
+              "id": 5130101,
+              "lv": 55
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "54 槍騎單練森林迷宮 3、4 回報 39,000~40,000/10 分；53 槍騎在「遺跡 2」30,000~31,000/10 分（來源未寫全名，站內有遺跡發掘地Ⅱ與遺跡之墓Ⅱ兩張，以 53 等判斷較可能是遺跡之墓Ⅱ 101030106，未能確認）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 55,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "巨人之林（混種石巨人／黑曜石巨人；板上多寫「巨人之森」）",
+          "mapId": 105040306,
+          "mobs": [
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "gappyhay493 59 等去混種石巨人；70 狂戰（不點終極、雙修劍斧）與合適隊友 6 人團每 10 分 65,000~70,000；57 打手＋68 狂戰＋78 刺客 3 人打最上兩層 10 分 7 萬。弩手 77 等回報常見組合「高等劍士打 1、2 層」。82 槍騎建議石巨人 6X 再去、70 等拿九龍刀才有機率兩刀。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 57,
+          "levelTo": 65,
+          "kind": "party",
+          "mapName": "第1軍營／第2軍營（骷髏士兵／骷髏士官）",
+          "mapId": 101030110,
+          "mobs": [
+            {
+              "name": "骷髏士兵",
+              "id": 5150001,
+              "lv": 57
+            },
+            {
+              "name": "骷髏士官",
+              "id": 6230602,
+              "lv": 63
+            }
+          ],
+          "why": "軍營是僧侶聖地，劍職資料只有打手玩家「我沒去那邊打」與 60 刺客單練軍 2 42,000/10 分；對劍職而言只是找不到隊友時的備案，沒有本職實測數字。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "community"
+        },
+        {
+          "levelFrom": 70,
+          "levelTo": 100,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ（黑鱷魚）／巨人之林（石巨人）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            }
+          ],
+          "why": "82 等槍騎（跳蛋ㄅ）：「50 等黑鱷魚吧，黑鱷魚可以一路幹到 100，至於石巨人最好 6X 再去」；70 等九龍刀已有機率兩刀石巨人。見習騎士 70 等玩家的畢業路線最後兩站也是黑鱷魚→石巨人，並點名赤龍／冰龍／黑龍「都很不友善（遠距離魔法攻擊），練等效率一坨」，魔龍與月牙牛魔王可兼顧刷寶但速度遠不如石巨人或有蛇夫的黑鱷魚。70 以後只有這些零星回報，沒有逐段數據。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "notes": [
+        {
+          "text": "70 等見習騎士畢業心得：高原之劍攻速階段差距讓同等棍無法相提並論，前期走劍；60 等後換單手劍＋盾用較短距離換防禦與魔防（打冰龍／黑龍／牛魔王更容錯）。傷害比同裝狂戰低一截（激勵差），輸出前要先上降魔咒，但降魔咒＋反盾練等省水。推薦路線：月妙→黑肥肥或超綠→鱷魚／火肥肥／猴子森林掃地工→黑鱷魚→石巨人。打王：不要打王（機動性輸、常被搶）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ]
+        },
+        {
+          "text": "降魔咒在經典版實測是降怪物物攻／物防 20%（不是舊版的固定 -20），對野王有效；有玩家計算炎魔三階碰撞傷害可從 9,331 降到 5,971，但也有人認為「碰得起的本來就碰得起」只是舒適度技能。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1179",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ]
+        },
+        {
+          "text": "劍 vs 棍：輸出選劍（攻速快、有高原），主修盾／省錢選棍（棍卷一張劍卷價可買五張以上）；中後期唯一與劍同攻速的雙手棍是 80 等雷神之錘。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1051",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 130,
+      "name": "槍騎兵",
+      "statBuild": [
+        {
+          "text": "一轉敏點到 60 後「後續就全力就好」（jackywang670 30~70 槍騎心得）；小笨：40 等天使猴是命中最大關卡（需 91、至少 85），要打猴就得 60 敏＋14 敏女套或 10 敏桑拿＋命中手套；一輩子鱷魚的話 4/1 點上去根本沒差。有人敏點到 70 後悔，齊寶說不用特別洗，未來打王（拉圖二階段）一定需要敏。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1798"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "30 等剛轉用 3 力 2 敏自動配點的人：命中夠就全力，不夠就補敏，用命中計算機算要打的怪；海神叉有命中是好裝備，拓荒先點敏之後再洗。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=250",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=211"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "舊版經驗：敏捷比等級多 10~15 最佳、不超過 80；穿敏裝撐命中、把點數都給力量。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1276",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=863"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "雙修（我流，jackywang670 30~70 實戰；捨終極）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 19,
+              "note": "一轉多半拿海神叉，先補槍系"
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": "三轉無雙前唯一群攻，必回補"
+            },
+            {
+              "skillId": 1300001,
+              "skillName": "精準之矛",
+              "to": 19,
+              "note": "50 等剛好點到 19，接九龍刀（天使猴出貨、比丈八便宜）"
+            },
+            {
+              "skillId": 1301005,
+              "skillName": "快速之矛",
+              "to": 16,
+              "note": "50~51 等可與精準之矛前 3 點交換"
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1301007,
+              "skillName": "神聖之火",
+              "to": 30,
+              "note": "50 等後點滿，打王輔助低血隊友"
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 17,
+              "note": "67~70 等補，降消耗增持續"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "雙修（省水流回補劍氣；呆小笨）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 3,
+              "note": "神聖之火前置；禦魔陣不可跟自身強化共存"
+            },
+            {
+              "skillId": 1301007,
+              "skillName": "神聖之火",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 16,
+              "note": ""
+            },
+            {
+              "skillId": 1300001,
+              "skillName": "精準之矛",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1301005,
+              "skillName": "快速之矛",
+              "to": 16,
+              "note": "剩 1 點隨意，共 121"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "單修槍（省水流；呆小笨）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1001005,
+              "skillName": "劍氣縱橫",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1300002,
+              "skillName": "終極之槍",
+              "to": 30,
+              "note": "gappyhay493：沒很富裕可單修槍，40 等雙天戟衝一張 10% 再點 60%，終極點滿後很容易一刀秒，但拖怪跑不快"
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1301007,
+              "skillName": "神聖之火",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 20,
+              "note": "剩 1 點隨意"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "雙修（波波攻略島／ミナト，兩套精準＋快速、捨終極）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 5,
+              "note": "依開局武器先點該系"
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 6,
+              "note": "放寵物"
+            },
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1301007,
+              "skillName": "神聖之火",
+              "to": 30,
+              "note": "可依組隊需求提前或延後"
+            },
+            {
+              "skillId": 1300001,
+              "skillName": "精準之矛",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1301005,
+              "skillName": "快速之矛",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 11,
+              "note": "終值：精準槍 20、快速槍 20、精準矛 20、快速矛 20、禦魔陣 11、神聖之火 30＝121"
+            }
+          ],
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=250",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=664"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "先矛後槍、終極之矛點滿（a20017428）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1300001,
+              "skillName": "精準之矛",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1301005,
+              "skillName": "快速之矛",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1301007,
+              "skillName": "神聖之火",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1300003,
+              "skillName": "終極之矛",
+              "to": 30,
+              "note": "矛揮比較痛、均傷高且便宜，三轉前玩矛；點數剛好"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=664"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "舊版精華區完全點法（雙修放棄終極／雙修含終極／單修槍／單修矛）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 1300000,
+              "skillName": "精準之槍",
+              "to": 19,
+              "note": "雙修捨終極版：精準(O)19→快速(O)6→禦魔陣3→神聖之火30／禦魔陣20（順序自選）→快速(O)17→精準(X)19→快速(X)16"
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 3,
+              "note": ""
+            },
+            {
+              "skillId": 1301007,
+              "skillName": "神聖之火",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1301006,
+              "skillName": "禦魔陣",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1301004,
+              "skillName": "快速之槍",
+              "to": 17,
+              "note": ""
+            },
+            {
+              "skillId": 1300001,
+              "skillName": "精準之矛",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 1301005,
+              "skillName": "快速之矛",
+              "to": 16,
+              "note": "含終極版：精準19→快速6→終極30→禦魔3→聖火30→快速(O)10→精準(X)19→快速(X)10；單修：精準19→快速6→終極30→禦魔3→聖火30／禦魔20→快速20→精準20"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=775",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=58",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=863",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=3974"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 30,
+          "levelTo": 35,
+          "kind": "solo",
+          "mapName": "黑肥肥領土（會掉高原之劍）",
+          "mapId": 101040001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "幼魔精靈",
+              "id": 3230300,
+              "lv": 35
+            }
+          ],
+          "why": "gappyhay493 二轉起手點：黑肥肥血少、傷害低，很好存錢，又掉狂戰／見習要用的高原之劍。精準未滿前傷害飄，先打弱怪最穩。人多時四人分站上／中／左下／右下；再多就去黑肥肥領土Ⅱ（最多 2 人）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 31,
+          "levelTo": 35,
+          "kind": "party",
+          "mapName": "超級綠水靈組隊任務（打到 31 等）",
+          "mapId": 910340500,
+          "mobs": [
+            {
+              "name": "超級綠水靈",
+              "id": 9300003,
+              "lv": 40
+            }
+          ],
+          "why": "呆小笨與 gappyhay493 都提「月妙到 28、超綠到 30」或打超綠到 31 等；二轉後精準點起來，劍士在鱷魚關的貢獻比一轉時好很多。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1757",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 35,
+          "levelTo": 40,
+          "kind": "party",
+          "mapName": "沼澤地Ⅰ～Ⅲ（鱷魚；會掉雙天戟）",
+          "mapId": 107000200,
+          "mobs": [
+            {
+              "name": "鱷魚",
+              "id": 3110100,
+              "lv": 32
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "35~40 的主流下一站，地圖大、怪多，組隊效率最高；鱷魚不會亂跳、跑得慢，近戰推怪輕鬆。槍騎在這能打 40 等雙天戟。沼澤地Ⅲ底下的青蛇要有人定期清理上面才會正常出怪，找有僧侶的團較省水。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=731",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 42,
+          "kind": "solo",
+          "mapName": "火焰之地Ⅱ（火肥肥）",
+          "mapId": 106000110,
+          "mobs": [
+            {
+              "name": "火肥肥",
+              "id": 3210100,
+              "lv": 32
+            }
+          ],
+          "why": "火肥肥雖是 32 等怪，但近戰實測 37~42 等才能「一下一隻」（武器過 60% 卷＋攻擊藥水）；可 3 人團或單人跑圖全吃。人多可退到勇士之村迷宮入口（106000300，黑斧木妖＋刺菇菇）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 40,
+          "levelTo": 44,
+          "kind": "solo",
+          "mapName": "森林迷宮III／寺院入口（冰獨眼獸）",
+          "mapId": 105040303,
+          "mobs": [
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            }
+          ],
+          "why": "gappyhay493：40 等打冰獨眼獸（33 等打它 100% 命中需 59）。獸皇補充寺院入口由上往下刷、到底進寺院通道Ⅰ換頻會回到入口前一張，人少但碰撞＋噴氣傷害耗水。森林迷宮III（105040303）也是冰獨眼獸圖，37 等打手單練 23,000/10 分（含通行證）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=790",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 44,
+          "levelTo": 48,
+          "kind": "solo",
+          "mapName": "遺跡之墓Ⅰ（骷髏犬／木乃伊犬）",
+          "mapId": 101030105,
+          "mobs": [
+            {
+              "name": "骷髏犬",
+              "id": 4230125,
+              "lv": 44
+            },
+            {
+              "name": "木乃伊犬",
+              "id": 4230126,
+              "lv": 47
+            }
+          ],
+          "why": "gappyhay493：44 等打骷髏狗。反方意見（買樂）：移速沒 120 會被撞成白癡、41 等去命中沒 70+ 會 MISS，同圖木乃伊犬更容易 MISS、要喝命中藥水，而且滿滿僧侶搶不到圖；他 41 後改龜北部森林訓練場Ⅲ打風獨眼獸順便解每天的 999。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 42,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "猴子森林I／猴子沼澤地Ⅲ（天使猴）",
+          "mapId": 100040101,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "近戰 42 等就能進猴子森林 1 單練，但要兩下一隻、換 50 等武器才一下一隻；猴子會跳起來害你空招、沒秒掉會轉遠攻，命中需求高（40 等 92 才全中）。uranus7：42~50 蹭僧侶的天使猴省白水很爽但命中要撐很高。熱門圖要有換頻心理準備。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1798",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 45,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "北部森林訓練場Ⅸ（風獨眼獸）",
+          "mapId": 101020010,
+          "mobs": [
+            {
+              "name": "風獨眼獸",
+              "id": 3230100,
+              "lv": 35
+            }
+          ],
+          "why": "45 狂戰單人實測 17,000/10 分：魔天一刀機率只有兩成、劍氣 3 下，數字不高但沒人搶；買樂也把風獨眼獸當 41 等後避開猴森僧侶潮的備案。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "青螃蟹海灘II／海龜沙灘（青螃蟹）",
+          "mapId": 110030001,
+          "mobs": [
+            {
+              "name": "青螃蟹",
+              "id": 4230104,
+              "lv": 48
+            },
+            {
+              "name": "烏龜",
+              "id": 4130101,
+              "lv": 46
+            }
+          ],
+          "why": "gappyhay493：48 等練膩了可去青螃蟹「效益不好，跟朋友打打雨傘還可以」；海龜沙灘 47~50 打手單練 31,000→39,000/10 分，碰撞輕、耗損低但烏龜防高。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 55,
+          "kind": "solo",
+          "mapName": "鱷魚潭Ⅰ／鱷魚潭Ⅱ（黑鱷魚）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "gappyhay493 52 等去黑鱷魚；打手 47 等單練鱷魚潭Ⅰ 27,645、鱷魚潭Ⅱ 33,743/10 分、正收益，鱷魚很乖不亂跳、推起來輕鬆、有些位置可無傷。旋風斬要 100% 擊退黑鱷魚需最小傷害 500。劍士 47~52 單打「水錢約等於撿的錢」，掉裝才賺。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1788"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 58,
+          "kind": "solo",
+          "mapName": "龍族狩獵場（青龍／土龍）",
+          "mapId": 105080000,
+          "mobs": [
+            {
+              "name": "青龍",
+              "id": 5130100,
+              "lv": 50
+            },
+            {
+              "name": "土龍",
+              "id": 4130100,
+              "lv": 45
+            }
+          ],
+          "why": "riryka 狂戰單練青龍 3 刀一隻偶爾 4 刀、25,000/10 分、正收益；打手 52~57 泡在龍族狩獵場沒組隊打了 800 多萬。青龍掉龍皮與暴龍之血（舊版就視為劍士好補品）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 52,
+          "levelTo": 65,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ（黑鱷魚 6 人團＋蛇夫）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "暗影老師（狂戰）穩 2 刀、6 人團有蛇夫約 48,000/10 分；槍騎平均 3 刀清下兩層、隊友 5X 等 43,000/10 分。下層青蛇與上層黑鱷魚共用生怪上限，所以需要蛇夫；劍士當蛇夫命中 80 多仍會 MISS、近 90 才穩。掉裝機率不低，正收益。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1788",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 53,
+          "levelTo": 60,
+          "kind": "solo",
+          "mapName": "森林迷宮IV（石巨人／黑曜石巨人）",
+          "mapId": 105040304,
+          "mobs": [
+            {
+              "name": "石巨人",
+              "id": 5130101,
+              "lv": 55
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "54 槍騎單練森林迷宮 3、4 回報 39,000~40,000/10 分；53 槍騎在「遺跡 2」30,000~31,000/10 分（來源未寫全名，站內有遺跡發掘地Ⅱ與遺跡之墓Ⅱ兩張，以 53 等判斷較可能是遺跡之墓Ⅱ 101030106，未能確認）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 55,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "巨人之林（混種石巨人／黑曜石巨人；板上多寫「巨人之森」）",
+          "mapId": 105040306,
+          "mobs": [
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "gappyhay493 59 等去混種石巨人；70 狂戰（不點終極、雙修劍斧）與合適隊友 6 人團每 10 分 65,000~70,000；57 打手＋68 狂戰＋78 刺客 3 人打最上兩層 10 分 7 萬。弩手 77 等回報常見組合「高等劍士打 1、2 層」。82 槍騎建議石巨人 6X 再去、70 等拿九龍刀才有機率兩刀。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 57,
+          "levelTo": 65,
+          "kind": "party",
+          "mapName": "第1軍營／第2軍營（骷髏士兵／骷髏士官）",
+          "mapId": 101030110,
+          "mobs": [
+            {
+              "name": "骷髏士兵",
+              "id": 5150001,
+              "lv": 57
+            },
+            {
+              "name": "骷髏士官",
+              "id": 6230602,
+              "lv": 63
+            }
+          ],
+          "why": "軍營是僧侶聖地，劍職資料只有打手玩家「我沒去那邊打」與 60 刺客單練軍 2 42,000/10 分；對劍職而言只是找不到隊友時的備案，沒有本職實測數字。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "community"
+        },
+        {
+          "levelFrom": 70,
+          "levelTo": 100,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ（黑鱷魚）／巨人之林（石巨人）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            }
+          ],
+          "why": "82 等槍騎（跳蛋ㄅ）：「50 等黑鱷魚吧，黑鱷魚可以一路幹到 100，至於石巨人最好 6X 再去」；70 等九龍刀已有機率兩刀石巨人。見習騎士 70 等玩家的畢業路線最後兩站也是黑鱷魚→石巨人，並點名赤龍／冰龍／黑龍「都很不友善（遠距離魔法攻擊），練等效率一坨」，魔龍與月牙牛魔王可兼顧刷寶但速度遠不如石巨人或有蛇夫的黑鱷魚。70 以後只有這些零星回報，沒有逐段數據。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 30,
+          "levelTo": 40,
+          "kind": "solo",
+          "mapName": "海神叉→雙天戟換裝節點（非地圖）",
+          "mapId": null,
+          "mobs": [],
+          "why": "補充：買樂的裝備線——武器海神叉拿到 40 換雙天戟（沼澤地鱷魚掉），藍色斗笠帶到 50 換十字軍帽，35 等鎖子甲、30 等超綠鞋、衝命中的工地手套就能穩穩打怪；鱷魚、黑鱷魚、石巨人都是小平台，不打骷髏狗的話移速無所謂。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "notes": [
+        {
+          "text": "雙修的理由：50~69 等槍（丈八）產量太少、多數拿矛（九龍刀）；槍與矛攻擊姿勢係數不同（連擊必刺＝槍痛、無雙必劈＝矛痛），三轉連擊／無雙都不觸發終極，所以板上多數捨終極雙修。反方：「雙修打石頭人超爛」、打王也不會拿矛揮，為何要雙修——沒共識。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1798",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=664",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=250"
+          ]
+        },
+        {
+          "text": "銀龍槍／黃龍刀攻速是「慢 8」，82 槍騎與多人都說現階段別拿銀龍（智商稅），九龍刀（普通 6）用到 80 都不換；大佬用丈八。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905"
+          ]
+        },
+        {
+          "text": "禦魔陣 vs 自身強化：自身強化自己 +40 物防、禦魔陣隊伍 +20 物防 +20 魔防，兩者不共存（禦魔陣會蓋掉自身強化）；呆小笨直言「御魔練功就是廢技能」，點自身強化就是省水；固定組僧的天使祝福會蓋到禦魔陣。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+          ]
+        },
+        {
+          "text": "gappyhay493（第一隻槍騎 40 多等棄坑）：黑騎二轉沒用的技能太多、還要猶豫單雙修，矛卷超貴；見習的反射之盾讓越等打怪也容易正收益，隔壁狂戰傷害又高攻速又快。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+          ]
+        },
+        {
+          "text": "70 等三轉轉職條件（舊版）：打武術教練，會召喚月牛並使用法術，多帶萬能藥；70 等敏 80 左右可命中。經典版尚未開放三轉（2026-10-15 才開）。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 500,
+      "name": "海盜",
+      "statBuild": [
+        {
+          "text": "打手線：主力副敏，副屬只要抓到「裝備等級＝副屬需求」的量。轉職時系統自動配 20 點到敏捷，LV1~45 打手實測轉職後面板力 27／敏 35／智 4／幸 4，之後全灌力量，除非打怪會 MISS 才補敏；轉職黑珠任務只能用衝擊拳。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=417",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "槍手線：主敏副力，每升一等 4 敏 1 力；力量只點到拿槍／穿裝的門檻（舊版寫力量約等於等級）。槍手本身不缺命中。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3497",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "波波彙整：打手 4 力 1 敏；槍手 4 敏 1 力。另有板上回覆「敏捷跟著等級、幾等點幾點」。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=417"
+          ],
+          "verified": "community"
+        },
+        {
+          "text": "經典版不能卡裝：穿上去能力值不夠會直接無效（裝備邏輯是先脫再穿），要換裝就要老實點出需求。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1796"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "打手線（LV1~45 打手實測版，w21905386；放棄衝鋒）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5001003,
+              "skillName": "雙子星攻擊",
+              "to": 1,
+              "note": "剛轉職穿新手火槍解海盜修練任務、遠程打怪方便"
+            },
+            {
+              "skillId": 5001001,
+              "skillName": "衝擊拳",
+              "to": 20,
+              "note": "穿火槍也能放衝擊拳；指虎基攻高所以穿指虎發衝擊拳較痛"
+            },
+            {
+              "skillId": 5001002,
+              "skillName": "旋風斬",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5000000,
+              "skillName": "極限迴避",
+              "to": 20,
+              "note": "命中 +20 在 21~30 超綠與越級打怪很有幫助"
+            },
+            {
+              "skillId": 5001002,
+              "skillName": "旋風斬",
+              "to": 20,
+              "note": "作者放棄衝鋒：常誤觸索性不點；20 等打算換海神叉的人改成 雙子星1→旋風斬20→極限迴避20→衝擊拳20"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "打手線（楓錄通用版：旋風斬先滿、衝鋒 1）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5001002,
+              "skillName": "旋風斬",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5000000,
+              "skillName": "極限迴避",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5001001,
+              "skillName": "衝擊拳",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5001005,
+              "skillName": "衝鋒",
+              "to": 1,
+              "note": "近戰左右轉向容易誤觸衝鋒白噴 MP，只點 1"
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3495"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "打手線（波波攻略島／舊版精華區：衝擊拳 11、衝鋒點滿）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5000000,
+              "skillName": "極限迴避",
+              "to": 20,
+              "note": "命中 +20 迴避 +20，打手命中低"
+            },
+            {
+              "skillId": 5001001,
+              "skillName": "衝擊拳",
+              "to": 11,
+              "note": "只打單體、二轉會被取代"
+            },
+            {
+              "skillId": 5001002,
+              "skillName": "旋風斬",
+              "to": 20,
+              "note": "點滿打 6 隻"
+            },
+            {
+              "skillId": 5001005,
+              "skillName": "衝鋒",
+              "to": 10,
+              "note": "滿級才 +30 速 +10 跳；同串回文主張衝鋒應優先點滿（MP 效率較佳）"
+            }
+          ],
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3474",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12562&sn=3475"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "槍手線（w851228w 1~50 攻略）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5001003,
+              "skillName": "雙子星攻擊",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5001005,
+              "skillName": "衝鋒",
+              "to": 10,
+              "note": "早點滿加快跑圖與站位"
+            },
+            {
+              "skillId": 5001003,
+              "skillName": "雙子星攻擊",
+              "to": 20,
+              "note": "前期主要單體輸出"
+            },
+            {
+              "skillId": 5000000,
+              "skillName": "極限迴避",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5001002,
+              "skillName": "旋風斬",
+              "to": 11,
+              "note": "剩餘點數；a8537123 建議旋風斬先點到 11，找野外吸怪外掛一路踢上 30"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "槍手線（楓錄通用版／舊版槍神攻略）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5001003,
+              "skillName": "雙子星攻擊",
+              "to": 20,
+              "note": "主攻"
+            },
+            {
+              "skillId": 5000000,
+              "skillName": "極限迴避",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5001005,
+              "skillName": "衝鋒",
+              "to": 10,
+              "note": "遠程靠它趕路、不會像近戰誤觸"
+            },
+            {
+              "skillId": 5001002,
+              "skillName": "旋風斬",
+              "to": 11,
+              "note": "舊版另一派：旋風斬 1→雙子星 20→衝鋒 10→極限迴避 20→旋風斬 11"
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3497",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=4656"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "槍手線（波波攻略島：極限迴避先滿）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5000000,
+              "skillName": "極限迴避",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5001002,
+              "skillName": "旋風斬",
+              "to": 11,
+              "note": ""
+            },
+            {
+              "skillId": 5001003,
+              "skillName": "雙子星攻擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5001005,
+              "skillName": "衝鋒",
+              "to": 10,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3474"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 10,
+          "levelTo": 13,
+          "kind": "solo",
+          "mapName": "弓箭手村東部草叢（來源寫「東側草叢」，解職業任務）→弓箭手村東部小山",
+          "mapId": 100020000,
+          "mobs": [
+            {
+              "name": "肥肥",
+              "id": 1210100,
+              "lv": 7
+            },
+            {
+              "name": "菇菇寶貝",
+              "id": 1210102,
+              "lv": 8
+            },
+            {
+              "name": "藍寶",
+              "id": 100101,
+              "lv": 2
+            },
+            {
+              "name": "紅寶",
+              "id": 130101,
+              "lv": 4
+            }
+          ],
+          "why": "剛出楓之島先在東側草叢解職業任務（每升一級多一個、共四個）拿超多藥水，白手起家先把藥水拿完再去月妙；解完到東部小山（100010000）慢慢敲，空圖多、怪弱、是升級兼存錢的好地方。穿轉職送的新手火槍遠程打怪很方便。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 13,
+          "levelTo": 25,
+          "kind": "party",
+          "mapName": "月妙組隊任務「年糕」（站內無對應地圖名）",
+          "mapId": null,
+          "mobs": [],
+          "why": "升級效率好，待到 25 等換 25 等指虎再去超綠；隊伍火力夠就讓隊友 carry、不要打怪只解 1,600，拉怪用 0 等武器或 5 等刮鬍刀配嫩寶丟擲術吸仇恨。槍手版也是 11~20 等走藍水靈／月妙。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 10,
+          "levelTo": 20,
+          "kind": "solo",
+          "mapName": "南部森林訓練場Ⅰ（綠水靈洞）／弓箭手訓練場Ⅰ",
+          "mapId": 100040001,
+          "mobs": [
+            {
+              "name": "綠水靈",
+              "id": 210100,
+              "lv": 6
+            },
+            {
+              "name": "菇菇寶貝",
+              "id": 1210102,
+              "lv": 8
+            },
+            {
+              "name": "肥肥",
+              "id": 1210100,
+              "lv": 7
+            }
+          ],
+          "why": "舊版打手／槍手攻略的 10~18 等單練點，綠水靈弱、不會爆走；槍手雙子星傷害飄（常打個位數、怪近身會改普攻打 1），所以要卡點遠距離射。獸皇：精通指虎點滿前別用指虎，15 等皮包、20 等公事包、25 等通通樂等通用武器 AD 都高過同級指虎。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3975",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3495",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=239",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=286"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "levelFrom": 15,
+          "levelTo": 25,
+          "kind": "solo",
+          "mapName": "小心掉落／北方工地頂端（三眼章魚）",
+          "mapId": 103010001,
+          "mobs": [
+            {
+              "name": "三眼章魚",
+              "id": 1120100,
+              "lv": 12
+            },
+            {
+              "name": "藍菇菇",
+              "id": 2220100,
+              "lv": 20
+            }
+          ],
+          "why": "舊版打手與槍手 18~25 等主流（槍手站上層、找近戰分圖較不卡彈），板上 2026 也有「一轉拿叉槍去小心掉落站平台無痛平 A」的海盜回報。bobo 舊版佐證把小心掉落標為海盜（槍手）適合。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3975",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3620",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3497",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1757",
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "levelFrom": 20,
+          "levelTo": 30,
+          "kind": "solo",
+          "mapName": "東方岩石山Ⅴ（斧木妖／黑斧木妖／樹妖王）",
+          "mapId": 101030404,
+          "mobs": [
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "斧木妖",
+              "id": 1130100,
+              "lv": 17
+            },
+            {
+              "name": "樹妖王",
+              "id": 3220000,
+              "lv": 35
+            }
+          ],
+          "why": "舊版槍手冷門圖首選：木妖移動慢、可跳打，23~30 的 8 等都在這衝；樹妖王 35 等 205 經驗、20 幾等就能打贏還掉卷。獸皇（2026）也提「沒人組隊可到勇村東部 4、5 練」、「會出樹妖王那張很好踢」。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3619",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=417"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "levelFrom": 21,
+          "levelTo": 31,
+          "kind": "party",
+          "mapName": "超級綠水靈組隊任務（站內僅有最後關隘 910340500）",
+          "mapId": 910340500,
+          "mobs": [
+            {
+              "name": "超級綠水靈",
+              "id": 9300003,
+              "lv": 40
+            }
+          ],
+          "why": "打手 25~31、槍手 21~31 等主流；火力不夠可用換隊長多拿一張通行證跳過打王省水。但二轉前力量職業打不中王、槍手打鱷魚「數字會讓你想哭」，野團接受度低——板上大量「缺打手不要打手」的梗。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=937",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3619"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 23,
+          "levelTo": 30,
+          "kind": "solo",
+          "mapName": "螞蟻洞Ⅰ（刺菇菇／殭屍菇菇）",
+          "mapId": 105050000,
+          "mobs": [
+            {
+              "name": "刺菇菇",
+              "id": 2110200,
+              "lv": 22
+            },
+            {
+              "name": "殭屍菇菇",
+              "id": 2230101,
+              "lv": 24
+            }
+          ],
+          "why": "舊版打手 24~30 打下層用旋風斬清怪；舊版槍手 23~27 在最上層打刺菇菇 3~4 發一隻收支打平，別跑下面只有被狂撞。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3495",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3497",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "levelFrom": 27,
+          "levelTo": 30,
+          "kind": "solo",
+          "mapName": "地鐵一號線[地區01]（藍水靈）／黑肥肥領土Ⅱ",
+          "mapId": 103000101,
+          "mobs": [
+            {
+              "name": "藍水靈",
+              "id": 1210103,
+              "lv": 15
+            },
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            }
+          ],
+          "why": "舊版槍手：不想燒錢可到地鐵享受兩下一隻藍水靈，或黑肥肥領土Ⅱ 3~5 發一隻但掉裝不錯；2026 槍手回報「只能在藍水靈用跳台高低差避免卡彈」。舊版打手 20~24 也在黑肥肥領土Ⅱ用旋風斬（無幼魔精靈）。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3497",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=559",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3495"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "notes": [
+        {
+          "text": "海盜一轉轉職：鯨魚號上層走廊航海室找卡伊琳；二轉（30 等）也找卡伊琳接任務進考場打章魚，打手只能用衝擊拳、槍手只能用雙子星攻擊，兩條任務互斥。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3619"
+          ]
+        },
+        {
+          "text": "板上普遍說法：海盜雙職在經典版「又苦又牢」——打手命中比劍士低、手短、推怪技能有僵直；槍手雙子星傷害極飄、不會爆擊、有近身改普攻的「強弓機制」。玩的人少，2026-08 開服一週後多篇勸退文。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=286",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=559",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=264",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=239"
+          ]
+        },
+        {
+          "text": "初心者技能：疾風之步 3→團隊治癒 2→嫩寶丟擲術 1（打月妙拉怪才需要嫩寶）；疾風之步「會用一輩子」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 510,
+      "name": "打手",
+      "statBuild": [
+        {
+          "text": "主力副敏，副屬抓到「裝備等級＝副屬需求」；轉職後全力，會 MISS 才補敏。32 等打手在沼澤 3 團練問敏是否太高：板上建議不用洗，一般點到 60 差不多，剩下靠裝備補；40 等打天使猴命中 92 可全中；穿過 3 敏 5 命手套＋套敏 10% 桑拿，打到 50 都不缺命中。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1413",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=993"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "波波彙整：打手 4 力 1 敏。舊版：敏＝等級＋5（白手起家沒命中裝尤其重要）。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3975"
+          ],
+          "verified": "community"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "LV1~45 打手實測版（w21905386，有打超綠到 31 的習慣；121 點）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5101002,
+              "skillName": "迴旋肘擊",
+              "to": 1,
+              "note": "30 等先點肘擊 1：推鱷魚／風獨眼獸／超綠都很有效"
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5101003,
+              "skillName": "昇龍拳",
+              "to": 1,
+              "note": "31 等先補熟練度與另外兩招，體驗完整打手"
+            },
+            {
+              "skillId": 5100000,
+              "skillName": "體魄強健",
+              "to": 10,
+              "note": "32 等後才補；「差那十幾點 HP 不會讓你活下來」"
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 4,
+              "note": "技能讓寵物放"
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 19,
+              "note": "19 跟 20 只差 1 命中"
+            },
+            {
+              "skillId": 5101002,
+              "skillName": "迴旋肘擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101003,
+              "skillName": "昇龍拳",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 11,
+              "note": "11 夠用"
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101007,
+              "skillName": "偽裝術",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5101005,
+              "skillName": "魔力再生",
+              "to": 2,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "楓錄通用版（體魄強健最優先）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5100000,
+              "skillName": "體魄強健",
+              "to": 10,
+              "note": "最優先，放大之後每級 HP 成長"
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 20,
+              "note": "與致命快打依序推"
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101003,
+              "skillName": "昇龍拳",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101002,
+              "skillName": "迴旋肘擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101005,
+              "skillName": "魔力再生",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5101007,
+              "skillName": "偽裝術",
+              "to": 1,
+              "note": "楓錄此表合計 121；注意致命快打一定得滿，因為是四轉最終急速的前置（咻咻SiU）"
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "小康（舊版精華區 1~88 格鬥家速成）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5100000,
+              "skillName": "體魄強健",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5101003,
+              "skillName": "昇龍拳",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101007,
+              "skillName": "偽裝術",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5101002,
+              "skillName": "迴旋肘擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101005,
+              "skillName": "魔力再生",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5001005,
+              "skillName": "衝鋒",
+              "to": 10,
+              "note": "回補一轉；波波核算此草案合計 122、超出 1 點，無法判定哪項少 1"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3620",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "白手起家（舊版精華區 1~88 格鬥家速成）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5100000,
+              "skillName": "體魄強健",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5101003,
+              "skillName": "昇龍拳",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101007,
+              "skillName": "偽裝術",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5101002,
+              "skillName": "迴旋肘擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101005,
+              "skillName": "魔力再生",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5001005,
+              "skillName": "衝鋒",
+              "to": 10,
+              "note": "回補一轉；波波核算此草案只有 107 點、尚有 14 點未交代，來源自相矛盾"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3620",
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版平民練法（海盜1-70 打手平民練法）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5100000,
+              "skillName": "體魄強健",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5101002,
+              "skillName": "迴旋肘擊",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 20,
+              "note": "無敵時間好用到爆炸：集氣衝→肘擊→轉身集氣衝 loop"
+            },
+            {
+              "skillId": 5101003,
+              "skillName": "昇龍拳",
+              "to": 20,
+              "note": "衝擊拳→昇龍→衝擊拳可連放；之後很 free 看打法"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "放棄昇龍拳、回補衝擊拳（T952 回覆「阿傑」等）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5100000,
+              "skillName": "體魄強健",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5100001,
+              "skillName": "精通指虎",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101006,
+              "skillName": "致命快打",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101004,
+              "skillName": "狂暴衝擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101002,
+              "skillName": "迴旋肘擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5101005,
+              "skillName": "魔力再生",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5001001,
+              "skillName": "衝擊拳",
+              "to": 20,
+              "note": "阿傑：昇龍拳是廢技、延遲高，三轉集氣還比衝擊拳慢，可不點回補一轉衝擊拳；另一位 39 打手打算前推後推滿＋補衝擊拳＋極速滿。與「昇龍拳必滿」的舊版說法相反。"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=952"
+          ],
+          "verified": "tw"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 31,
+          "levelTo": 37,
+          "kind": "solo",
+          "mapName": "黑肥肥領土／黑肥肥領土Ⅱ",
+          "mapId": 101040001,
+          "mobs": [
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            },
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "幼魔精靈",
+              "id": 3230300,
+              "lv": 35
+            }
+          ],
+          "why": "黑肥肥血少傷害低很容易存錢，冷門時段一人單吃整圖；熱門時四人分站上／中／左下／右下剛好一個循環；黑肥肥領土Ⅱ建議最多 2 人。幼魔精靈用眼藥水＋精力劑處理。作者覺得黑肥撞人比鱷魚癢、喜歡黑肥＞鱷魚。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 30,
+          "levelTo": 35,
+          "kind": "solo",
+          "mapName": "火獨眼獸洞穴III／IV",
+          "mapId": 105070300,
+          "mobs": [
+            {
+              "name": "火獨眼獸",
+              "id": 2230100,
+              "lv": 27
+            }
+          ],
+          "why": "R20（37~50 打手單練回報者）：30~35 推薦火毒眼獸洞穴 3 或 4，打到底換頻，效率海放其他地圖；會虧水可去東方岩石山Ⅴ（101030404）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 42,
+          "kind": "solo",
+          "mapName": "火焰之地Ⅱ（火肥肥）／勇士之村迷宮入口／沼澤地Ⅲ",
+          "mapId": 106000110,
+          "mobs": [
+            {
+              "name": "火肥肥",
+              "id": 3210100,
+              "lv": 32
+            }
+          ],
+          "why": "可找 3 人團或一人跑圖全吃；建議能一下一隻火肥再來（武器過 60% 卷＋攻擊藥水，衝擊拳基本一下一隻）。人多退到勇士之村迷宮入口（較不被打擾）；沼澤地Ⅲ找有僧侶的團省水、底下青蛇要有人清。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "森林迷宮III（冰獨眼獸；不打石巨人）",
+          "mapId": 105040303,
+          "mobs": [
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            }
+          ],
+          "why": "R20 含通行證單練：37 等 23,000／47 等 39,000／50 等 43,000 EXP/10 分，跑法是第一層全打、第二層繞開石巨人、第三層跳過、底層換頻會回頂（50 後用商城回頂）。39 打手問去哪練，答：森林迷宮 3。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 42,
+          "kind": "solo",
+          "mapName": "樹林底層／寺院入口／沼澤地Ⅱ（37 等各圖對照）",
+          "mapId": 100040110,
+          "mobs": [
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            },
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            },
+            {
+              "name": "鱷魚",
+              "id": 3110100,
+              "lv": 32
+            }
+          ],
+          "why": "同一位 37 打手（乾表 650）單練對照：樹林底層 21,000、寺院入口 19,500（拖怪拉平台）、沼澤地 2 19,000 EXP/10 分，都輸森林迷宮 3；命中夠也能去樹林底層打猴子，再慢一點就去打鱷魚。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 41,
+          "levelTo": 45,
+          "kind": "solo",
+          "mapName": "遺跡之墓Ⅰ／寺院入口／猴子沼澤地Ⅱ（41 等對照）",
+          "mapId": 101030105,
+          "mobs": [
+            {
+              "name": "骷髏犬",
+              "id": 4230125,
+              "lv": 44
+            },
+            {
+              "name": "木乃伊犬",
+              "id": 4230126,
+              "lv": 47
+            },
+            {
+              "name": "冰獨眼獸",
+              "id": 4230100,
+              "lv": 40
+            },
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            }
+          ],
+          "why": "41 打手（乾表 720）單練：遺跡之墓 1 21,000、寺院入口 23,000（不拉平台）、猴子沼澤 2 23,000 EXP/10 分。40 等打狗只需狂暴一直往前推怪到角落再無限迴旋。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=952"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 42,
+          "levelTo": 45,
+          "kind": "solo",
+          "mapName": "猴子森林I（天使猴／猴子）",
+          "mapId": 100040101,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "猴子",
+              "id": 3210800,
+              "lv": 37
+            }
+          ],
+          "why": "作者 42~45 在猴子森林 1 單練，2 下 1 隻猴、要換 50 等武器才 1 下 1 隻，約四五小時一級、兩級掉一個雪花鏢。44 打手（指虎 60% 過 5、含通行證）實測 20,363 EXP/10 分、收益明顯負：猴子跳起來害你空招、沒秒掉會轉遠攻，不適合看劇。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 45,
+          "levelTo": 46,
+          "kind": "solo",
+          "mapName": "菇菇王出沒地（鋼之肥肥／蝴蝶精／蘑菇王）",
+          "mapId": 100000005,
+          "mobs": [
+            {
+              "name": "鋼之肥肥",
+              "id": 4230103,
+              "lv": 42
+            },
+            {
+              "name": "蝴蝶精",
+              "id": 3000001,
+              "lv": 30
+            },
+            {
+              "name": "蘑菇王",
+              "id": 6130101,
+              "lv": 60
+            }
+          ],
+          "why": "45 打手實測 18,328 EXP/10 分、略正收益：鋼鐵肥肥傷害超低又只物傷，寵補喝紅水都補得回來，地圖簡單還能順手打王；蝴蝶精盡量用衝拳秒掉以免被上 debuff，寵補設高避免突然跑出菇王。打手命中低容易被搶王，但可一拳把菇王推到對方臉上。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 46,
+          "levelTo": 47,
+          "kind": "solo",
+          "mapName": "石人寺院Ⅱ（黑曜石巨人／蝴蝶精）／地鐵二號線[地區03]（大幽靈）",
+          "mapId": 106010104,
+          "mobs": [
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            },
+            {
+              "name": "蝴蝶精",
+              "id": 3000001,
+              "lv": 30
+            },
+            {
+              "name": "大幽靈",
+              "id": 4230102,
+              "lv": 48
+            }
+          ],
+          "why": "46 打手：石巨人寺廟 2 16,013/10 分、負收益但怪少、善用狂暴衝擊跳打上層可無損；地鐵 2 線 3 區大幽靈 20,400/10 分但負收益、會撞人又跳起閃招、有些點不能推怪。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 50,
+          "kind": "solo",
+          "mapName": "巫婆森林Ⅰ／海龜沙灘／森林迷宮III（47~50 對照）",
+          "mapId": 100040105,
+          "mobs": [
+            {
+              "name": "巫婆",
+              "id": 5300100,
+              "lv": 55
+            },
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "烏龜",
+              "id": 4130101,
+              "lv": 46
+            },
+            {
+              "name": "青螃蟹",
+              "id": 4230104,
+              "lv": 48
+            }
+          ],
+          "why": "R20 含通行證：47 等巫婆森林 1 27,000、海龜沙灘 31,000、森林迷宮 3 39,000；50 等巫婆森林 1 40,000（商城回頂）、海龜 39,000、森林迷宮 3 43,000 EXP/10 分。巫婆森林是衝級燒錢圖。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 52,
+          "kind": "solo",
+          "mapName": "鱷魚潭Ⅰ／鱷魚潭Ⅱ（黑鱷魚）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "Peeyie 最推薦：47 等鱷魚潭 1 27,645、鱷魚潭 2 33,743、48 等雙練 35,551 EXP/10 分，收益很好（10 分鐘約 41 白 84 藍、楓幣 37,038，黑鱷魚掉的裝賣商店都賺）。鱷魚很乖不亂跳跑得慢，有些位置可無傷；捏上面刷 3~5 趟下去清一次蛇，狂暴衝擊點高後清蛇快。w21905386：48 等後去鱷魚混合圖，建議最小傷害 350 以上旋風斬才 100% 擊退（黑鱷魚需 500）。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 52,
+          "levelTo": 57,
+          "kind": "solo",
+          "mapName": "龍族狩獵場（青龍／土龍）",
+          "mapId": 105080000,
+          "mobs": [
+            {
+              "name": "青龍",
+              "id": 5130100,
+              "lv": 50
+            },
+            {
+              "name": "土龍",
+              "id": 4130100,
+              "lv": 45
+            }
+          ],
+          "why": "w21905386：52~57 泡在龍族狩獵場、沒組隊、打了 800 多萬楓幣買了不少玩具。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 57,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "巨人之林（混種石巨人／黑曜石巨人）",
+          "mapId": 105040306,
+          "mobs": [
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "57 打手＋68 狂戰＋78 刺客 3 人團打最上兩層 10 分 7 萬經驗。T1170 回覆：30 等指虎衝 10/60 攻擊卷過渡到 50 再換，接著巨人打到 60 以上就可以慢慢練；撐到 60 去奇幻村怪很多很密，遠程難受但打手推怪＋群攻很舒服。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1170"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 70,
+          "levelTo": 100,
+          "kind": "party",
+          "mapName": "（無可靠出處）",
+          "mapId": null,
+          "mobs": [],
+          "why": "打手 70 等以後只有「打手 100 等之前都是坐牢」「能把打手練到四轉都能當全服前幾名」這類評價，沒有任何本服練功地點回報。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1170"
+          ],
+          "verified": "community"
+        }
+      ],
+      "notes": [
+        {
+          "text": "操作手感：經典版打手技能有僵直（狂暴衝擊要集滿氣才放得出來、肘擊後有延遲），狂暴衝擊打中後約 1 秒無敵可接旋風斬；作者主要靠衝擊拳或「肘擊聚怪＋旋風斬清光」，不常用狂暴衝擊。致命快打要記得放，旋風斬後搖差很多；攻速太快衝擊拳第二拳怪不會被 KB，要抓節奏。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=952",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486"
+          ]
+        },
+        {
+          "text": "武器投資：30／35／40 等武器挑一把衝，注意不存在 45 等武器、40 等後要撐 10 等；30 等指虎攻速快。前期通用武器（海神叉、鋁球棍、15 等皮包、20 等公事包、25 等通通樂）AD 都高過同級指虎，精通未點高前別用指虎。48 等要打黑鱷魚建議武器至少過 4 張 60%＋攻擊藥水。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=286",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1170"
+          ]
+        },
+        {
+          "text": "裝備：披風「破舊的披風」（墮落城市醫院任務）迴避高、怪 MISS 多省水；帽子超綠通關獎勵；鞋子黏稠稠鞋子。單練穩定賺錢，團練只是「精神時光屋」。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ]
+        },
+        {
+          "text": "組隊：練功圖喊「缺打手」多半不是要這個職業；二轉時期力量職業在組隊任務打不中王、王關作用可能比低等僧侶還糟。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=937",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=597"
+          ]
+        }
+      ]
+    },
+    {
+      "jobId": 520,
+      "name": "槍手",
+      "statBuild": [
+        {
+          "text": "槍手不缺命中，每升一等 4 敏 1 力；子彈要記得更新：30 等「子彈」攻擊 +12、50 等「強力子彈」攻擊 +14（拍賣很便宜），兩次換彈對傷害提升很直接。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ],
+          "verified": "tw"
+        },
+        {
+          "text": "舊版：擲骰 4 智 4 幸，力量＝等級（或只到拿槍門檻），其餘全敏。火槍等級個位數 0 的攻速快、5 的攻速普通；早期節點火槍 10、迪林格 15、格蘭德 20、黃金火槍 25、冷酷之心 30。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3497",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "text": "波波彙整：槍手 4 敏 1 力。",
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+          ],
+          "verified": "community"
+        }
+      ],
+      "skillBuilds": [
+        {
+          "label": "1~50 攻略心得（w851228w，2026-09；121 點）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5201001,
+              "skillName": "散射",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5200000,
+              "skillName": "精通槍法",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 5201003,
+              "skillName": "迅雷再起",
+              "to": 6,
+              "note": "Ian Chen／HSZERO 反對先點：迅雷對雙子星無效（實測 bug），建議這 6 點先給散射"
+            },
+            {
+              "skillId": 5201001,
+              "skillName": "散射",
+              "to": 20,
+              "note": "二轉清怪主力，前方範圍大、Y 軸判定實用"
+            },
+            {
+              "skillId": 5201005,
+              "skillName": "緩降術",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 5201006,
+              "skillName": "脫離戰場",
+              "to": 20,
+              "note": "跨平台／拉開距離"
+            },
+            {
+              "skillId": 5201005,
+              "skillName": "緩降術",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5201004,
+              "skillName": "偽裝射擊",
+              "to": 20,
+              "note": "怪密集時控場再接散射"
+            },
+            {
+              "skillId": 5201002,
+              "skillName": "炸彈投擲",
+              "to": 20,
+              "note": "高低差地形好用；作者後來同意炸彈娛樂性質多、可改先把迅雷點滿"
+            },
+            {
+              "skillId": 5201003,
+              "skillName": "迅雷再起",
+              "to": 12,
+              "note": "HSZERO：迅雷點滿較好，寵物自動放技能會卡住攻擊約半秒"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ],
+          "verified": "tw"
+        },
+        {
+          "label": "楓錄通用版（精通→散射→偽裝射擊→脫離→緩降→迅雷，炸彈放生）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5200000,
+              "skillName": "精通槍法",
+              "to": 20,
+              "note": "務必點滿，職業定位吃命中與傷害穩定"
+            },
+            {
+              "skillId": 5201001,
+              "skillName": "散射",
+              "to": 20,
+              "note": "二轉主攻"
+            },
+            {
+              "skillId": 5201004,
+              "skillName": "偽裝射擊",
+              "to": 20,
+              "note": "滿點暈眩機率拉滿"
+            },
+            {
+              "skillId": 5201006,
+              "skillName": "脫離戰場",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201005,
+              "skillName": "緩降術",
+              "to": 10,
+              "note": "趕路必需"
+            },
+            {
+              "skillId": 5201003,
+              "skillName": "迅雷再起",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201002,
+              "skillName": "炸彈投擲",
+              "to": 11,
+              "note": "楓錄寫「基本放生（不實用）」，此處以 121 點收尾補 11"
+            }
+          ],
+          "sources": [
+            "https://mapleclassictools.com/"
+          ],
+          "verified": "community"
+        },
+        {
+          "label": "舊版槍神攻略／波波攻略島（精通→散射→迅雷→偽裝→緩降→脫離→炸彈 11）",
+          "mainstream": true,
+          "steps": [
+            {
+              "skillId": 5200000,
+              "skillName": "精通槍法",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201001,
+              "skillName": "散射",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201003,
+              "skillName": "迅雷再起",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201004,
+              "skillName": "偽裝射擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201005,
+              "skillName": "緩降術",
+              "to": 10,
+              "note": "可依喜好轉點炸彈"
+            },
+            {
+              "skillId": 5201006,
+              "skillName": "脫離戰場",
+              "to": 20,
+              "note": "原文「逃離戰場」"
+            },
+            {
+              "skillId": 5201002,
+              "skillName": "炸彈投擲",
+              "to": 11,
+              "note": "可打 6 隻但需拋物線預判"
+            }
+          ],
+          "sources": [
+            "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版嫩槍手心得（精準 19→散射→迅雷 6→緩降 5→脫離→偽裝，剩 31 點兩種收尾）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5200000,
+              "skillName": "精通槍法",
+              "to": 19,
+              "note": ""
+            },
+            {
+              "skillId": 5201001,
+              "skillName": "散射",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201003,
+              "skillName": "迅雷再起",
+              "to": 6,
+              "note": ""
+            },
+            {
+              "skillId": 5201005,
+              "skillName": "緩降術",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 5201006,
+              "skillName": "脫離戰場",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201004,
+              "skillName": "偽裝射擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201003,
+              "skillName": "迅雷再起",
+              "to": 20,
+              "note": "收尾 1：點滿迅雷、精準、緩降，炸彈 11；收尾 2：點滿炸彈、緩降，迅雷點到 12"
+            },
+            {
+              "skillId": 5200000,
+              "skillName": "精通槍法",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201005,
+              "skillName": "緩降術",
+              "to": 10,
+              "note": ""
+            },
+            {
+              "skillId": 5201002,
+              "skillName": "炸彈投擲",
+              "to": 11,
+              "note": ""
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=4656"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "label": "舊版冷門地圖作者（精準滿、迅雷滿、散射滿、偽裝滿、緩降 5、後退滿，剩下炸彈）",
+          "mainstream": false,
+          "steps": [
+            {
+              "skillId": 5200000,
+              "skillName": "精通槍法",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201003,
+              "skillName": "迅雷再起",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201001,
+              "skillName": "散射",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201004,
+              "skillName": "偽裝射擊",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201005,
+              "skillName": "緩降術",
+              "to": 5,
+              "note": ""
+            },
+            {
+              "skillId": 5201006,
+              "skillName": "脫離戰場",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5201002,
+              "skillName": "炸彈投擲",
+              "to": 16,
+              "note": "剩餘點數給炸彈（原文未寫終值，121-105=16）"
+            }
+          ],
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3619"
+          ],
+          "verified": "legacy"
+        }
+      ],
+      "training": [
+        {
+          "levelFrom": 31,
+          "levelTo": 40,
+          "kind": "party",
+          "mapName": "沼澤地Ⅲ（來源寫「鱷魚沼澤Ⅲ」）",
+          "mapId": 107000200,
+          "mobs": [
+            {
+              "name": "鱷魚",
+              "id": 3110100,
+              "lv": 32
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "31 等後轉往適合散射發揮的怪物密集圖；鱷魚 37 前 4 槍雙子星、40 前 3 槍、41 起穩定兩槍。Ian Chen：32 後到沼澤地組隊當清蛇，37 之前效率都比純打鱷魚好——槍手是高攻速低傷害，清蛇 1~2 槍就能處理、每分鐘經驗更高。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 37,
+          "levelTo": 47,
+          "kind": "party",
+          "mapName": "猴子沼澤地Ⅲ（天使猴；清底層）",
+          "mapId": 107000403,
+          "mobs": [
+            {
+              "name": "天使猴",
+              "id": 4230101,
+              "lv": 40
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "w851228w 41~47 在猴子沼澤地Ⅲ；HSZERO：37 開始去猴沼 3 清底，遠快於打鱷魚。散射前方範圍大加 Y 軸判定，善用平台高低差。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 47,
+          "levelTo": 50,
+          "kind": "party",
+          "mapName": "鱷魚潭Ⅱ（黑鱷魚）",
+          "mapId": 107000400,
+          "mobs": [
+            {
+              "name": "黑鱷魚",
+              "id": 5130103,
+              "lv": 52
+            },
+            {
+              "name": "青蛇",
+              "id": 2130103,
+              "lv": 21
+            }
+          ],
+          "why": "47 之後可直接打黑鱷魚，一開始可能慢但整體效益比之前高；50 等換新子彈與武器後效率再提升。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 30,
+          "levelTo": 40,
+          "kind": "solo",
+          "mapName": "東方岩石山Ⅴ／黑肥肥領土（舊版冷門圖）",
+          "mapId": 101030404,
+          "mobs": [
+            {
+              "name": "黑斧木妖",
+              "id": 2130100,
+              "lv": 22
+            },
+            {
+              "name": "斧木妖",
+              "id": 1130100,
+              "lv": 17
+            },
+            {
+              "name": "樹妖王",
+              "id": 3220000,
+              "lv": 35
+            },
+            {
+              "name": "黑肥肥",
+              "id": 2230102,
+              "lv": 25
+            }
+          ],
+          "why": "舊版冷門圖作者 30~31 窩東方岩石山Ⅴ；舊版槍神攻略 31~40 列惡魔水靈（未開放）、黑肥肥領土、火燄之地、小幽靈。2026 有槍手回報「其他人跑去找黑肥肥、木面具人練等」。",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3619",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=559"
+          ],
+          "verified": "legacy"
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 100,
+          "kind": "party",
+          "mapName": "（無可靠出處）",
+          "mapId": null,
+          "mobs": [],
+          "why": "2026 本服槍手心得只到 50 等；舊版槍神攻略 51~60 列夜市娃娃機、101、稻草人、日月光精靈、石巨人、黑鱷魚（多為未開放地區）。板上還有「有槍手 100 等了嗎」的疑問，沒有 50 以上的練功回報。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462"
+          ],
+          "verified": "community"
+        }
+      ],
+      "notes": [
+        {
+          "text": "迅雷再起（武器速度 +2 段）對雙子星攻擊沒有效果：HSZERO 以 48.5 秒 101 下實測仍是 480ms，官方 8/17 回覆已視為 bug 處理；對普攻、敲怪與散射正常。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1046",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ]
+        },
+        {
+          "text": "炸彈投擲：經典版怪物仇恨值很低（爬繩怪就不理你），炸彈沒以前好用，娛樂性質多；脫離戰場點越高後退越遠。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1796"
+          ]
+        },
+        {
+          "text": "板上評價：一、二轉槍手「牢中牢」——雙子星兩發常打個位數、47 等武器過六卷一槍不到 400、有近身改普攻的強弓機制、散射只打 3 隻；要遠程「一定玩獵人」。練槍手需要龐大的熱情。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=239",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=264",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=559",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1629",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ]
+        }
+      ]
+    }
+  ],
+  "notOpenYet": [
+    {
+      "jobId": 110,
+      "levelFrom": 41,
+      "levelTo": 70,
+      "place": "玩具城怪物擂台（30~50「洗擂台」）、愛奧斯塔 10 樓／100 樓白老鼠、玩具塔 8 樓積木泥人、101 組隊任務、天空之城小石球／幼獅、冰原雪域小雪球／野狼／變型雪吉拉、王冠之地企鵝王",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4957",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4961",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4974",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=3224"
+      ]
+    },
+    {
+      "jobId": 120,
+      "levelFrom": 25,
+      "levelTo": 70,
+      "place": "天空之城（小石球、幼獅、女神之塔洗雲唱）、玩具城 101／擂台、愛塔、不夜城娃娃機、修練場稻草人",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=790",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=456",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=3224"
+      ]
+    },
+    {
+      "jobId": 130,
+      "levelFrom": 35,
+      "levelTo": 70,
+      "place": "天空之城（幼獨、紅黃藍光庭園、天空露台、雲彩公園日月光）、玩具城熊／擂台／101／積木泥人、冰原雪域小雪球／野狼、雪城 40 矛、夜市娃娃機",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=863",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=3974",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1276"
+      ]
+    },
+    {
+      "jobId": 510,
+      "levelFrom": 30,
+      "levelTo": 88,
+      "place": "怪物擂台洗經驗、101、天空幼獨腳獅、沙漠實驗室地鼠、夜市徒步區珍奶／娃娃機、女神洗雲唱、冰原小雪球／野狼、亡者殭屍、河童區、小音響；舊版 3~4 轉拳霸內容",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3620",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3495",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3975"
+      ]
+    },
+    {
+      "jobId": 520,
+      "levelFrom": 26,
+      "levelTo": 120,
+      "place": "惡魔水靈（車廂）、發條白老鼠／褐色發條熊、天城幼獅、擂台、泥人、夜市娃娃機、桃花仙境稻草人、日月光精靈、101 小音響、沙漠小仙人掌／沙兔、西門町小狗仔、上海灘、研究所 B-3；槍神 3~4 轉技能",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3619",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3494",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3497"
+      ]
+    },
+    {
+      "jobId": 100,
+      "levelFrom": 20,
+      "levelTo": 30,
+      "place": "車廂（紫水靈／惡魔水靈）配加倍卡練 22~30、擂台（30 等以後）",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=3974",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=3224"
+      ]
+    }
+  ],
+  "unresolved": [
+    "【劍士一轉 自身強化】省水流（點滿 20）與輸出派（完全不點、二轉再洗回來不划算）在板上直接對立；兩條都收，未標單一主流。",
+    "【劍士一轉 魔天 vs 劍氣 先滿】gappyhay493 與 riryka 主張魔天先滿（劍氣場合少）、T1080 樓主與舊版傳統點法主張劍氣先滿；無共識。",
+    "【狂戰士／見習騎士 終極之劍】點或不點板上吵最兇：52 狂戰實測點到 21 後經驗反降 5%，秋田哥哥公式 1~2 目標賺、3 平、4+ 虧；支持派說存 30 點一次滿 DPS 差很多。三轉是否影響集氣（鬥氣）尚未開放無法驗證。",
+    "【槍騎兵 單修 vs 雙修】多數推雙修捨終極（三轉連擊／無雙不吃終極、50~69 槍產量少），但也有「雙修打石頭人超爛」「打王不會拿矛揮」的反方；gappyhay493 建議沒錢可單修槍＋終極。",
+    "【打手 昇龍拳】舊版精華區與楓錄都把昇龍拳列必滿（「二轉最強技能」），但 2026 板上 T952 回覆認為昇龍拳延遲高是廢技、可不點回補一轉衝擊拳；w21905386 則昇龍拳滿、衝擊拳停 20（一轉）。三說並列。",
+    "【打手 衝鋒】舊版：衝擊拳 11＋衝鋒 10（MP 效率、搶怪）vs 衝擊拳 20＋衝鋒 1；2026 兩位打手都「常誤觸、索性放棄衝鋒」。",
+    "【槍手 迅雷再起順序與終值】w851228w 先點 6、最後 12；HSZERO／Ian Chen 反對先點（對雙子星無效 bug）且主張點滿；楓錄與舊版都點滿 20。",
+    "【打手舊版二轉草案點數不合】波波核算 1~88 格鬥家速成的「小康」合計 122（超出 1）、「白手起家」只有 107（缺 14），來源本身矛盾；本檔照原文收錄並註明。",
+    "【53 槍騎「遺跡 2」】經驗值大樓回報只寫「遺跡2」，站內有遺跡發掘地Ⅱ（101030102，23 等怪）與遺跡之墓Ⅱ（101030106，骷髏犬／木乃伊犬）兩張，以 53 等判斷較可能是後者，mapId 留 null。",
+    "【月妙／超綠組隊任務地圖】maps.json 找不到「月妙」任何地圖名（搜「月」「兔」「年糕」皆無）；超綠只有「第一次同行<最後的關隘>910340500」與「<獎勵>910340600」兩張，整個 PQ 的入口地圖對不到，月妙 mapId 填 null、超綠填最後關隘。",
+    "【菇菇山丘／弓箭手村東側草叢】來源名稱與站內不同：站內為「菇菇山」104030001、「弓箭手村東部草叢」100020000，已以站內名為準並註明。",
+    "【冰獨眼獸 40 等】gappyhay493 只寫「40 冰獨眼獸」沒寫地圖；站內冰獨眼獸出沒於森林迷宮III（105040303）與寺院入口（105090400），兩張都列。",
+    "【70~100 等】劍士系只有 82 槍騎「黑鱷魚可以一路幹到 100、石巨人 6X 再去」與 70 狂戰／見習的巨人之林、黑鱷魚回報，沒有逐段數據；打手 57 等以後只有巨人之林 3 人團一筆、槍手 50 等以後完全沒有本服回報。這是最大缺口。",
+    "【槍手 30~50 單練】本服只有 w851228w 一篇（31~40 沼澤地Ⅲ、41~47 猴沼Ⅲ、47~50 鱷魚潭Ⅱ，偏團練／清蛇）；單練地點只能用舊版冷門圖補，已標 legacy。",
+    "【見習騎士 專屬練功地點】除 sos25238 的概略路線（月妙→黑肥肥或超綠→鱷魚／火肥肥／猴森→黑鱷魚→石巨人）外沒有逐段數字，training 沿用三劍職共用段。",
+    "【楓錄「舊版練功地點大全 Lv.1~113」】https://mapleclassictools.com/guides/legacy-leveling-spots/ 直接抓是 404，站內 sitemap 與攻略文章索引都沒有這篇，Wayback Machine 也沒有存檔；只能從 Google 摘要知道它有 67 條舊版條目，內容未能讀到。",
+    "【Threads 來源】楓錄引用的 Threads @lacoste_0355（舊版傳統點法／二轉點法）、@haruruu_0.0、@ich_bin_yi 等貼文無法直接抓取，本檔只透過楓錄頁面轉引並標 community。",
+    "【第1／第2軍營對劍職】只有僧侶與刺客的實測數字，劍職沒有本職回報，標 community。",
+    "【見習騎士降魔咒數值】板上實測為 -20%（物攻／物防）並有人質疑樣本數與測法（sos25238 提出重測構想）；本檔記為「板上實測 -20%」。",
+    "【oslink.io、tech-fz.com、87ms 等搜尋結果】內容是泛用／新楓之谷或 AI 生成（提到爆擊、攻速詞條），與經典版不符，未採用。"
+  ]
+}

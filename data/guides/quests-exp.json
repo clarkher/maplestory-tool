@@ -1,0 +1,1117 @@
+{
+  "researchedAt": "2026-10-03",
+  "game": "台服《新楓之谷：經典版》（遊戲橘子，2026-07-29 上線；等級上限 100、二轉、楓之島＋維多利亞島）",
+  "siteDataVersion": "public/data/quests.json gameVersion 1.13.1（meta.json）；波波攻略島官方任務表為 1.15.0",
+  "expTable": {
+    "toNext": {
+      "1": 15,
+      "2": 34,
+      "3": 57,
+      "4": 92,
+      "5": 135,
+      "6": 372,
+      "7": 560,
+      "8": 840,
+      "9": 1242,
+      "10": 1716,
+      "11": 2360,
+      "12": 3216,
+      "13": 4200,
+      "14": 5460,
+      "15": 7050,
+      "16": 8840,
+      "17": 11040,
+      "18": 13716,
+      "19": 16680,
+      "20": 20216,
+      "21": 24402,
+      "22": 28980,
+      "23": 34320,
+      "24": 40512,
+      "25": 47216,
+      "26": 54900,
+      "27": 63666,
+      "28": 73080,
+      "29": 83720,
+      "30": 95700,
+      "31": 108480,
+      "32": 122760,
+      "33": 138666,
+      "34": 155540,
+      "35": 174216,
+      "36": 194832,
+      "37": 216600,
+      "38": 240500,
+      "39": 266682,
+      "40": 294216,
+      "41": 324240,
+      "42": 356916,
+      "43": 391160,
+      "44": 428280,
+      "45": 468450,
+      "46": 510420,
+      "47": 555680,
+      "48": 604416,
+      "49": 655200,
+      "50": 709716,
+      "51": 748608,
+      "52": 789631,
+      "53": 832902,
+      "54": 878545,
+      "55": 926689,
+      "56": 977471,
+      "57": 1031036,
+      "58": 1087536,
+      "59": 1147132,
+      "60": 1209994,
+      "61": 1276301,
+      "62": 1346242,
+      "63": 1420016,
+      "64": 1497832,
+      "65": 1579913,
+      "66": 1666492,
+      "67": 1757815,
+      "68": 1854143,
+      "69": 1955750,
+      "70": 2062925,
+      "71": 2175973,
+      "72": 2295216,
+      "73": 2410993,
+      "74": 2553663,
+      "75": 2693603,
+      "76": 2841212,
+      "77": 2996910,
+      "78": 3161140,
+      "79": 3334370,
+      "80": 3517093,
+      "81": 3709829,
+      "82": 3913127,
+      "83": 4127566,
+      "84": 4353756,
+      "85": 4592341,
+      "86": 4844001,
+      "87": 5109452,
+      "88": 5389449,
+      "89": 5684790,
+      "90": 5996316,
+      "91": 6324914,
+      "92": 6671519,
+      "93": 7037118,
+      "94": 7422752,
+      "95": 7829518,
+      "96": 8258575,
+      "97": 8711144,
+      "98": 9188514,
+      "99": 9692044
+    },
+    "sources": [
+      "https://mapleclassictools.com/guides/exp-table/",
+      "https://mapleclassictools.com/js/bundle.js?v=5686fcca",
+      "https://www.ptt.cc/bbs/MapleStory/M.1239109916.A.70B.html",
+      "https://artale-tools.archie-design.app/classic/tools/exp-calculator",
+      "https://artale-tools.archie-design.app/assets/server-rules-CHH35mNx.js",
+      "https://v113.wordpress.com/2019/09/16/%E6%B4%97%E8%A1%80%E9%9C%80%E6%B1%81_%E7%AD%89%E7%B4%9A%E7%B6%93%E9%A9%97%E8%A1%A8v113%E7%89%88/",
+      "https://www.xinbiao-aicl.com/thread-8964-1-1.html"
+    ],
+    "verified": "tw",
+    "conflicts": [
+      {
+        "level": 73,
+        "values": [
+          {
+            "value": 2410993,
+            "source": "https://mapleclassictools.com/js/bundle.js?v=5686fcca",
+            "note": "楓錄練等計算機實際載入的 EXP_TABLE；同值亦見 https://mapleclassictools.com/guides/exp-table/、PTT 2009 轉錄 https://www.ptt.cc/bbs/MapleStory/M.1239109916.A.70B.html、TMS v113 舊表 https://v113.wordpress.com/2019/09/16/%E6%B4%97%E8%A1%80%E9%9C%80%E6%B1%81_%E7%AD%89%E7%B4%9A%E7%B6%93%E9%A9%97%E8%A1%A8v113%E7%89%88/、搬運表 https://www.xinbiao-aicl.com/thread-8964-1-1.html（這幾份都是同一張 PTT 流傳表的複本，彼此不獨立）"
+          },
+          {
+            "value": 2420993,
+            "source": "https://artale-tools.archie-design.app/assets/server-rules-CHH35mNx.js",
+            "note": "Artale Tools 的 tw-classic-2005-exp-1-200 規則集，用公式 floor(1.0548×前一級) 算出；且該表 Lv.74 的 2,553,663 = floor(1.0548×2,420,993)，與 2,410,993 不相容（floor(1.0548×2,410,993)=2,543,115）。此值僅為公式推算，兩邊都沒有台服 Lv.73 的遊戲內截圖。"
+          }
+        ]
+      }
+    ],
+    "note": "Lv.1～99 每一級取自楓錄練等計算機實際載入的 EXP_TABLE（bundle.js），並程式化比對：楓錄經驗值表網頁、PTT 2009〈楓之谷升級所需經驗值〉轉錄、Artale Tools「tw-classic-2005-exp-1-200」規則集公式四者在 1～99 級只有 Lv.73 不一致（2,410,993 vs 2,420,993，詳 conflicts）。verified 標 tw 的依據只有楓錄的概括宣稱「台版經典版 2026/07/29 上線後已與遊戲內實際數值比對，確認本表與正式數值一致」，沒有逐級截圖；楓錄與 PTT 不算獨立來源（楓錄自述取自 PTT 流傳表）。Lv.73 請視為未確認。Lv.1 升 2 = 15 也與超綠組隊任務第一關答題「等級 1 升到 2 所需經驗值 15」吻合。"
+  },
+  "mustDo": [
+    {
+      "questName": "月妙的年糕（月妙組隊任務）",
+      "questId": "1200",
+      "suggestedLevel": "10–20",
+      "chain": [
+        "1200"
+      ],
+      "why": "10～20 等公認最快的練等路線：正常通關每場固定 1,600 EXP，熟練隊伍 2.5～4.5 分鐘一場、幾乎不耗藥水；累積 20 個年糕可換「頭頂上的一個年糕」帽子（HP+50）。",
+      "needs": "3～6 人組隊（弓箭手村 邱比特公園，NPC 達爾利）；打草收六色種子、照顏色種到六個平台，護住月妙做出 10 個年糕後交給興兒。",
+      "sourceExp": 1600,
+      "sourceExpNote": "每場通關獎勵（波波攻略島站長 2026-07-30 實測；NOWnews 2026-07-29 報導同值）；站內 quests.json 此任務無 exp 欄位。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/moon-bunny-pq.html",
+        "https://www.nownews.com/news/6861250",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": 10,
+      "siteExp": null
+    },
+    {
+      "questName": "第一次同行（超綠／超級綠水靈組隊任務）",
+      "questId": "1201",
+      "suggestedLevel": "21–30（實務約 25 起）",
+      "chain": [
+        "1201"
+      ],
+      "why": "21～30 等的衝等副本：五關合計約 3,000 EXP、不耗水；王關有機會拿黏稠稠鞋子、藍／綠斗笠，女神禮物耳環丟商店 5,000～27,500 楓幣，一路刷到 30 等進帳可觀。",
+      "needs": "4 人隊、全隊 21～30 等（墮落城市 NPC 拉克里斯）；答題交優惠券→爬繩→平台→跳木桶→打超級綠水靈，全程需 10 張票券。",
+      "sourceExp": 3000,
+      "sourceExpNote": "每場五關合計（100+200+400+800+1500），波波攻略島依舊台服記載並與經典版玩家回報吻合（2026-08-05 更正）；站內無 exp 欄位。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/king-slime-pq.html",
+        "https://www.nownews.com/news/6861976",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": 21,
+      "siteExp": null
+    },
+    {
+      "questName": "瑪亞和奇怪的藥（褐色斗笠）",
+      "questId": "2008",
+      "suggestedLevel": "15–25",
+      "chain": [
+        "2002",
+        "2003",
+        "2004",
+        "2005",
+        "2006",
+        "2007",
+        "2008"
+      ],
+      "why": "新手最早能拿到的帽子任務：完成給 2,000 EXP、5,000 楓幣與褐色斗笠（Lv25，物防+15、LUK+3），也是後面「麥吉的舊戰劍」「為瑪亞的收集」的前置。",
+      "needs": "瑪亞（弓箭手村）→特奧（維多利亞港）→索非亞（勇士之村）：綠液球 50、葉子 50、章魚腳 20；麥吉：道符 40 換變異菇菇的血→閃耀的石頭→奇怪的藥水交回瑪亞。",
+      "sourceExp": 2000,
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://bobogameguides.com/maplestory-classic/guides/maya-hat-quest.html",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 15,
+      "siteExp": 2000
+    },
+    {
+      "questName": "內拉和墮落城市居民的委託（Lv20 職業手套／Lv30 職業鞋）",
+      "questId": "2031",
+      "suggestedLevel": "15–25",
+      "chain": [
+        "2029",
+        "2030",
+        "2031",
+        "2032",
+        "2033",
+        "2034"
+      ],
+      "chainSiteExpTotal": 9000,
+      "why": "六個委託材料拍賣都買得到（多數 1:50 楓幣），交件就有經驗與消耗品：安德里亞給依職業的 Lv20 手套、曼斯塔給 Lv30 職業鞋、休咪給蛋糕 100 個（可賣約 1.7 萬）、銘仁給白色藥水 100。接取時先扣 1,000 楓幣。",
+      "needs": "瑪帕：綠菇菇傘 50、藍水靈珠 50｜休咪：木材 5、螺絲釘 5｜安德里亞：章魚腳 100、礦泉水 1（點數換的礦泉水不能交）｜銘仁：刺菇菇傘 100、蛇皮 50｜克利思：堅硬的羽毛 50、動物皮 20｜曼斯塔：火獨眼獸之尾巴 150（舊版寫 200）。",
+      "sourceExp": 9000,
+      "sourceExpNote": "六段合計 800+900+1000+2000+2100+2200（楓錄引 2026 年巴哈玩家分享，與站內一致）。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://forum.gamer.com.tw/Co.php?bsn=85994&sn=2395",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/glove-quest-line.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=428",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 15,
+      "siteExp": 1000
+    },
+    {
+      "questName": "約翰的粉紅花籃 → 約翰的禮物（Lv35 職業手套）",
+      "questId": "2053",
+      "suggestedLevel": "15 接前段、30 接後段",
+      "chain": [
+        "2052",
+        "2053"
+      ],
+      "chainSiteExpTotal": 10000,
+      "why": "會跳忍耐就能白拿 Lv35 職業手套，前段另給螺絲釘（可拿去補內拉第二段），玩家評「CP 值相當高」；兩段都已有開服後實測回報。",
+      "needs": "維多利亞港找約翰；到奇幻村點「奇怪的石像」進忍耐地圖沉睡森林：前段 1～2 層採粉紅花 10，後段 3～4 層採藍色花 20。",
+      "sourceExp": 5000,
+      "sourceExpNote": "舊版資料「約翰的禮物」5,000 EXP；站內／官方 1.15.0 為 8,000。前段 2,000 兩邊一致。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://forum.gamer.com.tw/Co.php?bsn=85994&sn=2395",
+        "https://bobogameguides.com/maplestory-classic/guides/glove-quest-line.html",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 30,
+      "siteExp": 8000
+    },
+    {
+      "questName": "約翰的最後禮物（Lv60 梅花耳環）",
+      "questId": "2054",
+      "suggestedLevel": "60+",
+      "chain": [
+        "2054"
+      ],
+      "why": "約翰線最終段：25,000 EXP 加 Lv60 梅花耳環，是忍耐任務裡經驗最高的一段。但開服後還沒看到有人回報實際跑過沉睡森林 5～7 層。",
+      "needs": "完成約翰的禮物後，進沉睡森林 5～7 層採白花 30。",
+      "sourceExp": 25000,
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "legacy",
+      "siteMinLv": 60,
+      "siteExp": 25000
+    },
+    {
+      "questName": "蝸牛的傳說（紅寶王之亂，隱藏任務）",
+      "questId": "2156",
+      "suggestedLevel": "20–25",
+      "chain": [
+        "2153",
+        "2154",
+        "2155",
+        "2156"
+      ],
+      "why": "開服初期被稱為「新手白拿 3 萬楓幣」：交出彩虹蝸牛殼就拿 30,000 楓幣、7,500 EXP、名聲 +3。注意 8 月中起紅寶王 60 頻幾乎都有人蹲，近戰常搶不到（見 notWorth）。",
+      "needs": "弓箭手村皮亞→傑伊→明明夫人→魔法森林妖精維英交嫩寶殼／藍寶殼／紅寶殼各 10→回皮亞→擊敗海岸草叢Ⅲ的紅寶王取得彩虹蝸牛殼 1。",
+      "sourceExp": 7500,
+      "sourceExpNote": "巴哈玩家 abdc0303（2026-07-30/31）與波波攻略島轉述的當版回報：7,500 EXP／30,000 楓幣／名聲 3。站內 2156 沒有 exp／money 欄位（2153、2154 各 5、2155 100）。楓葉雨（另一復古版）寫 60,000 楓幣，不採。",
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/snail-legend-quest.html",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647"
+      ],
+      "verified": "tw",
+      "siteMinLv": 20,
+      "siteExp": null
+    },
+    {
+      "questName": "皮亞和藍菇菇",
+      "questId": "2009",
+      "suggestedLevel": "20",
+      "chain": [
+        "2009"
+      ],
+      "why": "拍賣買藍、綠菇菇傘各 40 個約 4,000 楓幣，交件得 3,000 EXP 加一張頭盔防禦卷軸（10%／60%／100% 隨機），玩家算過最差的 100% 也值約 3.7 萬，「只賺不虧」。",
+      "needs": "弓箭手村鐘塔前找皮亞，交綠菇菇傘 40、藍菇菇傘 40（舊版資料各 60，已被實測更正）。",
+      "sourceExp": 1000,
+      "sourceExpNote": "舊版資料 1,000 EXP；站內／官方 3,000。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 20,
+      "siteExp": 3000
+    },
+    {
+      "questName": "離家少年阿勒斯（隨機耳環）",
+      "questId": "2016",
+      "suggestedLevel": "20–25",
+      "chain": [
+        "2014",
+        "2015",
+        "2016"
+      ],
+      "chainSiteExpTotal": 6600,
+      "why": "材料好取得、路程短，完成給隨機耳環（紅十字／金／祖母綠／來電），全鏈 6,600 EXP；是少見的對話解謎任務（選項 2→3→3→1→3）。",
+      "needs": "墮落城市上方找阿勒斯；交蝴蝶結 60、火獨眼獸之尾巴 30 給長老斯坦（弓箭手村），依序選對話取得舊金錶交回。",
+      "sourceExp": 2000,
+      "sourceExpNote": "舊版資料整條 2,000 EXP；站內 1,600+5,000。材料數量以 2026-08-02 玩家實測（60／30）為準。",
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=428"
+      ],
+      "verified": "community",
+      "siteMinLv": 20,
+      "siteExp": 5000
+    },
+    {
+      "questName": "休咪遺失的硬幣（地鐵工地 B1 忍耐）",
+      "questId": "2055",
+      "suggestedLevel": "20–30",
+      "chain": [
+        "2055"
+      ],
+      "why": "買 500 楓幣門票跳一次忍耐，實測拿 6,000 EXP、名聲 +1 與 30 張城鎮傳送卷軸（隨機一種），回報者說不看攻略也跳得過。",
+      "needs": "墮落城市中間下方找休咪→地鐵站服務員買工地 B1 入場券→檢票口進忍耐→通關後走到最右邊按上開寶箱→回報。",
+      "sourceExp": 6000,
+      "sourceExpNote": "巴哈 647 串 19 樓實測 6,000（舊版資料 2,200）。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 20,
+      "siteExp": 6000
+    },
+    {
+      "questName": "休咪丟失的鈔票（地鐵工地 B2 忍耐）",
+      "questId": "2056",
+      "suggestedLevel": "30–40",
+      "chain": [
+        "2056"
+      ],
+      "why": "1,000 楓幣門票換 8,500 EXP、名聲 +1 與活力藥水 100 罐，被多篇攻略點名「CP 值非常高」、關卡本身也好玩。",
+      "needs": "完成 B1 後，同流程改買 B2 入場券；需 Lv30。",
+      "sourceExp": 8500,
+      "sourceExpNote": "巴哈 647 串 19 樓實測 8,500（舊版資料 4,700）。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 30,
+      "siteExp": 8500
+    },
+    {
+      "questName": "休咪遺失的錢袋（地鐵工地 B3 忍耐）",
+      "questId": "2057",
+      "suggestedLevel": "40+",
+      "chain": [
+        "2057"
+      ],
+      "why": "官方資料：11,000 EXP、名聲 +1、特殊藥水 30，另隨機一張鞋子速度卷軸（100%／60%／10%）。目前只有官方資料與舊版記載，尚無開服後實測回報。",
+      "needs": "完成 B2 後，買 2,000 楓幣 B3 入場券跳第三關。",
+      "sourceExp": 7000,
+      "sourceExpNote": "舊版資料 7,000；站內／官方 11,000。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/tips.html",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "community",
+      "siteMinLv": 40,
+      "siteExp": 11000
+    },
+    {
+      "questName": "珍和黑肥肥（60% 武器攻擊卷軸）",
+      "questId": "2010",
+      "suggestedLevel": "25–30",
+      "chain": [
+        "2010"
+      ],
+      "why": "25 等就能博一張隨機 60% 武器攻擊卷軸（抽到拳套／短杖等熱門卷直接賺一筆），也是 40 等「煉金術士，珍」的前置；材料和「醫院的神祕女孩」「告示牌 99 隻」同一區可一起刷。",
+      "needs": "維多利亞港售票處前找珍；交刺菇菇傘 100、黑肥肥尖牙 80（舊版 120／100，2026-08-29 玩家回報已改）。初心者不可接。",
+      "sourceExp": 2500,
+      "sourceExpNote": "舊版資料 2,500；站內／官方 3,500。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=992"
+      ],
+      "verified": "tw",
+      "siteMinLv": 25,
+      "siteExp": 3500
+    },
+    {
+      "questName": "墮落城市醫院的神祕女孩（破舊的披風）",
+      "questId": "2072",
+      "suggestedLevel": "25–30",
+      "chain": [
+        "2071",
+        "2072"
+      ],
+      "chainSiteExpTotal": 7300,
+      "why": "這個等級段玩家唯一有實測回報的披風來源：打黑肥肥收鏡子碎片 20（接了任務才會掉，掉率高）、再交道符 100，拿 Lv25 破舊的披風，兩段共 7,300 EXP；和珍與黑肥肥順路。",
+      "needs": "墮落城市醫院（左中，從肥肥頭旁進入）找神祕的女孩；鏡子碎片 20→道符 100（殭屍菇菇掉）。",
+      "sourceExp": 4600,
+      "sourceExpNote": "舊版／楓葉雨：2,300+2,300；站內 2,300+5,000。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://mapleclassictools.com/#guides-quests"
+      ],
+      "verified": "tw",
+      "siteMinLv": 25,
+      "siteExp": 5000
+    },
+    {
+      "questName": "鯨魚號湯寶寶：特色料理 → 特殊料理 1～3",
+      "questId": "2206",
+      "suggestedLevel": "15 起接，25／35／40 各解一段",
+      "chain": [
+        "2179",
+        "2180",
+        "2204",
+        "2205",
+        "2206"
+      ],
+      "chainSiteExpTotal": 72900,
+      "why": "整條線都在鯨魚號上解，三段特殊料理共 68,000 EXP（加前段約 73,000），材料三種獨眼獸尾巴拍賣都好買，還送漢堡 40／烤鰻魚 50／棒冰棒 50（可交易）。多篇攻略把它列為 30 等後第一優先。",
+      "needs": "鯨魚號上層餐廳找湯寶寶：打肥肥 30、緞帶肥肥 30→牛舍裝牛奶（找嘴巴有口紅的牛點三下）→火獨眼獸之尾巴 40（Lv25）→風獨眼獸之尾巴 50（Lv35）→冰獨眼獸之尾巴 50（Lv40）。",
+      "sourceExp": 68000,
+      "sourceExpNote": "巴哈 647 串 23 樓：8,000／24,000／36,000；楓錄前段 1,300／3,600 依官方值校正。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1015",
+        "https://www.4gamers.com.tw/saged/detail/o3d975nqrq3p3j",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069"
+      ],
+      "verified": "tw",
+      "siteMinLv": 40,
+      "siteExp": 36000
+    },
+    {
+      "questName": "泰實夫的秘密之書（桑那服）",
+      "questId": "2023",
+      "suggestedLevel": "30–35",
+      "chain": [
+        "2019",
+        "2020",
+        "2021",
+        "2022",
+        "2023"
+      ],
+      "chainSiteExpTotal": 18800,
+      "why": "30 等的免費造型裝「桑那服」（穿著時坐下回復 1.5 倍），完成另給 10,000 楓幣；官方 8/6 維護後整條線共 18,800 EXP（找回神秘書 10,000＋饑餓的洛尼 8,800）。它也是「妖精羅雯和詛咒的娃娃」「洛尼和蓋妖精們的新房子」的前置。",
+      "needs": "奇幻村旅館高級桑那室（999 楓幣）找泰實夫→北部森林通道找洛尼→麗娜：肥肥頭 5、風獨眼獸之尾巴 50 換烤鰻魚→妖精羅雯：鑽石 1 換牛奶→香蕉 50→交洛尼拿神秘書→回泰實夫。",
+      "sourceExp": 18800,
+      "sourceExpNote": "官方 1.15.0：2020 8,800、2023 10,000、2021 不給經驗（8/6 維護把 2021 的 5,000 移到 2023）。站內 1.13.1 仍是 2021=5,000、2023=5,000（已過時）。巴哈影片攻略仍寫 5,000。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://bobogameguides.com/maplestory-classic/guides/sauna-robe-quest.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=906",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://home.gamer.com.tw/artwork.php?sn=6374786",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": 30,
+      "siteExp": 5000
+    },
+    {
+      "questName": "妖精羅雯和詛咒的娃娃（累計 2,300 個）",
+      "questId": "2028",
+      "suggestedLevel": "35–45",
+      "chain": [
+        "2024",
+        "2025",
+        "2026",
+        "2027",
+        "2028"
+      ],
+      "chainSiteExpTotal": 81000,
+      "why": "累計繳 2,300 個詛咒娃娃共 81,000 EXP、名聲 +9、各類母礦、手套敏捷卷軸（60%／10%）與 Lv40 職業黑帽；娃娃拍賣約 50 楓幣一個，全部買齊約 11.5 萬楓幣，被評「CP 值極高」。",
+      "needs": "前置：泰實夫的秘密之書。魔法森林道具店找妖精羅雯，分 100／200／400／600／1,000 個五次繳交（天使猴掉落，或拍賣購買）。",
+      "sourceExp": 81000,
+      "sourceExpNote": "巴哈 647 串 24 樓與 4Gamers 皆 81,000；舊版資料各段偏低（合計約 6.4 萬），楓錄已依官方值校正為 6,000／10,000／15,000／20,000／30,000。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://www.4gamers.com.tw/saged/detail/86x0we8xxmd44k",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 35,
+      "siteExp": 30000
+    },
+    {
+      "questName": "修理酋長的家 → 酋長蓋房子（10% 武器攻擊卷軸）",
+      "questId": "2001",
+      "suggestedLevel": "30+（需名聲 10）",
+      "chain": [
+        "2000",
+        "2001"
+      ],
+      "chainSiteExpTotal": 20300,
+      "why": "蓋房子段給 20,000 EXP、15,000 楓幣、名聲 +2，並可選一張自己職業的 10% 武器攻擊卷軸（拳套／弩等行情高）；前段修理酋長的家只要樹枝 30、木柴 50 就送鋼盾（90%）或三角赤盾（10%，行情約 2 萬 5）。地契掉率極低，通常要跟人買，解前先比價（見 notWorth）。",
+      "needs": "勇士之村酋長：樹枝 30、木柴 50→（名聲 10）石塊 100、木材 30、螺絲釘 30、酋長的地契 1（風獨眼獸極低機率掉落）。",
+      "sourceExp": 10000,
+      "sourceExpNote": "舊版資料蓋房子 10,000 EXP；站內／官方 20,000。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://www.4gamers.com.tw/saged/detail/86x0we8xxmd44k",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=428"
+      ],
+      "verified": "tw",
+      "siteMinLv": 30,
+      "siteExp": 20000
+    },
+    {
+      "questName": "溫斯頓的古老的樹木 → 怪木樹妖王",
+      "questId": "2146",
+      "suggestedLevel": "35–45",
+      "chain": [
+        "2144",
+        "2148",
+        "2149",
+        "2150",
+        "2151",
+        "2152",
+        "2145",
+        "2146"
+      ],
+      "chainSiteExpTotal": 43705,
+      "why": "35 等左右少數能一次拿 43,500 EXP（＋名聲 5）的任務；前段只是跑五個 NPC，中段打 100 個乾枯的樹枝，最後打王「樹妖王」。缺點是王被搶，建議直接跟搶王的人組隊解。",
+      "needs": "勇士之村東方岩石山 2 找溫斯頓→拜訪酋長、義安、麥吉、武術教練、蓓蒂博士→乾枯的樹枝 100（木妖系掉落、任務道具不可交易）→東方岩石山 V 擊殺樹妖王（重生約 35～45 分，出現有藍字公告）。",
+      "sourceExp": 43500,
+      "sourceExpNote": "4Gamers／阿翊影片寫「古老的樹 43,500 經驗」，與站內怪木樹妖王 43,500 一致；巴哈 647 串 26 樓未寫數字。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://www.4gamers.com.tw/saged/detail/86x0we8xxmd44k",
+        "https://mapleclassictools.com/#guides-quests"
+      ],
+      "verified": "tw",
+      "siteMinLv": null,
+      "siteExp": 43500
+    },
+    {
+      "questName": "被污染的迷宮！<2-風獨眼獸>（風獨眼獸告示牌 99 隻）",
+      "questId": "2109",
+      "suggestedLevel": "30–35",
+      "chain": [
+        "2109"
+      ],
+      "why": "第一次 99 隻就給 7,000 EXP 加一張隨機 60% 武器攻擊卷軸（阿翊：「風獨眼獸任務還有機會拿到 60% 武器攻擊卷軸」）；之後的 999 隻版本獎勵改隨機、常抽到黃昏之露（見 notWorth）。",
+      "needs": "奇幻村風獨眼獸洞穴告示牌接取，擊倒風獨眼獸 99 隻，回奇幻村記憶者回報。30～65 等限定。",
+      "sourceExp": 7000,
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://www.4gamers.com.tw/saged/detail/o3d975nqrq3p3j",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1894"
+      ],
+      "verified": "tw",
+      "siteMinLv": 30,
+      "siteExp": 7000
+    },
+    {
+      "questName": "告示牌 99 隻懸賞：危險的迷宮！<2-刺菇菇>／<3-殭屍菇菇>、被污染的迷宮！<1-火獨眼獸>",
+      "questId": "2108",
+      "suggestedLevel": "20–30",
+      "chain": [
+        "2106",
+        "2107",
+        "2108"
+      ],
+      "chainSiteExpTotal": 16000,
+      "why": "螞蟻洞／火獨眼獸洞穴團練時順手接：三張各 4,500／5,500／6,000 EXP，另送白色藥水 100、活力藥水 50、活力藥水 100，前期水錢靠這幾張撐；玩家評「經驗普普但送水」。",
+      "needs": "奇幻村螞蟻洞Ⅲ／Ⅳ、火獨眼獸洞穴Ⅰ的懸賞告示牌接取，各擊倒 99 隻後找記憶者回報。99 隻只能解一次。",
+      "sourceExp": 16000,
+      "sourceExpNote": "波波攻略島依官方資料列 4,500／5,500／6,000，與站內一致。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/king-slime-pq.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1048",
+        "https://mapleclassictools.com/#guides-quests"
+      ],
+      "verified": "tw",
+      "siteMinLv": 25,
+      "siteExp": 6000
+    },
+    {
+      "questName": "懶惰的瞌睡蟲（鯨魚號）",
+      "questId": "2207",
+      "suggestedLevel": "25–30",
+      "chain": [
+        "2207"
+      ],
+      "why": "只要 10 個火獨眼獸之尾巴就給 6,000 EXP，是 25 等「任務一條龍」路線裡順手交的一站（瞌睡蟲在鯨魚號船最右側）。",
+      "needs": "鯨魚號船內最右側找瞌睡蟲，交火獨眼獸之尾巴 10。",
+      "sourceExp": null,
+      "sourceExpNote": "來源只提到要去回報，未寫經驗值；6,000 為站內／官方值。",
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "community",
+      "siteMinLv": 25,
+      "siteExp": 6000
+    },
+    {
+      "questName": "伊卡路斯任務鏈（好無聊 → 滑翔翼 → 熱氣球 → 飛天藥水）",
+      "questId": "2087",
+      "suggestedLevel": "10 起，32／37／42 各解一段",
+      "chain": [
+        "2089",
+        "2091",
+        "2083",
+        "2084",
+        "2085",
+        "2086",
+        "2087"
+      ],
+      "chainSiteExpTotal": 32700,
+      "why": "墮落城市的長期任務鏈，累積超過 3 萬 EXP，最後一段傳統上給一件隨機能力披風（抽卡）。任務存在已有本作玩家確認，但披風屬性尚無人回報。",
+      "needs": "墮落城市找伊卡路斯：答「野狼／拜倫／魔法森林」、樹枝 40、綠液球 40→Lv32 蝙蝠翅膀 50、堅硬的羽毛 50、木材 10→Lv37 桌布 100、鱷魚皮革袋 10→Lv42 魔女草葉子 20、怪藥 50 找妖精維英做飛翔秘藥交回。",
+      "sourceExp": 30250,
+      "sourceExpNote": "楓錄引楓葉雨非加倍值 250／6,000／11,000／13,000（＋100）；站內 250+250+8,000+11,000+100+100+13,000。",
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "community",
+      "siteMinLv": 42,
+      "siteExp": 13000
+    },
+    {
+      "questName": "煉金術士，珍（手套攻擊卷軸 60%／10%）",
+      "questId": "2013",
+      "suggestedLevel": "40–50",
+      "chain": [
+        "2011",
+        "2012",
+        "2013"
+      ],
+      "chainSiteExpTotal": 20400,
+      "why": "三個挑戰共 20,400 EXP、特殊藥水 10、超級藥水 15，最後隨機給手套攻擊卷軸 60% 或 10%（60% 行情極高），並開放向珍購買特殊藥水等補品（比商店略便宜）。",
+      "needs": "前置：珍和黑肥肥。第一：礦泉水 1、怪藥 30、巫婆的青蛙實驗 20｜第二：蘑菇王芽孢 1、暴龍之血 3、怪藥 100、青蛙 30｜第三：龍皮 20（有玩家寫 10）、枯木樹液 10、月石 1。",
+      "sourceExp": 20400,
+      "sourceExpNote": "6,500+6,800+7,100，舊版、巴哈玩家與站內一致。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://home.gamer.com.tw/artwork.php?sn=6375371",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 40,
+      "siteExp": 7100
+    },
+    {
+      "questName": "被污染的迷宮！<3-幼魔精靈>（隨機寶石）",
+      "questId": "2110",
+      "suggestedLevel": "33+",
+      "chain": [
+        "2110"
+      ],
+      "why": "只要 10 個幼魔精靈的角（拍賣銅板價）就給 6,000 EXP 加一顆隨機寶石成品；僅可解一次。",
+      "needs": "奇幻村火獨眼獸洞穴Ⅳ的告示牌接取，交幼魔精靈的角 10。",
+      "sourceExp": null,
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=3&bsn=85994&snA=647",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": 33,
+      "siteExp": 6000
+    },
+    {
+      "questName": "冒險家的戒指（第一階段，9/10 新增常態任務）",
+      "questId": null,
+      "suggestedLevel": "30+（需二轉）",
+      "chain": [],
+      "why": "開服後最肥的任務線：玩家實測 10 天解完共 +730,000 EXP（第 1 天 12 萬、第 2 天 14 萬、第 3 天 5 萬、第 6 天 10 萬、第 7～9 天各 5 萬、第 10 天 17 萬），最後三選一永久戒指：生命 HP+500／靈魂 MP+500／調和 HP+250、MP+250，可到生命研究祭壇免費更換。",
+      "needs": "左側燈泡接「師傅的擔憂」→漢斯（魔法森林圖書館）→艾溫、羅雯、瑪麗、古書→綠水靈／黑肥肥／刺菇菇生命氣息各 30→維多利亞港坤、百京、特奧→武術教練→酋長：樹枝、葉子、木柴各 50（等 24h）→黑斧木妖「永不折斷的執念」50→弓箭手村：菇菇寶貝傘 50、綠水靈珠 10、風獨眼獸之尾巴 50、卡蜜拉遺失的藥 1（等 24h）→達克魯：鱷魚的牙齒 100（等 72h）→克利斯拉瑪：殭屍菇菇掉的永不熄滅的生命意志 1→湯寶寶特餐×4：藍菇菇傘 25、肥肥頭 10（每日一輪）→隱藏研究室打受污染怪各 2→漢斯選戒指。",
+      "siteMinLv": null,
+      "siteExp": null,
+      "sourceExp": 730000,
+      "sourceExpNote": "巴哈 1850 串樓主逐段實測合計 730,000；波波攻略島依客戶端資料加總為 660,000（客戶端未列出愛得溫段的 70,000），見 unresolved。站內 quests.json（1.13.1）沒有這批 69039～69099 任務。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1850",
+        "https://bobogameguides.com/maplestory-classic/guides/adventurer-ring.html",
+        "https://kafuffu20.com/adventurer-ring.html",
+        "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=19112",
+        "https://home.gamer.com.tw/artwork.php?sn=6400715",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "tw"
+    },
+    {
+      "questName": "麥吉的舊戰劍（英雄戰劍／骷髏耳環）",
+      "questId": "2048",
+      "suggestedLevel": "45–50（需名聲 10）",
+      "chain": [
+        "2047",
+        "2048"
+      ],
+      "chainSiteExpTotal": 15500,
+      "why": "兩段共 15,500 EXP，完成可在 Lv45 英雄戰劍與 Lv50 骷髏耳環間二選一；阿翊列為「45～50 等必做兩大任務」之一。材料要跑一趟覺醒流程。",
+      "needs": "前置：瑪亞和奇怪的藥。勇士之村麥吉拿舊戰劍→奇幻村克利斯拉瑪：冰塊 1、火焰羽毛 1、古代卷軸 1、星石 1→英雄古羅馬劍交回麥吉。",
+      "sourceExp": 7500,
+      "sourceExpNote": "舊版資料 7,500；站內 7,500+8,000。",
+      "sources": [
+        "https://home.gamer.com.tw/artwork.php?sn=6379457",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "community",
+      "siteMinLv": 45,
+      "siteExp": 8000
+    },
+    {
+      "questName": "惡靈森林 → 消滅殭屍猴王",
+      "questId": "2227",
+      "suggestedLevel": "45–55",
+      "chain": [
+        "2222",
+        "2223",
+        "2224",
+        "2225",
+        "2226",
+        "2227",
+        "2228"
+      ],
+      "chainSiteExpTotal": 112800,
+      "why": "擊殺殭屍猴王一次給 112,800 EXP（站內／官方），阿翊影片標題「45～50 等必做兩大任務｜速拿 11 萬 2800 經驗值」點名的就是這條線；但目前只找到影片標題與標籤，沒有文字版流程。",
+      "needs": "Lv50 在魔法森林找妖精艾溫接「惡靈森林」，依序解到「消滅殭屍猴王」（巫婆森林一帶，約 45 分鐘一王）。",
+      "sourceExp": 112800,
+      "sourceExpNote": "影片標題 112,800；站內 2227 = 112,800。",
+      "sources": [
+        "https://home.gamer.com.tw/artwork.php?sn=6379457",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "community",
+      "siteMinLv": null,
+      "siteExp": 112800
+    },
+    {
+      "questName": "薩比特拉瑪的減肥藥 → 返老還童藥（耐之林忍耐）",
+      "questId": "2051",
+      "suggestedLevel": "25 前段、50 後段",
+      "chain": [
+        "2050",
+        "2051"
+      ],
+      "chainSiteExpTotal": 28500,
+      "why": "前段 3,500 EXP、名聲 +1、套服防禦卷軸；後段一次 25,000 EXP、名聲 +2、星石 1（星石是麥吉舊戰劍材料）。任務存在有官方新聞稿點名，但耐之林各層還沒看到本作玩家回報。",
+      "needs": "奇幻村旅館外找薩比特拉瑪；魔法森林賽恩付費（等級×200 楓幣）進耐之林 1～2 層採粉紅花束；Lv50 進 3～5 層採強效紅蔘。",
+      "sourceExp": 9500,
+      "sourceExpNote": "舊版 1,000+8,500；站內 3,500+25,000。",
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "legacy",
+      "siteMinLv": 50,
+      "siteExp": 25000
+    },
+    {
+      "questName": "布魯斯與義安 → 沼澤地的鱷魚：消滅鱷魚 1、2",
+      "questId": "2095",
+      "suggestedLevel": "52–58",
+      "chain": [
+        "2088",
+        "2082",
+        "2092",
+        "2093",
+        "2094",
+        "2095"
+      ],
+      "chainSiteExpTotal": 45800,
+      "why": "52 等兩段共 45,000 EXP，第一段自選職業 10% 武器攻擊卷軸（弩約 170 萬、拳套約 132 萬楓幣），第二段自選 60% 披風屬性卷軸（力／智／敏／幸，行情 144～350 萬），玩家稱「價值 450 台幣的卷軸」。前置是弓箭手村布魯斯的低等任務。",
+      "needs": "布魯斯：菇菇寶貝傘 40、蘑菇芽孢 10→玩具劍交義安（勇士之村東入口）→先解義安「木妖好可怕」布魯斯才會亮燈→Lv52 義安：鱷魚 250、青蛇 40、蛇皮 20（沼澤地 1）→黑鱷魚 120、黑鱷魚皮 50（鱷魚潭）。",
+      "sourceExp": 45000,
+      "sourceExpNote": "20,000+25,000，巴哈 647 串 25 樓與阿翊影片一致。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://home.gamer.com.tw/artwork.php?sn=6378963",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069"
+      ],
+      "verified": "tw",
+      "siteMinLv": 52,
+      "siteExp": 25000
+    },
+    {
+      "questName": "盲俠連續討伐（打敗石巨人 → 黑曜石巨人 → 混種石巨人 → 骷髏 → 惡龍 → 月牙牛魔王）",
+      "questId": "2203",
+      "suggestedLevel": "55 / 58 / 58 / 60 / 64 / 70",
+      "chain": [
+        "2162",
+        "2163",
+        "2164",
+        "2198",
+        "2199",
+        "2200",
+        "2201",
+        "2202",
+        "2203"
+      ],
+      "chainSiteExpTotal": 760500,
+      "why": "55～70 等經驗最肥的一條線：90,000／110,000／110,000／130,000／140,000／180,000，六段合計 760,000 EXP（阿翊影片標題 760,500），只要在練功圖順手計數；前置「寫完後遺失的信」還送 5 張鯨魚號卷軸。玩家建議組隊，牛魔王段 CP 值普通（見 notWorth）。",
+      "needs": "鯨魚號上層走廊最左找盲俠，雙擊旁邊垃圾桶取得皺摺的信→赫麗娜（弓箭手村培訓中心）、卡伊琳（航海室）→Lv55 石巨人 80（石人寺院入口）→Lv58 黑曜石巨人 100（石人寺院 3）／混種石巨人 100（石人寺院 4）→Lv60 骷髏士兵 50、骷髏士官 50（第 1／2 軍營）→Lv64 青龍 50、冰龍 50（龍族之地）→Lv70 冰獨眼獸 100、月牙牛魔王 30（寺院通道 1）。",
+      "sourceExp": 760000,
+      "sourceExpNote": "巴哈 647 串 29 樓與 4Gamers：90,000／110,000／110,000／130,000／140,000／180,000；站內一致。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://forum.gamer.com.tw/Co.php?bsn=85994&sn=5517",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1173",
+        "https://www.4gamers.com.tw/saged/detail/o3d975nqrq3p3j",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": 70,
+      "siteExp": 180000
+    },
+    {
+      "questName": "打倒巨居蟹！（出現可打敗巨居蟹的勇士！）",
+      "questId": "2161",
+      "suggestedLevel": "55–60",
+      "chain": [
+        "2157",
+        "2158",
+        "2159",
+        "2160",
+        "2161"
+      ],
+      "chainSiteExpTotal": 135100,
+      "why": "一隻王換 133,500 EXP 與名聲 +10，是 55～60 等「必做四大任務」之一；前置只要各打 50 隻青螃蟹、紅螃蟹、烏龜加祭品。",
+      "needs": "Lv55 麗爾、露爾、拉爾：青螃蟹 50、紅螃蟹 50、烏龜 50→巨居蟹的祭品→擊殺巨居蟹 1（青螃蟹海灘一帶的王）。",
+      "sourceExp": 133500,
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1173",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": 55,
+      "siteExp": 133500
+    },
+    {
+      "questName": "遺跡發掘隊的公告（10% 職業武器卷軸）",
+      "questId": "2119",
+      "suggestedLevel": "60–65",
+      "chain": [
+        "2119"
+      ],
+      "chainSiteExpTotal": 25000,
+      "why": "在軍營練骷髏順便完成：25,000 EXP 加一張自己職業的 10% 武器攻擊卷軸；與盲俠「打敗骷髏」同圖可一起算。",
+      "needs": "Lv60 勇士之村遺跡發掘地布告欄接取：骷髏士兵 200、骷髏士官 100、骷髏指揮官 40，另交肋骨 60、骨盆 40、馬頭骨 20。",
+      "sourceExp": 25000,
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1173",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": 60,
+      "siteExp": 25000
+    },
+    {
+      "questName": "55 等職業專屬收集線：洛尼和蓋妖精們的新房子（法師）／為瑪亞的收集（弓箭手）／皮亞的為朋友的禮物（盜賊）",
+      "questId": "2039",
+      "suggestedLevel": "55–60",
+      "chain": [
+        "2036",
+        "2037",
+        "2038",
+        "2039",
+        "2040",
+        "2041",
+        "2042",
+        "2043",
+        "2044",
+        "2045",
+        "2046"
+      ],
+      "chainSiteExpTotal": {
+        "洛尼(法師) 2036-2039": 39000,
+        "瑪亞(弓箭手) 2040-2043": 39000,
+        "皮亞(盜賊) 2044-2046": 15000
+      },
+      "why": "法師線四段 39,000 EXP＋隨機 Lv60 法師鞋（2026-08-20 已有玩家完成回報）；弓箭手線四段 39,000 EXP＋Lv60 弓手鞋；盜賊線 15,000 EXP＋Lv60 飛影之服／褲套裝。材料全是收集品，可以提早留。",
+      "needs": "洛尼（前置桑那服）：紅寶殼／菇菇寶貝傘／葉子／綠液球各 50→章魚腳／道符／黑肥肥尖牙／風獨眼獸之尾巴各 50→香蕉／暴龍的頭骨／石塊／黑鱷魚皮各 50→鑽石 1、黑石塊／魔龍之眼／怪藥／月牙牛魔王的角各 50。瑪亞、皮亞線素材見巴哈 428 串彙整。",
+      "sourceExp": 39000,
+      "sourceExpNote": "洛尼線 6,000+8,000+10,000+15,000（巴哈 1173、楓錄、波波攻略島一致）。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1173",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=428",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145"
+      ],
+      "verified": "tw",
+      "siteMinLv": 55,
+      "siteExp": 15000
+    },
+    {
+      "questName": "鱷魚王：吉姆發現的陰謀 → 陰謀的結局（沼澤巨鱷）",
+      "questId": "2221",
+      "suggestedLevel": "65–70",
+      "chain": [
+        "2213",
+        "2214",
+        "2215",
+        "2216",
+        "2217",
+        "2218",
+        "2219",
+        "2220",
+        "2221"
+      ],
+      "chainSiteExpTotal": 180000,
+      "why": "擊殺沼澤巨鱷（鱷魚王）一次 180,000 EXP 加名聲 +12，玩家 66 等解完直接升 10% 多；阿翊影片「65 等必作 2 大任務」把它和盲俠惡龍並列（合計 32 萬經驗＋12 名聲）。王常被掃王組秒殺，建議先打字求組隊。",
+      "needs": "Lv65 墮落城市後街吉姆：鱷魚皮 50、黑鱷魚皮 50→墮落城市收集情報（權達、休咪、內拉、地鐵站服務員，有答題）→尋找皺摺的紙片（扣 2,000 楓幣）→黑鱷 2 一帶等沼澤巨鱷。",
+      "sourceExp": 180000,
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=3&bsn=85994&snA=647",
+        "https://home.gamer.com.tw/artwork.php?sn=6375371",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "tw",
+      "siteMinLv": null,
+      "siteExp": 180000
+    },
+    {
+      "questName": "迷宮入口的守衛兵，魯克（隨機寶石）",
+      "questId": "2018",
+      "suggestedLevel": "15–25",
+      "chain": [
+        "2018"
+      ],
+      "why": "1,500 EXP 加一顆隨機寶石成品（黑水晶除外），材料常見；是 Lv50「守衛兵魯克的決心」的前置（後段只有劍士系能接）。",
+      "needs": "弓箭手村迷宮入口右側找魯克，交蝙蝠翅膀 10、蛇皮 100、沙拉 1。",
+      "sourceExp": 1500,
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=428"
+      ],
+      "verified": "community",
+      "siteMinLv": 15,
+      "siteExp": 1500
+    },
+    {
+      "questName": "可疑的一顆蛋（5 小時嫩寶寵物）",
+      "questId": "2230",
+      "suggestedLevel": "15",
+      "chain": [
+        "2230"
+      ],
+      "why": "Lv15 自動開始，帶著蛋去生命之林找妖精瑪麗就送會撿道具的限時寵物嫩寶（5 小時、不可復活），流程極短、值得順手做。",
+      "needs": "背包持有可疑的一顆小蛋，到魔法森林生命之林與妖精瑪麗對話。",
+      "sourceExp": null,
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/suspicious-egg-quest.html",
+        "https://bobogameguides.com/maplestory-classic/guides/quests.html"
+      ],
+      "verified": "community",
+      "siteMinLv": 15,
+      "siteExp": null
+    }
+  ],
+  "notWorth": [
+    {
+      "questName": "告示牌 999 隻每日懸賞（危險的迷宮／被污染的迷宮 999 隻版）",
+      "questId": "2112",
+      "relatedQuestIds": [
+        "2111",
+        "2112",
+        "2113",
+        "2114",
+        "2115"
+      ],
+      "why": "99 隻解完後改成 999 隻、每次完成滿 24 小時可重接，但獎勵縮水（刺菇菇 999 只給 3,000 EXP＋橘色藥水 50）；玩家回報「虧，已經不太想解了」「除非剛好練等就打那幾隻怪加減回本，不然基本上都虧」「打 999 是為了掉寶，跟獎勵及其微薄經驗值無關」。風獨眼獸 999 的隨機卷軸「黃昏之露這種大便機率很高」，有人連喝兩個禮拜馴鹿奶；且 30～65 等限定。阿翊影片仍寫風獨眼獸任務有機會拿 60% 武器卷，兩種說法並存。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1894",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=943",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1048",
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+        "https://www.4gamers.com.tw/saged/detail/o3d975nqrq3p3j"
+      ],
+      "verified": "tw"
+    },
+    {
+      "questName": "打敗月牙牛魔王（盲俠最後一段，Lv70）",
+      "questId": "2203",
+      "why": "巴哈 647 串樓主在盲俠整理下方備註「強烈建議組隊，或是牛魔王任務可不解，CP 值普通」——冰獨眼獸 100＋月牙牛魔王 30 要跑隱藏地圖、王要等；但它同時是站內單筆最高的 180,000 EXP，站內資料與 4Gamers 都列為高經驗任務，兩種評價並存。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?page=2&bsn=85994&snA=647",
+        "https://forum.gamer.com.tw/Co.php?bsn=85994&sn=5517",
+        "https://mapleclassictools.com/#guides-quests"
+      ],
+      "verified": "tw"
+    },
+    {
+      "questName": "酋長蓋房子（酋長的地契）— 非盜賊職業先比價",
+      "questId": "2001",
+      "why": "巴哈小知識文樓主：「不要解酋長的地契，因為自選是職業自選，你職業的武器卷便宜就可能會虧，除非比較貴，例如盜賊」（自註待驗證）；2 樓補充「地契打不到就去拍賣看地契跟你職業 10% 武器卷的價差，有的賺就可以買」（當時地契 18 萬、拳套 10% 近 90 萬）。楓錄同樣提醒地契價格浮動、花的錢可能超過卷軸價值。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1069",
+        "https://mapleclassictools.com/#guides-quests"
+      ],
+      "verified": "tw"
+    },
+    {
+      "questName": "蝸牛的傳說（紅寶王）— 開服兩週後對近戰職業不划算",
+      "questId": "2156",
+      "why": "楓錄 08/11 現況：60 個頻道幾乎都有人蹲紅寶王，近戰跑到定位王就沒了，「只有法師與部分遠程職業還搶得贏」，有人守同一頻 30 分鐘沒等到；社群建議非遠程、只想要 3 萬楓幣的人別在這裡耗，改去修酋長的家或跑月妙。與開服初期的「新手必做」評價相反。",
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://bobogameguides.com/maplestory-classic/guides/snail-legend-quest.html"
+      ],
+      "verified": "community"
+    },
+    {
+      "questName": "愛情象徵系列（瑪亞／精靈羅雯／義安／內拉愛情象徵）與結婚任務",
+      "questId": "1115",
+      "relatedQuestIds": [
+        "1115",
+        "1116",
+        "1117",
+        "1118"
+      ],
+      "why": "任務全解派玩家自嘲「連沒幹用的結婚任務也解（拿到的任務道具還會佔據其他欄位）」；回覆說明愛情象徵道具「以前製作結婚戒指用的，現在結婚戒指可以直接購買，所以那個道具可以刪除以免佔位置」。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=992"
+      ],
+      "verified": "tw"
+    },
+    {
+      "questName": "守衛兵魯克的決心（Lv50，只限劍士系）",
+      "questId": "2035",
+      "why": "楓錄評「獎勵尚可，但材料鏈比較複雜」：要紫礦石成品 10、龍皮 50、螺絲釘 40、長槍牛魔王之角 3，加一根得找艾溫用火焰羽毛＋月石＋黑水晶成品＋30,000 楓幣合成的黑羽毛，換 22,000 EXP 與舊青銅諾曼頭盔；非劍士職業會被 NPC 拒絕。屬「偏難」而非「不值得」，列此供參考。",
+      "sources": [
+        "https://mapleclassictools.com/#guides-quests",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=145",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=428"
+      ],
+      "verified": "community"
+    }
+  ],
+  "unresolved": [
+    "經驗表 Lv.73→74：楓錄（網頁＋計算機 JS）、PTT 2009 轉錄、TMS v113 舊表、搬運表全寫 2,410,993，但它們都是同一張 PTT 流傳表的複本；Artale Tools 的 tw-classic-2005 規則集用公式算出 2,420,993，而且各表 Lv.74 的 2,553,663 只跟 2,420,993 相容。沒有任何來源提供台服經典版 Lv.73 的遊戲內截圖，無法判定。其餘 1～99 級四份來源完全一致。",
+    "經驗表的「台服實測」只有楓錄一句概括宣稱「開服後已與遊戲內實際數值比對，確認本表與正式數值一致」，沒有逐級證據；楓錄另說 Lv.1～49 與海外 MapleStory Classic Worlds 官方頁一致（該頁屬 GMS Classic，依規則不採為出處）。",
+    "冒險家的戒指總經驗：巴哈 1850 串玩家逐段實測合計 730,000（第 10 天愛得溫段 +70,000），波波攻略島依客戶端 1.15.0 加總為 660,000（客戶端對「被污染的東西們」等段未列 EXP）；站內 quests.json 1.13.1 沒有這批任務（69039～69099），無法對站內。",
+    "站內 quests.json（1.13.1）兩筆經驗已過時：2021 特製烤鰻魚的秘密 站內 5,000，官方 8/6 維護後不給經驗（客戶端刪除獎勵節點）；2023 找回神秘書 站內 5,000，官方改為 10,000。來源：巴哈 906 串客戶端解檔、波波攻略島 1.15.0 任務表、楓錄。其餘 337 筆與波波攻略島 1.15.0 官方表 EXP 完全一致。",
+    "約翰的粉紅花籃螺絲釘數量：巴哈 647 串 10 樓實測寫 15 個、同板另一玩家說「會直接給 30 個」、波波攻略島依官方資料更正為 30、舊版資料寫 15／30／50 隨機；站內 rewardItems 螺絲釘×30。",
+    "煉金術士珍第三挑戰龍皮數量：舊版與站內 20，Threads 玩家（楓錄轉述）寫 10。",
+    "蝸牛的傳說最終段 2156 站內沒有 exp／money／pop 欄位；玩家回報 7,500 EXP／30,000 楓幣／名聲 3；楓葉雨（另一復古版）寫 60,000 楓幣。無法用站內資料驗證。",
+    "紅寶王重生時間：35 分、45 分、30 分以上、守 30 分鐘沒出現等說法互相衝突（巴哈 647 串 26 樓與 B1 留言、波波攻略島）。樹妖王同樣有 35 分（樓主）與 45 分（實測十次）兩說。",
+    "珍和黑肥肥 60% 武器卷：舊版寫隨機、跟職業無關，但 2026 年有盜賊玩家回報拿到拳套攻擊卷，另有玩家問「前三好是拿到什麼」回「拳套、短杖、雙手劍」；站內 rewardItems 列全部武器種類。隨機或照職業未定。",
+    "菇菇王國任務鏈（站內 2305～2338，Lv30，合計 231,100 EXP）：在巴哈經典版板搜「菇菇王國」「菇菇城堡」皆 0 筆，WebSearch 只找到 2010～2014 舊版攻略；波波攻略島 1.15.0 官方表有這批任務但說「已扣除尚未開放的企鵝國王卷軸支線」。是否已開放、社群評價如何，都沒有經典版來源，未列入 mustDo。",
+    "封印住神秘危險之力的儀式 1、2（站內 2096／2097，Lv50，12,000＋45,000 EXP）：沒有找到任何經典版社群討論，未列入。",
+    "黑巴克的煩惱／卡伊琳的長裙（站內 2184／2185，Lv30，12,000／7,000 EXP）：沒有找到經典版社群討論，未列入。",
+    "惡靈森林／消滅殭屍猴王（112,800 EXP）與麥吉的舊戰劍：唯一經典版來源是阿翊（abdc0303）的影片標題與標籤「45~50等必做兩大任務｜速拿11萬2800經驗值」，巴哈小屋頁面沒有文字流程，已標 community。",
+    "巴哈 1015 串／4Gamers「10 大任務 121,000 EXP」只給總數與獎勵清單，沒有列出 10 個任務名（內容在影片）；板友留言也抱怨「不說是什麼任務」。能對上的只有湯寶寶 68,000～73,000，其餘約 5 萬無法拆解。",
+    "「999 隻告示牌不推薦」最早的搜尋命中是巴哈 MapleStory Worlds（Artale）板 2025-05 的回覆，以及 2025 年的 Threads 貼文——都不是台服經典版，已排除；notWorth 改用巴哈經典版板 1069 串 7 樓留言與 1894 串。",
+    "伊卡路斯任務鏈最終披風（站內 2087 rewardItems 為未命名道具 1102054～1102056）屬性沒有本作玩家回報。",
+    "休咪遺失的錢袋（B3）、約翰的最後禮物、薩比特拉瑪的返老還童藥、麥吉的舊戰劍：都還沒有開服後的實測回報，只有官方資料與舊版記載。",
+    "流浪煉金術師的新技術（站內 6000，Lv13，扣 1,000,000 楓幣）：巴哈 992 串玩家提到「要 100 萬楓幣和紅色鞭子」「花錢了事」，沒有說值不值得，未列任一清單。",
+    "楓錄引用的巴哈文〈推薦大家一定要解墮落城市內拉任務〉（xeriof915）與〈給剛滿 25 等的玩家－任務一條龍〉：後者 snA=364 首篇已被作者刪除；前者在板內搜「內拉」0 筆。這兩篇只能透過楓錄的轉述採用。",
+    "巴哈 647 串主文與留言區（共 39 則留言）有部分留言折疊未展開（例如 B49「勇士之村有酋長蓋房子的任務…需要 30 等以及 10 個名聲」有抓到，其餘未必）。",
+    "抓不到的來源：maplestory.fandom.com 經驗值頁（HTTP 403／402）、blog.xuite.net 兩篇舊表／舊任務文（網站已關）、giwams123.com 升等經驗表（連線失敗）。Threads 貼文未逐篇開啟（多為 2025 年 Artale 內容，依楓錄判斷排除）。"
+  ]
+}
