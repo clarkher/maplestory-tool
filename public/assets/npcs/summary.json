@@ -1,43 +1,183 @@
 {
-  "targets": 282,
-  "exported": 248,
-  "missing": 34,
+  "targets": 481,
+  "exported": 381,
+  "missing": 100,
   "skipped": [
-    {
-      "id": 2004,
-      "reason": "missing sprite"
-    },
-    {
-      "id": 2005,
-      "reason": "missing sprite"
-    },
     {
       "id": 900040,
       "reason": "missing sprite"
     },
     {
-      "id": 1012110,
+      "id": 1012115,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1012116,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1012118,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1012119,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1022104,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1022105,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1032109,
       "reason": "missing sprite"
     },
     {
-      "id": 1032105,
+      "id": 1032110,
       "reason": "missing sprite"
+    },
+    {
+      "id": 1032112,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1032113,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1032114,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1052109,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1052111,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1052112,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1052113,
+      "reason": "ambiguous rect: 10 rects without WZ frame match"
+    },
+    {
+      "id": 1052114,
+      "reason": "missing wzjs"
     },
     {
       "id": 1052116,
       "reason": "missing sprite"
     },
     {
+      "id": 1061009,
+      "reason": "ambiguous rect: 5 rects without WZ frame match"
+    },
+    {
+      "id": 1063011,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1063012,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1063013,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1063014,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1095001,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1095002,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1103001,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1103002,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1103003,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1103004,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1200004,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 1204033,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 2042002,
+      "reason": "missing wzjs"
+    },
+    {
       "id": 2082014,
       "reason": "missing sprite"
+    },
+    {
+      "id": 2091006,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 2101018,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9000034,
+      "reason": "missing wzjs"
     },
     {
       "id": 9000069,
       "reason": "missing sprite"
     },
     {
+      "id": 9010002,
+      "reason": "missing wzjs"
+    },
+    {
       "id": 9010017,
-      "reason": "missing sprite"
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9040004,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9040008,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9040011,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9050000,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9050009,
+      "reason": "missing wzjs"
     },
     {
       "id": 9110002,
@@ -133,6 +273,130 @@
     },
     {
       "id": 9270065,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9310647,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901000,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901001,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901002,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901003,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901004,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901005,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901006,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901007,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901008,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901100,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901101,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901102,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901103,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901104,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901105,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901106,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901107,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901200,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901300,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901301,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901740,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901741,
+      "reason": "missing wzjs"
+    },
+    {
+      "id": 9901742,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9901743,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9901744,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9901745,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9901746,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9901747,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9901748,
+      "reason": "missing sprite"
+    },
+    {
+      "id": 9901749,
       "reason": "missing sprite"
     },
     {

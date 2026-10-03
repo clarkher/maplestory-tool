@@ -1,48 +1,20 @@
 {
-  "requested": 13577,
-  "exported": 12526,
-  "missing": 1051,
+  "requested": 12971,
+  "exported": 12961,
+  "exportedThisRun": 12449,
+  "retainedExisting": 512,
+  "missing": 10,
   "missingSample": [
-    30430,
-    30431,
-    30432,
-    30433,
-    30434,
-    30435,
-    30436,
-    30437,
-    31430,
-    31431,
-    31432,
-    31433,
-    31434,
-    31435,
-    31436,
-    31437,
-    33070,
-    33071,
-    33072,
-    33073,
-    33074,
-    33075,
-    33076,
-    33077,
-    33080,
-    33081,
-    33082,
-    33083,
-    33084,
-    33085,
-    33086,
-    33087,
-    33090,
-    33091,
-    33092,
-    33093,
-    33094,
-    33095,
-    33096,
-    33097
+    1102939,
+    1102954,
+    1102955,
+    1115027,
+    1115116,
+    2290109,
+    2390000,
+    3010127,
+    4001150,
+    5420027
   ],
   "groupInfos": [
     "0200",
@@ -61,17 +33,16 @@
     "0227",
     "0228",
     "0229",
-    "0231",
-    "0232",
     "0233",
-    "0235",
     "0236",
     "0238",
     "0243",
     "0244",
     "0245",
+    "0254",
     "0263",
     "0283",
+    "0289",
     "0301",
     "0380",
     "0399",
@@ -106,7 +77,6 @@
     "0515",
     "0516",
     "0517",
-    "0518",
     "0519",
     "0520",
     "0521",
@@ -129,22 +99,84 @@
     "0555",
     "0568",
     "0578",
-    "0910"
+    "0900",
+    "0910",
+    "0911"
   ],
-  "equipmentWzjsRoots": 4577,
-  "avatarWzjsRoots": 3332,
-  "petWzjsRoots": 15,
+  "equipmentWzjsRoots": 4547,
+  "avatarWzjsRoots": 3273,
+  "petWzjsRoots": 17,
   "bundles": {
-    "spritesheet_abb78745197801a5927bf6955788bb81.bundle": {
-      "groups": 4674,
+    "spritesheet_631a1e3068991baa163ae7809e51558b.bundle": {
+      "groups": 0,
+      "equipment": 4492,
+      "avatar": 3271,
+      "pet": 0
+    },
+    "spritesheet_abb78745197801a589697c30323a61ff.bundle": {
+      "groups": 4669,
       "equipment": 0,
       "avatar": 0,
-      "pet": 15
+      "pet": 17
     },
-    "spritesheet_631a1e3068991baaee1cfa048357fd49.bundle": {
+    "spritesheet_0c0f9d9eaaf58b9352ab3079f61b2fe2.bundle": {
       "groups": 0,
-      "equipment": 4521,
-      "avatar": 3316,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_1023f33d7803aa6ebdb0af33806e9a14.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_1b3bc95af88aeb7de3d9f523c627e4b7.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_48143c3f05dd6064ba83819d3e09177b.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_6c894ec2548f3466887f4b5817c6e915.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_6f9adf8b1441a3602fe3104796000bf2.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_703f342592260e7885a264bcd6ce4a83.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_841d1e3c07f4a916be6c53ff258023d6.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_8e3424c08bd97a7f5534f8932cea85ba.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
+      "pet": 0
+    },
+    "spritesheet_ef97f1e56f7745b1a9a11b2f38eb4d09.bundle": {
+      "groups": 0,
+      "equipment": 0,
+      "avatar": 0,
       "pet": 0
     }
   }

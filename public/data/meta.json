@@ -1,11 +1,37 @@
 {
-  "gameVersion": "1.13.1",
-  "dataGeneratedAt": "2026-08-05T11:52:07+08:00",
-  "dataGeneratedAtText": "2026-08-05 11:52:07 GMT+8",
+  "gameVersion": "1.15.2",
+  "dataGeneratedAt": "2026-09-24T11:25:10+08:00",
+  "dataGeneratedAtText": "2026-09-24 11:25:10 GMT+8",
   "ingest": {
     "origin": "upstream",
     "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-08-05T05:48:15.293Z"
+    "fetchedAt": "2026-10-03T10:27:41.802Z"
+  },
+  "parts": {
+    "data.js": {
+      "gameVersion": "1.15.1",
+      "generatedAt": "2026-09-16T10:34:10+08:00"
+    },
+    "items-data.js": {
+      "gameVersion": "1.15.2",
+      "generatedAt": "2026-09-24T11:25:10+08:00"
+    },
+    "quests-data.js": {
+      "gameVersion": "1.15.2",
+      "generatedAt": "2026-09-21T11:41:01+08:00"
+    },
+    "skills-data.js": {
+      "gameVersion": "1.15.1",
+      "generatedAt": "2026-09-16T10:34:10+08:00"
+    },
+    "maps-data.js": {
+      "gameVersion": "1.15.2",
+      "generatedAt": "2026-09-21T11:41:01+08:00"
+    },
+    "worldmaps-data.js": {
+      "gameVersion": "1.15.1",
+      "generatedAt": "2026-09-16T10:34:10+08:00"
+    }
   },
   "mapSource": {
     "source": "MapleStory v83 Map.wz XML export",
@@ -22,7 +48,19 @@
       "楓之島",
       "維多利亞島"
     ],
-    "note": "客戶端資產含未開放內容，本站只保留已開放的部分：地圖以是否有中文名判斷，任務與職業以等級上限與轉職階段判斷。"
+    "mapRegions": [
+      "楓之島",
+      "維多利亞島",
+      "奇幻村",
+      "鯨魚號",
+      "楓葉世界"
+    ],
+    "note": "客戶端資產含未開放內容，本站只保留已開放的部分：地圖要有中文名而且所在地區已開放，任務與職業以等級上限與轉職階段判斷。"
+  },
+  "heldBackRegions": {
+    "冰原雪域": 48,
+    "廢礦": 23,
+    "日本": 1
   },
   "assumptions": {
     "defaultRespawnSeconds": 7,
@@ -31,23 +69,23 @@
     "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
   },
   "counts": {
-    "monsters": 71,
-    "items": 13577,
-    "quests": 358,
+    "monsters": 73,
+    "items": 12968,
+    "quests": 405,
     "skills": 373,
-    "maps": 5844,
-    "mapsWithChineseName": 249,
+    "maps": 5878,
+    "mapsWithChineseName": 287,
     "portalEdges": 4041,
     "towns": 343,
     "regions": 40,
-    "walkableAreas": 4007,
+    "walkableAreas": 4041,
     "trainingMaps": 197,
-    "farmableItems": 952
+    "farmableItems": 1000
   },
   "coverage": {
-    "monstersWithSpawnData": 64,
+    "monstersWithSpawnData": 66,
     "monstersWithoutSpawnData": 7,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-08-05T05:48:27.106Z"
+  "builtAt": "2026-10-03T10:27:54.241Z"
 }
