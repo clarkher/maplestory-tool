@@ -39,6 +39,8 @@ export const metadata: Metadata = {
     images: ["/og.jpg"],
   },
   robots: { index: true, follow: true },
+  // Google Search Console 網域擁有權驗證（token 存在 ~/.claude/analytics-ids.json）
+  verification: { google: "cl86r4pMdVHkk9oV0qw9WO577cGYmbrB05aSwjeFXww" },
 };
 
 export const viewport: Viewport = {
