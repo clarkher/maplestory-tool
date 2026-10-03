@@ -14,6 +14,18 @@ const OUT = path.resolve(import.meta.dirname, "..", "public", "data");
 const failures = [];
 const notes = [];
 
+/**
+ * 各地區的代表地圖。
+ * 客戶端會在改版前先替下一批地區補上中文名（1.15 就先放了冰原雪域與廢礦），
+ * 所以「有中文名」不等於已開放。這裡用具體的地圖編號再把關一次：
+ * 地區還不在 meta.release.mapRegions 裡，它的地圖就不該帶中文名出現在站上。
+ */
+const REGION_SENTINELS = {
+  冰原雪域: [200020000 /* 雲彩公園Ⅱ */, 200080200 /* 天空之城塔<20層> */, 211040100 /* 冰雪峽谷Ⅰ */],
+  廢礦: [211041500 /* 廢棄礦坑Ⅰ */, 280030000 /* 殘暴炎魔祭壇 */],
+  日本: [800020400 /* 江戶村 彎曲地獄路 */],
+};
+
 function check(label, condition, detail = "") {
   if (condition) notes.push(`  ok   ${label}${detail ? ` — ${detail}` : ""}`);
   else failures.push(`  FAIL ${label}${detail ? ` — ${detail}` : ""}`);
@@ -53,6 +65,15 @@ function main() {
   const named = (training ?? []).filter(row => maps[String(row.m)]?.zh).length;
   check("練功地圖全部有中文名", named === (training?.length ?? 0), `${named}/${training?.length}`);
 
+  const openRegions = meta?.release?.mapRegions ?? [];
+  check("meta 有列出已開放的地區", openRegions.length > 0, openRegions.join("、"));
+  for (const [region, ids] of Object.entries(REGION_SENTINELS)) {
+    if (openRegions.includes(region)) continue;
+    const leaked = ids.filter(id => maps?.[String(id)]?.zh);
+    check(`未開放的${region}沒有被當成已開放`, leaked.length === 0,
+      leaked.length ? `漏進來：${leaked.map(id => `${id} ${maps[String(id)].zh}`).join("、")}` : `${ids.length} 張代表地圖都沒有中文名`);
+  }
+
   // 站上不該出現任何英文地圖名
   const english = Object.values(maps ?? {}).filter(map => map.en).length;
   check("地圖資料不含英文名", english === 0, `${english} 筆`);
@@ -74,6 +95,15 @@ function main() {
   const monsterIds = new Set((monsters ?? []).map(monster => monster.id));
   const badDrop = (items ?? []).filter(item => item.dm?.some(id => !monsterIds.has(id))).length;
   check("道具的掉落來源都指得到怪", badDrop === 0, `${badDrop} 個道具有壞掉的來源`);
+
+  // 上游 1.15 起把同名道具併成一筆（mergedIds），舊編號不再出現在道具表。
+  // 怪物掉落與任務道具若還指著舊編號，前端會顯示成查不到的道具
+  const itemIds = new Set((items ?? []).map(item => item.id));
+  const badMobDrops = (monsters ?? []).flatMap(monster => (monster.drops ?? []).filter(id => !itemIds.has(id)));
+  check("怪物掉落都指得到道具", badMobDrops.length === 0, `${badMobDrops.length} 筆指不到${badMobDrops.length ? `（${badMobDrops.slice(0, 5).join("、")}）` : ""}`);
+  const badQuestItems = (quests ?? []).flatMap(quest =>
+    ["needItems", "startItems", "rewardItems", "startGiven"].flatMap(key => (quest[key] ?? []).filter(row => !itemIds.has(row.id)).map(row => row.id)));
+  check("任務道具都指得到道具", badQuestItems.length === 0, `${badQuestItems.length} 筆指不到${badQuestItems.length ? `（${badQuestItems.slice(0, 5).join("、")}）` : ""}`);
 
   const withSpawn = (monsters ?? []).filter(monster => monster.sp?.length).length;
   check("怪物有刷怪點資料的比例", withSpawn / Math.max(monsters?.length ?? 1, 1) >= 0.7,
