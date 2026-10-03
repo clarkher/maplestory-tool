@@ -29,12 +29,20 @@ const DEFAULT_RESPAWN_SECONDS = 7;
  * 這不是 Artale，也不是 GMS Classic——是遊戲橘子代理、2026-07-29 上線的 V001，
  * 等級上限 100、只到二轉，地區只有楓之島與維多利亞島（含奇幻村、螞蟻礦坑）。
  *
- * 客戶端資產包含尚未開放的內容（神木村、玩具城、冰原雪域、Lv.180 的怪、四轉技能都在裡面），
- * 但只有已開放的地圖帶中文名。實測對照官方公告的地區：
- *   奇幻村、螞蟻礦坑、弓箭手訓練場、墮落城市 → 有中文名
- *   玩具城、冰原雪域、神木村 → 沒有
- * 所以「有沒有中文名」就是可靠的已開放判準，拿它把未開放內容濾掉，
+ * 客戶端資產包含尚未開放的內容（神木村、玩具城、Lv.180 的怪、四轉技能都在裡面）。
+ * 一張地圖要同時符合兩件事才算已開放：
+ *
+ *  1. 有中文名。沒有中文名的圖玩家在遊戲裡找不到，一律不收。
+ *  2. 所在地區列在下面的 mapRegions。
+ *
+ * 開服時只看第 1 點就夠了（當時只有已開放的地圖帶中文名），但客戶端會在改版前
+ * 先替下一批地區補上中文名：1.15 就先放了冰原雪域 48 張、廢礦 23 張，
+ * 而官方公告這兩區要到 2026-10-15 才跟三轉一起開。所以多加第 2 點把關，
  * 免得推薦玩家去一個進不去的地方。
+ *
+ * mapRegions 用的是上游資料的 regionName。奇幻村、鯨魚號在上游是獨立地區，
+ * 楓葉世界是「全地區都會出現」的活動怪用的。上游還沒分類（regionName 空白）的圖照舊放行。
+ * 有中文名但地區不在清單裡的，建置時會列在 meta.heldBackRegions 與輸出訊息裡。
  */
 const RELEASE = {
   version: "V001",
@@ -43,7 +51,8 @@ const RELEASE = {
   levelCap: 100,
   maxAdvancementOrder: 2,
   regions: ["楓之島", "維多利亞島"],
-  note: "客戶端資產含未開放內容，本站只保留已開放的部分：地圖以是否有中文名判斷，任務與職業以等級上限與轉職階段判斷。",
+  mapRegions: ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界"],
+  note: "客戶端資產含未開放內容，本站只保留已開放的部分：地圖要有中文名而且所在地區已開放，任務與職業以等級上限與轉職階段判斷。",
 };
 
 function main() {
@@ -57,15 +66,16 @@ function main() {
 
   const allJobs = buildJobs(artale);
   const jobs = releasedJobs(allJobs);
-  const zhNames = collectChineseMapNames(artale);
+  const { names: zhNames, heldBack } = collectChineseMapNames(artale);
   const regions = buildRegions(v83);
   const maps = buildMaps(v83, zhNames, regions, msio);
   const graph = buildGraph(v83, maps);
   const components = labelComponents(graph, maps);
   const nearestTown = computeNearestTowns(maps, graph, v83);
-  const monsters = buildMonsters(artale, v83, maps);
+  const canonItem = itemAliases(artale);
+  const monsters = buildMonsters(artale, v83, maps, canonItem);
   const items = buildItems(artale, monsters);
-  const quests = buildQuests(artale, maps, allJobs);
+  const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
   const training = buildTraining(maps, v83, monsters);
   const farming = buildFarmingIndex(items, monsters, maps);
@@ -90,8 +100,12 @@ function main() {
     dataGeneratedAt: artale.metadata?.generatedAt ?? null,
     dataGeneratedAtText: artale.metadata?.generatedAtText ?? null,
     ingest: artale.ingest ?? null,
+    // 上游六個資料檔各自的版本，gameVersion 取的是其中最新的
+    parts: artale.metadata?.parts ?? undefined,
     mapSource: { source: v83.source, url: v83.sourceUrl, extractedAt: v83.extractedAt },
     release: RELEASE,
+    // 客戶端已經有中文名、但所在地區還沒開放而被擋下來的地圖數
+    heldBackRegions: heldBack,
     assumptions: {
       defaultRespawnSeconds: DEFAULT_RESPAWN_SECONDS,
       expNote: "本站不提供每小時經驗值——那需要知道你的清怪速度。提供的是可查證的事實：一輪清完的總經驗、刷怪點數、回生秒數，以及據此換算的相對效率指數。",
@@ -126,6 +140,11 @@ function main() {
   console.log("\n=== 統計 ===");
   console.log(JSON.stringify(meta.counts, null, 2));
   console.log(JSON.stringify(meta.coverage, null, 2));
+  if (Object.keys(heldBack).length) {
+    console.log("\n=== 有中文名但地區尚未開放，沒有收錄 ===");
+    for (const [region, count] of Object.entries(heldBack)) console.log(`  ${region.padEnd(8)} ${count} 張`);
+    console.log("  官方開放後，把地區名加進 RELEASE.mapRegions 再重建。");
+  }
 }
 
 function write(name, value, pretty = false) {
@@ -165,10 +184,16 @@ function releasedJobs(jobs) {
 
 function collectChineseMapNames(artale) {
   const zh = new Map();
+  const held = new Map();
   const absorb = entry => {
     if (!entry || entry.unnamed) return;
     const id = Number(entry.id);
     if (!Number.isFinite(id) || zh.has(id)) return;
+    // 上游還沒分類的圖（regionName 空白）照舊放行，有分類的要在已開放清單裡
+    if (entry.regionName && !RELEASE.mapRegions.includes(entry.regionName)) {
+      held.set(id, entry.regionName);
+      return;
+    }
     zh.set(id, {
       name: entry.name || "",
       street: entry.street || "",
@@ -180,7 +205,9 @@ function collectChineseMapNames(artale) {
   for (const quest of artale.quests || []) {
     for (const key of ["startNpc", "endNpc"]) for (const map of quest[key]?.maps || []) absorb(map);
   }
-  return zh;
+  const heldBack = {};
+  for (const region of held.values()) heldBack[region] = (heldBack[region] || 0) + 1;
+  return { names: zh, heldBack };
 }
 
 /** 世界地圖 → 每張地圖屬於哪個區域，以及它在世界地圖上的座標。 */
@@ -332,7 +359,7 @@ function computeNearestTowns(maps, graph, v83) {
 
 /* ---------------------------------------------------------------- 怪物 */
 
-function buildMonsters(artale, v83, maps) {
+function buildMonsters(artale, v83, maps, canonItem) {
   // 反查：怪物 id → 出現在哪些地圖、各幾個刷怪點、回生秒數
   const spawnOf = new Map();
   for (const [key, raw] of Object.entries(v83.maps)) {
@@ -375,7 +402,7 @@ function buildMonsters(artale, v83, maps) {
       el: compactElemental(monster.elemental),
       maps: declaredMaps,
       sp: spawns.length ? spawns : undefined,
-      drops: (monster.drops || []).map(drop => Number(drop.id)).filter(Number.isFinite),
+      drops: [...new Set((monster.drops || []).map(drop => canonItem(Number(drop.id))).filter(Number.isFinite))],
     };
     for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
     return record;
@@ -395,6 +422,25 @@ function compactElemental(elemental) {
 }
 
 /* ---------------------------------------------------------------- 道具 */
+
+/**
+ * 舊道具編號 → 道具表裡的編號。
+ *
+ * 上游 1.15 起把同名的道具併成一筆，被併掉的編號列在保留那筆的 mergedIds，
+ * 不再單獨出現在道具表（例如紅夢褲 1061029 併進 1060022）。
+ * 但怪物掉落與任務條件還是寫原本的編號，不換過來前端會顯示成查不到的道具。
+ */
+function itemAliases(artale) {
+  const alias = new Map();
+  for (const item of artale.items || []) {
+    const keep = Number(item.id);
+    for (const merged of item.mergedIds || []) {
+      const id = Number(merged);
+      if (Number.isFinite(id) && id !== keep) alias.set(id, keep);
+    }
+  }
+  return id => alias.get(id) ?? id;
+}
 
 function buildItems(artale, monsters) {
   const list = (artale.items || []).map(item => {
@@ -425,10 +471,19 @@ function buildItems(artale, monsters) {
   return { list, byId: new Map(list.map(item => [item.id, item])) };
 }
 
-/** NPC 商店的最高標價。同一個道具在不同店家可能不同價，取最高的當參考。 */
+/**
+ * NPC 商店的最高單價。同一個道具在不同店家可能不同價，取最高的當參考。
+ *
+ * 有些店是整組賣（通行證遠端商店：箭矢 2000 支 1400），要除以組數才是一個的價錢。
+ * 上游標成 hiddenByDefault 的是「非本期限時售價」，現在買不到這個價，不算。
+ */
 function shopPrice(shops) {
   if (!Array.isArray(shops) || !shops.length) return undefined;
-  const prices = shops.map(shop => Number(shop?.price) || 0).filter(price => price > 0);
+  const prices = shops
+    .filter(shop => !shop?.hiddenByDefault)
+    .map(shop => (Number(shop?.price) || 0) / Math.max(Number(shop?.count) || 1, 1))
+    .map(price => Math.round(price * 100) / 100)
+    .filter(price => price > 0);
   return prices.length ? Math.max(...prices) : undefined;
 }
 
@@ -459,7 +514,7 @@ function compactEquip(stats) {
 
 /* ---------------------------------------------------------------- 任務 */
 
-function buildQuests(artale, maps, jobs) {
+function buildQuests(artale, maps, jobs, canonItem) {
   const advOf = new Map(jobs.map(job => [job.id, job.advOrder]));
   const reachableJob = (codes) => {
     if (!codes?.length) return true;
@@ -489,21 +544,21 @@ function buildQuests(artale, maps, jobs) {
       eNpc: npcRef(quest.endNpc, maps),
 
       // 完成條件
-      needItems: rowRefs(complete.items),
+      needItems: rowRefs(complete.items, canonItem),
       needMobs: rowRefs(complete.monsters),
 
       // 接取條件：有些任務要先帶著道具、或先練到某個技能才接得到
-      startItems: rowRefs(start.items),
+      startItems: rowRefs(start.items, canonItem),
       startSkills: skillRefs(start.skills),
 
       // 獎勵。接受時就給的跟完成才給的分開，不要混成一筆
       exp: rewards.exp ?? undefined,
       money: rewards.money ?? undefined,
       pop: rewards.pop ?? undefined,
-      rewardItems: rewardRefs(rewards.items),
+      rewardItems: rewardRefs(rewards.items, canonItem),
       rewardSkills: skillRefs(rewards.skills),
       startExp: startRewards.exp ?? undefined,
-      startGiven: rewardRefs(startRewards.items),
+      startGiven: rewardRefs(startRewards.items, canonItem),
 
       medal: quest.medalCategory || undefined,
 
@@ -577,9 +632,10 @@ function npcRef(npc, maps) {
   });
 }
 
-function rowRefs(rows) {
+/** canon 只給道具用（換成道具表裡的編號）；怪物需求不要經過它。 */
+function rowRefs(rows, canon = id => id) {
   if (!Array.isArray(rows) || !rows.length) return undefined;
-  return rows.map(row => dropEmpty({ id: Number(row.id), n: row.name || "", c: row.count ?? undefined }));
+  return rows.map(row => dropEmpty({ id: canon(Number(row.id)), n: row.name || "", c: row.count ?? undefined }));
 }
 
 /**
@@ -592,12 +648,12 @@ function rowRefs(rows) {
  * 另外 250 筆是 random（一堆裡隨機給一樣）、167 筆綁職業，這兩種都標記起來，
  * 前端才有辦法照實說「隨機給一樣」而不是「這些全拿」。
  */
-function rewardRefs(rows) {
+function rewardRefs(rows, canon = id => id) {
   if (!Array.isArray(rows) || !rows.length) return undefined;
   const kept = rows
     .filter(row => row?.action !== "remove")
     .map(row => dropEmpty({
-      id: Number(row.id),
+      id: canon(Number(row.id)),
       n: row.name || "",
       c: row.count ?? undefined,
       rand: row.random ? 1 : undefined,

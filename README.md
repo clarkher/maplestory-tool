@@ -32,15 +32,26 @@
 ### 只收錄已開放的內容
 
 客戶端資產包含還沒開放的東西（神木村、玩具城、冰原雪域、四轉技能、Lv.180 的怪都在裡面）。
-判準是**地圖有沒有中文名**——客戶端只替已開放的地圖附中文名，實測比對官方公告的地區：
+一張地圖要**同時**符合兩個條件才算已開放：
 
-| 地圖 | 官方公告 | 有中文名 |
+1. **有中文名**——沒有中文名的圖玩家在遊戲裡找不到。
+2. **所在地區列在 `RELEASE.mapRegions`**（`pipeline/build.mjs`）。
+
+開服時只看第 1 點就夠，客戶端只替已開放的地圖附中文名：
+
+| 地圖 | 官方公告 | 有中文名（1.13） |
 |---|---|---|
 | 奇幻村、螞蟻礦坑、弓箭手訓練場、墮落城市 | 已開放 | ✅ |
 | 玩具城、冰原雪域、神木村 | 未開放 | ❌ |
 
-所以管線會濾掉沒有中文名的地圖、只在未開放地圖出現的怪、超過等級上限的任務、
-以及三轉以上的職業與技能。開放三轉時只要改 `pipeline/build.mjs` 的 `RELEASE` 常數。
+但客戶端會在改版前先替下一批地區補上中文名。1.15 已經有冰原雪域 48 張（含天空之城）、
+廢礦 23 張（含殘暴炎魔祭壇）的中文名，官方卻公告冰原雪域要到 2026-10-15 才跟三轉一起開，
+廢礦目前沒有公告。所以多了第 2 點；`verify.mjs` 也會拿各地區的代表地圖檢查，
+沒開放的地區漏進來就紅燈。建置時被擋下的地區會印出來，也記在 `meta.json` 的 `heldBackRegions`。
+
+管線同時會濾掉只在未開放地圖出現的怪、超過等級上限的任務、以及三轉以上的職業與技能。
+官方開放新內容時要改的地方：`pipeline/build.mjs` 的 `RELEASE`（`levelCap`、`maxAdvancementOrder`、
+`regions`、`mapRegions`）、`src/lib/profile.ts` 的 `LEVEL_CAP`，以及 `pipeline/verify.mjs` 裡跟開放範圍綁在一起的數量門檻。
 
 不用其他版本的中文名回填：那些版本改版過、地圖被重做，套過來會給錯地名
 （同一個編號在台服現行版是「瑪亞的家」，在經典版是「弓箭手村民宅」）。
@@ -73,7 +84,29 @@ npm run data:all      # 以上全跑
 #### 用自己電腦上的客戶端資料（優先來源）
 
 把從 `maplestory_classic.zip` 抽出來的 JSON 放成 `data/raw/artale.local.json`，
-`data:artale` 就會改用它，不再同步上游。格式與上游的 `drops.json` 相同。
+`data:artale` 就會改用它，不再同步上游。格式就是 `data/raw/artale.json` 的結構
+（`metadata`、`monsters`、`items`、`quests`、`skills`…，也就是上游六個資料檔併起來的樣子）。
+
+#### 上游的資料格式
+
+上游 repo 的資料是六個給網頁直接載入的檔案，每個都是一行 `window.名稱 = {JSON};`：
+
+| 檔案 | 內容 | 管線是否必要 |
+|---|---|---|
+| `data.js`（`MS_DROP_DB`） | 怪物、掉落 | 必要 |
+| `items-data.js`（`MS_ITEM_DB`，約 40MB） | 道具與來源 | 必要 |
+| `quests-data.js`（`MS_QUEST_DB`） | 任務 | 必要 |
+| `skills-data.js`（`MS_SKILL_DB`） | 技能 | 必要 |
+| `maps-data.js`（`MS_MAP_DB`） | 地圖 | 選用 |
+| `worldmaps-data.js`（`MS_WORLD_MAP_DB`） | 世界地圖 | 選用 |
+
+`pipeline/lib/upstream.mjs` 把它們當 JSON 讀（不執行）、併成一份。各檔的版本不一定相同，
+整份資料的版本取最新產生的那個檔，各檔版本留在 `meta.json` 的 `parts`。
+2026-08-05 以前上游 repo 裡還有一份合併好的 `drops.json`，之後被移出版控，
+排程因此連續失敗到 2026-10-03 才修好。
+
+圖檔只同步前端用得到的四個目錄（`items`、`monster_frames`、`npcs`、`skills`）；
+上游 `assets` 已經超過 500MB（整張地圖渲染圖就 342MB），整包鏡像會撐爆 repo 與部署。
 
 推上 `main` 之後 GitHub Actions 會自動重建並部署。
 
@@ -81,9 +114,9 @@ npm run data:all      # 以上全跑
 
 `.github/workflows/data-refresh.yml`：
 
-- 每天兩次（台灣時間 08:20、20:20）比對上游的 `generatedAt`，有變才重建
+- 每天兩次（台灣時間 08:20、20:20）比對上游的 `generatedAt`（六個檔裡最新的那個），有變才重建
 - `data/raw/artale.local.json` 或 `pipeline/` 有異動時立即重建
-- 重建後跑 `verify.mjs`，通過才 commit；commit 進 `main` 觸發 Vercel 部署
+- 重建後跑 `verify.mjs`，通過才開 PR、自動合併；合併進 `main` 觸發 Vercel 部署
 - 也可以手動觸發，勾 `force` 可略過版本比對
 
 Vercel 這端接的是 GitHub 整合（production branch = `main`），

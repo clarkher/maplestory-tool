@@ -185,8 +185,14 @@ export type Meta = {
     levelCap: number;
     maxAdvancementOrder: number;
     regions: string[];
+    /** 已開放的地區（上游資料的地區名），地圖要在這裡面才收錄 */
+    mapRegions?: string[];
     note: string;
   };
+  /** 上游各資料檔的版本；gameVersion 取其中最新的 */
+  parts?: Record<string, { gameVersion: string | null; generatedAt: string | null }>;
+  /** 客戶端已有中文名、但地區還沒開放而沒收錄的地圖數，依地區分 */
+  heldBackRegions?: Record<string, number>;
   assumptions: {
     defaultRespawnSeconds: number;
     expNote: string;

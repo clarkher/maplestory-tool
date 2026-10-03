@@ -5,7 +5,7 @@ import type { Profile } from "./types";
 
 const STORAGE_KEY = "ms-profile";
 
-/** 台服經典版 V001 目前的等級上限。開放三轉時要一起改這裡與 pipeline 的 RELEASE。 */
+/** 台服經典版 V001 目前的等級上限。開放新內容時要一起改這裡與 pipeline/build.mjs 的 RELEASE（含 mapRegions）。 */
 export const LEVEL_CAP = 100;
 
 const EMPTY: Profile = { level: 0, job: 0 };
