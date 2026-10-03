@@ -5,7 +5,7 @@
   "ingest": {
     "origin": "upstream",
     "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-10-03T10:27:41.802Z"
+    "fetchedAt": "2026-10-03T10:29:55.760Z"
   },
   "parts": {
     "data.js": {
@@ -87,5 +87,5 @@
     "monstersWithoutSpawnData": 7,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-03T10:27:54.241Z"
+  "builtAt": "2026-10-03T10:30:09.569Z"
 }
