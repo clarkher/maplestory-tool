@@ -38,7 +38,7 @@ const DATA = path.join(ROOT, "public", "data");
 const OUT = path.join(DATA, "guides");
 const JOB_FILES = ["warrior-pirate.json", "magician.json", "archer-thief.json"];
 /** 經典版開放的職業（src/lib/jobs.ts 的 JOB_OPTIONS，V002 起含三轉），每個都要有攻略檔，首頁才不會缺 */
-const EXPECTED_JOBS = [100, 110, 111, 120, 121, 130, 131, 200, 210, 220, 230, 300, 310, 320, 400, 410, 420, 500, 510, 511, 520, 521];
+const EXPECTED_JOBS = [100, 110, 111, 120, 121, 130, 131, 200, 210, 211, 220, 221, 230, 231, 300, 310, 320, 400, 410, 420, 500, 510, 511, 520, 521];
 const GAP = /^（無可靠出處）/;
 const NOT_A_MAP = /（非地圖）/;
 
