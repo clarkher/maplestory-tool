@@ -336,6 +336,8 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
  * 約幾級用接得到那條線的等級算（這段列出的第一段的實際等級）：你在的這段跟之前的段取它跟你現在的等級較高的
  * （現在就做得到的就是現在等級，跟先解同一個數字），之後的段取它跟那段起點較高的——法師 8 看 20 等的任務不會寫約 4.1 級。
  * 離開楓之島之後，NPC 站在島上的任務不列；還在島上、8 等前，NPC 站在維多利亞島那邊的不列（islandOnly）。
+ * active（你在的這段）：先解已經列的段不再列，同一段不在同一頁算兩次（round 4：伊卡路斯先解第 1–3 段、必解第 3–4 段 → 必解只剩第 4 段）；
+ * 一段都不剩的線就不列。值不值得用剩下的那一串算。
  */
 export function bandQuests(args: {
   band: Band;
@@ -347,8 +349,10 @@ export function bandQuests(args: {
   maps: Record<string, Pick<MapRecord, "zh">>;
   effective: Map<string, number>;
   limit?: number;
+  /** 你在的這段（跟升級路線的 activeBandIndex 同一段） */
+  active?: boolean;
 }): BandQuest[] {
-  const { band, level, job, quests, monsters, common, maps, effective, limit = 4 } = args;
+  const { band, level, job, quests, monsters, common, maps, effective, limit = 4, active = false } = args;
   const shared = questLines(isIslandBand(band) ? 0 : stageJob(job, band.from), quests, common, maps, effective);
   const island = onIsland(job, level);
   const onlyIsland = islandOnly(job, level);
@@ -367,7 +371,8 @@ export function bandQuests(args: {
   const long = new Set(inBand.filter(quest => (nowIds.has(quest.id) ? longNow : longLater).has(quest.id)).map(quest => quest.id));
   const floor = band.from > level ? band.from : level;
   const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
-  const doable = new Set(inBand.filter(quest => !long.has(quest.id)).map(quest => quest.id));
+  const listed = new Set(active ? nowQuests({ level, job, quests, monsters, common, maps, effective }).flatMap(item => item.quests.map(quest => quest.id)) : []);
+  const doable = new Set(inBand.filter(quest => !long.has(quest.id) && !listed.has(quest.id)).map(quest => quest.id));
   const rows = lineItems(shared, quest => doable.has(quest.id), levelFor, common.expTable.toNext, job, (rec, fraction) => worthListing(fraction, [rec]));
   return rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
 }

@@ -422,6 +422,33 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     expect(at(30, { from: 30, to: 40 }, "a")).toBeCloseTo(0.6);
   });
 
+  it("你在的這一段不再列先解已經列的段（伊卡路斯先解第 1–3 段、這段解鎖第 3–4 段 → 必解只剩第 4 段）；別段照舊", () => {
+    const quests = [
+      quest("a1", { minLv: 10, exp: 20000 }),
+      quest("a2", { minLv: 10, exp: 20000 }),
+      quest("a3", { minLv: 30, exp: 20000 }),
+      quest("a4", { minLv: 35, exp: 20000 }),
+    ];
+    const mustDo = [rec("a1", "10 起", { chain: ["a1", "a2", "a3", "a4"], name: "伊卡路斯任務鏈（好無聊 → 滑翔翼）" })];
+    const shared = common(mustDo);
+    const args = { level: 33, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
+    const band = { from: 30, to: 40 };
+    expect(nowQuests(args).map(partsText)).toEqual(["第 1–3 段／共 4 段"]);
+    expect(bandQuests({ ...args, band }).map(partsText)).toEqual(["第 3–4 段／共 4 段"]);
+    const [row] = bandQuests({ ...args, band, active: true });
+    expect(row.quests.map(entry => entry.id)).toEqual(["a4"]);
+    expect(row).toMatchObject({ exp: 20000, level: 35 });
+    expect(partsText(row)).toBe("第 4 段／共 4 段");
+  });
+
+  it("你在的這一段：先解已經列完這條線在這段的段，這條線就不列", () => {
+    const quests = [quest("b1", { minLv: 30, exp: 40000 }), quest("b2", { minLv: 31, exp: 40000, pre: ["b1"] }), quest("solo", { minLv: 32, exp: 40000 })];
+    const shared = common();
+    const args = { level: 35, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
+    expect(nowQuests(args).map(item => item.key)).toEqual(["chain:b1", "chain:solo"]);
+    expect(bandQuests({ ...args, band: { from: 30, to: 40 }, active: true })).toEqual([]);
+  });
+
   it("法師 8 看到 20 等才接得到的線，約幾級用 20 等算（不會寫約 4.1 級）", () => {
     const toNext = Array.from({ length: 121 }, (_, level) => (level < 20 ? 1000 : 20000));
     const quests = [quest("runaway", { minLv: 20, exp: 6600, jobs: [200] })];

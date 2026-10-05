@@ -128,13 +128,13 @@ function BandItem({
           <span className="ml-auto line-clamp-2 min-w-0 flex-1 text-right text-[13px] leading-snug ink-soft">{label ?? "還沒有玩家攻略"}</span>
           <ChevronDown size={16} className={`shrink-0 ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
-        {open ? <BandDetail plan={plan} next={next} context={context} /> : null}
+        {open ? <BandDetail plan={plan} next={next} context={context} active={state === "current"} /> : null}
       </div>
     </li>
   );
 }
 
-function BandDetail({ plan, next, context }: { plan: BandPlan; next?: Band; context: Context }) {
+function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Band; context: Context; active: boolean }) {
   const { band, stage, guide } = plan;
   const { job, level, quests, monsters, monsterIndex, maps, common, prefer, guideStatus, effective } = context;
 
@@ -142,17 +142,17 @@ function BandDetail({ plan, next, context }: { plan: BandPlan; next?: Band; cont
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
     // 這段開始前（上一級結束時）到這段最後一級的點數；轉職那一段從 0 起算，才不會漏掉只花 1 點的第一步
     const steps = build && stage ? stepsBetween(build, spAtLevel(stage, band.from - 1), spAtLevel(stage, band.to - 1)) : [];
-    // 必解跟先解同一套規則（任務線、標題、長線、值不值得）；約幾級用接得到那條線的等級算：
-    // 這段跟之前的段取現在等級與那條線的等級較高的，之後的段取段落起點與它較高的（now-plan bandQuests）
+    // 必解跟先解同一套規則（任務線、標題、長線、值不值得、不跳段）；約幾級用接得到那條線的等級算：
+    // 這段跟之前的段取現在等級與那條線的等級較高的，之後的段取段落起點與它較高的；你在的這段不再列先解已經列的段（now-plan bandQuests）
     const shared = { level, job, quests, monsters, common, maps, effective };
-    const mustDo = bandQuests({ ...shared, band });
+    const mustDo = bandQuests({ ...shared, band, active });
     const nextMustDo = next ? bandQuests({ ...shared, band: next }) : [];
     const prep = prepMaterials(nextMustDo.flatMap(item => item.quests), monsters)
       .filter(material => material.droppers.length)
       .sort((a, b) => b.c - a.c)
       .slice(0, 5);
     return { build, steps, mustDo, prep };
-  }, [band, next, guide, stage, job, level, quests, monsters, maps, common, prefer, effective]);
+  }, [band, next, guide, stage, job, level, quests, monsters, maps, common, prefer, effective, active]);
 
   const stuckInFirstJob = band.from >= 30 && !isSecondJob(job) && job !== 0;
   const gap = guide?.gaps?.find(entry => entry.from < band.to && entry.to >= band.from);
