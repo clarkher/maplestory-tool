@@ -1253,12 +1253,11 @@
       "statBuild": [],
       "skillBuilds": [
         {
-          "label": "舊版主流點法：氣絕先滿（巴哈姆特 2006～2010）",
+          "label": "舊版主流點法：氣絕先滿（巴哈姆特 2007～2010）",
           "mainstream": true,
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4970",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=793",
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=2576"
           ],
           "steps": [
@@ -1331,7 +1330,7 @@
               "skillId": 1110000,
               "skillName": "魔力恢復",
               "to": 20,
-              "note": "剩 11 點隨喜好；用盾的也有人改成盾防精通 20、魔力恢復 11"
+              "note": "剩 11 點隨喜好"
             }
           ]
         }
