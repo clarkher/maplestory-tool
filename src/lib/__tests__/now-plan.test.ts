@@ -247,20 +247,41 @@ describe("任務線不跳段（先解跟必解同一套，round 4）", () => {
     }
   });
 
-  it("同一道具累計 200 個以上的那段（湯寶寶的特殊料理）也一樣：只列到它前面", () => {
+  it("同一條線自己累計同一道具 200 個以上的那段（含）就停：只列到它前面", () => {
+    const monsters = [monster(9, 22, [500])];
+    const quests = [
+      quest("s1", { minLv: 20, exp: 30000 }),
+      quest("s2", { minLv: 20, exp: 30000, pre: ["s1"], needItems: [{ id: 500, n: "火獨眼獸之尾巴", c: 100 }] }),
+      quest("s3", { minLv: 20, exp: 30000, pre: ["s2"], needItems: [{ id: 500, n: "火獨眼獸之尾巴", c: 100 }] }),
+      quest("s4", { minLv: 20, exp: 30000, pre: ["s3"] }),
+    ];
+    const common = commonWith([]);
+    const shared = { quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) };
+    const [todo] = nowQuests({ ...shared, level: 25, job: 110 });
+    expect(ids(todo)).toEqual(["s1", "s2"]);
+    expect(partsText(todo)).toBe("第 1–2 段／共 4 段");
+    const [band] = bandQuests({ ...shared, band: { from: 10, to: 21 }, level: 25, job: 110 });
+    expect(ids(band)).toEqual(["s1", "s2"]);
+  });
+
+  it("別條線也要交同一道具，不會把這條線切斷（冒險家的戒指第 17 段的樹枝）；長線區塊照舊把所有任務加總", () => {
     const monsters = [monster(9, 22, [500])];
     const quests = [
       quest("s1", { minLv: 20, exp: 30000 }),
       quest("s2", { minLv: 20, exp: 30000, pre: ["s1"] }),
-      quest("s3", { minLv: 20, exp: 30000, pre: ["s2"], needItems: [{ id: 500, n: "火獨眼獸之尾巴", c: 40 }] }),
+      quest("s3", { minLv: 20, exp: 30000, pre: ["s2"], needItems: [{ id: 500, n: "樹枝", c: 50 }] }),
       quest("s4", { minLv: 20, exp: 30000, pre: ["s3"] }),
-      quest("other", { minLv: 20, exp: 50000, needItems: [{ id: 500, n: "火獨眼獸之尾巴", c: 160 }] }),
+      quest("other", { minLv: 20, exp: 50000, needItems: [{ id: 500, n: "樹枝", c: 160 }] }),
     ];
     const common = commonWith([]);
-    const [todo] = nowQuests({ level: 25, job: 110, quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) })
-      .filter(item => item.key === "chain:s1");
-    expect(ids(todo)).toEqual(["s1", "s2"]);
-    expect(partsText(todo)).toBe("第 1–2 段／共 4 段");
+    const shared = { quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) };
+    const todo = nowQuests({ ...shared, level: 25, job: 110 });
+    const line = todo.find(item => item.key === "chain:s1");
+    expect(line && ids(line)).toEqual(["s1", "s2", "s3", "s4"]);
+    expect(line?.exp).toBe(120000);
+    const [band] = bandQuests({ ...shared, band: { from: 10, to: 21 }, level: 25, job: 110 }).filter(item => item.key === "chain:s1");
+    expect(ids(band)).toEqual(["s1", "s2", "s3", "s4"]);
+    expect(longRunNow({ ...shared, level: 25, job: 110 }).map(entry => [entry.n, entry.c])).toEqual([["樹枝", 210]]);
   });
 
   it("值不值得用列出的那幾段算：隔著長線那段的後段經驗再多也不算進來", () => {
@@ -386,17 +407,17 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     expect(run(25, { from: 40, to: 50 }, quests)[0]).toMatchObject({ firstPart: 3, lastPart: 3, totalParts: 3, exp: 30000 });
   });
 
-  it("要打 200 隻以上、或同一道具累計 200 個以上的不列（那些在長線）", () => {
+  it("要打 200 隻以上的段、同一條線自己累計同一道具 200 個以上的那段（含）開始不列；前面不到 200 的段照列（詛咒娃娃第 1 段 100 個）", () => {
     const quests = [
       quest("k", { minLv: 30, exp: 90000, needMobs: [{ id: 9, n: "刺菇菇", c: 999 }] }),
       quest("d1", { minLv: 35, exp: 60000, needItems: [{ id: 500, n: "詛咒娃娃", c: 100 }] }),
       quest("d2", { minLv: 35, exp: 60000, needItems: [{ id: 500, n: "詛咒娃娃", c: 200 }], pre: ["d1"] }),
       quest("ok", { minLv: 31, exp: 60000 }),
     ];
-    expect(run(35, { from: 30, to: 40 }, quests).map(item => item.key)).toEqual(["chain:ok"]);
+    expect(run(35, { from: 30, to: 40 }, quests).map(item => [item.key, partsText(item)])).toEqual([["chain:d1", "第 1 段／共 2 段"], ["chain:ok", null]]);
   });
 
-  it("同一條線在先解跟必解拿掉的段一樣，經驗是同一個數字（另一段等級的任務也要交同一道具時）", () => {
+  it("同一條線在先解跟必解列的段一樣，經驗是同一個數字；別條線也要交同一道具不算長線（戒指整條）", () => {
     const quests = [
       quest("r1", { minLv: 30, exp: 100000, needItems: [{ id: 777, n: "葉子", c: 100 }] }),
       quest("r2", { minLv: 30, exp: 100000, pre: ["r1"] }),
@@ -409,7 +430,7 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     const band = bandQuests({ band: { from: 30, to: 40 }, level: 35, job: 110, quests, monsters, common: shared, maps: {}, effective });
     const ringNow = todo.find(item => item.title === "冒險家的戒指");
     const ringBand = band.find(item => item.title === "冒險家的戒指");
-    expect(ringNow?.exp).toBe(100000);
+    expect(ringNow?.exp).toBe(200000);
     expect(ringBand?.exp).toBe(ringNow?.exp);
   });
 

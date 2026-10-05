@@ -169,6 +169,12 @@ type QuestLines = {
   lineOf: Map<string, string>;
   /** 一條線的全部任務，照實際等級排好 */
   lines: Map<string, Quest[]>;
+  /**
+   * 切任務線時算長線那種的段，只看自己這條線（round 4 後續 B）：這段要打同一隻怪 200 隻以上，
+   * 或這條線到這段為止（含）同一道具累計 200 個以上。別條線也要交同一道具不算（冒險家的戒指第 17 段的樹枝），
+   * 所有任務加總的長線區塊另外算（longRunNow）
+   */
+  long: Set<string>;
 };
 
 /**
@@ -215,23 +221,18 @@ function questLines(stage: number, quests: Quest[], common: GuideCommon, maps: R
     lines.set(key, [...(lines.get(key) ?? []), quest]);
   }
   for (const members of lines.values()) members.sort((a, b) => levelOf(a) - levelOf(b) || a.id.localeCompare(b.id));
-  const value = { stage, lineage, recs, forJob, lineOf, lines };
+  // 長線那種的段只看自己這條線：要打同一隻怪 200 隻以上，或這條線到這段為止（含）同一道具累計 200 個以上
+  const long = new Set<string>();
+  for (const members of lines.values()) {
+    const totals = new Map<number, number>();
+    for (const quest of members) {
+      for (const item of quest.needItems ?? []) totals.set(item.id, (totals.get(item.id) ?? 0) + (item.c ?? 1));
+      if (isLongKill(quest) || (quest.needItems ?? []).some(item => (totals.get(item.id) ?? 0) >= LONG_RUN_MIN)) long.add(quest.id);
+    }
+  }
+  const value = { stage, lineage, recs, forJob, lineOf, lines, long };
   linesCache.byStage.set(stage, value);
   return value;
-}
-
-/**
- * 這批任務裡長線那種的：要打 200 隻以上；同一道具在這批任務（不含要打 200 隻以上的）裡累計 200 個以上
- * （它們放在長線，不算先解、必解）。跟 route-planner 的 withoutLongRun 同一個算法，只加總數量、不找掉落怪（升級路線每一段都要算，省時間）。
- */
-function longRunIds(candidates: Quest[]): Set<string> {
-  const totals = new Map<number, number>();
-  for (const quest of candidates) {
-    if (isLongKill(quest)) continue;
-    for (const item of quest.needItems ?? []) totals.set(item.id, (totals.get(item.id) ?? 0) + (item.c ?? 1));
-  }
-  const heavy = (quest: Quest) => (quest.needItems ?? []).some(item => (totals.get(item.id) ?? 0) >= LONG_RUN_MIN);
-  return new Set(candidates.filter(quest => isLongKill(quest) || heavy(quest)).map(quest => quest.id));
 }
 
 /**
@@ -326,13 +327,12 @@ export function nowQuests(args: {
   limit?: number;
 }): NowQuest[] {
   // 不設上限：關鍵獎勵任務可能超過 5 個，一個都不能藏；畫面先顯示 5 條、其餘展開（TodoList）
-  // monsters 留在參數裡（跟長線、必解同一包參數），長線那種只看數量、用不到掉落怪
+  // monsters 留在參數裡（跟長線、必解同一包參數）；切任務線的長線那種只看自己這條線，用不到怪物資料
   const { level, job, quests, common, maps, effective, limit } = args;
   const shared = questLines(stageJob(job, level), quests, common, maps, effective);
   const candidates = doableNow(shared, level, effective, onIsland(job, level), islandOnly(job, level));
-  const long = longRunIds(candidates);
-  // 做得到＝現在接得到、做得動、不是長線那種；0 經驗的段也算（它是步驟，值不值得由整段經驗決定）
-  const doable = new Set(candidates.filter(quest => !long.has(quest.id)).map(quest => quest.id));
+  // 做得到＝現在接得到、做得動、不是（自己這條線的）長線那種；0 經驗的段也算（它是步驟，值不值得由整段經驗決定）
+  const doable = new Set(candidates.filter(quest => !shared.long.has(quest.id)).map(quest => quest.id));
   const sorted = lineItems(shared, quest => doable.has(quest.id), () => level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
@@ -361,8 +361,8 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
  * 升級路線某一段的必解：在這段解鎖的任務（門檻等級，沒有門檻用攻略建議等級），規則跟先解同一套——
  * 同一條任務線、同一個標題、長線那種拿掉、同一條值不值得的門檻、不跳段（lineRun：從這段第一個做得到的段開始，
  * 碰到不在這段解鎖或長線那種的段就停）；第幾段／共幾段算整條線。
- * 長線那種：現在就做得動的任務用先解那一批判斷（同一條線兩邊拿掉的段一樣，經驗才會是同一個數字，
- * 冒險家的戒指不會一邊 +630,000、一邊 +660,000）；還做不動的，在這段裡自己判斷（詛咒娃娃 2,300 個）。
+ * 長線那種跟先解同一個判斷，只看自己這條線（QuestLines.long，round 4 後續 B）：兩邊拿掉的段一樣、經驗是同一個數字，
+ * 別條線也要交同一道具不會切斷這條線（冒險家的戒指整條）；詛咒娃娃那條累計到 200 個的那段起不列。
  * 約幾級用接得到那條線的等級算（這段列出的第一段的實際等級）：你在的這段跟之前的段取它跟你現在的等級較高的
  * （現在就做得到的就是現在等級，跟先解同一個數字），之後的段取它跟那段起點較高的——法師 8 看 20 等的任務不會寫約 4.1 級。
  * 離開楓之島之後，NPC 站在島上的任務不列；還在島上、8 等前，NPC 站在維多利亞島那邊的不列（islandOnly）。
@@ -409,14 +409,9 @@ export function bandQuests(args: {
       && (island || !npcOnIsland(quest))
       && (!onlyIsland || !npcOffIsland(quest));
   });
-  const now = doableNow(questLines(stageJob(job, level), quests, common, maps, effective), level, effective, island, onlyIsland);
-  const nowIds = new Set(now.map(quest => quest.id));
-  const longNow = longRunIds(now);
-  const longLater = longRunIds(inBand.filter(quest => !nowIds.has(quest.id)));
-  const long = new Set(inBand.filter(quest => (nowIds.has(quest.id) ? longNow : longLater).has(quest.id)).map(quest => quest.id));
   const floor = band.from > level ? band.from : level;
   const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
-  const doable = new Set(inBand.filter(quest => !long.has(quest.id)).map(quest => quest.id));
+  const doable = new Set(inBand.filter(quest => !shared.long.has(quest.id)).map(quest => quest.id));
   const inRun = (quest: Quest) => doable.has(quest.id);
   const keep = (rec: GuideMustDo | undefined, fraction: number) => worthListing(fraction, [rec]);
   // 每一列加上這條線在這段最早幾等能接
@@ -425,7 +420,8 @@ export function bandQuests(args: {
   if (!active) return withLevel(lineItems(shared, inRun, levelFor, common.expTable.toNext, job, keep));
 
   // 你在的這段：先解那一批（現在做得到、不是長線那種；跟先解同一批，兩邊拿掉的段一樣）跟先解列出的線
-  const nowDoable = new Set(now.filter(quest => !longNow.has(quest.id)).map(quest => quest.id));
+  const nowLines = questLines(stageJob(job, level), quests, common, maps, effective);
+  const nowDoable = new Set(doableNow(nowLines, level, effective, island, onlyIsland).filter(quest => !nowLines.long.has(quest.id)).map(quest => quest.id));
   const listed = new Map(nowQuests({ level, job, quests, monsters, common, maps, effective }).map(item => [item.key, item.lastPart]));
   const runOf = (key: string, line: Quest[]): Quest[] => {
     const run = lineRun(line, inRun);
