@@ -72,6 +72,8 @@ export type NowQuest = {
   totalParts: number;
   firstPart: number;
   lastPart: number;
+  /** 這次列出的是第幾段（1 起算、由小到大）；中間有段放在長線或過期時不連續 */
+  positions: number[];
   exp: number;
   /** 用現在等級換算的「約幾級」 */
   fraction: number;
@@ -145,6 +147,19 @@ function npcOnIsland(quest: Quest): boolean {
   return quest.sNpc?.map !== undefined && isIslandMap(quest.sNpc.map);
 }
 
+/** 起始 NPC 站在楓之島以外（維多利亞島那邊） */
+function npcOffIsland(quest: Quest): boolean {
+  return quest.sNpc?.map !== undefined && !isIslandMap(quest.sNpc.map);
+}
+
+/**
+ * 還在楓之島、還不能轉職的初心者（法師 8 等就能離島轉職，所以是 8 等前）：維多利亞島的任務先不列
+ * （離島前去不了，P3「離島後不列島上的任務」的反面）
+ */
+export function islandOnly(job: number, level: number): boolean {
+  return onIsland(job, level) && level < advancementLevel(200);
+}
+
 type QuestLines = {
   stage: number;
   lineage: Set<number>;
@@ -191,12 +206,16 @@ function longRunIds(candidates: Quest[], monsters: Monster[]): Set<string> {
   return new Set(candidates.filter(quest => !kept.has(quest.id)).map(quest => quest.id));
 }
 
-/** 現在接得到、做得動的任務（先解的候選）：職業、等級上下限、實際等級 ≤ 現在等級；離開楓之島後不算島上的 */
-function doableNow(shared: QuestLines, level: number, effective: Map<string, number>, island: boolean): Quest[] {
+/**
+ * 現在接得到、做得動的任務（先解的候選）：職業、等級上下限、實際等級 ≤ 現在等級；
+ * 離開楓之島後不算島上的，還在島上、8 等前不算維多利亞島的（islandOnly）
+ */
+function doableNow(shared: QuestLines, level: number, effective: Map<string, number>, island: boolean, onlyIsland: boolean): Quest[] {
   return shared.forJob.filter(quest =>
     questEligible(quest, { level, job: shared.stage }, shared.lineage)
     && (effective.get(quest.id) ?? quest.minLv ?? 0) <= level
-    && (island || !npcOnIsland(quest)));
+    && (island || !npcOnIsland(quest))
+    && (!onlyIsland || !npcOffIsland(quest)));
 }
 
 /** 拿掉長線那種（long）；沒有經驗又沒有攻略推薦的也不算 */
@@ -242,6 +261,7 @@ function lineItems(
         totalParts: line.length,
         firstPart: Math.min(...positions),
         lastPart: Math.max(...positions),
+        positions: [...positions].sort((a, b) => a - b),
         exp,
         fraction,
         reward: rec?.reward?.label,
@@ -269,17 +289,30 @@ export function nowQuests(args: {
   // 不設上限：關鍵獎勵任務可能超過 5 個，一個都不能藏；畫面先顯示 5 條、其餘展開（TodoList）
   const { level, job, quests, monsters, common, maps, effective, limit } = args;
   const shared = questLines(stageJob(job, level), quests, common, maps, effective);
-  const candidates = doableNow(shared, level, effective, onIsland(job, level));
+  const candidates = doableNow(shared, level, effective, onIsland(job, level), islandOnly(job, level));
   const doable = withoutLongParts(candidates, longRunIds(candidates, monsters), shared.recs);
   const sorted = lineItems(doable, shared, () => level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
 
-/** 「第 a–b 段／共 N 段」：整條線只有一段時不寫（先解跟升級路線的必解同一個寫法） */
-export function partsText(item: Pick<NowQuest, "firstPart" | "lastPart" | "totalParts">): string | null {
-  if (item.totalParts <= 1) return null;
-  const range = item.firstPart === item.lastPart ? String(item.firstPart) : `${item.firstPart}–${item.lastPart}`;
-  return `第 ${range} 段／共 ${item.totalParts} 段`;
+/** 中間有段沒列時，幾段以內一段一段列出來 */
+const LISTED_PARTS = 4;
+
+/**
+ * 「第幾段／共 N 段」（先解跟升級路線的必解同一個寫法），照實寫列出來的是哪幾段：
+ * 連在一起寫「第 a–b 段」（一段寫「第 a 段」）；中間有段沒列（放在長線、過期）而且 4 段以內寫「第 a、c 段」；
+ * 再多寫「第 a–b 段中的 k 段」。整條線只有一段時不寫。
+ */
+export function partsText(item: Pick<NowQuest, "positions" | "totalParts">): string | null {
+  if (item.totalParts <= 1 || !item.positions.length) return null;
+  const parts = [...item.positions].sort((a, b) => a - b);
+  const first = parts[0];
+  const last = parts[parts.length - 1];
+  const range = first === last ? String(first) : `${first}–${last}`;
+  const text = last - first + 1 === parts.length
+    ? `第 ${range} 段`
+    : parts.length <= LISTED_PARTS ? `第 ${parts.join("、")} 段` : `第 ${range} 段中的 ${parts.length} 段`;
+  return `${text}／共 ${item.totalParts} 段`;
 }
 
 /** 升級路線的必解一行：先解的一行，加上這條線在這段最早幾等能接 */
@@ -298,7 +331,7 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
  * 冒險家的戒指不會一邊 +630,000、一邊 +660,000）；還做不動的，在這段裡自己判斷（詛咒娃娃 2,300 個）。
  * 約幾級用接得到那條線的等級算（這段列出的第一段的實際等級）：你在的這段跟之前的段取它跟你現在的等級較高的
  * （現在就做得到的就是現在等級，跟先解同一個數字），之後的段取它跟那段起點較高的——法師 8 看 20 等的任務不會寫約 4.1 級。
- * 離開楓之島之後，NPC 站在島上的任務不列。
+ * 離開楓之島之後，NPC 站在島上的任務不列；還在島上、8 等前，NPC 站在維多利亞島那邊的不列（islandOnly）。
  */
 export function bandQuests(args: {
   band: Band;
@@ -314,14 +347,16 @@ export function bandQuests(args: {
   const { band, level, job, quests, monsters, common, maps, effective, limit = 4 } = args;
   const shared = questLines(isIslandBand(band) ? 0 : stageJob(job, band.from), quests, common, maps, effective);
   const island = onIsland(job, level);
+  const onlyIsland = islandOnly(job, level);
   const unlockOf = (quest: Quest) => quest.minLv ?? recommendedLevel(shared.recs.get(quest.id));
   const inBand = shared.forJob.filter(quest => {
     const unlock = unlockOf(quest);
     return unlock !== undefined && unlock >= band.from && unlock < band.to
       && (!quest.island || isIslandBand(band))
-      && (island || !npcOnIsland(quest));
+      && (island || !npcOnIsland(quest))
+      && (!onlyIsland || !npcOffIsland(quest));
   });
-  const now = doableNow(questLines(stageJob(job, level), quests, common, maps, effective), level, effective, island);
+  const now = doableNow(questLines(stageJob(job, level), quests, common, maps, effective), level, effective, island, onlyIsland);
   const nowIds = new Set(now.map(quest => quest.id));
   const longNow = longRunIds(now, monsters);
   const longLater = longRunIds(inBand.filter(quest => !nowIds.has(quest.id)), monsters);

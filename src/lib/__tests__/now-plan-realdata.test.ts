@@ -216,6 +216,16 @@ describe("真資料：首頁每個組合", () => {
     expectNone("看打法連不到該組隊任務的段落", bad);
   });
 
+  it("還在楓之島、8 等前的初心者，先解沒有維多利亞島的任務（離島前去不了）", () => {
+    const bad = combos.flatMap(combo => {
+      if (combo.job !== 0 || combo.level >= 8) return [];
+      return combo.todo
+        .filter(item => item.npc?.map !== undefined && !isIslandMap(item.npc.map))
+        .map(item => `${combo.tag}：${item.title}（${item.npc?.mapName ?? item.npc?.map}）`);
+    });
+    expectNone("島上的初心者看到維多利亞島的任務", bad);
+  });
+
   it("先解沒有兩行同名", () => {
     const bad = combos.flatMap(combo => {
       const titles = combo.todo.map(item => item.title);

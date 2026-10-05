@@ -191,11 +191,61 @@ describe("離開楓之島之後", () => {
   });
 });
 
+describe("還在楓之島、還不能轉職的初心者（8 等前）", () => {
+  const island = { id: 1, n: "白瑞德", map: 40000 };
+  const victoria = { id: 2, n: "魔法森林的居民", map: 101000000 };
+  const maps = { 40000: { zh: "嫩寶狩獵場Ⅰ" }, 101000000: { zh: "魔法森林" } };
+  const quests = [
+    quest("test", { n: "白瑞德的測試", minLv: 2, exp: 60000, jobs: [0], sNpc: island }),
+    quest("forest", { n: "魔法森林的請託", minLv: 3, exp: 60000, sNpc: victoria }),
+  ];
+  const common = commonWith([]);
+  const args = (level: number, job: number) => ({ level, job, quests, monsters: [], common, maps, effective: effectiveLevels(quests, [], common) });
+  const band = { from: 1, to: 10 };
+
+  it("先解不列維多利亞島的任務（離島前去不了）；8 等起法師可以離島轉職，就照列", () => {
+    expect(nowQuests(args(5, 0)).map(item => item.title)).toEqual(["白瑞德的測試"]);
+    expect(nowQuests(args(8, 0)).map(item => item.title)).toEqual(expect.arrayContaining(["白瑞德的測試", "魔法森林的請託"]));
+  });
+
+  it("必解也一樣", () => {
+    expect(bandQuests({ ...args(5, 0), band }).map(item => item.title)).toEqual(["白瑞德的測試"]);
+    expect(bandQuests({ ...args(8, 0), band }).map(item => item.title)).toEqual(expect.arrayContaining(["白瑞德的測試", "魔法森林的請託"]));
+  });
+});
+
 describe("第幾段／共幾段的寫法（先解跟必解同一個）", () => {
-  it("整條線只有一段不寫；一段寫第 N 段；好幾段寫第 a–b 段", () => {
-    expect(partsText({ firstPart: 1, lastPart: 52, totalParts: 52 })).toBe("第 1–52 段／共 52 段");
-    expect(partsText({ firstPart: 3, lastPart: 3, totalParts: 5 })).toBe("第 3 段／共 5 段");
-    expect(partsText({ firstPart: 1, lastPart: 1, totalParts: 1 })).toBeNull();
+  const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, index) => from + index);
+
+  it("整條線只有一段不寫；一段寫第 N 段；連在一起的好幾段寫第 a–b 段", () => {
+    expect(partsText({ positions: range(1, 52), totalParts: 52 })).toBe("第 1–52 段／共 52 段");
+    expect(partsText({ positions: [3], totalParts: 5 })).toBe("第 3 段／共 5 段");
+    expect(partsText({ positions: [1], totalParts: 1 })).toBeNull();
+  });
+
+  it("中間有段沒列、4 段以內：一段一段列出來（湯寶寶第 3 段放在長線，寫第 1、2、4、5 段）", () => {
+    expect(partsText({ positions: [1, 2, 4, 5], totalParts: 5 })).toBe("第 1、2、4、5 段／共 5 段");
+    expect(partsText({ positions: [1, 3], totalParts: 3 })).toBe("第 1、3 段／共 3 段");
+  });
+
+  it("中間有段沒列、超過 4 段：寫第 a–b 段中的 k 段", () => {
+    expect(partsText({ positions: range(1, 52).filter(part => part !== 30), totalParts: 52 })).toBe("第 1–52 段中的 51 段／共 52 段");
+    expect(partsText({ positions: [1, 2, 3, 5, 6], totalParts: 6 })).toBe("第 1–6 段中的 5 段／共 6 段");
+  });
+
+  it("先解跟必解都照實寫：中間那段要打 999 隻（放在長線）時寫第 1、3 段", () => {
+    const monsters = [monster(1, 20)];
+    const quests = [
+      quest("p1", { minLv: 20, exp: 30000 }),
+      quest("p2", { minLv: 20, exp: 30000, pre: ["p1"], needMobs: [{ id: 1, n: "刺菇菇", c: 999 }] }),
+      quest("p3", { minLv: 20, exp: 30000, pre: ["p2"] }),
+    ];
+    const common = commonWith([]);
+    const effective = effectiveLevels(quests, monsters, common);
+    const [todo] = nowQuests({ level: 25, job: 110, quests, monsters, common, maps: {}, effective });
+    const [band] = bandQuests({ band: { from: 10, to: 21 }, level: 25, job: 110, quests, monsters, common, maps: {}, effective });
+    expect(partsText(todo)).toBe("第 1、3 段／共 3 段");
+    expect(partsText(band)).toBe("第 1、3 段／共 3 段");
   });
 });
 
