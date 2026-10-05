@@ -287,6 +287,21 @@ describe("真資料：首頁每個組合", () => {
     expectNone("先解沒從第一段開始", bad);
   });
 
+  it("寫了關鍵獎勵的列，列出的段裡有給那個獎勵的那一段（研究檔沒寫道具的看推薦的任務）", () => {
+    const check = (tag: string, where: string, item: NowQuest): string[] => {
+      if (!item.reward || !item.rec?.reward) return [];
+      const wanted = item.rec.reward.items ?? [];
+      const gives = item.quests.some(entry => (entry.rewardItems ?? []).some(reward => wanted.includes(reward.id)));
+      const fallback = !wanted.length && item.quests.some(entry => entry.id === item.rec?.q);
+      return gives || fallback ? [] : [`${tag} ${where}「${item.title}」寫「${item.reward}」，列的是第 ${item.firstPart}–${item.lastPart} 段`];
+    };
+    const bad = combos.flatMap(combo => [
+      ...combo.todo.flatMap(item => check(combo.tag, "先解", item)),
+      ...combo.mustDo.flatMap((rows, index) => rows.flatMap(item => check(combo.tag, `必解第 ${index + 1} 段`, item))),
+    ]);
+    expectNone("獎勵標籤沒列到給獎勵的那一段", bad);
+  });
+
   it("冒險家的戒指在先解是整條線（別條線也要交樹枝不會把它切斷）", () => {
     const rings = combos.flatMap(combo => combo.todo.filter(item => item.key === "rec:69039").map(item => ({ combo, item })));
     expect(rings.length).toBeGreaterThan(0);

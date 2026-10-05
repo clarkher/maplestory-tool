@@ -342,6 +342,69 @@ describe("任務線不跳段（先解跟必解同一套，round 4）", () => {
   });
 });
 
+describe("關鍵獎勵要列到給它的那一段（round 4 後續 C）", () => {
+  const monsters = [monster(1, 20)];
+  const ids = (item: { quests: Quest[] }) => item.quests.map(entry => entry.id);
+  const args = (quests: Quest[], mustDo: GuideMustDo[], level = 25) => {
+    const common = commonWith(mustDo);
+    return { level, job: 110, quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) };
+  };
+
+  it("列出的段裡沒有給獎勵的那一段：不寫獎勵、不排到有獎勵的前面，只看經驗（夠多照列）", () => {
+    const quests = [
+      quest("g1", { minLv: 20, exp: 30000 }),
+      quest("g2", { minLv: 20, exp: 30000, pre: ["g1"], needMobs: [{ id: 1, n: "鱷魚", c: 250 }] }),
+      quest("g3", { minLv: 20, exp: 25000, pre: ["g2"], rewardItems: [{ id: 2044002, n: "10% 武器攻擊卷軸" }] }),
+      quest("small", { minLv: 20, exp: 100, rewardItems: [{ id: 1002026, n: "褐色斗笠" }] }),
+    ];
+    const mustDo = [
+      rec("g3", "20+", { chain: ["g1", "g2", "g3"], name: "布魯斯與義安", reward: { label: "10% 武器攻擊卷軸", items: [2044002] } }),
+      rec("small", "20+", { name: "瑪亞", reward: { label: "褐色斗笠", items: [1002026] } }),
+    ];
+    const result = nowQuests(args(quests, mustDo));
+    expect(result.map(item => [item.title, item.reward, ids(item)])).toEqual([
+      ["瑪亞", "褐色斗笠", ["small"]],
+      ["布魯斯與義安", undefined, ["g1"]],
+    ]);
+    expect(result[1].rewardItem).toBeUndefined();
+  });
+
+  it("沒有經驗、也沒列到給獎勵的那一段：不列（阿勒斯第 1 段不再掛隨機耳環）", () => {
+    const quests = [
+      quest("a1", { minLv: 20 }),
+      quest("a2", { minLv: 20, exp: 1600, pre: ["a1"], needMobs: [{ id: 1, n: "火獨眼獸", c: 200 }] }),
+      quest("a3", { minLv: 20, exp: 5000, pre: ["a2"], rewardItems: [{ id: 1032004, n: "耳環" }] }),
+    ];
+    const mustDo = [rec("a3", "20–25", { chain: ["a1", "a2", "a3"], name: "離家少年阿勒斯", reward: { label: "隨機耳環", items: [1032004] } })];
+    expect(nowQuests(args(quests, mustDo))).toEqual([]);
+  });
+
+  it("研究檔寫了獎勵道具、這個職業的線卻沒有給它的那一段：不算有獎勵（麥吉的舊戰劍，給劍的那段不收初心者）", () => {
+    const quests = [
+      quest("2047", { minLv: 20, exp: 7500, jobs: [100], rewardItems: [{ id: 1302015, n: "英雄戰劍" }] }),
+      quest("2048", { minLv: 20, exp: 8000, pre: ["2047"] }),
+    ];
+    const mustDo = [rec("2048", "20+", { chain: ["2048", "2047"], name: "麥吉的舊戰劍", reward: { label: "英雄戰劍", items: [1302015] } })];
+    const common = commonWith(mustDo);
+    const effective = effectiveLevels(quests, monsters, common);
+    const novice = nowQuests({ level: 25, job: 0, quests, monsters, common, maps: {}, effective });
+    expect(novice.map(item => [ids(item), item.reward])).toEqual([[["2048"], undefined]]);
+    const warrior = nowQuests({ level: 25, job: 100, quests, monsters, common, maps: {}, effective });
+    expect(warrior.map(item => [ids(item), item.reward])).toEqual([[["2047", "2048"], "英雄戰劍"]]);
+  });
+
+  it("研究檔沒寫獎勵道具：看推薦的那個任務有沒有列到（伊卡路斯任務鏈的披風在最後一段）", () => {
+    const quests = [
+      quest("i1", { minLv: 20, exp: 30000 }),
+      quest("i2", { minLv: 20, exp: 30000, pre: ["i1"] }),
+      quest("i3", { minLv: 40, exp: 30000, pre: ["i2"] }),
+    ];
+    const mustDo = [rec("i3", "20 起", { chain: ["i1", "i2", "i3"], name: "伊卡路斯任務鏈", reward: { label: "隨機能力披風", items: [] } })];
+    expect(nowQuests(args(quests, mustDo, 25)).map(item => [ids(item), item.reward])).toEqual([[["i1", "i2"], undefined]]);
+    expect(nowQuests(args(quests, mustDo, 40)).map(item => [ids(item), item.reward])).toEqual([[["i1", "i2", "i3"], "隨機能力披風"]]);
+  });
+});
+
 describe("升級路線的必解：職業與楓之島", () => {
   const common = commonWith([]);
   const maps = { 101000003: { zh: "魔法森林圖書館" }, 40000: { zh: "嫩寶狩獵場Ⅰ" } };

@@ -77,9 +77,9 @@ export type NowQuest = {
   exp: number;
   /** 「約幾級」：先解用現在等級換算；升級路線的必解用接得到那條線的等級（見 bandQuests） */
   fraction: number;
-  /** 關鍵獎勵標籤（研究檔 reward.label） */
+  /** 關鍵獎勵標籤（研究檔 reward.label）；列出的段裡有給那個獎勵的那一段才有（rewardInParts） */
   reward?: string;
-  /** 放圖用的獎勵道具 id；對不到這個職業拿得到的就不放 */
+  /** 放圖用的獎勵道具 id；沒有 reward、或對不到這個職業拿得到的就不放 */
   rewardItem?: number;
   rec?: GuideMustDo;
   npc?: QuestNpc;
@@ -132,10 +132,24 @@ const WORTH_LEVELS_RECOMMENDED = 0.08;
 /**
  * 值不值得列（先解與長線同一條規則）：有關鍵獎勵；經驗 ≥ 0.25 級；玩家推薦且經驗 ≥ 0.08 級。
  * recs 是這一列涵蓋的任務各自的攻略推薦（沒有推薦就是 undefined）。
+ * reward：這一列算不算有關鍵獎勵——先解、必解的列要列到給獎勵的那一段才算（rewardInParts）；長線照舊看推薦有沒有獎勵。
  */
-function worthListing(fraction: number, recs: Array<GuideMustDo | undefined>): boolean {
-  const found = recs.filter((rec): rec is GuideMustDo => Boolean(rec));
-  return found.some(rec => Boolean(rec.reward?.label)) || fraction >= WORTH_LEVELS || (found.length > 0 && fraction >= WORTH_LEVELS_RECOMMENDED);
+function worthListing(fraction: number, recs: Array<GuideMustDo | undefined>, reward = recs.some(rec => Boolean(rec?.reward?.label))): boolean {
+  const recommended = recs.some(rec => Boolean(rec));
+  return reward || fraction >= WORTH_LEVELS || (recommended && fraction >= WORTH_LEVELS_RECOMMENDED);
+}
+
+/**
+ * 這一列列出的段有沒有給關鍵獎勵的那一段（round 4 後續 C）：獎勵道具（研究檔 reward.items）對得到那一段的獎勵；
+ * 研究檔沒寫道具（例：伊卡路斯的披風）才看推薦的那個任務（rec.q）。寫了道具、這個職業的線卻沒有給它的那一段
+ * （麥吉的舊戰劍：給劍的那段不收初心者）就不算。沒列到就不寫獎勵、不排到有獎勵的前面、不靠獎勵留下（阿勒斯第 1 段不會掛隨機耳環）。
+ * parts 是這一列列出的段（只會是這個職業的線上的任務）。
+ */
+function rewardInParts(rec: GuideMustDo | undefined, parts: Quest[]): boolean {
+  if (!rec?.reward?.label) return false;
+  const wanted = rec.reward.items ?? [];
+  const gives = (quest: Quest) => (wanted.length ? (quest.rewardItems ?? []).some(item => wanted.includes(item.id)) : quest.id === rec.q);
+  return parts.some(gives);
 }
 
 function isLongKill(quest: Quest, min = LONG_RUN_MIN): boolean {
@@ -264,7 +278,8 @@ export function lineRun(line: Quest[], doable: (quest: Quest) => boolean): Quest
 /**
  * 把做得到的任務照任務線收成一行一行：每條線列 lineRun 那幾段（不跳段；runOf 可以另外定，見先解的從第一段開始、bandQuests 你在的這段），
  * 標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、約幾級（用 levelFor 回傳的等級換算；拿到的是列出的那幾段）。
- * 值不值得（worthListing）用列出的那幾段算、過期由呼叫端決定要不要套；這一行的 NPC 跟帶我去用列出的第一段。
+ * 值不值得（worthListing）用列出的那幾段算、過期由呼叫端決定要不要套；關鍵獎勵要列到給它的那一段才算（rewardInParts，
+ * 沒列到就不寫獎勵、不放獎勵圖、不排到前面）；這一行的 NPC 跟帶我去用列出的第一段。
  */
 function lineItems(
   shared: QuestLines,
@@ -272,7 +287,7 @@ function lineItems(
   levelFor: (parts: Quest[]) => number,
   toNext: number[],
   job: number,
-  keep: (rec: GuideMustDo | undefined, fraction: number) => boolean,
+  keep: (rec: GuideMustDo | undefined, fraction: number, reward: boolean) => boolean,
   runOf: (key: string, line: Quest[]) => Quest[] = (_key, line) => lineRun(line, doable),
 ): Array<{ item: NowQuest; score: number }> {
   const { forJob, lineOf, lines, recs } = shared;
@@ -287,7 +302,8 @@ function lineItems(
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
     const fraction = levelFraction(exp, levelFor(parts), toNext);
-    if (!keep(rec, fraction)) continue;
+    const reward = rewardInParts(rec, parts);
+    if (!keep(rec, fraction, reward)) continue;
     const first = line.indexOf(parts[0]) + 1;
     const positions = parts.map((_, index) => first + index);
     const title = rec
@@ -304,8 +320,8 @@ function lineItems(
         positions,
         exp,
         fraction,
-        reward: rec?.reward?.label,
-        rewardItem: rewardItemFor(rec, parts, job),
+        reward: reward ? rec?.reward?.label : undefined,
+        rewardItem: reward ? rewardItemFor(rec, parts, job) : undefined,
         rec,
         npc: parts[0].sNpc,
       },
@@ -336,7 +352,7 @@ export function nowQuests(args: {
   const inRun = (quest: Quest) => doable.has(quest.id);
   // 先解一定從第一段開始（round 4 後續）：第一段現在做不到（長線那種、過了等級上限、接不到）就不列，不會寫「第 3 段」
   const fromStart = (_key: string, line: Quest[]) => (inRun(line[0]) ? lineRun(line, inRun) : []);
-  const keep = (rec: GuideMustDo | undefined, fraction: number) => !recExpired(rec, level) && worthListing(fraction, [rec]);
+  const keep = (rec: GuideMustDo | undefined, fraction: number, reward: boolean) => !recExpired(rec, level) && worthListing(fraction, [rec], reward);
   const sorted = lineItems(shared, inRun, () => level, common.expTable.toNext, job, keep, fromStart);
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
@@ -367,6 +383,7 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
  * 碰到不在這段解鎖或長線那種的段就停）；第幾段／共幾段算整條線。
  * 長線那種跟先解同一個判斷，只看自己這條線（QuestLines.long，round 4 後續 B）：兩邊拿掉的段一樣、經驗是同一個數字，
  * 別條線也要交同一道具不會切斷這條線（冒險家的戒指整條）；詛咒娃娃那條累計到 200 個的那段起不列。
+ * 關鍵獎勵要列到給它的那一段才算（rewardInParts，round 4 後續 C）。
  * 約幾級用接得到那條線的等級算（這段列出的第一段的實際等級）：你在的這段跟之前的段取它跟你現在的等級較高的
  * （現在就做得到的就是現在等級，跟先解同一個數字），之後的段取它跟那段起點較高的——法師 8 看 20 等的任務不會寫約 4.1 級。
  * 離開楓之島之後，NPC 站在島上的任務不列；還在島上、8 等前，NPC 站在維多利亞島那邊的不列（islandOnly）。
@@ -417,7 +434,7 @@ export function bandQuests(args: {
   const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
   const doable = new Set(inBand.filter(quest => !shared.long.has(quest.id)).map(quest => quest.id));
   const inRun = (quest: Quest) => doable.has(quest.id);
-  const keep = (rec: GuideMustDo | undefined, fraction: number) => worthListing(fraction, [rec]);
+  const keep = (rec: GuideMustDo | undefined, fraction: number, reward: boolean) => worthListing(fraction, [rec], reward);
   // 每一列加上這條線在這段最早幾等能接
   const withLevel = (rows: Array<{ item: NowQuest; score: number }>): BandQuest[] =>
     rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
