@@ -5,14 +5,31 @@ import { lintResearch, lintText, normalizeReward, pqKeyOf, pqWindows } from "./g
 test("攻略文字檢查：地圖編號、站內用語、屬性代碼、玩家 ID 都擋", () => {
   assert.deepEqual(lintText("人多可退到迷宮入口（106000300，黑斧木妖）").map(issue => issue.label), ["地圖／道具編號"]);
   assert.deepEqual(lintText("月妙組隊任務（站內無對應地圖名）").map(issue => issue.label), ["站內資料的內部用語"]);
+  assert.deepEqual(lintText("近戰常搶不到（見 notWorth）").map(issue => issue.label), ["站內資料的內部用語"]);
+  assert.deepEqual(lintText("危險的洞穴（未開放地區，見 notOpenYet）").map(issue => issue.label), ["站內資料的內部用語"]);
   assert.deepEqual(lintText("殭屍菇菇是不死系（el h:w）").map(issue => issue.label), ["屬性代碼"]);
-  assert.deepEqual(lintText("gappyhay493：40 等打冰獨眼獸").map(issue => issue.label), ["玩家 ID"]);
+  assert.deepEqual(lintText("gappyhay493：40 等打冰獨眼獸").map(issue => issue.label), ["玩家 ID", "玩家署名"]);
 });
 
 test("攻略文字檢查：等級、數值、版本號不擋", () => {
-  for (const text of ["Lv100 以上", "MP100 以上的怪", "經典版 V001", "AP295 實測", "清一輪 23,000 經驗", "弩約 170 萬楓幣"]) {
+  for (const text of ["Lv100 以上", "MP100 以上的怪", "經典版 V001", "AP295 實測", "清一輪 23,000 經驗", "弩約 170 萬楓幣",
+    "舊版 PART1：瞬移→神聖之箭", "41~47 在猴子沼澤地Ⅲ；37 開始去猴沼 3 清底"]) {
     assert.deepEqual(lintText(text), [], text);
   }
+});
+
+test("玩家 ID 數字後面接字母、中間有大寫也擋", () => {
+  assert.deepEqual(lintText("槍手線（w851228w 1~50 攻略）").map(issue => issue.label), ["玩家 ID"]);
+  assert.deepEqual(lintText("團練必備；iAnChen520 說激勵先滿").map(issue => issue.label), ["玩家 ID"]);
+});
+
+test("英數暱稱當署名接冒號也擋（HSZERO：）", () => {
+  assert.deepEqual(lintText("HSZERO：迅雷點滿較好").map(issue => issue.label), ["玩家署名"]);
+  assert.deepEqual(lintText("近戰 42 等就能進。uranus7：蹭僧侶的天使猴").map(issue => issue.label), ["玩家署名"]);
+});
+
+test("網址不該寫在會上畫面的文字裡（放出處欄位）", () => {
+  assert.deepEqual(lintText("同值亦見 https://mapleclassictools.com/guides/exp-table/ 那張表").map(issue => issue.label), ["網址"]);
 });
 
 test("只檢查會上畫面的欄位，出處與研究備註不檢查", () => {
@@ -23,6 +40,25 @@ test("只檢查會上畫面的欄位，出處與研究備註不檢查", () => {
   assert.equal(issues.length, 1);
   assert.equal(issues[0].where, "jobs[0].training[0].why");
   assert.equal(issues[0].label, "玩家 ID");
+});
+
+test("技能點法每一步的 note 會畫在技能條上，要檢查；整條點法的 note 是研究備註，不檢查", () => {
+  const research = {
+    jobs: [{
+      skillBuilds: [{
+        label: "主流",
+        note: "原文技能名＝站內幻化術",
+        steps: [{ skillName: "激勵", to: 20, note: "團練必備；a7415820：激勵先滿" }],
+      }],
+    }],
+  };
+  const issues = lintResearch(research);
+  assert.deepEqual([...new Set(issues.map(issue => issue.where))], ["jobs[0].skillBuilds[0].steps[0].note"]);
+});
+
+test("出處欄位（source、url）的網址不檢查", () => {
+  const research = { expTable: { conflicts: [{ level: 73, values: [{ value: 1, source: "https://mapleclassictools.com/js/bundle.js" }] }] }, url: "https://x.y/z" };
+  assert.deepEqual(lintResearch(research), []);
 });
 
 const PQ_LIST = [

@@ -6,10 +6,16 @@
 /** 攻略文字裡不該上畫面的內部筆記。label 是 build 失敗時印給人看的原因。 */
 export const LINT_RULES = [
   { re: /\d{7,}/, label: "地圖／道具編號" },
-  { re: /mapId|monsters\.json|quests\.json|items\.json|站內/, label: "站內資料的內部用語" },
+  // 站內資料檔名、欄位名，以及研究檔自己的欄位名（「見 notWorth」是給整理的人看的指標）
+  { re: /mapId|monsters\.json|quests\.json|items\.json|站內|notOpenYet|notWorth|mustDo|unresolved/, label: "站內資料的內部用語" },
   { re: /\bel\s*[{=]?\s*[fiklph]\s*:/, label: "屬性代碼" },
-  // 小寫字母開頭、後面帶 3 位以上數字的英數串（gappyhay493、a20017428）；Lv100、MP100、V001 是大寫開頭不算
-  { re: /\b[a-z][a-z0-9_]*\d{3,}\b/, label: "玩家 ID" },
+  // 小寫字母開頭、帶 3 位以上數字的英數串，數字後面接字母、中間有大寫也算（gappyhay493、w851228w）；
+  // Lv100、MP100、V001、AP295 是大寫開頭不算
+  { re: /(?<![A-Za-z0-9_])[a-z][A-Za-z0-9_]*\d{3,}[A-Za-z0-9_]*/, label: "玩家 ID" },
+  // 英數暱稱當署名接冒號（HSZERO：、uranus7：）；網址開頭、全大寫加數字的段落／版本標記（PART1：、V001：）不算
+  { re: /(?<![A-Za-z0-9_.])(?!https?:|[A-Z]+\d+[：:])[A-Za-z][A-Za-z0-9_]{3,}[：:]/, label: "玩家署名" },
+  // 網址放出處欄位（sources），會上畫面的文字裡不留一串網址
+  { re: /https?:\/\//, label: "網址" },
 ];
 
 export function lintText(text) {
@@ -24,9 +30,20 @@ export function lintText(text) {
 
 /** 不會上畫面的欄位（出處、研究備註、id）不檢查 */
 const HIDDEN_KEYS = new Set([
-  "sources", "s", "sourcesRead", "unresolved", "note", "sourceExpNote", "needs", "mapId", "questId", "chain", "skillId", "id",
+  "sources", "s", "source", "url", "sourcesRead", "unresolved", "sourceExpNote", "needs", "mapId", "questId", "chain", "skillId", "id",
   "relatedQuestIds", "siteDataVersion", "game", "scope", "items", "entrance", "guide", "match", "key",
 ]);
+
+/**
+ * note 要看掛在哪：技能點法每一步的 note 會畫在技能條的完整順序裡，要檢查；
+ * 練功段落、整條點法、升級表衝突值上的 note 是研究備註，build 不輸出或輸出了也不畫，不檢查。
+ */
+const RENDERED_NOTE_AT = /(^|\.)steps\[\d+\]$/;
+
+function hiddenKey(key, where) {
+  if (HIDDEN_KEYS.has(key)) return true;
+  return key === "note" && !RENDERED_NOTE_AT.test(where);
+}
 
 export function lintResearch(value, where = "", issues = []) {
   if (typeof value === "string") {
@@ -35,7 +52,7 @@ export function lintResearch(value, where = "", issues = []) {
     value.forEach((item, index) => lintResearch(item, `${where}[${index}]`, issues));
   } else if (value && typeof value === "object") {
     for (const [key, item] of Object.entries(value)) {
-      if (!HIDDEN_KEYS.has(key)) lintResearch(item, where ? `${where}.${key}` : key, issues);
+      if (!hiddenKey(key, where)) lintResearch(item, where ? `${where}.${key}` : key, issues);
     }
   }
   return issues;
