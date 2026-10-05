@@ -119,6 +119,16 @@ describe("先解", () => {
     expect(nowQuests(args(22, 200, quests, mustDo))[0].rewardItem).toBe(1082020);
     expect(nowQuests(args(22, 100, quests, mustDo))[0].rewardItem).toBeUndefined();
   });
+
+  it("關鍵獎勵任務超過 5 個也全部列出，而且都排在沒有獎勵的前面", () => {
+    const rewardQuests = Array.from({ length: 6 }, (_, index) => quest(`r${index}`, { minLv: 30, exp: 100 }));
+    const big = quest("big", { minLv: 30, exp: 150000 });
+    const mustDo = rewardQuests.map(entry => rec(entry.id, "30–40", { reward: { label: `獎勵${entry.id}`, items: [] } }));
+    const result = nowQuests(args(32, 110, [...rewardQuests, big], mustDo));
+    expect(result).toHaveLength(7);
+    expect(result.slice(0, 6).every(item => item.reward)).toBe(true);
+    expect(result[6].key).toBe("chain:big");
+  });
 });
 
 describe("長線", () => {

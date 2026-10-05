@@ -119,7 +119,8 @@ export function nowQuests(args: {
   effective: Map<string, number>;
   limit?: number;
 }): NowQuest[] {
-  const { level, job, quests, monsters, common, maps, effective, limit = 5 } = args;
+  // 不設上限：關鍵獎勵任務可能超過 5 個，一個都不能藏；畫面先顯示 5 條、其餘展開（TodoList）
+  const { level, job, quests, monsters, common, maps, effective, limit } = args;
   const stage = stageJob(job, level);
   const lineage = new Set(jobLineage(stage));
   const recs = mustDoIndex(common);
@@ -159,8 +160,6 @@ export function nowQuests(args: {
     if (upper !== undefined && level > upper + 5) continue;
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
     const fraction = levelFraction(exp, level, toNext);
-    const earliest = Math.min(...parts.map(levelOf));
-    if (!rec && level - earliest > 15 && fraction < 0.5) continue;
     const reward = rec?.reward?.label;
     if (!reward && fraction < 0.25 && !(rec && fraction >= 0.08)) continue;
     const positions = parts.map(quest => line.indexOf(quest) + 1);
@@ -182,10 +181,12 @@ export function nowQuests(args: {
         rec,
         npc: parts[0].sNpc,
       },
-      score: fraction + (reward ? 1 : 0) + (rec ? 0.2 : 0),
+      score: fraction + (rec ? 0.2 : 0),
     });
   }
-  return scored.sort((a, b) => b.score - a.score).slice(0, limit).map(entry => entry.item);
+  // 有關鍵獎勵的一律排在沒有的前面；同一組裡比約幾級（玩家推薦加 0.2）
+  const sorted = scored.sort((a, b) => Number(Boolean(b.item.reward)) - Number(Boolean(a.item.reward)) || b.score - a.score);
+  return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
 
 /* ------------------------------------------------------------------ 長線 */
