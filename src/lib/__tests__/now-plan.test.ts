@@ -264,7 +264,7 @@ describe("任務線不跳段（先解跟必解同一套，round 4）", () => {
     expect(ids(band)).toEqual(["s1", "s2"]);
   });
 
-  it("別條線也要交同一道具，不會把這條線切斷（冒險家的戒指第 17 段的樹枝）；長線區塊照舊把所有任務加總", () => {
+  it("別條線也要交同一道具，不會把這條線切斷（冒險家的戒指第 17 段的樹枝）；兩個要交樹枝的都列在先解，長線不再算它們", () => {
     const monsters = [monster(9, 22, [500])];
     const quests = [
       quest("s1", { minLv: 20, exp: 30000 }),
@@ -281,7 +281,25 @@ describe("任務線不跳段（先解跟必解同一套，round 4）", () => {
     expect(line?.exp).toBe(120000);
     const [band] = bandQuests({ ...shared, band: { from: 10, to: 21 }, level: 25, job: 110 }).filter(item => item.key === "chain:s1");
     expect(ids(band)).toEqual(["s1", "s2", "s3", "s4"]);
-    expect(longRunNow({ ...shared, level: 25, job: 110 }).map(entry => [entry.n, entry.c])).toEqual([["樹枝", 210]]);
+    expect(longRunNow({ ...shared, level: 25, job: 110 })).toEqual([]);
+  });
+
+  it("長線不算先解列過的任務：拿掉之後不到 200 個就不列；還有 200 個以上就重算數量跟經驗（round 4 後續 2）", () => {
+    const monsters = [monster(9, 22, [500])];
+    const line = [
+      quest("s1", { minLv: 20, exp: 30000 }),
+      quest("s2", { minLv: 20, exp: 30000, pre: ["s1"] }),
+      quest("s3", { minLv: 20, exp: 30000, pre: ["s2"], needItems: [{ id: 500, n: "樹枝", c: 50 }] }),
+    ];
+    const common = commonWith([]);
+    const args = (quests: Quest[]) => ({ level: 25, job: 110, quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) });
+    // 別的任務只要 160 個、經驗太少不列在先解：全部加總 210，拿掉先解列的 s3 剩 160，不到 200
+    const few = [...line, quest("other", { minLv: 20, exp: 100, needItems: [{ id: 500, n: "樹枝", c: 160 }] })];
+    expect(nowQuests(args(few)).map(item => item.key)).toEqual(["chain:s1"]);
+    expect(longRunNow(args(few))).toEqual([]);
+    // 別的任務自己就要 200 個（長線那種，不在先解）：加總 250 → 拿掉 s3 剩 200，經驗只算它的
+    const many = [...line, quest("other", { minLv: 20, exp: 30000, needItems: [{ id: 500, n: "樹枝", c: 200 }] })];
+    expect(longRunNow(args(many)).map(entry => [entry.n, entry.c, entry.exp, entry.quests])).toEqual([["樹枝", 200, 30000, ["other"]]]);
   });
 
   it("值不值得用列出的那幾段算：隔著長線那段的後段經驗再多也不算進來", () => {

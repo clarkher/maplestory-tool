@@ -176,6 +176,14 @@ describe("真資料：首頁每個組合", () => {
     expectNone("備案比玩家高超過 5 級", bad);
   });
 
+  it("同一個任務不會同時算在先解跟長線（長線拿掉先解列過的任務重算）", () => {
+    const bad = combos.flatMap(combo => {
+      const listed = new Set(combo.todo.flatMap(item => item.quests.map(entry => entry.id)));
+      return combo.longRun.flatMap(entry => entry.quests.filter(id => listed.has(id)).map(id => `${combo.tag}：長線「${entry.n}」算到先解的任務 ${id}`));
+    });
+    expectNone("先解跟長線算到同一個任務", bad);
+  });
+
   it("長線沒有實際等級比玩家高的任務", () => {
     const bad = combos.flatMap(combo => combo.longRun.flatMap(entry =>
       entry.quests

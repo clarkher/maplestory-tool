@@ -480,6 +480,7 @@ export type LongRunTask = { kind: "item" | "kill"; id: number; n: string; c: num
  * 職業、等級上下限、實際等級 ≤ 現在等級、起始 NPC 在開放地圖、不是組隊任務、攻略建議等級沒過期；
  * 也用同一條值不值得的門檻（有關鍵獎勵、經驗 ≥ 0.25 級、玩家推薦且 ≥ 0.08 級），Lv.82 不會再看到石面怪人 ×300。
  * 還在楓之島的不列（島上沒有長線任務，離島後回不去）。
+ * 先解已經列的任務不算（round 4 後續 2）：每一條長線的數量、經驗拿掉那些任務重算，剩下不到 200 的就不列——同一個任務不會同時在先解跟長線。
  */
 export function longRunNow(args: {
   level: number;
@@ -495,8 +496,10 @@ export function longRunNow(args: {
   const stage = stageJob(job, level);
   const lineage = new Set(jobLineage(stage));
   const recs = mustDoIndex(common);
+  const listed = new Set(nowQuests(args).flatMap(item => item.quests.map(quest => quest.id)));
   const candidates = quests.filter(quest =>
     quest.cat !== "組隊任務"
+    && !listed.has(quest.id)
     && questReachable(quest, maps)
     && questEligible(quest, { level, job: stage }, lineage)
     && (effective.get(quest.id) ?? quest.minLv ?? 0) <= level
