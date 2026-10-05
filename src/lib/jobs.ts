@@ -100,9 +100,13 @@ export function profileWithJob(
     return { next: { job, level: typed }, note: null };
   }
   const need = minLevelFor(job);
-  const name = job === 0 ? "初心者" : jobOption(job)?.name ?? "這個職業";
-  if (profile.level > 0 && profile.level < need) return { next: { job, level: need }, note: `${name} ${need} 等起，等級改成 ${need}` };
+  if (profile.level > 0 && profile.level < need) return { next: { job, level: need }, note: `${jobName(job)} ${need} 等起，等級改成 ${need}` };
   return { next: { ...profile, job }, note: null };
+}
+
+/** 提示裡的職業名 */
+function jobName(job: number): string {
+  return job === 0 ? "初心者" : jobOption(job)?.name ?? "這個職業";
 }
 
 /** 打的等級比職業最低等級還低時的提示；沒問題回 null */
@@ -144,7 +148,9 @@ export function commitLevelText(raw: string, profile: { level: number; job: numb
 
 /**
  * 換職業，並處理手滑：選的職業把等級拉高時（劍士 18 → 狂戰士 → 30），記住拉高前的等級（raisedFrom）；
- * 之後點的職業允許那個等級，就改回去、忘掉。輸入框裡另外打的等級（typed，見 profileWithJob）優先，打了就不再還原。
+ * 之後點的職業允許那個等級，就改回去、忘掉；還是不允許，等級就是那個職業的最低等級（不是上一次被拉高的等級）、
+ * 照樣說「〇〇 N 等起，等級改成 N」並繼續記著（打 5 → 狂戰士 30 → 法師：法師 8，不是 30；狂戰士 → 見習騎士提示不會消失）。
+ * 輸入框裡另外打的等級（typed，見 profileWithJob）優先，打了就不再還原。
  * 呼叫端把回傳的 raisedFrom 存起來，下次換職業時傳回來；玩家自己改等級（打字、加減）時要清掉。
  */
 export function pickJobKeepingLevel(
@@ -154,8 +160,10 @@ export function pickJobKeepingLevel(
   raisedFrom: number | null,
 ): { next: { level: number; job: number }; note: string | null; raisedFrom: number | null } {
   const typedApplies = typed !== undefined && typed > 0 && typed !== profile.level && levelHint(job, typed) === null;
-  if (!typedApplies && raisedFrom !== null && levelHint(job, raisedFrom) === null) {
-    return { next: { job, level: raisedFrom }, note: null, raisedFrom: null };
+  if (!typedApplies && raisedFrom !== null) {
+    if (levelHint(job, raisedFrom) === null) return { next: { job, level: raisedFrom }, note: null, raisedFrom: null };
+    const need = minLevelFor(job);
+    return { next: { job, level: need }, note: `${jobName(job)} ${need} 等起，等級改成 ${need}`, raisedFrom };
   }
   const { next, note } = profileWithJob(profile, job, typed);
   if (typedApplies) return { next, note, raisedFrom: null };

@@ -131,10 +131,27 @@ describe("手滑點到二轉", () => {
     expect(pickJobKeepingLevel(raised.next, 100, undefined, raised.raisedFrom)).toEqual({ next: { job: 100, level: 18 }, note: null, raisedFrom: null });
   });
 
-  it("下一個職業還是不允許那個等級時照舊、繼續記著（狂戰士 → 見習騎士 → 劍士）", () => {
+  it("下一個職業還是不允許那個等級：等級是它的最低等級、照樣說一聲，繼續記著（狂戰士 → 見習騎士 → 劍士）", () => {
     const knight = pickJobKeepingLevel({ level: 30, job: 110 }, 120, undefined, 18);
-    expect(knight).toEqual({ next: { job: 120, level: 30 }, note: null, raisedFrom: 18 });
-    expect(pickJobKeepingLevel(knight.next, 100, undefined, knight.raisedFrom).next).toEqual({ job: 100, level: 18 });
+    expect(knight).toEqual({ next: { job: 120, level: 30 }, note: "見習騎士 30 等起，等級改成 30", raisedFrom: 18 });
+    expect(pickJobKeepingLevel(knight.next, 100, undefined, knight.raisedFrom)).toEqual({ next: { job: 100, level: 18 }, note: null, raisedFrom: null });
+  });
+
+  it("連點：打 5 → 劍士 → 初心者 → 狂戰士 → 法師，停在法師 8 等並說一聲（不是被拉高的 30）；再點初心者回到 5", () => {
+    let profile = { level: 5, job: -1 };
+    let raisedFrom: number | null = null;
+    const pick = (job: number) => {
+      // 輸入框跟著顯示現在的等級，所以 typed 就是現在的等級
+      const result = pickJobKeepingLevel(profile, job, profile.level, raisedFrom);
+      profile = result.next;
+      raisedFrom = result.raisedFrom;
+      return result;
+    };
+    expect(pick(100)).toMatchObject({ next: { job: 100, level: 10 }, note: "劍士 10 等起，等級改成 10" });
+    expect(pick(0)).toMatchObject({ next: { job: 0, level: 5 }, note: null });
+    expect(pick(110)).toMatchObject({ next: { job: 110, level: 30 }, note: "狂戰士 30 等起，等級改成 30" });
+    expect(pick(200)).toEqual({ next: { job: 200, level: 8 }, note: "法師 8 等起，等級改成 8", raisedFrom: 5 });
+    expect(pick(0)).toEqual({ next: { job: 0, level: 5 }, note: null, raisedFrom: null });
   });
 
   it("沒有被拉高就不記；輸入框裡另外打的等級優先", () => {
