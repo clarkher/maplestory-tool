@@ -4,19 +4,21 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import {
-  itemImage, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadQuests, loadTraining, monsterImage,
+  itemImage, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining, monsterImage,
 } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { baseJob, isSecondJob, jobOption, normalizeJob, stageJob } from "@/lib/jobs";
+import { effectiveLevels, longRunTasks, mainPick, nowQuests } from "@/lib/now-plan";
 import { jobLineage, questEligible } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
-import { bandOf, bandsFor, isIslandMap, longRunQuests, onIsland, planTrips, questReachable } from "@/lib/route-planner";
-import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, Quest, TrainingRow } from "@/lib/types";
+import { bandOf, bandsFor, isIslandMap, onIsland, questReachable } from "@/lib/route-planner";
+import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
+import { NowCard } from "./NowCard";
 import { Panel, SourceTag, Sprite } from "./bits";
 import { RouteTimeline } from "./RouteTimeline";
 import { SkillStrip } from "./SkillStrip";
-import { TripCard } from "./TripCard";
+import { TodoList } from "./TodoList";
 
 type GameData = {
   maps: Record<string, MapRecord>;
@@ -27,6 +29,8 @@ type GameData = {
   meta: Meta;
   /** 傳送門資料走得到的地圖；組隊任務內部的圖不在裡面，不給「帶我去」 */
   routable: Set<number>;
+  graph: Record<string, PortalEdge[]>;
+  nearestTown: Record<string, [number, number]>;
 };
 
 export type GuideStatus = "loading" | "ready" | "failed";
@@ -40,11 +44,11 @@ export function RouteHome() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([loadMaps(), loadMonsters(), loadQuests(), loadTraining(), loadGuideCommon(), loadMeta(), loadGraph()])
-      .then(([maps, monsters, quests, training, common, meta, graph]) => {
+    Promise.all([loadMaps(), loadMonsters(), loadQuests(), loadTraining(), loadGuideCommon(), loadMeta(), loadGraph(), loadNearestTown()])
+      .then(([maps, monsters, quests, training, common, meta, graph, nearestTown]) => {
         const routable = new Set<number>(Object.keys(graph).map(Number));
         for (const edges of Object.values(graph)) for (const [target] of edges) routable.add(target);
-        setData({ maps, monsters, quests, training, common, meta, routable });
+        setData({ maps, monsters, quests, training, common, meta, routable, graph, nearestTown });
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
@@ -52,7 +56,7 @@ export function RouteHome() {
   // 二轉職業要同時載一轉的攻略：路線 10–30 那幾段用的是一轉內容。
   // 快速切換職業時，晚回來的舊請求不能蓋掉新的；攻略載不到也不擋遊戲資料那部分。
   useEffect(() => {
-    if (!profile.job) return;
+    if (profile.job <= 0) return;
     let cancelled = false;
     const wanted = [baseJob(profile.job), ...(isSecondJob(profile.job) ? [profile.job] : [])];
     setGuideStatus("loading");
@@ -70,32 +74,43 @@ export function RouteHome() {
     };
   }, [profile.job]);
 
-  const ready = loaded && profile.level > 0;
+  const ready = loaded && profile.level > 0 && profile.job >= 0;
   const stage = stageJob(profile.job, profile.level);
   const stageGuide = stage ? guides.get(stage) : undefined;
   // 一轉攻略常同時有好幾條主流（海盜分打手線、槍手線），選了二轉職業就挑那條
   const branchName = isSecondJob(profile.job) ? jobOption(profile.job)?.name : undefined;
 
+  const effective = useMemo(() => (data ? effectiveLevels(data.quests, data.monsters, data.common) : null), [data]);
+
   const plan = useMemo(() => {
-    if (!data || !ready) return null;
+    if (!data || !ready || !effective) return null;
     const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
-    const toNext = data.common.expTable.toNext;
-    const trips = planTrips({
+    const pick = mainPick({
       level: profile.level,
       job: profile.job,
-      maps: data.maps,
+      guide: stageGuide,
+      common: data.common,
       training: data.training,
       monsters: data.monsters,
+      maps: data.maps,
+      graph: data.graph,
+      nearestTown: data.nearestTown,
+    });
+    const todo = nowQuests({
+      level: profile.level,
+      job: profile.job,
       quests: data.quests,
-      guide: stageGuide,
-      toNext,
+      monsters: data.monsters,
+      common: data.common,
+      maps: data.maps,
+      effective,
     });
     const lineage = new Set(jobLineage(stage));
     const reachable = data.quests.filter(quest =>
       questEligible(quest, { level: profile.level, job: stage }, lineage) && questReachable(quest, data.maps));
-    const longRun = onIsland(profile.job, profile.level) ? [] : longRunQuests(reachable, data.monsters).slice(0, 2);
-    return { monsterIndex, toNext, trips, longRun };
-  }, [data, ready, profile, stage, stageGuide]);
+    const longRun = onIsland(profile.job, profile.level) ? [] : longRunTasks(reachable, data.monsters).slice(0, 3);
+    return { monsterIndex, pick, todo, longRun };
+  }, [data, ready, effective, profile, stage, stageGuide]);
 
   if (error) {
     return <p className="py-10 text-center text-sm ink-soft">資料讀取失敗：{error}。重新整理一次試試。</p>;
@@ -120,27 +135,26 @@ export function RouteHome() {
 
       {ready && data && plan ? (
         <>
-          {stageGuide ? <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} /> : null}
-          {stage && !stageGuide && guideStatus === "failed" ? (
-            <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">技能點法讀取失敗，重新整理一次試試。下面的練功圖跟任務不受影響。</p>
-          ) : null}
+          {plan.pick ? (
+            <NowCard
+              pick={plan.pick}
+              level={profile.level}
+              jobName={jobOption(profile.job)?.name ?? "初心者"}
+              maps={data.maps}
+              monsters={plan.monsterIndex}
+              routable={data.routable}
+            />
+          ) : (
+            <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
+          )}
 
-          {plan.trips.length ? (
-            <section aria-label="今天跑這幾趟" className="space-y-2.5">
-              <h2 className="px-1 pt-1 text-[16px] font-black">Lv.{profile.level} 今天跑這幾趟</h2>
-              {plan.trips.map((trip, index) => (
-                <TripCard
-                  key={trip.map}
-                  trip={trip}
-                  index={index}
-                  level={profile.level}
-                  maps={data.maps}
-                  monsters={plan.monsterIndex}
-                  toNext={plan.toNext}
-                  routable={data.routable}
-                />
-              ))}
-            </section>
+          <TodoList items={plan.todo} routable={data.routable} />
+
+          {stageGuide ? (
+            <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={data.common.spLeftover} />
+          ) : null}
+          {stage && !stageGuide && guideStatus === "failed" ? (
+            <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">技能點法讀取失敗，重新整理一次試試。上面的練功圖跟任務不受影響。</p>
           ) : null}
 
           {plan.longRun.length ? (
@@ -149,12 +163,13 @@ export function RouteHome() {
                 {plan.longRun.map(entry => {
                   const dropper = entry.droppers.map(id => plan.monsterIndex.get(id)).find(Boolean);
                   return (
-                    <li key={entry.id} className="flex items-center gap-2.5 text-[13px]">
+                    <li key={`${entry.kind}:${entry.id}`} className="flex items-center gap-2.5 text-[13px]">
                       {dropper ? <Sprite src={monsterImage(dropper.id)} size={34} /> : <Sprite src={itemImage(entry.id)} size={28} />}
                       <span className="min-w-0 flex-1 leading-snug">
-                        <b>{entry.n}</b> 累計 {formatNumber(entry.c)} 個
+                        <b>{entry.kind === "kill" ? `打${entry.n}` : entry.n}</b> 累計 {formatNumber(entry.c)} {entry.kind === "kill" ? "隻" : "個"}
                         <span className="block text-[12px] ink-soft">
-                          {entry.quests.length} 個任務共 {formatNumber(entry.exp)} 經驗{dropper ? ` · ${dropper.n} 會掉` : ""}
+                          {entry.quests.length} 個任務共 {formatNumber(entry.exp)} 經驗
+                          {entry.kind === "item" && dropper ? ` · ${dropper.n} 會掉` : ""}
                         </span>
                       </span>
                     </li>
@@ -188,7 +203,8 @@ export function RouteHome() {
           </section>
 
           <p className="px-1 pt-2 text-[12px] leading-relaxed ink-faint">
-            地圖、怪物、任務來自遊戲資料（版本 {data.meta.gameVersion ?? "—"}）；點法與練功點整理自巴哈姆特、波波攻略島、楓錄等玩家攻略（{data.common.researchedAt}），每一條都附出處。
+            遊戲資料：版本 {data.meta.gameVersion ?? "—"}（{data.meta.dataGeneratedAtText?.slice(0, 10) ?? "—"}）；
+            點法、練功點與必解任務整理自巴哈姆特、波波攻略島、楓錄等玩家攻略（{data.common.researchedAt}），每一條都附出處。
             想看全部地圖或任務，去
             <Link href="/db" className="mx-1 font-bold text-[color:var(--sky)]">查資料</Link>。
           </p>

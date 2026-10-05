@@ -16,7 +16,7 @@ import { mainBuild, spAtLevel, stepsBetween } from "@/lib/skill-plan";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
 import type { GuideStatus } from "./RouteHome";
 import { SourceLinks, SourceTag, Sprite, levelText } from "./bits";
-import { QuestLine } from "./TripCard";
+import { QuestLine } from "./QuestLine";
 
 type Context = {
   job: number;

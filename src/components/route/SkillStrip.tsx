@@ -11,7 +11,7 @@ import { SourceLinks, SourceTag, Sprite } from "./bits";
  * 技能條：依等級算出現在有幾點，對照主流點法，只講「現在點哪個」。
  * 點開才看完整順序、其他點法、素質配點、注意事項。
  */
-export function SkillStrip({ guide, job, level, prefer }: { guide: GuideJob; job: number; level: number; prefer?: string }) {
+export function SkillStrip({ guide, job, level, prefer }: { guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] } }) {
   const [open, setOpen] = useState(false);
   const build = mainBuild(guide.builds, prefer);
   if (!build) return null;
