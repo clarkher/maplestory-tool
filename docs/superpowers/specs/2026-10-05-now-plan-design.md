@@ -183,13 +183,15 @@ in／out／st 不是方向（森林迷宮、地鐵每一步都叫 in，會整條
 | `src/lib/job-rules.ts`（新） | 職業規則 |
 | `src/lib/route-planner.ts` | 保留等級段、任務線、材料；拿掉 `planTrips`／`mergeTrips`；必解改到 `now-plan.ts` 的 `bandQuests`（跟先解同一套） |
 | `src/lib/portal-text.ts`（新） | 傳送門方向文字 |
+| `src/lib/route.ts` | 帶我去的起點與提示（`defaultStart`、`goStart`）、跨區（`victoriaReach`、`boatNote`）、城鎮按鈕（`hubTowns`、`townChips`、`townsTitle`） |
+| `src/lib/nav.ts`（新） | 導覽列哪一顆亮（`/guide` 亮「我的路線」） |
 | `src/components/route/NowCard.tsx`（新） | 主推大卡 |
 | `src/components/route/TodoList.tsx`（新） | 先解清單 |
 | `src/components/route/QuestLine.tsx`（新） | 從 `TripCard.tsx` 搬出來的任務線一行 |
 | `src/components/route/TripCard.tsx` | 刪除 |
 | `src/components/route/RouteHome.tsx` | 組裝新順序 |
 | `src/components/route/SkillStrip.tsx`、`CharacterBar.tsx`、`RouteTimeline.tsx`、`bits.tsx` | 上面列的修正 |
-| `src/app/go/GoNavigator.tsx` | 用 `portal-text.ts` |
+| `src/app/go/GoNavigator.tsx` | 用 `portal-text.ts`、`route.ts goStart`；問起點與跨區的城鎮按鈕 |
 | `pipeline/build-guides.mjs` | `reward`、`pq`、`gaps`、文字檢查 |
 | `src/lib/types.ts` | 型別 |
 | `README.md` | 首頁說明、研究檔新欄位 |
