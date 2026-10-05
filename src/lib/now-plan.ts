@@ -326,7 +326,8 @@ export function nowQuests(args: {
   limit?: number;
 }): NowQuest[] {
   // 不設上限：關鍵獎勵任務可能超過 5 個，一個都不能藏；畫面先顯示 5 條、其餘展開（TodoList）
-  const { level, job, quests, monsters, common, maps, effective, limit } = args;
+  // monsters 留在參數裡（跟長線、必解同一包參數），長線那種只看數量、用不到掉落怪
+  const { level, job, quests, common, maps, effective, limit } = args;
   const shared = questLines(stageJob(job, level), quests, common, maps, effective);
   const candidates = doableNow(shared, level, effective, onIsland(job, level), islandOnly(job, level));
   const long = longRunIds(candidates);
