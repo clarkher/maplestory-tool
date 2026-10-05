@@ -44,7 +44,7 @@ export function QuestPlanner() {
       lead="照你的等級跟職業，把現在接得到的任務挑出來，附上去找誰、要交什麼、拿多少。"
       profile={profile}
       onProfileChange={setProfile}
-      needsProfile={loaded && profile.level <= 0}
+      needsProfile={loaded && (profile.level <= 0 || profile.job < 0)}
     >
       {error ? (
         <EmptyBlock title="資料載入失敗" hint={error} />

@@ -85,3 +85,18 @@ export function consistentJob(job: number, level: number): number {
   if (BY_ID.has(job) && !isSecondJob(job) && level < advancementLevel(job)) return 0;
   return job;
 }
+
+/** 選了某個職業後的角色資料：等級不夠就調到該職業最低等級，並回傳要給玩家看的提示（沒調就是 null） */
+export function profileWithJob(profile: { level: number; job: number }, job: number): { next: { level: number; job: number }; note: string | null } {
+  const need = minLevelFor(job);
+  const name = job === 0 ? "初心者" : jobOption(job)?.name ?? "這個職業";
+  if (profile.level > 0 && profile.level < need) return { next: { job, level: need }, note: `${name} ${need} 等起，等級改成 ${need}` };
+  return { next: { ...profile, job }, note: null };
+}
+
+/** 打的等級比職業最低等級還低時的提示；沒問題回 null */
+export function levelHint(job: number, level: number): string | null {
+  const need = minLevelFor(job);
+  if (level >= need) return null;
+  return `${jobOption(job)?.name ?? "這個職業"}至少 ${need} 等`;
+}

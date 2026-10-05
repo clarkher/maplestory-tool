@@ -52,7 +52,7 @@ export function BundlePlanner() {
       lead="把要跑同一張圖的任務併成一趟，先看哪一趟拿最多。出門前就知道要收滿多少個。"
       profile={profile}
       onProfileChange={setProfile}
-      needsProfile={loaded && profile.level <= 0}
+      needsProfile={loaded && (profile.level <= 0 || profile.job < 0)}
     >
       {error ? (
         <EmptyBlock title="資料載入失敗" hint={error} />

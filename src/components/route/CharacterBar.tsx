@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { npcImage } from "@/lib/data";
-import { JOB_LINES, SECOND_JOB_LEVEL, isSecondJob, jobOption, minLevelFor } from "@/lib/jobs";
+import { JOB_LINES, SECOND_JOB_LEVEL, isSecondJob, jobOption, levelHint, minLevelFor, profileWithJob } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
 import { Sprite } from "./bits";
@@ -41,9 +41,10 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
     setLevelText(raw);
     const value = Number(raw.replace(/[^0-9]/g, ""));
     if (!Number.isFinite(value) || value <= 0) return;
-    if (value < min) {
+    const tooLow = levelHint(profile.job, value);
+    if (tooLow) {
       // 打字打到一半（例如要打 35 先打了 3）也會進來；只提示、不套用，離開輸入框時還原
-      setHint(`${option?.name ?? "這個職業"}至少 ${min} 等`);
+      setHint(tooLow);
       return;
     }
     setHint(null);
@@ -57,15 +58,10 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   }
 
   /** 選的職業等級不夠時，直接把等級調到它的最低等級並說一聲 */
-  function pickJob(id: number, name: string) {
-    const need = minLevelFor(id);
-    if (profile.level > 0 && profile.level < need) {
-      setHint(`${name} ${need} 等起，等級改成 ${need}`);
-      onChange({ job: id, level: need });
-    } else {
-      setHint(null);
-      onChange({ ...profile, job: id });
-    }
+  function pickJob(id: number) {
+    const { next, note } = profileWithJob(profile, id);
+    setHint(note);
+    onChange(next);
   }
 
   return (
@@ -138,7 +134,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
                       <button
                         key={id}
                         type="button"
-                        onClick={() => pickJob(id, name)}
+                        onClick={() => pickJob(id)}
                         aria-pressed={active}
                         className={[
                           "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
@@ -157,7 +153,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
               ))}
               <button
                 type="button"
-                onClick={() => pickJob(0, "初心者")}
+                onClick={() => pickJob(0)}
                 aria-pressed={profile.job === 0}
                 className={[
                   "rounded-full px-3 py-1.5 text-[13px] font-bold",

@@ -48,7 +48,7 @@ export function TrainPlanner() {
       lead="照你的等級排出值得去的地圖。看得到刷怪點多不多、回生多快、你的命中夠不夠。"
       profile={profile}
       onProfileChange={setProfile}
-      needsProfile={loaded && profile.level <= 0}
+      needsProfile={loaded && (profile.level <= 0 || profile.job < 0)}
     >
       {error ? (
         <EmptyBlock title="資料載入失敗" hint={error} />

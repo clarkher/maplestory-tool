@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JOB_OPTIONS, advancementLevel, baseJob, consistentJob, isSecondJob, minLevelFor, normalizeJob, stageJob } from "@/lib/jobs";
+import { JOB_OPTIONS, advancementLevel, baseJob, consistentJob, isSecondJob, levelHint, minLevelFor, normalizeJob, profileWithJob, stageJob } from "@/lib/jobs";
 
 describe("職業清單", () => {
   it("一轉 5 職加二轉 12 職，共 17 個", () => {
@@ -66,5 +66,17 @@ describe("職業的最低等級", () => {
     expect(consistentJob(0, 50)).toBe(0);
     expect(consistentJob(-1, 20)).toBe(-1);
     expect(consistentJob(1110, 50)).toBe(1110);
+  });
+
+  it("選職業時等級不夠就調到最低等級並給提示", () => {
+    expect(profileWithJob({ level: 25, job: 100 }, 110)).toEqual({ next: { job: 110, level: 30 }, note: "狂戰士 30 等起，等級改成 30" });
+    expect(profileWithJob({ level: 35, job: 100 }, 110)).toEqual({ next: { job: 110, level: 35 }, note: null });
+    expect(profileWithJob({ level: 0, job: -1 }, 110)).toEqual({ next: { job: 110, level: 0 }, note: null });
+  });
+
+  it("打的等級太低時給提示", () => {
+    expect(levelHint(110, 25)).toBe("狂戰士至少 30 等");
+    expect(levelHint(110, 30)).toBeNull();
+    expect(levelHint(-1, 5)).toBeNull();
   });
 });

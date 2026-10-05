@@ -37,7 +37,7 @@ export function PlanShell({
 
       {needsProfile ? (
         <p className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-8 text-center text-[15px] ink-soft">
-          先填等級，下面就會跳出建議。
+          先選職業、填好等級，下面就會跳出建議。
         </p>
       ) : (
         children
