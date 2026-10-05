@@ -121,3 +121,20 @@ export function normalizeReward(raw, itemIds, questName = "") {
     dropped: all.filter(id => !itemIds.has(id)),
   };
 }
+
+/** 三轉的等級：先照舊版 70 等（跟 src/lib/jobs.ts THIRD_JOB_LEVEL 同一個數字） */
+export const THIRD_JOB_LEVEL = 70;
+
+/**
+ * 三轉（111、211…）的攻略檔補上二轉 70 等以上的練功段與無攻略段：
+ * 那些是台服玩家在 V001 用二轉打出來的經驗，V002 起那個等級的人都是三轉。
+ */
+export function inheritParentTrain(outputs) {
+  for (const output of outputs.values()) {
+    if (output.job % 10 === 0) continue;
+    const parent = outputs.get(`${output.job - (output.job % 10)}.json`);
+    if (!parent) continue;
+    output.train = [...output.train, ...parent.train.filter(segment => segment.to >= THIRD_JOB_LEVEL)];
+    output.gaps = [...output.gaps, ...parent.gaps.filter(gap => gap.to >= THIRD_JOB_LEVEL)];
+  }
+}

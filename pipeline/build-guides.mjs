@@ -30,7 +30,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { lintResearch, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
+import { inheritParentTrain, lintResearch, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SRC = path.join(ROOT, "data", "guides");
@@ -220,6 +220,7 @@ function main() {
     throw new Error(`研究檔有 ${lintIssues.length} 處內部筆記會上畫面，先改掉：\n${lines.join("\n")}`);
   }
 
+  inheritParentTrain(outputs);
   const missing = EXPECTED_JOBS.filter(id => !outputs.has(`${id}.json`));
   if (missing.length) throw new Error(`研究檔缺這些職業的攻略：${missing.join(", ")}`);
 
