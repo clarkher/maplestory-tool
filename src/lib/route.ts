@@ -232,6 +232,58 @@ export function goStart(args: {
   return { choice, notes: choice.kind === "start" ? region(choice.map) : [] };
 }
 
+const hubCache = new WeakMap<Record<string, MapRecord>, number[]>();
+
+/**
+ * 真的城鎮（拿來做「從 X 出發」按鈕）：有中文名、客戶端標成城鎮、回城點是自己、而且有別張圖回到這裡。
+ * 客戶端的城鎮旗標也標在民宅、城外的小山上，沒有名字的未開放地圖也有，所以要再看回城點（地圖 id 小的在前）。
+ */
+export function hubTowns(maps: Record<string, MapRecord>): number[] {
+  let towns = hubCache.get(maps);
+  if (!towns) {
+    const returnedTo = new Set<number>();
+    for (const [id, record] of Object.entries(maps)) if (record.ret !== undefined && record.ret !== Number(id)) returnedTo.add(record.ret);
+    towns = Object.entries(maps)
+      .filter(([id, record]) => record.zh && record.t && record.ret === Number(id) && returnedTo.has(Number(id)))
+      .map(([id]) => Number(id))
+      .sort((a, b) => a - b);
+    hubCache.set(maps, towns);
+  }
+  return towns;
+}
+
+/** 城鎮按鈕最多幾顆 */
+const TOWN_CHIPS = 8;
+
+/**
+ * 「從 X 出發」的城鎮按鈕：真的城鎮（hubTowns），走得到目的地才給；first 裡的照順序排前面（初心者的維多利亞港、
+ * 問起點時維多利亞島的五個主要城鎮），其他照地圖順序。exceptTarget：目的地本身不給（問起點時，選了只會「你已經在目的地了」）。
+ */
+export function townChips(
+  maps: Record<string, MapRecord>,
+  graph: Record<string, PortalEdge[]>,
+  target: number,
+  options: { first?: number[]; exceptTarget?: boolean } = {},
+): number[] {
+  const { first = [], exceptTarget = false } = options;
+  const named = (id: number) => Boolean(maps[String(id)]?.zh);
+  const candidates = [...new Set([...first.filter(named), ...hubTowns(maps)])];
+  return candidates
+    .filter(id => !(exceptTarget && id === target) && findRoute(graph, id, target).ok)
+    .slice(0, TOWN_CHIPS);
+}
+
+/** 城鎮按鈕的標題：城鎮所在區域的中文名（地圖資料的區域名，城鎮裡最多的那個）；沒有就寫「目的地附近的城鎮」 */
+export function townsTitle(maps: Record<string, MapRecord>, towns: number[]): string {
+  const counts = new Map<string, number>();
+  for (const id of towns) {
+    const street = maps[String(id)]?.st;
+    if (street) counts.set(street, (counts.get(street) ?? 0) + 1);
+  }
+  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  return top ? `${top}的城鎮` : "目的地附近的城鎮";
+}
+
 let reverseCache: { graph: Record<string, PortalEdge[]>; map: Map<number, number[]> } | null = null;
 
 function buildReverse(graph: Record<string, PortalEdge[]>): Map<number, number[]> {

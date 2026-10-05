@@ -7,12 +7,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } from "@/components/Icons";
 import { MapPicker } from "@/components/MapPicker";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
-import { loadGraph, loadMaps, loadNearestTown, loadRegions, mapName, minimapImage } from "@/lib/data";
+import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage } from "@/lib/data";
 import { normalizeJob } from "@/lib/jobs";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
-import { findRoute, goNoteText, goStart, suggestStart, victoriaReach, type GoNote, type RouteStep, type StartChoice } from "@/lib/route";
-import type { MapRecord, PortalEdge, Region } from "@/lib/types";
+import { VICTORIA_PORT, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep, type StartChoice } from "@/lib/route";
+import { isIslandMap } from "@/lib/route-planner";
+import type { MapRecord, PortalEdge } from "@/lib/types";
 
 /** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
 const START_KEY = "ms-go-start";
@@ -43,18 +44,16 @@ export function GoNavigator() {
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
   const [graph, setGraph] = useState<Record<string, PortalEdge[]> | null>(null);
   const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(null);
-  const [regions, setRegions] = useState<Region[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [remembered, setRemembered] = useState<number | null>(null);
 
   useEffect(() => {
     setRemembered(readRememberedStart());
-    Promise.all([loadMaps(), loadGraph(), loadNearestTown(), loadRegions()])
-      .then(([mapData, graphData, townData, regionData]) => {
+    Promise.all([loadMaps(), loadGraph(), loadNearestTown()])
+      .then(([mapData, graphData, townData]) => {
         setMaps(mapData);
         setGraph(graphData);
         setNearestTown(townData);
-        setRegions(regionData);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
@@ -69,7 +68,8 @@ export function GoNavigator() {
     if (!graph || !maps || !nearestTown) return null;
     return goStart({
       target,
-      picked: forcedStart,
+      // 沒有名字的圖（未開放）不能當起點，網址帶了也不算
+      picked: forcedStart && maps[String(forcedStart)]?.zh ? forcedStart : null,
       suggested: suggestStart(graph, maps, nearestTown, target),
       remembered,
       novice,
@@ -96,18 +96,19 @@ export function GoNavigator() {
     [params, router],
   );
 
-  /** 玩家自己選起點：記下來，下次目的地是城鎮時就從這裡出發 */
+  /** 玩家自己選起點：記下來，下次目的地是城鎮時就從這裡出發。沒有名字的圖（未開放）不能當起點 */
   const pickStart = useCallback(
     (mapId: number) => {
+      if (!maps?.[String(mapId)]?.zh) return;
       rememberStart(mapId);
       setRemembered(mapId);
       setParam("from", mapId);
     },
-    [setParam],
+    [maps, setParam],
   );
 
   // 角色也要讀到（初心者的起點不一樣），不然會先排一條路再換掉
-  const ready = Boolean(maps && graph && nearestTown && regions) && loaded;
+  const ready = Boolean(maps && graph && nearestTown) && loaded;
 
   return (
     <div className="space-y-5 py-3 sm:py-6">
@@ -164,9 +165,10 @@ export function GoNavigator() {
           ) : plan && plan.reason === "different-area" ? (
             <CrossAreaNotice
               maps={maps!}
-              regions={regions!}
+              graph={graph!}
               from={start}
               to={target}
+              novice={novice}
               onPickStart={pickStart}
             />
           ) : (
@@ -275,7 +277,7 @@ function RouteCard({
 
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2">
-            <span className="text-[17px] font-black leading-tight">{unnamed ? "一張沒有名字的通道" : name}</span>
+            <span className="text-[17px] font-black leading-tight">{unnamed ? "一條小通道（遊戲裡沒有名字）" : name}</span>
             {record?.st ? <span className="text-xs ink-faint">{record.st}</span> : null}
           </p>
 
@@ -303,7 +305,7 @@ function RouteCard({
                 <figure className="mt-2 overflow-hidden rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-2">
                   <Image
                     src={minimapImage(step.map)}
-                    alt={unnamed ? "沒有名字的通道 小地圖" : `${name} 小地圖`}
+                    alt={unnamed ? "小通道 小地圖" : `${name} 小地圖`}
                     width={640}
                     height={200}
                     className="mx-auto h-auto w-full object-contain"
@@ -319,27 +321,45 @@ function RouteCard({
   );
 }
 
+/** 「從 X 出發」的城鎮按鈕（跨區、問起點時共用）；按了就是玩家自己選的起點 */
+function TownChips({ towns, maps, onPick }: { towns: number[]; maps: Record<string, MapRecord>; onPick: (mapId: number) => void }) {
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {towns.map(mapId => (
+        <li key={mapId}>
+          <button
+            type="button"
+            onClick={() => onPick(mapId)}
+            className="tap-safe rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold transition-colors hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--maple)]"
+          >
+            從 {mapName(maps, mapId)} 出發
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
- * 走不到就照實說，並指出目標所在區域的城鎮。
- * 楓之谷跨大陸本來就要搭船或計程車，那一段不是傳送門，我們不假裝算得出來。
+ * 走不到就照實說，並列出走得到目的地的城鎮（真的城鎮才列：民宅、沒有名字的圖不算；初心者把維多利亞港排第一）。
+ * 楓之谷跨大陸本來就要搭船或計程車，那一段不是傳送門，我們不假裝算得出來；從楓之島出發的那段是搭船。
  */
 function CrossAreaNotice({
   maps,
-  regions,
+  graph,
   from,
   to,
+  novice,
   onPickStart,
 }: {
   maps: Record<string, MapRecord>;
-  regions: Region[];
+  graph: Record<string, PortalEdge[]>;
   from: number;
   to: number;
+  novice: boolean;
   onPickStart: (mapId: number) => void;
 }) {
-  const targetRegion = regions.find(region => region.maps.includes(to));
-  const townsInRegion = (targetRegion?.maps || [])
-    .filter(mapId => maps[String(mapId)]?.t)
-    .slice(0, 8);
+  const towns = townChips(maps, graph, to, { first: novice ? [VICTORIA_PORT] : [] });
 
   return (
     <section className="space-y-3">
@@ -351,29 +371,15 @@ function CrossAreaNotice({
           </p>
           <p className="mt-1 ink-soft">
             這兩張圖不在同一個可步行區域。楓之谷跨大陸要搭船或計程車，那一段沒有傳送門資料，
-            所以我們不會編一條路線給你。先在遊戲裡搭車過去，再從下面挑一個當地城鎮重算路線。
+            所以我們不會編一條路線給你。先在遊戲裡{isIslandMap(from) ? "搭船" : "搭車"}過去，再從下面挑一個當地城鎮重算路線。
           </p>
         </div>
       </div>
 
-      {townsInRegion.length ? (
+      {towns.length ? (
         <div className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
-          <p className="mb-2 text-sm font-bold">
-            {targetRegion?.title ? `${targetRegion.title} 的城鎮` : "目標所在區域的城鎮"}
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {townsInRegion.map(mapId => (
-              <li key={mapId}>
-                <button
-                  type="button"
-                  onClick={() => onPickStart(mapId)}
-                  className="tap-safe rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold transition-colors hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--maple)]"
-                >
-                  從 {mapName(maps, mapId)} 出發
-                </button>
-              </li>
-            ))}
-          </ul>
+          <p className="mb-2 text-sm font-bold">{townsTitle(maps, towns)}</p>
+          <TownChips towns={towns} maps={maps} onPick={onPickStart} />
         </div>
       ) : (
         <div className="flex items-start gap-2 rounded-[var(--radius-card)] glass p-3.5 text-sm ink-soft">

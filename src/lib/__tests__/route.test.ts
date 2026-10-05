@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { VICTORIA_PORT, boatNote, defaultStart, findRoute, goNoteText, goStart, victoriaReach } from "@/lib/route";
-import type { PortalEdge } from "@/lib/types";
+import { VICTORIA_PORT, boatNote, defaultStart, findRoute, goNoteText, goStart, hubTowns, townChips, townsTitle, victoriaReach } from "@/lib/route";
+import type { MapRecord, PortalEdge } from "@/lib/types";
 
 const CUPID = 100000200;
 const PERION = 102000000;
@@ -127,5 +127,67 @@ describe("帶我去：還可能在楓之島的初心者（round 3 B）", () => {
     expect(run(PERION, PERION, { novice: false, remembered: CUPID })).toEqual({ choice: { kind: "start", map: CUPID }, notes: [] });
     expect(run(VICTORIA_PORT, VICTORIA_PORT, { novice: false })).toEqual({ choice: { kind: "ask" }, notes: [] });
     expect(run(BEACH_FIELD, FLORINA, { novice: false })).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["region"] });
+  });
+});
+
+describe("城鎮按鈕（跨區、問起點時；round 3 B2／F）", () => {
+  const HENESYS = 100000000;
+  const HOUSE = 100000001;
+  const UNNAMED_TOWN = 101000001;
+  const UNNAMED_FIELD = 101000002;
+  const HILL = 100010000;
+  const PORT_FIELD = 104010000;
+  const SLEEPY = 105040300;
+  const SLEEPY_FIELD = 105040301;
+  const BEACH = 110040000;
+  const maps: Record<string, MapRecord> = {
+    [HENESYS]: { zh: "弓箭手村", st: "維多利亞", t: 1, ret: HENESYS },
+    // 民宅：客戶端也標成城鎮、回城點是自己，但沒有別張圖回到這裡
+    [HOUSE]: { zh: "弓箭手村民宅", st: "維多利亞", t: 1, ret: HOUSE },
+    [UNNAMED_TOWN]: { zh: "", st: "", t: 1, ret: UNNAMED_TOWN },
+    [UNNAMED_FIELD]: { zh: "", st: "", ret: UNNAMED_TOWN },
+    [HILL]: { zh: "弓箭手村東部小山", st: "維多利亞", t: 1, ret: HENESYS },
+    [CUPID]: { zh: "邱比特公園", st: "維多利亞", t: 1, ret: HENESYS },
+    [VICTORIA_PORT]: { zh: "維多利亞港", st: "維多利亞", t: 1, ret: VICTORIA_PORT },
+    [PORT_FIELD]: { zh: "維多利亞港郊外", st: "維多利亞", ret: VICTORIA_PORT },
+    [SLEEPY]: { zh: "奇幻村", st: "迷霧森林", t: 1, ret: SLEEPY },
+    [SLEEPY_FIELD]: { zh: "螞蟻洞", st: "迷霧森林", ret: SLEEPY },
+    [FLORINA]: { zh: "黃金海灘", st: "黃金海岸", t: 1, ret: FLORINA },
+    [BEACH]: { zh: "海龜沙灘", st: "黃金海岸", ret: FLORINA },
+  };
+  const both = (a: number, b: number): Record<string, PortalEdge[]> => ({ [a]: [[b, "east00", 0, 0]], [b]: [[a, "west00", 0, 0]] });
+  const link = (...pairs: Array<[number, number]>) => {
+    const graph: Record<string, PortalEdge[]> = {};
+    for (const [a, b] of pairs) for (const [key, edges] of Object.entries(both(a, b))) graph[key] = [...(graph[key] ?? []), ...edges];
+    return graph;
+  };
+  const graph = link(
+    [VICTORIA_PORT, HENESYS], [HENESYS, CUPID], [HENESYS, HOUSE], [HENESYS, UNNAMED_TOWN], [HENESYS, HILL], [HENESYS, SLEEPY],
+    [SLEEPY, SLEEPY_FIELD], [VICTORIA_PORT, PORT_FIELD], [UNNAMED_TOWN, UNNAMED_FIELD], [FLORINA, BEACH],
+  );
+
+  it("真的城鎮：有中文名、客戶端標成城鎮、回城點是自己、而且有別張圖回到這裡（民宅、沒有名字的、回城點在別處的都不算）", () => {
+    expect(hubTowns(maps)).toEqual([HENESYS, VICTORIA_PORT, SLEEPY, FLORINA]);
+  });
+
+  it("只給走得到目的地的城鎮；照 first 排前面，其他照順序", () => {
+    expect(townChips(maps, graph, CUPID)).toEqual([HENESYS, VICTORIA_PORT, SLEEPY]);
+    expect(townChips(maps, graph, CUPID, { first: [VICTORIA_PORT] })).toEqual([VICTORIA_PORT, HENESYS, SLEEPY]);
+  });
+
+  it("維多利亞港走不到目的地時不會排第一（黃金海灘那邊只剩黃金海灘）", () => {
+    expect(townChips(maps, graph, BEACH, { first: [VICTORIA_PORT] })).toEqual([FLORINA]);
+  });
+
+  it("問起點時不給目的地本身（選了只會「你已經在目的地了」）", () => {
+    expect(townChips(maps, graph, HENESYS, { first: [VICTORIA_PORT], exceptTarget: true })).toEqual([VICTORIA_PORT, SLEEPY]);
+    expect(townChips(maps, graph, HENESYS)).toEqual([HENESYS, VICTORIA_PORT, SLEEPY]);
+  });
+
+  it("標題寫城鎮所在區域的中文名（地圖資料的區域名，城鎮裡最多的那個）；沒有就寫「目的地附近的城鎮」", () => {
+    expect(townsTitle(maps, [VICTORIA_PORT, HENESYS, SLEEPY])).toBe("維多利亞的城鎮");
+    expect(townsTitle(maps, [FLORINA])).toBe("黃金海岸的城鎮");
+    expect(townsTitle(maps, [UNNAMED_TOWN])).toBe("目的地附近的城鎮");
+    expect(townsTitle(maps, [])).toBe("目的地附近的城鎮");
   });
 });
