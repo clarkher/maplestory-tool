@@ -92,7 +92,7 @@
 ## 資料變更（研究檔 `data/guides/`）
 
 1. `quests-exp.json` 的 `mustDo` 每條加 `reward`：`{ "label": "手套攻擊卷軸 60%／10%（隨機）", "items": [2040804, 2040805] }`。沒有關鍵獎勵的不加。抽獎型的標籤寫「隨機」。
-2. 新增一條「冒險家戒指系列任務」：官方 9/10 公告「常態開放」（`https://maplestoryclassic.beanfun.com/bulletin?Bid=82647`），標 `v: "official"`。`Verified` 型別加 `official`，畫面顯示「官方公告」。
+2. 冒險家的戒指：研究檔原本就有這條（台服玩家實測 10 天共 73 萬經驗），但研究時站內資料還沒有這批任務，`questId` 是空的、被 build 丟掉。1.15.2 已經有 69039～69099 共 56 個任務，補上 `questId`（69039）與 `chain`，出處加官方 9/10 公告（`https://maplestoryclassic.beanfun.com/bulletin?Bid=82647`，常態開放）。`verified` 維持 `tw`，不另外加 `official` 型別。
 3. 新增組隊任務表 `pq`：名稱、入口地圖（月妙＝邱比特公園 100000200、超綠＝墮落城市 103000000）、各職業等級範圍（從各職業攻略的組隊段落整理，附出處）、圖解連結。
 4. 各職業補 `gaps`：火毒 42 以上、槍手 50 以上、俠盜 50 以上、各職 70 以上（目前全是空的，跟 README 不一致）。
 5. 清掉攻略文字裡的內部筆記（地圖編號、`el` 屬性代碼、玩家 ID）。`pipeline/build-guides.mjs` 加文字檢查：出現 7 位以上數字、`mapId`、`el ` 屬性代碼就失敗並列出位置。
