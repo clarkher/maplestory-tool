@@ -10,6 +10,7 @@ export function QuestLine({
   quests,
   exp,
   extra,
+  parts,
   as: Tag = "li",
   showPrerequisite = true,
 }: {
@@ -17,6 +18,8 @@ export function QuestLine({
   quests: Quest[];
   exp: number;
   extra?: string | null;
+  /** 「第 a–b 段／共 N 段」（整條線算，跟先解同一個寫法）；不分段就不給 */
+  parts?: string | null;
   as?: "li" | "div";
   /** 只列到一條線的後段時要提醒「要先解前一段」；必解清單是整條線從頭列，不用提醒 */
   showPrerequisite?: boolean;
@@ -36,7 +39,7 @@ export function QuestLine({
         <Link href={`/db/quests?id=${quests[0].id}`} className="font-bold hover:text-[color:var(--maple)]">
           {title}
         </Link>
-        {quests.length > 1 ? <span className="ml-1 text-[12px] ink-faint">{quests.length} 段</span> : null}
+        {parts ? <span className="ml-1 whitespace-nowrap text-[12px] ink-faint">{parts}</span> : null}
         {needText ? <span className="ml-1.5 text-[12px] ink-soft">{needText}</span> : null}
         {hasEarlier && showPrerequisite ? <span className="ml-1.5 text-[11px] ink-faint">（要先解前一段）</span> : null}
       </span>

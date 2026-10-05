@@ -5,7 +5,7 @@ import { useState } from "react";
 import { RouteIcon } from "@/components/Icons";
 import { itemImage, mapName, npcImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { npcGoTarget, type NowQuest } from "@/lib/now-plan";
+import { npcGoTarget, partsText, type NowQuest } from "@/lib/now-plan";
 import type { MapRecord } from "@/lib/types";
 import { SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 
@@ -42,9 +42,7 @@ export function TodoList({ items, routable, maps }: { items: NowQuest[]; routabl
 function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<number>; maps: Record<string, MapRecord> }) {
   const [open, setOpen] = useState(false);
   const fraction = levelText(item.fraction);
-  const parts = item.totalParts > 1
-    ? `第 ${item.firstPart === item.lastPart ? item.firstPart : `${item.firstPart}–${item.lastPart}`} 段／共 ${item.totalParts} 段`
-    : null;
+  const parts = partsText(item);
   // NPC 站在隱藏地圖（卡伊琳的訓練場）時帶去它的回城點，按鈕寫出那張圖
   const go = npcGoTarget(item.npc?.map, maps, routable);
   return (

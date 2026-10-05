@@ -11,8 +11,9 @@ import { jobFit } from "@/lib/job-rules";
 import { isSecondJob, stageJob } from "@/lib/jobs";
 import { planTraining } from "@/lib/planner";
 import {
-  type Band, bandLabels, fitLevel, isIslandBand, isIslandMap, mustDoForBand, prepMaterials, segmentsToShow, shortName, spawnIndex, trainingForBand,
+  type Band, bandLabels, fitLevel, isIslandBand, isIslandMap, prepMaterials, segmentsToShow, shortName, spawnIndex, trainingForBand,
 } from "@/lib/route-planner";
+import { bandQuests, partsText, type BandQuest } from "@/lib/now-plan";
 import { mainBuild, spAtLevel, stepsBetween } from "@/lib/skill-plan";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
 import type { GuideStatus } from "./RouteHome";
@@ -34,6 +35,8 @@ type Context = {
   maps: Record<string, MapRecord>;
   training: TrainingRow[];
   common: GuideCommon;
+  /** 任務實際幾等做得動（now-plan effectiveLevels），必解跟先解用同一份 */
+  effective: Map<string, number>;
 };
 
 /** 升級路線：1→100 一條路，你在哪一段就展開哪一段，其他段點開看。 */
@@ -154,7 +157,7 @@ function BandDetail({ band, next, context, spawns, current }: {
   band: Band; next?: Band; context: Context; spawns: Map<number, Array<[number, number]>>; current: boolean;
 }) {
   const { stage, guide } = guideFor(context, band);
-  const { job, quests, monsters, monsterIndex, maps, training, common, prefer, guideStatus, routable } = context;
+  const { job, quests, monsters, monsterIndex, maps, training, common, prefer, guideStatus, routable, effective } = context;
 
   const detail = useMemo(() => {
     const all = guide ? trainingForBand(band, guide.train) : [];
@@ -179,14 +182,16 @@ function BandDetail({ band, next, context, spawns, current }: {
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
     // 這段開始前（上一級結束時）到這段最後一級的點數；轉職那一段從 0 起算，才不會漏掉只花 1 點的第一步
     const steps = build && stage ? stepsBetween(build, spAtLevel(stage, band.from - 1), spAtLevel(stage, band.to - 1)) : [];
-    const mustDo = mustDoForBand(band, job, quests, common, maps, 4, current ? context.level : undefined);
-    const nextMustDo = next ? mustDoForBand(next, job, quests, common, maps, 4) : [];
-    const prep = prepMaterials(nextMustDo.flatMap(group => group.picks.map(pick => pick.quest)), monsters)
+    // 必解跟先解同一套規則（任務線、標題、長線、值不值得），約幾級：這段跟之前的段用現在等級、之後的段用段落起點
+    const shared = { level: context.level, job, quests, monsters, common, maps, effective };
+    const mustDo = bandQuests({ ...shared, band });
+    const nextMustDo = next ? bandQuests({ ...shared, band: next }) : [];
+    const prep = prepMaterials(nextMustDo.flatMap(item => item.quests), monsters)
       .filter(material => material.droppers.length)
       .sort((a, b) => b.c - a.c)
       .slice(0, 5);
     return { segments, fallback, build, steps, mustDo, prep, warnings, usable };
-  }, [band, next, guide, stage, job, quests, monsters, monsterIndex, maps, training, common, prefer, spawns, current, context.level]);
+  }, [band, next, guide, stage, job, quests, monsters, monsterIndex, maps, training, common, prefer, spawns, current, context.level, effective]);
 
   const stuckInFirstJob = band.from >= 30 && !isSecondJob(job) && job !== 0;
   const gap = guide?.gaps?.find(entry => entry.from < band.to && entry.to >= band.from);
@@ -280,8 +285,8 @@ function BandDetail({ band, next, context, spawns, current }: {
       {detail.mustDo.length ? (
         <Block label="必解任務" tag={<SourceTag kind="data" />}>
           <ul className="space-y-2">
-            {detail.mustDo.map(group => (
-              <MustDoRow key={group.key} group={group} />
+            {detail.mustDo.map(item => (
+              <MustDoRow key={item.key} item={item} />
             ))}
           </ul>
         </Block>
@@ -366,23 +371,23 @@ function TrainingSegment({
   );
 }
 
-function MustDoRow({ group }: { group: ReturnType<typeof mustDoForBand>[number] }) {
+function MustDoRow({ item }: { item: BandQuest }) {
   const [open, setOpen] = useState(false);
   return (
     <li className="space-y-1">
-      <QuestLine as="div" showPrerequisite={false} title={group.title} quests={group.picks.map(pick => pick.quest)} exp={group.exp} extra={levelText(group.fraction)} />
+      <QuestLine as="div" showPrerequisite={false} title={item.title} quests={item.quests} exp={item.exp} extra={levelText(item.fraction)} parts={partsText(item)} />
       <p className="flex flex-wrap items-center gap-1.5 text-[11px] ink-faint">
-        Lv.{group.level} 起
-        {group.rec ? (
+        Lv.{item.level} 起
+        {item.rec ? (
           <button type="button" onClick={() => setOpen(value => !value)} className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 font-bold text-[color:var(--gold)]">
             玩家推薦{open ? "" : "・為什麼"}
           </button>
         ) : null}
       </p>
-      {open && group.rec ? (
+      {open && item.rec ? (
         <div className="space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
-          <p className="text-[13px] leading-relaxed ink-soft">{group.rec.why}</p>
-          <SourceLinks urls={group.rec.s} />
+          <p className="text-[13px] leading-relaxed ink-soft">{item.rec.why}</p>
+          <SourceLinks urls={item.rec.s} />
         </div>
       ) : null}
     </li>

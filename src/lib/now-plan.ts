@@ -7,8 +7,8 @@ import { JOB_LINES, advancementLevel, baseJob, stageJob } from "./jobs";
 import { jobLineage, planTraining, questEligible } from "./planner";
 import { findRoute, needsBoat, suggestStart, victoriaReach } from "./route";
 import {
-  VERIFIED_RANK, groupQuests, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, questReachable, shortName, spawnIndex,
-  trainingForBand, withoutLongRun,
+  VERIFIED_RANK, groupQuests, isIslandBand, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, questReachable, shortName, spawnIndex,
+  trainingForBand, withoutLongRun, type Band,
 } from "./route-planner";
 import type {
   GuideCommon, GuideJob, GuideMustDo, GuidePq, GuideTrain, MapRecord, Monster, PortalEdge, Quest, QuestNpc, QuestReward, TrainingRow,
@@ -140,30 +140,35 @@ function isLongKill(quest: Quest, min = LONG_RUN_MIN): boolean {
   return (quest.needMobs ?? []).some(mob => (mob.c ?? 0) >= min);
 }
 
-export function nowQuests(args: {
-  level: number;
-  job: number;
-  quests: Quest[];
-  monsters: Monster[];
-  common: GuideCommon;
-  maps: Record<string, Pick<MapRecord, "zh">>;
-  effective: Map<string, number>;
-  limit?: number;
-}): NowQuest[] {
-  // 不設上限：關鍵獎勵任務可能超過 5 個，一個都不能藏；畫面先顯示 5 條、其餘展開（TodoList）
-  const { level, job, quests, monsters, common, maps, effective, limit } = args;
-  const stage = stageJob(job, level);
+/** 起始 NPC 站在楓之島（離島後回不去，這種任務離島後不列、也不給「去」） */
+function npcOnIsland(quest: Quest): boolean {
+  return quest.sNpc?.map !== undefined && isIslandMap(quest.sNpc.map);
+}
+
+type QuestLines = {
+  stage: number;
+  lineage: Set<number>;
+  recs: Map<string, GuideMustDo>;
+  /** 這個職業做得到的全部任務（不看等級）：拿來算「第幾段／共幾段」 */
+  forJob: Quest[];
+  lineOf: Map<string, string>;
+  /** 一條線的全部任務，照實際等級排好 */
+  lines: Map<string, Quest[]>;
+};
+
+/**
+ * 先解跟升級路線的必解共用的任務線：一筆攻略推薦（mustDo）就是一條線（`rec:任務 id`），
+ * 即使它涵蓋的幾段前置串不起來（例：伊卡路斯任務鏈）；沒有推薦的照前置任務分（groupQuests）。
+ * 所以前置有推薦、自己沒有的任務是另一條線，不會掛上別的任務的「為什麼」。
+ */
+function questLines(stage: number, quests: Quest[], common: GuideCommon, maps: Record<string, Pick<MapRecord, "zh">>, effective: Map<string, number>): QuestLines {
   const lineage = new Set(jobLineage(stage));
   const recs = mustDoIndex(common);
-  const toNext = common.expTable.toNext;
   const levelOf = (quest: Quest) => effective.get(quest.id) ?? quest.minLv ?? 0;
-
-  // 這個職業做得到的全部任務（不看等級）：拿來算「第幾段／共幾段」
   const forJob = quests.filter(quest =>
     (!quest.jobs?.length || quest.jobs.some(code => lineage.has(code)))
     && quest.cat !== "組隊任務"
     && questReachable(quest, maps));
-  // 一筆攻略推薦（mustDo）就是一條任務線，即使它涵蓋的幾段前置串不起來（例：伊卡路斯任務鏈）；沒有推薦的照前置任務分
   const lineOf = new Map<string, string>();
   for (const group of groupQuests(forJob)) {
     for (const quest of group.quests) {
@@ -177,28 +182,54 @@ export function nowQuests(args: {
     lines.set(key, [...(lines.get(key) ?? []), quest]);
   }
   for (const members of lines.values()) members.sort((a, b) => levelOf(a) - levelOf(b) || a.id.localeCompare(b.id));
+  return { stage, lineage, recs, forJob, lineOf, lines };
+}
 
-  const doable = withoutLongRun(
-    forJob.filter(quest => questEligible(quest, { level, job: stage }, lineage) && levelOf(quest) <= level && !isLongKill(quest)),
-    monsters,
-  ).filter(quest => (quest.exp ?? 0) > 0 || recs.has(quest.id));
+/** 這批任務裡長線那種的：要打 200 隻以上；同一道具在這批任務裡累計 200 個以上（它們放在長線，不算先解、必解） */
+function longRunIds(candidates: Quest[], monsters: Monster[]): Set<string> {
+  const kept = new Set(withoutLongRun(candidates.filter(quest => !isLongKill(quest)), monsters).map(quest => quest.id));
+  return new Set(candidates.filter(quest => !kept.has(quest.id)).map(quest => quest.id));
+}
 
+/** 現在接得到、做得動的任務（先解的候選）：職業、等級上下限、實際等級 ≤ 現在等級；離開楓之島後不算島上的 */
+function doableNow(shared: QuestLines, level: number, effective: Map<string, number>, island: boolean): Quest[] {
+  return shared.forJob.filter(quest =>
+    questEligible(quest, { level, job: shared.stage }, shared.lineage)
+    && (effective.get(quest.id) ?? quest.minLv ?? 0) <= level
+    && (island || !npcOnIsland(quest)));
+}
+
+/** 拿掉長線那種（long）；沒有經驗又沒有攻略推薦的也不算 */
+function withoutLongParts(candidates: Quest[], long: Set<string>, recs: Map<string, GuideMustDo>): Quest[] {
+  return candidates.filter(quest => !long.has(quest.id) && ((quest.exp ?? 0) > 0 || recs.has(quest.id)));
+}
+
+/**
+ * 把一批任務照任務線收成一行一行：標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、
+ * 用 atLevel 換算的約幾級。值不值得（worthListing）、過期由呼叫端決定要不要套。
+ */
+function lineItems(
+  candidates: Quest[],
+  shared: QuestLines,
+  atLevel: number,
+  toNext: number[],
+  job: number,
+  keep: (rec: GuideMustDo | undefined, fraction: number) => boolean,
+): Array<{ item: NowQuest; score: number }> {
+  const { lineOf, lines, recs } = shared;
   const byLine = new Map<string, Quest[]>();
-  for (const quest of doable) {
+  for (const quest of candidates) {
     const key = lineOf.get(quest.id) ?? `chain:${quest.id}`;
     byLine.set(key, [...(byLine.get(key) ?? []), quest]);
   }
-
   const scored: Array<{ item: NowQuest; score: number }> = [];
   for (const [key, members] of byLine) {
     const line = lines.get(key) ?? members;
     const parts = line.filter(quest => members.includes(quest));
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
-    if (recExpired(rec, level)) continue;
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
-    const fraction = levelFraction(exp, level, toNext);
-    const reward = rec?.reward?.label;
-    if (!worthListing(fraction, [rec])) continue;
+    const fraction = levelFraction(exp, atLevel, toNext);
+    if (!keep(rec, fraction)) continue;
     const positions = parts.map(quest => line.indexOf(quest) + 1);
     const title = rec
       ? rec.name.replace(/（[^（）]*）\s*$/, "")
@@ -213,7 +244,7 @@ export function nowQuests(args: {
         lastPart: Math.max(...positions),
         exp,
         fraction,
-        reward,
+        reward: rec?.reward?.label,
         rewardItem: rewardItemFor(rec, parts, job),
         rec,
         npc: parts[0].sNpc,
@@ -222,8 +253,81 @@ export function nowQuests(args: {
     });
   }
   // 有關鍵獎勵的一律排在沒有的前面；同一組裡比約幾級（玩家推薦加 0.2）
-  const sorted = scored.sort((a, b) => Number(Boolean(b.item.reward)) - Number(Boolean(a.item.reward)) || b.score - a.score);
+  return scored.sort((a, b) => Number(Boolean(b.item.reward)) - Number(Boolean(a.item.reward)) || b.score - a.score);
+}
+
+export function nowQuests(args: {
+  level: number;
+  job: number;
+  quests: Quest[];
+  monsters: Monster[];
+  common: GuideCommon;
+  maps: Record<string, Pick<MapRecord, "zh">>;
+  effective: Map<string, number>;
+  limit?: number;
+}): NowQuest[] {
+  // 不設上限：關鍵獎勵任務可能超過 5 個，一個都不能藏；畫面先顯示 5 條、其餘展開（TodoList）
+  const { level, job, quests, monsters, common, maps, effective, limit } = args;
+  const shared = questLines(stageJob(job, level), quests, common, maps, effective);
+  const candidates = doableNow(shared, level, effective, onIsland(job, level));
+  const doable = withoutLongParts(candidates, longRunIds(candidates, monsters), shared.recs);
+  const sorted = lineItems(doable, shared, level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
+}
+
+/** 「第 a–b 段／共 N 段」：整條線只有一段時不寫（先解跟升級路線的必解同一個寫法） */
+export function partsText(item: Pick<NowQuest, "firstPart" | "lastPart" | "totalParts">): string | null {
+  if (item.totalParts <= 1) return null;
+  const range = item.firstPart === item.lastPart ? String(item.firstPart) : `${item.firstPart}–${item.lastPart}`;
+  return `第 ${range} 段／共 ${item.totalParts} 段`;
+}
+
+/** 升級路線的必解一行：先解的一行，加上這條線在這段最早幾等能接 */
+export type BandQuest = NowQuest & { level: number };
+
+/** 研究裡的建議等級是文字（「15 起接，25／35／40 各解一段」），取第一個數字 */
+function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
+  const match = rec?.lv.match(/\d+/);
+  return match ? Number(match[0]) : undefined;
+}
+
+/**
+ * 升級路線某一段的必解：在這段解鎖的任務（門檻等級，沒有門檻用攻略建議等級），規則跟先解同一套——
+ * 同一條任務線、同一個標題、長線那種拿掉、同一條值不值得的門檻；第幾段／共幾段算整條線。
+ * 長線那種：現在就做得動的任務用先解那一批判斷（同一條線兩邊拿掉的段一樣，經驗才會是同一個數字，
+ * 冒險家的戒指不會一邊 +630,000、一邊 +660,000）；還做不動的，在這段裡自己判斷（詛咒娃娃 2,300 個）。
+ * 約幾級：你在的這段跟之前的段用你現在的等級算（跟先解同一個數字），之後的段用那段的起點算。
+ * 離開楓之島之後，NPC 站在島上的任務不列。
+ */
+export function bandQuests(args: {
+  band: Band;
+  level: number;
+  job: number;
+  quests: Quest[];
+  monsters: Monster[];
+  common: GuideCommon;
+  maps: Record<string, Pick<MapRecord, "zh">>;
+  effective: Map<string, number>;
+  limit?: number;
+}): BandQuest[] {
+  const { band, level, job, quests, monsters, common, maps, effective, limit = 4 } = args;
+  const shared = questLines(isIslandBand(band) ? 0 : stageJob(job, band.from), quests, common, maps, effective);
+  const island = onIsland(job, level);
+  const unlockOf = (quest: Quest) => quest.minLv ?? recommendedLevel(shared.recs.get(quest.id));
+  const inBand = shared.forJob.filter(quest => {
+    const unlock = unlockOf(quest);
+    return unlock !== undefined && unlock >= band.from && unlock < band.to
+      && (!quest.island || isIslandBand(band))
+      && (island || !npcOnIsland(quest));
+  });
+  const now = doableNow(questLines(stageJob(job, level), quests, common, maps, effective), level, effective, island);
+  const nowIds = new Set(now.map(quest => quest.id));
+  const longNow = longRunIds(now, monsters);
+  const longLater = longRunIds(inBand.filter(quest => !nowIds.has(quest.id)), monsters);
+  const long = new Set(inBand.filter(quest => (nowIds.has(quest.id) ? longNow : longLater).has(quest.id)).map(quest => quest.id));
+  const atLevel = band.from > level ? band.from : level;
+  const rows = lineItems(withoutLongParts(inBand, long, shared.recs), shared, atLevel, common.expTable.toNext, job, (rec, fraction) => worthListing(fraction, [rec]));
+  return rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
 }
 
 /**

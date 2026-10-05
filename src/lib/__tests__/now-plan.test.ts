@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveLevels, longRunNow, longRunTasks, npcGoTarget, nowQuests, recUpperLevel, rewardFitsJob } from "@/lib/now-plan";
+import { bandQuests, effectiveLevels, longRunNow, longRunTasks, npcGoTarget, nowQuests, partsText, recUpperLevel, rewardFitsJob } from "@/lib/now-plan";
 import type { GuideCommon, GuideMustDo, Monster, Quest } from "@/lib/types";
 
 const monster = (id: number, lv: number, drops: number[] = []): Monster =>
@@ -165,6 +165,147 @@ describe("先解", () => {
     const result = nowQuests(args(12, 110, quests, mustDo));
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ title: "伊卡路斯任務鏈", totalParts: 3, firstPart: 1, lastPart: 3, exp: 60000 });
+  });
+});
+
+describe("離開楓之島之後", () => {
+  const island = { id: 1, n: "白瑞德", map: 40000 };
+  const victoria = { id: 2, n: "長老", map: 100000000 };
+  const maps = { 40000: { zh: "嫩寶狩獵場Ⅰ" }, 100000000: { zh: "弓箭手村" } };
+  const quests = [
+    quest("test", { n: "白瑞德的測試", minLv: 7, exp: 60000, jobs: [0], sNpc: island }),
+    quest("elder", { n: "長老的請託", minLv: 7, exp: 60000, sNpc: victoria }),
+  ];
+  const common = commonWith([]);
+  const args = (level: number, job: number) => ({ level, job, quests, monsters: [], common, maps, effective: effectiveLevels(quests, [], common) });
+
+  it("先解：還在島上（初心者 9 等）照列島上任務；10 等離島後 NPC 站在楓之島的任務不再列", () => {
+    expect(nowQuests(args(9, 0)).map(item => item.title)).toContain("白瑞德的測試");
+    expect(nowQuests(args(10, 0)).map(item => item.title)).toEqual(["長老的請託"]);
+  });
+
+  it("升級路線的必解也一樣：離島後楓之島那段不列島上的任務", () => {
+    const band = { from: 1, to: 10 };
+    expect(bandQuests({ ...args(9, 0), band }).map(item => item.title)).toContain("白瑞德的測試");
+    expect(bandQuests({ ...args(12, 100), band }).map(item => item.title)).not.toContain("白瑞德的測試");
+  });
+});
+
+describe("第幾段／共幾段的寫法（先解跟必解同一個）", () => {
+  it("整條線只有一段不寫；一段寫第 N 段；好幾段寫第 a–b 段", () => {
+    expect(partsText({ firstPart: 1, lastPart: 52, totalParts: 52 })).toBe("第 1–52 段／共 52 段");
+    expect(partsText({ firstPart: 3, lastPart: 3, totalParts: 5 })).toBe("第 3 段／共 5 段");
+    expect(partsText({ firstPart: 1, lastPart: 1, totalParts: 1 })).toBeNull();
+  });
+});
+
+describe("升級路線的必解：職業與楓之島", () => {
+  const common = commonWith([]);
+  const maps = { 101000003: { zh: "魔法森林圖書館" }, 40000: { zh: "嫩寶狩獵場Ⅰ" } };
+  const npc = { id: 1, n: "漢斯", map: 101000003 };
+  const run = (band: { from: number; to: number }, level: number, job: number, quests: Quest[]) =>
+    bandQuests({ band, level, job, quests, monsters: [], common, maps, effective: effectiveLevels(quests, [], common) });
+
+  it("法師 8 等轉職後的那一段用法師的任務，不是初心者的", () => {
+    const quests = [
+      quest("mage", { minLv: 10, exp: 50000, jobs: [200], sNpc: npc }),
+      quest("novice", { minLv: 9, exp: 50000, jobs: [0], sNpc: npc }),
+    ];
+    expect(run({ from: 8, to: 21 }, 12, 230, quests).map(item => item.title)).toEqual(["任務mage"]);
+  });
+
+  it("還在楓之島時，楓之島那一段用初心者的任務", () => {
+    const quests = [quest("novice", { minLv: 2, exp: 50000, jobs: [0], island: 1, sNpc: { id: 2, n: "白瑞德", map: 40000 } })];
+    expect(run({ from: 1, to: 10 }, 3, 0, quests).map(item => item.title)).toEqual(["任務novice"]);
+  });
+});
+
+describe("升級路線的必解跟先解同一套（任務線、標題、長線、值不值得）", () => {
+  const monsters = [monster(9, 22, [500])];
+  const common = (mustDo: GuideMustDo[] = []) => commonWith(mustDo);
+  const run = (level: number, band: { from: number; to: number }, quests: Quest[], mustDo: GuideMustDo[] = [], job = 110) => {
+    const shared = common(mustDo);
+    return bandQuests({ band, level, job, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) });
+  };
+
+  it("一筆攻略推薦是一條線、標題用推薦的名字；前置有推薦的後段自己一條、沒有「為什麼」", () => {
+    const quests = [
+      quest("t1", { n: "泰實夫的秘密之書", minLv: 32, exp: 30000 }),
+      quest("d1", { n: "收集詛咒娃娃", minLv: 33, exp: 30000, pre: ["t1"] }),
+    ];
+    const mustDo = [rec("t1", "30–35", { name: "泰實夫的秘密之書（桑那服）", why: "送桑那服" })];
+    const result = run(35, { from: 30, to: 40 }, quests, mustDo);
+    expect(result.map(item => [item.title, item.rec?.why])).toEqual([
+      ["泰實夫的秘密之書", "送桑那服"],
+      ["收集詛咒娃娃", undefined],
+    ]);
+  });
+
+  it("一筆推薦涵蓋好幾條前置串不起來的任務也收成一行", () => {
+    const quests = [quest("a1", { minLv: 10, exp: 20000 }), quest("a2", { minLv: 10, exp: 20000, pre: ["a1"] }), quest("b1", { minLv: 10, exp: 20000 })];
+    const mustDo = [rec("a1", "10 起", { chain: ["a1", "a2", "b1"], name: "伊卡路斯任務鏈（好無聊 → 滑翔翼）" })];
+    const result = run(12, { from: 10, to: 21 }, quests, mustDo);
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ title: "伊卡路斯任務鏈", firstPart: 1, lastPart: 3, totalParts: 3 });
+  });
+
+  it("第幾段／共幾段算整條線：這一段只列在這段解鎖的", () => {
+    const quests = [
+      quest("q1", { minLv: 20, exp: 20000 }),
+      quest("q2", { minLv: 20, exp: 20000, pre: ["q1"] }),
+      quest("q3", { minLv: 40, exp: 30000, pre: ["q2"] }),
+    ];
+    expect(run(25, { from: 21, to: 30 }, quests)).toEqual([]);
+    expect(run(25, { from: 10, to: 21 }, quests)[0]).toMatchObject({ firstPart: 1, lastPart: 2, totalParts: 3, exp: 40000 });
+    expect(run(25, { from: 40, to: 50 }, quests)[0]).toMatchObject({ firstPart: 3, lastPart: 3, totalParts: 3, exp: 30000 });
+  });
+
+  it("要打 200 隻以上、或同一道具累計 200 個以上的不列（那些在長線）", () => {
+    const quests = [
+      quest("k", { minLv: 30, exp: 90000, needMobs: [{ id: 9, n: "刺菇菇", c: 999 }] }),
+      quest("d1", { minLv: 35, exp: 60000, needItems: [{ id: 500, n: "詛咒娃娃", c: 100 }] }),
+      quest("d2", { minLv: 35, exp: 60000, needItems: [{ id: 500, n: "詛咒娃娃", c: 200 }], pre: ["d1"] }),
+      quest("ok", { minLv: 31, exp: 60000 }),
+    ];
+    expect(run(35, { from: 30, to: 40 }, quests).map(item => item.key)).toEqual(["chain:ok"]);
+  });
+
+  it("同一條線在先解跟必解拿掉的段一樣，經驗是同一個數字（另一段等級的任務也要交同一道具時）", () => {
+    const quests = [
+      quest("r1", { minLv: 30, exp: 100000, needItems: [{ id: 777, n: "葉子", c: 100 }] }),
+      quest("r2", { minLv: 30, exp: 100000, pre: ["r1"] }),
+      quest("o1", { minLv: 25, exp: 50000, needItems: [{ id: 777, n: "葉子", c: 100 }] }),
+    ];
+    const mustDo = [rec("r1", "30+", { chain: ["r1", "r2"], name: "冒險家的戒指" })];
+    const shared = common(mustDo);
+    const effective = effectiveLevels(quests, monsters, shared);
+    const todo = nowQuests({ level: 35, job: 110, quests, monsters, common: shared, maps: {}, effective });
+    const band = bandQuests({ band: { from: 30, to: 40 }, level: 35, job: 110, quests, monsters, common: shared, maps: {}, effective });
+    const ringNow = todo.find(item => item.title === "冒險家的戒指");
+    const ringBand = band.find(item => item.title === "冒險家的戒指");
+    expect(ringNow?.exp).toBe(100000);
+    expect(ringBand?.exp).toBe(ringNow?.exp);
+  });
+
+  it("值不值得跟先解同一條：+7 經驗、沒推薦也沒獎勵的不列", () => {
+    const quests = [quest("tiny", { minLv: 32, exp: 7 }), quest("big", { minLv: 32, exp: 50000 })];
+    expect(run(35, { from: 30, to: 40 }, quests).map(item => item.key)).toEqual(["chain:big"]);
+  });
+
+  it("約幾級：你在的這段跟之前的段用現在等級算，之後的段用那段的起點算", () => {
+    const toNext = Array.from({ length: 121 }, () => 100000);
+    toNext[30] = 50000;
+    toNext[40] = 200000;
+    const quests = [quest("a", { minLv: 32, exp: 60000 }), quest("b", { minLv: 42, exp: 60000 })];
+    const shared = { ...commonWith([]), expTable: { ...commonWith([]).expTable, toNext } };
+    const at = (level: number, band: { from: number; to: number }) =>
+      bandQuests({ band, level, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) })[0]?.fraction;
+    // 之前的段（30–40，玩家 Lv.40）：用 Lv.40 算，60,000 ÷ 200,000
+    expect(at(40, { from: 30, to: 40 })).toBeCloseTo(0.3);
+    // 之後的段（40–50，玩家 Lv.30）：用段落起點 Lv.40 算
+    expect(at(30, { from: 40, to: 50 })).toBeCloseTo(0.3);
+    // 你在的這段（30–40，玩家 Lv.30）：用 Lv.30 算，升一級 50,000 再多 10,000
+    expect(at(30, { from: 30, to: 40 })).toBeCloseTo(1.1);
   });
 });
 

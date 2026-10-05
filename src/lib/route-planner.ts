@@ -249,27 +249,7 @@ export function withoutLongRun(quests: Quest[], monsters: Monster[], min = 200):
   return quests.filter(quest => !(quest.needItems ?? []).some(item => heavy.has(item.id)));
 }
 
-/* ------------------------------------------------------------------ 必解任務 */
-
-export type MustDoPick = { quest: Quest; level: number; fraction: number; rec?: GuideMustDo };
-
-export type MustDoGroup = {
-  key: string;
-  title: string;
-  picks: MustDoPick[];
-  exp: number;
-  /** 整組經驗等於幾級 */
-  fraction: number;
-  /** 最早能接的等級 */
-  level: number;
-  rec?: GuideMustDo;
-};
-
-/** 研究裡的建議等級是文字（「15 起接，25／35／40 各解一段」），取第一個數字 */
-function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
-  const match = rec?.lv.match(/\d+/);
-  return match ? Number(match[0]) : undefined;
-}
+/* ------------------------------------------------------------------ 攻略推薦的任務 */
 
 export function mustDoIndex(common: GuideCommon): Map<string, GuideMustDo> {
   const index = new Map<string, GuideMustDo>();
@@ -277,51 +257,4 @@ export function mustDoIndex(common: GuideCommon): Map<string, GuideMustDo> {
     for (const id of [rec.q, ...rec.chain]) if (!index.has(id)) index.set(id, rec);
   }
   return index;
-}
-
-/**
- * 這一段新解鎖、值得解的任務，同一條任務線收成一組。
- * 排序看「這筆經驗等於幾級」，社群公認必解的再加權——
- * 玩家推薦的理由常常不只經驗（送裝備、卷軸、前置），只看經驗會漏掉。
- * atLevel：目前這一段傳玩家現在的等級，「約幾級」才會跟首頁一致。
- */
-export function mustDoForBand(
-  band: Band,
-  job: number,
-  quests: Quest[],
-  common: GuideCommon,
-  maps: MapNames,
-  limit = 5,
-  atLevel?: number,
-): MustDoGroup[] {
-  const stage = isIslandBand(band) ? 0 : stageJob(job, band.from);
-  const lineage = new Set(jobLineage(stage));
-  const recs = mustDoIndex(common);
-  const toNext = common.expTable.toNext;
-
-  const picks = new Map<string, MustDoPick>();
-  for (const quest of quests) {
-    if (!quest.exp || !questReachable(quest, maps)) continue;
-    const rec = recs.get(quest.id);
-    const level = quest.minLv ?? recommendedLevel(rec);
-    if (level === undefined || level < band.from || level >= band.to) continue;
-    if (quest.jobs?.length && !quest.jobs.some(code => lineage.has(code))) continue;
-    if (quest.island && !isIslandBand(band)) continue;
-    picks.set(quest.id, { quest, level, fraction: levelFraction(quest.exp, atLevel ?? Math.max(level, band.from), toNext), rec });
-  }
-
-  const groups: MustDoGroup[] = groupQuests([...picks.values()].map(pick => pick.quest)).map(group => {
-    const members = group.quests.map(quest => picks.get(quest.id) as MustDoPick);
-    return {
-      key: group.key,
-      title: group.title,
-      picks: members.sort((a, b) => a.level - b.level || b.fraction - a.fraction),
-      exp: group.exp,
-      fraction: members.reduce((sum, pick) => sum + pick.fraction, 0),
-      level: Math.min(...members.map(pick => pick.level)),
-      rec: members.find(pick => pick.rec)?.rec,
-    };
-  });
-  const score = (group: MustDoGroup) => group.fraction + (group.rec ? 0.15 : 0);
-  return groups.sort((a, b) => score(b) - score(a)).slice(0, limit);
 }

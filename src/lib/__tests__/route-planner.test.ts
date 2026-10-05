@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bandLabels, bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, mustDoForBand, onIsland, prepMaterials,
+  bandLabels, bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, onIsland, prepMaterials,
   questReachable, segmentsToShow, trainingForBand, withoutLongRun,
 } from "@/lib/route-planner";
 import { stepsBetween } from "@/lib/skill-plan";
@@ -200,42 +200,6 @@ describe("接不接得到", () => {
     expect(onIsland(200, 8)).toBe(false);
     expect(isIslandMap(40000)).toBe(true);
     expect(isIslandMap(100000000)).toBe(false);
-  });
-});
-
-describe("必解任務的職業判斷", () => {
-  const common = {
-    researchedAt: "",
-    builtAt: "",
-    expTable: { toNext: Array.from({ length: 100 }, () => 1000), conflicts: [], v: "tw" as const, s: [] },
-    mustDo: [],
-    notWorth: [],
-  };
-  const maps = { 1: { zh: "魔法森林" } };
-  const npc = { id: 1, n: "漢斯", map: 1 };
-
-  it("法師 8 等轉職後的那一段用法師的任務，不是初心者的", () => {
-    const quests = [
-      quest("mage", { minLv: 10, exp: 500, jobs: [200], sNpc: npc }),
-      quest("novice", { minLv: 9, exp: 500, jobs: [0], sNpc: npc }),
-    ];
-    const titles = mustDoForBand({ from: 8, to: 21 }, 230, quests, common, maps).map(group => group.title);
-    expect(titles).toEqual(["任務mage"]);
-  });
-
-  it("楓之島那一段用初心者的任務", () => {
-    const quests = [quest("novice", { minLv: 2, exp: 500, jobs: [0], island: 1, sNpc: npc })];
-    expect(mustDoForBand({ from: 1, to: 8 }, 230, quests, common, maps).map(group => group.title)).toEqual(["任務novice"]);
-  });
-
-  it("給了 atLevel 就用那個等級換算約幾級（目前這段用玩家現在的等級）", () => {
-    const toNext = Array.from({ length: 100 }, () => 1000);
-    toNext[32] = 50000;
-    toNext[35] = 100000;
-    const withTable = { ...common, expTable: { ...common.expTable, toNext } };
-    const quests = [quest("a", { minLv: 32, exp: 20000, sNpc: npc })];
-    expect(mustDoForBand({ from: 30, to: 40 }, 110, quests, withTable, maps)[0].fraction).toBeCloseTo(0.4);
-    expect(mustDoForBand({ from: 30, to: 40 }, 110, quests, withTable, maps, 5, 35)[0].fraction).toBeCloseTo(0.2);
   });
 });
 

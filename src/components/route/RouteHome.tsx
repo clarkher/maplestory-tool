@@ -213,6 +213,7 @@ export function RouteHome() {
               maps={data.maps}
               training={data.training.filter(row => !isIslandMap(row.m))}
               common={data.common}
+              effective={effective!}
             />
           </section>
 
