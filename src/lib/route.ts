@@ -1,3 +1,4 @@
+import { isIslandMap } from "./route-planner";
 import type { MapRecord, PortalEdge } from "./types";
 
 export type RouteStep = {
@@ -126,6 +127,49 @@ export function suggestStart(
     }
   }
   return declared ?? null;
+}
+
+export type StartChoice = { kind: "start"; map: number } | { kind: "ask" } | { kind: "none" };
+
+/**
+ * /go 的預設起點。最近的城鎮（suggestStart）不是目的地就用它；
+ * 目的地自己就是城鎮時（最近的城鎮＝目的地，以前會直接說「你已經在目的地了」），改用玩家上次自己選的起點——
+ * 要跟目的地不同、而且走得到；都不行就先問玩家在哪個城鎮（ask），不給路線。
+ * suggested 是 null（沒有城鎮走得到這張圖）就是 none。「你已經在目的地了」只在玩家自己選目的地當起點時出現。
+ */
+export function defaultStart(
+  target: number,
+  suggested: number | null,
+  remembered: number | null,
+  reaches: (from: number) => boolean,
+): StartChoice {
+  if (suggested === null) return { kind: "none" };
+  if (suggested !== target) return { kind: "start", map: suggested };
+  if (remembered !== null && remembered !== target && reaches(remembered)) return { kind: "start", map: remembered };
+  return { kind: "ask" };
+}
+
+/** 從楓之島搭船過來的人靠岸的地方：維多利亞港 */
+export const VICTORIA_PORT = 104000000;
+
+const victoriaCache = new WeakMap<Record<string, PortalEdge[]>, Set<number>>();
+
+/** 從維多利亞港走傳送門到得了的圖（整份傳送門資料只算一次）。黃金海灘、結婚小鎮、楓之島都不在裡面 */
+export function victoriaReach(graph: Record<string, PortalEdge[]>): Set<number> {
+  let reach = victoriaCache.get(graph);
+  if (!reach) {
+    reach = new Set(reachableFrom(graph, VICTORIA_PORT));
+    victoriaCache.set(graph, reach);
+  }
+  return reach;
+}
+
+/**
+ * 起點城鎮跟維多利亞島的城鎮之間沒有傳送門（例：黃金海灘），這段要自己搭船或搭車——我們沒有船班、票價資料，只照實說。
+ * 還在楓之島的人不算（他就在島上）；起點是楓之島的圖也不算（離島的人回不去，不能叫人搭船過去）。
+ */
+export function needsBoat(start: number, reach: Set<number>, island: boolean): boolean {
+  return !island && !isIslandMap(start) && !reach.has(start);
 }
 
 let reverseCache: { graph: Record<string, PortalEdge[]>; map: Map<number, number[]> } | null = null;

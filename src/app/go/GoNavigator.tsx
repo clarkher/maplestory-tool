@@ -9,8 +9,28 @@ import { MapPicker } from "@/components/MapPicker";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
 import { loadGraph, loadMaps, loadNearestTown, loadRegions, mapName, minimapImage } from "@/lib/data";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
-import { findRoute, suggestStart, type RouteStep } from "@/lib/route";
+import { defaultStart, findRoute, suggestStart, type RouteStep, type StartChoice } from "@/lib/route";
 import type { MapRecord, PortalEdge, Region } from "@/lib/types";
+
+/** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
+const START_KEY = "ms-go-start";
+
+function readRememberedStart(): number | null {
+  try {
+    const value = Number(localStorage.getItem(START_KEY));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberStart(mapId: number) {
+  try {
+    localStorage.setItem(START_KEY, String(mapId));
+  } catch {
+    // 停用本機儲存時照樣能用，只是下次不會記得
+  }
+}
 
 export function GoNavigator() {
   const router = useRouter();
@@ -23,8 +43,10 @@ export function GoNavigator() {
   const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(null);
   const [regions, setRegions] = useState<Region[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [remembered, setRemembered] = useState<number | null>(null);
 
   useEffect(() => {
+    setRemembered(readRememberedStart());
     Promise.all([loadMaps(), loadGraph(), loadNearestTown(), loadRegions()])
       .then(([mapData, graphData, townData, regionData]) => {
         setMaps(mapData);
@@ -35,11 +57,13 @@ export function GoNavigator() {
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  const start = useMemo(() => {
-    if (forcedStart) return forcedStart;
+  // 自己選的起點（網址的 from）照用；沒選就用最近的城鎮，目的地本身是城鎮時改用上次選的起點，都不行就先問
+  const choice = useMemo<StartChoice | null>(() => {
+    if (forcedStart) return { kind: "start", map: forcedStart };
     if (!graph || !maps || !nearestTown || !target) return null;
-    return suggestStart(graph, maps, nearestTown, target);
-  }, [forcedStart, graph, maps, nearestTown, target]);
+    return defaultStart(target, suggestStart(graph, maps, nearestTown, target), remembered, from => findRoute(graph, from, target).ok);
+  }, [forcedStart, graph, maps, nearestTown, target, remembered]);
+  const start = choice?.kind === "start" ? choice.map : null;
 
   const plan = useMemo(() => {
     if (!graph || !target || !start) return null;
@@ -54,6 +78,16 @@ export function GoNavigator() {
       router.replace(`/go?${next.toString()}`);
     },
     [params, router],
+  );
+
+  /** 玩家自己選起點：記下來，下次目的地是城鎮時就從這裡出發 */
+  const pickStart = useCallback(
+    (mapId: number) => {
+      rememberStart(mapId);
+      setRemembered(mapId);
+      setParam("from", mapId);
+    },
+    [setParam],
   );
 
   const ready = Boolean(maps && graph && nearestTown && regions);
@@ -84,8 +118,8 @@ export function GoNavigator() {
               label="從哪裡出發"
               value={start}
               maps={maps!}
-              onSelect={mapId => setParam("from", mapId)}
-              placeholder="預設是最近的城鎮"
+              onSelect={pickStart}
+              placeholder={choice?.kind === "ask" ? "輸入地圖名稱" : "預設是最近的城鎮"}
             />
             <MapPicker
               label="要去哪裡"
@@ -98,6 +132,8 @@ export function GoNavigator() {
 
           {!target ? (
             <EmptyBlock title="先選一個目的地" hint="或從練功、任務、打寶的結果直接按「帶我去」。" />
+          ) : choice?.kind === "ask" ? (
+            <EmptyBlock title="你現在在哪個城鎮？選好就幫你排路線。" />
           ) : !start ? (
             <EmptyBlock
               title="找不到可以走過去的起點"
@@ -111,7 +147,7 @@ export function GoNavigator() {
               regions={regions!}
               from={start}
               to={target}
-              onPickStart={mapId => setParam("from", mapId)}
+              onPickStart={pickStart}
             />
           ) : (
             <EmptyBlock title="算不出路線" hint="兩張圖之間沒有傳送門相連。" />
