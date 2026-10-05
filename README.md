@@ -159,7 +159,9 @@ npm run data:all      # 以上全跑
 
 - 每天兩次（台灣時間 08:20、20:20）比對上游的 `generatedAt`（六個檔裡最新的那個），有變才重建
 - `data/raw/artale.local.json` 或 `pipeline/` 有異動時立即重建
-- 重建後重編玩家攻略（遊戲資料變了，攻略裡的 id 要重新驗）、跑 `verify.mjs`，通過才開 PR、自動合併；合併進 `main` 觸發 Vercel 部署
+- 重建後重編玩家攻略（遊戲資料變了，攻略裡的 id 要重新驗）、跑 `verify.mjs`，再拿新資料把首頁每個職業 × 等級跑一次
+  （`src/lib/__tests__/now-plan-realdata.test.ts`：主推都有、組隊任務在遊戲等級限制內、帶我去走得到、封頂提示不自相矛盾、
+  長線沒有做不動的任務、先解沒有同名兩行），都通過才開 PR、自動合併；合併進 `main` 觸發 Vercel 部署
 - 也可以手動觸發，勾 `force` 可略過版本比對
 
 Vercel 這端接的是 GitHub 整合（production branch = `main`），
