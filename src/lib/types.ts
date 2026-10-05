@@ -193,6 +193,8 @@ export type Meta = {
   parts?: Record<string, { gameVersion: string | null; generatedAt: string | null }>;
   /** 客戶端已有中文名、但地區還沒開放而沒收錄的地圖數，依地區分 */
   heldBackRegions?: Record<string, number>;
+  /** 刷怪資料各用了幾張圖的台服客戶端、幾張退回 v83 */
+  spawnSource?: { client: number; v83: number };
   assumptions: {
     defaultRespawnSeconds: number;
     expNote: string;

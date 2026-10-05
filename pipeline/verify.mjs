@@ -54,6 +54,14 @@ function main() {
   check("傳送門邊數合理", edges >= 3000, `${edges} 條`);
 
   check("練功索引非空", training?.length >= 120, `${training?.length} 張圖`);
+
+  // 出怪要用台服客戶端：冰獨眼獸洞穴Ⅱ在台服是冰獨眼獸，v83 是赤龍（2026-10-05 玩家在畫面上抓到）
+  const coldEye = training?.find(row => row.m === 105090100);
+  check(
+    "冰獨眼獸洞穴Ⅱ 用台服出怪（冰獨眼獸，不是赤龍）",
+    Boolean(coldEye) && coldEye.mobs.some(([id]) => id === 4230100) && !coldEye.mobs.some(([id]) => id === 6130100),
+  );
+
   check("打寶索引非空", Object.keys(farming ?? {}).length >= 500, `${Object.keys(farming ?? {}).length} 個道具`);
   check("搜尋索引非空", search?.length >= 8000, `${search?.length} 筆`);
 

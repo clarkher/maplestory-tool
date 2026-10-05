@@ -2,15 +2,19 @@
  * 把原始資料合成前端要用的正規化檔案。
  *
  *  data/raw/artale.json     Artale 客戶端匯出：怪物數值、掉落、道具、任務、技能（中文，玩家實際玩的版本）
- *  data/raw/v83-maps.json   v83 Map.wz：傳送門連線、刷怪點與回生秒數、回城點、世界地圖區域
+ *  data/raw/v83-maps.json   v83 Map.wz：傳送門連線、回城點、世界地圖區域；台服客戶端沒有刷怪資料的地圖才用它的刷怪點
  *  data/raw/msio-maps.json  maplestory.io：只用來標記哪些地圖有小地圖圖檔（選用）
  *
  * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸與刷怪密度用 v83 補。
  * 對不起來的一律標記，不猜、不補假值。
+ *
+ * 刷怪點與回生秒數以台服客戶端為準（上游 maps-data.js，見 lib/spawns.mjs）：
+ * 2026-10-05 查到 197 張練功圖有 110 張的 v83 出怪跟台服對不上。
  */
 import fs from "node:fs";
 import path from "node:path";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
+import { mergeSpawns, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const RAW = path.join(ROOT, "data", "raw");
@@ -73,11 +77,12 @@ function main() {
   const components = labelComponents(graph, maps);
   const nearestTown = computeNearestTowns(maps, graph, v83);
   const canonItem = itemAliases(artale);
-  const monsters = buildMonsters(artale, v83, maps, canonItem);
+  const spawnTable = mergeSpawns(twSpawns(artale.maps), v83.maps);
+  const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
   const items = buildItems(artale, monsters);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
-  const training = buildTraining(maps, v83, monsters);
+  const training = buildTraining(maps, spawnTable.spawns, monsters);
   const farming = buildFarmingIndex(items, monsters, maps);
   const search = buildSearch({ monsters, items, quests, skills, maps });
 
@@ -106,6 +111,8 @@ function main() {
     release: RELEASE,
     // 客戶端已經有中文名、但所在地區還沒開放而被擋下來的地圖數
     heldBackRegions: heldBack,
+    // 刷怪資料各用了幾張圖的台服客戶端、幾張退回 v83
+    spawnSource: { client: spawnTable.fromTw, v83: spawnTable.fromV83 },
     assumptions: {
       defaultRespawnSeconds: DEFAULT_RESPAWN_SECONDS,
       expNote: "本站不提供每小時經驗值——那需要知道你的清怪速度。提供的是可查證的事實：一輪清完的總經驗、刷怪點數、回生秒數，以及據此換算的相對效率指數。",
@@ -359,11 +366,11 @@ function computeNearestTowns(maps, graph, v83) {
 
 /* ---------------------------------------------------------------- 怪物 */
 
-function buildMonsters(artale, v83, maps, canonItem) {
-  // 反查：怪物 id → 出現在哪些地圖、各幾個刷怪點、回生秒數
+function buildMonsters(artale, spawns, maps, canonItem) {
+  // 反查：怪物 id → 出現在哪些地圖、各幾個刷怪點、回生秒數（台服客戶端優先，見 lib/spawns.mjs）
   const spawnOf = new Map();
-  for (const [key, raw] of Object.entries(v83.maps)) {
-    for (const [mobId, count, mobTime] of raw.m || []) {
+  for (const [key, list] of Object.entries(spawns)) {
+    for (const [mobId, count, mobTime] of list) {
       if (!spawnOf.has(mobId)) spawnOf.set(mobId, []);
       spawnOf.get(mobId).push([Number(key), count, mobTime || 0]);
     }
@@ -705,13 +712,13 @@ function buildSkills(artale, allJobs) {
  * 一輪清完的總經驗、刷怪點數、回生秒數——外加一個純粹用來排序的密度值 eff，
  * 前端會把它換算成同等級帶內的相對指數再顯示。
  */
-function buildTraining(maps, v83, monsters) {
+function buildTraining(maps, spawns, monsters) {
   const rows = [];
-  for (const [key, raw] of Object.entries(v83.maps)) {
+  for (const [key, list] of Object.entries(spawns)) {
     const mapId = Number(key);
     const record = maps.records[mapId];
     // 沒有中文名的地圖不進推薦——玩家在遊戲裡找不到它
-    if (!record || !record.zh || !raw.m?.length) continue;
+    if (!record || !record.zh || !list?.length) continue;
 
     let totalSpawn = 0;
     let density = 0;
@@ -724,7 +731,7 @@ function buildTraining(maps, v83, monsters) {
     let unknownSpawn = 0;
     const mobs = [];
 
-    for (const [mobId, count, mobTime] of raw.m) {
+    for (const [mobId, count, mobTime] of list) {
       const monster = monsters.byId.get(mobId);
       if (!monster || !monster.lv) {
         unknownSpawn += count;
