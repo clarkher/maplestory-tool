@@ -359,6 +359,22 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     expect(result[0]).toMatchObject({ title: "伊卡路斯任務鏈", firstPart: 1, lastPart: 3, totalParts: 3 });
   });
 
+  it("一條線後面的段不會比前面的段早解鎖（惡靈森林 50 等才接得到，後面幾段攻略寫 45 也要到 50 那段才列，不會 45 那段從第 2 段開始）", () => {
+    const quests = [
+      quest("e1", { n: "惡靈森林", minLv: 50, exp: 0 }),
+      quest("e2", { n: "他呼喚的名稱", exp: 0, pre: ["e1"] }),
+      quest("e3", { n: "消滅殭屍猴王", exp: 112800, pre: ["e2"] }),
+    ];
+    const mustDo = [rec("e3", "45–55", { chain: ["e1", "e2", "e3"], name: "惡靈森林 → 消滅殭屍猴王" })];
+    expect(run(45, { from: 40, to: 50 }, quests, mustDo)).toEqual([]);
+    const shared = common(mustDo);
+    expect(bandQuests({ band: { from: 40, to: 50 }, active: true, level: 45, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) })).toEqual([]);
+    const [row] = run(45, { from: 50, to: 60 }, quests, mustDo);
+    expect(row.quests.map(entry => entry.id)).toEqual(["e1", "e2", "e3"]);
+    expect(row).toMatchObject({ level: 50, exp: 112800 });
+    expect(partsText(row)).toBe("第 1–3 段／共 3 段");
+  });
+
   it("第幾段／共幾段算整條線：這一段只列在這段解鎖的", () => {
     const quests = [
       quest("q1", { minLv: 20, exp: 20000 }),

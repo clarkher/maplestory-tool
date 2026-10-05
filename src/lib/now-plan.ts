@@ -388,7 +388,19 @@ export function bandQuests(args: {
   const shared = questLines(isIslandBand(band) ? 0 : stageJob(job, band.from), quests, common, maps, effective);
   const island = onIsland(job, level);
   const onlyIsland = islandOnly(job, level);
-  const unlockOf = (quest: Quest) => quest.minLv ?? recommendedLevel(shared.recs.get(quest.id));
+  // 解鎖等級：門檻，沒有門檻用攻略建議等級；一條線後面的段不會比前面的段早解鎖，取到這段為止最高的
+  // （round 4：惡靈森林 50 等才接得到，後面幾段沒有門檻、攻略寫 45，原本 40–50 那段會從第 2 段開始列）。都沒有的照舊不列在任何一段
+  const lineUnlock = new Map<string, number>();
+  for (const line of shared.lines.values()) {
+    let highest = 0;
+    for (const quest of line) {
+      const own = quest.minLv ?? recommendedLevel(shared.recs.get(quest.id));
+      if (own === undefined) continue;
+      highest = Math.max(highest, own);
+      lineUnlock.set(quest.id, highest);
+    }
+  }
+  const unlockOf = (quest: Quest) => lineUnlock.get(quest.id);
   const inBand = shared.forJob.filter(quest => {
     const unlock = unlockOf(quest);
     return unlock !== undefined && unlock >= band.from && unlock < band.to
