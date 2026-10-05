@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatNumber } from "@/lib/format";
 import type { Quest } from "@/lib/types";
+import { PartsText } from "./bits";
 
 /** 一組任務一行：同一條任務線收起來，列要交什麼、拿多少。 */
 export function QuestLine({
@@ -39,7 +40,7 @@ export function QuestLine({
         <Link href={`/db/quests?id=${quests[0].id}`} className="font-bold hover:text-[color:var(--maple)]">
           {title}
         </Link>
-        {parts ? <span className="ml-1 whitespace-nowrap text-[12px] ink-faint">{parts}</span> : null}
+        {parts ? <span className="ml-1 text-[12px] ink-faint"><PartsText text={parts} /></span> : null}
         {needText ? <span className="ml-1.5 text-[12px] ink-soft">{needText}</span> : null}
         {hasEarlier && showPrerequisite ? <span className="ml-1.5 text-[11px] ink-faint">（要先解前一段）</span> : null}
       </span>

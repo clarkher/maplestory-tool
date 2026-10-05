@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { RouteIcon } from "@/components/Icons";
 import { itemImage, mapName, npcImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { npcGoTarget, partsText, type NowQuest } from "@/lib/now-plan";
 import type { MapRecord } from "@/lib/types";
-import { SourceLinks, SourceTag, Sprite, levelText } from "./bits";
+import { PartsText, SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 
 /** 一開始顯示幾條；其餘按「還有 N 個任務」展開（關鍵獎勵可能超過 5 個，不能藏掉） */
 const FIRST_SHOWN = 5;
@@ -43,6 +43,7 @@ function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<numbe
   const [open, setOpen] = useState(false);
   const fraction = levelText(item.fraction);
   const parts = partsText(item);
+  const lead = [item.exp ? `+${formatNumber(item.exp)} 經驗` : null, fraction].filter((chunk): chunk is string => Boolean(chunk));
   // NPC 站在隱藏地圖（卡伊琳的訓練場）時帶去它的回城點，按鈕寫出那張圖
   const go = npcGoTarget(item.npc?.map, maps, routable);
   return (
@@ -58,14 +59,19 @@ function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<numbe
               <span className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--gold)]">{item.reward}</span>
             ) : null}
           </span>
-          {/* 每一塊（+經驗、約幾級、第幾段／共幾段）各自不斷行，375 寬不會把「段」字單獨擠到下一行 */}
+          {/* 每一塊（+經驗、約幾級、第幾段／共幾段）各自不斷行，375 寬不會把「段」字單獨擠到下一行；
+              分隔的「・」放在前一塊的結尾、後面可以換行（「・」不能放在行首，放開頭整行就沒地方斷，360 寬會凸出卡片） */}
           <span className="mt-0.5 block text-[12px] tabular-nums ink-soft">
-            {[item.exp ? `+${formatNumber(item.exp)} 經驗` : null, fraction, parts].filter(Boolean).map((chunk, index) => (
-              <span key={index} className="whitespace-nowrap">
-                {index > 0 ? "・" : null}
-                {chunk}
-              </span>
+            {lead.map((chunk, index) => (
+              <Fragment key={index}>
+                <span className="whitespace-nowrap">
+                  {chunk}
+                  {index < lead.length - 1 || parts ? "・" : null}
+                </span>
+                <wbr />
+              </Fragment>
             ))}
+            {parts ? <PartsText text={parts} /> : null}
           </span>
           <span className="mt-1 flex items-center justify-between gap-2">
             {/* 要去的地圖名不能被截掉：放不下就換行 */}

@@ -68,6 +68,22 @@ export function Panel({ title, aside, children, className = "" }: { title?: Reac
   );
 }
 
+/**
+ * 「第幾段／共 N 段」（now-plan partsText）：「／」前後各自不斷行、「／」後面可以換行——
+ * 「第 1–52 段中的 51 段／共 52 段」在 360 寬放不下時換成兩行，不凸出卡片，「段」也不會落單。
+ */
+export function PartsText({ text }: { text: string }) {
+  const cut = text.indexOf("／");
+  if (cut < 0) return <span className="whitespace-nowrap">{text}</span>;
+  return (
+    <>
+      <span className="whitespace-nowrap">{text.slice(0, cut + 1)}</span>
+      <wbr />
+      <span className="whitespace-nowrap">{text.slice(cut + 1)}</span>
+    </>
+  );
+}
+
 /** 經驗換算成「約幾級」，太小的不顯示免得一堆 0.00 */
 export function levelText(fraction: number): string | null {
   if (fraction >= 1) return `約 ${fraction.toFixed(1)} 級`;
