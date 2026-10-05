@@ -140,7 +140,9 @@ function MapCard({ pick, level, jobName, maps, monsters }: Common & { pick: Extr
         <p className="text-[12px] ink-soft">
           {option.row ? `清一輪 ${formatNumber(option.row.exp1)} 經驗・${option.row.sp} 隻怪` : null}
           {option.row && option.hops ? "・" : null}
-          {option.hops && option.town ? `從${mapName(maps, option.town)}走 ${option.hops} 張圖` : null}
+          {option.hops && option.town
+            ? `從${mapName(maps, option.town)}走 ${option.hops} 張圖${option.boat ? `（${mapName(maps, option.town)}要搭船或搭車過去）` : ""}`
+            : null}
           {option.source === "data" ? <span className="block ink-faint">照遊戲資料排，還沒有玩家實測</span> : null}
         </p>
         {/* 從城鎮走得到才給帶我去（跟 /go 同一個條件），不然點進去只會看到找不到起點 */}

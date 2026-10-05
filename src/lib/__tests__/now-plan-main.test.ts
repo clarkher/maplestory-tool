@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { INSTRUCTOR_MAPS, advanceTitle, altPrefix, canGo, mainPick, pqFor, type TrainOption } from "@/lib/now-plan";
+import { VICTORIA_PORT } from "@/lib/route";
 import type { GuideCommon, GuideJob, GuidePq, GuideTrain, MapRecord, Monster, PortalEdge, TrainingRow } from "@/lib/types";
 
 const TOWN = 100000000;
@@ -254,6 +255,19 @@ describe("主推大卡：能練的最高圖、過期攻略、封頂", () => {
     if (at70?.kind !== "map" || at71?.kind !== "map") throw new Error("應該是練功圖");
     expect(at70.option.map).toBe(undead);
     expect(at71.option.map).toBe(plain);
+  });
+
+  it("出發的城鎮跟維多利亞島之間沒有傳送門時標出來（卡上要寫要自己搭船或搭車過去）", () => {
+    const beach = 300000019;
+    const far = world([{ id: beach, lv: 45, eff: 100 }]);
+    const pickFar = mainPick({ ...far, level: 45, job: 100 });
+    if (pickFar?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pickFar.option).toMatchObject({ map: beach, town: TOWN, boat: true });
+
+    const linked = { ...far, graph: { ...far.graph, [VICTORIA_PORT]: [[TOWN, "east00", 0, 0]] as PortalEdge[] } };
+    const pickNear = mainPick({ ...linked, level: 45, job: 100 });
+    if (pickNear?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pickNear.option.boat).toBe(false);
   });
 
   it("同一張圖不會同時是主推跟備案（攻略同一張圖寫了單人跟組隊兩段）", () => {

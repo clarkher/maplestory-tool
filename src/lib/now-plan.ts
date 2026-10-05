@@ -5,7 +5,7 @@
 import { jobFit, type JobFit } from "./job-rules";
 import { JOB_LINES, advancementLevel, baseJob, stageJob } from "./jobs";
 import { jobLineage, planTraining, questEligible } from "./planner";
-import { findRoute, suggestStart } from "./route";
+import { findRoute, needsBoat, suggestStart, victoriaReach } from "./route";
 import {
   VERIFIED_RANK, groupQuests, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, questReachable, shortName, spawnIndex,
   trainingForBand, withoutLongRun,
@@ -327,6 +327,8 @@ export type TrainOption = {
   /** 從最近城鎮走幾張圖；沒有代表城鎮走不到（不給「帶我去」） */
   hops?: number;
   town?: number;
+  /** 出發的城鎮跟維多利亞島的城鎮之間沒有傳送門（黃金海灘），要自己搭船或搭車過去（route.ts needsBoat） */
+  boat?: boolean;
 };
 
 /** 封頂提示：能練的最高圖幾等；best＝主推圖已經是能去最好的（跟最高圖差 5 級以內） */
@@ -392,16 +394,21 @@ export function pqFor(common: GuideCommon, job: number, level: number): { pq: Gu
   return hits.sort((a, b) => b.window[0] - a.window[0])[0];
 }
 
-function routeFrom(
+/**
+ * 從最近的城鎮走到這張圖：幾張圖、哪個城鎮、那個城鎮要不要自己搭船或搭車（跟 /go 同一套）。
+ * 城鎮走不到就是空的，不給「帶我去」。
+ */
+export function townRoute(
   map: number,
   graph: Record<string, PortalEdge[]>,
   maps: Record<string, MapRecord>,
   nearestTown: Record<string, [number, number]>,
-): { town?: number; hops?: number } {
+  island = false,
+): { town?: number; hops?: number; boat?: boolean } {
   const town = suggestStart(graph, maps, nearestTown, map);
   if (!town) return {};
   const route = findRoute(graph, town, map);
-  return route.ok ? { town, hops: route.hops } : {};
+  return route.ok ? { town, hops: route.hops, boat: needsBoat(town, victoriaReach(graph), island) } : {};
 }
 
 /** 攻略段落的排序：跨 15 級以上的排後面 → 單人優先 → 台服實測優先 → 越窄越前面 */
@@ -448,10 +455,10 @@ export function mainPick(args: {
   const anyRow = new Map(args.training.map(row => [row.m, row]));
   const mobsOf = (map: number): Array<[number, number]> => spawns.get(map) ?? [];
   const fitOf = (map: number) => jobFit(stage, level, mobsOf(map), index);
-  const routes = new Map<number, { town?: number; hops?: number }>();
+  const routes = new Map<number, { town?: number; hops?: number; boat?: boolean }>();
   const route = (map: number) => {
-    if (!routes.has(map)) routes.set(map, routeFrom(map, graph, maps, nearestTown));
-    return routes.get(map) as { town?: number; hops?: number };
+    if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown, island));
+    return routes.get(map) as { town?: number; hops?: number; boat?: boolean };
   };
   // 地圖等級：練功資料的平均等級；沒有練功資料就取出怪的最高等級；都沒有就是不知道
   const levelOf = (map: number): number | undefined => {
