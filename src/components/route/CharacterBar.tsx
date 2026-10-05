@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { npcImage } from "@/lib/data";
-import { JOB_LINES, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, commitLevelText, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
+import { JOB_TIERS, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, commitLevelText, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
 import { Sprite } from "./bits";
@@ -150,33 +150,36 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
 
           <div>
             <p className="mb-1.5 text-sm font-bold">
-              職業 <span className="text-xs font-normal ink-faint">法師 8 等、其他 10 等轉職；二轉職業 30 等起</span>
+              職業 <span className="text-xs font-normal ink-faint">法師 8 等、其他 10 等轉職；二轉 30 等起；三轉先照舊版 70 等（等開機公告確認）</span>
             </p>
-            <div className="space-y-1.5">
-              {JOB_LINES.map(line => (
-                <div key={line.base} className="flex flex-wrap gap-1.5">
-                  {[[line.base, line.line] as [number, string], ...line.branches].map(([id, name]) => {
-                    const active = profile.job === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onMouseDown={keepTyping}
-                        onClick={() => pickJob(id)}
-                        aria-pressed={active}
-                        className={[
-                          "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
-                          active
-                            ? "bg-[color:var(--maple)] text-white"
-                            : id === line.base
-                              ? "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
-                              : "bg-[color:var(--paper-deep)]",
-                        ].join(" ")}
-                      >
-                        {name}
-                      </button>
-                    );
-                  })}
+            <div className="space-y-2">
+              {JOB_TIERS.map(tier => (
+                <div key={tier.label}>
+                  <p className="mb-1 text-[11px] font-bold ink-faint">{tier.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tier.jobs.map(([id, name]) => {
+                      const active = profile.job === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onMouseDown={keepTyping}
+                          onClick={() => pickJob(id)}
+                          aria-pressed={active}
+                          className={[
+                            "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
+                            active
+                              ? "bg-[color:var(--maple)] text-white"
+                              : tier.label === "一轉"
+                                ? "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
+                                : "bg-[color:var(--paper-deep)]",
+                          ].join(" ")}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
               <button

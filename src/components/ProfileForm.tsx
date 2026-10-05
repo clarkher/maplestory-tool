@@ -82,7 +82,7 @@ export function ProfileForm({
         <label className="flex-[2]">
           <span className="mb-1.5 block text-sm font-bold">
             你的職業
-            <span className="ml-1.5 text-xs font-normal ink-faint">二轉 30 等起</span>
+            <span className="ml-1.5 text-xs font-normal ink-faint">二轉 30 等起、三轉先照舊版 70 等</span>
           </span>
           <select
             value={normalizeJob(profile.job)}
@@ -118,6 +118,9 @@ export function ProfileForm({
                 <option value={line.base}>{line.line}（還沒二轉）</option>
                 {line.branches.map(([id, name]) => (
                   <option key={id} value={id}>{name}</option>
+                ))}
+                {line.thirds.map(([id, name]) => (
+                  <option key={id} value={id}>{name}（三轉）</option>
                 ))}
               </optgroup>
             ))}

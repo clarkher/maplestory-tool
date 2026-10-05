@@ -7,7 +7,7 @@ import {
   itemImage, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining, monsterImage,
 } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { isSecondJob, isThirdJob, jobOption, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
+import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { jobLineage } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
@@ -179,7 +179,7 @@ export function RouteHome() {
           <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} />
 
           {stageGuide ? (
-            <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={data.common.spLeftover} />
+            <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={jobTier(stage) === 3 ? null : data.common.spLeftover} />
           ) : null}
           {stage && !stageGuide && guideStatus === "failed" ? (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">技能點法讀取失敗，重新整理一次試試。上面的練功圖跟任務不受影響。</p>
