@@ -8,7 +8,7 @@ import { jobLineage, planTraining, questEligible } from "./planner";
 import { boatNote, findRoute, suggestStart, victoriaReach } from "./route";
 import {
   VERIFIED_RANK, groupQuests, isIslandBand, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, questReachable, shortName, spawnIndex,
-  trainingForBand, withoutLongRun, type Band,
+  trainingForBand, type Band,
 } from "./route-planner";
 import type {
   GuideCommon, GuideJob, GuideMustDo, GuidePq, GuideTrain, MapRecord, Monster, PortalEdge, Quest, QuestNpc, QuestReward, TrainingRow,
@@ -172,11 +172,29 @@ type QuestLines = {
 };
 
 /**
+ * questLines 的快取：畫面跟真資料檢查傳的都是同一份任務、攻略、地圖、實際等級（物件不變），每一轉只算一次。
+ * 任何一份換了（例：單元測試每次給新的）就整個重算。
+ */
+let linesCache: {
+  quests: Quest[];
+  common: GuideCommon;
+  maps: Record<string, Pick<MapRecord, "zh">>;
+  effective: Map<string, number>;
+  byStage: Map<number, QuestLines>;
+} | undefined;
+
+/**
  * 先解跟升級路線的必解共用的任務線：一筆攻略推薦（mustDo）就是一條線（`rec:任務 id`），
  * 即使它涵蓋的幾段前置串不起來（例：伊卡路斯任務鏈）；沒有推薦的照前置任務分（groupQuests）。
  * 所以前置有推薦、自己沒有的任務是另一條線，不會掛上別的任務的「為什麼」。
+ * 回傳的陣列跟 Map 是共用的快取，呼叫端不能改。
  */
 function questLines(stage: number, quests: Quest[], common: GuideCommon, maps: Record<string, Pick<MapRecord, "zh">>, effective: Map<string, number>): QuestLines {
+  if (!linesCache || linesCache.quests !== quests || linesCache.common !== common || linesCache.maps !== maps || linesCache.effective !== effective) {
+    linesCache = { quests, common, maps, effective, byStage: new Map() };
+  }
+  const cached = linesCache.byStage.get(stage);
+  if (cached) return cached;
   const lineage = new Set(jobLineage(stage));
   const recs = mustDoIndex(common);
   const levelOf = (quest: Quest) => effective.get(quest.id) ?? quest.minLv ?? 0;
@@ -197,13 +215,23 @@ function questLines(stage: number, quests: Quest[], common: GuideCommon, maps: R
     lines.set(key, [...(lines.get(key) ?? []), quest]);
   }
   for (const members of lines.values()) members.sort((a, b) => levelOf(a) - levelOf(b) || a.id.localeCompare(b.id));
-  return { stage, lineage, recs, forJob, lineOf, lines };
+  const value = { stage, lineage, recs, forJob, lineOf, lines };
+  linesCache.byStage.set(stage, value);
+  return value;
 }
 
-/** 這批任務裡長線那種的：要打 200 隻以上；同一道具在這批任務裡累計 200 個以上（它們放在長線，不算先解、必解） */
-function longRunIds(candidates: Quest[], monsters: Monster[]): Set<string> {
-  const kept = new Set(withoutLongRun(candidates.filter(quest => !isLongKill(quest)), monsters).map(quest => quest.id));
-  return new Set(candidates.filter(quest => !kept.has(quest.id)).map(quest => quest.id));
+/**
+ * 這批任務裡長線那種的：要打 200 隻以上；同一道具在這批任務（不含要打 200 隻以上的）裡累計 200 個以上
+ * （它們放在長線，不算先解、必解）。跟 route-planner 的 withoutLongRun 同一個算法，只加總數量、不找掉落怪（升級路線每一段都要算，省時間）。
+ */
+function longRunIds(candidates: Quest[]): Set<string> {
+  const totals = new Map<number, number>();
+  for (const quest of candidates) {
+    if (isLongKill(quest)) continue;
+    for (const item of quest.needItems ?? []) totals.set(item.id, (totals.get(item.id) ?? 0) + (item.c ?? 1));
+  }
+  const heavy = (quest: Quest) => (quest.needItems ?? []).some(item => (totals.get(item.id) ?? 0) >= LONG_RUN_MIN);
+  return new Set(candidates.filter(quest => isLongKill(quest) || heavy(quest)).map(quest => quest.id));
 }
 
 /**
@@ -300,7 +328,7 @@ export function nowQuests(args: {
   const { level, job, quests, monsters, common, maps, effective, limit } = args;
   const shared = questLines(stageJob(job, level), quests, common, maps, effective);
   const candidates = doableNow(shared, level, effective, onIsland(job, level), islandOnly(job, level));
-  const long = longRunIds(candidates, monsters);
+  const long = longRunIds(candidates);
   // 做得到＝現在接得到、做得動、不是長線那種；0 經驗的段也算（它是步驟，值不值得由整段經驗決定）
   const doable = new Set(candidates.filter(quest => !long.has(quest.id)).map(quest => quest.id));
   const sorted = lineItems(shared, quest => doable.has(quest.id), () => level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
@@ -366,8 +394,8 @@ export function bandQuests(args: {
   });
   const now = doableNow(questLines(stageJob(job, level), quests, common, maps, effective), level, effective, island, onlyIsland);
   const nowIds = new Set(now.map(quest => quest.id));
-  const longNow = longRunIds(now, monsters);
-  const longLater = longRunIds(inBand.filter(quest => !nowIds.has(quest.id)), monsters);
+  const longNow = longRunIds(now);
+  const longLater = longRunIds(inBand.filter(quest => !nowIds.has(quest.id)));
   const long = new Set(inBand.filter(quest => (nowIds.has(quest.id) ? longNow : longLater).has(quest.id)).map(quest => quest.id));
   const floor = band.from > level ? band.from : level;
   const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
