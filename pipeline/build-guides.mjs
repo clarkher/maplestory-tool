@@ -155,7 +155,7 @@ function main() {
   lintIssues.push(...lintResearch(questResearch).map(issue => ({ file: "quests-exp.json", ...issue })));
   lintIssues.push(...lintResearch(pqResearch).map(issue => ({ file: "pq.json", ...issue })));
   const toNext = [0];
-  for (let level = 1; level < 100; level += 1) {
+  for (let level = 1; level < levelCap; level += 1) {
     const value = questResearch.expTable.toNext[String(level)];
     if (!Number.isFinite(value) || value <= 0) throw new Error(`升級經驗表缺 Lv.${level}`);
     toNext.push(value);
@@ -230,7 +230,7 @@ function main() {
 
   console.log(`[guides] ${summary.length} 個職業`);
   for (const line of summary) console.log(`  ${line}`);
-  console.log(`[guides] 必解 ${common.mustDo.length}（含關鍵獎勵 ${common.mustDo.filter(entry => entry.reward).length}）、不值得解 ${common.notWorth.length}、組隊任務 ${common.pq.length}、升級表 Lv.1–99`);
+  console.log(`[guides] 必解 ${common.mustDo.length}（含關鍵獎勵 ${common.mustDo.filter(entry => entry.reward).length}）、不值得解 ${common.notWorth.length}、組隊任務 ${common.pq.length}、升級表 Lv.1–${levelCap - 1}`);
   if (warnings.length) {
     console.log(`[guides] ${warnings.length} 筆以遊戲資料為準調整：`);
     for (const line of warnings) console.log(`  - ${line}`);

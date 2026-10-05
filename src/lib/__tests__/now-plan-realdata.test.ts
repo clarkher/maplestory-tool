@@ -133,6 +133,11 @@ describe("真資料：首頁每個組合", () => {
     expect(LEVEL_CAP).toBe(levelCap);
   });
 
+  it("升級經驗表涵蓋到等級上限前一級（V002：Lv.119 → 120）", () => {
+    const toNext = common.expTable.toNext;
+    for (let level = 1; level < levelCap; level += 1) expect(toNext[level], `Lv.${level}`).toBeGreaterThan(0);
+  });
+
   it("每個組合都有主推大卡", () => {
     expectNone("沒有主推", combos.filter(combo => !combo.pick).map(combo => combo.tag));
   });
