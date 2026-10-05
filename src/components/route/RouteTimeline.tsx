@@ -42,13 +42,18 @@ export function RouteTimeline(context: Context) {
   const currentIndex = bands.findIndex(band => level >= band.from && level < band.to);
   const activeIndex = currentIndex < 0 ? bands.length - 1 : currentIndex;
   const [open, setOpen] = useState<Set<number>>(() => new Set([activeIndex]));
-  const labels = useMemo(
-    () => bandLabels(bands, band => guideFor(context, band).guide?.train ?? []),
-    // context 每次 render 都是新物件；標籤只跟職業、攻略、等級段有關
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bands, context.job, context.guides],
-  );
   const spawns = useMemo(() => spawnIndex(context.monsters), [context.monsters]);
+  const labels = useMemo(
+    () => bandLabels(bands, band => {
+      const { stage, guide } = guideFor(context, band);
+      // 職業規則擋掉的攻略圖（例：火毒的火焰之地）不拿來當段落標籤
+      return (guide?.train ?? []).filter(segment =>
+        !segment.map || jobFit(stage, Math.max(band.from, segment.from), spawns.get(segment.map) ?? [], context.monsterIndex).ok);
+    }),
+    // context 每次 render 都是新物件；標籤只跟職業、攻略、等級段、怪物資料有關
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bands, context.job, context.guides, spawns, context.monsterIndex],
+  );
 
   function toggle(index: number) {
     setOpen(previous => {
@@ -155,14 +160,20 @@ function BandDetail({ band, next, context, spawns, current }: {
     const segments = guide ? trainingForBand(band, guide.train).slice(0, 3) : [];
     const island = isIslandBand(band);
     const middle = Math.min(99, Math.round((band.from + band.to - 1) / 2));
-    const fallback = segments.length || island
+    const warnings = new Map(segments.flatMap(segment => {
+      if (!segment.map) return [];
+      const fit = jobFit(stage, Math.max(band.from, segment.from), spawns.get(segment.map) ?? [], monsterIndex);
+      return fit.ok ? [] : [[segment, fit.note ?? "這個職業不適合"] as const];
+    }));
+    const usable = segments.filter(segment => !warnings.has(segment));
+    const fallback = usable.length || island
       ? []
       : planTraining(
         { level: middle, job: stage },
         training.filter(row => !isIslandMap(row.m) && maps[String(row.m)]?.zh),
         monsterIndex,
-        2,
-      );
+        8,
+      ).filter(pick => jobFit(stage, middle, spawns.get(pick.row.m) ?? [], monsterIndex).ok).slice(0, 2);
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
     // 這段開始前（上一級結束時）到這段最後一級的點數；轉職那一段從 0 起算，才不會漏掉只花 1 點的第一步
     const steps = build && stage ? stepsBetween(build, spAtLevel(stage, band.from - 1), spAtLevel(stage, band.to - 1)) : [];
@@ -172,12 +183,7 @@ function BandDetail({ band, next, context, spawns, current }: {
       .filter(material => material.droppers.length)
       .sort((a, b) => b.c - a.c)
       .slice(0, 5);
-    const warnings = new Map(segments.flatMap(segment => {
-      if (!segment.map) return [];
-      const fit = jobFit(stage, Math.max(band.from, segment.from), spawns.get(segment.map) ?? [], monsterIndex);
-      return fit.ok ? [] : [[segment, fit.note ?? "這個職業不適合"] as const];
-    }));
-    return { segments, fallback, build, steps, mustDo, prep, warnings };
+    return { segments, fallback, build, steps, mustDo, prep, warnings, usable };
   }, [band, next, guide, stage, job, quests, monsters, monsterIndex, maps, training, common, prefer, spawns, current, context.level]);
 
   const stuckInFirstJob = band.from >= 30 && !isSecondJob(job) && job !== 0;
@@ -202,41 +208,52 @@ function BandDetail({ band, next, context, spawns, current }: {
       <Block label="練功">
         {isIslandBand(band) ? (
           <IslandStep />
-        ) : detail.segments.length ? (
-          <ul className="space-y-2.5">
-            {detail.segments.map((segment, index) => (
-              <TrainingSegment key={index} segment={segment} maps={maps} monsterIndex={monsterIndex} routable={routable} warn={detail.warnings.get(segment)} />
-            ))}
-          </ul>
-        ) : !guide && guideStatus === "loading" ? (
-          <p className="text-[13px] ink-faint">讀取玩家攻略中…</p>
-        ) : !guide && guideStatus === "failed" ? (
-          <p className="text-[13px] ink-soft">玩家攻略讀取失敗，重新整理一次試試。</p>
         ) : (
-          <div className="space-y-2">
-            <p className="text-[13px] leading-relaxed ink-soft">這段還沒有玩家攻略，以下是遊戲資料推算，沒有人實測過。</p>
-            {gap ? (
-              <div className="space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
-                <p className="text-[12px] leading-relaxed ink-soft">查攻略時看到的狀況：{gap.t}</p>
-                <SourceLinks urls={gap.s} />
-              </div>
+          <>
+            {detail.segments.length ? (
+              <ul className="space-y-2.5">
+                {detail.segments.map((segment, index) => (
+                  <TrainingSegment key={index} segment={segment} maps={maps} monsterIndex={monsterIndex} routable={routable} warn={detail.warnings.get(segment)} />
+                ))}
+              </ul>
             ) : null}
-            {detail.fallback.map(pick => (
-              <div key={pick.row.m} className="flex items-center gap-2.5">
-                {pick.lead ? <Sprite src={monsterImage(pick.lead.id)} size={34} /> : null}
-                <span className="min-w-0 flex-1 text-[14px] leading-snug">
-                  <b>{mapName(maps, pick.row.m)}</b>
-                  <span className="block text-[12px] ink-soft">
-                    {pick.lead?.n} Lv{pick.lead?.lv} · 清一輪 {formatNumber(pick.row.exp1)} 經驗
-                  </span>
-                </span>
-                <GoButton to={pick.row.m} label="去" />
-              </div>
-            ))}
-            <div className="flex justify-end">
-              <SourceTag kind="data" />
-            </div>
-          </div>
+            {detail.usable.length === 0 ? (
+              !guide && guideStatus === "loading" ? (
+                <p className="text-[13px] ink-faint">讀取玩家攻略中…</p>
+              ) : !guide && guideStatus === "failed" ? (
+                <p className="text-[13px] ink-soft">玩家攻略讀取失敗，重新整理一次試試。</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-[13px] leading-relaxed ink-soft">
+                    {detail.segments.length > 0
+                      ? "這段的玩家攻略圖不適合你的職業（見上），以下是遊戲資料推算，沒有人實測過。"
+                      : "這段還沒有玩家攻略，以下是遊戲資料推算，沒有人實測過。"}
+                  </p>
+                  {gap ? (
+                    <div className="space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
+                      <p className="text-[12px] leading-relaxed ink-soft">查攻略時看到的狀況：{gap.t}</p>
+                      <SourceLinks urls={gap.s} />
+                    </div>
+                  ) : null}
+                  {detail.fallback.map(pick => (
+                    <div key={pick.row.m} className="flex items-center gap-2.5">
+                      {pick.lead ? <Sprite src={monsterImage(pick.lead.id)} size={34} /> : null}
+                      <span className="min-w-0 flex-1 text-[14px] leading-snug">
+                        <b>{mapName(maps, pick.row.m)}</b>
+                        <span className="block text-[12px] ink-soft">
+                          {pick.lead?.n} Lv{pick.lead?.lv} · 清一輪 {formatNumber(pick.row.exp1)} 經驗
+                        </span>
+                      </span>
+                      <GoButton to={pick.row.m} label="去" />
+                    </div>
+                  ))}
+                  <div className="flex justify-end">
+                    <SourceTag kind="data" />
+                  </div>
+                </div>
+              )
+            ) : null}
+          </>
         )}
         {band.from === 10 || band.from === 8 ? <PqLink text="月妙組隊任務怎麼打" /> : null}
         {band.from === 21 ? <PqLink text="超綠組隊任務怎麼打" /> : null}
