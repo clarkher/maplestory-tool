@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { lintResearch, lintText, normalizeReward, pqKeyOf, pqWindows } from "./guides.mjs";
+import { lintResearch, lintText, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./guides.mjs";
 
 test("攻略文字檢查：地圖編號、站內用語、屬性代碼、玩家 ID 都擋", () => {
   assert.deepEqual(lintText("人多可退到迷宮入口（106000300，黑斧木妖）").map(issue => issue.label), ["地圖／道具編號"]);
@@ -123,4 +123,12 @@ test("關鍵獎勵：只留站內有的道具，沒有 label 就報錯", () => {
   });
   assert.deepEqual(normalizeReward(undefined, items), { reward: undefined, dropped: [] });
   assert.throws(() => normalizeReward({ items: [1050018] }, items), /label/);
+});
+
+test("攻略段落寫的怪在那張圖一隻都不出才算對不上；有一隻出、沒寫怪、地圖沒出怪資料都不算", () => {
+  const forestMaze3 = new Set([3230300, 4230102, 5130101]);
+  assert.equal(mobsMissingOnMap([4230100], forestMaze3), true);
+  assert.equal(mobsMissingOnMap([4230100, 4230102], forestMaze3), false);
+  assert.equal(mobsMissingOnMap([], forestMaze3), false);
+  assert.equal(mobsMissingOnMap([4230100], new Set()), false);
 });

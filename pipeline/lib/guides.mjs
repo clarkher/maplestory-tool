@@ -102,6 +102,15 @@ export function pqWindows(pqList, trainByJob, { quests = new Map(), levelCap = I
   return result;
 }
 
+/**
+ * 攻略段落寫的怪，在那張圖（台服客戶端的出怪）一隻都不出 → true（例：森林迷宮III 寫冰獨眼獸，台服出的是風獨眼獸）。
+ * 段落常一次寫好幾張圖，所以只要有一隻對得上就不算；段落沒寫怪、地圖沒有出怪資料時不判斷。
+ */
+export function mobsMissingOnMap(mobIds, spawnedIds) {
+  if (!mobIds.length || !spawnedIds.size) return false;
+  return !mobIds.some(id => spawnedIds.has(id));
+}
+
 /** 關鍵獎勵：label 必填；items 只留站內有的道具 id，其餘回報 */
 export function normalizeReward(raw, itemIds) {
   if (!raw) return { reward: undefined, dropped: [] };

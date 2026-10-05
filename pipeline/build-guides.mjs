@@ -19,6 +19,7 @@
  *   - 地圖 id 沒有中文名（未開放或不存在）→ 保留文字但拿掉 id（不能導航），列警告
  *   - 任務 id 不在 quests.json → 必解清單丟掉那筆，列警告
  *   - 組隊任務各職業的等級範圍超出遊戲任務的 minLv／maxLv → 裁進去，整段在外就拿掉，列警告
+ *   - 練功段落寫的怪在那張圖一隻都不出（台服出怪）→ 列警告，研究檔要再對一次
  *
  * 研究檔的練功清單裡混了兩種不是練功點的條目，這裡分出去：
  *   - 名稱「（無可靠出處）」：那段等級找不到攻略的說明 → gaps，畫面上照實寫「沒有攻略」
@@ -29,7 +30,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { lintResearch, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
+import { lintResearch, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SRC = path.join(ROOT, "data", "guides");
@@ -49,7 +50,17 @@ function main() {
   const lintIssues = [];
   const skills = new Map(readJson(path.join(DATA, "skills.json")).map(skill => [skill.id, skill]));
   const maps = readJson(path.join(DATA, "maps.json"));
-  const monsters = new Set(readJson(path.join(DATA, "monsters.json")).map(monster => monster.id));
+  const monsterList = readJson(path.join(DATA, "monsters.json"));
+  const monsters = new Set(monsterList.map(monster => monster.id));
+  const monsterName = new Map(monsterList.map(monster => [monster.id, monster.n]));
+  // 地圖 → 台服客戶端在這張圖出的怪（monsters.json 的 sp），用來抓「攻略寫的怪在那張圖根本不出」
+  const spawnedOn = new Map();
+  for (const monster of monsterList) {
+    for (const [map] of monster.sp ?? []) {
+      if (!spawnedOn.has(map)) spawnedOn.set(map, new Set());
+      spawnedOn.get(map).add(monster.id);
+    }
+  }
   const quests = new Map(readJson(path.join(DATA, "quests.json")).map(quest => [quest.id, quest]));
   const levelCap = readJson(path.join(DATA, "meta.json")).release?.levelCap;
   if (!Number.isFinite(levelCap)) throw new Error("meta.json 缺 release.levelCap，先跑 npm run data:build");
@@ -105,6 +116,9 @@ function main() {
             return false;
           })
           .map(mob => mob.id);
+        if (map && mobsMissingOnMap(mobs, spawnedOn.get(map) ?? new Set())) {
+          warnings.push(`${where} 練功「${segment.mapName}」：寫的怪（${mobs.map(id => monsterName.get(id)).join("、")}）在${maps[String(map)].zh}一隻都不出（台服出怪），研究檔要再對一次`);
+        }
         return {
           from: segment.levelFrom,
           to: segment.levelTo,

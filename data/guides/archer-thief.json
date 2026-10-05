@@ -1378,7 +1378,7 @@
           "levelTo": 35,
           "kind": "solo",
           "mapName": "地鐵（一號線）蝙蝠",
-          "mapId": 103000101,
+          "mapId": 103000103,
           "mobs": [
             {
               "name": "蝙蝠",
