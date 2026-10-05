@@ -27,8 +27,8 @@ export type GuideStep = {
   mobs?: Array<{ id: number; name: string; lv: number }>;
   /** 台服實測 or 舊版經驗 */
   verified: "tw" | "legacy";
-  /** 有圖解的組隊任務 */
-  pq?: "moon" | "kpq";
+  /** 有圖解的組隊任務（跟 pq.json 的 key 一樣；段落 id 是 pq-key，首頁的「看打法」直接跳到這裡） */
+  pq?: "moon" | "kerning";
 };
 
 export type JobGuide = {
@@ -102,7 +102,7 @@ export const COMMON_ROUTE: GuideStep[] = [
     mapId: 103000000,
     mapName: "墮落城市",
     verified: "tw",
-    pq: "kpq",
+    pq: "kerning",
   },
   {
     range: "21–30（單練備案）",

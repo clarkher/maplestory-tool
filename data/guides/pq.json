@@ -7,7 +7,7 @@
       "quest": "1200",
       "match": "月妙",
       "entrance": 100000200,
-      "guide": "/guide"
+      "guide": "/guide#pq-moon"
     },
     {
       "key": "kerning",
@@ -15,7 +15,7 @@
       "quest": "1201",
       "match": "超綠|超級綠水靈|第一次同行",
       "entrance": 103000000,
-      "guide": "/guide"
+      "guide": "/guide#pq-kerning"
     }
   ]
 }
