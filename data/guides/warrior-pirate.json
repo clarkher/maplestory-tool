@@ -1248,6 +1248,98 @@
       ]
     },
     {
+      "jobId": 111,
+      "name": "十字軍",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：氣絕先滿（巴哈姆特 2006～2010）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4970",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=793",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=2576"
+          ],
+          "steps": [
+            {
+              "skillId": 1111002,
+              "skillName": "鬥氣集中",
+              "to": 30,
+              "note": "先點滿：黑暗、氣絕都要先集氣才能放"
+            },
+            {
+              "skillId": 1111005,
+              "skillName": "氣絕劍",
+              "to": 30,
+              "note": "打周圍一群怪還會暈，多數舊文先滿這招；拿斧頭改點氣絕斧"
+            },
+            {
+              "skillId": 1111003,
+              "skillName": "黑暗之劍",
+              "to": 30,
+              "note": "單隻高傷害；拿斧頭改點黑暗之斧"
+            },
+            {
+              "skillId": 1111008,
+              "skillName": "虎咆哮",
+              "to": 30,
+              "note": "暈周圍的怪，帶人時好用；也有人點到 28 就停（範圍跟 30 一樣）"
+            },
+            {
+              "skillId": 1110000,
+              "skillName": "魔力恢復",
+              "to": 20,
+              "note": "走路也會回魔、省藥水；剩 11 點隨喜好"
+            }
+          ]
+        },
+        {
+          "label": "舊版：黑暗先滿，適合沒錢、沒祭司陪的單練（巴哈姆特 2006～2010）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=793",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4972"
+          ],
+          "steps": [
+            {
+              "skillId": 1111002,
+              "skillName": "鬥氣集中",
+              "to": 30,
+              "note": "先點滿：黑暗、氣絕都要先集氣才能放"
+            },
+            {
+              "skillId": 1111003,
+              "skillName": "黑暗之劍",
+              "to": 30,
+              "note": "一次打一隻、不會引來一大群，藥水錢花得少；拿斧頭改點黑暗之斧"
+            },
+            {
+              "skillId": 1111005,
+              "skillName": "氣絕劍",
+              "to": 30,
+              "note": "拿斧頭改點氣絕斧"
+            },
+            {
+              "skillId": 1111008,
+              "skillName": "虎咆哮",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1110000,
+              "skillName": "魔力恢復",
+              "to": 20,
+              "note": "剩 11 點隨喜好；用盾的也有人改成盾防精通 20、魔力恢復 11"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
+    },
+    {
       "jobId": 120,
       "name": "見習騎士",
       "statBuild": [
@@ -1948,6 +2040,102 @@
           ]
         }
       ]
+    },
+    {
+      "jobId": 121,
+      "name": "騎士",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：三種屬性劍先滿（巴哈姆特 2006～2009）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=794",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=3954"
+          ],
+          "steps": [
+            {
+              "skillId": 1211003,
+              "skillName": "烈焰之劍",
+              "to": 30,
+              "note": "先點哪一種屬性，看接下來要打的怪怕什麼（舊文也有先冰的）；拿棍改點烈焰之棍"
+            },
+            {
+              "skillId": 1211005,
+              "skillName": "寒冰之劍",
+              "to": 30,
+              "note": "拿棍改點寒冰之棍"
+            },
+            {
+              "skillId": 1211007,
+              "skillName": "雷鳴之劍",
+              "to": 30,
+              "note": "拿棍改點雷鳴之棍"
+            },
+            {
+              "skillId": 1211002,
+              "skillName": "屬性攻擊",
+              "to": 30,
+              "note": "三轉時放一次，劍上的屬性就沒了、要重新附，所以排在後面"
+            },
+            {
+              "skillId": 1210000,
+              "skillName": "魔力恢復",
+              "to": 20,
+              "note": "走路也會回魔、省藥水；剩 11 點給魔防消除或盾防精通"
+            }
+          ]
+        },
+        {
+          "label": "舊版：屬性攻擊提早點滿、單手劍加盾（巴哈姆特 2007）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=2776"
+          ],
+          "steps": [
+            {
+              "skillId": 1211003,
+              "skillName": "烈焰之劍",
+              "to": 30,
+              "note": "拿棍改點烈焰之棍"
+            },
+            {
+              "skillId": 1211002,
+              "skillName": "屬性攻擊",
+              "to": 30,
+              "note": "舊版四轉的屬性強化以它為主，所以先滿"
+            },
+            {
+              "skillId": 1211005,
+              "skillName": "寒冰之劍",
+              "to": 30,
+              "note": "拿棍改點寒冰之棍"
+            },
+            {
+              "skillId": 1211007,
+              "skillName": "雷鳴之劍",
+              "to": 30,
+              "note": "拿棍改點雷鳴之棍"
+            },
+            {
+              "skillId": 1210001,
+              "skillName": "盾防精通",
+              "to": 20,
+              "note": "拿單手劍加盾才有效"
+            },
+            {
+              "skillId": 1210000,
+              "skillName": "魔力恢復",
+              "to": 11,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
     },
     {
       "jobId": 130,
@@ -2786,6 +2974,133 @@
           ]
         }
       ]
+    },
+    {
+      "jobId": 131,
+      "name": "龍騎士",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：雙修（巴哈姆特 2006）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=775",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1087",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=865"
+          ],
+          "steps": [
+            {
+              "skillId": 1311004,
+              "skillName": "無雙矛",
+              "to": 10,
+              "note": "70～80 等先用無雙矛清怪衝等（要拿矛）"
+            },
+            {
+              "skillId": 1310000,
+              "skillName": "魔法抵抗",
+              "to": 1,
+              "note": "點 1 就少吃 12% 屬性魔法傷害"
+            },
+            {
+              "skillId": 1311001,
+              "skillName": "槍連擊",
+              "to": 30,
+              "note": "80 等後的主力攻擊（要拿槍）"
+            },
+            {
+              "skillId": 1311008,
+              "skillName": "龍之魂",
+              "to": 20,
+              "note": "加攻擊、槍連擊更痛，放的時候 HP 會慢慢扣"
+            },
+            {
+              "skillId": 1310000,
+              "skillName": "魔法抵抗",
+              "to": 20,
+              "note": "接下來三段（魔法抵抗、無雙矛、龍之獻祭→龍咆哮）順序自選；打會放魔法的怪很有用"
+            },
+            {
+              "skillId": 1311004,
+              "skillName": "無雙矛",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1311005,
+              "skillName": "龍之獻祭",
+              "to": 3,
+              "note": "龍咆哮的前置，先點 3"
+            },
+            {
+              "skillId": 1311006,
+              "skillName": "龍咆哮",
+              "to": 30,
+              "note": "HP 過一半才能放、放完會暈一下；剩 18 點給力量消除 18 或龍之獻祭補到 21"
+            }
+          ]
+        },
+        {
+          "label": "舊版：單修槍（巴哈姆特 2010）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=5137"
+          ],
+          "steps": [
+            {
+              "skillId": 1311001,
+              "skillName": "槍連擊",
+              "to": 30,
+              "note": "主力攻擊，越早滿越好"
+            },
+            {
+              "skillId": 1310000,
+              "skillName": "魔法抵抗",
+              "to": 11,
+              "note": ""
+            },
+            {
+              "skillId": 1311003,
+              "skillName": "無雙槍",
+              "to": 30,
+              "note": "單修槍的清怪招"
+            },
+            {
+              "skillId": 1310000,
+              "skillName": "魔法抵抗",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 1311008,
+              "skillName": "龍之魂",
+              "to": 20,
+              "note": "加攻擊，省下吃章魚燒的錢"
+            },
+            {
+              "skillId": 1311005,
+              "skillName": "龍之獻祭",
+              "to": 3,
+              "note": "龍咆哮的前置"
+            },
+            {
+              "skillId": 1311006,
+              "skillName": "龍咆哮",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 1311005,
+              "skillName": "龍之獻祭",
+              "to": 21,
+              "note": "剩下的點都給龍之獻祭"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
     },
     {
       "jobId": 500,
@@ -4124,6 +4439,126 @@
       ]
     },
     {
+      "jobId": 511,
+      "name": "格鬥家",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：致命暗襲、蓄能激發先滿（巴哈姆特 2008）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3466",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3596"
+          ],
+          "steps": [
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 1,
+              "note": "能量暴擊、損人利己都要先有它"
+            },
+            {
+              "skillId": 5110000,
+              "skillName": "致命暗襲",
+              "to": 20,
+              "note": "怪被暈住時有機率爆擊，三轉後盡快點滿"
+            },
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 40,
+              "note": "能量集滿時加攻擊、命中、迴避，能量技也靠它"
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 30,
+              "note": "能量滿才能放的群體攻擊，可以取代旋風斬"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 1,
+              "note": "衝擊波的前置"
+            },
+            {
+              "skillId": 5111006,
+              "skillName": "衝擊波",
+              "to": 30,
+              "note": "變身後才能放的群體高傷害招"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 20,
+              "note": "變身後攻擊、命中、迴避上升，但只能用少數幾招"
+            },
+            {
+              "skillId": 5111004,
+              "skillName": "損人利己",
+              "to": 11,
+              "note": "吸血招，拿剩下的點"
+            }
+          ]
+        },
+        {
+          "label": "舊版：裝備好的人衝擊波先滿（巴哈姆特 2008）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3620"
+          ],
+          "steps": [
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 1,
+              "note": "衝擊波的前置"
+            },
+            {
+              "skillId": 5111006,
+              "skillName": "衝擊波",
+              "to": 30,
+              "note": "攻擊力最高，提早點；要有夠好的裝備撐過變身的等待時間"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 40,
+              "note": ""
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 5110000,
+              "skillName": "致命暗襲",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5111004,
+              "skillName": "損人利己",
+              "to": 11,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
+    },
+    {
       "jobId": 520,
       "name": "槍手",
       "statBuild": [
@@ -4601,6 +5036,110 @@
           ]
         }
       ]
+    },
+    {
+      "jobId": 521,
+      "name": "神槍手",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法（巴哈姆特 2008～2010）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=4788",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=4149",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3487"
+          ],
+          "steps": [
+            {
+              "skillId": 5210000,
+              "skillName": "3連發",
+              "to": 20,
+              "note": "雙子星攻擊一次射三顆，三轉主力；要先有雙子星攻擊 20"
+            },
+            {
+              "skillId": 5211005,
+              "skillName": "寒霜噴射",
+              "to": 30,
+              "note": "冰住前面的怪，點越高冰越多隻（最多 6 隻）"
+            },
+            {
+              "skillId": 5211002,
+              "skillName": "海鷗突擊隊",
+              "to": 30,
+              "note": "召喚海鷗丟炸彈，丟完就消失"
+            },
+            {
+              "skillId": 5211001,
+              "skillName": "章魚砲台",
+              "to": 30,
+              "note": "點滿（舊版四轉的章魚要它滿）"
+            },
+            {
+              "skillId": 5211006,
+              "skillName": "指定攻擊",
+              "to": 30,
+              "note": "打王用，也是舊版四轉技能的前置"
+            },
+            {
+              "skillId": 5211004,
+              "skillName": "火焰噴射",
+              "to": 11,
+              "note": "剩下的點；舊文說練功幾乎用不到"
+            }
+          ]
+        },
+        {
+          "label": "舊版：海鷗只點 15、火焰噴射 26（巴哈姆特 2008～2009）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3913",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3487"
+          ],
+          "steps": [
+            {
+              "skillId": 5210000,
+              "skillName": "3連發",
+              "to": 20,
+              "note": "三轉主力"
+            },
+            {
+              "skillId": 5211005,
+              "skillName": "寒霜噴射",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 5211002,
+              "skillName": "海鷗突擊隊",
+              "to": 15,
+              "note": "只點 15，省下的點給火焰噴射"
+            },
+            {
+              "skillId": 5211001,
+              "skillName": "章魚砲台",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 5211006,
+              "skillName": "指定攻擊",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 5211004,
+              "skillName": "火焰噴射",
+              "to": 26,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
     }
   ],
   "notOpenYet": [
