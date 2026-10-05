@@ -44,10 +44,34 @@ describe("點法走到哪一步", () => {
     expect(progress.current?.reached).toBe(6);
   });
 
-  it("剛好點完一步，下一步是現在", () => {
+  it("剛好點完一步：最新的點數用在那一步，它還是現在，下一步才是下一個", () => {
     const progress = buildProgress(build, 8);
-    expect(progress.steps.map(step => step.state)).toEqual(["done", "done", "now", "next"]);
-    expect(progress.current?.reached).toBe(5);
+    expect(progress.steps.map(step => step.state)).toEqual(["done", "now", "next", "later"]);
+    expect(progress.current?.name).toBe("乙");
+    expect(progress.current?.reached).toBe(3);
+  });
+
+  it("海盜 Lv.10 只有 1 點：點雙子星攻擊 1，再來衝擊拳 20（不是叫你點衝擊拳）", () => {
+    const pirate: GuideBuild = {
+      label: "打手線",
+      main: true,
+      v: "tw",
+      s: [],
+      steps: [
+        { id: 5001003, name: "雙子星攻擊", to: 1 },
+        { id: 5001001, name: "衝擊拳", to: 20 },
+        { id: 5001002, name: "旋風斬", to: 1 },
+        { id: 5000000, name: "極限迴避", to: 20 },
+      ],
+    };
+    const progress = buildProgress(pirate, 1);
+    expect(progress.current).toMatchObject({ name: "雙子星攻擊", to: 1, reached: 1 });
+    expect(progress.steps.find(step => step.state === "next")).toMatchObject({ name: "衝擊拳", to: 20 });
+  });
+
+  it("點數剛好等於整條點法：最後一步還是現在，多一點才算點完", () => {
+    expect(buildProgress(build, 17)).toMatchObject({ finished: false, current: { name: "丙", reached: 4 } });
+    expect(buildProgress(build, 18).finished).toBe(true);
   });
 
   it("還沒有點數時第一步是現在", () => {
