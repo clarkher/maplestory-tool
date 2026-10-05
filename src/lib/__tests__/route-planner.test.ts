@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, onIsland, prepMaterials,
-  questReachable, segmentsToShow, trainingForBand, withoutLongRun,
+  questReachable, segmentsToShow, trainingForBand,
 } from "@/lib/route-planner";
 import { stepsBetween } from "@/lib/skill-plan";
 import type { GuideBuild, GuideTrain, Monster, Quest } from "@/lib/types";
@@ -186,17 +186,5 @@ describe("接不接得到", () => {
     expect(onIsland(200, 8)).toBe(false);
     expect(isIslandMap(40000)).toBe(true);
     expect(isIslandMap(100000000)).toBe(false);
-  });
-});
-
-describe("一趟不算長線收集", () => {
-  it("同一道具總共要收 200 個以上的任務群不算「順便完成」", () => {
-    const monsters = [monster(1, [900, 901])];
-    const quests = [
-      quest("doll1", { exp: 6000, needItems: [{ id: 900, n: "娃娃", c: 100 }] }),
-      quest("doll2", { exp: 10000, needItems: [{ id: 900, n: "娃娃", c: 200 }] }),
-      quest("tail", { exp: 9000, needItems: [{ id: 901, n: "尾巴", c: 50 }] }),
-    ];
-    expect(withoutLongRun(quests, monsters).map(q => q.id)).toEqual(["tail"]);
   });
 });

@@ -226,15 +226,6 @@ export function longRunQuests(quests: Quest[], monsters: Monster[], min = 200): 
   return [...totals.values()].filter(entry => entry.c >= min).sort((a, b) => b.c - a.c);
 }
 
-/**
- * 拿掉長線收集的任務（同一道具總共要收 min 個以上，例如詛咒娃娃 2,300 個）。
- * 這種要刷好幾天的不能算「這趟順便完成」，它們另外列在長線區。
- */
-export function withoutLongRun(quests: Quest[], monsters: Monster[], min = 200): Quest[] {
-  const heavy = new Set(longRunQuests(quests, monsters, min).map(entry => entry.id));
-  return quests.filter(quest => !(quest.needItems ?? []).some(item => heavy.has(item.id)));
-}
-
 /* ------------------------------------------------------------------ 攻略推薦的任務 */
 
 export function mustDoIndex(common: GuideCommon): Map<string, GuideMustDo> {

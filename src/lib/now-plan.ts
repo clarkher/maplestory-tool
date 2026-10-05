@@ -250,6 +250,21 @@ function questLines(stage: number, quests: Quest[], common: GuideCommon, maps: R
 }
 
 /**
+ * 測試用：指定職業階段（stage）下某條任務線（questLines 的 key）真正的完整順序，給真資料常駐檢查獨立驗證
+ * 不跳段、NPC 是第一段的——不能拿 lineItems 自己算出來的 positions／firstPart／npc 比對自己（round4-rereview M1）。
+ */
+export function lineFor(
+  stage: number,
+  key: string,
+  quests: Quest[],
+  common: GuideCommon,
+  maps: Record<string, Pick<MapRecord, "zh">>,
+  effective: Map<string, number>,
+): Quest[] | undefined {
+  return questLines(stage, quests, common, maps, effective).lines.get(key);
+}
+
+/**
  * 現在接得到、做得動的任務（先解的候選）：職業、等級上下限、實際等級 ≤ 現在等級；
  * 離開楓之島後不算島上的，還在島上、8 等前不算維多利亞島的（islandOnly）
  */
@@ -262,10 +277,12 @@ function doableNow(shared: QuestLines, level: number, effective: Map<string, num
 }
 
 /**
- * 一條線這次列哪幾段（先解跟升級路線的必解共用）：從第一段做得到的開始，照線的順序往下，碰到第一段做不到的就停。
- * 不跳段——遊戲裡要一段一段解，中間那段沒解、後面的接不到（round 4：湯寶寶原本寫「第 1、2、4、5 段」，跳過要收大量材料的第 3 段）。
+ * 一條線這次列哪幾段（先解跟升級路線的必解共用）：從 doable 判定為真的那一段開始，照線的順序往下，碰到做不到的
+ * （接不到、過期、自己這條線的長線那種）就停，不跳段——遊戲裡要一段一段解，中間那段沒解、後面的接不到
+ * （round 4：湯寶寶原本寫「第 1、2、4、5 段」，跳過要收大量材料的第 3 段）。
  * 0 經驗的段也是一段（內拉的夢 → 潘喜的紅色毛球：從內拉那段開始，帶我去也是去找內拉）。
- * 這裡從第一個做得到的段開始（升級路線的段接在前一段後面）；先解另外規定一定要從線的第一段開始（nowQuests）。
+ * 現在的規則是從線的第一段開始（呼叫端先確認第一段做得到才呼叫這裡，round 4 後續 2）：先解、升級路線的必解都一樣；
+ * 只有「你在這」那一段、先解已經列過的線例外，接在先解那串的下一段（bandQuests runOf）。這一行的 NPC、帶我去都用列出的第一段（lineItems）。
  */
 export function lineRun(line: Quest[], doable: (quest: Quest) => boolean): Quest[] {
   const start = line.findIndex(doable);
@@ -288,7 +305,7 @@ function lineItems(
   toNext: number[],
   job: number,
   keep: (rec: GuideMustDo | undefined, fraction: number, reward: boolean) => boolean,
-  runOf: (key: string, line: Quest[]) => Quest[] = (_key, line) => lineRun(line, doable),
+  runOf: (key: string, line: Quest[]) => Quest[],
 ): Array<{ item: NowQuest; score: number }> {
   const { forJob, lineOf, lines, recs } = shared;
   // 有做得到的任務的線，照任務資料裡各線第一個做得到的任務排（同分時照這個先後）

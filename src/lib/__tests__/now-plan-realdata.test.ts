@@ -11,10 +11,11 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import {
-  bandQuests, canGo, effectiveLevels, laterMaterials, longRunNow, mainPick, nowQuests, townRoute, type BandQuest, type LongRunTask, type MainPick, type NowQuest,
+  bandQuests, canGo, effectiveLevels, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
+  type BandQuest, type LongRunTask, type MainPick, type NowQuest,
 } from "@/lib/now-plan";
 import { findRoute, suggestStart } from "@/lib/route";
-import { bandsFor, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
+import { bandsFor, isIslandBand, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
 import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 
@@ -53,6 +54,8 @@ let nearestTown: Record<string, [number, number]> = {};
 let levelCap = 100;
 let effective = new Map<string, number>();
 let monsterLevels = new Map<number, number>();
+/** 給 lineFor 查任務線用（跟 beforeAll 建 combos 那份同一個物件，questLines 的快取才不會白做） */
+let common: GuideCommon = { researchedAt: "", builtAt: "", expTable: { toNext: [], conflicts: [], v: "tw", s: [] }, mustDo: [], notWorth: [] };
 
 /** 列出前幾個出錯的組合，失敗訊息看得出是誰 */
 function expectNone(label: string, bad: string[]) {
@@ -68,7 +71,7 @@ beforeAll(() => {
   const monsters = read<Monster[]>("monsters.json");
   monsterLevels = new Map(monsters.map(monster => [monster.id, monster.lv ?? 0]));
   const training = read<TrainingRow[]>("training.json");
-  const common = read<GuideCommon>("guides/common.json");
+  common = read<GuideCommon>("guides/common.json");
   const guides = new Map<number, GuideJob>(JOB_OPTIONS.map(option => [option.id, read<GuideJob>(`guides/${option.id}.json`)]));
   effective = effectiveLevels(quests, monsters, common);
   const monsterIndex = new Map(monsters.map(monster => [monster.id, monster]));
@@ -278,20 +281,28 @@ describe("真資料：首頁每個組合", () => {
   });
 
   it("先解跟每一段的必解，每一列的段都連在一起（不跳段），NPC 是列出的第一段的起始 NPC", () => {
-    const check = (tag: string, where: string, item: NowQuest): string[] => {
-      const { positions, quests: parts } = item;
-      const problems = [];
-      const contiguous = positions.length === parts.length && positions.length > 0
-        && positions.every((part, index) => part === item.firstPart + index)
-        && item.lastPart === positions[positions.length - 1] && item.lastPart <= item.totalParts;
-      if (!contiguous) problems.push(`${tag} ${where}「${item.title}」第 ${positions.join("、")} 段（${parts.length} 個任務）`);
-      const first = parts[0]?.sNpc;
-      if (item.npc?.id !== first?.id || item.npc?.map !== first?.map) problems.push(`${tag} ${where}「${item.title}」NPC ${item.npc?.n} ≠ 第一段的 ${first?.n}`);
+    // positions／firstPart／lastPart／npc 都是 lineItems 自己算出來的，拿來跟自己比對永遠會過（round4-rereview M1）。
+    // 改成用 lineFor 查這條線真正的完整順序（跟畫面同一份 questLines 快取），重新找每個任務在線上的段號當獨立答案。
+    const realPositions = (line: Quest[], parts: Quest[]): number[] => parts.map(quest => line.findIndex(entry => entry.id === quest.id) + 1);
+    const check = (tag: string, where: string, item: NowQuest, stage: number): string[] => {
+      const line = lineFor(stage, item.key, quests, common, maps, effective);
+      if (!line) return [`${tag} ${where}「${item.title}」查不到任務線 ${item.key}`];
+      const positions = realPositions(line, item.quests);
+      const problems: string[] = [];
+      const contiguous = positions.every(part => part > 0) && positions.every((part, index) => index === 0 || part === positions[index - 1] + 1);
+      const matches = contiguous && positions[0] === item.firstPart && positions[positions.length - 1] === item.lastPart && item.lastPart <= item.totalParts;
+      if (!matches) problems.push(`${tag} ${where}「${item.title}」寫第 ${item.positions.join("、")} 段，線上實際是第 ${positions.join("、")} 段（共 ${line.length} 段）`);
+      const realNpc = line[positions[0] - 1]?.sNpc;
+      if (item.npc?.id !== realNpc?.id || item.npc?.map !== realNpc?.map) problems.push(`${tag} ${where}「${item.title}」NPC ${item.npc?.n} ≠ 線上第一段的 ${realNpc?.n}`);
       return problems;
     };
     const bad = combos.flatMap(combo => [
-      ...combo.todo.flatMap(item => check(combo.tag, "先解", item)),
-      ...combo.mustDo.flatMap((rows, index) => rows.flatMap(item => check(combo.tag, `必解第 ${index + 1} 段`, item))),
+      ...combo.todo.flatMap(item => check(combo.tag, "先解", item, stageJob(combo.job, combo.level))),
+      ...combo.mustDo.flatMap((rows, index) => {
+        const band = bandsFor(combo.job)[index];
+        const stage = isIslandBand(band) ? 0 : stageJob(combo.job, band.from);
+        return rows.flatMap(item => check(combo.tag, `必解第 ${index + 1} 段`, item, stage));
+      }),
     ]);
     expectNone("任務線跳段或 NPC 不是第一段的", bad);
   });
