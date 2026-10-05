@@ -257,8 +257,11 @@ export type GuideJob = {
   notOpenYet: Array<{ from: number; to: number; place: string; s: string[] }>;
 };
 
-/** 關鍵獎勵：畫面上的標籤，與用來放圖的遊戲道具 id（抽獎型的 label 寫「隨機」） */
-export type GuideReward = { label: string; items: number[] };
+/**
+ * 關鍵獎勵：畫面上的標籤，與用來放圖的遊戲道具 id（抽獎型的 label 寫「隨機」）。
+ * permanent：任何等級都有用（冒險家的戒指的永久戒指），這條任務不會因為等級過了建議範圍就不推。
+ */
+export type GuideReward = { label: string; items: number[]; permanent?: boolean };
 
 /**
  * 組隊任務：入口地圖、圖解連結、各職業打它的等級範圍（從攻略的組隊段落整理，build 時已裁進遊戲任務的等級限制）。

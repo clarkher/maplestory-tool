@@ -39,10 +39,11 @@ describe("實際等級", () => {
 });
 
 describe("攻略建議等級的上限", () => {
-  it("範圍取上限、寫「+」或「起」的沒有上限、其他取最大數字 +15", () => {
+  it("範圍取上限；寫「+」或「起」的取最大數字 +40；其他取最大數字 +15", () => {
     expect(recUpperLevel(rec("x", "15–25"))).toBe(25);
-    expect(recUpperLevel(rec("x", "30+（需名聲 10）"))).toBeUndefined();
-    expect(recUpperLevel(rec("x", "10 起，32／37／42 各解一段"))).toBeUndefined();
+    expect(recUpperLevel(rec("x", "30+（需名聲 10）"))).toBe(70);
+    expect(recUpperLevel(rec("x", "40+"))).toBe(80);
+    expect(recUpperLevel(rec("x", "10 起，32／37／42 各解一段"))).toBe(82);
     expect(recUpperLevel(rec("x", "15 接前段、30 接後段"))).toBe(45);
     expect(recUpperLevel(rec("x", "15"))).toBe(30);
     expect(recUpperLevel(undefined)).toBeUndefined();
@@ -89,6 +90,19 @@ describe("先解", () => {
     expect(result.map(item => item.title)).toEqual(["泰實夫的秘密之書", "任務big"]);
     expect(result[0]).toMatchObject({ reward: "桑那服", rewardItem: 1050018 });
     expect(result[1].fraction).toBeCloseTo(0.5);
+  });
+
+  it("開放式的建議等級（40+）也會過期：Lv.95 不再推 40 等的錢袋；標了永久的戒指一直推", () => {
+    const quests = [
+      quest("bag", { minLv: 40, exp: 0 }),
+      quest("ring", { minLv: 30, exp: 0 }),
+    ];
+    const mustDo = [
+      rec("bag", "40+", { reward: { label: "鞋子速度卷軸（隨機）", items: [] } }),
+      rec("ring", "30+（需二轉）", { reward: { label: "永久戒指三選一", items: [], permanent: true } }),
+    ];
+    expect(nowQuests(args(85, 110, quests, mustDo)).map(item => item.key)).toEqual(["rec:bag", "rec:ring"]);
+    expect(nowQuests(args(95, 110, quests, mustDo)).map(item => item.key)).toEqual(["rec:ring"]);
   });
 
   it("過了攻略建議等級上限 +5 就不推", () => {

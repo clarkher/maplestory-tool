@@ -122,6 +122,8 @@ test("關鍵獎勵：只留站內有的道具，沒有 label 就報錯", () => {
     dropped: [9999999],
   });
   assert.deepEqual(normalizeReward(undefined, items), { reward: undefined, dropped: [] });
+  // 永久獎勵（冒險家的戒指）不會隨等級過期，旗標要帶到輸出
+  assert.deepEqual(normalizeReward({ label: "永久戒指", items: [1050018], permanent: true }, items).reward, { label: "永久戒指", items: [1050018], permanent: true });
   assert.throws(() => normalizeReward({ items: [1050018] }, items), /label/);
 });
 

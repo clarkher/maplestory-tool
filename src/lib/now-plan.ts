@@ -98,18 +98,22 @@ function rewardItemFor(rec: GuideMustDo | undefined, quests: Quest[], job: numbe
   return given.find(item => rewardFitsJob(item, job))?.id ?? (wanted.length === 1 ? wanted[0] : undefined);
 }
 
+/** 寫「30+」「10 起」這種開放式建議等級的任務，過了最大數字這麼多級也算過期（2026-10-05 final review P7 裁定） */
+const OPEN_ENDED_SPAN = 40;
+
 /**
  * 攻略建議等級的上限，過了上限 +5 就不推（Lv35 手套推給 Lv.82 沒意義）。
- * 「15–25」取 25；寫「30+」「10 起」的沒有上限；其他取最大的數字 +15。
+ * 「15–25」取 25；寫「30+」「10 起」的取最大的數字 +40；其他取最大的數字 +15。
+ * 永久有用的獎勵（冒險家的戒指，reward.permanent）不管上限，nowQuests 那邊另外放行。
  */
 export function recUpperLevel(rec: GuideMustDo | undefined): number | undefined {
   if (!rec) return undefined;
   const text = rec.lv.replace(/（[^）]*）/g, "");
   const range = text.match(/^\s*(\d+)\s*[–~～-]\s*(\d+)/);
   if (range) return Number(range[2]);
-  if (/[+＋]|起/.test(text)) return undefined;
   const numbers = text.match(/\d+/g)?.map(Number) ?? [];
-  return numbers.length ? Math.max(...numbers) + 15 : undefined;
+  if (!numbers.length) return undefined;
+  return Math.max(...numbers) + (/[+＋]|起/.test(text) ? OPEN_ENDED_SPAN : 15);
 }
 
 function isLongKill(quest: Quest, min = LONG_RUN_MIN): boolean {
@@ -171,7 +175,7 @@ export function nowQuests(args: {
     const parts = line.filter(quest => members.includes(quest));
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
     const upper = recUpperLevel(rec);
-    if (upper !== undefined && level > upper + 5) continue;
+    if (upper !== undefined && level > upper + 5 && !rec?.reward?.permanent) continue;
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
     const fraction = levelFraction(exp, level, toNext);
     const reward = rec?.reward?.label;
