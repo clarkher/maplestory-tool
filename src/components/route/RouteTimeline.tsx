@@ -8,8 +8,8 @@ import { itemImage, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { isSecondJob } from "@/lib/jobs";
-import { bandQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
-import { type Band, isIslandBand, onIsland, prepMaterials, spawnIndex } from "@/lib/route-planner";
+import { bandQuests, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
+import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
@@ -147,10 +147,8 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
     const shared = { level, job, quests, monsters, common, maps, effective };
     const mustDo = bandQuests({ ...shared, band, active });
     const nextMustDo = next ? bandQuests({ ...shared, band: next }) : [];
-    const prep = prepMaterials(nextMustDo.flatMap(item => item.quests), monsters)
-      .filter(material => material.droppers.length)
-      .sort((a, b) => b.c - a.c)
-      .slice(0, 5);
+    // 先存著：下一段必解要交的材料，這頁已經列的任務（先解、這段的必解）不算（now-plan laterMaterials）
+    const prep = laterMaterials({ next: nextMustDo, listed: [...nowQuests(shared), ...mustDo], monsters });
     return { build, steps, mustDo, prep };
   }, [band, next, guide, stage, job, level, quests, monsters, maps, common, prefer, effective, active]);
 

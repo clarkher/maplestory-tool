@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { bandQuests, effectiveLevels, longRunNow, longRunTasks, npcGoTarget, nowQuests, partsText, recUpperLevel, rewardFitsJob } from "@/lib/now-plan";
+import {
+  bandQuests, effectiveLevels, laterMaterials, longRunNow, longRunTasks, npcGoTarget, nowQuests, partsText, recUpperLevel, rewardFitsJob,
+} from "@/lib/now-plan";
 import type { GuideCommon, GuideMustDo, Monster, Quest } from "@/lib/types";
 
 const monster = (id: number, lv: number, drops: number[] = []): Monster =>
@@ -647,6 +649,18 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     const shared = { ...commonWith([]), expTable: { ...commonWith([]).expTable, toNext } };
     const [item] = bandQuests({ band: { from: 8, to: 21 }, level: 8, job: 200, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) });
     expect(item.fraction).toBeCloseTo(0.33);
+  });
+});
+
+describe("先存著，Lv.N 以後要交（round 4 後續 3）", () => {
+  it("只算下一段必解裡、這頁還沒列的任務要交的材料：先解或這段已經列的任務不算（伊卡路斯第 1–2 段的樹枝現在就要交）", () => {
+    const monsters = [monster(1, 20, [500]), monster(2, 30, [600]), monster(3, 40, [700])];
+    const early = quest("e", { needItems: [{ id: 500, n: "樹枝", c: 70 }, { id: 600, n: "綠液球", c: 70 }] });
+    const here = quest("h", { needItems: [{ id: 600, n: "綠液球", c: 30 }] });
+    const later = quest("l", { needItems: [{ id: 700, n: "蝙蝠翅膀", c: 50 }, { id: 600, n: "綠液球", c: 20 }] });
+    const result = laterMaterials({ next: [{ quests: [early, here, later] }], listed: [{ quests: [early] }, { quests: [here] }], monsters });
+    // 樹枝只有先解列過的 e 要，不列；綠液球只算 l 的 20 個；蝙蝠翅膀照列
+    expect(result.map(material => [material.n, material.c, material.quests])).toEqual([["蝙蝠翅膀", 50, ["l"]], ["綠液球", 20, ["l"]]]);
   });
 });
 

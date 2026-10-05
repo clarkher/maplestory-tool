@@ -7,8 +7,8 @@ import { JOB_LINES, advancementLevel, baseJob, stageJob } from "./jobs";
 import { jobLineage, planTraining, questEligible } from "./planner";
 import { boatNote, findRoute, suggestStart, victoriaReach } from "./route";
 import {
-  VERIFIED_RANK, groupQuests, isIslandBand, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, questReachable, shortName, spawnIndex,
-  trainingForBand, type Band,
+  VERIFIED_RANK, groupQuests, isIslandBand, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, prepMaterials, questReachable, shortName, spawnIndex,
+  trainingForBand, type Band, type Material,
 } from "./route-planner";
 import type {
   GuideCommon, GuideJob, GuideMustDo, GuidePq, GuideTrain, MapRecord, Monster, PortalEdge, Quest, QuestNpc, QuestReward, TrainingRow,
@@ -454,6 +454,22 @@ export function bandQuests(args: {
     return lastListed < line.length && inRun(line[lastListed]) ? lineRun(line.slice(lastListed), inRun) : [];
   };
   return withLevel(lineItems(shared, inRun, levelFor, common.expTable.toNext, job, keep, runOf));
+}
+
+/** 「先存著，Lv.N 以後要交」最多列幾種 */
+const LATER_MATERIALS = 5;
+
+/**
+ * 升級路線每一段的「先存著，Lv.N 以後要交」：下一段必解的任務要交、有怪會掉的材料，量多的先、最多 5 種。
+ * 這頁已經列的任務（先解、這一段的必解）不算——下一段的列也從線的第一段開始，會帶到這段已經列的段，
+ * 那些材料現在就要交，不是「以後要交」（round 4 後續 3：狂戰士 33 原本多列伊卡路斯第 1–2 段的樹枝、綠液球）。
+ */
+export function laterMaterials(args: { next: Array<Pick<NowQuest, "quests">>; listed: Array<Pick<NowQuest, "quests">>; monsters: Monster[] }): Material[] {
+  const shown = new Set(args.listed.flatMap(item => item.quests.map(quest => quest.id)));
+  return prepMaterials(args.next.flatMap(item => item.quests).filter(quest => !shown.has(quest.id)), args.monsters)
+    .filter(material => material.droppers.length)
+    .sort((a, b) => b.c - a.c)
+    .slice(0, LATER_MATERIALS);
 }
 
 /**

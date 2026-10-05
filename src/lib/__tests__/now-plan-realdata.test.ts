@@ -11,10 +11,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import {
-  bandQuests, canGo, effectiveLevels, longRunNow, mainPick, nowQuests, townRoute, type BandQuest, type LongRunTask, type MainPick, type NowQuest,
+  bandQuests, canGo, effectiveLevels, laterMaterials, longRunNow, mainPick, nowQuests, townRoute, type BandQuest, type LongRunTask, type MainPick, type NowQuest,
 } from "@/lib/now-plan";
 import { findRoute, suggestStart } from "@/lib/route";
-import { bandsFor, isIslandMap, spawnIndex } from "@/lib/route-planner";
+import { bandsFor, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
 import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 
@@ -34,6 +34,8 @@ type Combo = {
   /** 升級路線每一段的必解（你在的那段照畫面一樣扣掉先解列過的段），activeIndex 是你在的那段 */
   mustDo: BandQuest[][];
   activeIndex: number;
+  /** 每一段的「先存著，Lv.N 以後要交」（跟畫面同一個算法：下一段的必解、拿掉先解跟這段必解列過的任務） */
+  later: Material[][];
 };
 
 /**
@@ -90,13 +92,17 @@ beforeAll(() => {
         job, level, bands, guides, monsterIndex, spawns, maps, training: timelineTraining, pqs: common.pq ?? [], pick, canGo: canWalk,
       });
       const shared = { level, job, quests, monsters, common, maps, effective };
+      const todo = nowQuests(shared);
+      const mustDo = bands.map((band, index) => bandQuests({ ...shared, band, active: index === timeline.activeIndex }));
+      // 畫面上下一段的必解是不帶「你在這」的那種（RouteTimeline 的 nextMustDo）
+      const plain = bands.map(band => bandQuests({ ...shared, band }));
       combos.push({
         job,
         name,
         level,
         tag: `${name} Lv.${level}`,
         pick,
-        todo: nowQuests(shared),
+        todo,
         longRun: longRunNow(shared),
         active: {
           label: timeline.labels[timeline.activeIndex],
@@ -104,8 +110,9 @@ beforeAll(() => {
           usable: timeline.plans[timeline.activeIndex].usable,
           blocked: timeline.plans[timeline.activeIndex].blocked,
         },
-        mustDo: bands.map((band, index) => bandQuests({ ...shared, band, active: index === timeline.activeIndex })),
+        mustDo,
         activeIndex: timeline.activeIndex,
+        later: bands.map((_, index) => (index + 1 < bands.length ? laterMaterials({ next: plain[index + 1], listed: [...todo, ...mustDo[index]], monsters }) : [])),
       });
     }
   }
@@ -174,6 +181,16 @@ describe("真資料：首頁每個組合", () => {
       return alt && (alt.level === undefined || alt.level > combo.level + 5) ? [`${combo.tag}：${alt.title} Lv.${alt.level}`] : [];
     });
     expectNone("備案比玩家高超過 5 級", bad);
+  });
+
+  it("先存著（Lv.N 以後要交）的材料不會只來自這頁已經列的任務（先解、這段的必解）", () => {
+    const bad = combos.flatMap(combo => combo.later.flatMap((materials, index) => {
+      const listed = new Set([...combo.todo, ...combo.mustDo[index]].flatMap(item => item.quests.map(entry => entry.id)));
+      return materials
+        .filter(material => material.quests.every(id => listed.has(id)))
+        .map(material => `${combo.tag} 第 ${index + 1} 段：${material.n} ×${material.c}`);
+    }));
+    expectNone("先存著列到這頁已經列的任務的材料", bad);
   });
 
   it("同一個任務不會同時算在先解跟長線（長線拿掉先解列過的任務重算）", () => {
