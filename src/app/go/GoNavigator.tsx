@@ -8,7 +8,7 @@ import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } fr
 import { MapPicker } from "@/components/MapPicker";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
 import { loadGraph, loadMaps, loadNearestTown, loadRegions, mapName, minimapImage } from "@/lib/data";
-import { portalHint } from "@/lib/format";
+import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { findRoute, suggestStart, type RouteStep } from "@/lib/route";
 import type { MapRecord, PortalEdge, Region } from "@/lib/types";
 
@@ -104,7 +104,7 @@ export function GoNavigator() {
               hint="這張圖在客戶端資料裡沒有連到任何城鎮，可能是活動地圖或副本。"
             />
           ) : plan?.ok ? (
-            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} />
+            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} />
           ) : plan && plan.reason === "different-area" ? (
             <CrossAreaNotice
               maps={maps!}
@@ -126,10 +126,12 @@ function RouteList({
   steps,
   maps,
   hops,
+  graph,
 }: {
   steps: RouteStep[];
   maps: Record<string, MapRecord>;
   hops: number;
+  graph: Record<string, PortalEdge[]>;
 }) {
   return (
     <section aria-label="路線">
@@ -148,6 +150,8 @@ function RouteList({
             index={index}
             total={steps.length}
             maps={maps}
+            graph={graph}
+            previous={steps[index - 1]?.map}
           />
         ))}
       </ol>
@@ -160,17 +164,24 @@ function RouteCard({
   index,
   total,
   maps,
+  graph,
+  previous,
 }: {
   step: RouteStep;
   index: number;
   total: number;
   maps: Record<string, MapRecord>;
+  graph: Record<string, PortalEdge[]>;
+  previous?: number;
 }) {
   const [open, setOpen] = useState(false);
   const record = maps[String(step.map)];
   const name = mapName(maps, step.map);
   const isStart = index === 0;
   const isEnd = index === total - 1;
+  const unnamed = !record?.zh;
+  const previousEdges = previous !== undefined ? graph[String(previous)] ?? [] : [];
+  const direction = portalDirection(step.via, step.x, step.y, previousEdges.map(([, , px, py]) => [px, py] as [number, number]));
 
   return (
     <li className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
@@ -190,21 +201,14 @@ function RouteCard({
 
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2">
-            <span className="text-[17px] font-black leading-tight">{name}</span>
+            <span className="text-[17px] font-black leading-tight">{unnamed ? "一張沒有名字的通道" : name}</span>
             {record?.st ? <span className="text-xs ink-faint">{record.st}</span> : null}
           </p>
 
           {isStart ? (
             <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點</p>
           ) : (
-            <p className="mt-0.5 text-sm ink-soft">
-              從上一張圖
-              <span className="mx-1 font-bold text-[color:var(--ink)]">{portalHint(step.via).text}</span>
-              的傳送門進來
-              {portalHint(step.via).known ? (
-                <span className="ml-1 text-[11px] ink-faint">（{portalHint(step.via).raw}）</span>
-              ) : null}
-            </p>
+            <p className="mt-0.5 text-sm ink-soft">{portalSentence(direction)}</p>
           )}
           {isEnd && !isStart ? (
             <p className="mt-0.5 text-sm font-bold text-[color:var(--maple)]">到了</p>
@@ -231,11 +235,6 @@ function RouteCard({
                     className="mx-auto h-auto w-full object-contain"
                     unoptimized
                   />
-                  {step.x !== undefined && !isStart ? (
-                    <figcaption className="mt-1 text-center text-[11px] ink-faint">
-                      進來的傳送門在上一張圖的座標 ({step.x}, {step.y})
-                    </figcaption>
-                  ) : null}
                 </figure>
               ) : null}
             </>

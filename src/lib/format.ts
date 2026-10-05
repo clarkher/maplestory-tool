@@ -1,32 +1,3 @@
-/**
- * 傳送門代號翻成方向提示。
- *
- * 這些前綴是楓之谷地圖檔一貫的命名慣例：east 在畫面右緣、west 在左緣、
- * in/out 進出建築、up/down 上下、st 樓梯、tp 傳送點。
- * 認不出來的就原樣顯示，不會亂猜一個方向給玩家。
- */
-const PORTAL_PREFIX: Array<[RegExp, string]> = [
-  [/^east/i, "往右邊"],
-  [/^west/i, "往左邊"],
-  [/^out/i, "往外走"],
-  [/^in/i, "往裡面走"],
-  [/^up/i, "往上"],
-  [/^down|^dn/i, "往下"],
-  [/^st/i, "走樓梯／通道"],
-  [/^tp/i, "傳送點"],
-  [/^market/i, "自由市場入口"],
-  [/^portal/i, "傳送門"],
-];
-
-export function portalHint(name: string): { text: string; raw: string; known: boolean } {
-  const raw = name.trim();
-  if (!raw) return { text: "未命名傳送門", raw: "", known: false };
-  for (const [pattern, label] of PORTAL_PREFIX) {
-    if (pattern.test(raw)) return { text: label, raw, known: true };
-  }
-  return { text: raw, raw, known: false };
-}
-
 export function formatNumber(value: number | undefined | null): string {
   if (value === undefined || value === null) return "—";
   return value.toLocaleString("zh-TW");
