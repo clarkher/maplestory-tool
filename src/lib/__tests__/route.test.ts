@@ -197,3 +197,58 @@ describe("城鎮按鈕（跨區、問起點時；round 3 B2／F）", () => {
     expect(townsTitle(maps, [])).toBe("目的地附近的城鎮");
   });
 });
+
+describe("楓之島的城鎮按鈕（round 3 最後一輪）", () => {
+  const MUSHROOM = 10000;
+  const MUSHROOM_FIELD = 10001;
+  const MUSHROOM_TWO = 20000;
+  const SNAIL = 40000;
+  const PERRY_FIELD = 50001;
+  const PERRY = 60000;
+  const PERRY_TWO = 60001;
+  const PERRY_TWO_FIELD = 60002;
+  const WEST = 1000000;
+  const WOOD = 1000001;
+  const AMHERST = 1010000;
+  const GARDEN = 1010004;
+  const EAST = 1020000;
+  const maps: Record<string, MapRecord> = {
+    [MUSHROOM]: { zh: "菇菇村", st: "楓之島", t: 1, ret: MUSHROOM },
+    [MUSHROOM_FIELD]: { zh: "菇菇村訓練場", st: "楓之島", ret: MUSHROOM },
+    // 另一張也叫菇菇村、客戶端也標成城鎮，但沒有別張圖回到這裡
+    [MUSHROOM_TWO]: { zh: "菇菇村", st: "楓之島", t: 1, ret: MUSHROOM_TWO },
+    [SNAIL]: { zh: "嫩寶狩獵場Ⅰ", st: "楓之島", t: 1, ret: SNAIL },
+    [PERRY]: { zh: "楓之港", st: "楓之島", t: 1, ret: PERRY },
+    [PERRY_FIELD]: { zh: "楓之港西郊平原", st: "楓之島", ret: PERRY },
+    // 同名的另一個城鎮（只留一顆）
+    [PERRY_TWO]: { zh: "楓之港", st: "楓之島", t: 1, ret: PERRY_TWO },
+    [PERRY_TWO_FIELD]: { zh: "楓之港碼頭", st: "楓之島", ret: PERRY_TWO },
+    // 客戶端把楓葉村的回城點指到楓葉村西郊平原：西郊平原的名字是楓葉村再加字，是郊外；楓葉村才是城鎮
+    [WEST]: { zh: "楓葉村西郊平原", st: "彩虹之地", t: 1, ret: WEST },
+    [WOOD]: { zh: "小樹林", st: "彩虹之地", ret: WEST },
+    [AMHERST]: { zh: "楓葉村", st: "彩虹之地", t: 1, ret: WEST },
+    [GARDEN]: { zh: "嫩寶花園", st: "彩虹之地", ret: AMHERST },
+    [EAST]: { zh: "楓葉村東郊平原", st: "彩虹之地", t: 1, ret: WEST },
+  };
+  const graph: Record<string, PortalEdge[]> = {};
+  for (const [a, b] of [
+    [MUSHROOM, MUSHROOM_TWO], [MUSHROOM, MUSHROOM_FIELD], [MUSHROOM_TWO, SNAIL], [SNAIL, PERRY], [PERRY, PERRY_FIELD], [PERRY, PERRY_TWO],
+    [PERRY_TWO, PERRY_TWO_FIELD], [SNAIL, WEST], [WEST, WOOD], [WEST, AMHERST], [AMHERST, GARDEN], [AMHERST, EAST],
+  ]) {
+    graph[a] = [...(graph[a] ?? []), [b, "east00", 0, 0]];
+    graph[b] = [...(graph[b] ?? []), [a, "west00", 0, 0]];
+  }
+
+  it("真的城鎮有楓葉村、沒有楓葉村西郊平原（名字是另一個城鎮再加字的算郊外），沒有別張圖回到這裡的菇菇村、嫩寶狩獵場Ⅰ不算", () => {
+    expect(hubTowns(maps)).toEqual([MUSHROOM, PERRY, PERRY_TWO, AMHERST]);
+  });
+
+  it("同名的城鎮只給一顆（先排的、走得到的那個）", () => {
+    expect(townChips(maps, graph, SNAIL, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([MUSHROOM, PERRY, AMHERST]);
+  });
+
+  it("跟目的地同名、但不是目的地那張的不給（不會排出「菇菇村 → 菇菇村 共 1 段」）", () => {
+    expect(townChips(maps, graph, MUSHROOM_TWO, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([PERRY, AMHERST]);
+    expect(townChips(maps, graph, MUSHROOM_TWO)).toEqual([PERRY, AMHERST]);
+  });
+});

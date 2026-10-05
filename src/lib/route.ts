@@ -242,16 +242,21 @@ export function goStart(args: {
 const hubCache = new WeakMap<Record<string, MapRecord>, number[]>();
 
 /**
- * 真的城鎮（拿來做「從 X 出發」按鈕）：有中文名、客戶端標成城鎮、回城點是自己、而且有別張圖回到這裡。
- * 客戶端的城鎮旗標也標在民宅、城外的小山上，沒有名字的未開放地圖也有，所以要再看回城點（地圖 id 小的在前）。
+ * 真的城鎮（拿來做「從 X 出發」按鈕）：有中文名、客戶端標成城鎮、有別張圖回到這裡，而且回城點是自己——
+ * 或是回到以它命名的郊外（客戶端把楓葉村的回城點指到楓葉村西郊平原）；名字是另一個城鎮的名字再加字的（楓葉村西郊平原）算那個城鎮的郊外。
+ * 客戶端的城鎮旗標也標在民宅、城外的小山、嫩寶狩獵場Ⅰ上，沒有名字的未開放地圖也有，所以要再看回城點（地圖 id 小的在前）。
  */
 export function hubTowns(maps: Record<string, MapRecord>): number[] {
   let towns = hubCache.get(maps);
   if (!towns) {
     const returnedTo = new Set<number>();
     for (const [id, record] of Object.entries(maps)) if (record.ret !== undefined && record.ret !== Number(id)) returnedTo.add(record.ret);
-    towns = Object.entries(maps)
-      .filter(([id, record]) => record.zh && record.t && record.ret === Number(id) && returnedTo.has(Number(id)))
+    const returnsHome = (id: number, record: MapRecord) =>
+      record.ret === id || (record.ret !== undefined && Boolean(maps[String(record.ret)]?.zh?.startsWith(record.zh)));
+    const candidates = Object.entries(maps)
+      .filter(([id, record]) => record.zh && record.t && returnedTo.has(Number(id)) && returnsHome(Number(id), record));
+    towns = candidates
+      .filter(([, record]) => !candidates.some(([, other]) => other.zh !== record.zh && record.zh.startsWith(other.zh)))
       .map(([id]) => Number(id))
       .sort((a, b) => a - b);
     hubCache.set(maps, towns);
@@ -268,6 +273,7 @@ export const MAIN_TOWNS = [VICTORIA_PORT, 100000000, 101000000, 102000000, 10300
 /**
  * 「從 X 出發」的城鎮按鈕：真的城鎮（hubTowns），走得到目的地才給；first 裡的照順序排前面（初心者的維多利亞港、
  * 問起點時維多利亞島的五個主要城鎮），其他照地圖順序。exceptTarget：目的地本身不給（問起點時，選了只會「你已經在目的地了」）。
+ * 畫面上同名的只給一顆（先排的、走得到的那個）；跟目的地同名、但不是目的地那張的也不給（兩張都叫菇菇村，會排出「菇菇村 → 菇菇村 共 1 段」）。
  */
 export function townChips(
   maps: Record<string, MapRecord>,
@@ -276,11 +282,19 @@ export function townChips(
   options: { first?: number[]; exceptTarget?: boolean } = {},
 ): number[] {
   const { first = [], exceptTarget = false } = options;
-  const named = (id: number) => Boolean(maps[String(id)]?.zh);
-  const candidates = [...new Set([...first.filter(named), ...hubTowns(maps)])];
-  return candidates
-    .filter(id => !(exceptTarget && id === target) && findRoute(graph, id, target).ok)
-    .slice(0, TOWN_CHIPS);
+  const nameOf = (id: number) => maps[String(id)]?.zh ?? "";
+  const candidates = [...new Set([...first.filter(id => nameOf(id)), ...hubTowns(maps)])];
+  const shown = new Set<string>();
+  const chips: number[] = [];
+  for (const id of candidates) {
+    if (chips.length >= TOWN_CHIPS) break;
+    if (exceptTarget && id === target) continue;
+    if (id !== target && nameOf(id) === nameOf(target)) continue;
+    if (shown.has(nameOf(id)) || !findRoute(graph, id, target).ok) continue;
+    shown.add(nameOf(id));
+    chips.push(id);
+  }
+  return chips;
 }
 
 /** 城鎮按鈕的標題：城鎮所在區域的中文名（地圖資料的區域名，城鎮裡最多的那個）；沒有就寫「目的地附近的城鎮」 */
