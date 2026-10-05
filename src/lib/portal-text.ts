@@ -1,18 +1,15 @@
 /**
  * 「帶我去」每一步的傳送門說明。玩家看不懂 sub00、in01 這種代碼，也不需要座標。
- * 先看名稱的方向字（楓之谷地圖檔的命名慣例），看不出來再用它在上一張圖所有傳送門裡的位置判斷；
+ * 名稱只認方向字（east、west、up、top、down、dn、under、bottom），其他一律用它在上一張圖所有傳送門裡的位置判斷；
  * 都判斷不出來就不猜，只說「傳送門」。
+ * in／out／st 不是方向：森林迷宮、地鐵的每一步都叫 in／out，照名稱寫「走進建築」會整條路線都在走進建築（final review F2）。
+ * market、tp 查過資料：market 只有 2 條、都通到沒開放的圖，tp 一條都沒有，所以也不認。
  */
 const NAME_HINTS: Array<[RegExp, string]> = [
   [/^east/i, "右邊"],
   [/^west/i, "左邊"],
   [/^(up|top)/i, "上面"],
   [/^(down|dn|under|bottom)/i, "下面"],
-  [/^out/i, "外面"],
-  [/^in/i, "建築裡"],
-  [/^st/i, "樓梯"],
-  [/^tp/i, "傳送點"],
-  [/^market/i, "自由市場入口"],
 ];
 
 export function portalDirection(
@@ -43,11 +40,8 @@ export function portalDirection(
   return "中間";
 }
 
+/** 左邊／右邊／上面／下面／中間都是同一句；看不出來就只說傳送門 */
 export function portalSentence(direction: string | null): string {
   if (!direction) return "從上一張圖的傳送門進來";
-  if (direction === "建築裡") return "從上一張圖走進建築";
-  if (direction === "外面") return "從上一張圖走出去";
-  if (direction === "樓梯") return "從上一張圖走樓梯／通道過來";
-  if (direction === "傳送點" || direction === "自由市場入口") return `從上一張圖的${direction}進來`;
   return `從上一張圖${direction}的傳送門進來`;
 }
