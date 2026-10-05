@@ -7,10 +7,11 @@ import { GoButton } from "@/components/PlanShell";
 import { itemImage, mapName, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { COMMON_ROUTE } from "@/lib/guide-data";
+import { jobFit } from "@/lib/job-rules";
 import { isSecondJob, stageJob } from "@/lib/jobs";
 import { planTraining } from "@/lib/planner";
 import {
-  type Band, bandLabels, isIslandBand, isIslandMap, mustDoForBand, prepMaterials, shortName, trainingForBand,
+  type Band, bandLabels, isIslandBand, isIslandMap, mustDoForBand, prepMaterials, shortName, spawnIndex, trainingForBand,
 } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepsBetween } from "@/lib/skill-plan";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
@@ -41,6 +42,13 @@ export function RouteTimeline(context: Context) {
   const currentIndex = bands.findIndex(band => level >= band.from && level < band.to);
   const activeIndex = currentIndex < 0 ? bands.length - 1 : currentIndex;
   const [open, setOpen] = useState<Set<number>>(() => new Set([activeIndex]));
+  const labels = useMemo(
+    () => bandLabels(bands, band => guideFor(context, band).guide?.train ?? []),
+    // context 每次 render 都是新物件；標籤只跟職業、攻略、等級段有關
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [bands, context.job, context.guides],
+  );
+  const spawns = useMemo(() => spawnIndex(context.monsters), [context.monsters]);
 
   function toggle(index: number) {
     setOpen(previous => {
@@ -64,6 +72,8 @@ export function RouteTimeline(context: Context) {
             open={open.has(index)}
             onToggle={() => toggle(index)}
             context={context}
+            label={labels[index]}
+            spawns={spawns}
           />
         ))}
       </ol>
@@ -84,6 +94,8 @@ function BandItem({
   open,
   onToggle,
   context,
+  label,
+  spawns,
 }: {
   band: Band;
   next?: Band;
@@ -91,14 +103,14 @@ function BandItem({
   open: boolean;
   onToggle: () => void;
   context: Context;
+  label?: string;
+  spawns: Map<number, Array<[number, number]>>;
 }) {
-  const { guide } = guideFor(context, band);
-  const label = isIslandBand(band)
+  const shown = isIslandBand(band)
     ? "楓之島"
     : context.job === 0
-      ? "選職業後排給你"
-      : (guide ? bandLabels([band], () => guide.train)[0] : undefined)
-        ?? (band.from >= 30 && !isSecondJob(context.job) ? "二轉後排給你" : undefined);
+      ? "轉職後排給你"
+      : label ?? (band.from >= 30 && !isSecondJob(context.job) ? "二轉後排給你" : undefined);
   const range = band.to >= 100 ? `Lv.${band.from}–100` : `Lv.${band.from}–${band.to}`;
 
   return (
@@ -124,16 +136,18 @@ function BandItem({
         <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-2 px-3 py-2.5 text-left">
           <span className={`text-[16px] font-black tabular-nums ${state === "done" && !open ? "ink-faint" : ""}`}>{range}</span>
           {state === "current" ? <span className="text-[13px] font-bold text-[color:var(--maple)]">你在這</span> : null}
-          <span className="ml-auto truncate text-[13px] ink-soft">{label ?? "還沒有玩家攻略"}</span>
+          <span className="ml-auto truncate text-[13px] ink-soft">{shown ?? "還沒有玩家攻略"}</span>
           <ChevronDown size={16} className={`shrink-0 ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
-        {open ? <BandDetail band={band} next={next} context={context} /> : null}
+        {open ? <BandDetail band={band} next={next} context={context} spawns={spawns} current={state === "current"} /> : null}
       </div>
     </li>
   );
 }
 
-function BandDetail({ band, next, context }: { band: Band; next?: Band; context: Context }) {
+function BandDetail({ band, next, context, spawns, current }: {
+  band: Band; next?: Band; context: Context; spawns: Map<number, Array<[number, number]>>; current: boolean;
+}) {
   const { stage, guide } = guideFor(context, band);
   const { job, quests, monsters, monsterIndex, maps, training, common, prefer, guideStatus, routable } = context;
 
@@ -152,14 +166,19 @@ function BandDetail({ band, next, context }: { band: Band; next?: Band; context:
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
     // 這段開始前（上一級結束時）到這段最後一級的點數；轉職那一段從 0 起算，才不會漏掉只花 1 點的第一步
     const steps = build && stage ? stepsBetween(build, spAtLevel(stage, band.from - 1), spAtLevel(stage, band.to - 1)) : [];
-    const mustDo = mustDoForBand(band, job, quests, common, maps, 4);
+    const mustDo = mustDoForBand(band, job, quests, common, maps, 4, current ? context.level : undefined);
     const nextMustDo = next ? mustDoForBand(next, job, quests, common, maps, 4) : [];
     const prep = prepMaterials(nextMustDo.flatMap(group => group.picks.map(pick => pick.quest)), monsters)
       .filter(material => material.droppers.length)
       .sort((a, b) => b.c - a.c)
       .slice(0, 5);
-    return { segments, fallback, build, steps, mustDo, prep };
-  }, [band, next, guide, stage, job, quests, monsters, monsterIndex, maps, training, common, prefer]);
+    const warnings = new Map(segments.flatMap(segment => {
+      if (!segment.map) return [];
+      const fit = jobFit(stage, Math.max(band.from, segment.from), spawns.get(segment.map) ?? [], monsterIndex);
+      return fit.ok ? [] : [[segment, fit.note ?? "這個職業不適合"] as const];
+    }));
+    return { segments, fallback, build, steps, mustDo, prep, warnings };
+  }, [band, next, guide, stage, job, quests, monsters, monsterIndex, maps, training, common, prefer, spawns, current, context.level]);
 
   const stuckInFirstJob = band.from >= 30 && !isSecondJob(job) && job !== 0;
   const gap = guide?.gaps?.find(entry => entry.from < band.to && entry.to >= band.from);
@@ -167,7 +186,7 @@ function BandDetail({ band, next, context }: { band: Band; next?: Band; context:
   if (job === 0 && !isIslandBand(band)) {
     return (
       <p className="mx-3 mb-3 rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
-        還沒選職業。到上面「改」選好職業，這段就會排出練功點、技能點法跟值得解的任務。
+        還沒轉職。轉職後到上面「改」選你的職業，這段就會排出練功點、技能點法跟值得解的任務。
       </p>
     );
   }
@@ -186,7 +205,7 @@ function BandDetail({ band, next, context }: { band: Band; next?: Band; context:
         ) : detail.segments.length ? (
           <ul className="space-y-2.5">
             {detail.segments.map((segment, index) => (
-              <TrainingSegment key={index} segment={segment} maps={maps} monsterIndex={monsterIndex} routable={routable} />
+              <TrainingSegment key={index} segment={segment} maps={maps} monsterIndex={monsterIndex} routable={routable} warn={detail.warnings.get(segment)} />
             ))}
           </ul>
         ) : !guide && guideStatus === "loading" ? (
@@ -195,7 +214,7 @@ function BandDetail({ band, next, context }: { band: Band; next?: Band; context:
           <p className="text-[13px] ink-soft">玩家攻略讀取失敗，重新整理一次試試。</p>
         ) : (
           <div className="space-y-2">
-            <p className="text-[13px] leading-relaxed ink-soft">這段還沒有可靠的玩家攻略。下面是照遊戲資料排的，沒有人實測過。</p>
+            <p className="text-[13px] leading-relaxed ink-soft">這段還沒有玩家攻略，以下是遊戲資料推算，沒有人實測過。</p>
             {gap ? (
               <div className="space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
                 <p className="text-[12px] leading-relaxed ink-soft">查攻略時看到的狀況：{gap.t}</p>
@@ -208,7 +227,7 @@ function BandDetail({ band, next, context }: { band: Band; next?: Band; context:
                 <span className="min-w-0 flex-1 text-[14px] leading-snug">
                   <b>{mapName(maps, pick.row.m)}</b>
                   <span className="block text-[12px] ink-soft">
-                    {pick.lead?.n} Lv{pick.lead?.lv} · 清一輪 {formatNumber(pick.row.exp1)}
+                    {pick.lead?.n} Lv{pick.lead?.lv} · 清一輪 {formatNumber(pick.row.exp1)} 經驗
                   </span>
                 </span>
                 <GoButton to={pick.row.m} label="去" />
@@ -283,11 +302,13 @@ function TrainingSegment({
   maps,
   monsterIndex,
   routable,
+  warn,
 }: {
   segment: GuideJob["train"][number];
   maps: Record<string, MapRecord>;
   monsterIndex: Map<number, Monster>;
   routable: Set<number>;
+  warn?: string;
 }) {
   const [open, setOpen] = useState(false);
   const lead = segment.mobs.find(id => monsterIndex.has(id));
@@ -312,6 +333,7 @@ function TrainingSegment({
           </Link>
         ) : null}
       </div>
+      {warn ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2 py-1 text-[12px]">照遊戲資料不推：{warn}</p> : null}
       {open ? (
         <div className="space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
           <p className="text-[13px] leading-relaxed ink-soft">{segment.why}</p>

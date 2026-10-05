@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { skillImage } from "@/lib/data";
 import { availableSp, buildProgress, mainBuild, type PlannedStep } from "@/lib/skill-plan";
@@ -11,9 +11,17 @@ import { SourceLinks, SourceTag, Sprite } from "./bits";
  * 技能條：依等級算出現在有幾點，對照主流點法，只講「現在點哪個」。
  * 點開才看完整順序、其他點法、素質配點、注意事項。
  */
-export function SkillStrip({ guide, job, level, prefer }: { guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] } }) {
+export function SkillStrip({ guide, job, level, prefer, leftover }: {
+  guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] };
+}) {
   const [open, setOpen] = useState(false);
   const build = mainBuild(guide.builds, prefer);
+  // 收合時就先把這條點法的技能圖載進快取，展開時不會一格一格冒出來
+  useEffect(() => {
+    for (const step of build?.steps ?? []) {
+      if (step.id) new window.Image().src = skillImage(step.id);
+    }
+  }, [build]);
   if (!build) return null;
 
   const sp = availableSp(job, level);
@@ -42,11 +50,11 @@ export function SkillStrip({ guide, job, level, prefer }: { guide: GuideJob; job
           </span>
           {current ? (
             <>
-              <b className="text-[16px]">{current.name} 點到 {current.to}</b>
+              <b className="whitespace-nowrap text-[16px]">{current.name} 點到 {current.to}</b>
               {next ? <span className="opacity-90">，再來{next.name} {next.to}</span> : null}
             </>
           ) : (
-            <b>主流點法 {progress.total} 點已經點完</b>
+            <b>主流點法 {progress.total} 點已經點完{sp > progress.total ? `，還剩 ${sp - progress.total} 點` : ""}</b>
           )}
         </span>
         <ChevronDown size={18} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -69,6 +77,14 @@ export function SkillStrip({ guide, job, level, prefer }: { guide: GuideJob; job
               <SourceLinks urls={build.s} />
             </div>
           </div>
+
+          {progress.finished && sp > progress.total ? (
+            <div className="space-y-1 rounded-xl bg-[color:var(--gold-wash)] p-2.5">
+              <h3 className="text-[14px] font-black">剩下的 {sp - progress.total} 點</h3>
+              <p className="text-[13px] leading-relaxed">{leftover?.t ?? "攻略沒有定論。"}</p>
+              {leftover ? <SourceLinks urls={leftover.s} /> : null}
+            </div>
+          ) : null}
 
           {guide.builds.length > 1 ? (
             <div>
