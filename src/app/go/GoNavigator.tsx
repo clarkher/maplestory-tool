@@ -11,8 +11,7 @@ import { loadGraph, loadMaps, loadNearestTown, loadRegions, mapName, minimapImag
 import { normalizeJob } from "@/lib/jobs";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
-import { boatNote, defaultStart, findRoute, suggestStart, victoriaReach, type BoatNote, type RouteStep, type StartChoice } from "@/lib/route";
-import { onIsland } from "@/lib/route-planner";
+import { findRoute, goNoteText, goStart, suggestStart, victoriaReach, type GoNote, type RouteStep, type StartChoice } from "@/lib/route";
 import type { MapRecord, PortalEdge, Region } from "@/lib/types";
 
 /** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
@@ -60,19 +59,27 @@ export function GoNavigator() {
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  // 自己選的起點（網址的 from）照用；沒選就用最近的城鎮，目的地本身是城鎮時改用上次選的起點，都不行就先問
-  const choice = useMemo<StartChoice | null>(() => {
-    if (forcedStart) return { kind: "start", map: forcedStart };
-    if (!graph || !maps || !nearestTown || !target) return null;
-    return defaultStart(target, suggestStart(graph, maps, nearestTown, target), remembered, from => findRoute(graph, from, target).ok);
-  }, [forcedStart, graph, maps, nearestTown, target, remembered]);
-  const start = choice?.kind === "start" ? choice.map : null;
-
-  // 路線前面要自己搭船的那段照實說：還在楓之島（看本機存的角色）、起點不在島上 → 先搭船到維多利亞島；
-  // 不在島上、起點跟維多利亞島之間沒有傳送門（黃金海灘）→ 這段自己搭船或搭車。起點在楓之島都不說
+  // 初心者不管幾等都可能還在楓之島（看本機存的角色）：沒自己選起點時從船靠岸的維多利亞港出發，路線上面先說要搭船（route.ts goStart）
   const { profile, loaded } = useProfile();
-  const island = loaded && profile.level > 0 && profile.job >= 0 && onIsland(normalizeJob(profile.job), profile.level);
-  const boat = graph && start !== null ? boatNote(start, victoriaReach(graph), island) : undefined;
+  const novice = loaded && profile.level > 0 && normalizeJob(profile.job) === 0;
+
+  // 自己選的起點（網址的 from）照用；沒選就用最近的城鎮，目的地本身是城鎮時改用上次選的起點，都不行就先問；初心者見上
+  const decided = useMemo<{ choice: StartChoice; notes: GoNote[] } | null>(() => {
+    if (!target) return forcedStart ? { choice: { kind: "start", map: forcedStart }, notes: [] } : null;
+    if (!graph || !maps || !nearestTown) return null;
+    return goStart({
+      target,
+      picked: forcedStart,
+      suggested: suggestStart(graph, maps, nearestTown, target),
+      remembered,
+      novice,
+      reaches: from => findRoute(graph, from, target).ok,
+      reach: victoriaReach(graph),
+    });
+  }, [forcedStart, graph, maps, nearestTown, target, remembered, novice]);
+  const choice = decided?.choice ?? null;
+  const notes = decided?.notes ?? [];
+  const start = choice?.kind === "start" ? choice.map : null;
 
   const plan = useMemo(() => {
     if (!graph || !target || !start) return null;
@@ -99,7 +106,8 @@ export function GoNavigator() {
     [setParam],
   );
 
-  const ready = Boolean(maps && graph && nearestTown && regions);
+  // 角色也要讀到（初心者的起點不一樣），不然會先排一條路再換掉
+  const ready = Boolean(maps && graph && nearestTown && regions) && loaded;
 
   return (
     <div className="space-y-5 py-3 sm:py-6">
@@ -142,14 +150,17 @@ export function GoNavigator() {
           {!target ? (
             <EmptyBlock title="先選一個目的地" hint="或從練功、任務、打寶的結果直接按「帶我去」。" />
           ) : choice?.kind === "ask" ? (
-            <EmptyBlock title="你現在在哪個城鎮？選好就幫你排路線。" />
+            <section className="space-y-3">
+              <GoNotes notes={notes} from="" />
+              <EmptyBlock title="你現在在哪個城鎮？選好就幫你排路線。" />
+            </section>
           ) : !start ? (
             <EmptyBlock
               title="找不到可以走過去的起點"
               hint="這張圖在客戶端資料裡沒有連到任何城鎮，可能是活動地圖或副本。"
             />
           ) : plan?.ok ? (
-            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} boat={boat ? { kind: boat, from: mapName(maps!, start) } : undefined} />
+            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} notes={notes} />
           ) : plan && plan.reason === "different-area" ? (
             <CrossAreaNotice
               maps={maps!}
@@ -167,32 +178,37 @@ export function GoNavigator() {
   );
 }
 
+/** 路線上面要自己搭船的那段（route.ts goStart）；我們沒有船班資料，只照實說、不編路線。from：起點的名字（跨區那句用） */
+function GoNotes({ notes, from, className = "" }: { notes: GoNote[]; from: string; className?: string }) {
+  if (!notes.length) return null;
+  return (
+    <div className={`flex items-start gap-2.5 rounded-xl bg-[color:var(--gold-wash)] px-3.5 py-2.5 ${className}`}>
+      <BoatIcon size={18} className="mt-0.5 shrink-0 text-[color:var(--gold)]" />
+      <div className="space-y-1">
+        {notes.map(note => (
+          <p key={note} className="text-sm font-bold leading-relaxed">{goNoteText(note, from)}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RouteList({
   steps,
   maps,
   hops,
   graph,
-  boat,
+  notes,
 }: {
   steps: RouteStep[];
   maps: Record<string, MapRecord>;
   hops: number;
   graph: Record<string, PortalEdge[]>;
-  /** 路線前面要自己搭船的那段（route.ts boatNote）與起點的名字；我們沒有船班資料，只照實說、不編路線 */
-  boat?: { kind: BoatNote; from: string };
+  notes: GoNote[];
 }) {
   return (
     <section aria-label="路線">
-      {boat ? (
-        <div className="mb-3 flex items-start gap-2.5 rounded-xl bg-[color:var(--gold-wash)] px-3.5 py-2.5">
-          <BoatIcon size={18} className="mt-0.5 shrink-0 text-[color:var(--gold)]" />
-          <p className="text-sm font-bold leading-relaxed">
-            {boat.kind === "island"
-              ? `你還在楓之島的話，要先搭船到維多利亞島，再從${boat.from}出發。`
-              : `${boat.from}跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。`}
-          </p>
-        </div>
-      ) : null}
+      <GoNotes notes={notes} from={mapName(maps, steps[0]?.map)} className="mb-3" />
       <div className="mb-3 flex items-center gap-2 rounded-xl bg-[color:var(--leaf-wash)] px-3.5 py-2.5">
         <RouteIcon size={18} className="shrink-0 text-[color:var(--leaf)]" />
         <p className="text-sm font-bold">

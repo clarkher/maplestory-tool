@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VICTORIA_PORT, boatNote, defaultStart, victoriaReach } from "@/lib/route";
+import { VICTORIA_PORT, boatNote, defaultStart, findRoute, goNoteText, goStart, victoriaReach } from "@/lib/route";
 import type { PortalEdge } from "@/lib/types";
 
 const CUPID = 100000200;
@@ -57,5 +57,75 @@ describe("跨區要自己搭船或搭車", () => {
     expect(boatNote(PERION, reach, true)).toBe("island");
     expect(boatNote(FLORINA, reach, true)).toBe("island");
     expect(boatNote(RAINBOW, reach, true)).toBeUndefined();
+  });
+});
+
+describe("帶我去：還可能在楓之島的初心者（round 3 B）", () => {
+  const BEACH_FIELD = 110040000;
+  const MUSHROOM = 10000;
+  const ISLAND_FIELD = 40000;
+  const graph: Record<string, PortalEdge[]> = {
+    [VICTORIA_PORT]: [[PERION, "east00", 0, 0]],
+    [PERION]: [[CUPID, "west00", 0, 0], [VICTORIA_PORT, "west00", 0, 0]],
+    [CUPID]: [[PERION, "east00", 0, 0]],
+    [FLORINA]: [[BEACH_FIELD, "east00", 0, 0]],
+    [BEACH_FIELD]: [[FLORINA, "west00", 0, 0]],
+    [MUSHROOM]: [[ISLAND_FIELD, "east00", 0, 0]],
+    [ISLAND_FIELD]: [[MUSHROOM, "west00", 0, 0]],
+  };
+  const reach = victoriaReach(graph);
+  const run = (target: number, suggested: number | null, options: { picked?: number; remembered?: number; novice?: boolean } = {}) =>
+    goStart({
+      target,
+      picked: options.picked ?? null,
+      suggested,
+      remembered: options.remembered ?? null,
+      novice: options.novice ?? true,
+      reaches: from => findRoute(graph, from, target).ok,
+      reach,
+    });
+
+  it("目的地在維多利亞島、沒自己選起點：從維多利亞港出發，路線上面說要先搭船到維多利亞港", () => {
+    expect(run(CUPID, PERION)).toEqual({ choice: { kind: "start", map: VICTORIA_PORT }, notes: ["island"] });
+  });
+
+  it("目的地是城鎮也一樣從維多利亞港出發，不先問；記住的起點（別的角色選的）不用", () => {
+    expect(run(PERION, PERION, { remembered: CUPID })).toEqual({ choice: { kind: "start", map: VICTORIA_PORT }, notes: ["island"] });
+  });
+
+  it("目的地就是維多利亞港：說搭船就會到，不給「你已經在目的地了」的路線（先問在哪個城鎮）", () => {
+    expect(run(VICTORIA_PORT, VICTORIA_PORT)).toEqual({ choice: { kind: "ask" }, notes: ["port"] });
+    expect(run(VICTORIA_PORT, VICTORIA_PORT, { remembered: PERION })).toEqual({ choice: { kind: "ask" }, notes: ["port"] });
+  });
+
+  it("維多利亞港走不到目的地（黃金海灘那邊）：照最近的城鎮出發，島上跟跨區兩句都說", () => {
+    expect(run(BEACH_FIELD, FLORINA)).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["island", "region"] });
+  });
+
+  it("維多利亞港走不到、目的地自己就是那邊的城鎮：先問，不說要照下面的路線走", () => {
+    expect(run(FLORINA, FLORINA)).toEqual({ choice: { kind: "ask" }, notes: [] });
+  });
+
+  it("在這頁自己選了起點：照用，不說島上的事；選的起點跟維多利亞島之間沒有傳送門時照樣說跨區", () => {
+    expect(run(CUPID, PERION, { picked: PERION })).toEqual({ choice: { kind: "start", map: PERION }, notes: [] });
+    expect(run(BEACH_FIELD, FLORINA, { picked: FLORINA })).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["region"] });
+    expect(run(CUPID, PERION, { picked: MUSHROOM })).toEqual({ choice: { kind: "start", map: MUSHROOM }, notes: [] });
+  });
+
+  it("目的地在楓之島：照一般規則（最近的城鎮），不說搭船", () => {
+    expect(run(ISLAND_FIELD, MUSHROOM)).toEqual({ choice: { kind: "start", map: MUSHROOM }, notes: [] });
+  });
+
+  it("提示的字", () => {
+    expect(goNoteText("island", "維多利亞港")).toBe("你還在楓之島的話，要先搭船到維多利亞港，再照下面的路線走。");
+    expect(goNoteText("port", "")).toBe("你還在楓之島的話，搭船就會到維多利亞港。");
+    expect(goNoteText("region", "黃金海灘")).toBe("黃金海灘跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。");
+  });
+
+  it("不是初心者：照舊——最近的城鎮、目的地是城鎮時用記住的起點或先問；起點跟維多利亞島沒有傳送門才說跨區，不說島上的事", () => {
+    expect(run(CUPID, PERION, { novice: false })).toEqual({ choice: { kind: "start", map: PERION }, notes: [] });
+    expect(run(PERION, PERION, { novice: false, remembered: CUPID })).toEqual({ choice: { kind: "start", map: CUPID }, notes: [] });
+    expect(run(VICTORIA_PORT, VICTORIA_PORT, { novice: false })).toEqual({ choice: { kind: "ask" }, notes: [] });
+    expect(run(BEACH_FIELD, FLORINA, { novice: false })).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["region"] });
   });
 });

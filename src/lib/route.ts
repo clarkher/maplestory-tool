@@ -165,10 +165,11 @@ export function victoriaReach(graph: Record<string, PortalEdge[]>): Set<number> 
 }
 
 /**
- * 路線前面那段要不要自己搭船或搭車（我們沒有船班、票價資料，只照實說，不編路線）：
- * - "island"：玩家還在楓之島、起點不在楓之島 → 要先搭船到維多利亞島，再從起點出發
+ * 出發的城鎮那段要不要自己搭船或搭車（我們沒有船班、票價資料，只照實說，不編路線）：
+ * - "island"：玩家還在楓之島、起點不在楓之島（主推卡就不寫跨區那句，島上的人另外有轉職卡）
  * - "region"：玩家不在楓之島、起點城鎮跟維多利亞島的城鎮之間沒有傳送門（例：黃金海灘）→ 這段要自己搭船或搭車過去
  * 起點本身在楓之島就都不用說：還在島上的人就在那裡，離島的人回不去（不能叫人搭船過去）。
+ * /go 的起點與提示另外看 goStart（初心者不管幾等都可能還在島上）。
  */
 export type BoatNote = "island" | "region";
 
@@ -176,6 +177,59 @@ export function boatNote(start: number, reach: Set<number>, island: boolean): Bo
   if (isIslandMap(start)) return undefined;
   if (island) return "island";
   return reach.has(start) ? undefined : "region";
+}
+
+/**
+ * /go 路線上面的提示：
+ * - "island"：還在楓之島的話，要先搭船到維多利亞港，再照下面的路線走
+ * - "port"：還在楓之島的話，搭船就會到維多利亞港（目的地就是維多利亞港）
+ * - "region"：起點跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去
+ */
+export type GoNote = "island" | "port" | "region";
+
+/** 提示的字（from：起點的名字，跨區那句要用） */
+export function goNoteText(note: GoNote, from: string): string {
+  if (note === "island") return "你還在楓之島的話，要先搭船到維多利亞港，再照下面的路線走。";
+  if (note === "port") return "你還在楓之島的話，搭船就會到維多利亞港。";
+  return `${from}跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。`;
+}
+
+/**
+ * /go 的起點與路線上面的提示（round 3 B）：
+ * - 玩家在這頁自己選了起點（選單或城鎮按鈕，網址的 from）：照用，不說島上的事（選了就是人在那裡）；
+ *   選的起點跟維多利亞島之間沒有傳送門時照樣說跨區
+ * - 初心者（不管幾等都可能還在楓之島）、目的地不在楓之島、沒自己選：記住的起點不用（那是別的角色選的）——
+ *   維多利亞港走得到目的地就從維多利亞港出發（船靠岸的地方），說要先搭船到維多利亞港；
+ *   目的地就是維多利亞港時只說搭船就會到（不給「你已經在目的地了」，先問在哪個城鎮）；
+ *   維多利亞港走不到（黃金海灘那邊）就照最近的城鎮出發，島上跟跨區兩句都說
+ * - 其他照 defaultStart（最近的城鎮；目的地是城鎮時用記住的起點，不然先問），起點跟維多利亞島沒有傳送門才說跨區
+ */
+export function goStart(args: {
+  target: number;
+  /** 玩家在這頁自己選的起點 */
+  picked: number | null;
+  /** 最近的城鎮（suggestStart） */
+  suggested: number | null;
+  /** 上次自己選的起點（ms-go-start） */
+  remembered: number | null;
+  /** 初心者（還沒轉職，不管幾等） */
+  novice: boolean;
+  /** 從這張圖走得到目的地 */
+  reaches: (from: number) => boolean;
+  /** victoriaReach */
+  reach: Set<number>;
+}): { choice: StartChoice; notes: GoNote[] } {
+  const { target, picked, suggested, remembered, novice, reaches, reach } = args;
+  const region = (start: number): GoNote[] => (boatNote(start, reach, false) === "region" ? ["region"] : []);
+  if (picked !== null) return { choice: { kind: "start", map: picked }, notes: region(picked) };
+  if (novice && !isIslandMap(target)) {
+    if (target === VICTORIA_PORT) return { choice: defaultStart(target, suggested, null, reaches), notes: ["port"] };
+    if (reaches(VICTORIA_PORT)) return { choice: { kind: "start", map: VICTORIA_PORT }, notes: ["island"] };
+    const choice = defaultStart(target, suggested, null, reaches);
+    return { choice, notes: choice.kind === "start" ? ["island", ...region(choice.map)] : [] };
+  }
+  const choice = defaultStart(target, suggested, remembered, reaches);
+  return { choice, notes: choice.kind === "start" ? region(choice.map) : [] };
 }
 
 let reverseCache: { graph: Record<string, PortalEdge[]>; map: Map<number, number[]> } | null = null;
