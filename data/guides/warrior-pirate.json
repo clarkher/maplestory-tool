@@ -4095,17 +4095,6 @@
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1170"
           ],
           "verified": "community"
-        },
-        {
-          "levelFrom": 71,
-          "levelTo": 100,
-          "kind": "solo",
-          "mapName": "（無可靠出處）",
-          "mapId": null,
-          "mobs": [],
-          "why": "2026-10-03 研究時，打手 70 等以上找不到台服練功回報。",
-          "sources": [],
-          "verified": "community"
         }
       ],
       "notes": [
