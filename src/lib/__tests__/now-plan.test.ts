@@ -144,6 +144,17 @@ describe("先解", () => {
     expect(result[6].key).toBe("chain:big");
   });
 
+  it("同一個 NPC 的同名任務（托德的打獵方法 ×2）只列一行", () => {
+    const todd = { id: 2101, n: "托德", map: 30000 };
+    const quests = [
+      quest("1018", { n: "托德的打獵方法", exp: 50000, jobs: [0], sNpc: todd }),
+      quest("1035", { n: "托德的打獵方法", exp: 50000, jobs: [0], maxLv: 10, sNpc: todd }),
+    ];
+    const result = nowQuests({ ...args(1, 0, quests), maps: { 30000: { zh: "楓之島" } } });
+    expect(result.map(item => item.title)).toEqual(["托德的打獵方法"]);
+    expect(result[0]).toMatchObject({ totalParts: 2, firstPart: 1, lastPart: 2 });
+  });
+
   it("同一筆攻略推薦涵蓋的幾條任務線收成一行", () => {
     const quests = [
       quest("a1", { minLv: 10, exp: 20000 }),

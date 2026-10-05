@@ -49,10 +49,34 @@ function overlap(band: Band, from: number, to: number): number {
 export function trainingForBand(band: Band, train: GuideTrain[]): GuideTrain[] {
   return train
     .map(segment => ({ segment, size: overlap(band, segment.from, segment.to) }))
-    // 只重疊一兩級的段落（例：Lv.30–42 的圖掛在 40–50 段）是過期的攻略，不列；段長不到 3 級時門檻跟著縮
+    // 只重疊一兩級的段落（例：Lv.30–41 的圖掛在 40–50 段，只重疊 40、41 兩級）是過期的攻略，不列；段長不到 3 級時門檻跟著縮
     .filter(entry => entry.size >= Math.min(3, band.to - band.from))
     .sort((a, b) => b.size - a.size || VERIFIED_RANK[a.segment.v] - VERIFIED_RANK[b.segment.v])
     .map(entry => entry.segment);
+}
+
+/**
+ * 段落詳情列哪幾段攻略：照重疊排序往下列，湊滿 max 段職業能用的就停；途中碰到被職業規則擋掉的照列、寫原因
+ * （火毒看得到「怪抗火」）。一段能用的都沒有時，列前 max 段被擋的，畫面下面再放遊戲資料替代。
+ * 先判斷職業規則再挑，標籤跟詳情才會一致（以前先取前 3 段再判斷，能用的第 4 段會被擠掉）。
+ */
+export function segmentsToShow(all: GuideTrain[], blocked: (segment: GuideTrain) => boolean, max = 3): GuideTrain[] {
+  const shown: GuideTrain[] = [];
+  let usable = 0;
+  for (const segment of all) {
+    if (usable >= max) break;
+    shown.push(segment);
+    if (!blocked(segment)) usable += 1;
+  }
+  return usable ? shown : all.slice(0, max);
+}
+
+/**
+ * 職業規則用哪個等級判斷：你在的這段用你現在的等級（Lv.35 僧侶看 30–40 段要用 35，不是段落起點 30），
+ * 其他段用段落起點與攻略段落起點較高的那個。
+ */
+export function fitLevel(band: Band, segment: GuideTrain, current?: number): number {
+  return current ?? Math.max(band.from, segment.from);
 }
 
 /** 攻略地名常帶括號註記（會掉什麼），當段落標題時拿掉 */
@@ -62,12 +86,12 @@ export function shortName(name: string): string {
 
 /**
  * 每一段的標籤：取覆蓋這段最多的攻略地圖；同一張圖不在相鄰兩段重複當標籤，
- * 沒有別的圖可用時寫「同上一段」。
+ * 沒有別的圖可用時寫「同上一段」。trainOf 拿到第幾段，方便「你在的這段」用現在等級判斷職業規則。
  */
-export function bandLabels(bands: Band[], trainOf: (band: Band) => GuideTrain[]): Array<string | undefined> {
+export function bandLabels(bands: Band[], trainOf: (band: Band, index: number) => GuideTrain[]): Array<string | undefined> {
   const labels: Array<string | undefined> = [];
   bands.forEach((band, index) => {
-    const names = trainingForBand(band, trainOf(band)).map(segment => shortName(segment.name)).filter(Boolean);
+    const names = trainingForBand(band, trainOf(band, index)).map(segment => shortName(segment.name)).filter(Boolean);
     const previous = index > 0 ? labels[index - 1] : undefined;
     labels.push(names.find(name => name !== previous) ?? (names.length ? "同上一段" : undefined));
   });
@@ -109,9 +133,11 @@ export type QuestGroup = { key: string; title: string; quests: Quest[]; exp: num
 /**
  * 把同一條任務線收成一組，免得「冒險家的戒指」九段把整個清單洗版。
  * 名稱帶【任務線】前綴的用前綴分；其餘沿著前置任務往回找到這批任務裡的源頭。
+ * 源頭同名、又是同一個 NPC 給的也算同一條（托德的打獵方法有兩個編號、彼此沒有前置，否則先解會列兩行同名的）。
  */
 export function groupQuests(quests: Quest[]): QuestGroup[] {
   const byId = new Map(quests.map(quest => [quest.id, quest]));
+  const firstRootByName = new Map<string, string>();
   const rootOf = (quest: Quest): string => {
     const line = quest.n.match(/^\[([^\]]+)\]/);
     if (line) return `line:${line[1].trim()}`;
@@ -123,7 +149,9 @@ export function groupQuests(quests: Quest[]): QuestGroup[] {
       if (!previous) break;
       current = previous;
     }
-    return `chain:${current.id}`;
+    const sameName = `${current.n}|${current.sNpc?.id ?? ""}`;
+    if (!firstRootByName.has(sameName)) firstRootByName.set(sameName, current.id);
+    return `chain:${firstRootByName.get(sameName)}`;
   };
 
   const groups = new Map<string, QuestGroup>();

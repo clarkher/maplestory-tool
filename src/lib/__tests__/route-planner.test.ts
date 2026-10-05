@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  bandLabels, bandOf, bandsFor, groupQuests, isIslandMap, levelFraction, longRunQuests, mustDoForBand, onIsland, prepMaterials,
-  questReachable, trainingForBand, withoutLongRun,
+  bandLabels, bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, mustDoForBand, onIsland, prepMaterials,
+  questReachable, segmentsToShow, trainingForBand, withoutLongRun,
 } from "@/lib/route-planner";
 import { stepsBetween } from "@/lib/skill-plan";
 import type { GuideBuild, GuideTrain, Monster, Quest } from "@/lib/types";
@@ -53,6 +53,27 @@ describe("等級段", () => {
     expect(trainingForBand({ from: 40, to: 50 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ", "火焰之地Ⅱ"]);
     expect(trainingForBand({ from: 41, to: 50 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ"]);
     expect(trainingForBand({ from: 45, to: 46 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ"]);
+  });
+});
+
+describe("段落詳情列哪幾段攻略", () => {
+  const seg = (name: string, from = 30): GuideTrain => ({ from, to: 40, kind: "solo", map: 1, name, mobs: [], why: "", v: "tw", s: [] });
+
+  it("先看職業規則再挑：湊滿 3 段能用的才停，途中被擋的照列（不會把能用的第 4 段擠掉）", () => {
+    const [b1, u1, b2, u2, u3, u4] = ["擋1", "可1", "擋2", "可2", "可3", "可4"].map(name => seg(name));
+    const blocked = (segment: GuideTrain) => segment.name.startsWith("擋");
+    expect(segmentsToShow([b1, u1, b2, u2, u3, u4], blocked).map(segment => segment.name)).toEqual(["擋1", "可1", "擋2", "可2", "可3"]);
+  });
+
+  it("一段能用的都沒有時列前 3 段被擋的（下面另外放遊戲資料替代）", () => {
+    const all = ["擋1", "擋2", "擋3", "擋4"].map(name => seg(name));
+    expect(segmentsToShow(all, () => true).map(segment => segment.name)).toEqual(["擋1", "擋2", "擋3"]);
+  });
+
+  it("職業規則的等級：你在的這段用現在等級，其他段用段落起點與攻略起點較高的", () => {
+    expect(fitLevel({ from: 30, to: 40 }, seg("x", 31), 35)).toBe(35);
+    expect(fitLevel({ from: 30, to: 40 }, seg("x", 31))).toBe(31);
+    expect(fitLevel({ from: 30, to: 40 }, seg("x", 25))).toBe(30);
   });
 });
 
@@ -143,6 +164,21 @@ describe("任務線合併", () => {
       quest("c", { n: "收集400個詛咒娃娃", exp: 15000, pre: ["b"] }),
     ]);
     expect(groups.map(group => [group.title, group.quests.length, group.exp])).toEqual([["收集400個詛咒娃娃", 3, 31000]]);
+  });
+
+  it("同一個 NPC 給的同名任務（托德的打獵方法有兩個編號、沒有前置相連）算同一條線", () => {
+    const todd = { id: 2101, n: "托德", map: 30000 };
+    const groups = groupQuests([
+      quest("1018", { n: "托德的打獵方法", exp: 10, sNpc: todd }),
+      quest("1035", { n: "托德的打獵方法", exp: 30, sNpc: todd }),
+      quest("6700", { n: "弓箭手之路", sNpc: { id: 1012100, n: "赫麗娜" } }),
+      quest("2078", { n: "弓箭手之路", sNpc: { id: 1, n: "坤" } }),
+    ]);
+    expect(groups.map(group => [group.title, group.quests.map(item => item.id)])).toEqual([
+      ["托德的打獵方法", ["1018", "1035"]],
+      ["弓箭手之路", ["6700"]],
+      ["弓箭手之路", ["2078"]],
+    ]);
   });
 });
 

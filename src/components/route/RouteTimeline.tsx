@@ -11,7 +11,7 @@ import { jobFit } from "@/lib/job-rules";
 import { isSecondJob, stageJob } from "@/lib/jobs";
 import { planTraining } from "@/lib/planner";
 import {
-  type Band, bandLabels, isIslandBand, isIslandMap, mustDoForBand, prepMaterials, shortName, spawnIndex, trainingForBand,
+  type Band, bandLabels, fitLevel, isIslandBand, isIslandMap, mustDoForBand, prepMaterials, segmentsToShow, shortName, spawnIndex, trainingForBand,
 } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepsBetween } from "@/lib/skill-plan";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
@@ -44,15 +44,15 @@ export function RouteTimeline(context: Context) {
   const [open, setOpen] = useState<Set<number>>(() => new Set([activeIndex]));
   const spawns = useMemo(() => spawnIndex(context.monsters), [context.monsters]);
   const labels = useMemo(
-    () => bandLabels(bands, band => {
+    () => bandLabels(bands, (band, index) => {
       const { stage, guide } = guideFor(context, band);
-      // 職業規則擋掉的攻略圖（例：火毒的火焰之地）不拿來當段落標籤
+      // 職業規則擋掉的攻略圖（例：火毒的火焰之地）不拿來當段落標籤；你在的這段用你現在的等級判斷
       return (guide?.train ?? []).filter(segment =>
-        !segment.map || jobFit(stage, Math.max(band.from, segment.from), spawns.get(segment.map) ?? [], context.monsterIndex).ok);
+        !segment.map || jobFit(stage, fitLevel(band, segment, index === activeIndex ? level : undefined), spawns.get(segment.map) ?? [], context.monsterIndex).ok);
     }),
-    // context 每次 render 都是新物件；標籤只跟職業、攻略、等級段、怪物資料有關
+    // context 每次 render 都是新物件；標籤只跟職業、攻略、等級段、現在等級、怪物資料有關（bands 由 RouteHome 固定成同一個陣列）
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [bands, context.job, context.guides, spawns, context.monsterIndex],
+    [bands, level, activeIndex, context.job, context.guides, spawns, context.monsterIndex],
   );
 
   function toggle(index: number) {
@@ -157,14 +157,16 @@ function BandDetail({ band, next, context, spawns, current }: {
   const { job, quests, monsters, monsterIndex, maps, training, common, prefer, guideStatus, routable } = context;
 
   const detail = useMemo(() => {
-    const segments = guide ? trainingForBand(band, guide.train).slice(0, 3) : [];
+    const all = guide ? trainingForBand(band, guide.train) : [];
     const island = isIslandBand(band);
     const middle = Math.min(99, Math.round((band.from + band.to - 1) / 2));
-    const warnings = new Map(segments.flatMap(segment => {
+    // 先判斷職業規則、再挑要列的段落（segmentsToShow），你在的這段用現在等級判斷
+    const warnings = new Map(all.flatMap(segment => {
       if (!segment.map) return [];
-      const fit = jobFit(stage, Math.max(band.from, segment.from), spawns.get(segment.map) ?? [], monsterIndex);
+      const fit = jobFit(stage, fitLevel(band, segment, current ? context.level : undefined), spawns.get(segment.map) ?? [], monsterIndex);
       return fit.ok ? [] : [[segment, fit.note ?? "這個職業不適合"] as const];
     }));
+    const segments = segmentsToShow(all, segment => warnings.has(segment));
     const usable = segments.filter(segment => !warnings.has(segment));
     const fallback = usable.length || island
       ? []
