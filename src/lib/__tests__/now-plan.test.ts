@@ -217,35 +217,95 @@ describe("還在楓之島、還不能轉職的初心者（8 等前）", () => {
 describe("第幾段／共幾段的寫法（先解跟必解同一個）", () => {
   const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, index) => from + index);
 
-  it("整條線只有一段不寫；一段寫第 N 段；連在一起的好幾段寫第 a–b 段", () => {
+  it("整條線只有一段不寫；一段寫第 N 段；連在一起的好幾段寫第 a–b 段（列出的段一定連在一起，見下面「任務線不跳段」）", () => {
     expect(partsText({ positions: range(1, 52), totalParts: 52 })).toBe("第 1–52 段／共 52 段");
     expect(partsText({ positions: [3], totalParts: 5 })).toBe("第 3 段／共 5 段");
+    expect(partsText({ positions: [4, 5], totalParts: 5 })).toBe("第 4–5 段／共 5 段");
     expect(partsText({ positions: [1], totalParts: 1 })).toBeNull();
   });
+});
 
-  it("中間有段沒列、4 段以內：一段一段列出來（湯寶寶第 3 段放在長線，寫第 1、2、4、5 段）", () => {
-    expect(partsText({ positions: [1, 2, 4, 5], totalParts: 5 })).toBe("第 1、2、4、5 段／共 5 段");
-    expect(partsText({ positions: [1, 3], totalParts: 3 })).toBe("第 1、3 段／共 3 段");
-  });
+describe("任務線不跳段（先解跟必解同一套，round 4）", () => {
+  const ids = (item: { quests: Quest[] }) => item.quests.map(entry => entry.id);
 
-  it("中間有段沒列、超過 4 段：寫第 a–b 段中的 k 段", () => {
-    expect(partsText({ positions: range(1, 52).filter(part => part !== 30), totalParts: 52 })).toBe("第 1–52 段中的 51 段／共 52 段");
-    expect(partsText({ positions: [1, 2, 3, 5, 6], totalParts: 6 })).toBe("第 1–6 段中的 5 段／共 6 段");
-  });
-
-  it("先解跟必解都照實寫：中間那段要打 999 隻（放在長線）時寫第 1、3 段", () => {
+  it("中間那段要打 200 隻以上（放在長線）：只列到它前面，後面的段也不列——不叫你跳過一段", () => {
     const monsters = [monster(1, 20)];
+    const elder = { id: 11, n: "長老斯坦", map: 100000000 };
     const quests = [
-      quest("p1", { minLv: 20, exp: 30000 }),
-      quest("p2", { minLv: 20, exp: 30000, pre: ["p1"], needMobs: [{ id: 1, n: "刺菇菇", c: 999 }] }),
-      quest("p3", { minLv: 20, exp: 30000, pre: ["p2"] }),
+      quest("p1", { minLv: 20, exp: 30000, sNpc: elder }),
+      quest("p2", { minLv: 20, exp: 30000, pre: ["p1"], sNpc: elder, needMobs: [{ id: 1, n: "刺菇菇", c: 200 }] }),
+      quest("p3", { minLv: 20, exp: 90000, pre: ["p2"], sNpc: elder }),
     ];
     const common = commonWith([]);
-    const effective = effectiveLevels(quests, monsters, common);
-    const [todo] = nowQuests({ level: 25, job: 110, quests, monsters, common, maps: {}, effective });
-    const [band] = bandQuests({ band: { from: 10, to: 21 }, level: 25, job: 110, quests, monsters, common, maps: {}, effective });
-    expect(partsText(todo)).toBe("第 1、3 段／共 3 段");
-    expect(partsText(band)).toBe("第 1、3 段／共 3 段");
+    const shared = { quests, monsters, common, maps: { 100000000: { zh: "弓箭手村" } }, effective: effectiveLevels(quests, monsters, common) };
+    const [todo] = nowQuests({ ...shared, level: 25, job: 110 });
+    const [band] = bandQuests({ ...shared, band: { from: 10, to: 21 }, level: 25, job: 110 });
+    for (const item of [todo, band]) {
+      expect(ids(item)).toEqual(["p1"]);
+      expect(item).toMatchObject({ positions: [1], firstPart: 1, lastPart: 1, totalParts: 3, exp: 30000 });
+      expect(partsText(item)).toBe("第 1 段／共 3 段");
+    }
+  });
+
+  it("同一道具累計 200 個以上的那段（湯寶寶的特殊料理）也一樣：只列到它前面", () => {
+    const monsters = [monster(9, 22, [500])];
+    const quests = [
+      quest("s1", { minLv: 20, exp: 30000 }),
+      quest("s2", { minLv: 20, exp: 30000, pre: ["s1"] }),
+      quest("s3", { minLv: 20, exp: 30000, pre: ["s2"], needItems: [{ id: 500, n: "火獨眼獸之尾巴", c: 40 }] }),
+      quest("s4", { minLv: 20, exp: 30000, pre: ["s3"] }),
+      quest("other", { minLv: 20, exp: 50000, needItems: [{ id: 500, n: "火獨眼獸之尾巴", c: 160 }] }),
+    ];
+    const common = commonWith([]);
+    const [todo] = nowQuests({ level: 25, job: 110, quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) })
+      .filter(item => item.key === "chain:s1");
+    expect(ids(todo)).toEqual(["s1", "s2"]);
+    expect(partsText(todo)).toBe("第 1–2 段／共 4 段");
+  });
+
+  it("值不值得用列出的那幾段算：隔著長線那段的後段經驗再多也不算進來", () => {
+    const monsters = [monster(1, 20)];
+    const quests = [
+      quest("p1", { minLv: 20, exp: 5000 }),
+      quest("p2", { minLv: 20, exp: 30000, pre: ["p1"], needMobs: [{ id: 1, n: "刺菇菇", c: 200 }] }),
+      quest("p3", { minLv: 20, exp: 90000, pre: ["p2"] }),
+    ];
+    const common = commonWith([]);
+    expect(nowQuests({ level: 25, job: 110, quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) })).toEqual([]);
+  });
+
+  it("第一段沒有經驗（內拉的夢 → 潘喜的紅色毛球）也算一段：從它開始列，NPC 跟帶我去用它的（內拉、墮落城市）", () => {
+    const nella = { id: 1052103, n: "內拉", map: 103000000, mapName: "墮落城市" };
+    const panxi = { id: 1061005, n: "潘喜", map: 101020000, mapName: "魔法森林北部" };
+    const maps = { 103000000: { zh: "墮落城市" }, 101020000: { zh: "魔法森林北部" } };
+    const toNext = Array.from({ length: 121 }, (_, level) => (level < 15 ? 1000 : 100000));
+    const common = { ...commonWith([]), expTable: { ...commonWith([]).expTable, toNext } };
+    // 跟遊戲資料一樣：潘喜那段沒有等級門檻，前置是內拉的夢
+    const quests = [
+      quest("2103", { n: "內拉的夢", minLv: 10, sNpc: nella }),
+      quest("2104", { n: "潘喜的紅色毛球", exp: 500, pre: ["2103"], sNpc: panxi }),
+    ];
+    const [todo] = nowQuests({ level: 10, job: 100, quests, monsters: [], common, maps, effective: effectiveLevels(quests, [], common) });
+    expect(ids(todo)).toEqual(["2103", "2104"]);
+    expect(todo).toMatchObject({ npc: nella, exp: 500, positions: [1, 2] });
+    expect(partsText(todo)).toBe("第 1–2 段／共 2 段");
+    // 必解同一套：兩段都在這段解鎖時，也從內拉那段開始
+    const gated = quests.map(entry => ({ ...entry, minLv: 10 }));
+    const [band] = bandQuests({ band: { from: 10, to: 21 }, level: 10, job: 100, quests: gated, monsters: [], common, maps, effective: effectiveLevels(gated, [], common) });
+    expect(ids(band)).toEqual(["2103", "2104"]);
+    expect(band.npc).toEqual(nella);
+  });
+
+  it("過了等級上限的前段不算（新手劍士的第一次修煉 15 等就不能接）：從第一段還接得到的開始", () => {
+    const quests = [
+      quest("t1", { minLv: 10, maxLv: 15, exp: 30000 }),
+      quest("t2", { minLv: 10, exp: 30000, pre: ["t1"] }),
+      quest("t3", { minLv: 10, exp: 30000, pre: ["t2"] }),
+    ];
+    const common = commonWith([]);
+    const [todo] = nowQuests({ level: 16, job: 100, quests, monsters: [], common, maps: {}, effective: effectiveLevels(quests, [], common) });
+    expect(ids(todo)).toEqual(["t2", "t3"]);
+    expect(partsText(todo)).toBe("第 2–3 段／共 3 段");
   });
 });
 

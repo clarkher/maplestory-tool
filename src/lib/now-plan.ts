@@ -72,7 +72,7 @@ export type NowQuest = {
   totalParts: number;
   firstPart: number;
   lastPart: number;
-  /** 這次列出的是第幾段（1 起算、由小到大）；中間有段放在長線或過期時不連續 */
+  /** 這次列出的是第幾段（1 起算、由小到大）；一定連在一起（lineRun 不跳段） */
   positions: number[];
   exp: number;
   /** 「約幾級」：先解用現在等級換算；升級路線的必解用接得到那條線的等級（見 bandQuests） */
@@ -218,38 +218,48 @@ function doableNow(shared: QuestLines, level: number, effective: Map<string, num
     && (!onlyIsland || !npcOffIsland(quest)));
 }
 
-/** 拿掉長線那種（long）；沒有經驗又沒有攻略推薦的也不算 */
-function withoutLongParts(candidates: Quest[], long: Set<string>, recs: Map<string, GuideMustDo>): Quest[] {
-  return candidates.filter(quest => !long.has(quest.id) && ((quest.exp ?? 0) > 0 || recs.has(quest.id)));
+/**
+ * 一條線這次列哪幾段（先解跟升級路線的必解共用）：從第一段做得到的開始，照線的順序往下，碰到第一段做不到的就停。
+ * 不跳段——遊戲裡要一段一段解，中間那段沒解、後面的接不到（round 4：湯寶寶原本寫「第 1、2、4、5 段」，跳過要收大量材料的第 3 段）。
+ * 0 經驗的段也是一段（內拉的夢 → 潘喜的紅色毛球：從內拉那段開始，帶我去也是去找內拉）。
+ * 過了等級上限的前段（新手劍士的第一次修煉 15 等就不能接）做不到，就從後面第一段還接得到的開始。
+ */
+export function lineRun(line: Quest[], doable: (quest: Quest) => boolean): Quest[] {
+  const start = line.findIndex(doable);
+  if (start < 0) return [];
+  let end = start + 1;
+  while (end < line.length && doable(line[end])) end += 1;
+  return line.slice(start, end);
 }
 
 /**
- * 把一批任務照任務線收成一行一行：標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、
- * 約幾級（用 levelFor 回傳的等級換算；拿到的是這條線這次列出的那幾段，照實際等級排好）。值不值得（worthListing）、過期由呼叫端決定要不要套。
+ * 把做得到的任務照任務線收成一行一行：每條線列 lineRun 那幾段（不跳段），標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、
+ * 約幾級（用 levelFor 回傳的等級換算；拿到的是列出的那幾段）。值不值得（worthListing）用列出的那幾段算、過期由呼叫端決定要不要套；
+ * 這一行的 NPC 跟帶我去用列出的第一段。
  */
 function lineItems(
-  candidates: Quest[],
   shared: QuestLines,
+  doable: (quest: Quest) => boolean,
   levelFor: (parts: Quest[]) => number,
   toNext: number[],
   job: number,
   keep: (rec: GuideMustDo | undefined, fraction: number) => boolean,
 ): Array<{ item: NowQuest; score: number }> {
-  const { lineOf, lines, recs } = shared;
-  const byLine = new Map<string, Quest[]>();
-  for (const quest of candidates) {
-    const key = lineOf.get(quest.id) ?? `chain:${quest.id}`;
-    byLine.set(key, [...(byLine.get(key) ?? []), quest]);
-  }
+  const { forJob, lineOf, lines, recs } = shared;
+  // 有做得到的任務的線，照任務資料裡各線第一個做得到的任務排（同分時照這個先後）
+  const keys = new Set<string>();
+  for (const quest of forJob) if (doable(quest)) keys.add(lineOf.get(quest.id) as string);
   const scored: Array<{ item: NowQuest; score: number }> = [];
-  for (const [key, members] of byLine) {
-    const line = lines.get(key) ?? members;
-    const parts = line.filter(quest => members.includes(quest));
+  for (const key of keys) {
+    const line = lines.get(key) as Quest[];
+    const parts = lineRun(line, doable);
+    if (!parts.length) continue;
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
     const fraction = levelFraction(exp, levelFor(parts), toNext);
     if (!keep(rec, fraction)) continue;
-    const positions = parts.map(quest => line.indexOf(quest) + 1);
+    const first = line.indexOf(parts[0]) + 1;
+    const positions = parts.map((_, index) => first + index);
     const title = rec
       ? rec.name.replace(/（[^（）]*）\s*$/, "")
       : key.startsWith("line:") ? key.slice(5) : [...parts].sort((a, b) => (b.exp ?? 0) - (a.exp ?? 0))[0].n;
@@ -259,9 +269,9 @@ function lineItems(
         title,
         quests: parts,
         totalParts: line.length,
-        firstPart: Math.min(...positions),
-        lastPart: Math.max(...positions),
-        positions: [...positions].sort((a, b) => a - b),
+        firstPart: first,
+        lastPart: positions[positions.length - 1],
+        positions,
         exp,
         fraction,
         reward: rec?.reward?.label,
@@ -290,29 +300,22 @@ export function nowQuests(args: {
   const { level, job, quests, monsters, common, maps, effective, limit } = args;
   const shared = questLines(stageJob(job, level), quests, common, maps, effective);
   const candidates = doableNow(shared, level, effective, onIsland(job, level), islandOnly(job, level));
-  const doable = withoutLongParts(candidates, longRunIds(candidates, monsters), shared.recs);
-  const sorted = lineItems(doable, shared, () => level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
+  const long = longRunIds(candidates, monsters);
+  // 做得到＝現在接得到、做得動、不是長線那種；0 經驗的段也算（它是步驟，值不值得由整段經驗決定）
+  const doable = new Set(candidates.filter(quest => !long.has(quest.id)).map(quest => quest.id));
+  const sorted = lineItems(shared, quest => doable.has(quest.id), () => level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
 
-/** 中間有段沒列時，幾段以內一段一段列出來 */
-const LISTED_PARTS = 4;
-
 /**
- * 「第幾段／共 N 段」（先解跟升級路線的必解同一個寫法），照實寫列出來的是哪幾段：
- * 連在一起寫「第 a–b 段」（一段寫「第 a 段」）；中間有段沒列（放在長線、過期）而且 4 段以內寫「第 a、c 段」；
- * 再多寫「第 a–b 段中的 k 段」。整條線只有一段時不寫。
+ * 「第幾段／共 N 段」（先解跟升級路線的必解同一個寫法）：列出的段一定連在一起（lineRun 不跳段），
+ * 寫「第 a–b 段」，一段寫「第 a 段」。整條線只有一段時不寫。
  */
 export function partsText(item: Pick<NowQuest, "positions" | "totalParts">): string | null {
   if (item.totalParts <= 1 || !item.positions.length) return null;
-  const parts = [...item.positions].sort((a, b) => a - b);
-  const first = parts[0];
-  const last = parts[parts.length - 1];
-  const range = first === last ? String(first) : `${first}–${last}`;
-  const text = last - first + 1 === parts.length
-    ? `第 ${range} 段`
-    : parts.length <= LISTED_PARTS ? `第 ${parts.join("、")} 段` : `第 ${range} 段中的 ${parts.length} 段`;
-  return `${text}／共 ${item.totalParts} 段`;
+  const first = Math.min(...item.positions);
+  const last = Math.max(...item.positions);
+  return `第 ${first === last ? first : `${first}–${last}`} 段／共 ${item.totalParts} 段`;
 }
 
 /** 升級路線的必解一行：先解的一行，加上這條線在這段最早幾等能接 */
@@ -326,7 +329,8 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
 
 /**
  * 升級路線某一段的必解：在這段解鎖的任務（門檻等級，沒有門檻用攻略建議等級），規則跟先解同一套——
- * 同一條任務線、同一個標題、長線那種拿掉、同一條值不值得的門檻；第幾段／共幾段算整條線。
+ * 同一條任務線、同一個標題、長線那種拿掉、同一條值不值得的門檻、不跳段（lineRun：從這段第一個做得到的段開始，
+ * 碰到不在這段解鎖或長線那種的段就停）；第幾段／共幾段算整條線。
  * 長線那種：現在就做得動的任務用先解那一批判斷（同一條線兩邊拿掉的段一樣，經驗才會是同一個數字，
  * 冒險家的戒指不會一邊 +630,000、一邊 +660,000）；還做不動的，在這段裡自己判斷（詛咒娃娃 2,300 個）。
  * 約幾級用接得到那條線的等級算（這段列出的第一段的實際等級）：你在的這段跟之前的段取它跟你現在的等級較高的
@@ -363,7 +367,8 @@ export function bandQuests(args: {
   const long = new Set(inBand.filter(quest => (nowIds.has(quest.id) ? longNow : longLater).has(quest.id)).map(quest => quest.id));
   const floor = band.from > level ? band.from : level;
   const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
-  const rows = lineItems(withoutLongParts(inBand, long, shared.recs), shared, levelFor, common.expTable.toNext, job, (rec, fraction) => worthListing(fraction, [rec]));
+  const doable = new Set(inBand.filter(quest => !long.has(quest.id)).map(quest => quest.id));
+  const rows = lineItems(shared, quest => doable.has(quest.id), levelFor, common.expTable.toNext, job, (rec, fraction) => worthListing(fraction, [rec]));
   return rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
 }
 
