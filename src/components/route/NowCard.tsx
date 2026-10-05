@@ -8,11 +8,19 @@ import { GoButton } from "@/components/PlanShell";
 import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
-import { advanceTitle, altPrefix, canGo, type MainPick, type TrainOption } from "@/lib/now-plan";
-import type { MapRecord, Monster } from "@/lib/types";
+import { advanceTitle, altPrefix, canGo, ceilingText, pqClosedText, type MainPick, type TrainOption } from "@/lib/now-plan";
+import type { GuidePq, MapRecord, Monster } from "@/lib/types";
 import { SourceTag, Sprite } from "./bits";
 
-type Common = { level: number; jobName: string; maps: Record<string, MapRecord>; monsters: Map<number, Monster>; routable: Set<number> };
+type Common = {
+  level: number;
+  jobName: string;
+  maps: Record<string, MapRecord>;
+  monsters: Map<number, Monster>;
+  routable: Set<number>;
+  /** 組隊任務剛過遊戲上限（pqJustClosed）；練功圖卡多寫一行 */
+  pqClosed?: { pq: GuidePq; maxLv: number };
+};
 
 /** 攻略檔還在載入時先放骨架：不先給一張遊戲資料的圖、過一下又換成攻略圖 */
 export function NowCardSkeleton({ label }: { label: string }) {
@@ -119,7 +127,7 @@ function AltLine({ alt, prefix }: { alt?: TrainOption; prefix: string }) {
   );
 }
 
-function MapCard({ pick, level, jobName, maps, monsters }: Common & { pick: Extract<MainPick, { kind: "map" }> }) {
+function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { pick: Extract<MainPick, { kind: "map" }> }) {
   const { option, alt, ceiling } = pick;
   const record = maps[String(option.map)];
   return (
@@ -153,11 +161,9 @@ function MapCard({ pick, level, jobName, maps, monsters }: Common & { pick: Extr
           </Link>
         ) : null}
         {alt ? <AltLine alt={alt} prefix={altPrefix(option, alt)} /> : null}
-        {ceiling ? (
-          <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">
-            目前開放的練功圖最高到 Lv.{ceiling.level}。{ceiling.best ? "這張已經是你能去最好的。" : ""}
-          </p>
-        ) : null}
+        {/* 組隊任務剛過遊戲上限（狂戰士 31 等）：說一聲為什麼主推不再是組隊任務 */}
+        {pqClosed ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[12px]">{pqClosedText(pqClosed)}</p> : null}
+        {ceiling ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">{ceilingText(ceiling)}</p> : null}
       </div>
     </article>
   );

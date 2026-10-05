@@ -32,6 +32,7 @@ let graph: Record<string, PortalEdge[]> = {};
 let nearestTown: Record<string, [number, number]> = {};
 let levelCap = 100;
 let effective = new Map<string, number>();
+let monsterLevels = new Map<number, number>();
 
 /** 列出前幾個出錯的組合，失敗訊息看得出是誰 */
 function expectNone(label: string, bad: string[]) {
@@ -45,6 +46,7 @@ beforeAll(() => {
   quests = read("quests.json");
   levelCap = read<Meta>("meta.json").release.levelCap;
   const monsters = read<Monster[]>("monsters.json");
+  monsterLevels = new Map(monsters.map(monster => [monster.id, monster.lv ?? 0]));
   const training = read<TrainingRow[]>("training.json");
   const common = read<GuideCommon>("guides/common.json");
   const guides = new Map<number, GuideJob>(JOB_OPTIONS.map(option => [option.id, read<GuideJob>(`guides/${option.id}.json`)]));
@@ -113,6 +115,16 @@ describe("真資料：首頁每個組合", () => {
       return problems.map(problem => `${combo.tag}：${problem}`);
     });
     expectNone("封頂提示自相矛盾", bad);
+  });
+
+  it("封頂提示寫的等級不比卡上的怪低（不會「最高到 Lv.71」旁邊擺 Lv73 的怪）", () => {
+    const bad = combos.flatMap(combo => {
+      if (combo.pick?.kind !== "map" || !combo.pick.ceiling) return [];
+      const { ceiling, option } = combo.pick;
+      const shown = option.mobs.slice(0, 2).map(([id]) => monsterLevels.get(id) ?? 0);
+      return shown.some(level => level > ceiling.top) ? [`${combo.tag}：最高到 Lv.${ceiling.top}，卡上的怪 ${shown.join("、")}`] : [];
+    });
+    expectNone("封頂提示比卡上的怪低", bad);
   });
 
   it("長線沒有實際等級比玩家高的任務", () => {

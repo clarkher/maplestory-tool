@@ -8,7 +8,7 @@ import {
 } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { baseJob, isSecondJob, jobOption, normalizeJob, stageJob } from "@/lib/jobs";
-import { effectiveLevels, longRunNow, mainPick, nowQuests } from "@/lib/now-plan";
+import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
@@ -116,7 +116,9 @@ export function RouteHome() {
       maps: data.maps,
       effective,
     }).slice(0, 3);
-    return { monsterIndex, pick, todo, longRun };
+    // 組隊任務剛過遊戲上限（超綠 30 等）時，主推卡說一聲
+    const pqClosed = pqJustClosed(data.common, profile.job, profile.level, data.quests);
+    return { monsterIndex, pick, todo, longRun, pqClosed };
   }, [data, ready, effective, profile, stageGuide]);
 
   if (error) {
@@ -153,6 +155,7 @@ export function RouteHome() {
               maps={data.maps}
               monsters={plan.monsterIndex}
               routable={data.routable}
+              pqClosed={plan.pqClosed}
             />
           ) : (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>

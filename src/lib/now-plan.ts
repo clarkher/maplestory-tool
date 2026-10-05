@@ -331,8 +331,19 @@ export type TrainOption = {
   boat?: boolean;
 };
 
-/** 封頂提示：能練的最高圖幾等；best＝主推圖已經是能去最好的（跟最高圖差 5 級以內） */
-export type Ceiling = { level: number; best: boolean };
+/**
+ * 封頂提示。level：能練的最高圖的地圖等級（拿來比較）；top：那張圖上最高等的怪幾等（畫面上寫的數字，
+ * 跟卡上的怪「骷髏指揮官 Lv73」同一種寫法，不會寫「最高到 Lv.71」旁邊卻擺 Lv73 的怪）；
+ * best＝主推圖已經是能去最好的（跟最高圖差 5 級以內）。
+ */
+export type Ceiling = { level: number; top: number; best: boolean };
+
+/** 封頂提示的文字（用戶 10/05 定的寫法，最好的版本中間用逗號） */
+export function ceilingText(ceiling: Ceiling): string {
+  return ceiling.best
+    ? `目前開放的練功圖最高到 Lv.${ceiling.top}，這張已經是你能去最好的。`
+    : `目前開放的練功圖最高到 Lv.${ceiling.top}。`;
+}
 
 export type Instructor = { job: number; line: string; npcId: number; npcName: string; map: number; level: number };
 
@@ -385,13 +396,51 @@ export function instructors(): Instructor[] {
  * job 是寫這個範圍的攻略職業：二轉玩家用到一轉攻略的範圍時（俠盜 30 等用盜賊的 21–30），卡片要寫「盜賊玩家推薦」。
  */
 export function pqFor(common: GuideCommon, job: number, level: number): { pq: GuidePq; window: [number, number]; job: number } | undefined {
-  const keys = [...new Set([stageJob(job, level), baseJob(job)])].filter(code => code > 0);
+  const keys = pqKeys(job, level);
   const hits = (common.pq ?? []).flatMap(pq => {
     const key = keys.find(code => pq.byJob[String(code)]);
     const window = key === undefined ? undefined : pq.byJob[String(key)];
     return key !== undefined && window && level >= window[0] && level <= window[1] ? [{ pq, window, job: key }] : [];
   });
   return hits.sort((a, b) => b.window[0] - a.window[0])[0];
+}
+
+/** 組隊任務範圍要看哪幾個職業的攻略：這個等級實際那一轉，再加一轉（二轉玩家也用得到一轉攻略的範圍） */
+function pqKeys(job: number, level: number): number[] {
+  return [...new Set([stageJob(job, level), baseJob(job)])].filter(code => code > 0);
+}
+
+/** 組隊任務剛過遊戲上限後，主推卡多寫一行的那幾級（上限 +1 到 +5） */
+const PQ_CLOSED_SPAN = 5;
+
+/**
+ * 組隊任務剛過遊戲的等級上限：這個職業本來有它的範圍、現在沒有組隊任務可打、等級在上限 +1～+5 → 回傳那個組隊任務跟上限
+ * （狂戰士 31 等：超綠只開放到 30 等）。只看遊戲任務有上限的（第一次同行 30）；月妙沒有上限，不會出現。
+ */
+export function pqJustClosed(
+  common: GuideCommon,
+  job: number,
+  level: number,
+  quests: Array<Pick<Quest, "id" | "maxLv">>,
+): { pq: GuidePq; maxLv: number } | undefined {
+  if (pqFor(common, job, level)) return undefined;
+  const keys = pqKeys(job, level);
+  for (const pq of common.pq ?? []) {
+    if (!pq.quest || !keys.some(code => pq.byJob[String(code)])) continue;
+    const maxLv = quests.find(quest => quest.id === pq.quest)?.maxLv;
+    if (maxLv !== undefined && level > maxLv && level <= maxLv + PQ_CLOSED_SPAN) return { pq, maxLv };
+  }
+  return undefined;
+}
+
+export function pqClosedText(closed: { pq: GuidePq; maxLv: number }): string {
+  return `${closed.pq.name}只開放到 ${closed.maxLv} 等。`;
+}
+
+/** 攻略圖的怪：段落自己點名、這張圖真的有出的排前面（刷怪點多的先），其他照刷怪點數接在後面——卡上的怪才對得上理由 */
+export function namedMobsFirst(mobs: Array<[number, number]>, named: number[]): Array<[number, number]> {
+  const wanted = new Set(named);
+  return [...mobs.filter(([id]) => wanted.has(id)), ...mobs.filter(([id]) => !wanted.has(id))];
 }
 
 /**
@@ -460,13 +509,13 @@ export function mainPick(args: {
     if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown, island));
     return routes.get(map) as { town?: number; hops?: number; boat?: boolean };
   };
-  // 地圖等級：練功資料的平均等級；沒有練功資料就取出怪的最高等級；都沒有就是不知道
-  const levelOf = (map: number): number | undefined => {
-    const row = anyRow.get(map);
-    if (row) return row.lv;
+  // 這張圖上最高等的怪幾等（卡上的怪、封頂提示都用這個寫法）
+  const topMobLevel = (map: number): number | undefined => {
     const levels = mobsOf(map).map(([id]) => index.get(id)?.lv ?? 0).filter(value => value > 0);
     return levels.length ? Math.max(...levels) : undefined;
   };
+  // 地圖等級：練功資料的平均等級；沒有練功資料就取出怪的最高等級；都沒有就是不知道
+  const levelOf = (map: number): number | undefined => anyRow.get(map)?.lv ?? topMobLevel(map);
 
   // 能練的最高圖：由高往低找（同等級先看效率高的），碰到第一張有城鎮路線的就停，不用每張都算路線
   const capRow = training
@@ -495,7 +544,7 @@ export function mainPick(args: {
       source: "guide",
       guide: segment,
       row: rows.get(map),
-      mobs: mobsOf(map),
+      mobs: namedMobsFirst(mobsOf(map), segment.mobs),
       fit,
       level: levelOf(map),
       ...route(map),
@@ -544,23 +593,29 @@ export function mainPick(args: {
     ...route(capRow.m),
   }] : [];
   // 能練的最高圖排在過期攻略前面：多升一級，主推不會從 Lv.71 掉回 Lv.49 的舊攻略圖。
-  // 只在你練得動時（最高圖比你高不到 CAP_REACH 級）才往前排；比你高很多時（冰雷 50 看 Lv.67）照舊排最後，免得變成備案
+  // 只在你練得動時（最高圖 ≤ 你的等級 + CAP_REACH）才往前排；比你高 5 級以上時（冰雷 50 看 Lv.67）排最後，
+  // 而且不當備案（下面 altPool 拿掉它）；只有它一張圖時才會變主推
   const capFirst = capRow !== undefined && capRow.lv <= level + CAP_REACH;
   const ordered = [...fresh, ...data.map(entry => entry.option), ...(capFirst ? capOption : []), ...stale, ...(capFirst ? [] : capOption)];
   const options: TrainOption[] = [];
   for (const option of ordered) {
     if (!options.some(existing => existing.map === option.map)) options.push(option);
   }
+  const altPool = (list: TrainOption[]) => list.filter(option => capFirst || capRow === undefined || option.map !== capRow.m);
 
   const pq = pqFor(common, job, level);
-  if (pq) return { kind: "pq", ...pq, alt: options.find(option => !option.party) ?? options[0] };
+  if (pq) {
+    const pool = altPool(options);
+    return { kind: "pq", ...pq, alt: pool.find(option => !option.party) ?? pool[0] };
+  }
 
   const main = options[0];
   if (!main) return undefined;
-  const others = options.slice(1);
+  const others = altPool(options.slice(1));
   const alt = others.find(option => option.party !== main.party) ?? others[0];
-  const ceiling = cap !== undefined && level - cap >= CEILING_GAP
-    ? { level: cap, best: main.level !== undefined && main.level >= cap - BEST_GAP }
+  // 封頂提示：比較用地圖等級，畫面上寫那張圖最高等的怪（跟卡上的怪同一種寫法）
+  const ceiling = capRow !== undefined && cap !== undefined && level - cap >= CEILING_GAP
+    ? { level: cap, top: topMobLevel(capRow.m) ?? cap, best: main.level !== undefined && main.level >= cap - BEST_GAP }
     : undefined;
   return { kind: "map", option: main, alt, ceiling };
 }

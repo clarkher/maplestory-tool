@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { INSTRUCTOR_MAPS, advanceTitle, altPrefix, canGo, mainPick, pqFor, type TrainOption } from "@/lib/now-plan";
+import {
+  INSTRUCTOR_MAPS, advanceTitle, altPrefix, canGo, ceilingText, mainPick, pqClosedText, pqFor, pqJustClosed, type TrainOption,
+} from "@/lib/now-plan";
 import { VICTORIA_PORT } from "@/lib/route";
 import type { GuideCommon, GuideJob, GuidePq, GuideTrain, MapRecord, Monster, PortalEdge, TrainingRow } from "@/lib/types";
 
@@ -97,7 +99,7 @@ describe("主推大卡", () => {
   it("沒有同等級的圖時加封頂提示；主推就是能練的最高圖時說這張已經是最好的", () => {
     const pick = mainPick({ ...base, level: 60, job: 100 });
     if (pick?.kind !== "map") throw new Error("應該是練功圖");
-    expect(pick.ceiling).toEqual({ level: 45, best: true });
+    expect(pick.ceiling).toEqual({ level: 45, top: 45, best: true });
   });
 
   it("等級在組隊任務範圍內就主推組隊任務", () => {
@@ -129,7 +131,71 @@ describe("主推大卡", () => {
     });
     if (pick?.kind !== "map") throw new Error("應該是練功圖");
     expect(pick.option.map).toBe(UNDEAD_MAP);
-    expect(pick.ceiling).toEqual({ level: 45, best: true });
+    expect(pick.ceiling).toEqual({ level: 45, top: 45, best: true });
+  });
+
+  it("攻略圖的怪：段落自己點名、這張圖有出的排前面（刷怪點多的先），其他接在後面（劍士 10 不再先看到 Lv17、Lv22 的斧木妖）", () => {
+    const FIELD = 101040002;
+    const spawns: Array<[number, number, number]> = [[11, 17, 11], [12, 22, 5], [13, 4, 4], [14, 10, 4]];
+    const field = spawns.map(([id, lv, count]) => monster(id, lv, FIELD, count));
+    const guide = guideWith([segment({ map: FIELD, name: "野外之地", from: 10, to: 15, mobs: [13, 14, 99] })]);
+    const pick = mainPick({
+      ...base,
+      level: 10,
+      job: 100,
+      guide,
+      monsters: [...monsters, ...field],
+      training: [...training, { ...row(FIELD, 50, 15, 11, 24), mobs: spawns.map(([id, , count]) => [id, count, 0] as [number, number, number]) }],
+      maps: { ...maps, [FIELD]: { zh: "野外之地", st: "維多利亞", ret: TOWN } },
+      graph: { ...graph, [TOWN]: [...graph[TOWN], [FIELD, "west00", 0, 0]] },
+      nearestTown: { ...nearestTown, [FIELD]: [TOWN, 0] },
+    });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.option.map).toBe(FIELD);
+    expect(pick.option.mobs.map(([id]) => id)).toEqual([13, 14, 11, 12]);
+  });
+});
+
+describe("封頂提示的文字", () => {
+  it("數字寫最高那張圖上最高等的怪（跟卡上的怪同一種寫法）；最好的版本中間是逗號", () => {
+    expect(ceilingText({ level: 71, top: 73, best: true })).toBe("目前開放的練功圖最高到 Lv.73，這張已經是你能去最好的。");
+    expect(ceilingText({ level: 71, top: 73, best: false })).toBe("目前開放的練功圖最高到 Lv.73。");
+  });
+
+  it("封頂的 top 取最高圖上最高等的怪，比較還是用地圖等級", () => {
+    const low = 300000030;
+    const top = 300000031;
+    const w = world([{ id: low, lv: 60, eff: 300 }, { id: top, lv: 71, eff: 100 }]);
+    const commander = 300000032;
+    const pick = mainPick({
+      ...w,
+      monsters: [...w.monsters, monster(commander, 73, top, 2)],
+      level: 81,
+      job: 210,
+      guide: guideWith([]),
+    });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.ceiling).toEqual({ level: 71, top: 73, best: true });
+  });
+});
+
+describe("組隊任務剛過遊戲上限", () => {
+  const moon: GuidePq = { key: "moon", name: "月妙組隊任務", quest: "1200", entrance: 1, guide: "/guide", byJob: { 100: [13, 30], 310: [30, 35] } };
+  const kerning: GuidePq = { key: "kerning", name: "超級綠水靈組隊任務", quest: "1201", entrance: 2, guide: "/guide", byJob: { 100: [25, 30], 110: [30, 30] } };
+  const quests = [{ id: "1200" }, { id: "1201", maxLv: 30 }];
+  const common = commonWith([moon, kerning]);
+
+  it("職業本來有範圍、現在沒有組隊任務可打、等級在上限 +1～+5：說超綠只開放到 30 等", () => {
+    expect(pqJustClosed(common, 110, 31, quests)).toMatchObject({ pq: { key: "kerning" }, maxLv: 30 });
+    expect(pqJustClosed(common, 110, 35, quests)).toMatchObject({ maxLv: 30 });
+    expect(pqClosedText({ pq: kerning, maxLv: 30 })).toBe("超級綠水靈組隊任務只開放到 30 等。");
+  });
+
+  it("還能打、過了 +5、職業沒有範圍、遊戲沒有上限（月妙）都不說", () => {
+    expect(pqJustClosed(common, 110, 30, quests)).toBeUndefined();
+    expect(pqJustClosed(common, 110, 36, quests)).toBeUndefined();
+    expect(pqJustClosed(common, 320, 31, quests)).toBeUndefined();
+    expect(pqJustClosed(commonWith([moon]), 100, 31, quests)).toBeUndefined();
   });
 });
 
@@ -220,7 +286,16 @@ describe("主推大卡：能練的最高圖、過期攻略、封頂", () => {
     const pick = mainPick({ ...world([{ id: low, lv: 60, eff: 300 }, { id: top, lv: 71, eff: 100 }]), level: 90, job: 210, guide: guideWith([]) });
     if (pick?.kind !== "map") throw new Error("應該是練功圖");
     expect(pick.option).toMatchObject({ map: top, source: "data" });
-    expect(pick.ceiling).toEqual({ level: 71, best: true });
+    expect(pick.ceiling).toEqual({ level: 71, top: 71, best: true });
+  });
+
+  it("能練的最高圖比你高 5 級以上時排最後，也不會變成備案（冰雷 50 不會看到 Lv.67 的備案）", () => {
+    const fresh = 300000033;
+    const top = 300000034;
+    const pick = mainPick({ ...world([{ id: fresh, lv: 50, eff: 100 }, { id: top, lv: 67, eff: 50 }]), level: 50, job: 100 });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.option.map).toBe(fresh);
+    expect(pick.alt).toBeUndefined();
   });
 
   it("高等級遊戲資料排不出圖時，主推能練的最高圖、過期的攻略圖當備案（多升一級主推不會從 Lv.71 掉到 Lv.50）", () => {
@@ -232,7 +307,7 @@ describe("主推大卡：能練的最高圖、過期攻略、封頂", () => {
     if (pick?.kind !== "map") throw new Error("應該是練功圖");
     expect(pick.option).toMatchObject({ map: top, source: "data" });
     expect(pick.alt).toMatchObject({ map: giant, source: "guide", party: true });
-    expect(pick.ceiling).toEqual({ level: 71, best: true });
+    expect(pick.ceiling).toEqual({ level: 71, top: 71, best: true });
   });
 
   it("等級跟能練的最高圖差不到 10 級，不加封頂（俠盜 62）", () => {
