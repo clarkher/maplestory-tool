@@ -12,9 +12,9 @@ import { normalizeJob } from "@/lib/jobs";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
 import {
-  MAIN_TOWNS, VICTORIA_PORT, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep, type StartChoice,
+  MAIN_TOWNS, VICTORIA_PORT, crossAreaText, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep,
+  type StartChoice,
 } from "@/lib/route";
-import { isIslandMap } from "@/lib/route-planner";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 
 /** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
@@ -368,7 +368,8 @@ function TownChips({
 
 /**
  * 走不到就照實說，並列出走得到目的地的城鎮（真的城鎮才列：民宅、沒有名字的圖不算；初心者把維多利亞港排第一）。
- * 楓之谷跨大陸本來就要搭船或計程車，那一段不是傳送門，我們不假裝算得出來；從楓之島出發的那段是搭船。
+ * 楓之谷跨大陸本來就要搭船或計程車，那一段不是傳送門，我們不假裝算得出來；從楓之島出發的那段是搭船；
+ * 目的地在楓之島、起點不在時只說兩邊沒有傳送門（離開楓之島就回不去，不叫人搭車）。
  */
 function CrossAreaNotice({
   maps,
@@ -395,10 +396,8 @@ function CrossAreaNotice({
           <p className="font-bold">
             {mapName(maps, from)} 走不到 {mapName(maps, to)}
           </p>
-          <p className="mt-1 ink-soft">
-            這兩張圖不在同一個可步行區域。楓之谷跨大陸要搭船或計程車，那一段沒有傳送門資料，
-            所以我們不會編一條路線給你。先在遊戲裡{isIslandMap(from) ? "搭船" : "搭車"}過去，再從下面挑一個當地城鎮重算路線。
-          </p>
+          {/* 目的地在楓之島、起點不在：只說沒有傳送門，不叫人搭車（route.ts crossAreaText） */}
+          <p className="mt-1 ink-soft">{crossAreaText(from, to)}</p>
         </div>
       </div>
 

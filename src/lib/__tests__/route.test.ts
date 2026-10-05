@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { MAIN_TOWNS, VICTORIA_PORT, boatNote, defaultStart, findRoute, goNoteText, goStart, hubTowns, townChips, townsTitle, victoriaReach } from "@/lib/route";
+import {
+  MAIN_TOWNS, VICTORIA_PORT, boatNote, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, townChips, townsTitle, victoriaReach,
+} from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 
 const CUPID = 100000200;
@@ -128,6 +130,21 @@ describe("帶我去：還可能在楓之島的初心者（round 3 B）", () => {
     expect(run(PERION, PERION, { novice: false, remembered: CUPID })).toEqual({ choice: { kind: "start", map: CUPID }, notes: [] });
     expect(run(VICTORIA_PORT, VICTORIA_PORT, { novice: false })).toEqual({ choice: { kind: "ask" }, notes: [] });
     expect(run(BEACH_FIELD, FLORINA, { novice: false })).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["region"] });
+  });
+});
+
+describe("走不到（跨區）時的說明（round 4）", () => {
+  const ISLAND_FIELD = 40000;
+
+  it("目的地在楓之島、起點不在：只說楓之島跟維多利亞島之間沒有傳送門，不叫人搭車（離開楓之島就回不去）", () => {
+    expect(crossAreaText(PERION, ISLAND_FIELD)).toBe("楓之島跟維多利亞島之間沒有傳送門。");
+    expect(crossAreaText(FLORINA, RAINBOW)).toBe("楓之島跟維多利亞島之間沒有傳送門。");
+  });
+
+  it("其他照舊：照實說不在同一個可步行區域，起點在楓之島寫搭船、其他寫搭車", () => {
+    expect(crossAreaText(RAINBOW, PERION)).toContain("先在遊戲裡搭船過去");
+    expect(crossAreaText(PERION, FLORINA)).toContain("先在遊戲裡搭車過去");
+    expect(crossAreaText(PERION, FLORINA)).toContain("這兩張圖不在同一個可步行區域");
   });
 });
 

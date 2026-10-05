@@ -147,7 +147,8 @@ N 是最高那張圖上**最高等的怪**（跟卡上「骷髏指揮官 Lv73」
   初心者再在前面加島上那句（兩句都寫）；城鎮按鈕一顆都給不出來時不放空的問句，上面的「從哪裡出發」照樣能自己選（round 3 最後一輪）。
 - **帶我去**：傳送門不顯示代碼與座標，改成「走左邊／右邊／上面／下面的傳送門」。依傳送門名稱裡的方向字（east、west、up、top、down、dn、under、bottom）和它在這張圖所有傳送門裡的相對位置判斷；判斷不出來寫「地圖上的傳送門」。
 in／out／st 不是方向（森林迷宮、地鐵每一步都叫 in，會整條路都寫「走進建築」），market／tp 查過資料對不上，都改看位置（final review F2）。中間經過沒有中文名的圖，寫「一條小通道（遊戲裡沒有名字）」。
-- **帶我去走不到（跨區）**：照實說兩張圖不在同一個可步行區域，起點在楓之島時寫「先在遊戲裡搭船過去」、其他寫「搭車」；下面列「從 X 出發」的城鎮按鈕（round 3 B2，`route.ts townChips`）：
+- **帶我去走不到（跨區）**：照實說兩張圖不在同一個可步行區域，起點在楓之島時寫「先在遊戲裡搭船過去」、其他寫「搭車」（`route.ts crossAreaText`）；
+  目的地在楓之島、起點不在時不叫人搭車（離開楓之島就回不去），只寫「楓之島跟維多利亞島之間沒有傳送門。」（round 4，persona 第三輪三-5）；下面列「從 X 出發」的城鎮按鈕（round 3 B2，`route.ts townChips`）：
   只列真的城鎮（有中文名、客戶端標成城鎮、有別張圖回到這裡，回城點是自己或以它命名的郊外——民宅、城外小山、嫩寶狩獵場Ⅰ、沒有名字的圖都不算；
   名字是另一個城鎮再加字的算郊外，所以楓之島是菇菇村、楓之港、楓葉村，不是楓葉村西郊平原）、走得到目的地的，最多 8 顆，初心者把維多利亞港排第一；
   畫面上同名的只給一顆，跟目的地同名但不是目的地那張的不給（兩張都叫菇菇村，不會排出「菇菇村 → 菇菇村 共 1 段」，round 3 最後一輪）；
@@ -195,7 +196,7 @@ in／out／st 不是方向（森林迷宮、地鐵每一步都叫 in，會整條
 | `src/lib/job-rules.ts`（新） | 職業規則 |
 | `src/lib/route-planner.ts` | 保留等級段、任務線、材料；拿掉 `planTrips`／`mergeTrips`；必解改到 `now-plan.ts` 的 `bandQuests`（跟先解同一套） |
 | `src/lib/portal-text.ts`（新） | 傳送門方向文字 |
-| `src/lib/route.ts` | 帶我去的起點與提示（`defaultStart`、`goStart`）、跨區（`victoriaReach`、`boatNote`）、城鎮按鈕（`hubTowns`、`townChips`、`townsTitle`） |
+| `src/lib/route.ts` | 帶我去的起點與提示（`defaultStart`、`goStart`）、跨區（`victoriaReach`、`boatNote`、走不到時的說明 `crossAreaText`）、城鎮按鈕（`hubTowns`、`townChips`、`townsTitle`） |
 | `src/lib/nav.ts`（新） | 導覽列哪一顆亮（`/guide` 亮「我的路線」） |
 | `src/components/route/NowCard.tsx`（新） | 主推大卡 |
 | `src/components/route/TodoList.tsx`（新） | 先解清單 |

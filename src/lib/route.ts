@@ -196,6 +196,16 @@ export function goNoteText(note: GoNote, from: string): string {
 }
 
 /**
+ * /go 走不到（兩張圖不在同一個可步行區域）時的說明。我們沒有船班資料，只照實說、不編路線：
+ * - 目的地在楓之島、起點不在：只說「楓之島跟維多利亞島之間沒有傳送門。」——離開楓之島就回不去，不叫人搭車（round 4，persona 第三輪三-5）
+ * - 其他：跨大陸要搭船或計程車；起點在楓之島寫「搭船」、其他寫「搭車」，再從下面的城鎮按鈕重算路線
+ */
+export function crossAreaText(from: number, to: number): string {
+  if (isIslandMap(to) && !isIslandMap(from)) return "楓之島跟維多利亞島之間沒有傳送門。";
+  return `這兩張圖不在同一個可步行區域。楓之谷跨大陸要搭船或計程車，那一段沒有傳送門資料，所以我們不會編一條路線給你。先在遊戲裡${isIslandMap(from) ? "搭船" : "搭車"}過去，再從下面挑一個當地城鎮重算路線。`;
+}
+
+/**
  * /go 的起點與路線上面的提示（round 3 B）：
  * - 玩家在這頁自己選了起點（選單或城鎮按鈕，網址的 from）：照用，不說島上的事（選了就是人在那裡）；
  *   選的起點跟維多利亞島之間沒有傳送門時照樣說跨區
