@@ -165,11 +165,17 @@ export function victoriaReach(graph: Record<string, PortalEdge[]>): Set<number> 
 }
 
 /**
- * 起點城鎮跟維多利亞島的城鎮之間沒有傳送門（例：黃金海灘），這段要自己搭船或搭車——我們沒有船班、票價資料，只照實說。
- * 還在楓之島的人不算（他就在島上）；起點是楓之島的圖也不算（離島的人回不去，不能叫人搭船過去）。
+ * 路線前面那段要不要自己搭船或搭車（我們沒有船班、票價資料，只照實說，不編路線）：
+ * - "island"：玩家還在楓之島、起點不在楓之島 → 要先搭船到維多利亞島，再從起點出發
+ * - "region"：玩家不在楓之島、起點城鎮跟維多利亞島的城鎮之間沒有傳送門（例：黃金海灘）→ 這段要自己搭船或搭車過去
+ * 起點本身在楓之島就都不用說：還在島上的人就在那裡，離島的人回不去（不能叫人搭船過去）。
  */
-export function needsBoat(start: number, reach: Set<number>, island: boolean): boolean {
-  return !island && !isIslandMap(start) && !reach.has(start);
+export type BoatNote = "island" | "region";
+
+export function boatNote(start: number, reach: Set<number>, island: boolean): BoatNote | undefined {
+  if (isIslandMap(start)) return undefined;
+  if (island) return "island";
+  return reach.has(start) ? undefined : "region";
 }
 
 let reverseCache: { graph: Record<string, PortalEdge[]>; map: Map<number, number[]> } | null = null;

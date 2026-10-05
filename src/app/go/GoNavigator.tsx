@@ -11,7 +11,7 @@ import { loadGraph, loadMaps, loadNearestTown, loadRegions, mapName, minimapImag
 import { normalizeJob } from "@/lib/jobs";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
-import { defaultStart, findRoute, needsBoat, suggestStart, victoriaReach, type RouteStep, type StartChoice } from "@/lib/route";
+import { boatNote, defaultStart, findRoute, suggestStart, victoriaReach, type BoatNote, type RouteStep, type StartChoice } from "@/lib/route";
 import { onIsland } from "@/lib/route-planner";
 import type { MapRecord, PortalEdge, Region } from "@/lib/types";
 
@@ -68,10 +68,11 @@ export function GoNavigator() {
   }, [forcedStart, graph, maps, nearestTown, target, remembered]);
   const start = choice?.kind === "start" ? choice.map : null;
 
-  // 起點跟維多利亞島的城鎮之間沒有傳送門（黃金海灘）就照實說要自己搭船或搭車；還在楓之島的人不用
+  // 路線前面要自己搭船的那段照實說：還在楓之島（看本機存的角色）、起點不在島上 → 先搭船到維多利亞島；
+  // 不在島上、起點跟維多利亞島之間沒有傳送門（黃金海灘）→ 這段自己搭船或搭車。起點在楓之島都不說
   const { profile, loaded } = useProfile();
   const island = loaded && profile.level > 0 && profile.job >= 0 && onIsland(normalizeJob(profile.job), profile.level);
-  const boat = Boolean(graph && start !== null && needsBoat(start, victoriaReach(graph), island));
+  const boat = graph && start !== null ? boatNote(start, victoriaReach(graph), island) : undefined;
 
   const plan = useMemo(() => {
     if (!graph || !target || !start) return null;
@@ -148,7 +149,7 @@ export function GoNavigator() {
               hint="這張圖在客戶端資料裡沒有連到任何城鎮，可能是活動地圖或副本。"
             />
           ) : plan?.ok ? (
-            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} boatFrom={boat ? mapName(maps!, start) : undefined} />
+            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} boat={boat ? { kind: boat, from: mapName(maps!, start) } : undefined} />
           ) : plan && plan.reason === "different-area" ? (
             <CrossAreaNotice
               maps={maps!}
@@ -171,21 +172,25 @@ function RouteList({
   maps,
   hops,
   graph,
-  boatFrom,
+  boat,
 }: {
   steps: RouteStep[];
   maps: Record<string, MapRecord>;
   hops: number;
   graph: Record<string, PortalEdge[]>;
-  /** 起點跟維多利亞島沒有傳送門時，起點的名字（這段要自己搭船或搭車，我們不編路線） */
-  boatFrom?: string;
+  /** 路線前面要自己搭船的那段（route.ts boatNote）與起點的名字；我們沒有船班資料，只照實說、不編路線 */
+  boat?: { kind: BoatNote; from: string };
 }) {
   return (
     <section aria-label="路線">
-      {boatFrom ? (
+      {boat ? (
         <div className="mb-3 flex items-start gap-2.5 rounded-xl bg-[color:var(--gold-wash)] px-3.5 py-2.5">
           <BoatIcon size={18} className="mt-0.5 shrink-0 text-[color:var(--gold)]" />
-          <p className="text-sm font-bold leading-relaxed">{boatFrom}跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。</p>
+          <p className="text-sm font-bold leading-relaxed">
+            {boat.kind === "island"
+              ? `你還在楓之島的話，要先搭船到維多利亞島，再從${boat.from}出發。`
+              : `${boat.from}跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。`}
+          </p>
         </div>
       ) : null}
       <div className="mb-3 flex items-center gap-2 rounded-xl bg-[color:var(--leaf-wash)] px-3.5 py-2.5">

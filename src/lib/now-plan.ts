@@ -5,7 +5,7 @@
 import { jobFit, type JobFit } from "./job-rules";
 import { JOB_LINES, advancementLevel, baseJob, stageJob } from "./jobs";
 import { jobLineage, planTraining, questEligible } from "./planner";
-import { findRoute, needsBoat, suggestStart, victoriaReach } from "./route";
+import { boatNote, findRoute, suggestStart, victoriaReach } from "./route";
 import {
   VERIFIED_RANK, groupQuests, isIslandBand, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, questReachable, shortName, spawnIndex,
   trainingForBand, withoutLongRun, type Band,
@@ -434,7 +434,7 @@ export type TrainOption = {
   /** 從最近城鎮走幾張圖；沒有代表城鎮走不到（不給「帶我去」） */
   hops?: number;
   town?: number;
-  /** 出發的城鎮跟維多利亞島的城鎮之間沒有傳送門（黃金海灘），要自己搭船或搭車過去（route.ts needsBoat） */
+  /** 出發的城鎮跟維多利亞島的城鎮之間沒有傳送門（黃金海灘），要自己搭船或搭車過去（route.ts boatNote 的 region） */
   boat?: boolean;
 };
 
@@ -564,7 +564,7 @@ export function townRoute(
   const town = suggestStart(graph, maps, nearestTown, map);
   if (!town) return {};
   const route = findRoute(graph, town, map);
-  return route.ok ? { town, hops: route.hops, boat: needsBoat(town, victoriaReach(graph), island) } : {};
+  return route.ok ? { town, hops: route.hops, boat: boatNote(town, victoriaReach(graph), island) === "region" } : {};
 }
 
 /** 攻略段落的排序：跨 15 級以上的排後面 → 單人優先 → 台服實測優先 → 越窄越前面 */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VICTORIA_PORT, defaultStart, needsBoat, victoriaReach } from "@/lib/route";
+import { VICTORIA_PORT, boatNote, defaultStart, victoriaReach } from "@/lib/route";
 import type { PortalEdge } from "@/lib/types";
 
 const CUPID = 100000200;
@@ -45,11 +45,17 @@ describe("跨區要自己搭船或搭車", () => {
     expect([...victoriaReach(graph)].sort()).toEqual([CUPID, PERION, VICTORIA_PORT].sort());
   });
 
-  it("起點跟維多利亞島之間沒有傳送門就要搭船或搭車；還在楓之島的人、楓之島的圖不算", () => {
+  it("不在楓之島的人：起點跟維多利亞島之間沒有傳送門就要自己搭船或搭車（region）", () => {
     const reach = victoriaReach(graph);
-    expect(needsBoat(FLORINA, reach, false)).toBe(true);
-    expect(needsBoat(PERION, reach, false)).toBe(false);
-    expect(needsBoat(FLORINA, reach, true)).toBe(false);
-    expect(needsBoat(RAINBOW, reach, false)).toBe(false);
+    expect(boatNote(FLORINA, reach, false)).toBe("region");
+    expect(boatNote(PERION, reach, false)).toBeUndefined();
+    expect(boatNote(RAINBOW, reach, false)).toBeUndefined();
+  });
+
+  it("還在楓之島的人：起點不在楓之島就要先搭船到維多利亞島（island）；起點在楓之島不用", () => {
+    const reach = victoriaReach(graph);
+    expect(boatNote(PERION, reach, true)).toBe("island");
+    expect(boatNote(FLORINA, reach, true)).toBe("island");
+    expect(boatNote(RAINBOW, reach, true)).toBeUndefined();
   });
 });
