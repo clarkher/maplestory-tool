@@ -10,7 +10,7 @@ import { COMMON_ROUTE } from "@/lib/guide-data";
 import { isSecondJob, stageJob } from "@/lib/jobs";
 import { planTraining } from "@/lib/planner";
 import {
-  type Band, bandLabel, isIslandBand, isIslandMap, mustDoForBand, prepMaterials, shortName, trainingForBand,
+  type Band, bandLabels, isIslandBand, isIslandMap, mustDoForBand, prepMaterials, shortName, trainingForBand,
 } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepsBetween } from "@/lib/skill-plan";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
@@ -97,7 +97,7 @@ function BandItem({
     ? "楓之島"
     : context.job === 0
       ? "選職業後排給你"
-      : (guide ? bandLabel(band, guide.train) : undefined)
+      : (guide ? bandLabels([band], () => guide.train)[0] : undefined)
         ?? (band.from >= 30 && !isSecondJob(context.job) ? "二轉後排給你" : undefined);
   const range = band.to >= 100 ? `Lv.${band.from}–100` : `Lv.${band.from}–${band.to}`;
 

@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  bandLabel, bandOf, bandsFor, dropIndex, groupQuests, isIslandMap, levelFraction, longRunQuests, mergeTrips, mustDoForBand,
-  onIsland,
-  prepMaterials, questDoableAt, questReachable, withoutLongRun,
+  bandLabels, bandOf, bandsFor, groupQuests, isIslandMap, levelFraction, longRunQuests, mustDoForBand, onIsland, prepMaterials,
+  questReachable, trainingForBand, withoutLongRun,
 } from "@/lib/route-planner";
 import { stepsBetween } from "@/lib/skill-plan";
 import type { GuideBuild, GuideTrain, Monster, Quest } from "@/lib/types";
@@ -32,31 +31,28 @@ describe("等級段", () => {
     expect(bandOf(bands, 1)).toEqual({ from: 1, to: 10 });
   });
 
-  it("段落名稱取重疊最多的玩家推薦地圖，去掉括號註記", () => {
+  it("段落名稱取重疊最多的玩家推薦地圖，去掉括號註記；相鄰兩段不重複", () => {
     const train = [
-      { from: 30, to: 35, name: "黑肥肥領土（會掉高原之劍）", v: "tw" },
-      { from: 30, to: 40, name: "沼澤地Ⅰ～Ⅲ（鱷魚）", v: "tw" },
+      { from: 30, to: 45, name: "黑肥肥領土（會掉高原之劍）", v: "tw" },
+      { from: 30, to: 50, name: "沼澤地Ⅰ～Ⅲ（鱷魚）", v: "tw" },
     ] as GuideTrain[];
-    expect(bandLabel({ from: 30, to: 40 }, train)).toBe("沼澤地Ⅰ～Ⅲ");
-    expect(bandLabel({ from: 50, to: 60 }, train)).toBeUndefined();
-  });
-});
-
-describe("一趟能完成的任務", () => {
-  const drops = dropIndex([monster(1, [900]), monster(2, [901])]);
-
-  it("要打的怪在圖上、要交的道具由圖上的怪掉，才算在這裡完成", () => {
-    const q = quest("a", { needMobs: [{ id: 1, n: "怪1", c: 99 }], needItems: [{ id: 900, n: "尾巴", c: 50 }] });
-    expect(questDoableAt(q, new Set([1]), drops)).toBe(true);
+    const bands = [{ from: 30, to: 40 }, { from: 40, to: 50 }, { from: 50, to: 60 }];
+    expect(bandLabels(bands, () => train)).toEqual(["黑肥肥領土", "沼澤地Ⅰ～Ⅲ", undefined]);
   });
 
-  it("有一樣不在這張圖就不算", () => {
-    const q = quest("b", { needItems: [{ id: 900, n: "尾巴", c: 50 }, { id: 901, n: "角", c: 10 }] });
-    expect(questDoableAt(q, new Set([1]), drops)).toBe(false);
+  it("只剩同一張圖可以當標籤時寫「同上一段」", () => {
+    const train = [{ from: 30, to: 50, name: "沼澤地", v: "tw" }] as GuideTrain[];
+    expect(bandLabels([{ from: 30, to: 40 }, { from: 40, to: 50 }], () => train)).toEqual(["沼澤地", "同上一段"]);
   });
 
-  it("沒有任何收集或打怪需求的任務不算", () => {
-    expect(questDoableAt(quest("c", { exp: 100 }), new Set([1]), drops)).toBe(false);
+  it("跟這段重疊不到 3 級的攻略段落不算", () => {
+    const train = [
+      { from: 30, to: 42, name: "火焰之地Ⅱ", v: "community" },
+      { from: 40, to: 52, name: "猴子沼澤地Ⅲ", v: "tw" },
+    ] as GuideTrain[];
+    expect(trainingForBand({ from: 40, to: 50 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ", "火焰之地Ⅱ"]);
+    expect(trainingForBand({ from: 41, to: 50 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ"]);
+    expect(trainingForBand({ from: 45, to: 46 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ"]);
   });
 });
 
@@ -76,23 +72,6 @@ describe("經驗換算成幾級", () => {
   it("滿等之後不換算", () => {
     const toNext = Array.from({ length: 100 }, () => 1000);
     expect(levelFraction(5000, 100, toNext)).toBe(0);
-  });
-});
-
-describe("合併同一張圖的推薦", () => {
-  it("同一張圖兼具多個理由時合成一趟，最多三趟", () => {
-    const trips = mergeTrips([
-      { map: 1, tag: "fast" },
-      { map: 1, tag: "quests" },
-      { map: 2, tag: "players" },
-      { map: 3, tag: "fast" },
-      { map: 4, tag: "quests" },
-    ]);
-    expect(trips).toEqual([
-      { map: 1, tags: ["fast", "quests"] },
-      { map: 2, tags: ["players"] },
-      { map: 3, tags: ["fast"] },
-    ]);
   });
 });
 
@@ -211,6 +190,16 @@ describe("必解任務的職業判斷", () => {
   it("楓之島那一段用初心者的任務", () => {
     const quests = [quest("novice", { minLv: 2, exp: 500, jobs: [0], island: 1, sNpc: npc })];
     expect(mustDoForBand({ from: 1, to: 8 }, 230, quests, common, maps).map(group => group.title)).toEqual(["任務novice"]);
+  });
+
+  it("給了 atLevel 就用那個等級換算約幾級（目前這段用玩家現在的等級）", () => {
+    const toNext = Array.from({ length: 100 }, () => 1000);
+    toNext[32] = 50000;
+    toNext[35] = 100000;
+    const withTable = { ...common, expTable: { ...common.expTable, toNext } };
+    const quests = [quest("a", { minLv: 32, exp: 20000, sNpc: npc })];
+    expect(mustDoForBand({ from: 30, to: 40 }, 110, quests, withTable, maps)[0].fraction).toBeCloseTo(0.4);
+    expect(mustDoForBand({ from: 30, to: 40 }, 110, quests, withTable, maps, 5, 35)[0].fraction).toBeCloseTo(0.2);
   });
 });
 
