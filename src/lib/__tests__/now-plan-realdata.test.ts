@@ -1,6 +1,6 @@
 /**
  * 真資料常駐檢查：直接讀 public/data，把首頁會出現的每個組合（17 職＋初心者 × Lv.1–100，只算 consistentJob 認可的）
- * 跑一次主推、先解、長線，確認不會出現 final review 抓到的那幾種錯（含多升一級主推圖就掉一大截的接縫）。每天資料自動更新後也跑（.github/workflows/data-refresh.yml），
+ * 跑一次主推、先解、長線、升級路線每一段的必解，確認不會出現 final review 抓到的那幾種錯（含多升一級主推圖就掉一大截的接縫、任務線跳段）。每天資料自動更新後也跑（.github/workflows/data-refresh.yml），
  * 上游資料變了把畫面弄壞時，自動合併會停下來。
  *
  * 用法：npx vitest run src/lib/__tests__/now-plan-realdata.test.ts
@@ -10,7 +10,9 @@ import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
-import { canGo, effectiveLevels, longRunNow, mainPick, nowQuests, townRoute, type LongRunTask, type MainPick, type NowQuest } from "@/lib/now-plan";
+import {
+  bandQuests, canGo, effectiveLevels, longRunNow, mainPick, nowQuests, townRoute, type BandQuest, type LongRunTask, type MainPick, type NowQuest,
+} from "@/lib/now-plan";
 import { findRoute, suggestStart } from "@/lib/route";
 import { bandsFor, isIslandMap, spawnIndex } from "@/lib/route-planner";
 import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
@@ -29,6 +31,9 @@ type Combo = {
   longRun: LongRunTask[];
   /** 升級路線你在的那一段：標籤、練功第一列、能用的攻略列數、是不是全被擋 */
   active: { label?: string; first?: TrainRow; usable: number; blocked: boolean };
+  /** 升級路線每一段的必解（你在的那段照畫面一樣扣掉先解列過的段），activeIndex 是你在的那段 */
+  mustDo: BandQuest[][];
+  activeIndex: number;
 };
 
 /**
@@ -80,23 +85,27 @@ beforeAll(() => {
       const stage = stageJob(job, level);
       const name = job === 0 ? "初心者" : jobOption(job)?.name ?? String(job);
       const pick = mainPick({ level, job, guide: stage ? guides.get(stage) : undefined, common, training, monsters, maps, graph, nearestTown });
+      const bands = bandsFor(job);
       const timeline = timelinePlans({
-        job, level, bands: bandsFor(job), guides, monsterIndex, spawns, maps, training: timelineTraining, pqs: common.pq ?? [], pick, canGo: canWalk,
+        job, level, bands, guides, monsterIndex, spawns, maps, training: timelineTraining, pqs: common.pq ?? [], pick, canGo: canWalk,
       });
+      const shared = { level, job, quests, monsters, common, maps, effective };
       combos.push({
         job,
         name,
         level,
         tag: `${name} Lv.${level}`,
         pick,
-        todo: nowQuests({ level, job, quests, monsters, common, maps, effective }),
-        longRun: longRunNow({ level, job, quests, monsters, common, maps, effective }),
+        todo: nowQuests(shared),
+        longRun: longRunNow(shared),
         active: {
           label: timeline.labels[timeline.activeIndex],
           first: timeline.plans[timeline.activeIndex].rows[0],
           usable: timeline.plans[timeline.activeIndex].usable,
           blocked: timeline.plans[timeline.activeIndex].blocked,
         },
+        mustDo: bands.map((band, index) => bandQuests({ ...shared, band, active: index === timeline.activeIndex })),
+        activeIndex: timeline.activeIndex,
       });
     }
   }
@@ -241,5 +250,33 @@ describe("真資料：首頁每個組合", () => {
       return duplicates.length ? [`${combo.tag}：${duplicates.join("、")}`] : [];
     });
     expectNone("先解有同名的兩行", bad);
+  });
+
+  it("先解跟每一段的必解，每一列的段都連在一起（不跳段），NPC 是列出的第一段的起始 NPC", () => {
+    const check = (tag: string, where: string, item: NowQuest): string[] => {
+      const { positions, quests: parts } = item;
+      const problems = [];
+      const contiguous = positions.length === parts.length && positions.length > 0
+        && positions.every((part, index) => part === item.firstPart + index)
+        && item.lastPart === positions[positions.length - 1] && item.lastPart <= item.totalParts;
+      if (!contiguous) problems.push(`${tag} ${where}「${item.title}」第 ${positions.join("、")} 段（${parts.length} 個任務）`);
+      const first = parts[0]?.sNpc;
+      if (item.npc?.id !== first?.id || item.npc?.map !== first?.map) problems.push(`${tag} ${where}「${item.title}」NPC ${item.npc?.n} ≠ 第一段的 ${first?.n}`);
+      return problems;
+    };
+    const bad = combos.flatMap(combo => [
+      ...combo.todo.flatMap(item => check(combo.tag, "先解", item)),
+      ...combo.mustDo.flatMap((rows, index) => rows.flatMap(item => check(combo.tag, `必解第 ${index + 1} 段`, item))),
+    ]);
+    expectNone("任務線跳段或 NPC 不是第一段的", bad);
+  });
+
+  it("同一段任務不會同時列在先解跟你在的那一段的必解", () => {
+    const bad = combos.flatMap(combo => {
+      const listed = new Set(combo.todo.flatMap(item => item.quests.map(entry => entry.id)));
+      return combo.mustDo[combo.activeIndex].flatMap(item =>
+        item.quests.filter(entry => listed.has(entry.id)).map(entry => `${combo.tag}：「${item.title}」的 ${entry.n}`));
+    });
+    expectNone("先解跟你在的那一段的必解重複", bad);
   });
 });
