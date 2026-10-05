@@ -292,20 +292,32 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     expect(run(35, { from: 30, to: 40 }, quests).map(item => item.key)).toEqual(["chain:big"]);
   });
 
-  it("約幾級：你在的這段跟之前的段用現在等級算，之後的段用那段的起點算", () => {
+  it("約幾級用接得到那條線的等級算：你在的這段跟之前的段取現在等級與那條線的等級較高的，之後的段取段落起點與那條線的等級較高的", () => {
     const toNext = Array.from({ length: 121 }, () => 100000);
     toNext[30] = 50000;
     toNext[40] = 200000;
-    const quests = [quest("a", { minLv: 32, exp: 60000 }), quest("b", { minLv: 42, exp: 60000 })];
+    toNext[42] = 120000;
+    const quests = [quest("a", { minLv: 32, exp: 60000 }), quest("b", { minLv: 42, exp: 60000 }), quest("c", { minLv: 30, exp: 60000 }), quest("d", { minLv: 41, exp: 60000 })];
     const shared = { ...commonWith([]), expTable: { ...commonWith([]).expTable, toNext } };
-    const at = (level: number, band: { from: number; to: number }) =>
-      bandQuests({ band, level, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) })[0]?.fraction;
+    const at = (level: number, band: { from: number; to: number }, id: string) =>
+      bandQuests({ band, level, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) })
+        .find(item => item.key === `chain:${id}`)?.fraction;
     // 之前的段（30–40，玩家 Lv.40）：用 Lv.40 算，60,000 ÷ 200,000
-    expect(at(40, { from: 30, to: 40 })).toBeCloseTo(0.3);
-    // 之後的段（40–50，玩家 Lv.30）：用段落起點 Lv.40 算
-    expect(at(30, { from: 40, to: 50 })).toBeCloseTo(0.3);
-    // 你在的這段（30–40，玩家 Lv.30）：用 Lv.30 算，升一級 50,000 再多 10,000
-    expect(at(30, { from: 30, to: 40 })).toBeCloseTo(1.1);
+    expect(at(40, { from: 30, to: 40 }, "a")).toBeCloseTo(0.3);
+    // 之後的段（40–50，玩家 Lv.30）：那條線 42 等才接得到，用 Lv.42 算；41 等的用 Lv.41 算
+    expect(at(30, { from: 40, to: 50 }, "b")).toBeCloseTo(0.5);
+    expect(at(30, { from: 40, to: 50 }, "d")).toBeCloseTo(0.6);
+    // 你在的這段（30–40，玩家 Lv.30）：現在就接得到的用 Lv.30 算（升一級 50,000 再多 10,000），32 等的那條用 Lv.32 算
+    expect(at(30, { from: 30, to: 40 }, "c")).toBeCloseTo(1.1);
+    expect(at(30, { from: 30, to: 40 }, "a")).toBeCloseTo(0.6);
+  });
+
+  it("法師 8 看到 20 等才接得到的線，約幾級用 20 等算（不會寫約 4.1 級）", () => {
+    const toNext = Array.from({ length: 121 }, (_, level) => (level < 20 ? 1000 : 20000));
+    const quests = [quest("runaway", { minLv: 20, exp: 6600, jobs: [200] })];
+    const shared = { ...commonWith([]), expTable: { ...commonWith([]).expTable, toNext } };
+    const [item] = bandQuests({ band: { from: 8, to: 21 }, level: 8, job: 200, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) });
+    expect(item.fraction).toBeCloseTo(0.33);
   });
 });
 

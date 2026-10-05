@@ -206,12 +206,12 @@ function withoutLongParts(candidates: Quest[], long: Set<string>, recs: Map<stri
 
 /**
  * 把一批任務照任務線收成一行一行：標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、
- * 用 atLevel 換算的約幾級。值不值得（worthListing）、過期由呼叫端決定要不要套。
+ * 約幾級（用 levelFor 回傳的等級換算；拿到的是這條線這次列出的那幾段，照實際等級排好）。值不值得（worthListing）、過期由呼叫端決定要不要套。
  */
 function lineItems(
   candidates: Quest[],
   shared: QuestLines,
-  atLevel: number,
+  levelFor: (parts: Quest[]) => number,
   toNext: number[],
   job: number,
   keep: (rec: GuideMustDo | undefined, fraction: number) => boolean,
@@ -228,7 +228,7 @@ function lineItems(
     const parts = line.filter(quest => members.includes(quest));
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
-    const fraction = levelFraction(exp, atLevel, toNext);
+    const fraction = levelFraction(exp, levelFor(parts), toNext);
     if (!keep(rec, fraction)) continue;
     const positions = parts.map(quest => line.indexOf(quest) + 1);
     const title = rec
@@ -271,7 +271,7 @@ export function nowQuests(args: {
   const shared = questLines(stageJob(job, level), quests, common, maps, effective);
   const candidates = doableNow(shared, level, effective, onIsland(job, level));
   const doable = withoutLongParts(candidates, longRunIds(candidates, monsters), shared.recs);
-  const sorted = lineItems(doable, shared, level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
+  const sorted = lineItems(doable, shared, () => level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
 
@@ -296,7 +296,8 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
  * 同一條任務線、同一個標題、長線那種拿掉、同一條值不值得的門檻；第幾段／共幾段算整條線。
  * 長線那種：現在就做得動的任務用先解那一批判斷（同一條線兩邊拿掉的段一樣，經驗才會是同一個數字，
  * 冒險家的戒指不會一邊 +630,000、一邊 +660,000）；還做不動的，在這段裡自己判斷（詛咒娃娃 2,300 個）。
- * 約幾級：你在的這段跟之前的段用你現在的等級算（跟先解同一個數字），之後的段用那段的起點算。
+ * 約幾級用接得到那條線的等級算（這段列出的第一段的實際等級）：你在的這段跟之前的段取它跟你現在的等級較高的
+ * （現在就做得到的就是現在等級，跟先解同一個數字），之後的段取它跟那段起點較高的——法師 8 看 20 等的任務不會寫約 4.1 級。
  * 離開楓之島之後，NPC 站在島上的任務不列。
  */
 export function bandQuests(args: {
@@ -325,8 +326,9 @@ export function bandQuests(args: {
   const longNow = longRunIds(now, monsters);
   const longLater = longRunIds(inBand.filter(quest => !nowIds.has(quest.id)), monsters);
   const long = new Set(inBand.filter(quest => (nowIds.has(quest.id) ? longNow : longLater).has(quest.id)).map(quest => quest.id));
-  const atLevel = band.from > level ? band.from : level;
-  const rows = lineItems(withoutLongParts(inBand, long, shared.recs), shared, atLevel, common.expTable.toNext, job, (rec, fraction) => worthListing(fraction, [rec]));
+  const floor = band.from > level ? band.from : level;
+  const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
+  const rows = lineItems(withoutLongParts(inBand, long, shared.recs), shared, levelFor, common.expTable.toNext, job, (rec, fraction) => worthListing(fraction, [rec]));
   return rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
 }
 
