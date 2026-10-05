@@ -86,7 +86,7 @@ jobs:
         run: node pipeline/verify.mjs
 
       # 拿新資料把首頁每個職業 × 等級跑一次：主推都有、組隊任務在遊戲等級限制內、帶我去走得到、
-      # 封頂提示不自相矛盾、長線沒有做不動的任務、先解沒有同名兩行。壞了就不開 PR
+      # 封頂提示不自相矛盾、多升一級主推圖不會掉超過 10 級、長線沒有做不動的任務、先解沒有同名兩行。壞了就不開 PR
       - name: 首頁每個組合跑一次真資料檢查
         if: steps.check.outputs.changed == 'true'
         run: npx vitest run src/lib/__tests__/now-plan-realdata.test.ts

@@ -1,6 +1,6 @@
 /**
  * 真資料常駐檢查：直接讀 public/data，把首頁會出現的每個組合（17 職＋初心者 × Lv.1–100，只算 consistentJob 認可的）
- * 跑一次主推、先解、長線，確認不會出現 final review 抓到的那幾種錯。每天資料自動更新後也跑（.github/workflows/data-refresh.yml），
+ * 跑一次主推、先解、長線，確認不會出現 final review 抓到的那幾種錯（含多升一級主推圖就掉一大截的接縫）。每天資料自動更新後也跑（.github/workflows/data-refresh.yml），
  * 上游資料變了把畫面弄壞時，自動合併會停下來。
  *
  * 用法：npx vitest run src/lib/__tests__/now-plan-realdata.test.ts
@@ -16,7 +16,14 @@ import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const read = <T,>(name: string): T => JSON.parse(fs.readFileSync(`${DATA}${name}`, "utf8")) as T;
 
-type Combo = { job: number; level: number; tag: string; pick?: MainPick; todo: NowQuest[]; longRun: LongRunTask[] };
+type Combo = { job: number; name: string; level: number; tag: string; pick?: MainPick; todo: NowQuest[]; longRun: LongRunTask[] };
+
+/**
+ * 主推圖等級跳動的已知例外：查過原因、不是程式錯的才放這裡，key 寫到地圖名，換了圖或等級就不算、照樣擋。
+ * 弩弓手 Lv.44→45：攻略 44 起只有跨 16 級的組隊段落（鱷魚潭Ⅱ Lv.49），單人的樹林底層（Lv.33）到 44 剛好過期；
+ * 45–50 才有台服實測的單人段落（危險的峽谷 Lv.37），照規格「單人優先、窄段優先」換成它。這是攻略本身的分段。
+ */
+const KNOWN_DROPS = new Set(["弩弓手 Lv.44→45：鱷魚潭Ⅱ→危險的峽谷"]);
 
 let combos: Combo[] = [];
 let quests: Quest[] = [];
@@ -48,10 +55,12 @@ beforeAll(() => {
     for (let level = 1; level <= levelCap; level += 1) {
       if (consistentJob(job, level) !== job) continue;
       const stage = stageJob(job, level);
+      const name = job === 0 ? "初心者" : jobOption(job)?.name ?? String(job);
       combos.push({
         job,
+        name,
         level,
-        tag: `${job === 0 ? "初心者" : jobOption(job)?.name} Lv.${level}`,
+        tag: `${name} Lv.${level}`,
         pick: mainPick({ level, job, guide: stage ? guides.get(stage) : undefined, common, training, monsters, maps, graph, nearestTown }),
         todo: nowQuests({ level, job, quests, monsters, common, maps, effective }),
         longRun: longRunNow({ level, job, quests, monsters, common, maps, effective }),
@@ -112,6 +121,22 @@ describe("真資料：首頁每個組合", () => {
         .filter(id => (effective.get(id) ?? 0) > combo.level)
         .map(id => `${combo.tag}：${entry.n}（任務 ${id} 實際等級 ${effective.get(id)}）`)));
     expectNone("長線有做不動的任務", bad);
+  });
+
+  it("同一個職業多升一級，主推圖的等級不會掉超過 10 級（像 Lv.88→89 從 Lv.71 掉回 Lv.49 那種）", () => {
+    const bad: string[] = [];
+    for (let index = 1; index < combos.length; index += 1) {
+      const before = combos[index - 1];
+      const after = combos[index];
+      if (before.job !== after.job || after.level !== before.level + 1) continue;
+      if (before.pick?.kind !== "map" || after.pick?.kind !== "map") continue;
+      const from = before.pick.option;
+      const to = after.pick.option;
+      if (from.level === undefined || to.level === undefined || from.level - to.level <= 10) continue;
+      const key = `${after.name} Lv.${before.level}→${after.level}：${from.title}→${to.title}`;
+      if (!KNOWN_DROPS.has(key)) bad.push(`${key}（Lv.${from.level} → Lv.${to.level}）`);
+    }
+    expectNone("主推圖等級多升一級就掉超過 10 級", bad);
   });
 
   it("先解沒有兩行同名", () => {
