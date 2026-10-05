@@ -142,7 +142,8 @@ function BandDetail({ plan, next, context }: { plan: BandPlan; next?: Band; cont
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
     // 這段開始前（上一級結束時）到這段最後一級的點數；轉職那一段從 0 起算，才不會漏掉只花 1 點的第一步
     const steps = build && stage ? stepsBetween(build, spAtLevel(stage, band.from - 1), spAtLevel(stage, band.to - 1)) : [];
-    // 必解跟先解同一套規則（任務線、標題、長線、值不值得），約幾級：這段跟之前的段用現在等級、之後的段用段落起點
+    // 必解跟先解同一套規則（任務線、標題、長線、值不值得）；約幾級用接得到那條線的等級算：
+    // 這段跟之前的段取現在等級與那條線的等級較高的，之後的段取段落起點與它較高的（now-plan bandQuests）
     const shared = { level, job, quests, monsters, common, maps, effective };
     const mustDo = bandQuests({ ...shared, band });
     const nextMustDo = next ? bandQuests({ ...shared, band: next }) : [];
