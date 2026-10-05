@@ -35,7 +35,8 @@ const OUT = path.join(ROOT, "public", "data");
  *
  * 開服時只看第 1 點就夠了（當時只有已開放的地圖帶中文名），但客戶端會在改版前
  * 先替下一批地區補上中文名：1.15 就先放了冰原雪域 48 張、廢礦 23 張，
- * 而官方公告這兩區要到 2026-10-15 才跟三轉一起開。所以多加第 2 點把關，
+ * V002（2026-10-15）開放冰原雪域（上游地區名，含天空之城）與廢礦，三轉、等級上限 120。
+ * 官方若宣布某些地圖不開，照公告加回擋住的清單。所以多加第 2 點把關，
  * 免得推薦玩家去一個進不去的地方。
  *
  * mapRegions 用的是上游資料的 regionName。奇幻村、鯨魚號在上游是獨立地區，
@@ -43,13 +44,13 @@ const OUT = path.join(ROOT, "public", "data");
  * 有中文名但地區不在清單裡的，建置時會列在 meta.heldBackRegions 與輸出訊息裡。
  */
 const RELEASE = {
-  version: "V001",
+  version: "V002",
   operator: "遊戲橘子（NEXON Korea 授權）",
   launchedAt: "2026-07-29",
-  levelCap: 100,
-  maxAdvancementOrder: 2,
-  regions: ["楓之島", "維多利亞島"],
-  mapRegions: ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界"],
+  levelCap: 120,
+  maxAdvancementOrder: 3,
+  regions: ["楓之島", "維多利亞島", "天空之城", "冰原雪域", "廢礦區"],
+  mapRegions: ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界", "冰原雪域", "廢礦"],
   note: "客戶端資產含未開放內容，本站只保留已開放的部分：地圖要有中文名而且所在地區已開放，任務與職業以等級上限與轉職階段判斷。",
 };
 
@@ -178,7 +179,7 @@ function buildJobs(artale) {
     a.groupOrder - b.groupOrder || a.advOrder - b.advOrder || a.id - b.id);
 }
 
-/** 玩家選單只列得到的職業：遊戲開放到二轉，管理與活動用的也不算職業。 */
+/** 玩家選單只列得到的職業：開放到第幾轉看 RELEASE.maxAdvancementOrder（V002 是三轉），管理與活動用的也不算職業。 */
 function releasedJobs(jobs) {
   return jobs.filter(job =>
     job.advOrder <= RELEASE.maxAdvancementOrder
@@ -383,6 +384,10 @@ function buildMonsters(artale, spawns, maps, canonItem) {
   const list = (artale.monsters || [])
     // 只有出現在已開放地圖上的怪才算進得去；其餘是客戶端裡尚未開放的內容
     .filter(monster => (monster.maps || []).some(map => released.has(Number(map.id))))
+    // 地圖開放不代表圖裡的怪都在等級上限內：廢礦區的代表地圖「殘暴炎魔祭壇」開放後，
+    // 跟著漏進 22 隻 Lv.140 的殘暴炎魔／混沌殘暴炎魔（遠超 V002 上限 120），這是之後才會解鎖的首領戰內容。
+    // 比照任務（quest.minLevel ≤ RELEASE.levelCap）同樣用等級上限把關，地圖本身照樣收錄（REGION_SENTINELS 要看得到它有中文名）。
+    .filter(monster => (monster.level ?? monster.stats?.level ?? 0) <= RELEASE.levelCap)
     .map(monster => {
     const id = Number(monster.id);
     const stats = monster.stats || {};

@@ -886,8 +886,11 @@ export function mainPick(args: {
   const others = altPool(options.slice(1));
   const alt = others.find(option => option.party !== main.party) ?? others[0];
   // 封頂提示：比較用地圖等級，畫面上寫那張圖最高等的怪（跟卡上的怪同一種寫法）
+  // capRow 用平均等級（row.lv）找，main 不一定是 capRow——像「試煉的洞穴3」小獵犬 Lv43／火精靈 Lv51
+  // 把平均拉到 67，被 dangerPenalty 判定打得動而選成 main，但圖裡站著 Lv90 的煉獄獵犬。
+  // 這時封頂寫的上限不能比卡片自己秀出來的怪還低，所以跟 main 自己最高等的怪取大。
   const ceiling = capRow !== undefined && cap !== undefined && level - cap >= CEILING_GAP
-    ? { level: cap, top: topMobLevel(capRow.m) ?? cap, best: main.level !== undefined && main.level >= cap - BEST_GAP }
+    ? { level: cap, top: Math.max(topMobLevel(capRow.m) ?? cap, topMobLevel(main.map) ?? 0), best: main.level !== undefined && main.level >= cap - BEST_GAP }
     : undefined;
   return { kind: "map", option: main, alt, ceiling };
 }

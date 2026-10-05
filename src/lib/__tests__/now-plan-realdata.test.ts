@@ -14,6 +14,7 @@ import {
   bandQuests, canGo, effectiveLevels, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
   type BandQuest, type LongRunTask, type MainPick, type NowQuest,
 } from "@/lib/now-plan";
+import { LEVEL_CAP } from "@/lib/profile";
 import { findRoute, suggestStart } from "@/lib/route";
 import { bandsFor, isIslandBand, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
 import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
@@ -125,6 +126,11 @@ beforeAll(() => {
 describe("真資料：首頁每個組合", () => {
   it("組合數合理（資料沒讀錯）", () => {
     expect(combos.length).toBeGreaterThan(1000);
+  });
+
+  it("前端的等級上限跟資料的放行版本一致（V002：120）", () => {
+    expect(levelCap).toBe(120);
+    expect(LEVEL_CAP).toBe(levelCap);
   });
 
   it("每個組合都有主推大卡", () => {

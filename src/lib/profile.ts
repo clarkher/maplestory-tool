@@ -6,8 +6,8 @@ import type { Profile } from "./types";
 
 const STORAGE_KEY = "ms-profile";
 
-/** 台服經典版 V001 目前的等級上限。開放新內容時要一起改這裡與 pipeline/build.mjs 的 RELEASE（含 mapRegions）。 */
-export const LEVEL_CAP = 100;
+/** 台服經典版 V002 的等級上限（2026-10-15 起）。開放新內容時要一起改這裡與 pipeline/build.mjs 的 RELEASE（含 mapRegions）。 */
+export const LEVEL_CAP = 120;
 
 /** job -1：還沒選職業（不要預選初心者，免得先填等級的人看到初心者的結果） */
 const EMPTY: Profile = { level: 0, job: -1 };
