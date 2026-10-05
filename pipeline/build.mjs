@@ -5,27 +5,21 @@
  *  data/raw/v83-maps.json   v83 Map.wz：傳送門連線、回城點、世界地圖區域；台服客戶端沒有刷怪資料的地圖才用它的刷怪點
  *  data/raw/msio-maps.json  maplestory.io：只用來標記哪些地圖有小地圖圖檔（選用）
  *
- * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸與刷怪密度用 v83 補。
+ * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸用 v83；刷怪以台服客戶端為準，客戶端沒有的圖才用 v83 補。
  * 對不起來的一律標記，不猜、不補假值。
  *
  * 刷怪點與回生秒數以台服客戶端為準（上游 maps-data.js，見 lib/spawns.mjs）：
  * 2026-10-05 查到 197 張練功圖有 110 張的 v83 出怪跟台服對不上。
+ * 同一隻怪在同一張圖好幾個刷怪點、回生秒數不同時，逐點合成一個等效秒數（不是取最大）。
  */
 import fs from "node:fs";
 import path from "node:path";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
-import { mergeSpawns, twSpawns } from "./lib/spawns.mjs";
+import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const RAW = path.join(ROOT, "data", "raw");
 const OUT = path.join(ROOT, "public", "data");
-
-/**
- * 一般怪物沒有指定 mobTime 時的回生秒數。
- * 客戶端只在 boss 之類的刷怪點填 mobTime，一般圖留 0 代表走伺服器預設節奏。
- * 這個 7 秒是經典版社群通用估值，用途是地圖之間互相比較，不是宣稱實際每小時經驗。
- */
-const DEFAULT_RESPAWN_SECONDS = 7;
 
 /**
  * 台服《新楓之谷：經典版》目前開放的範圍。
@@ -393,8 +387,8 @@ function buildMonsters(artale, spawns, maps, canonItem) {
     const id = Number(monster.id);
     const stats = monster.stats || {};
     const declaredMaps = (monster.maps || []).map(map => Number(map.id)).filter(Number.isFinite);
-    const spawns = spawnOf.get(id) || [];
-    if (spawns.length) withSpawnData += 1;
+    const spawnRows = spawnOf.get(id) || [];
+    if (spawnRows.length) withSpawnData += 1;
 
     const record = {
       id,
@@ -413,7 +407,7 @@ function buildMonsters(artale, spawns, maps, canonItem) {
       und: stats.undead ? 1 : undefined,
       el: compactElemental(monster.elemental),
       maps: declaredMaps,
-      sp: spawns.length ? spawns : undefined,
+      sp: spawnRows.length ? spawnRows : undefined,
       drops: [...new Set((monster.drops || []).map(drop => canonItem(Number(drop.id))).filter(Number.isFinite))],
     };
     for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
@@ -742,7 +736,8 @@ function buildTraining(maps, spawns, monsters) {
         unknownSpawn += count;
         continue;
       }
-      const respawn = mobTime > 0 ? mobTime : DEFAULT_RESPAWN_SECONDS;
+      // 等效回生秒數（lib/spawns.mjs 逐點合成）；沒指定或比預設快的照預設 7 秒算，當保險
+      const respawn = respawnSeconds(mobTime);
       totalSpawn += count;
       expPerClear += (monster.exp || 0) * count;
       hpPerClear += (monster.hp || 0) * count;
