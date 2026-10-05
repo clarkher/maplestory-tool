@@ -177,6 +177,28 @@ describe("封頂提示的文字", () => {
     if (pick?.kind !== "map") throw new Error("應該是練功圖");
     expect(pick.ceiling).toEqual({ level: 71, top: 73, best: true });
   });
+
+  it("主推圖不是 capRow 本身時，封頂的 top 不能比主推卡自己的怪還低（試煉的洞穴3那種：平均等級低但站著一隻更高等的怪）", () => {
+    const capMap = 300000040; // 平均等級高、效率低——會被 capRow（依 row.lv 排序）選中，但不會被 planTraining 選成主推
+    const mainMap = 300000041; // 平均等級低、效率高——會被 planTraining 選成主推，卻另外站著一隻更高等的怪
+    const w = world([{ id: capMap, lv: 73, eff: 50 }, { id: mainMap, lv: 67, eff: 900 }]);
+    const commander = 300000042;
+    const pick = mainPick({
+      ...w,
+      monsters: [...w.monsters, monster(commander, 90, mainMap, 2)],
+      // 練功資料的 lvMax 也比照真實 buildTraining 算進這隻怪，danger 罰分才會真的套用到
+      training: w.training.map(row => (row.m === mainMap ? { ...row, lvMax: 90 } : row)),
+      level: 83,
+      job: 210,
+      guide: guideWith([]),
+    });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    // 先確認主推真的不是 capRow（否則這個測試沒測到東西）
+    expect(pick.option.map).toBe(mainMap);
+    expect(pick.option.map).not.toBe(capMap);
+    // capRow（capMap）本身最高只到 73，但主推卡（mainMap）自己站著 Lv.90 的怪——封頂不能比卡片上的怪低
+    expect(pick.ceiling).toEqual({ level: 73, top: 90, best: false });
+  });
 });
 
 describe("組隊任務剛過遊戲上限", () => {
