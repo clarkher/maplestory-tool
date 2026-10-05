@@ -239,6 +239,8 @@ export type GuideTrain = {
   why: string;
   v: Verified;
   s: string[];
+  /** 這個組隊段落對應的組隊任務（pq.json 的 key）；不是組隊任務就沒有 */
+  pq?: string;
 };
 
 export type GuideJob = {
@@ -253,6 +255,12 @@ export type GuideJob = {
   notOpenYet: Array<{ from: number; to: number; place: string; s: string[] }>;
 };
 
+/** 關鍵獎勵：畫面上的標籤，與用來放圖的遊戲道具 id（抽獎型的 label 寫「隨機」） */
+export type GuideReward = { label: string; items: number[] };
+
+/** 組隊任務：入口地圖、圖解連結、各職業打它的等級範圍（從攻略的組隊段落整理） */
+export type GuidePq = { key: string; name: string; entrance: number; guide: string; byJob: Record<string, [number, number]> };
+
 export type GuideMustDo = {
   q: string;
   /** 同一條任務線的其他任務 id，一起標成推薦 */
@@ -262,6 +270,7 @@ export type GuideMustDo = {
   why: string;
   v: Verified;
   s: string[];
+  reward?: GuideReward;
 };
 
 export type GuideCommon = {
@@ -276,4 +285,7 @@ export type GuideCommon = {
   };
   mustDo: GuideMustDo[];
   notWorth: Array<{ q: string; related: string[]; name: string; why: string; s: string[] }>;
+  pq?: GuidePq[];
+  /** 主流點法點完還有剩點時，攻略怎麼說 */
+  spLeftover?: { t: string; s: string[] };
 };

@@ -6,11 +6,12 @@
  * 輸入：
  *   data/guides/{warrior-pirate,magician,archer-thief}.json  各職業的點法、練功點、注意事項（每條附出處）
  *   data/guides/quests-exp.json                              升級經驗表、必解／不值得解任務
+ *   data/guides/pq.json                                      組隊任務表（入口地圖、比對字）
  *   public/data/{skills,maps,monsters,quests}.json           站內遊戲資料，用來驗證 id
  *
  * 輸出：
  *   public/data/guides/{jobId}.json  每個職業一檔，首頁只載自己職業的那份
- *   public/data/guides/common.json   升級經驗表、必解清單
+ *   public/data/guides/common.json   升級經驗表、必解清單、組隊任務範圍、剩點建議
  *
  * 研究檔是人工整理的，id 難免對不上。規則是「以遊戲資料為準」：
  *   - 技能 id 不在 skills.json → 保留步驟但拿掉 id（不顯示圖示），列警告
@@ -21,9 +22,13 @@
  * 研究檔的練功清單裡混了兩種不是練功點的條目，這裡分出去：
  *   - 名稱「（無可靠出處）」：那段等級找不到攻略的說明 → gaps，畫面上照實寫「沒有攻略」
  *   - 名稱帶「（非地圖）」：換裝節點之類的補充 → notes
+ *
+ * 研究檔會上畫面的文字不准帶內部筆記（地圖編號、站內用語、屬性代碼、玩家 ID），
+ * 由 lib/guides.mjs 的 lintResearch 檢查，有一筆就整個失敗並列出位置。
  */
 import fs from "node:fs";
 import path from "node:path";
+import { lintResearch, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SRC = path.join(ROOT, "data", "guides");
@@ -38,6 +43,9 @@ const NOT_A_MAP = /（非地圖）/;
 const readJson = file => JSON.parse(fs.readFileSync(file, "utf8"));
 
 function main() {
+  const pqResearch = readJson(path.join(SRC, "pq.json"));
+  const itemIds = new Set(readJson(path.join(DATA, "items.json")).map(item => item.id));
+  const lintIssues = [];
   const skills = new Map(readJson(path.join(DATA, "skills.json")).map(skill => [skill.id, skill]));
   const maps = readJson(path.join(DATA, "maps.json"));
   const monsters = new Set(readJson(path.join(DATA, "monsters.json")).map(monster => monster.id));
@@ -53,6 +61,7 @@ function main() {
 
   for (const file of JOB_FILES) {
     const research = readJson(path.join(SRC, file));
+    lintIssues.push(...lintResearch(research).map(issue => ({ file, ...issue })));
     researchedAt = research.researchedAt || researchedAt;
 
     for (const job of research.jobs) {
@@ -103,6 +112,7 @@ function main() {
           why: segment.why,
           v: segment.verified,
           s: segment.sources,
+          pq: pqKeyOf(pqResearch.pq, { kind: segment.kind, name: segment.mapName }),
         };
       });
 
@@ -125,6 +135,8 @@ function main() {
   }
 
   const questResearch = readJson(path.join(SRC, "quests-exp.json"));
+  lintIssues.push(...lintResearch(questResearch).map(issue => ({ file: "quests-exp.json", ...issue })));
+  lintIssues.push(...lintResearch(pqResearch).map(issue => ({ file: "pq.json", ...issue })));
   const toNext = [0];
   for (let level = 1; level < 100; level += 1) {
     const value = questResearch.expTable.toNext[String(level)];
@@ -149,15 +161,20 @@ function main() {
     },
     mustDo: questResearch.mustDo
       .filter(entry => keepQuest(entry, "必解"))
-      .map(entry => ({
-        q: entry.questId,
-        chain: (entry.chain || []).filter(id => quests.has(id)),
-        name: entry.questName,
-        lv: entry.suggestedLevel,
-        why: entry.why,
-        v: entry.verified,
-        s: entry.sources,
-      })),
+      .map(entry => {
+        const { reward, dropped } = normalizeReward(entry.reward, itemIds);
+        for (const id of dropped) warnings.push(`必解「${entry.questName}」：獎勵道具 ${id} 不在站內資料，拿掉`);
+        return {
+          q: entry.questId,
+          chain: (entry.chain || []).filter(id => quests.has(id)),
+          name: entry.questName,
+          lv: entry.suggestedLevel,
+          why: entry.why,
+          v: entry.verified,
+          s: entry.sources,
+          ...(reward ? { reward } : {}),
+        };
+      }),
     notWorth: questResearch.notWorth
       .filter(entry => keepQuest(entry, "不值得解"))
       .map(entry => ({
@@ -167,8 +184,20 @@ function main() {
         why: entry.why,
         s: entry.sources,
       })),
+    pq: [],
+    ...(questResearch.spLeftover ? { spLeftover: { t: questResearch.spLeftover.text, s: questResearch.spLeftover.sources } } : {}),
   };
+  const trainByJob = new Map([...outputs.entries()].map(([name, output]) => [output.job, output.train]));
+  common.pq = pqWindows(pqResearch.pq, trainByJob);
+  for (const pq of common.pq) {
+    if (!openMap(pq.entrance)) throw new Error(`組隊任務「${pq.name}」的入口地圖 ${pq.entrance} 沒有中文名`);
+  }
   outputs.set("common.json", common);
+
+  if (lintIssues.length) {
+    const lines = lintIssues.map(issue => `  - ${issue.file} ${issue.where}：${issue.label}「${issue.match}」`);
+    throw new Error(`研究檔有 ${lintIssues.length} 處內部筆記會上畫面，先改掉：\n${lines.join("\n")}`);
+  }
 
   const missing = EXPECTED_JOBS.filter(id => !outputs.has(`${id}.json`));
   if (missing.length) throw new Error(`研究檔缺這些職業的攻略：${missing.join(", ")}`);
@@ -179,7 +208,7 @@ function main() {
 
   console.log(`[guides] ${summary.length} 個職業`);
   for (const line of summary) console.log(`  ${line}`);
-  console.log(`[guides] 必解 ${common.mustDo.length}、不值得解 ${common.notWorth.length}、升級表 Lv.1–99`);
+  console.log(`[guides] 必解 ${common.mustDo.length}（含關鍵獎勵 ${common.mustDo.filter(entry => entry.reward).length}）、不值得解 ${common.notWorth.length}、組隊任務 ${common.pq.length}、升級表 Lv.1–99`);
   if (warnings.length) {
     console.log(`[guides] ${warnings.length} 筆以遊戲資料為準調整：`);
     for (const line of warnings) console.log(`  - ${line}`);

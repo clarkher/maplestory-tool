@@ -1,0 +1,19 @@
+{
+  "researchedAt": "2026-10-05",
+  "pq": [
+    {
+      "key": "moon",
+      "name": "月妙組隊任務",
+      "match": "月妙",
+      "entrance": 100000200,
+      "guide": "/guide"
+    },
+    {
+      "key": "kerning",
+      "name": "超級綠水靈組隊任務",
+      "match": "超綠|超級綠水靈|第一次同行",
+      "entrance": 103000000,
+      "guide": "/guide"
+    }
+  ]
+}
