@@ -7,8 +7,9 @@ import {
   itemImage, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining, monsterImage,
 } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { baseJob, isSecondJob, jobOption, normalizeJob, stageJob } from "@/lib/jobs";
+import { isSecondJob, isThirdJob, jobOption, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
+import { jobLineage } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
@@ -52,12 +53,12 @@ export function RouteHome() {
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  // 二轉職業要同時載一轉的攻略：路線 10–30 那幾段用的是一轉內容。
+  // 要同時載整條職業線的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）
   // 快速切換職業時，晚回來的舊請求不能蓋掉新的；攻略載不到也不擋遊戲資料那部分。
   useEffect(() => {
     if (profile.job <= 0) return;
     let cancelled = false;
-    const wanted = [baseJob(profile.job), ...(isSecondJob(profile.job) ? [profile.job] : [])];
+    const wanted = jobLineage(profile.job).filter(code => code > 0);
     setGuideStatus("loading");
     Promise.all(wanted.map(job => loadGuide(job).then(guide => [job, guide] as const)))
       .then(entries => {
@@ -76,8 +77,9 @@ export function RouteHome() {
   const ready = loaded && profile.level > 0 && profile.job >= 0;
   const stage = stageJob(profile.job, profile.level);
   const stageGuide = stage ? guides.get(stage) : undefined;
-  // 一轉攻略常同時有好幾條主流（海盜分打手線、槍手線），選了二轉職業就挑那條
-  const branchName = isSecondJob(profile.job) ? jobOption(profile.job)?.name : undefined;
+  // 一轉攻略常同時有好幾條主流（海盜分打手線、槍手線），選了二轉或三轉就挑那條二轉的
+  const secondJob = isThirdJob(profile.job) ? previousJob(profile.job) : isSecondJob(profile.job) ? profile.job : 0;
+  const branchName = secondJob ? jobOption(secondJob)?.name : undefined;
   // 等級段只跟職業有關；固定同一個陣列，升級路線的標籤 memo 才不會每次重算
   const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 

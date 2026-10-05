@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { npcImage } from "@/lib/data";
-import { JOB_LINES, SECOND_JOB_LEVEL, commitLevelText, isSecondJob, jobOption, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
+import { JOB_LINES, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, commitLevelText, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
 import { Sprite } from "./bits";
@@ -16,7 +16,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   const incomplete = profile.level <= 0 || profile.job < 0;
   const [editing, setEditing] = useState(incomplete);
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
-  // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等、目前等級上限 Lv.100）
+  // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等、目前等級上限 Lv.120）
   const [hint, setHint] = useState<string | null>(null);
   // 選職業把等級拉高前的等級（劍士 18 手滑點狂戰士 → 30）；點回允許它的職業就還原
   const raisedFrom = useRef<number | null>(null);
@@ -31,13 +31,16 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   }, [incomplete]);
 
   const option = jobOption(profile.job);
+  const tier = jobTier(profile.job);
   const stageText = profile.job < 0
     ? "還沒選職業"
     : profile.job === 0
       ? "還沒轉職"
-      : isSecondJob(profile.job)
-        ? `${option?.line} · 二轉`
-        : profile.level >= SECOND_JOB_LEVEL ? `一轉 · ${SECOND_JOB_LEVEL} 等可以二轉了` : "一轉";
+      : tier === 3
+        ? `${option?.line} · 三轉`
+        : tier === 2
+          ? profile.level >= THIRD_JOB_LEVEL ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等可以三轉了（照舊版）` : `${option?.line} · 二轉`
+          : profile.level >= SECOND_JOB_LEVEL ? `一轉 · ${SECOND_JOB_LEVEL} 等可以二轉了` : "一轉";
 
   /** 打字當下：這個職業允許、又沒超過上限的等級才套用，其他先等，也不給提示（要打 15 先打 1 不會閃紅字） */
   function setLevel(raw: string) {

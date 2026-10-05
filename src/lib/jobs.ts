@@ -1,5 +1,5 @@
 /**
- * 經典版的 17 個職業：一轉 5 職（還沒二轉時選這個）＋二轉 12 職。
+ * 經典版的 29 個職業：一轉 5 職＋二轉 12 職＋三轉 12 職（V002，2026-10-15 開放）。
  * 皇家騎士團、狂狼勇士、龍魔導士、影武者是客戶端資料裡有、經典版沒有的，不列。
  */
 
@@ -13,37 +13,83 @@ export type JobOption = {
   npcName: string;
 };
 
-type JobLine = { base: number; line: string; npcId: number; npcName: string; branches: Array<[number, string]> };
+type JobLine = {
+  base: number;
+  line: string;
+  npcId: number;
+  npcName: string;
+  branches: Array<[number, string]>;
+  /** 三轉，順序跟 branches 一一對應（111 接 110）；名稱取自遊戲資料的技能書「〇〇之路」 */
+  thirds: Array<[number, string]>;
+};
 
 export const JOB_LINES: JobLine[] = [
-  { base: 100, line: "劍士", npcId: 1022000, npcName: "武術教練", branches: [[110, "狂戰士"], [120, "見習騎士"], [130, "槍騎兵"]] },
-  { base: 200, line: "法師", npcId: 1032001, npcName: "漢斯", branches: [[210, "火毒巫師"], [220, "冰雷巫師"], [230, "僧侶"]] },
-  { base: 300, line: "弓箭手", npcId: 1012100, npcName: "赫麗娜", branches: [[310, "獵人"], [320, "弩弓手"]] },
-  { base: 400, line: "盜賊", npcId: 1052001, npcName: "達克魯", branches: [[410, "刺客"], [420, "俠盜"]] },
-  { base: 500, line: "海盜", npcId: 1090000, npcName: "卡伊琳", branches: [[510, "打手"], [520, "槍手"]] },
+  { base: 100, line: "劍士", npcId: 1022000, npcName: "武術教練", branches: [[110, "狂戰士"], [120, "見習騎士"], [130, "槍騎兵"]], thirds: [[111, "十字軍"], [121, "騎士"], [131, "龍騎士"]] },
+  { base: 200, line: "法師", npcId: 1032001, npcName: "漢斯", branches: [[210, "火毒巫師"], [220, "冰雷巫師"], [230, "僧侶"]], thirds: [[211, "魔導士（火毒）"], [221, "魔導士（冰雷）"], [231, "祭司"]] },
+  { base: 300, line: "弓箭手", npcId: 1012100, npcName: "赫麗娜", branches: [[310, "獵人"], [320, "弩弓手"]], thirds: [[311, "遊俠"], [321, "狙擊手"]] },
+  { base: 400, line: "盜賊", npcId: 1052001, npcName: "達克魯", branches: [[410, "刺客"], [420, "俠盜"]], thirds: [[411, "暗殺者"], [421, "神偷"]] },
+  { base: 500, line: "海盜", npcId: 1090000, npcName: "卡伊琳", branches: [[510, "打手"], [520, "槍手"]], thirds: [[511, "格鬥家"], [521, "神槍手"]] },
 ];
 
 export const JOB_OPTIONS: JobOption[] = JOB_LINES.flatMap(line => [
   { id: line.base, name: line.line, line: line.line, npcId: line.npcId, npcName: line.npcName },
-  ...line.branches.map(([id, name]) => ({ id, name, line: line.line, npcId: line.npcId, npcName: line.npcName })),
+  ...[...line.branches, ...line.thirds].map(([id, name]) => ({ id, name, line: line.line, npcId: line.npcId, npcName: line.npcName })),
 ]);
+
+/** 角色列的職業選單分三排 */
+export const JOB_TIERS: Array<{ label: "一轉" | "二轉" | "三轉"; jobs: Array<[number, string]> }> = [
+  { label: "一轉", jobs: JOB_LINES.map(line => [line.base, line.line] as [number, string]) },
+  { label: "二轉", jobs: JOB_LINES.flatMap(line => line.branches) },
+  { label: "三轉", jobs: JOB_LINES.flatMap(line => line.thirds) },
+];
 
 const BY_ID = new Map(JOB_OPTIONS.map(job => [job.id, job]));
 
-/** 二轉以上開放的等級 */
+/** 二轉開放的等級 */
 export const SECOND_JOB_LEVEL = 30;
+/** 三轉的等級：先照舊版 70 等，開機公告出來確認；要改只改這個常數（pipeline/lib/guides.mjs 有同一個數字） */
+export const THIRD_JOB_LEVEL = 70;
 
 export function baseJob(job: number): number {
   return job > 0 ? Math.floor(job / 100) * 100 : 0;
 }
 
+export type JobTier = 0 | 1 | 2 | 3;
+
+/** 第幾轉：初心者與不認得的代碼 0、一轉（100）1、二轉（110）2、三轉（111）3 */
+export function jobTier(job: number): JobTier {
+  if (job <= 0 || !BY_ID.has(job)) return 0;
+  if (job % 100 === 0) return 1;
+  return job % 10 === 0 ? 2 : 3;
+}
+
 export function isSecondJob(job: number): boolean {
-  return BY_ID.has(job) && job % 100 !== 0;
+  return jobTier(job) === 2;
+}
+
+export function isThirdJob(job: number): boolean {
+  return jobTier(job) === 3;
 }
 
 /** 一轉的等級：法師 8 等，其他 10 等 */
 export function advancementLevel(job: number): number {
   return baseJob(job) === 200 ? 8 : 10;
+}
+
+/** 上一轉：三轉 111 → 二轉 110 → 一轉 100 → 0 */
+export function previousJob(job: number): number {
+  const tier = jobTier(job);
+  if (tier === 3) return job - (job % 10);
+  if (tier === 2) return baseJob(job);
+  return 0;
+}
+
+/** 這一轉從幾等開始：三轉 70、二轉 30、一轉 8（法師）或 10 */
+export function tierStartLevel(job: number): number {
+  const tier = jobTier(job);
+  if (tier === 3) return THIRD_JOB_LEVEL;
+  if (tier === 2) return SECOND_JOB_LEVEL;
+  return advancementLevel(job);
 }
 
 /** 本機存過的舊代碼（例如皇家騎士團 1110）不在經典版，當作初心者；-1 是還沒選職業 */
@@ -53,37 +99,34 @@ export function normalizeJob(job: number): number {
 }
 
 /**
- * 這個等級實際是哪一轉：還沒到轉職等級就是初心者（0），
- * 選了二轉職業但還沒到 30 等就用一轉的。
+ * 這個等級實際是哪一轉：還沒到轉職等級就是初心者（0）；
+ * 選了三轉職業但還沒到 70 等用二轉的，選了二轉職業但還沒到 30 等用一轉的。
  */
 export function stageJob(job: number, level: number): number {
   if (job <= 0 || level < advancementLevel(job)) return 0;
-  if (!isSecondJob(job)) return job;
-  return level >= SECOND_JOB_LEVEL ? job : baseJob(job);
+  const tier = jobTier(job);
+  if (tier === 3 && level < THIRD_JOB_LEVEL) return stageJob(previousJob(job), level);
+  if (tier === 2 && level < SECOND_JOB_LEVEL) return baseJob(job);
+  return job;
 }
 
 export function jobOption(job: number): JobOption | undefined {
   return BY_ID.get(job);
 }
 
-/**
- * 選了這個職業最低要幾等。選了就代表已經轉職，不會有「二轉 25 等」這種組合：
- * 初心者／還沒選 1、法師 8、其他一轉 10、二轉 30。
- */
+/** 選了這個職業最低要幾等：初心者／還沒選 1、法師 8、其他一轉 10、二轉 30、三轉 70 */
 export function minLevelFor(job: number): number {
   if (job <= 0) return 1;
-  return isSecondJob(job) ? SECOND_JOB_LEVEL : advancementLevel(job);
+  return tierStartLevel(job);
 }
 
 /**
- * 本機存過的不可能組合（舊版允許「選二轉、等級 25」）改成實際那一轉，等級不動：
- * 二轉未滿 30 → 一轉職業；一轉未滿轉職等級 → 初心者。不認得的舊代碼原樣回傳（交給 normalizeJob）。
+ * 本機存過的不可能組合改成實際那一轉，等級不動（三轉 50 → 二轉；二轉 25 → 一轉；一轉 5 → 初心者）。
+ * 不認得的舊代碼原樣回傳（交給 normalizeJob）。
  */
 export function consistentJob(job: number, level: number): number {
-  if (job <= 0 || level <= 0) return job;
-  if (isSecondJob(job) && level < SECOND_JOB_LEVEL) return level >= advancementLevel(job) ? baseJob(job) : 0;
-  if (BY_ID.has(job) && !isSecondJob(job) && level < advancementLevel(job)) return 0;
-  return job;
+  if (job <= 0 || level <= 0 || jobTier(job) === 0) return job;
+  return stageJob(job, level);
 }
 
 /**

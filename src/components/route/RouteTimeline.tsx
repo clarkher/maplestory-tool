@@ -7,7 +7,7 @@ import { GoButton } from "@/components/PlanShell";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { COMMON_ROUTE } from "@/lib/guide-data";
-import { isSecondJob } from "@/lib/jobs";
+import { SECOND_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
 import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
@@ -152,7 +152,7 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
     return { build, steps, mustDo, prep };
   }, [band, next, guide, stage, job, level, quests, monsters, maps, common, prefer, effective, active]);
 
-  const stuckInFirstJob = band.from >= 30 && !isSecondJob(job) && job !== 0;
+  const stuckInFirstJob = band.from >= SECOND_JOB_LEVEL && jobTier(job) === 1;
   const gap = guide?.gaps?.find(entry => entry.from < band.to && entry.to >= band.from);
   const island = isIslandBand(band);
   // 沒有能用的玩家攻略：說明（還在讀攻略、讀取失敗、或「以下是遊戲資料推算」）＋研究時查到的狀況
