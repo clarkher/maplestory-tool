@@ -38,7 +38,7 @@ export function bandOf(bands: Band[], level: number): Band {
   return bands.find(band => level >= band.from && level < band.to) ?? bands[bands.length - 1];
 }
 
-const VERIFIED_RANK: Record<Verified, number> = { tw: 0, community: 1, legacy: 2 };
+export const VERIFIED_RANK: Record<Verified, number> = { tw: 0, community: 1, legacy: 2 };
 
 /** 攻略的等級區間是含頭含尾的（30–35），段落是含頭不含尾 */
 function overlap(band: Band, from: number, to: number): number {
