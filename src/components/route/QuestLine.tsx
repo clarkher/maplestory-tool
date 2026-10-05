@@ -18,7 +18,7 @@ export function QuestLine({
   exp: number;
   extra?: string | null;
   as?: "li" | "div";
-  /** 必解清單是整條線從頭列，不用提醒前置；一趟卡只列這張圖做得到的那段，要提醒 */
+  /** 只列到一條線的後段時要提醒「要先解前一段」；必解清單是整條線從頭列，不用提醒 */
   showPrerequisite?: boolean;
 }) {
   const needs = new Map<string, number>();

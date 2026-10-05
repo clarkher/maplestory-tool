@@ -125,6 +125,8 @@ test("關鍵獎勵：只留站內有的道具，沒有 label 就報錯", () => {
   // 永久獎勵（冒險家的戒指）不會隨等級過期，旗標要帶到輸出
   assert.deepEqual(normalizeReward({ label: "永久戒指", items: [1050018], permanent: true }, items).reward, { label: "永久戒指", items: [1050018], permanent: true });
   assert.throws(() => normalizeReward({ items: [1050018] }, items), /label/);
+  // 錯誤訊息要說是哪個任務，不然研究檔 37 筆要一筆一筆找
+  assert.throws(() => normalizeReward({ items: [1050018] }, items, "瑪亞和奇怪的藥"), /瑪亞和奇怪的藥.*label/);
 });
 
 test("攻略段落寫的怪在那張圖一隻都不出才算對不上；有一隻出、沒寫怪、地圖沒出怪資料都不算", () => {

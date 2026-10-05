@@ -229,7 +229,7 @@ function RouteCard({
                 <figure className="mt-2 overflow-hidden rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-2">
                   <Image
                     src={minimapImage(step.map)}
-                    alt={`${name} 小地圖`}
+                    alt={unnamed ? "沒有名字的通道 小地圖" : `${name} 小地圖`}
                     width={640}
                     height={200}
                     className="mx-auto h-auto w-full object-contain"

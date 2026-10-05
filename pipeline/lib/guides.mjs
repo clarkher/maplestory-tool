@@ -111,10 +111,10 @@ export function mobsMissingOnMap(mobIds, spawnedIds) {
   return !mobIds.some(id => spawnedIds.has(id));
 }
 
-/** 關鍵獎勵：label 必填；items 只留站內有的道具 id，其餘回報；permanent（永久有用、不會過期）照帶 */
-export function normalizeReward(raw, itemIds) {
+/** 關鍵獎勵：label 必填；items 只留站內有的道具 id，其餘回報；permanent（永久有用、不會過期）照帶。questName 只用在錯誤訊息 */
+export function normalizeReward(raw, itemIds, questName = "") {
   if (!raw) return { reward: undefined, dropped: [] };
-  if (!raw.label) throw new Error("reward 缺 label");
+  if (!raw.label) throw new Error(`${questName ? `必解「${questName}」的 ` : ""}reward 缺 label`);
   const all = raw.items || [];
   return {
     reward: { label: raw.label, items: all.filter(id => itemIds.has(id)), ...(raw.permanent ? { permanent: true } : {}) },

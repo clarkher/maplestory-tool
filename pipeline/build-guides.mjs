@@ -179,7 +179,7 @@ function main() {
     mustDo: questResearch.mustDo
       .filter(entry => keepQuest(entry, "必解"))
       .map(entry => {
-        const { reward, dropped } = normalizeReward(entry.reward, itemIds);
+        const { reward, dropped } = normalizeReward(entry.reward, itemIds, entry.questName);
         for (const id of dropped) warnings.push(`必解「${entry.questName}」：獎勵道具 ${id} 不在站內資料，拿掉`);
         return {
           q: entry.questId,
