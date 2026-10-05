@@ -237,6 +237,16 @@ describe("升級路線的去", () => {
     expect(plans.find(plan => plan.band.from === 40)?.rows[0].go).toBeUndefined();
   });
 
+  it("被職業規則擋掉的攻略圖不給去：照列、寫原因，只當資訊（火毒 90 的火焰之地Ⅱ）", () => {
+    const fire = guide(210, [segment({ from: 40, to: 50, map: FIRE, name: "火焰之地Ⅱ" }), segment({ from: 40, to: 50, map: SWAMP, name: "沼澤地" })]);
+    const { plans } = timelinePlans(input({ job: 210, level: 90, bands: bandsFor(210), guides: new Map([[210, fire]]) }));
+    const rows = plans.find(plan => plan.band.from === 40)?.rows ?? [];
+    expect(rows.map(entry => [entry.map, entry.warn, entry.go])).toEqual([
+      [FIRE, "怪抗火，火焰箭傷害打折", undefined],
+      [SWAMP, undefined, SWAMP],
+    ]);
+  });
+
   it("離開楓之島之後，楓之島的圖不給去", () => {
     const pick: MainPick = { kind: "map", option: option({ map: ISLAND, title: "嫩寶狩獵場Ⅰ" }) };
     const onIsland = timelinePlans(input({ job: 0, level: 5, bands: bandsFor(0), pick }));

@@ -31,7 +31,7 @@ export type TrainRow = {
   source: "guide" | "data";
   /** 遊戲資料的圖清一輪的經驗 */
   exp1?: number;
-  /** 「去」帶到哪；城鎮走不到、或離島後的楓之島圖就沒有 */
+  /** 「去」帶到哪；城鎮走不到、離島後的楓之島圖、被職業規則擋掉的圖就沒有 */
   go?: number;
 };
 
@@ -121,6 +121,7 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
     const primary = covering ?? group.segments[0];
     const pq = primary.pq ? pqs.find(entry => entry.key === primary.pq) : undefined;
     const map = pq ? pq.entrance : primary.map;
+    const warn = blockedGroup(group) ? warnOf(primary) : undefined;
     return {
       key: group.key,
       title: pq?.name ?? (primary.map !== null ? maps[String(primary.map)]?.zh || shortName(primary.name) : shortName(primary.name)),
@@ -133,9 +134,10 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
       why: primary.why,
       v: primary.v,
       s: primary.s,
-      warn: blockedGroup(group) ? warnOf(primary) : undefined,
+      warn,
       source: "guide",
-      go: goTo(map),
+      // 被職業規則擋掉的圖只當資訊（照列、寫原因），不給「去」（round 4，persona 第三輪三-8）
+      go: warn ? undefined : goTo(map),
     };
   };
   let rows = segmentsToShow(groups, blockedGroup, SHOWN_USABLE).map(toRow);
