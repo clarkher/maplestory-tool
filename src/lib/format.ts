@@ -3,6 +3,11 @@ export function formatNumber(value: number | undefined | null): string {
   return value.toLocaleString("zh-TW");
 }
 
+/** 等級範圍：頭尾同一級只寫一個（Lv.30），不寫成 Lv.30–30 */
+export function levelRange(from: number, to: number): string {
+  return from === to ? `Lv.${from}` : `Lv.${from}–${to}`;
+}
+
 /**
  * 大數字縮寫成「萬」。
  * 任務獎勵動輒六七位數，完整寫出來在手機上塞不下也不好比大小。

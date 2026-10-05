@@ -254,7 +254,8 @@ export type Instructor = { job: number; line: string; npcId: number; npcName: st
 
 export type MainPick =
   | { kind: "advance"; instructors: Instructor[] }
-  | { kind: "pq"; pq: GuidePq; window: [number, number]; alt?: TrainOption }
+  /** job：寫這個範圍的攻略職業（可能是一轉） */
+  | { kind: "pq"; pq: GuidePq; window: [number, number]; job: number; alt?: TrainOption }
   | { kind: "map"; option: TrainOption; alt?: TrainOption; ceiling?: number };
 
 /**
@@ -280,12 +281,16 @@ export function instructors(): Instructor[] {
   }));
 }
 
-/** 等級在這個職業的組隊任務範圍內就主推組隊；同時落在兩個範圍，選起始等級高的（比較貼近現在） */
-export function pqFor(common: GuideCommon, job: number, level: number): { pq: GuidePq; window: [number, number] } | undefined {
-  const keys = [...new Set([stageJob(job, level), baseJob(job)])].filter(code => code > 0).map(String);
+/**
+ * 等級在這個職業的組隊任務範圍內就主推組隊；同時落在兩個範圍，選起始等級高的（比較貼近現在）。
+ * job 是寫這個範圍的攻略職業：二轉玩家用到一轉攻略的範圍時（俠盜 30 等用盜賊的 21–30），卡片要寫「盜賊玩家推薦」。
+ */
+export function pqFor(common: GuideCommon, job: number, level: number): { pq: GuidePq; window: [number, number]; job: number } | undefined {
+  const keys = [...new Set([stageJob(job, level), baseJob(job)])].filter(code => code > 0);
   const hits = (common.pq ?? []).flatMap(pq => {
-    const window = keys.map(key => pq.byJob[key]).find((value): value is [number, number] => Boolean(value));
-    return window && level >= window[0] && level <= window[1] ? [{ pq, window }] : [];
+    const key = keys.find(code => pq.byJob[String(code)]);
+    const window = key === undefined ? undefined : pq.byJob[String(key)];
+    return key !== undefined && window && level >= window[0] && level <= window[1] ? [{ pq, window, job: key }] : [];
   });
   return hits.sort((a, b) => b.window[0] - a.window[0])[0];
 }

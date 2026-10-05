@@ -260,8 +260,11 @@ export type GuideJob = {
 /** 關鍵獎勵：畫面上的標籤，與用來放圖的遊戲道具 id（抽獎型的 label 寫「隨機」） */
 export type GuideReward = { label: string; items: number[] };
 
-/** 組隊任務：入口地圖、圖解連結、各職業打它的等級範圍（從攻略的組隊段落整理） */
-export type GuidePq = { key: string; name: string; entrance: number; guide: string; byJob: Record<string, [number, number]> };
+/**
+ * 組隊任務：入口地圖、圖解連結、各職業打它的等級範圍（從攻略的組隊段落整理，build 時已裁進遊戲任務的等級限制）。
+ * quest 是對應的遊戲任務 id（月妙的年糕 1200、第一次同行 1201）。
+ */
+export type GuidePq = { key: string; name: string; quest?: string; entrance: number; guide: string; byJob: Record<string, [number, number]> };
 
 export type GuideMustDo = {
   q: string;

@@ -848,8 +848,8 @@
           "verified": "tw"
         },
         {
-          "levelFrom": 31,
-          "levelTo": 35,
+          "levelFrom": 30,
+          "levelTo": 30,
           "kind": "party",
           "mapName": "超級綠水靈組隊任務（打到 31 等）",
           "mapId": 910340500,
@@ -1559,8 +1559,8 @@
           "verified": "tw"
         },
         {
-          "levelFrom": 31,
-          "levelTo": 35,
+          "levelFrom": 30,
+          "levelTo": 30,
           "kind": "party",
           "mapName": "超級綠水靈組隊任務（打到 31 等）",
           "mapId": 910340500,
@@ -2368,8 +2368,8 @@
           "verified": "tw"
         },
         {
-          "levelFrom": 31,
-          "levelTo": 35,
+          "levelFrom": 30,
+          "levelTo": 30,
           "kind": "party",
           "mapName": "超級綠水靈組隊任務（打到 31 等）",
           "mapId": 910340500,
@@ -3196,7 +3196,7 @@
         },
         {
           "levelFrom": 21,
-          "levelTo": 31,
+          "levelTo": 30,
           "kind": "party",
           "mapName": "超級綠水靈組隊任務",
           "mapId": 910340500,

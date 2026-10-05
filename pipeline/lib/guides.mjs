@@ -48,11 +48,14 @@ export function pqKeyOf(pqList, segment) {
 }
 
 /**
- * 每個職業打各組隊任務的等級範圍，從攻略的組隊段落整理。
+ * 每個職業打各組隊任務的等級範圍，從攻略的組隊段落整理，再裁進遊戲的等級限制。
+ * 研究檔抄錯一個數字就會變成主推大卡（超綠寫到 35 等，遊戲 30 等以上就進不去），所以以遊戲資料為準：
+ * 範圍裁進任務的 [minLv, maxLv]（沒有上限用 levelCap），裁完變空的整筆拿掉，每一筆都列警告。
  * trainByJob: Map<jobId, Array<{ from, to, kind, name }>>
+ * quests: Map<任務 id, { minLv?, maxLv? }>，對應 pq.json 每筆的 quest
  */
-export function pqWindows(pqList, trainByJob) {
-  const result = pqList.map(pq => ({ key: pq.key, name: pq.name, entrance: pq.entrance, guide: pq.guide, byJob: {} }));
+export function pqWindows(pqList, trainByJob, { quests = new Map(), levelCap = Infinity, warn = () => {} } = {}) {
+  const result = pqList.map(pq => ({ key: pq.key, name: pq.name, quest: pq.quest, entrance: pq.entrance, guide: pq.guide, byJob: {} }));
   for (const [job, segments] of trainByJob) {
     for (const segment of segments) {
       const key = pqKeyOf(pqList, segment);
@@ -60,6 +63,23 @@ export function pqWindows(pqList, trainByJob) {
       const entry = result.find(pq => pq.key === key);
       const window = entry.byJob[job];
       entry.byJob[job] = window ? [Math.min(window[0], segment.from), Math.max(window[1], segment.to)] : [segment.from, segment.to];
+    }
+  }
+  for (const [index, pq] of pqList.entries()) {
+    const limit = quests.get(String(pq.quest)) ?? {};
+    const low = limit.minLv ?? 1;
+    const high = limit.maxLv ?? levelCap;
+    const { byJob } = result[index];
+    for (const [job, [from, to]] of Object.entries(byJob)) {
+      const clipped = [Math.max(from, low), Math.min(to, high)];
+      if (clipped[0] === from && clipped[1] === to) continue;
+      if (clipped[0] > clipped[1]) {
+        delete byJob[job];
+        warn(`組隊任務「${pq.name}」：職業 ${job} 的範圍 ${from}–${to} 整段在遊戲限制 ${low}–${high} 外，拿掉`);
+      } else {
+        byJob[job] = clipped;
+        warn(`組隊任務「${pq.name}」：職業 ${job} 的範圍 ${from}–${to} 超出遊戲限制，裁成 ${clipped[0]}–${clipped[1]}`);
+      }
     }
   }
   return result;

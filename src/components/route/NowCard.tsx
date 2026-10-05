@@ -5,7 +5,8 @@ import Link from "next/link";
 import { RouteIcon } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
 import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
-import { formatNumber } from "@/lib/format";
+import { formatNumber, levelRange } from "@/lib/format";
+import { jobOption } from "@/lib/jobs";
 import type { MainPick, TrainOption } from "@/lib/now-plan";
 import type { MapRecord, Monster } from "@/lib/types";
 import { SourceTag, Sprite } from "./bits";
@@ -112,13 +113,15 @@ function MapCard({ pick, level, jobName, maps, monsters, routable }: Common & { 
 
 function PqCard({ pick, level, jobName, maps, routable }: Common & { pick: Extract<MainPick, { kind: "pq" }> }) {
   const { pq, window, alt } = pick;
+  // 範圍可能來自一轉的攻略（俠盜 30 等用盜賊的範圍），寫攻略那個職業的名字
+  const writer = jobOption(pick.job)?.name ?? jobName;
   return (
     <article aria-label="現在去這裡" className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
       <Hero map={pq.entrance} maps={maps} mobs={[]} label={`Lv.${level} ${jobName}・現在去這裡`} />
       <div className="space-y-2.5 p-3.5">
         <div>
           <h2 className="text-[22px] font-black leading-tight">{pq.name}</h2>
-          <p className="text-[13px] ink-soft">{jobName}玩家推薦 Lv.{window[0]}–{window[1]} 打這個，入口在{mapName(maps, pq.entrance)}</p>
+          <p className="text-[13px] ink-soft">{writer}玩家推薦 {levelRange(window[0], window[1])} 打這個，入口在{mapName(maps, pq.entrance)}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Chip tone="sky">組隊</Chip>

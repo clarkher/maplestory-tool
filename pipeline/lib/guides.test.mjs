@@ -46,6 +46,34 @@ test("組隊任務的等級範圍：同一職業多段合併、只看組隊段�
   assert.equal(result[0].entrance, 100000200);
 });
 
+test("組隊任務的等級範圍裁進遊戲的等級限制，沒有上限就用等級上限", () => {
+  const trainByJob = new Map([
+    [200, [{ from: 21, to: 31, kind: "party", name: "超級綠水靈組隊任務（墮落城市）" }]],
+    [300, [{ from: 8, to: 30, kind: "party", name: "月妙組隊任務" }]],
+  ]);
+  const quests = new Map([["1200", { minLv: 10 }], ["1201", { minLv: 21, maxLv: 30 }]]);
+  const warnings = [];
+  const pqList = [{ ...PQ_LIST[0], quest: "1200" }, { ...PQ_LIST[1], quest: "1201" }];
+  const result = pqWindows(pqList, trainByJob, { quests, levelCap: 100, warn: line => warnings.push(line) });
+  assert.deepEqual(result[0].byJob, { 300: [10, 30] });
+  assert.deepEqual(result[1].byJob, { 200: [21, 30] });
+  assert.equal(warnings.length, 2);
+  assert.match(warnings[1], /超級綠水靈組隊任務.*200.*21–31.*21–30/);
+});
+
+test("組隊任務的等級範圍整段超出遊戲限制時整筆拿掉，並列警告", () => {
+  const trainByJob = new Map([
+    [110, [{ from: 31, to: 35, kind: "party", name: "超級綠水靈組隊任務（打到 31 等）" }]],
+    [100, [{ from: 25, to: 30, kind: "party", name: "超級綠水靈組隊任務（墮落城市）" }]],
+  ]);
+  const warnings = [];
+  const pqList = [{ ...PQ_LIST[1], quest: "1201" }];
+  const result = pqWindows(pqList, trainByJob, { quests: new Map([["1201", { minLv: 21, maxLv: 30 }]]), levelCap: 100, warn: line => warnings.push(line) });
+  assert.deepEqual(result[0].byJob, { 100: [25, 30] });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /110.*31–35.*拿掉/);
+});
+
 test("一個段落同時提到兩個組隊任務時，算第一個", () => {
   assert.equal(pqKeyOf(PQ_LIST, { kind: "party", name: "月妙組隊任務（打豬，最推薦）／超綠組隊任務（不推薦）" }), "moon");
   assert.equal(pqKeyOf(PQ_LIST, { kind: "solo", name: "月妙組隊任務" }), undefined);

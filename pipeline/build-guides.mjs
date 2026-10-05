@@ -6,8 +6,8 @@
  * 輸入：
  *   data/guides/{warrior-pirate,magician,archer-thief}.json  各職業的點法、練功點、注意事項（每條附出處）
  *   data/guides/quests-exp.json                              升級經驗表、必解／不值得解任務
- *   data/guides/pq.json                                      組隊任務表（入口地圖、比對字）
- *   public/data/{skills,maps,monsters,quests}.json           站內遊戲資料，用來驗證 id
+ *   data/guides/pq.json                                      組隊任務表（入口地圖、對應的遊戲任務、比對字）
+ *   public/data/{skills,maps,monsters,quests,meta}.json      站內遊戲資料，用來驗證 id、組隊任務的等級限制
  *
  * 輸出：
  *   public/data/guides/{jobId}.json  每個職業一檔，首頁只載自己職業的那份
@@ -18,6 +18,7 @@
  *   - 怪物 id 不在 monsters.json → 丟掉那隻怪，列警告
  *   - 地圖 id 沒有中文名（未開放或不存在）→ 保留文字但拿掉 id（不能導航），列警告
  *   - 任務 id 不在 quests.json → 必解清單丟掉那筆，列警告
+ *   - 組隊任務各職業的等級範圍超出遊戲任務的 minLv／maxLv → 裁進去，整段在外就拿掉，列警告
  *
  * 研究檔的練功清單裡混了兩種不是練功點的條目，這裡分出去：
  *   - 名稱「（無可靠出處）」：那段等級找不到攻略的說明 → gaps，畫面上照實寫「沒有攻略」
@@ -49,7 +50,9 @@ function main() {
   const skills = new Map(readJson(path.join(DATA, "skills.json")).map(skill => [skill.id, skill]));
   const maps = readJson(path.join(DATA, "maps.json"));
   const monsters = new Set(readJson(path.join(DATA, "monsters.json")).map(monster => monster.id));
-  const quests = new Set(readJson(path.join(DATA, "quests.json")).map(quest => quest.id));
+  const quests = new Map(readJson(path.join(DATA, "quests.json")).map(quest => [quest.id, quest]));
+  const levelCap = readJson(path.join(DATA, "meta.json")).release?.levelCap;
+  if (!Number.isFinite(levelCap)) throw new Error("meta.json 缺 release.levelCap，先跑 npm run data:build");
   const openMap = id => (id && maps[String(id)]?.zh ? Number(id) : null);
 
   const warnings = [];
@@ -188,7 +191,11 @@ function main() {
     ...(questResearch.spLeftover ? { spLeftover: { t: questResearch.spLeftover.text, s: questResearch.spLeftover.sources } } : {}),
   };
   const trainByJob = new Map([...outputs.entries()].map(([name, output]) => [output.job, output.train]));
-  common.pq = pqWindows(pqResearch.pq, trainByJob);
+  for (const pq of pqResearch.pq) {
+    if (!quests.has(String(pq.quest))) throw new Error(`組隊任務「${pq.name}」的任務 ${pq.quest} 不在遊戲資料，等級限制沒辦法驗`);
+  }
+  // 各職業的範圍裁進遊戲的等級限制（例：第一次同行 21–30），被裁、被拿掉的都列警告
+  common.pq = pqWindows(pqResearch.pq, trainByJob, { quests, levelCap, warn: line => warnings.push(line) });
   for (const pq of common.pq) {
     if (!openMap(pq.entrance)) throw new Error(`組隊任務「${pq.name}」的入口地圖 ${pq.entrance} 沒有中文名`);
   }

@@ -145,4 +145,10 @@ describe("組隊任務範圍", () => {
     expect(pqFor(commonWith([moon, kerning]), 110, 33)?.window).toEqual([31, 35]);
     expect(pqFor(commonWith([moon, kerning]), 110, 36)).toBeUndefined();
   });
+
+  it("回傳範圍是哪個職業的攻略寫的：二轉用到一轉的範圍時是一轉職業", () => {
+    const thief: GuidePq = { key: "kerning", name: "超級綠水靈組隊任務", entrance: 2, guide: "/guide", byJob: { 400: [21, 30] } };
+    expect(pqFor(commonWith([thief]), 420, 30)).toMatchObject({ job: 400, window: [21, 30] });
+    expect(pqFor(commonWith([moon, kerning]), 110, 33)).toMatchObject({ job: 110 });
+  });
 });
