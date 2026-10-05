@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertIcon, ChevronDown } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
 import { loadMaps, loadMeta, loadMonsters, loadTraining, mapName, minimapImage, monsterImage } from "@/lib/data";
+import { respawnText } from "@/lib/format";
 import { useProfile } from "@/lib/profile";
 import { planTraining, relativeIndex, requiredAccuracy } from "@/lib/planner";
 import type { MapRecord, Meta, Monster, TrainingRow } from "@/lib/types";
@@ -233,7 +234,7 @@ function TrainCard({
                   </Link>
                   <span className="shrink-0 text-[11px] tabular-nums ink-faint">
                     Lv{monster.lv} · {count} 點 · 命中 {requiredAccuracy(playerLevel, monster)}
-                    {mobTime ? ` · 回生 ${mobTime}s` : ""}
+                    {mobTime ? ` · ${respawnText(mobTime)}` : ""}
                   </span>
                 </li>
               );

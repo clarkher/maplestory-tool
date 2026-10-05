@@ -36,6 +36,11 @@ export function sourceLabels(urls: string[]): string[] {
   });
 }
 
+/** 刷怪點的等效回生秒數（好幾個刷怪點合成的，帶一位小數）寫成整數秒 */
+export function respawnText(seconds: number): string {
+  return `回生約 ${Math.round(seconds)} 秒`;
+}
+
 /** 等級範圍：頭尾同一級只寫一個（Lv.30），不寫成 Lv.30–30 */
 export function levelRange(from: number, to: number): string {
   return from === to ? `Lv.${from}` : `Lv.${from}–${to}`;

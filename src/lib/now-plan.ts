@@ -413,7 +413,10 @@ const STALE_GAP = 10;
 const CEILING_GAP = 10;
 /** 主推圖跟能練的最高圖差這麼多級以內，封頂提示才說「這張已經是你能去最好的」 */
 const BEST_GAP = 5;
-/** 能練的最高圖比你高不到這麼多級才算練得動（跟遊戲資料的等級適配一樣：同級到高 5 級） */
+/**
+ * 能練的最高圖 ≤ 你的等級 + 這麼多級才算練得動（跟遊戲資料的等級適配一樣：同級到高 5 級），排在過期攻略前面；
+ * 比這個還高就排最後、不當備案（只有它一張圖時才會變主推）
+ */
 const CAP_REACH = 5;
 
 export type TrainOption = {
@@ -579,7 +582,8 @@ function byGuidePreference(a: GuideTrain, b: GuideTrain): number {
  * - 能練的最高圖（cap）：通過職業規則、不是王圖、走得到、有城鎮路線的練功圖裡等級最高的。
  * - 參考等級＝現在等級與 cap 取小；攻略圖的等級比參考等級低 10 級以上算過期。
  * - 排序：沒過期的攻略圖 → 遊戲資料（城鎮走不到的不推）→ cap 那張圖 → 過期的攻略圖。高等級遊戲資料排不出來時
- *   主推就是 cap 圖、過期攻略當備案（多升一級主推不會從 Lv.71 掉到 Lv.49）。cap 圖比你高 5 級以上時排最後，不當備案。
+ *   主推就是 cap 圖、過期攻略當備案（多升一級主推不會從 Lv.71 掉到 Lv.49）。cap 圖 ≤ 你的等級 + 5 才這樣排；
+ *   比這個還高（冰雷 50 看 Lv.67）就排最後，也不當備案。
  *   同一張圖只列一次，備案不會跟主推同一張。
  * - 封頂提示：現在等級比 cap 高 10 級以上才出；主推圖跟 cap 差 5 級以內才說「這張已經是你能去最好的」。
  */
@@ -697,7 +701,7 @@ export function mainPick(args: {
     ...route(capRow.m),
   }] : [];
   // 能練的最高圖排在過期攻略前面：多升一級，主推不會從 Lv.71 掉回 Lv.49 的舊攻略圖。
-  // 只在你練得動時（最高圖 ≤ 你的等級 + CAP_REACH）才往前排；比你高 5 級以上時（冰雷 50 看 Lv.67）排最後，
+  // 只在你練得動時（最高圖 ≤ 你的等級 + CAP_REACH）才往前排；比這個還高時（冰雷 50 看 Lv.67）排最後，
   // 而且不當備案（下面 altPool 拿掉它）；只有它一張圖時才會變主推
   const capFirst = capRow !== undefined && capRow.lv <= level + CAP_REACH;
   const ordered = [...fresh, ...data.map(entry => entry.option), ...(capFirst ? capOption : []), ...stale, ...(capFirst ? [] : capOption)];

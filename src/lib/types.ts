@@ -41,7 +41,7 @@ export type Monster = {
   el?: Record<string, string>;
   /** Artale 宣告這隻怪出現的地圖 */
   maps: number[];
-  /** [地圖, 刷怪點數, mobTime 秒（0 = 預設）] */
+  /** [地圖, 刷怪點數, 等效回生秒數]：同一隻怪好幾個刷怪點時合成的秒數（pipeline/lib/spawns.mjs），0 = 預設 7 秒 */
   sp?: [number, number, number][];
   drops: number[];
 };
@@ -156,6 +156,7 @@ export type TrainingRow = {
   lvMax: number;
   /** 這張圖有幾個刷怪點的怪不在 Artale 圖鑑裡 */
   unk?: number;
+  /** [怪物 id, 刷怪點數, 等效回生秒數（0 = 預設 7 秒）]，刷怪點多的在前 */
   mobs: [number, number, number][];
 };
 

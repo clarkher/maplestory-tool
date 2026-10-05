@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { levelRange, sourceLabels } from "@/lib/format";
+import { levelRange, respawnText, sourceLabels } from "@/lib/format";
+
+describe("回生秒數的寫法", () => {
+  it("等效回生秒數帶小數，畫面寫整數秒「回生約 7 秒」", () => {
+    expect(respawnText(7.1)).toBe("回生約 7 秒");
+    expect(respawnText(9.6)).toBe("回生約 10 秒");
+    expect(respawnText(12)).toBe("回生約 12 秒");
+  });
+});
 
 describe("出處連結的名字", () => {
   it("寫網站名，不寫貼文編號；同一個網站好幾篇排在一起時才加 2、3", () => {
