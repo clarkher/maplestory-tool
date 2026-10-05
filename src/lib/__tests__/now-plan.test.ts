@@ -129,6 +129,18 @@ describe("先解", () => {
     expect(result.slice(0, 6).every(item => item.reward)).toBe(true);
     expect(result[6].key).toBe("chain:big");
   });
+
+  it("同一筆攻略推薦涵蓋的幾條任務線收成一行", () => {
+    const quests = [
+      quest("a1", { minLv: 10, exp: 20000 }),
+      quest("a2", { minLv: 10, exp: 20000, pre: ["a1"] }),
+      quest("b1", { minLv: 10, exp: 20000 }),
+    ];
+    const mustDo = [rec("a1", "10 起", { chain: ["a1", "a2", "b1"], name: "伊卡路斯任務鏈（好無聊 → 滑翔翼）" })];
+    const result = nowQuests(args(12, 110, quests, mustDo));
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ title: "伊卡路斯任務鏈", totalParts: 3, firstPart: 1, lastPart: 3, exp: 60000 });
+  });
 });
 
 describe("長線", () => {

@@ -139,13 +139,20 @@ export function nowQuests(args: {
     (!quest.jobs?.length || quest.jobs.some(code => lineage.has(code)))
     && quest.cat !== "組隊任務"
     && questReachable(quest, maps));
-  const lines = new Map<string, Quest[]>();
+  // 一筆攻略推薦（mustDo）就是一條任務線，即使它涵蓋的幾段前置串不起來（例：伊卡路斯任務鏈）；沒有推薦的照前置任務分
   const lineOf = new Map<string, string>();
   for (const group of groupQuests(forJob)) {
-    const ordered = [...group.quests].sort((a, b) => levelOf(a) - levelOf(b) || a.id.localeCompare(b.id));
-    lines.set(group.key, ordered);
-    for (const quest of ordered) lineOf.set(quest.id, group.key);
+    for (const quest of group.quests) {
+      const rec = recs.get(quest.id);
+      lineOf.set(quest.id, rec ? `rec:${rec.q}` : group.key);
+    }
   }
+  const lines = new Map<string, Quest[]>();
+  for (const quest of forJob) {
+    const key = lineOf.get(quest.id) as string;
+    lines.set(key, [...(lines.get(key) ?? []), quest]);
+  }
+  for (const members of lines.values()) members.sort((a, b) => levelOf(a) - levelOf(b) || a.id.localeCompare(b.id));
 
   const doable = withoutLongRun(
     forJob.filter(quest => questEligible(quest, { level, job: stage }, lineage) && levelOf(quest) <= level && !isLongKill(quest)),
