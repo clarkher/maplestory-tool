@@ -1786,6 +1786,144 @@
       ]
     },
     {
+      "jobId": 311,
+      "name": "遊俠",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：四連箭先滿，再點箭雨（巴哈姆特 2008～2009）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=4500",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=3480"
+          ],
+          "steps": [
+            {
+              "skillId": 3111006,
+              "skillName": "四連箭",
+              "to": 30,
+              "note": "主攻招，一次射 4 箭打一隻；三轉後先點"
+            },
+            {
+              "skillId": 3111002,
+              "skillName": "替身術",
+              "to": 10,
+              "note": "放出替身，怪會改打替身；10 級撐 30 秒"
+            },
+            {
+              "skillId": 3110001,
+              "skillName": "致命箭",
+              "to": 5,
+              "note": "箭雨的前置"
+            },
+            {
+              "skillId": 3111004,
+              "skillName": "箭雨",
+              "to": 30,
+              "note": "往天上射箭，打身邊最多 6 隻"
+            },
+            {
+              "skillId": 3110000,
+              "skillName": "疾風步",
+              "to": 5,
+              "note": "移動速度 +10；也有人不點，這 6 點留著自由分配"
+            },
+            {
+              "skillId": 3111003,
+              "skillName": "烈火箭",
+              "to": 30,
+              "note": "火屬性，一次最多打 6 隻"
+            },
+            {
+              "skillId": 3111002,
+              "skillName": "替身術",
+              "to": 20,
+              "note": "點滿替身撐 60 秒"
+            },
+            {
+              "skillId": 3111005,
+              "skillName": "銀鷹召喚",
+              "to": 30,
+              "note": "召喚銀鷹在身邊幫忙打（要召喚石）；也可以提早點"
+            },
+            {
+              "skillId": 3110000,
+              "skillName": "疾風步",
+              "to": 6,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "label": "舊版：箭雨先滿，再點四連箭（巴哈姆特 2006）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=679"
+          ],
+          "steps": [
+            {
+              "skillId": 3110001,
+              "skillName": "致命箭",
+              "to": 5,
+              "note": "箭雨的前置"
+            },
+            {
+              "skillId": 3111004,
+              "skillName": "箭雨",
+              "to": 30,
+              "note": "先有範圍攻擊，身邊最多 6 隻一起打"
+            },
+            {
+              "skillId": 3111006,
+              "skillName": "四連箭",
+              "to": 15,
+              "note": "點到 15 先停，接下來 15 點先存著"
+            },
+            {
+              "skillId": 3111006,
+              "skillName": "四連箭",
+              "to": 30,
+              "note": "存好的點一次補到 30"
+            },
+            {
+              "skillId": 3111002,
+              "skillName": "替身術",
+              "to": 6,
+              "note": "銀鷹召喚要先有替身術 5；6 級替身撐 20 秒"
+            },
+            {
+              "skillId": 3111003,
+              "skillName": "烈火箭",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 3111005,
+              "skillName": "銀鷹召喚",
+              "to": 30,
+              "note": "召喚銀鷹在身邊幫忙打（要召喚石）"
+            },
+            {
+              "skillId": 3111002,
+              "skillName": "替身術",
+              "to": 18,
+              "note": ""
+            },
+            {
+              "skillId": 3111003,
+              "skillName": "烈火箭",
+              "to": 28,
+              "note": "舊文寫到這裡，剩 10 點沒寫怎麼分"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
+    },
+    {
       "jobId": 320,
       "name": "弩弓手",
       "statBuild": [
@@ -2950,6 +3088,173 @@
           ]
         }
       ]
+    },
+    {
+      "jobId": 321,
+      "name": "狙擊手",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：四連箭、寒冰箭交替先點（巴哈姆特 2006）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12533&sn=909"
+          ],
+          "steps": [
+            {
+              "skillId": 3211003,
+              "skillName": "寒冰箭",
+              "to": 1,
+              "note": "冰屬性，一次最多打 6 隻並把怪冰住；1～10 級冰 1 秒"
+            },
+            {
+              "skillId": 3211006,
+              "skillName": "四連箭",
+              "to": 20,
+              "note": "主攻招，一次射 4 箭打一隻；也可以先點到 15"
+            },
+            {
+              "skillId": 3211003,
+              "skillName": "寒冰箭",
+              "to": 11,
+              "note": "11 級起冰 2 秒"
+            },
+            {
+              "skillId": 3211002,
+              "skillName": "替身術",
+              "to": 1,
+              "note": "放出替身，怪會改打替身"
+            },
+            {
+              "skillId": 3211006,
+              "skillName": "四連箭",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 3211003,
+              "skillName": "寒冰箭",
+              "to": 21,
+              "note": "21 級起冰 3 秒，練功最穩"
+            },
+            {
+              "skillId": 3211002,
+              "skillName": "替身術",
+              "to": 6,
+              "note": "6 級替身撐 20 秒"
+            },
+            {
+              "skillId": 3210001,
+              "skillName": "致命箭",
+              "to": 5,
+              "note": "升龍弩的前置"
+            },
+            {
+              "skillId": 3211004,
+              "skillName": "升龍弩",
+              "to": 10,
+              "note": "從地面射出箭，一次最多打 6 隻"
+            },
+            {
+              "skillId": 3211005,
+              "skillName": "金鷹召喚",
+              "to": 1,
+              "note": "召喚金鷹在身邊幫忙打（要召喚石）"
+            },
+            {
+              "skillId": 3211004,
+              "skillName": "升龍弩",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 3211002,
+              "skillName": "替身術",
+              "to": 20,
+              "note": "點滿替身撐 60 秒"
+            },
+            {
+              "skillId": 3211005,
+              "skillName": "金鷹召喚",
+              "to": 30,
+              "note": "剩 15 點各人不同：疾風步、致命箭，或把寒冰箭補滿"
+            }
+          ]
+        },
+        {
+          "label": "舊版：四連箭滿了先點升龍弩（巴哈姆特 2008）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12533&sn=3264"
+          ],
+          "steps": [
+            {
+              "skillId": 3211003,
+              "skillName": "寒冰箭",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 3211006,
+              "skillName": "四連箭",
+              "to": 30,
+              "note": "主攻招，一次射 4 箭打一隻"
+            },
+            {
+              "skillId": 3210001,
+              "skillName": "致命箭",
+              "to": 5,
+              "note": "升龍弩的前置"
+            },
+            {
+              "skillId": 3211004,
+              "skillName": "升龍弩",
+              "to": 30,
+              "note": "從地面射出箭，一次最多打 6 隻"
+            },
+            {
+              "skillId": 3211003,
+              "skillName": "寒冰箭",
+              "to": 21,
+              "note": "21 級起冰 3 秒"
+            },
+            {
+              "skillId": 3211002,
+              "skillName": "替身術",
+              "to": 5,
+              "note": "金鷹召喚的前置"
+            },
+            {
+              "skillId": 3211005,
+              "skillName": "金鷹召喚",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 3211002,
+              "skillName": "替身術",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 3210001,
+              "skillName": "致命箭",
+              "to": 20,
+              "note": "怪貼太近也有機率照樣射箭（點滿 90%）"
+            },
+            {
+              "skillId": 3210000,
+              "skillName": "疾風步",
+              "to": 10,
+              "note": "移動速度 +20"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
     },
     {
       "jobId": 400,
@@ -4915,6 +5220,173 @@
       ]
     },
     {
+      "jobId": 411,
+      "name": "暗殺者",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：影分身先滿，再點風魔手裏劍（巴哈姆特 2006）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12553&sn=1343"
+          ],
+          "steps": [
+            {
+              "skillId": 4111002,
+              "skillName": "影分身",
+              "to": 21,
+              "note": "召喚影子跟著一起攻擊（要召喚石）；21 級起一次撐 3 分鐘，先點到這裡"
+            },
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 5,
+              "note": "二段跳的前置"
+            },
+            {
+              "skillId": 4111006,
+              "skillName": "二段跳",
+              "to": 1,
+              "note": "跳到空中再按一次，往前多跳一段"
+            },
+            {
+              "skillId": 4111002,
+              "skillName": "影分身",
+              "to": 30,
+              "note": "點滿影子的普攻是自己的 80%"
+            },
+            {
+              "skillId": 4111006,
+              "skillName": "二段跳",
+              "to": 8,
+              "note": "先點二段跳再點風魔：等級越高越省魔，也跳得過大隻的怪"
+            },
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 30,
+              "note": "大飛鏢會穿過怪打到後面，點滿一次最多 6 隻（每次用 3 個飛鏢）"
+            },
+            {
+              "skillId": 4110000,
+              "skillName": "藥劑精通",
+              "to": 20,
+              "note": "藥水補得更多、狀態藥水撐更久，點滿 1.5 倍"
+            },
+            {
+              "skillId": 4111006,
+              "skillName": "二段跳",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 4111001,
+              "skillName": "幸運術",
+              "to": 20,
+              "note": "全隊打怪掉的楓幣變多，點滿多 50%、持續 120 秒"
+            },
+            {
+              "skillId": 4111003,
+              "skillName": "影網術",
+              "to": 20,
+              "note": "把最多 6 隻怪定住，點滿 80% 成功、8 秒；剩 11 點隨喜好，補一、二轉技能或點楓幣攻擊"
+            }
+          ]
+        },
+        {
+          "label": "舊版：影分身先滿，藥劑精通、幸運術比風魔手裏劍早（巴哈姆特 2007）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12552&sn=958"
+          ],
+          "steps": [
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 4111002,
+              "skillName": "影分身",
+              "to": 21,
+              "note": "21 級起一次撐 3 分鐘，77 級就能一直開著"
+            },
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 5,
+              "note": "二段跳的前置"
+            },
+            {
+              "skillId": 4111006,
+              "skillName": "二段跳",
+              "to": 4,
+              "note": ""
+            },
+            {
+              "skillId": 4111002,
+              "skillName": "影分身",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 4111006,
+              "skillName": "二段跳",
+              "to": 16,
+              "note": "點到 16 就停：跟 20 差不多遠，省下 4 點給藥劑、幸運"
+            },
+            {
+              "skillId": 4110000,
+              "skillName": "藥劑精通",
+              "to": 10,
+              "note": "藥水補得更多，10 級是 1.3 倍"
+            },
+            {
+              "skillId": 4111001,
+              "skillName": "幸運術",
+              "to": 15,
+              "note": ""
+            },
+            {
+              "skillId": 4110000,
+              "skillName": "藥劑精通",
+              "to": 16,
+              "note": "這段跟幸運術一起點：每升一級藥劑 2 點、幸運 1 點，到藥劑 16、幸運 18"
+            },
+            {
+              "skillId": 4111001,
+              "skillName": "幸運術",
+              "to": 20,
+              "note": "點滿持續 120 秒、楓幣多 50%"
+            },
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 25,
+              "note": "這套主要拿它引怪；25 級就能打 6 隻，跟點滿差不多"
+            },
+            {
+              "skillId": 4111003,
+              "skillName": "影網術",
+              "to": 16,
+              "note": "16 級定住 8 秒、成功率 72%"
+            },
+            {
+              "skillId": 4111004,
+              "skillName": "楓幣攻擊",
+              "to": 28,
+              "note": "丟楓幣攻擊；28 級起有 10% 機率傷害多 50%，跟點滿一樣"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
+    },
+    {
       "jobId": 420,
       "name": "俠盜",
       "statBuild": [
@@ -5675,6 +6147,138 @@
           ]
         }
       ]
+    },
+    {
+      "jobId": 421,
+      "name": "神偷",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：第一點給落葉斬、分身術先滿（巴哈姆特 2007～2010）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12555&sn=5109",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12555&sn=2951"
+          ],
+          "steps": [
+            {
+              "skillId": 4211002,
+              "skillName": "落葉斬",
+              "to": 1,
+              "note": "第一點先給落葉斬：1 級攻擊不高，但可以拿來趕路"
+            },
+            {
+              "skillId": 4211001,
+              "skillName": "血魔轉換",
+              "to": 3,
+              "note": "楓幣護盾的前置"
+            },
+            {
+              "skillId": 4211005,
+              "skillName": "楓幣護盾",
+              "to": 1,
+              "note": "用楓幣擋下一半傷害；1 級跟點滿擋得一樣多，差在持續時間和花的楓幣；也有人先點到 3"
+            },
+            {
+              "skillId": 4211004,
+              "skillName": "分身術",
+              "to": 30,
+              "note": "範圍攻擊，一次最多打 6 隻，怪多的地方清得快"
+            },
+            {
+              "skillId": 4211002,
+              "skillName": "落葉斬",
+              "to": 30,
+              "note": "單體攻擊，有機率把怪打暈，點滿攻擊 450%"
+            },
+            {
+              "skillId": 4211006,
+              "skillName": "楓幣炸彈",
+              "to": 3,
+              "note": "勇者掠奪術的前置"
+            },
+            {
+              "skillId": 4211003,
+              "skillName": "勇者掠奪術",
+              "to": 20,
+              "note": "打怪時有機率讓怪掉楓幣，掉出來的楓幣可以再用楓幣炸彈引爆"
+            },
+            {
+              "skillId": 4211006,
+              "skillName": "楓幣炸彈",
+              "to": 30,
+              "note": "引爆地上的楓幣攻擊附近的怪，點滿一次引爆 20 包"
+            },
+            {
+              "skillId": 4211005,
+              "skillName": "楓幣護盾",
+              "to": 20,
+              "note": "點滿撐 120 秒、花的楓幣比較少"
+            },
+            {
+              "skillId": 4211001,
+              "skillName": "血魔轉換",
+              "to": 21,
+              "note": "剩下的點都給血魔轉換：HP 低於一半時用魔力補血；也有人改點強化盾"
+            }
+          ]
+        },
+        {
+          "label": "舊版：先點血魔轉換、楓幣護盾，分身術先滿（巴哈姆特 2008）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12555&sn=3567"
+          ],
+          "steps": [
+            {
+              "skillId": 4211001,
+              "skillName": "血魔轉換",
+              "to": 3,
+              "note": "楓幣護盾的前置"
+            },
+            {
+              "skillId": 4211005,
+              "skillName": "楓幣護盾",
+              "to": 1,
+              "note": "用楓幣擋下一半傷害，省藥水錢"
+            },
+            {
+              "skillId": 4211004,
+              "skillName": "分身術",
+              "to": 30,
+              "note": "範圍攻擊，一次最多打 6 隻"
+            },
+            {
+              "skillId": 4211005,
+              "skillName": "楓幣護盾",
+              "to": 20,
+              "note": "點越高越省楓幣、撐越久（點滿 120 秒）"
+            },
+            {
+              "skillId": 4211002,
+              "skillName": "落葉斬",
+              "to": 30,
+              "note": "衝到怪面前砍一刀，有機率打暈；有怪的時候也能拿來飛越平台趕路"
+            },
+            {
+              "skillId": 4211006,
+              "skillName": "楓幣炸彈",
+              "to": 30,
+              "note": "引爆地上的楓幣攻擊附近的怪，點滿一次引爆 20 包"
+            },
+            {
+              "skillId": 4211003,
+              "skillName": "勇者掠奪術",
+              "to": 20,
+              "note": "打怪時有機率讓怪掉楓幣；剩 18 點給強化盾 18，或把血魔轉換補到 20"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
     }
   ],
   "notOpenYet": [
