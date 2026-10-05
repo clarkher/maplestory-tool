@@ -183,7 +183,8 @@ export function boatNote(start: number, reach: Set<number>, island: boolean): Bo
  * /go 路線上面的提示：
  * - "island"：還在楓之島的話，要先搭船到維多利亞港，再照下面的路線走
  * - "port"：還在楓之島的話，搭船就會到維多利亞港（目的地就是維多利亞港）
- * - "region"：起點跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去
+ * - "region"：起點跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去；
+ *   先問起點時（沒有起點）講的是目的地（黃金海灘本身）
  */
 export type GoNote = "island" | "port" | "region";
 
@@ -203,6 +204,8 @@ export function goNoteText(note: GoNote, from: string): string {
  *   目的地就是維多利亞港時只說搭船就會到（不給「你已經在目的地了」，先問在哪個城鎮）；
  *   維多利亞港走不到（黃金海灘那邊）就照最近的城鎮出發，島上跟跨區兩句都說
  * - 其他照 defaultStart（最近的城鎮；目的地是城鎮時用記住的起點，不然先問），起點跟維多利亞島沒有傳送門才說跨區
+ * - 先問起點、目的地又是維多利亞島的城鎮都走不到的（黃金海灘本身，問了也沒有城鎮按鈕）：問句上面說目的地那段要自己搭船或搭車，
+ *   初心者先加島上那句（round 3 最後一輪）
  */
 export function goStart(args: {
   target: number;
@@ -221,14 +224,18 @@ export function goStart(args: {
 }): { choice: StartChoice; notes: GoNote[] } {
   const { target, picked, suggested, remembered, novice, reaches, reach } = args;
   const region = (start: number): GoNote[] => (boatNote(start, reach, false) === "region" ? ["region"] : []);
+  // 先問起點時：目的地本身跟維多利亞島之間沒有傳送門，跨區那句講目的地
+  const askNotes = (lead: GoNote[]): GoNote[] => (isIslandMap(target) || reach.has(target) ? [] : [...lead, "region"]);
   if (picked !== null) return { choice: { kind: "start", map: picked }, notes: region(picked) };
   if (novice && !isIslandMap(target)) {
     if (target === VICTORIA_PORT) return { choice: defaultStart(target, suggested, null, reaches), notes: ["port"] };
     if (reaches(VICTORIA_PORT)) return { choice: { kind: "start", map: VICTORIA_PORT }, notes: ["island"] };
     const choice = defaultStart(target, suggested, null, reaches);
+    if (choice.kind === "ask") return { choice, notes: askNotes(["island"]) };
     return { choice, notes: choice.kind === "start" ? ["island", ...region(choice.map)] : [] };
   }
   const choice = defaultStart(target, suggested, remembered, reaches);
+  if (choice.kind === "ask") return { choice, notes: askNotes([]) };
   return { choice, notes: choice.kind === "start" ? region(choice.map) : [] };
 }
 

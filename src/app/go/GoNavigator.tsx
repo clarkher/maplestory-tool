@@ -82,6 +82,11 @@ export function GoNavigator() {
   const choice = decided?.choice ?? null;
   const notes = decided?.notes ?? [];
   const start = choice?.kind === "start" ? choice.map : null;
+  // 問起點時的城鎮捷徑：維多利亞島的主要城鎮先排、走得到目的地的才給（目的地本身、跟它同名的不給）
+  const askTowns = useMemo(
+    () => (choice?.kind === "ask" && maps && graph && target ? townChips(maps, graph, target, { first: MAIN_TOWNS, exceptTarget: true }) : []),
+    [choice, maps, graph, target],
+  );
 
   const plan = useMemo(() => {
     if (!graph || !target || !start) return null;
@@ -154,17 +159,16 @@ export function GoNavigator() {
             <EmptyBlock title="先選一個目的地" hint="或從練功、任務、打寶的結果直接按「帶我去」。" />
           ) : choice?.kind === "ask" ? (
             <section className="space-y-3">
-              <GoNotes notes={notes} from="" />
-              {/* 城鎮捷徑：維多利亞島的主要城鎮先排、走得到目的地的才給；按了就是自己選的起點（記下來、不再提島上的事） */}
-              <div className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-6 text-center">
-                <p className="font-bold">你現在在哪個城鎮？選好就幫你排路線。</p>
-                <TownChips
-                  towns={townChips(maps!, graph!, target, { first: MAIN_TOWNS, exceptTarget: true })}
-                  maps={maps!}
-                  onPick={pickStart}
-                  className="mt-3 justify-center"
-                />
-              </div>
+              {/* 跨區那句這時講的是目的地（黃金海灘本身跟維多利亞島之間沒有傳送門） */}
+              <GoNotes notes={notes} from={mapName(maps!, target)} />
+              {/* 城鎮捷徑：按了就是自己選的起點（記下來、不再提島上的事）。一顆都給不出來、上面又已經說了怎麼過去時，
+                  不放空的問句（上面的「從哪裡出發」照樣可以自己選） */}
+              {askTowns.length || !notes.length ? (
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-6 text-center">
+                  <p className="font-bold">你現在在哪個城鎮？選好就幫你排路線。</p>
+                  <TownChips towns={askTowns} maps={maps!} onPick={pickStart} className="mt-3 justify-center" />
+                </div>
+              ) : null}
             </section>
           ) : !start ? (
             <EmptyBlock

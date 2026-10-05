@@ -102,8 +102,9 @@ describe("帶我去：還可能在楓之島的初心者（round 3 B）", () => {
     expect(run(BEACH_FIELD, FLORINA)).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["island", "region"] });
   });
 
-  it("維多利亞港走不到、目的地自己就是那邊的城鎮：先問，不說要照下面的路線走", () => {
-    expect(run(FLORINA, FLORINA)).toEqual({ choice: { kind: "ask" }, notes: [] });
+  it("沒有維多利亞島的城鎮走得到、目的地自己就是那邊的城鎮（黃金海灘）：先問，問句上面放島上那句再放跨區那句（跨區那句講目的地）", () => {
+    expect(run(FLORINA, FLORINA)).toEqual({ choice: { kind: "ask" }, notes: ["island", "region"] });
+    expect(run(FLORINA, FLORINA, { novice: false })).toEqual({ choice: { kind: "ask" }, notes: ["region"] });
   });
 
   it("在這頁自己選了起點：照用，不說島上的事；選的起點跟維多利亞島之間沒有傳送門時照樣說跨區", () => {
