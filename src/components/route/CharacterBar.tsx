@@ -57,10 +57,16 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
     onChange({ ...profile, level: next });
   }
 
-  /** 選的職業等級不夠時，直接把等級調到它的最低等級並說一聲 */
+  /**
+   * 選的職業等級不夠時，直接把等級調到它的最低等級並說一聲。
+   * 輸入框裡被原本職業擋下的等級（狂戰士狀態下打的 25）一起重新驗：新職業允許就套用，
+   * 不允許就把輸入框改回實際等級——輸入框跟標題不會對不起來。
+   */
   function pickJob(id: number) {
-    const { next, note } = profileWithJob(profile, id);
+    const typed = Number(levelText.replace(/[^0-9]/g, ""));
+    const { next, note } = profileWithJob(profile, id, typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined);
     setHint(note);
+    setLevelText(next.level ? String(next.level) : "");
     onChange(next);
   }
 

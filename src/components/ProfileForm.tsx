@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { JOB_LINES, levelHint, normalizeJob, profileWithJob } from "@/lib/jobs";
+import { JOB_LINES, levelHint, minLevelFor, normalizeJob, profileWithJob } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
 
@@ -58,7 +58,7 @@ export function ProfileForm({
             inputMode="numeric"
             pattern="[0-9]*"
             value={levelText}
-            placeholder={`1–${LEVEL_CAP}`}
+            placeholder={`${minLevelFor(normalizeJob(profile.job))}–${LEVEL_CAP}`}
             onChange={event => {
               setLevelText(event.target.value);
               commitLevel(event.target.value);
@@ -81,8 +81,11 @@ export function ProfileForm({
           <select
             value={normalizeJob(profile.job)}
             onChange={event => {
-              const { next, note } = profileWithJob(profile, Number(event.target.value));
+              // 輸入框裡被擋下的等級換職業時重新驗（跟首頁角色列同一套），輸入框跟著實際等級走
+              const typed = Number(levelText.replace(/[^0-9]/g, ""));
+              const { next, note } = profileWithJob(profile, Number(event.target.value), typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined);
               setHint(note);
+              setLevelText(next.level ? String(next.level) : "");
               onChange(next);
             }}
             className="tap-safe w-full rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 py-2.5 text-base outline-none transition-colors focus:border-[color:var(--maple)]"

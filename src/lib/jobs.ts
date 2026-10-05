@@ -86,8 +86,19 @@ export function consistentJob(job: number, level: number): number {
   return job;
 }
 
-/** 選了某個職業後的角色資料：等級不夠就調到該職業最低等級，並回傳要給玩家看的提示（沒調就是 null） */
-export function profileWithJob(profile: { level: number; job: number }, job: number): { next: { level: number; job: number }; note: string | null } {
+/**
+ * 選了某個職業後的角色資料：等級不夠就調到該職業最低等級，並回傳要給玩家看的提示（沒調就是 null）。
+ * typed 是輸入框裡打了、但被原本職業擋下的等級（狂戰士狀態下打 25）：新職業允許就直接套用；
+ * 不允許就照舊。呼叫端把輸入框改成回傳的 next.level，輸入框跟標題就不會對不起來。
+ */
+export function profileWithJob(
+  profile: { level: number; job: number },
+  job: number,
+  typed?: number,
+): { next: { level: number; job: number }; note: string | null } {
+  if (typed !== undefined && typed > 0 && typed !== profile.level && levelHint(job, typed) === null) {
+    return { next: { job, level: typed }, note: null };
+  }
   const need = minLevelFor(job);
   const name = job === 0 ? "初心者" : jobOption(job)?.name ?? "這個職業";
   if (profile.level > 0 && profile.level < need) return { next: { job, level: need }, note: `${name} ${need} 等起，等級改成 ${need}` };

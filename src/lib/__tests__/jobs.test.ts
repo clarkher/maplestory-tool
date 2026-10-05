@@ -74,6 +74,15 @@ describe("職業的最低等級", () => {
     expect(profileWithJob({ level: 0, job: -1 }, 110)).toEqual({ next: { job: 110, level: 0 }, note: null });
   });
 
+  it("選職業時，輸入框裡被擋下的等級重新驗：新職業允許就套用，不允許照舊（輸入框跟著改回實際等級）", () => {
+    // 狂戰士 Lv.30 打 25 被擋 → 改點劍士：25 可以，套用
+    expect(profileWithJob({ level: 30, job: 110 }, 100, 25)).toEqual({ next: { job: 100, level: 25 }, note: null });
+    // 改點見習騎士：25 還是不行，等級留在 30
+    expect(profileWithJob({ level: 30, job: 110 }, 120, 25)).toEqual({ next: { job: 120, level: 30 }, note: null });
+    // 輸入框就是現在的等級時照舊
+    expect(profileWithJob({ level: 25, job: 100 }, 110, 25)).toEqual({ next: { job: 110, level: 30 }, note: "狂戰士 30 等起，等級改成 30" });
+  });
+
   it("打的等級太低時給提示", () => {
     expect(levelHint(110, 25)).toBe("狂戰士至少 30 等");
     expect(levelHint(110, 30)).toBeNull();
