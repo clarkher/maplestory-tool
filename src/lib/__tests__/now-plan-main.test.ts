@@ -345,6 +345,35 @@ describe("主推大卡：能練的最高圖、過期攻略、封頂", () => {
     expect(pickNear.option.boat).toBe(false);
   });
 
+  it("備案不比你高超過 5 級（法師 8 不會看到 Lv.15 的圖當「有隊友」）；都太高就不給備案", () => {
+    const low = 300000020;
+    const mid = 300000021;
+    const top = 300000022;
+    const guide = guideWith([
+      segment({ map: low, name: "低等圖", from: 8, to: 15 }),
+      segment({ map: mid, name: "中等圖", from: 8, to: 15, kind: "party" }),
+    ]);
+    const spots = [{ id: low, lv: 9, eff: 100 }, { id: mid, lv: 15, eff: 100 }, { id: top, lv: 20, eff: 100 }];
+    const at8 = mainPick({ ...world(spots), level: 8, job: 200, guide });
+    if (at8?.kind !== "map") throw new Error("應該是練功圖");
+    expect(at8.option.map).toBe(low);
+    expect(at8.alt).toBeUndefined();
+    const at10 = mainPick({ ...world(spots), level: 10, job: 200, guide });
+    if (at10?.kind !== "map") throw new Error("應該是練功圖");
+    expect(at10.alt?.map).toBe(mid);
+  });
+
+  it("組隊任務卡的備案也一樣不比你高超過 5 級", () => {
+    const high = 300000023;
+    const top = 300000024;
+    const moon: GuidePq = { key: "moon", name: "月妙組隊任務", entrance: TOWN, guide: "/guide", byJob: { 100: [13, 20] } };
+    const guide = guideWith([segment({ map: high, name: "高等圖", from: 13, to: 20 })]);
+    const pick = mainPick({ ...world([{ id: high, lv: 21, eff: 100 }, { id: top, lv: 30, eff: 100 }]), common: commonWith([moon]), level: 15, job: 100, guide });
+    expect(pick).toMatchObject({ kind: "pq" });
+    if (pick?.kind !== "pq") return;
+    expect(pick.alt).toBeUndefined();
+  });
+
   it("同一張圖不會同時是主推跟備案（攻略同一張圖寫了單人跟組隊兩段）", () => {
     const croc = 300000017;
     const other = 300000018;

@@ -159,6 +159,14 @@ describe("真資料：首頁每個組合", () => {
     expectNone("封頂提示比卡上的怪低", bad);
   });
 
+  it("備案（人多時／有隊友）不比玩家高超過 5 級", () => {
+    const bad = combos.flatMap(combo => {
+      const alt = combo.pick && combo.pick.kind !== "advance" ? combo.pick.alt : undefined;
+      return alt && (alt.level === undefined || alt.level > combo.level + 5) ? [`${combo.tag}：${alt.title} Lv.${alt.level}`] : [];
+    });
+    expectNone("備案比玩家高超過 5 級", bad);
+  });
+
   it("長線沒有實際等級比玩家高的任務", () => {
     const bad = combos.flatMap(combo => combo.longRun.flatMap(entry =>
       entry.quests

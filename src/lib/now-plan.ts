@@ -746,7 +746,9 @@ export function mainPick(args: {
   for (const option of ordered) {
     if (!options.some(existing => existing.map === option.map)) options.push(option);
   }
-  const altPool = (list: TrainOption[]) => list.filter(option => capFirst || capRow === undefined || option.map !== capRow.m);
+  // 備案（人多時／有隊友）不比你高超過 5 級（跟能練的最高圖同一個門檻，法師 8 不會看到 Lv.15 的圖）；都太高就不給備案。
+  // 太高的能練的最高圖也因此不會變成備案
+  const altPool = (list: TrainOption[]) => list.filter(option => option.level !== undefined && option.level <= level + CAP_REACH);
 
   const pq = pqFor(common, job, level);
   if (pq) {
