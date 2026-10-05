@@ -122,6 +122,20 @@ function recExpired(rec: GuideMustDo | undefined, level: number): boolean {
   return upper !== undefined && level > upper + 5 && !rec?.reward?.permanent;
 }
 
+/** 先解「留下」的門檻：用現在等級換算，經驗約幾級 */
+const WORTH_LEVELS = 0.25;
+/** 玩家推薦的任務，經驗到這麼多級就留下 */
+const WORTH_LEVELS_RECOMMENDED = 0.08;
+
+/**
+ * 值不值得列（先解與長線同一條規則）：有關鍵獎勵；經驗 ≥ 0.25 級；玩家推薦且經驗 ≥ 0.08 級。
+ * recs 是這一列涵蓋的任務各自的攻略推薦（沒有推薦就是 undefined）。
+ */
+function worthListing(fraction: number, recs: Array<GuideMustDo | undefined>): boolean {
+  const found = recs.filter((rec): rec is GuideMustDo => Boolean(rec));
+  return found.some(rec => Boolean(rec.reward?.label)) || fraction >= WORTH_LEVELS || (found.length > 0 && fraction >= WORTH_LEVELS_RECOMMENDED);
+}
+
 function isLongKill(quest: Quest, min = LONG_RUN_MIN): boolean {
   return (quest.needMobs ?? []).some(mob => (mob.c ?? 0) >= min);
 }
@@ -184,7 +198,7 @@ export function nowQuests(args: {
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
     const fraction = levelFraction(exp, level, toNext);
     const reward = rec?.reward?.label;
-    if (!reward && fraction < 0.25 && !(rec && fraction >= 0.08)) continue;
+    if (!worthListing(fraction, [rec])) continue;
     const positions = parts.map(quest => line.indexOf(quest) + 1);
     const title = rec
       ? rec.name.replace(/（[^（）]*）\s*$/, "")
@@ -233,7 +247,8 @@ export type LongRunTask = { kind: "item" | "kill"; id: number; n: string; c: num
 
 /**
  * 首頁的長線：先解候選裡要打／收 200 以上的那些，所以跟先解用同一套「現在接得到」——
- * 職業、等級上下限、實際等級 ≤ 現在等級、起始 NPC 在開放地圖、不是組隊任務、攻略建議等級沒過期。
+ * 職業、等級上下限、實際等級 ≤ 現在等級、起始 NPC 在開放地圖、不是組隊任務、攻略建議等級沒過期；
+ * 也用同一條值不值得的門檻（有關鍵獎勵、經驗 ≥ 0.25 級、玩家推薦且 ≥ 0.08 級），Lv.82 不會再看到石面怪人 ×300。
  * 還在楓之島的不列（島上沒有長線任務，離島後回不去）。
  */
 export function longRunNow(args: {
@@ -256,7 +271,9 @@ export function longRunNow(args: {
     && questEligible(quest, { level, job: stage }, lineage)
     && (effective.get(quest.id) ?? quest.minLv ?? 0) <= level
     && !recExpired(recs.get(quest.id), level));
-  return longRunTasks(candidates, monsters);
+  const toNext = common.expTable.toNext;
+  return longRunTasks(candidates, monsters)
+    .filter(entry => worthListing(levelFraction(entry.exp, level, toNext), entry.quests.map(id => recs.get(id))));
 }
 
 /** 長線：同一道具累計 200 個以上（例：詛咒娃娃）；單一任務同一隻怪要打 200 隻以上（例：告示牌 999 隻） */

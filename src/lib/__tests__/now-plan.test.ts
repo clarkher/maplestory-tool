@@ -189,7 +189,7 @@ describe("長線跟先解用同一批候選", () => {
   };
 
   it("實際等級比玩家高的 999 隻任務不列（刺菇菇 Lv.25，實際等級 20，Lv.12 不列、Lv.20 才列）", () => {
-    const quests = [quest("k999", { minLv: 10, exp: 3000, needMobs: [{ id: 9, n: "刺菇菇", c: 999 }] })];
+    const quests = [quest("k999", { minLv: 10, exp: 30000, needMobs: [{ id: 9, n: "刺菇菇", c: 999 }] })];
     expect(longRunNow(args(12, 110, quests))).toEqual([]);
     expect(longRunNow(args(20, 110, quests)).map(entry => entry.n)).toEqual(["刺菇菇"]);
   });
@@ -199,6 +199,28 @@ describe("長線跟先解用同一批候選", () => {
     const mustDo = [rec("dolls", "35–45")];
     expect(longRunNow(args(40, 230, quests, mustDo)).map(entry => entry.n)).toEqual(["詛咒娃娃"]);
     expect(longRunNow(args(82, 230, quests, mustDo))).toEqual([]);
+  });
+
+  it("跟先解同一條值不值得的門檻：經驗不到 0.25 級、沒有攻略推薦也沒有關鍵獎勵的不列（石面怪人 ×300）", () => {
+    const quests = [
+      quest("stone", { minLv: 20, exp: 1000, needMobs: [{ id: 9, n: "石面怪人", c: 300 }] }),
+      quest("big", { minLv: 20, exp: 30000, needMobs: [{ id: 3, n: "木面怪人", c: 200 }] }),
+    ];
+    expect(longRunNow(args(82, 230, quests)).map(entry => entry.n)).toEqual(["木面怪人"]);
+  });
+
+  it("有關鍵獎勵的不管經驗多少都列；有攻略推薦的到 0.08 級就列", () => {
+    const quests = [
+      quest("dolls", { minLv: 35, exp: 1000, needItems: [{ id: 500, n: "詛咒娃娃", c: 2300 }] }),
+      quest("rec", { minLv: 35, exp: 9000, needMobs: [{ id: 9, n: "風獨眼獸", c: 999 }] }),
+      quest("low", { minLv: 35, exp: 5000, needMobs: [{ id: 3, n: "木面怪人", c: 300 }] }),
+    ];
+    const mustDo = [
+      rec("dolls", "35+", { reward: { label: "隨機寶石", items: [] } }),
+      rec("rec", "35+"),
+      rec("low", "35+"),
+    ];
+    expect(longRunNow(args(40, 230, quests, mustDo)).map(entry => entry.n)).toEqual(["詛咒娃娃", "風獨眼獸"]);
   });
 
   it("還在楓之島（初心者 10 等前）不列", () => {
