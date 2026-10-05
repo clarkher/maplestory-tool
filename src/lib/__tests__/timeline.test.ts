@@ -126,6 +126,72 @@ describe("你在這一段＝主推卡", () => {
     expect(labels[activeIndex]).toBe("轉職");
   });
 
+  it("主推是組隊任務、這段的段落比卡上窄：第一列寫卡上的範圍（劍士 18：卡 Lv.13–30，列不能寫 13–20），理由用那個組隊任務的段落", () => {
+    const warrior = guide(100, [
+      segment({ from: 13, to: 20, kind: "party", map: null, name: "月妙組隊任務（邱比特公園）", pq: "moon", why: "13~20 走月妙" }),
+      segment({ from: 15, to: 20, map: SWAMP, name: "沼澤地" }),
+    ]);
+    const wide: GuidePq = { ...moon, byJob: { 100: [13, 30] } };
+    const pick: MainPick = { kind: "pq", pq: wide, window: [13, 30], job: 100 };
+    const { activeIndex, plans } = timelinePlans(input({ job: 100, level: 18, guides: new Map([[100, warrior]]), pqs: [wide, kerning], pick }));
+    expect(plans[activeIndex].rows[0]).toMatchObject({ title: "月妙組隊任務", from: 13, to: 30, party: true, source: "guide", why: "13~20 走月妙", go: CUPID });
+  });
+
+  it("主推是某張圖的單人段落、同一張圖還有涵蓋你等級的組隊段落：第一列照主推那段寫（範圍、單人、理由）", () => {
+    const solo = segment({ from: 47, to: 55, map: SWAMP, name: "沼澤地（單練）", why: "單練" });
+    const berserker = guide(110, [segment({ from: 52, to: 65, kind: "party", map: SWAMP, name: "沼澤地（6 人團）", why: "組隊" }), solo]);
+    const pick: MainPick = { kind: "map", option: option({ map: SWAMP, title: "沼澤地Ⅲ", source: "guide", guide: solo, party: false, mobs: [[4, 30]] }) };
+    const { activeIndex, plans } = timelinePlans(input({ job: 110, level: 52, guides: new Map([[110, berserker]]), pick }));
+    expect(plans[activeIndex].rows[0]).toMatchObject({ map: SWAMP, from: 47, to: 55, party: false, source: "guide", why: "單練" });
+    expect(plans[activeIndex].rows.filter(entry => entry.map === SWAMP)).toHaveLength(1);
+  });
+
+  it("主推是遊戲資料的圖、這段的攻略也寫了同一張圖（後面幾級才用）：第一列照遊戲資料寫，不掛攻略的範圍、組隊、理由", () => {
+    const brawler = guide(510, [
+      segment({ from: 57, to: 70, kind: "party", map: GIANT, name: "巨人之林（3 人團）", why: "團練" }),
+      segment({ from: 52, to: 57, map: SWAMP, name: "沼澤地" }),
+    ]);
+    const pick: MainPick = { kind: "map", option: option({ map: GIANT, title: "巨人之林", source: "data", mobs: [[1, 30]], row: row(GIANT, 75, 1, 30) }) };
+    const { activeIndex, plans } = timelinePlans(input({ job: 510, level: 55, guides: new Map([[510, brawler]]), pick }));
+    const first = plans[activeIndex].rows[0];
+    expect(first).toMatchObject({ map: GIANT, source: "data", party: false, exp1: 3000 });
+    expect(first.from).toBeUndefined();
+    expect(first.why).toBeUndefined();
+    expect(plans[activeIndex].usable).toBe(1);
+  });
+
+  it("主推的組隊任務不在這段的攻略清單裡（只重疊一級）：還是算攻略列——不說「這段還沒有玩家攻略」、不放遊戲資料替代，理由照那段攻略", () => {
+    const warrior = guide(100, [segment({ from: 25, to: 30, kind: "party", map: null, name: "超級綠水靈組隊任務", pq: "kerning", why: "超綠" })]);
+    const pick: MainPick = { kind: "pq", pq: { ...kerning, byJob: { 100: [25, 30] } }, window: [25, 30], job: 100 };
+    const { activeIndex, plans } = timelinePlans(input({ job: 100, level: 30, guides: new Map([[100, warrior]]), pick }));
+    const plan = plans[activeIndex];
+    expect(plan.rows[0]).toMatchObject({ title: "超級綠水靈組隊任務", from: 25, to: 30, source: "guide", why: "超綠" });
+    expect(plan.usable).toBe(1);
+    expect(plan.blocked).toBe(false);
+    expect(plan.fallback).toEqual([]);
+  });
+
+  it("這段的攻略圖全被職業規則擋掉、但主推是組隊任務：不說「攻略圖不適合你的職業（見上）」", () => {
+    const fire = guide(210, [segment({ from: 30, to: 42, map: FIRE, name: "火焰之地Ⅱ" })]);
+    const mage = guide(200, [segment({ from: 21, to: 30, kind: "party", map: null, name: "超級綠水靈組隊任務", pq: "kerning" })]);
+    const pick: MainPick = { kind: "pq", pq: { ...kerning, byJob: { 200: [21, 30] } }, window: [21, 30], job: 200 };
+    const { activeIndex, plans } = timelinePlans(input({ job: 210, level: 30, guides: new Map([[200, mage], [210, fire]]), pick }));
+    const plan = plans[activeIndex];
+    expect(plan.rows.map(entry => [entry.title, entry.warn])).toEqual([["超級綠水靈組隊任務", undefined], ["火焰之地Ⅱ", "怪抗火，火焰箭傷害打折"]]);
+    expect(plan.blocked).toBe(false);
+    expect(plan.usable).toBe(1);
+  });
+
+  it("主推是遊戲資料的圖、這段的攻略圖全被擋：照舊說「不適合你的職業（見上）」", () => {
+    const fire = guide(210, [segment({ from: 40, to: 50, map: FIRE, name: "火焰之地Ⅱ" })]);
+    const pick: MainPick = { kind: "map", option: option({ map: SWAMP, title: "沼澤地Ⅲ", source: "data", mobs: [[4, 30]] }) };
+    const { activeIndex, plans } = timelinePlans(input({ job: 210, level: 45, bands: bandsFor(210), guides: new Map([[210, fire]]), pick }));
+    const plan = plans[activeIndex];
+    expect(plan.rows.map(entry => entry.map)).toEqual([SWAMP, FIRE]);
+    expect(plan.usable).toBe(0);
+    expect(plan.blocked).toBe(true);
+  });
+
   it("主推卡的標題就是 pickTitle", () => {
     expect(pickTitle({ kind: "advance", instructors: [] })).toBe("轉職");
     expect(pickTitle({ kind: "pq", pq: moon, window: [13, 25], job: 500 })).toBe("月妙組隊任務");

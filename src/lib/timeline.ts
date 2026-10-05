@@ -39,11 +39,11 @@ export type BandPlan = {
   band: Band;
   stage: number;
   guide?: GuideJob;
-  /** 攻略那幾列（你在的這段，主推卡那張圖排第一） */
+  /** 攻略那幾列（你在的這段，第一列是主推卡本身，可能是遊戲資料的圖） */
   rows: TrainRow[];
-  /** 攻略列裡職業能用的有幾列 */
+  /** 攻略列裡職業能用的有幾列（含主推那列，它是攻略時） */
   usable: number;
-  /** 這段有攻略段落，但全被職業規則擋掉 */
+  /** 列出來的攻略列全被職業規則擋掉（主推那列是攻略時不算被擋） */
   blocked: boolean;
   /** 沒有能用的攻略時，遊戲資料推算的替代（不含王圖、楓之島、已經列在上面的圖） */
   fallback: TrainRow[];
@@ -139,40 +139,15 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
     };
   };
   let rows = segmentsToShow(groups, blockedGroup, SHOWN_USABLE).map(toRow);
-  const usable = rows.filter(entry => !entry.warn).length;
 
-  // 你在的這段：主推卡那張圖（或組隊任務）排第一列；清單裡沒有就照主推卡補一列
+  // 你在的這段：第一列就是主推卡本身——同一張圖／組隊任務，用主推依據的那段（範圍、組隊、理由、來源），
+  // 不拿這段自己的段落重組（劍士 18 卡寫 Lv.13–30，列不能寫 13–20；卡是單人，列不能挑同一張圖的組隊段落）
   if (active && pick && pick.kind !== "advance") {
-    const key = pick.kind === "pq" ? `pq:${pick.pq.key}` : `map:${pick.option.map}`;
-    const listed = groups.find(entry => entry.key === key);
-    let first: TrainRow;
-    if (listed) {
-      first = toRow(listed);
-    } else if (pick.kind === "pq") {
-      first = {
-        key, title: pick.pq.name, map: pick.pq.entrance, from: pick.window[0], to: pick.window[1], party: true, pq: pick.pq, mobs: [], source: "guide",
-        go: goTo(pick.pq.entrance),
-      };
-    } else {
-      const { option } = pick;
-      first = {
-        key,
-        title: option.title,
-        map: option.map,
-        from: option.guide?.from,
-        to: option.guide?.to,
-        party: option.party,
-        mobs: option.mobs.map(([id]) => id),
-        why: option.guide?.why,
-        v: option.guide?.v,
-        s: option.guide?.s,
-        source: option.source,
-        exp1: option.row?.exp1,
-        go: goTo(option.map),
-      };
-    }
-    rows = [first, ...rows.filter(entry => entry.key !== key)];
+    const first = pickRow(pick, input.guides, level, goTo);
+    rows = [first, ...rows.filter(entry => entry.key !== first.key)];
   }
+  // 能用的攻略列（含上面主推那列）：有的話就不說「這段還沒有玩家攻略」，也不放遊戲資料替代
+  const usable = rows.filter(entry => entry.source === "guide" && !entry.warn).length;
 
   // 遊戲資料替代：沒有能用的攻略時才放；王圖（刷怪點 3 個以下）、楓之島、上面已經列的圖都不放
   const listedMaps = new Set(rows.map(entry => entry.map));
@@ -198,7 +173,56 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
         go: goTo(entry.row.m),
       }));
 
-  return { band, stage, guide, rows, usable, blocked: all.length > 0 && usable === 0, fallback };
+  // 被擋：列出來的攻略列全被職業規則擋掉（主推那列是攻略時不算被擋）
+  return { band, stage, guide, rows, usable, blocked: usable === 0 && rows.some(entry => entry.warn !== undefined), fallback };
+}
+
+/**
+ * 你在這一段的第一列＝主推卡本身。組隊任務：卡上的範圍（window），理由照寫這個範圍的攻略職業那段組隊段落
+ * （涵蓋你等級的那段，沒有就第一段）；練功圖：主推依據的攻略段落（範圍、組隊、理由），遊戲資料的圖就標遊戲資料、不掛攻略理由。
+ */
+function pickRow(
+  pick: Exclude<MainPick, { kind: "advance" }>,
+  guides: Map<number, GuideJob>,
+  level: number,
+  goTo: (map: number | null) => number | undefined,
+): TrainRow {
+  if (pick.kind === "pq") {
+    const own = (guides.get(pick.job)?.train ?? []).filter(segment => segment.pq === pick.pq.key);
+    const segment = own.find(entry => entry.from <= level && level <= entry.to) ?? own[0];
+    return {
+      key: `pq:${pick.pq.key}`,
+      title: pick.pq.name,
+      map: pick.pq.entrance,
+      from: pick.window[0],
+      to: pick.window[1],
+      party: true,
+      pq: pick.pq,
+      mobs: segment?.mobs ?? [],
+      why: segment?.why || undefined,
+      v: segment?.v,
+      s: segment?.s,
+      source: "guide",
+      go: goTo(pick.pq.entrance),
+    };
+  }
+  const { option } = pick;
+  const segment = option.source === "guide" ? option.guide : undefined;
+  return {
+    key: `map:${option.map}`,
+    title: option.title,
+    map: option.map,
+    from: segment?.from,
+    to: segment?.to,
+    party: option.party,
+    mobs: option.mobs.map(([id]) => id),
+    why: segment?.why || undefined,
+    v: segment?.v,
+    s: segment?.s,
+    source: option.source,
+    exp1: option.row?.exp1,
+    go: goTo(option.map),
+  };
 }
 
 /**

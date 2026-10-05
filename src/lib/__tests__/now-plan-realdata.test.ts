@@ -13,7 +13,7 @@ import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import { canGo, effectiveLevels, longRunNow, mainPick, nowQuests, townRoute, type LongRunTask, type MainPick, type NowQuest } from "@/lib/now-plan";
 import { findRoute, suggestStart } from "@/lib/route";
 import { bandsFor, isIslandMap, spawnIndex } from "@/lib/route-planner";
-import { pickTitle, timelinePlans } from "@/lib/timeline";
+import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
@@ -27,8 +27,8 @@ type Combo = {
   pick?: MainPick;
   todo: NowQuest[];
   longRun: LongRunTask[];
-  /** 升級路線你在的那一段：標籤、練功第一列的地圖 */
-  active: { label?: string; firstMap?: number | null };
+  /** 升級路線你在的那一段：標籤、練功第一列、能用的攻略列數、是不是全被擋 */
+  active: { label?: string; first?: TrainRow; usable: number; blocked: boolean };
 };
 
 /**
@@ -91,7 +91,12 @@ beforeAll(() => {
         pick,
         todo: nowQuests({ level, job, quests, monsters, common, maps, effective }),
         longRun: longRunNow({ level, job, quests, monsters, common, maps, effective }),
-        active: { label: timeline.labels[timeline.activeIndex], firstMap: timeline.plans[timeline.activeIndex].rows[0]?.map },
+        active: {
+          label: timeline.labels[timeline.activeIndex],
+          first: timeline.plans[timeline.activeIndex].rows[0],
+          usable: timeline.plans[timeline.activeIndex].usable,
+          blocked: timeline.plans[timeline.activeIndex].blocked,
+        },
       });
     }
   }
@@ -177,13 +182,27 @@ describe("真資料：首頁每個組合", () => {
     expectNone("主推圖等級多升一級就掉超過 10 級", bad);
   });
 
-  it("升級路線你在的那一段跟主推卡同一個答案：標籤是主推卡的標題，練功第一列是主推那張圖（組隊任務是入口）", () => {
+  it("升級路線你在的那一段跟主推卡同一個答案：標籤是主推卡的標題，練功第一列是主推本身（地圖／組隊任務入口、範圍、組隊、來源）", () => {
     const bad = combos.flatMap(combo => {
-      if (!combo.pick) return [];
+      const pick = combo.pick;
+      if (!pick) return [];
       const problems = [];
-      if (combo.active.label !== pickTitle(combo.pick)) problems.push(`標籤「${combo.active.label}」≠ 主推「${pickTitle(combo.pick)}」`);
-      const want = combo.pick.kind === "map" ? combo.pick.option.map : combo.pick.kind === "pq" ? combo.pick.pq.entrance : undefined;
-      if (want !== undefined && combo.active.firstMap !== want) problems.push(`練功第一列是 ${combo.active.firstMap}，主推是 ${want}`);
+      if (combo.active.label !== pickTitle(pick)) problems.push(`標籤「${combo.active.label}」≠ 主推「${pickTitle(pick)}」`);
+      if (pick.kind === "advance") return problems.map(problem => `${combo.tag}：${problem}`);
+      const want = pick.kind === "pq"
+        ? { map: pick.pq.entrance, from: pick.window[0], to: pick.window[1], party: true, source: "guide" }
+        : { map: pick.option.map, from: pick.option.guide?.from, to: pick.option.guide?.to, party: pick.option.party, source: pick.option.source };
+      const first = combo.active.first;
+      if (!first) problems.push("練功清單是空的");
+      else {
+        if (first.map !== want.map) problems.push(`練功第一列是 ${first.map}，主推是 ${want.map}`);
+        if (first.from !== want.from || first.to !== want.to) problems.push(`範圍 ${first.from}–${first.to}，主推 ${want.from}–${want.to}`);
+        if (first.party !== want.party) problems.push(`組隊 ${first.party}，主推 ${want.party}`);
+        if (first.source !== want.source) problems.push(`來源 ${first.source}，主推 ${want.source}`);
+        if (first.source === "data" && first.why) problems.push("遊戲資料的列掛了攻略理由");
+        // 主推那列是攻略列時，上面不能寫「這段還沒有玩家攻略」或「攻略圖不適合你的職業（見上）」
+        if (first.source === "guide" && (combo.active.usable === 0 || combo.active.blocked)) problems.push("主推是攻略列，這段卻說沒有能用的攻略");
+      }
       return problems.map(problem => `${combo.tag}：${problem}`);
     });
     expectNone("你在這一段跟主推卡不一樣", bad);
