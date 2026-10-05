@@ -7,7 +7,7 @@ import { GoButton } from "@/components/PlanShell";
 import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
-import type { MainPick, TrainOption } from "@/lib/now-plan";
+import { altPrefix, canGo, type MainPick, type TrainOption } from "@/lib/now-plan";
 import type { MapRecord, Monster } from "@/lib/types";
 import { SourceTag, Sprite } from "./bits";
 
@@ -73,7 +73,7 @@ function AltLine({ alt, prefix }: { alt?: TrainOption; prefix: string }) {
   );
 }
 
-function MapCard({ pick, level, jobName, maps, monsters, routable }: Common & { pick: Extract<MainPick, { kind: "map" }> }) {
+function MapCard({ pick, level, jobName, maps, monsters }: Common & { pick: Extract<MainPick, { kind: "map" }> }) {
   const { option, alt, ceiling } = pick;
   const record = maps[String(option.map)];
   return (
@@ -96,15 +96,18 @@ function MapCard({ pick, level, jobName, maps, monsters, routable }: Common & { 
           {option.hops && option.town ? `從${mapName(maps, option.town)}走 ${option.hops} 張圖` : null}
           {option.source === "data" ? <span className="block ink-faint">照遊戲資料排，還沒有玩家實測</span> : null}
         </p>
-        {routable.has(option.map) ? (
+        {/* 從城鎮走得到才給帶我去（跟 /go 同一個條件），不然點進去只會看到找不到起點 */}
+        {canGo(option) ? (
           <Link href={`/go?to=${option.map}`} className="tap-safe flex w-full items-center justify-center gap-1.5 rounded-full bg-[color:var(--maple)] text-[15px] font-black text-white shadow-sm">
             <RouteIcon size={17} />
             帶我去 {option.title}
           </Link>
         ) : null}
-        <AltLine alt={alt} prefix={alt?.party ? "有隊友：" : "人多時："} />
+        {alt ? <AltLine alt={alt} prefix={altPrefix(option, alt)} /> : null}
         {ceiling ? (
-          <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">目前開放的練功圖最高到 Lv.{ceiling}，這張已經是你能去最好的。</p>
+          <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">
+            目前開放的練功圖最高到 Lv.{ceiling.level}。{ceiling.best ? "這張已經是你能去最好的。" : ""}
+          </p>
         ) : null}
       </div>
     </article>

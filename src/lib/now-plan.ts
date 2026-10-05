@@ -234,6 +234,12 @@ export function longRunTasks(quests: Quest[], monsters: Monster[], min = LONG_RU
 const BOSS_SPAWN_MAX = 3;
 /** 從最近城鎮要走這麼多張圖以上，排序打七折 */
 const FAR_HOPS = 8;
+/** 攻略圖比參考等級（現在等級與能練的最高圖取小）低這麼多級以上算過期，排在遊戲資料後面 */
+const STALE_GAP = 10;
+/** 現在等級比能練的最高圖高這麼多級以上才加封頂提示 */
+const CEILING_GAP = 10;
+/** 主推圖跟能練的最高圖差這麼多級以內，封頂提示才說「這張已經是你能去最好的」 */
+const BEST_GAP = 5;
 
 export type TrainOption = {
   map: number;
@@ -245,10 +251,15 @@ export type TrainOption = {
   /** [怪物 id, 刷怪點數]，多的在前 */
   mobs: Array<[number, number]>;
   fit: JobFit;
-  /** 從最近城鎮走幾張圖 */
+  /** 這張圖的等級：練功資料的平均等級，沒有就取出怪的最高等級；都不知道就沒有 */
+  level?: number;
+  /** 從最近城鎮走幾張圖；沒有代表城鎮走不到（不給「帶我去」） */
   hops?: number;
   town?: number;
 };
+
+/** 封頂提示：能練的最高圖幾等；best＝主推圖已經是能去最好的（跟最高圖差 5 級以內） */
+export type Ceiling = { level: number; best: boolean };
 
 export type Instructor = { job: number; line: string; npcId: number; npcName: string; map: number; level: number };
 
@@ -256,7 +267,17 @@ export type MainPick =
   | { kind: "advance"; instructors: Instructor[] }
   /** job：寫這個範圍的攻略職業（可能是一轉） */
   | { kind: "pq"; pq: GuidePq; window: [number, number]; job: number; alt?: TrainOption }
-  | { kind: "map"; option: TrainOption; alt?: TrainOption; ceiling?: number };
+  | { kind: "map"; option: TrainOption; alt?: TrainOption; ceiling?: Ceiling };
+
+/** 備案前綴：主推單人、備案組隊才寫「有隊友：」；其他（主推組隊、兩張都單人）寫「人多時：」 */
+export function altPrefix(main: TrainOption, alt: TrainOption): string {
+  return !main.party && alt.party ? "有隊友：" : "人多時：";
+}
+
+/** 「帶我去」要有從城鎮走得到的路線（跟 /go 同一個條件），不然點進去只會看到「找不到可以走過去的起點」 */
+export function canGo(option: TrainOption): boolean {
+  return option.hops !== undefined;
+}
 
 /**
  * 轉職教官站的地圖（遊戲資料裡教官任務的起訖地圖）。
@@ -317,6 +338,14 @@ function byGuidePreference(a: GuideTrain, b: GuideTrain): number {
     || (a.to - a.from) - (b.to - b.from);
 }
 
+/**
+ * 主推大卡。一套設計（final review F1／F4／I1）：
+ * - 能練的最高圖（cap）：通過職業規則、不是王圖、走得到、有城鎮路線的練功圖裡等級最高的。
+ * - 參考等級＝現在等級與 cap 取小；攻略圖的等級比參考等級低 10 級以上算過期。
+ * - 排序：沒過期的攻略圖 → 遊戲資料（城鎮走不到的不推）→ 過期的攻略圖 → cap 那張圖（還沒列到就補在最後，
+ *   所以高等級什麼都排不出來時它就是主推，或當備案）。同一張圖只列一次，備案不會跟主推同一張。
+ * - 封頂提示：現在等級比 cap 高 10 級以上才出；主推圖跟 cap 差 5 級以內才說「這張已經是你能去最好的」。
+ */
 export function mainPick(args: {
   level: number;
   job: number;
@@ -339,50 +368,101 @@ export function mainPick(args: {
   const reachable = (map: number) => isIslandMap(map) === island && Boolean(maps[String(map)]?.zh);
   const training = args.training.filter(row => reachable(row.m) && row.sp > BOSS_SPAWN_MAX);
   const rows = new Map(training.map(row => [row.m, row]));
+  const anyRow = new Map(args.training.map(row => [row.m, row]));
   const mobsOf = (map: number): Array<[number, number]> => spawns.get(map) ?? [];
+  const fitOf = (map: number) => jobFit(stage, level, mobsOf(map), index);
+  const routes = new Map<number, { town?: number; hops?: number }>();
+  const route = (map: number) => {
+    if (!routes.has(map)) routes.set(map, routeFrom(map, graph, maps, nearestTown));
+    return routes.get(map) as { town?: number; hops?: number };
+  };
+  // 地圖等級：練功資料的平均等級；沒有練功資料就取出怪的最高等級；都沒有就是不知道
+  const levelOf = (map: number): number | undefined => {
+    const row = anyRow.get(map);
+    if (row) return row.lv;
+    const levels = mobsOf(map).map(([id]) => index.get(id)?.lv ?? 0).filter(value => value > 0);
+    return levels.length ? Math.max(...levels) : undefined;
+  };
 
-  const options: TrainOption[] = [];
+  // 能練的最高圖：由高往低找（同等級先看效率高的），碰到第一張有城鎮路線的就停，不用每張都算路線
+  const capRow = training
+    .filter(row => fitOf(row.m).ok)
+    .sort((a, b) => b.lv - a.lv || b.eff - a.eff)
+    .find(row => route(row.m).hops !== undefined);
+  const cap = capRow?.lv;
+  const reference = cap === undefined ? level : Math.min(level, cap);
+  const isStale = (map: number) => {
+    const mapLevel = levelOf(map);
+    return mapLevel !== undefined && mapLevel <= reference - STALE_GAP;
+  };
+
+  const fresh: TrainOption[] = [];
+  const stale: TrainOption[] = [];
   const segments = guide ? trainingForBand({ from: level, to: level + 1 }, guide.train) : [];
   for (const segment of [...segments].sort(byGuidePreference)) {
     if (segment.pq || segment.map === null || !reachable(segment.map)) continue;
     const map = segment.map;
-    const mobs = mobsOf(map);
-    const fit = jobFit(stage, level, mobs, index);
+    const fit = fitOf(map);
     if (!fit.ok) continue;
-    options.push({
+    const option: TrainOption = {
       map,
       title: maps[String(map)]?.zh ?? shortName(segment.name),
       party: segment.kind === "party",
       source: "guide",
       guide: segment,
       row: rows.get(map),
-      mobs,
+      mobs: mobsOf(map),
       fit,
-      ...routeFrom(map, graph, maps, nearestTown),
-    });
+      level: levelOf(map),
+      ...route(map),
+    };
+    (isStale(map) ? stale : fresh).push(option);
   }
 
-  const ranked = planTraining({ level, job: stage }, training, index, 40)
-    .filter(pick => !options.some(option => option.map === pick.row.m))
-    .map(pick => ({ pick, mobs: mobsOf(pick.row.m), fit: jobFit(stage, level, mobsOf(pick.row.m), index) }))
-    .filter(entry => entry.fit.ok)
-    .slice(0, 8)
-    .map(entry => {
-      const route = routeFrom(entry.pick.row.m, graph, maps, nearestTown);
-      const far = route.hops !== undefined && route.hops >= FAR_HOPS ? 0.7 : 1;
-      return { ...entry, route, score: entry.pick.score * entry.fit.factor * far };
-    })
-    .sort((a, b) => b.score - a.score);
-  for (const entry of ranked) {
+  // 遊戲資料：攻略已經寫到的圖不重複；城鎮走不到的不推（帶我去會找不到起點）；走 8 張圖以上打七折
+  const guideMaps = new Set([...fresh, ...stale].map(option => option.map));
+  const data: Array<{ option: TrainOption; score: number }> = [];
+  for (const pick of planTraining({ level, job: stage }, training, index, 40)) {
+    if (data.length >= 8) break;
+    const map = pick.row.m;
+    if (guideMaps.has(map)) continue;
+    const fit = fitOf(map);
+    if (!fit.ok) continue;
+    const found = route(map);
+    if (found.hops === undefined) continue;
+    const far = found.hops >= FAR_HOPS ? 0.7 : 1;
+    data.push({
+      option: {
+        map,
+        title: maps[String(map)]?.zh ?? String(map),
+        party: false,
+        source: "data",
+        row: pick.row,
+        mobs: mobsOf(map),
+        fit,
+        level: pick.row.lv,
+        ...found,
+      },
+      score: pick.score * fit.factor * far,
+    });
+  }
+  data.sort((a, b) => b.score - a.score);
+
+  const options: TrainOption[] = [];
+  for (const option of [...fresh, ...data.map(entry => entry.option), ...stale]) {
+    if (!options.some(existing => existing.map === option.map)) options.push(option);
+  }
+  if (capRow && !options.some(option => option.map === capRow.m)) {
     options.push({
-      map: entry.pick.row.m,
-      title: maps[String(entry.pick.row.m)]?.zh ?? String(entry.pick.row.m),
+      map: capRow.m,
+      title: maps[String(capRow.m)]?.zh ?? String(capRow.m),
       party: false,
       source: "data",
-      row: entry.pick.row,
-      mobs: entry.mobs,
-      fit: entry.fit,
-      ...entry.route,
+      row: capRow,
+      mobs: mobsOf(capRow.m),
+      fit: fitOf(capRow.m),
+      level: capRow.lv,
+      ...route(capRow.m),
     });
   }
 
@@ -391,9 +471,10 @@ export function mainPick(args: {
 
   const main = options[0];
   if (!main) return undefined;
-  const alt = options.slice(1).find(option => option.party !== main.party) ?? options[1];
-  // 「最高到 Lv.N」只看這個職業能練的圖：僧侶的最高圖不是一般圖的最高圖，否則會跟推薦的圖自相矛盾
-  const fitLevels = training.filter(row => jobFit(stage, level, mobsOf(row.m), index).ok).map(row => row.lv);
-  const ceiling = main.row && level - main.row.lv >= 10 ? Math.max(...fitLevels) : undefined;
+  const others = options.slice(1);
+  const alt = others.find(option => option.party !== main.party) ?? others[0];
+  const ceiling = cap !== undefined && level - cap >= CEILING_GAP
+    ? { level: cap, best: main.level !== undefined && main.level >= cap - BEST_GAP }
+    : undefined;
   return { kind: "map", option: main, alt, ceiling };
 }
