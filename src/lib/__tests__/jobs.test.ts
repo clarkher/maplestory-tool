@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { JOB_OPTIONS, advancementLevel, baseJob, isSecondJob, normalizeJob, stageJob } from "@/lib/jobs";
+import { JOB_OPTIONS, advancementLevel, baseJob, consistentJob, isSecondJob, minLevelFor, normalizeJob, stageJob } from "@/lib/jobs";
 
 describe("職業清單", () => {
   it("一轉 5 職加二轉 12 職，共 17 個", () => {
@@ -29,6 +29,7 @@ describe("職業清單", () => {
     expect(normalizeJob(111)).toBe(0);
     expect(normalizeJob(220)).toBe(220);
     expect(normalizeJob(0)).toBe(0);
+    expect(normalizeJob(-1)).toBe(-1);
   });
 
   it("選了二轉職業但還沒到 30 等，用一轉的內容", () => {
@@ -43,5 +44,27 @@ describe("職業清單", () => {
     expect(stageJob(110, 5)).toBe(0);
     expect(stageJob(200, 8)).toBe(200);
     expect(stageJob(230, 7)).toBe(0);
+  });
+});
+
+describe("職業的最低等級", () => {
+  it("選了職業就代表已經轉職：初心者 1、法師 8、其他一轉 10、二轉 30", () => {
+    expect(minLevelFor(-1)).toBe(1);
+    expect(minLevelFor(0)).toBe(1);
+    expect(minLevelFor(200)).toBe(8);
+    expect(minLevelFor(100)).toBe(10);
+    expect(minLevelFor(110)).toBe(30);
+    expect(minLevelFor(230)).toBe(30);
+  });
+
+  it("以前存過的不可能組合改成實際那一轉，等級不動", () => {
+    expect(consistentJob(110, 25)).toBe(100);
+    expect(consistentJob(110, 8)).toBe(0);
+    expect(consistentJob(210, 9)).toBe(200);
+    expect(consistentJob(100, 8)).toBe(0);
+    expect(consistentJob(110, 35)).toBe(110);
+    expect(consistentJob(0, 50)).toBe(0);
+    expect(consistentJob(-1, 20)).toBe(-1);
+    expect(consistentJob(1110, 50)).toBe(1110);
   });
 });

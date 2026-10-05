@@ -37,7 +37,7 @@ export type Monster = {
   eva: number;
   spd: number;
   und?: 1;
-  /** 屬性抗性：鍵取首字母 f/i/l/p/h，值 i=免疫 s=抗 w=弱 */
+  /** 屬性抗性：鍵取首字母 f/i/l/p/h，值 i=免疫 r=抗 w=弱 */
   el?: Record<string, string>;
   /** Artale 宣告這隻怪出現的地圖 */
   maps: number[];
@@ -210,7 +210,7 @@ export type PlanMode = "quest" | "train" | "farm";
 
 export type Profile = {
   level: number;
-  /** 職業代碼；0 代表初心者／未選 */
+  /** 職業代碼；0 代表初心者，-1 代表還沒選 */
   job: number;
 };
 

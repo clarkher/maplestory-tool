@@ -46,8 +46,9 @@ export function advancementLevel(job: number): number {
   return baseJob(job) === 200 ? 8 : 10;
 }
 
-/** 本機存過的舊代碼（例如皇家騎士團 1110）不在經典版，當作還沒選 */
+/** 本機存過的舊代碼（例如皇家騎士團 1110）不在經典版，當作初心者；-1 是還沒選職業 */
 export function normalizeJob(job: number): number {
+  if (job < 0) return -1;
   return BY_ID.has(job) ? job : 0;
 }
 
@@ -63,4 +64,24 @@ export function stageJob(job: number, level: number): number {
 
 export function jobOption(job: number): JobOption | undefined {
   return BY_ID.get(job);
+}
+
+/**
+ * 選了這個職業最低要幾等。選了就代表已經轉職，不會有「二轉 25 等」這種組合：
+ * 初心者／還沒選 1、法師 8、其他一轉 10、二轉 30。
+ */
+export function minLevelFor(job: number): number {
+  if (job <= 0) return 1;
+  return isSecondJob(job) ? SECOND_JOB_LEVEL : advancementLevel(job);
+}
+
+/**
+ * 本機存過的不可能組合（舊版允許「選二轉、等級 25」）改成實際那一轉，等級不動：
+ * 二轉未滿 30 → 一轉職業；一轉未滿轉職等級 → 初心者。不認得的舊代碼原樣回傳（交給 normalizeJob）。
+ */
+export function consistentJob(job: number, level: number): number {
+  if (job <= 0 || level <= 0) return job;
+  if (isSecondJob(job) && level < SECOND_JOB_LEVEL) return level >= advancementLevel(job) ? baseJob(job) : 0;
+  if (BY_ID.has(job) && !isSecondJob(job) && level < advancementLevel(job)) return 0;
+  return job;
 }
