@@ -441,6 +441,41 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     expect(partsText(row)).toBe("第 4 段／共 4 段");
   });
 
+  it("你在的這一段：先解列過的線只接在先解那串的下一段；下一段是長線那種就不列（不會先解第 1–3 段、必解跳到第 5 段）", () => {
+    const quests = [
+      quest("n1", { minLv: 15, exp: 40000 }),
+      quest("n2", { minLv: 15, exp: 40000, pre: ["n1"] }),
+      quest("n3", { minLv: 15, exp: 40000, pre: ["n2"] }),
+      quest("n4", { minLv: 21, exp: 40000, pre: ["n3"], needMobs: [{ id: 9, n: "刺菇菇", c: 200 }] }),
+      quest("n5", { minLv: 25, exp: 40000, pre: ["n4"] }),
+      quest("n6", { minLv: 30, exp: 40000, pre: ["n5"] }),
+    ];
+    const shared = common();
+    const args = { level: 25, job: 500, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
+    expect(nowQuests(args).map(partsText)).toEqual(["第 1–3 段／共 6 段"]);
+    // 不是你在的那段照舊從這段第一個做得到的段開始
+    expect(bandQuests({ ...args, band: { from: 21, to: 30 } }).map(partsText)).toEqual(["第 5 段／共 6 段"]);
+    expect(bandQuests({ ...args, band: { from: 21, to: 30 }, active: true })).toEqual([]);
+  });
+
+  it("你在的這一段：先解沒列（不值得）的線，這段那串要跟現在做得到的段接得上，中間隔著長線那種就不列（湯寶寶第 3 段在長線，不列第 4 段）", () => {
+    const quests = [
+      quest("t1", { minLv: 15, exp: 100 }),
+      quest("t2", { minLv: 15, exp: 100, pre: ["t1"] }),
+      quest("t3", { minLv: 25, exp: 30000, pre: ["t2"], needMobs: [{ id: 9, n: "火獨眼獸", c: 200 }] }),
+      quest("t4", { minLv: 35, exp: 30000, pre: ["t3"] }),
+      quest("u1", { minLv: 32, exp: 100 }),
+      quest("u2", { minLv: 36, exp: 30000, pre: ["u1"] }),
+    ];
+    const shared = common();
+    const args = { level: 33, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
+    expect(nowQuests(args)).toEqual([]);
+    expect(bandQuests({ ...args, band: { from: 30, to: 40 } }).map(item => item.key)).toEqual(["chain:u1", "chain:t1"]);
+    // u1 現在做得到（太少不列在先解）、u2 這段後面才接得到：接得上，照列第 1–2 段；t4 前面隔著長線的 t3，不列
+    const rows = bandQuests({ ...args, band: { from: 30, to: 40 }, active: true });
+    expect(rows.map(item => [item.key, partsText(item)])).toEqual([["chain:u1", "第 1–2 段／共 2 段"]]);
+  });
+
   it("你在的這一段：先解已經列完這條線在這段的段，這條線就不列", () => {
     const quests = [quest("b1", { minLv: 30, exp: 40000 }), quest("b2", { minLv: 31, exp: 40000, pre: ["b1"] }), quest("solo", { minLv: 32, exp: 40000 })];
     const shared = common();

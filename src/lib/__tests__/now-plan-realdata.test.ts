@@ -279,4 +279,12 @@ describe("真資料：首頁每個組合", () => {
     });
     expectNone("先解跟你在的那一段的必解重複", bad);
   });
+
+  it("先解列過的線，你在的那一段的必解只接在先解那串的下一段（同一頁不跳段：不會先解第 1–16 段、必解第 18–52 段）", () => {
+    const bad = combos.flatMap(combo => combo.mustDo[combo.activeIndex].flatMap(item => {
+      const todo = combo.todo.find(entry => entry.key === item.key);
+      return todo && item.firstPart !== todo.lastPart + 1 ? [`${combo.tag}：「${item.title}」先解第 ${todo.firstPart}–${todo.lastPart} 段、必解第 ${item.firstPart}–${item.lastPart} 段`] : [];
+    }));
+    expectNone("你在的那一段沒接在先解的下一段", bad);
+  });
 });

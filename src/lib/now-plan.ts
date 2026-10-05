@@ -261,9 +261,9 @@ export function lineRun(line: Quest[], doable: (quest: Quest) => boolean): Quest
 }
 
 /**
- * 把做得到的任務照任務線收成一行一行：每條線列 lineRun 那幾段（不跳段），標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、
- * 約幾級（用 levelFor 回傳的等級換算；拿到的是列出的那幾段）。值不值得（worthListing）用列出的那幾段算、過期由呼叫端決定要不要套；
- * 這一行的 NPC 跟帶我去用列出的第一段。
+ * 把做得到的任務照任務線收成一行一行：每條線列 lineRun 那幾段（不跳段；runOf 可以另外定，見 bandQuests 你在的這段），
+ * 標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、約幾級（用 levelFor 回傳的等級換算；拿到的是列出的那幾段）。
+ * 值不值得（worthListing）用列出的那幾段算、過期由呼叫端決定要不要套；這一行的 NPC 跟帶我去用列出的第一段。
  */
 function lineItems(
   shared: QuestLines,
@@ -272,6 +272,7 @@ function lineItems(
   toNext: number[],
   job: number,
   keep: (rec: GuideMustDo | undefined, fraction: number) => boolean,
+  runOf: (key: string, line: Quest[]) => Quest[] = (_key, line) => lineRun(line, doable),
 ): Array<{ item: NowQuest; score: number }> {
   const { forJob, lineOf, lines, recs } = shared;
   // 有做得到的任務的線，照任務資料裡各線第一個做得到的任務排（同分時照這個先後）
@@ -280,7 +281,7 @@ function lineItems(
   const scored: Array<{ item: NowQuest; score: number }> = [];
   for (const key of keys) {
     const line = lines.get(key) as Quest[];
-    const parts = lineRun(line, doable);
+    const parts = runOf(key, line);
     if (!parts.length) continue;
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
@@ -364,8 +365,11 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
  * 約幾級用接得到那條線的等級算（這段列出的第一段的實際等級）：你在的這段跟之前的段取它跟你現在的等級較高的
  * （現在就做得到的就是現在等級，跟先解同一個數字），之後的段取它跟那段起點較高的——法師 8 看 20 等的任務不會寫約 4.1 級。
  * 離開楓之島之後，NPC 站在島上的任務不列；還在島上、8 等前，NPC 站在維多利亞島那邊的不列（islandOnly）。
- * active（你在的這段）：先解已經列的段不再列，同一段不在同一頁算兩次（round 4：伊卡路斯先解第 1–3 段、必解第 3–4 段 → 必解只剩第 4 段）；
- * 一段都不剩的線就不列。值不值得用剩下的那一串算。
+ * active（你在的這段，round 4）：同一頁上同一條線也不跳段、不算兩次——
+ * - 先解列過的線：只接在先解那串的下一段（伊卡路斯先解第 1–3 段、這段解鎖第 3–4 段 → 必解只剩第 4 段）；
+ *   下一段做不到（長線那種、不在這段解鎖）就不列，不會先解第 1–3 段、必解跳到第 5 段
+ * - 先解沒列的線（現在做得到的那串不值得列）：這段那串要跟現在做得到的那串接得上，中間隔著做不到的段（湯寶寶第 3 段在長線）就不列
+ * 一段都不剩的線不列；值不值得用剩下的那一串算。
  */
 export function bandQuests(args: {
   band: Band;
@@ -399,10 +403,32 @@ export function bandQuests(args: {
   const long = new Set(inBand.filter(quest => (nowIds.has(quest.id) ? longNow : longLater).has(quest.id)).map(quest => quest.id));
   const floor = band.from > level ? band.from : level;
   const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
-  const listed = new Set(active ? nowQuests({ level, job, quests, monsters, common, maps, effective }).flatMap(item => item.quests.map(quest => quest.id)) : []);
-  const doable = new Set(inBand.filter(quest => !long.has(quest.id) && !listed.has(quest.id)).map(quest => quest.id));
-  const rows = lineItems(shared, quest => doable.has(quest.id), levelFor, common.expTable.toNext, job, (rec, fraction) => worthListing(fraction, [rec]));
-  return rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
+  const doable = new Set(inBand.filter(quest => !long.has(quest.id)).map(quest => quest.id));
+  const inRun = (quest: Quest) => doable.has(quest.id);
+  const keep = (rec: GuideMustDo | undefined, fraction: number) => worthListing(fraction, [rec]);
+  // 每一列加上這條線在這段最早幾等能接
+  const withLevel = (rows: Array<{ item: NowQuest; score: number }>): BandQuest[] =>
+    rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
+  if (!active) return withLevel(lineItems(shared, inRun, levelFor, common.expTable.toNext, job, keep));
+
+  // 你在的這段：先解那一批（現在做得到、不是長線那種；跟先解同一批，兩邊拿掉的段一樣）跟先解列出的線
+  const nowDoable = new Set(now.filter(quest => !longNow.has(quest.id)).map(quest => quest.id));
+  const listed = new Map(nowQuests({ level, job, quests, monsters, common, maps, effective }).map(item => [item.key, item.lastPart]));
+  const runOf = (key: string, line: Quest[]): Quest[] => {
+    const run = lineRun(line, inRun);
+    const current = lineRun(line, quest => nowDoable.has(quest.id));
+    if (!current.length) return run;
+    // 現在做得到的那串的下一段（0 起算的位置）
+    const next = line.indexOf(current[current.length - 1]) + 1;
+    const lastListed = listed.get(key);
+    if (lastListed !== undefined) {
+      // 先解列過：接在先解那串的下一段，下一段做不到就不列
+      return lastListed < line.length && inRun(line[lastListed]) ? lineRun(line.slice(lastListed), inRun) : [];
+    }
+    // 先解沒列：這段那串要從現在做得到的那串之內或緊接著開始，不然中間隔著做不到的段
+    return run.length && line.indexOf(run[0]) <= next ? run : [];
+  };
+  return withLevel(lineItems(shared, inRun, levelFor, common.expTable.toNext, job, keep, runOf));
 }
 
 /**
