@@ -11,6 +11,7 @@ const index = new Map<number, Monster>([
   [3, monster(3, { el: { f: "r", i: "w" } })],
   [4, monster(4, { el: { f: "w" } })],
   [5, monster(5, { el: { l: "w" } })],
+  [6, monster(6, { el: { i: "r" } })],
 ]);
 
 describe("刷怪點佔比", () => {
@@ -63,6 +64,10 @@ describe("火毒巫師照遊戲資料避開抗火的怪", () => {
 describe("冰雷巫師", () => {
   it("怕冰或怕雷加分", () => {
     expect(jobFit(220, 40, [[3, 10], [5, 10]], index)).toMatchObject({ ok: true, note: "怪怕冰／雷" });
+  });
+
+  it("抗冰佔一半以上的圖擋掉，寫原因", () => {
+    expect(jobFit(220, 40, [[6, 20]], index)).toMatchObject({ ok: false, note: "怪抗冰，冰雷傷害打折" });
   });
 });
 
