@@ -58,11 +58,18 @@ function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<numbe
               <span className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--gold)]">{item.reward}</span>
             ) : null}
           </span>
+          {/* 每一塊（+經驗、約幾級、第幾段／共幾段）各自不斷行，375 寬不會把「段」字單獨擠到下一行 */}
           <span className="mt-0.5 block text-[12px] tabular-nums ink-soft">
-            {[item.exp ? `+${formatNumber(item.exp)} 經驗` : null, fraction, parts].filter(Boolean).join("・")}
+            {[item.exp ? `+${formatNumber(item.exp)} 經驗` : null, fraction, parts].filter(Boolean).map((chunk, index) => (
+              <span key={index} className="whitespace-nowrap">
+                {index > 0 ? "・" : null}
+                {chunk}
+              </span>
+            ))}
           </span>
           <span className="mt-1 flex items-center justify-between gap-2">
-            <span className="min-w-0 truncate text-[12px] ink-faint">{item.npc ? `${item.npc.n}・${item.npc.mapName ?? ""}` : ""}</span>
+            {/* 要去的地圖名不能被截掉：放不下就換行 */}
+            <span className="min-w-0 text-[12px] leading-snug ink-faint">{item.npc ? `${item.npc.n}・${item.npc.mapName ?? ""}` : ""}</span>
             {go ? (
               <Link href={`/go?to=${go.map}`} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--maple)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--maple)]">
                 <RouteIcon size={13} />

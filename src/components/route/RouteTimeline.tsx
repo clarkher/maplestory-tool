@@ -156,6 +156,28 @@ function BandDetail({ plan, next, context }: { plan: BandPlan; next?: Band; cont
   const stuckInFirstJob = band.from >= 30 && !isSecondJob(job) && job !== 0;
   const gap = guide?.gaps?.find(entry => entry.from < band.to && entry.to >= band.from);
   const island = isIslandBand(band);
+  // 沒有能用的玩家攻略：說明（還在讀攻略、讀取失敗、或「以下是遊戲資料推算」）＋研究時查到的狀況
+  const noGuide = !island && plan.usable === 0;
+  const ready = Boolean(guide) || guideStatus === "ready";
+  const status = !guide && guideStatus === "loading" ? (
+    <p className="text-[13px] ink-faint">讀取玩家攻略中…</p>
+  ) : !guide && guideStatus === "failed" ? (
+    <p className="text-[13px] ink-soft">玩家攻略讀取失敗，重新整理一次試試。</p>
+  ) : (
+    <div className="space-y-2">
+      <p className="text-[13px] leading-relaxed ink-soft">
+        {plan.blocked
+          ? "這段的玩家攻略圖不適合你的職業（見上），以下是遊戲資料推算，沒有人實測過。"
+          : "這段還沒有玩家攻略，以下是遊戲資料推算，沒有人實測過。"}
+      </p>
+      {gap ? (
+        <div className="space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
+          <p className="text-[12px] leading-relaxed ink-soft">查攻略時看到的狀況：{gap.t}</p>
+          <SourceLinks urls={gap.s} />
+        </div>
+      ) : null}
+    </div>
+  );
 
   if (job === 0 && !island) {
     return (
@@ -174,45 +196,31 @@ function BandDetail({ plan, next, context }: { plan: BandPlan; next?: Band; cont
       ) : null}
 
       <Block label="練功">
+        {/* 這段完全沒有玩家攻略時，說明放最上面（下面第一列就是主推卡那張遊戲資料的圖）；
+            攻略圖被職業規則擋掉時，說明放在被擋的那幾列下面（「見上」） */}
+        {noGuide && !plan.blocked ? status : null}
         {plan.rows.length ? (
           <ul className="space-y-2.5">
             {plan.rows.map(row => (
-              <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} tagData />
+              <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} tagData={!noGuide || plan.blocked} />
             ))}
           </ul>
         ) : null}
-        {island ? (
-          <IslandStep onIsland={onIsland(job, level)} />
-        ) : plan.usable === 0 ? (
-          !guide && guideStatus === "loading" ? (
-            <p className="text-[13px] ink-faint">讀取玩家攻略中…</p>
-          ) : !guide && guideStatus === "failed" ? (
-            <p className="text-[13px] ink-soft">玩家攻略讀取失敗，重新整理一次試試。</p>
-          ) : (
-            <div className="space-y-2">
-              <p className="text-[13px] leading-relaxed ink-soft">
-                {plan.blocked
-                  ? "這段的玩家攻略圖不適合你的職業（見上），以下是遊戲資料推算，沒有人實測過。"
-                  : "這段還沒有玩家攻略，以下是遊戲資料推算，沒有人實測過。"}
-              </p>
-              {gap ? (
-                <div className="space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
-                  <p className="text-[12px] leading-relaxed ink-soft">查攻略時看到的狀況：{gap.t}</p>
-                  <SourceLinks urls={gap.s} />
-                </div>
-              ) : null}
-              {plan.fallback.length ? (
-                <ul className="space-y-2.5">
-                  {plan.fallback.map(row => (
-                    <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} />
-                  ))}
-                </ul>
-              ) : null}
-              <div className="flex justify-end">
-                <SourceTag kind="data" />
-              </div>
+        {island ? <IslandStep onIsland={onIsland(job, level)} /> : null}
+        {noGuide && plan.blocked ? status : null}
+        {noGuide && ready ? (
+          <>
+            {plan.fallback.length ? (
+              <ul className="space-y-2.5">
+                {plan.fallback.map(row => (
+                  <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} />
+                ))}
+              </ul>
+            ) : null}
+            <div className="flex justify-end">
+              <SourceTag kind="data" />
             </div>
-          )
+          </>
         ) : null}
         {band.from === 10 || band.from === 8 ? <PqLink pqKey="moon" common={common} text="月妙組隊任務怎麼打" /> : null}
         {band.from === 21 ? <PqLink pqKey="kerning" common={common} text="超綠組隊任務怎麼打" /> : null}
@@ -305,7 +313,7 @@ function TrainRowItem({ row, monsterIndex, tagData = false }: { row: TrainRow; m
                 row.party ? "組隊" : null,
                 names || null,
               ].filter(Boolean).join(" · ")}
-              {row.why ? <span className="ml-1 text-[color:var(--sky)]">{open ? "收起" : "為什麼"}</span> : null}
+              {row.why ? <span className="ml-1 whitespace-nowrap text-[color:var(--sky)]">{open ? "收起" : "為什麼"}</span> : null}
             </span>
           </button>
         )}
