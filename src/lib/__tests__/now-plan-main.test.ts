@@ -222,16 +222,16 @@ describe("主推大卡：能練的最高圖、過期攻略、封頂", () => {
     expect(pick.ceiling).toEqual({ level: 71, best: true });
   });
 
-  it("高等級遊戲資料排不出圖、只剩過期的攻略圖：主推攻略圖、備案是能練的最高圖、封頂不說最好", () => {
+  it("高等級遊戲資料排不出圖時，主推能練的最高圖、過期的攻略圖當備案（多升一級主推不會從 Lv.71 掉到 Lv.50）", () => {
     // Lv.89 起連 Lv.71 的圖都低於遊戲資料的等級適配下限，遊戲資料一張都排不出來
     const giant = 300000010;
     const top = 300000011;
     const guide = guideWith([segment({ map: giant, name: "巨人之林", from: 80, to: 100, kind: "party" })]);
     const pick = mainPick({ ...world([{ id: giant, lv: 50, eff: 400 }, { id: top, lv: 71, eff: 100 }]), level: 90, job: 320, guide });
     if (pick?.kind !== "map") throw new Error("應該是練功圖");
-    expect(pick.option).toMatchObject({ map: giant, source: "guide", party: true });
-    expect(pick.alt).toMatchObject({ map: top, source: "data" });
-    expect(pick.ceiling).toEqual({ level: 71, best: false });
+    expect(pick.option).toMatchObject({ map: top, source: "data" });
+    expect(pick.alt).toMatchObject({ map: giant, source: "guide", party: true });
+    expect(pick.ceiling).toEqual({ level: 71, best: true });
   });
 
   it("等級跟能練的最高圖差不到 10 級，不加封頂（俠盜 62）", () => {

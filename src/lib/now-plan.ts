@@ -292,6 +292,8 @@ const STALE_GAP = 10;
 const CEILING_GAP = 10;
 /** 主推圖跟能練的最高圖差這麼多級以內，封頂提示才說「這張已經是你能去最好的」 */
 const BEST_GAP = 5;
+/** 能練的最高圖比你高不到這麼多級才算練得動（跟遊戲資料的等級適配一樣：同級到高 5 級） */
+const CAP_REACH = 5;
 
 export type TrainOption = {
   map: number;
@@ -394,8 +396,9 @@ function byGuidePreference(a: GuideTrain, b: GuideTrain): number {
  * 主推大卡。一套設計（final review F1／F4／I1）：
  * - 能練的最高圖（cap）：通過職業規則、不是王圖、走得到、有城鎮路線的練功圖裡等級最高的。
  * - 參考等級＝現在等級與 cap 取小；攻略圖的等級比參考等級低 10 級以上算過期。
- * - 排序：沒過期的攻略圖 → 遊戲資料（城鎮走不到的不推）→ 過期的攻略圖 → cap 那張圖（還沒列到就補在最後，
- *   所以高等級什麼都排不出來時它就是主推，或當備案）。同一張圖只列一次，備案不會跟主推同一張。
+ * - 排序：沒過期的攻略圖 → 遊戲資料（城鎮走不到的不推）→ cap 那張圖 → 過期的攻略圖。高等級遊戲資料排不出來時
+ *   主推就是 cap 圖、過期攻略當備案（多升一級主推不會從 Lv.71 掉到 Lv.49）。cap 圖比你高 5 級以上時排最後，不當備案。
+ *   同一張圖只列一次，備案不會跟主推同一張。
  * - 封頂提示：現在等級比 cap 高 10 級以上才出；主推圖跟 cap 差 5 級以內才說「這張已經是你能去最好的」。
  */
 export function mainPick(args: {
@@ -500,22 +503,24 @@ export function mainPick(args: {
   }
   data.sort((a, b) => b.score - a.score);
 
+  const capOption: TrainOption[] = capRow ? [{
+    map: capRow.m,
+    title: maps[String(capRow.m)]?.zh ?? String(capRow.m),
+    party: false,
+    source: "data",
+    row: capRow,
+    mobs: mobsOf(capRow.m),
+    fit: fitOf(capRow.m),
+    level: capRow.lv,
+    ...route(capRow.m),
+  }] : [];
+  // 能練的最高圖排在過期攻略前面：多升一級，主推不會從 Lv.71 掉回 Lv.49 的舊攻略圖。
+  // 只在你練得動時（最高圖比你高不到 CAP_REACH 級）才往前排；比你高很多時（冰雷 50 看 Lv.67）照舊排最後，免得變成備案
+  const capFirst = capRow !== undefined && capRow.lv <= level + CAP_REACH;
+  const ordered = [...fresh, ...data.map(entry => entry.option), ...(capFirst ? capOption : []), ...stale, ...(capFirst ? [] : capOption)];
   const options: TrainOption[] = [];
-  for (const option of [...fresh, ...data.map(entry => entry.option), ...stale]) {
+  for (const option of ordered) {
     if (!options.some(existing => existing.map === option.map)) options.push(option);
-  }
-  if (capRow && !options.some(option => option.map === capRow.m)) {
-    options.push({
-      map: capRow.m,
-      title: maps[String(capRow.m)]?.zh ?? String(capRow.m),
-      party: false,
-      source: "data",
-      row: capRow,
-      mobs: mobsOf(capRow.m),
-      fit: fitOf(capRow.m),
-      level: capRow.lv,
-      ...route(capRow.m),
-    });
   }
 
   const pq = pqFor(common, job, level);
