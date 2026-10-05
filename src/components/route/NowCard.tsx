@@ -14,6 +14,22 @@ import { SourceTag, Sprite } from "./bits";
 
 type Common = { level: number; jobName: string; maps: Record<string, MapRecord>; monsters: Map<number, Monster>; routable: Set<number> };
 
+/** 攻略檔還在載入時先放骨架：不先給一張遊戲資料的圖、過一下又換成攻略圖 */
+export function NowCardSkeleton({ label }: { label: string }) {
+  return (
+    <article aria-label="現在去這裡" aria-busy="true" className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
+      <div className="relative h-36 w-full animate-pulse bg-[color:var(--paper-deep)]">
+        <span className="absolute left-3 top-3 rounded-full bg-[color:var(--maple)] px-2.5 py-1 text-[12px] font-black text-white shadow">{label}</span>
+      </div>
+      <div className="space-y-2.5 p-3.5">
+        <div className="h-6 w-1/2 animate-pulse rounded-lg bg-[color:var(--paper-deep)]" />
+        <div className="h-4 w-3/4 animate-pulse rounded-lg bg-[color:var(--paper-deep)]" />
+        <p className="text-[12px] ink-faint">讀取玩家攻略中…</p>
+      </div>
+    </article>
+  );
+}
+
 /** 主推大卡：最上面只講「現在去哪」。 */
 export function NowCard({ pick, ...common }: Common & { pick: MainPick }) {
   if (pick.kind === "advance") return <AdvanceCard pick={pick} {...common} />;

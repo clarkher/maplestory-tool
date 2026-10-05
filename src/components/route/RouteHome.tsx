@@ -13,7 +13,7 @@ import { useProfile } from "@/lib/profile";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
-import { NowCard } from "./NowCard";
+import { NowCard, NowCardSkeleton } from "./NowCard";
 import { Panel, SourceTag, Sprite } from "./bits";
 import { RouteTimeline } from "./RouteTimeline";
 import { SkillStrip } from "./SkillStrip";
@@ -78,6 +78,8 @@ export function RouteHome() {
   const stageGuide = stage ? guides.get(stage) : undefined;
   // 一轉攻略常同時有好幾條主流（海盜分打手線、槍手線），選了二轉職業就挑那條
   const branchName = isSecondJob(profile.job) ? jobOption(profile.job)?.name : undefined;
+  // 等級段只跟職業有關；固定同一個陣列，升級路線的標籤 memo 才不會每次重算
+  const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 
   const effective = useMemo(() => (data ? effectiveLevels(data.quests, data.monsters, data.common) : null), [data]);
 
@@ -127,7 +129,7 @@ export function RouteHome() {
         <header className="px-1 pt-2 text-center">
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed ink-soft">
-            選好之後，直接告訴你今天去哪練、技能點哪個、哪些任務順便解、材料先存什麼。
+            選好之後，直接告訴你現在去哪練、先解哪些任務、技能點哪個。
           </p>
         </header>
       ) : (
@@ -136,11 +138,14 @@ export function RouteHome() {
 
       {loaded ? <CharacterBar profile={profile} onChange={setProfile} /> : <LoadingBlock label="讀取你的角色…" />}
 
-      {ready && !data ? <LoadingBlock label="排今天的路線…" /> : null}
+      {ready && !data ? <LoadingBlock label="幫你排路線…" /> : null}
 
       {ready && data && plan ? (
         <>
-          {plan.pick ? (
+          {/* 這一轉的攻略還在載入：先放骨架，不先推一張遊戲資料的圖、攻略到了又換掉 */}
+          {stage > 0 && !stageGuide && guideStatus === "loading" ? (
+            <NowCardSkeleton label={`Lv.${profile.level} ${jobOption(profile.job)?.name ?? "初心者"}・現在去這裡`} />
+          ) : plan.pick ? (
             <NowCard
               pick={plan.pick}
               level={profile.level}
@@ -153,7 +158,8 @@ export function RouteHome() {
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
           )}
 
-          <TodoList items={plan.todo} routable={data.routable} maps={data.maps} />
+          {/* 換職業或等級時重新掛載，「還有 N 個任務」的展開狀態不帶到別的角色 */}
+          <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} />
 
           {stageGuide ? (
             <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={data.common.spLeftover} />
@@ -190,13 +196,13 @@ export function RouteHome() {
               <span className="text-[12px] ink-faint">點開每一段看練功、技能、必解、先存</span>
             </div>
             <RouteTimeline
-              key={`${profile.job}:${bandOf(bandsFor(profile.job), profile.level).from}`}
+              key={`${profile.job}:${bandOf(bands, profile.level).from}`}
               job={profile.job}
               prefer={branchName}
               guideStatus={guideStatus}
               routable={data.routable}
               level={profile.level}
-              bands={bandsFor(profile.job)}
+              bands={bands}
               guides={guides}
               quests={data.quests}
               monsters={data.monsters}
