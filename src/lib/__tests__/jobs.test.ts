@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { JOB_OPTIONS, advancementLevel, baseJob, consistentJob, isSecondJob, levelHint, minLevelFor, normalizeJob, profileWithJob, stageJob } from "@/lib/jobs";
+import {
+  JOB_OPTIONS, advancementLevel, baseJob, commitLevelText, consistentJob, isSecondJob, levelHint, minLevelFor, normalizeJob, pickJobKeepingLevel,
+  profileWithJob, stageJob, typedLevel,
+} from "@/lib/jobs";
 
 describe("職業清單", () => {
   it("一轉 5 職加二轉 12 職，共 17 個", () => {
@@ -87,5 +90,55 @@ describe("職業的最低等級", () => {
     expect(levelHint(110, 25)).toBe("狂戰士至少 30 等");
     expect(levelHint(110, 30)).toBeNull();
     expect(levelHint(-1, 5)).toBeNull();
+  });
+});
+
+describe("等級輸入框", () => {
+  it("打字時只套用這個職業允許、又沒超過上限的等級，其他先等（不閃「至少 30 等」）", () => {
+    expect(typedLevel("1", 320, 100)).toBeNull();
+    expect(typedLevel("15", 320, 100)).toBeNull();
+    expect(typedLevel("45", 320, 100)).toBe(45);
+    expect(typedLevel("150", 320, 100)).toBeNull();
+    expect(typedLevel("", 320, 100)).toBeNull();
+    expect(typedLevel("0", 0, 100)).toBeNull();
+    expect(typedLevel("7", 0, 100)).toBe(7);
+  });
+
+  it("離開輸入框（或按 Enter）：空白、不是數字、小於 1 就默默改回現在的等級", () => {
+    const profile = { level: 50, job: 220 };
+    expect(commitLevelText("", profile, 100)).toEqual({ level: 50, hint: null });
+    expect(commitLevelText("abc", profile, 100)).toEqual({ level: 50, hint: null });
+    expect(commitLevelText("0", profile, 100)).toEqual({ level: 50, hint: null });
+  });
+
+  it("超過上限：改成上限並說「目前等級上限 Lv.100」", () => {
+    expect(commitLevelText("150", { level: 100, job: 320 }, 100)).toEqual({ level: 100, hint: "目前等級上限 Lv.100" });
+  });
+
+  it("比職業最低等級低：給原本的提示，輸入框改回現在的等級", () => {
+    expect(commitLevelText("15", { level: 95, job: 320 }, 100)).toEqual({ level: 95, hint: "弩弓手至少 30 等" });
+  });
+
+  it("合理的等級就套用", () => {
+    expect(commitLevelText("62", { level: 95, job: 320 }, 100)).toEqual({ level: 62, hint: null });
+  });
+});
+
+describe("手滑點到二轉", () => {
+  it("劍士 18 → 狂戰士被拉到 30，記住 18；點回劍士就還原 18、忘掉", () => {
+    const raised = pickJobKeepingLevel({ level: 18, job: 100 }, 110, undefined, null);
+    expect(raised).toEqual({ next: { job: 110, level: 30 }, note: "狂戰士 30 等起，等級改成 30", raisedFrom: 18 });
+    expect(pickJobKeepingLevel(raised.next, 100, undefined, raised.raisedFrom)).toEqual({ next: { job: 100, level: 18 }, note: null, raisedFrom: null });
+  });
+
+  it("下一個職業還是不允許那個等級時照舊、繼續記著（狂戰士 → 見習騎士 → 劍士）", () => {
+    const knight = pickJobKeepingLevel({ level: 30, job: 110 }, 120, undefined, 18);
+    expect(knight).toEqual({ next: { job: 120, level: 30 }, note: null, raisedFrom: 18 });
+    expect(pickJobKeepingLevel(knight.next, 100, undefined, knight.raisedFrom).next).toEqual({ job: 100, level: 18 });
+  });
+
+  it("沒有被拉高就不記；輸入框裡另外打的等級優先", () => {
+    expect(pickJobKeepingLevel({ level: 35, job: 100 }, 110, undefined, null)).toEqual({ next: { job: 110, level: 35 }, note: null, raisedFrom: null });
+    expect(pickJobKeepingLevel({ level: 30, job: 110 }, 100, 25, 18)).toEqual({ next: { job: 100, level: 25 }, note: null, raisedFrom: null });
   });
 });

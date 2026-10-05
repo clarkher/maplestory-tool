@@ -111,3 +111,54 @@ export function levelHint(job: number, level: number): string | null {
   if (level >= need) return null;
   return `${jobOption(job)?.name ?? "這個職業"}至少 ${need} 等`;
 }
+
+/** 輸入框裡的字轉成數字；沒有數字回 NaN */
+function digitsOf(raw: string): number {
+  const digits = raw.replace(/[^0-9]/g, "");
+  return digits ? Number(digits) : Number.NaN;
+}
+
+/**
+ * 打字當下要不要套用：只套用這個職業允許、又沒超過上限的等級，其他先等，也不給提示——
+ * 要打 15 先打了 1，不能閃一下「弩弓手至少 30 等」。真正的檢查在離開輸入框時（commitLevelText）。
+ */
+export function typedLevel(raw: string, job: number, cap: number): number | null {
+  const value = digitsOf(raw);
+  if (!Number.isFinite(value) || value < 1 || value > cap || levelHint(job, value) !== null) return null;
+  return value;
+}
+
+/**
+ * 離開輸入框或按 Enter 時，輸入框跟標題要對得起來：
+ * 空白、不是數字、小於 1 → 默默改回現在的等級；超過上限 → 改成上限並說一聲；
+ * 比職業最低等級低 → 原本的提示（狂戰士至少 30 等），等級不動；其他照打的套用。
+ */
+export function commitLevelText(raw: string, profile: { level: number; job: number }, cap: number): { level: number; hint: string | null } {
+  const value = digitsOf(raw);
+  if (!Number.isFinite(value) || value < 1) return { level: profile.level, hint: null };
+  if (value > cap) return { level: cap, hint: `目前等級上限 Lv.${cap}` };
+  const tooLow = levelHint(profile.job, value);
+  if (tooLow) return { level: profile.level, hint: tooLow };
+  return { level: value, hint: null };
+}
+
+/**
+ * 換職業，並處理手滑：選的職業把等級拉高時（劍士 18 → 狂戰士 → 30），記住拉高前的等級（raisedFrom）；
+ * 之後點的職業允許那個等級，就改回去、忘掉。輸入框裡另外打的等級（typed，見 profileWithJob）優先，打了就不再還原。
+ * 呼叫端把回傳的 raisedFrom 存起來，下次換職業時傳回來；玩家自己改等級（打字、加減）時要清掉。
+ */
+export function pickJobKeepingLevel(
+  profile: { level: number; job: number },
+  job: number,
+  typed: number | undefined,
+  raisedFrom: number | null,
+): { next: { level: number; job: number }; note: string | null; raisedFrom: number | null } {
+  const typedApplies = typed !== undefined && typed > 0 && typed !== profile.level && levelHint(job, typed) === null;
+  if (!typedApplies && raisedFrom !== null && levelHint(job, raisedFrom) === null) {
+    return { next: { job, level: raisedFrom }, note: null, raisedFrom: null };
+  }
+  const { next, note } = profileWithJob(profile, job, typed);
+  if (typedApplies) return { next, note, raisedFrom: null };
+  const raised = profile.level > 0 && next.level > profile.level;
+  return { next, note, raisedFrom: raised ? raisedFrom ?? profile.level : raisedFrom };
+}

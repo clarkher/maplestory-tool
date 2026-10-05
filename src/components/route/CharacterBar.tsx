@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { npcImage } from "@/lib/data";
-import { JOB_LINES, SECOND_JOB_LEVEL, isSecondJob, jobOption, levelHint, minLevelFor, profileWithJob } from "@/lib/jobs";
+import { JOB_LINES, SECOND_JOB_LEVEL, commitLevelText, isSecondJob, jobOption, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
 import { Sprite } from "./bits";
@@ -16,8 +16,10 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   const incomplete = profile.level <= 0 || profile.job < 0;
   const [editing, setEditing] = useState(incomplete);
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
-  // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等）
+  // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等、目前等級上限 Lv.100）
   const [hint, setHint] = useState<string | null>(null);
+  // 選職業把等級拉高前的等級（劍士 18 手滑點狂戰士 → 30）；點回允許它的職業就還原
+  const raisedFrom = useRef<number | null>(null);
   const min = minLevelFor(profile.job);
 
   useEffect(() => {
@@ -37,42 +39,51 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
         ? `${option?.line} · 二轉`
         : profile.level >= SECOND_JOB_LEVEL ? `一轉 · ${SECOND_JOB_LEVEL} 等可以二轉了` : "一轉";
 
+  /** 打字當下：這個職業允許、又沒超過上限的等級才套用，其他先等，也不給提示（要打 15 先打 1 不會閃紅字） */
   function setLevel(raw: string) {
     setLevelText(raw);
-    const value = Number(raw.replace(/[^0-9]/g, ""));
-    if (!Number.isFinite(value) || value <= 0) return;
-    const tooLow = levelHint(profile.job, value);
-    if (tooLow) {
-      // 打字打到一半（例如要打 35 先打了 3）也會進來；只提示、不套用，離開輸入框時還原
-      setHint(tooLow);
-      return;
-    }
     setHint(null);
-    onChange({ ...profile, level: Math.min(LEVEL_CAP, value) });
+    const value = typedLevel(raw, profile.job, LEVEL_CAP);
+    if (value === null || value === profile.level) return;
+    raisedFrom.current = null;
+    onChange({ ...profile, level: value });
+  }
+
+  /** 離開輸入框或按 Enter：空白、0 改回現在的等級；超過上限改成上限並提示；比職業最低等級低給提示、等級不動 */
+  function commitLevel() {
+    const { level, hint: note } = commitLevelText(levelText, profile, LEVEL_CAP);
+    setHint(note);
+    setLevelText(level ? String(level) : "");
+    if (level === profile.level) return;
+    raisedFrom.current = null;
+    onChange({ ...profile, level });
   }
 
   function step(delta: number) {
     setHint(null);
+    raisedFrom.current = null;
     const next = Math.max(min, Math.min(LEVEL_CAP, (profile.level || 0) + delta));
     onChange({ ...profile, level: next });
   }
 
   /**
-   * 選的職業等級不夠時，直接把等級調到它的最低等級並說一聲。
-   * 輸入框裡被原本職業擋下的等級（狂戰士狀態下打的 25）一起重新驗：新職業允許就套用，
-   * 不允許就把輸入框改回實際等級——輸入框跟標題不會對不起來。
-   */
-  /**
-   * 按職業鈕時不讓等級輸入框失焦：失焦會先把輸入框還原、提示收掉，按鈕往上跳一行、點擊落空，
+   * 按職業鈕時不讓等級輸入框失焦：失焦會先把輸入框改回去、提示收掉，按鈕往上跳一行、點擊落空，
    * 打的數字也來不及拿給 pickJob 重新驗。
    */
   function keepTyping(event: React.MouseEvent) {
     event.preventDefault();
   }
 
+  /**
+   * 選的職業等級不夠時，直接把等級調到它的最低等級並說一聲。
+   * 輸入框裡被原本職業擋下的等級（狂戰士狀態下打的 25）一起重新驗：新職業允許就套用，
+   * 不允許就把輸入框改回實際等級——輸入框跟標題不會對不起來。
+   * 手滑點到二轉被拉到 30 時記住原本的等級，點回允許那個等級的職業就改回去（pickJobKeepingLevel）。
+   */
   function pickJob(id: number) {
     const typed = Number(levelText.replace(/[^0-9]/g, ""));
-    const { next, note } = profileWithJob(profile, id, typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined);
+    const { next, note, raisedFrom: memory } = pickJobKeepingLevel(profile, id, typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined, raisedFrom.current);
+    raisedFrom.current = memory;
     setHint(note);
     setLevelText(next.level ? String(next.level) : "");
     onChange(next);
@@ -122,10 +133,9 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
                 value={levelText}
                 placeholder={`${min}–${LEVEL_CAP}`}
                 onChange={event => setLevel(event.target.value)}
-                onBlur={() => {
-                  if (!hint) return;
-                  setHint(null);
-                  setLevelText(profile.level ? String(profile.level) : "");
+                onBlur={commitLevel}
+                onKeyDown={event => {
+                  if (event.key === "Enter") event.currentTarget.blur();
                 }}
                 className="tap-safe w-24 rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 text-center text-lg font-black tabular-nums outline-none focus:border-[color:var(--maple)]"
                 aria-label="你的等級"
