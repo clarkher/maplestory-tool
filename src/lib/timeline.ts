@@ -165,16 +165,17 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
   const needData = !usable && !isIslandBand(band);
   const open = training.filter(entry => !isIslandMap(entry.m) && maps[String(entry.m)]?.zh && entry.sp > BOSS_SPAWN_MAX);
   const fits = (map: number) => jobFit(stage, middle, spawns.get(map) ?? [], monsterIndex).ok;
-  const pickData = (query: number) =>
-    planTraining({ level: query, job: stage }, open.filter(entry => !listedMaps.has(entry.m)), monsterIndex, 8)
-      .filter(entry => fits(entry.row.m))
-      .slice(0, FALLBACK_COUNT);
+  const pickData = (query: number): Array<{ row: TrainingRow; lead?: Monster }> =>
+    planTraining({ level: query, job: stage }, open.filter(entry => !listedMaps.has(entry.m)), monsterIndex, 8).filter(entry => fits(entry.row.m));
   // 能練的最高圖（跟主推卡同一套：職業規則、不是王圖、城鎮走得到，同等級先看效率高的）
   const cap = needData ? open.filter(entry => fits(entry.m) && canGo(entry.m)).sort((a, b) => b.lv - a.lv || b.eff - a.eff)[0] : undefined;
-  let picked = needData ? pickData(middle) : [];
+  let picked = needData ? pickData(middle).slice(0, FALLBACK_COUNT) : [];
   // 段落比所有開放的練功圖高太多（V002 的 100–120、沒有攻略的 90–100）：照中點每張圖都低太多、查出來是空的，
-  // 畫面只剩一句「以下是遊戲資料推算」——改從能練的最高圖那個等級查，跟主推卡在這些等級推的圖一樣
-  if (!picked.length && cap) picked = pickData(cap.lv);
+  // 畫面只剩一句「以下是遊戲資料推算」——改列能練的最高圖（主推卡在這些等級推的就是它），再接從它的等級查到的圖
+  if (!picked.length && cap) {
+    const first = listedMaps.has(cap.m) ? [] : [{ row: cap, lead: monsterIndex.get(cap.mobs[0]?.[0]) }];
+    picked = [...first, ...pickData(cap.lv).filter(entry => entry.row.m !== cap.m)].slice(0, FALLBACK_COUNT);
+  }
   const fallback = picked.map((entry): TrainRow => ({
     key: `map:${entry.row.m}`,
     title: maps[String(entry.row.m)]?.zh ?? String(entry.row.m),

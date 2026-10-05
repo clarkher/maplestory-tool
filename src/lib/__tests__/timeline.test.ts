@@ -259,6 +259,24 @@ describe("升級路線的標籤跟內容一致", () => {
     }
   });
 
+  it("段落比所有開放的練功圖高太多時，能練的最高圖排第一（跟主推卡在這些等級推的一樣），效率高的低等圖排後面", () => {
+    // 冰冷的搖籃那種：Lv.68、效率比最高圖高很多——照最高圖的等級查會排第一，但主推卡在 100 以上推的是最高圖
+    const COLD = 105090311;
+    const cold = monster(7, 68, COLD, 40);
+    const { plans } = timelinePlans(input({
+      job: 320,
+      level: 50,
+      bands: bandsFor(320),
+      monsterIndex: new Map([...monsters, cold].map(entry => [entry.id, entry])),
+      spawns: spawnIndex([...monsters, cold]),
+      maps: { ...maps, [COLD]: { zh: "冰冷的搖籃" } },
+      training: [...training, row(COLD, 68, 7, 40, 1000)],
+    }));
+    const band = plans.find(plan => plan.band.from === 100);
+    expect(band?.fallback.map(entry => entry.map)).toEqual([GIANT, COLD]);
+    expect(band?.ceiling).toEqual({ level: 75, top: 75, best: false });
+  });
+
   it("段落跟能練的最高圖差不到 10 級：照段落中點查、不加封頂提示", () => {
     const { plans } = timelinePlans(input({ job: 320, level: 50, bands: bandsFor(320) }));
     const band = plans.find(plan => plan.band.from === 70);
@@ -272,11 +290,11 @@ describe("升級路線的標籤跟內容一致", () => {
     expect(plans[activeIndex].rows.map(entry => entry.map)).toEqual([GIANT]);
     expect(plans[activeIndex].fallback.map(entry => entry.map)).toEqual([CLIFF]);
     expect(plans[activeIndex].ceiling).toEqual({ level: 75, top: 75, best: false });
-    // 巨人之林城鎮走不到：能練的最高圖改算遺跡之峭壁（Lv.71）；巨人之林照樣列在替代裡（不給去），
+    // 巨人之林城鎮走不到：能練的最高圖改算遺跡之峭壁（Lv.71）排第一；巨人之林照樣列在替代裡（不給去），
     // 所以提示寫的等級取列出來的怪最高的（Lv75），不會「最高到 Lv.73」旁邊擺 Lv75 的怪
     const unreachable = timelinePlans(input({ job: 320, level: 50, bands: bandsFor(320), canGo: map => map !== GIANT && map !== STAGE }));
     const band = unreachable.plans.find(plan => plan.band.from === 100);
-    expect(band?.fallback.map(entry => [entry.map, entry.go])).toEqual([[GIANT, undefined], [CLIFF, CLIFF]]);
+    expect(band?.fallback.map(entry => [entry.map, entry.go])).toEqual([[CLIFF, CLIFF], [GIANT, undefined]]);
     expect(band?.ceiling).toEqual({ level: 71, top: 75, best: false });
   });
 
