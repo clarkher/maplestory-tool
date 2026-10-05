@@ -212,6 +212,21 @@ export function nowQuests(args: {
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
 
+/**
+ * 先解列的「帶我去」終點：NPC 站的圖走得到就去那裡；站在隱藏地圖（例：海盜教官卡伊琳的訓練場）
+ * 就帶去那張圖的回城點（航海室），按鈕要寫出那張圖的名字（viaReturn）。都走不到就不給按鈕。
+ */
+export function npcGoTarget(
+  npcMap: number | undefined,
+  maps: Record<string, Pick<MapRecord, "zh" | "ret">>,
+  routable: Set<number>,
+): { map: number; viaReturn: boolean } | undefined {
+  if (npcMap === undefined) return undefined;
+  if (routable.has(npcMap)) return { map: npcMap, viaReturn: false };
+  const back = maps[String(npcMap)]?.ret;
+  return back !== undefined && routable.has(back) ? { map: back, viaReturn: true } : undefined;
+}
+
 /* ------------------------------------------------------------------ 長線 */
 
 export type LongRunTask = { kind: "item" | "kill"; id: number; n: string; c: number; quests: string[]; exp: number; droppers: number[] };

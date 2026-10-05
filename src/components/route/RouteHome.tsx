@@ -153,7 +153,7 @@ export function RouteHome() {
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
           )}
 
-          <TodoList items={plan.todo} routable={data.routable} />
+          <TodoList items={plan.todo} routable={data.routable} maps={data.maps} />
 
           {stageGuide ? (
             <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={data.common.spLeftover} />

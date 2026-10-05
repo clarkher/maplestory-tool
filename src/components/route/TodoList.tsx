@@ -3,16 +3,17 @@
 import Link from "next/link";
 import { useState } from "react";
 import { RouteIcon } from "@/components/Icons";
-import { itemImage, npcImage } from "@/lib/data";
+import { itemImage, mapName, npcImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import type { NowQuest } from "@/lib/now-plan";
+import { npcGoTarget, type NowQuest } from "@/lib/now-plan";
+import type { MapRecord } from "@/lib/types";
 import { SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 
 /** 一開始顯示幾條；其餘按「還有 N 個任務」展開（關鍵獎勵可能超過 5 個，不能藏掉） */
 const FIRST_SHOWN = 5;
 
 /** 先解：一次就做完的任務，關鍵獎勵排前面。 */
-export function TodoList({ items, routable }: { items: NowQuest[]; routable: Set<number> }) {
+export function TodoList({ items, routable, maps }: { items: NowQuest[]; routable: Set<number>; maps: Record<string, MapRecord> }) {
   const [showAll, setShowAll] = useState(false);
   if (!items.length) return null;
   const shown = showAll ? items : items.slice(0, FIRST_SHOWN);
@@ -21,7 +22,7 @@ export function TodoList({ items, routable }: { items: NowQuest[]; routable: Set
       <h2 className="px-1 pt-1 text-[16px] font-black">出發前，先解這 {items.length} 個任務</h2>
       <ul className="space-y-2">
         {shown.map(item => (
-          <TodoRow key={item.key} item={item} routable={routable} />
+          <TodoRow key={item.key} item={item} routable={routable} maps={maps} />
         ))}
       </ul>
       {items.length > FIRST_SHOWN ? (
@@ -38,13 +39,14 @@ export function TodoList({ items, routable }: { items: NowQuest[]; routable: Set
   );
 }
 
-function TodoRow({ item, routable }: { item: NowQuest; routable: Set<number> }) {
+function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<number>; maps: Record<string, MapRecord> }) {
   const [open, setOpen] = useState(false);
   const fraction = levelText(item.fraction);
   const parts = item.totalParts > 1
     ? `第 ${item.firstPart === item.lastPart ? item.firstPart : `${item.firstPart}–${item.lastPart}`} 段／共 ${item.totalParts} 段`
     : null;
-  const map = item.npc?.map;
+  // NPC 站在隱藏地圖（卡伊琳的訓練場）時帶去它的回城點，按鈕寫出那張圖
+  const go = npcGoTarget(item.npc?.map, maps, routable);
   return (
     <li className="rounded-[var(--radius-card)] glass wood-frame p-3">
       <div className="flex gap-2.5">
@@ -63,10 +65,10 @@ function TodoRow({ item, routable }: { item: NowQuest; routable: Set<number> }) 
           </span>
           <span className="mt-1 flex items-center justify-between gap-2">
             <span className="min-w-0 truncate text-[12px] ink-faint">{item.npc ? `${item.npc.n}・${item.npc.mapName ?? ""}` : ""}</span>
-            {map && routable.has(map) ? (
-              <Link href={`/go?to=${map}`} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--maple)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--maple)]">
+            {go ? (
+              <Link href={`/go?to=${go.map}`} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--maple)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--maple)]">
                 <RouteIcon size={13} />
-                帶我去
+                {go.viaReturn ? `帶我去${mapName(maps, go.map)}` : "帶我去"}
               </Link>
             ) : null}
           </span>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveLevels, longRunNow, longRunTasks, nowQuests, recUpperLevel, rewardFitsJob } from "@/lib/now-plan";
+import { effectiveLevels, longRunNow, longRunTasks, npcGoTarget, nowQuests, recUpperLevel, rewardFitsJob } from "@/lib/now-plan";
 import type { GuideCommon, GuideMustDo, Monster, Quest } from "@/lib/types";
 
 const monster = (id: number, lv: number, drops: number[] = []): Monster =>
@@ -193,5 +193,27 @@ describe("長線跟先解用同一批候選", () => {
   it("還在楓之島（初心者 10 等前）不列", () => {
     const quests = [quest("k999", { exp: 3000, needMobs: [{ id: 9, n: "刺菇菇", c: 999 }] })];
     expect(longRunNow(args(9, 0, quests))).toEqual([]);
+  });
+});
+
+describe("先解的帶我去", () => {
+  const maps = {
+    120000101: { zh: "航海室", ret: 120000000 },
+    912010200: { zh: "卡伊琳的訓練場", ret: 120000101 },
+    876009611: { zh: "隱藏研究室" },
+  };
+  const routable = new Set([120000000, 120000101, 104000000]);
+
+  it("NPC 站的圖走得到就去那裡", () => {
+    expect(npcGoTarget(120000101, maps, routable)).toEqual({ map: 120000101, viaReturn: false });
+  });
+
+  it("NPC 站在隱藏地圖（卡伊琳的訓練場）就帶去它的回城點", () => {
+    expect(npcGoTarget(912010200, maps, routable)).toEqual({ map: 120000101, viaReturn: true });
+  });
+
+  it("隱藏地圖又沒有走得到的回城點就不給", () => {
+    expect(npcGoTarget(876009611, maps, routable)).toBeUndefined();
+    expect(npcGoTarget(undefined, maps, routable)).toBeUndefined();
   });
 });
