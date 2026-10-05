@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { JOB_LINES, levelHint, minLevelFor, normalizeJob, profileWithJob } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
@@ -21,6 +21,8 @@ export function ProfileForm({
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
   // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等）
   const [hint, setHint] = useState<string | null>(null);
+  // 點職業選單那一刻輸入框裡的字：選單一點開輸入框就失焦、被還原，換職業時要拿這個重新驗
+  const typedOnOpen = useRef<string | null>(null);
 
   useEffect(() => {
     setLevelText(profile.level ? String(profile.level) : "");
@@ -80,9 +82,17 @@ export function ProfileForm({
           </span>
           <select
             value={normalizeJob(profile.job)}
+            onPointerDown={() => {
+              typedOnOpen.current = levelText;
+            }}
+            onBlur={() => {
+              // 打開選單沒換職業就離開：丟掉剛才記下的字，免得之後用鍵盤換職業時拿到舊數字
+              typedOnOpen.current = null;
+            }}
             onChange={event => {
               // 輸入框裡被擋下的等級換職業時重新驗（跟首頁角色列同一套），輸入框跟著實際等級走
-              const typed = Number(levelText.replace(/[^0-9]/g, ""));
+              const typed = Number((typedOnOpen.current ?? levelText).replace(/[^0-9]/g, ""));
+              typedOnOpen.current = null;
               const { next, note } = profileWithJob(profile, Number(event.target.value), typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined);
               setHint(note);
               setLevelText(next.level ? String(next.level) : "");

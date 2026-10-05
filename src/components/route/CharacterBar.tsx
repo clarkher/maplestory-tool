@@ -62,6 +62,14 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
    * 輸入框裡被原本職業擋下的等級（狂戰士狀態下打的 25）一起重新驗：新職業允許就套用，
    * 不允許就把輸入框改回實際等級——輸入框跟標題不會對不起來。
    */
+  /**
+   * 按職業鈕時不讓等級輸入框失焦：失焦會先把輸入框還原、提示收掉，按鈕往上跳一行、點擊落空，
+   * 打的數字也來不及拿給 pickJob 重新驗。
+   */
+  function keepTyping(event: React.MouseEvent) {
+    event.preventDefault();
+  }
+
   function pickJob(id: number) {
     const typed = Number(levelText.replace(/[^0-9]/g, ""));
     const { next, note } = profileWithJob(profile, id, typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined);
@@ -140,6 +148,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
                       <button
                         key={id}
                         type="button"
+                        onMouseDown={keepTyping}
                         onClick={() => pickJob(id)}
                         aria-pressed={active}
                         className={[
@@ -159,6 +168,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
               ))}
               <button
                 type="button"
+                onMouseDown={keepTyping}
                 onClick={() => pickJob(0)}
                 aria-pressed={profile.job === 0}
                 className={[
