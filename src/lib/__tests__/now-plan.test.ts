@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { effectiveLevels, longRunTasks, nowQuests, recUpperLevel, rewardFitsJob } from "@/lib/now-plan";
+import { effectiveLevels, longRunNow, longRunTasks, nowQuests, recUpperLevel, rewardFitsJob } from "@/lib/now-plan";
 import type { GuideCommon, GuideMustDo, Monster, Quest } from "@/lib/types";
 
 const monster = (id: number, lv: number, drops: number[] = []): Monster =>
@@ -167,5 +167,31 @@ describe("長線", () => {
     expect(longRunTasks(quests, [])).toEqual([
       { kind: "kill", id: 1, n: "刺菇菇", c: 999, quests: ["k999"], exp: 3000, droppers: [1] },
     ]);
+  });
+});
+
+describe("長線跟先解用同一批候選", () => {
+  const monsters = [monster(9, 25), monster(3, 40, [500])];
+  const args = (level: number, job: number, quests: Quest[], mustDo: GuideMustDo[] = []) => {
+    const common = commonWith(mustDo);
+    return { level, job, quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) };
+  };
+
+  it("實際等級比玩家高的 999 隻任務不列（刺菇菇 Lv.25，實際等級 20，Lv.12 不列、Lv.20 才列）", () => {
+    const quests = [quest("k999", { minLv: 10, exp: 3000, needMobs: [{ id: 9, n: "刺菇菇", c: 999 }] })];
+    expect(longRunNow(args(12, 110, quests))).toEqual([]);
+    expect(longRunNow(args(20, 110, quests)).map(entry => entry.n)).toEqual(["刺菇菇"]);
+  });
+
+  it("攻略建議等級過期的不列（詛咒娃娃 35–45，Lv.82 不列）", () => {
+    const quests = [quest("dolls", { minLv: 35, exp: 50000, needItems: [{ id: 500, n: "詛咒娃娃", c: 2300 }] })];
+    const mustDo = [rec("dolls", "35–45")];
+    expect(longRunNow(args(40, 230, quests, mustDo)).map(entry => entry.n)).toEqual(["詛咒娃娃"]);
+    expect(longRunNow(args(82, 230, quests, mustDo))).toEqual([]);
+  });
+
+  it("還在楓之島（初心者 10 等前）不列", () => {
+    const quests = [quest("k999", { exp: 3000, needMobs: [{ id: 9, n: "刺菇菇", c: 999 }] })];
+    expect(longRunNow(args(9, 0, quests))).toEqual([]);
   });
 });

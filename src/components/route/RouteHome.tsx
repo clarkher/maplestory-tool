@@ -8,10 +8,9 @@ import {
 } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { baseJob, isSecondJob, jobOption, normalizeJob, stageJob } from "@/lib/jobs";
-import { effectiveLevels, longRunTasks, mainPick, nowQuests } from "@/lib/now-plan";
-import { jobLineage, questEligible } from "@/lib/planner";
+import { effectiveLevels, longRunNow, mainPick, nowQuests } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
-import { bandOf, bandsFor, isIslandMap, onIsland, questReachable } from "@/lib/route-planner";
+import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
 import { NowCard } from "./NowCard";
@@ -105,12 +104,18 @@ export function RouteHome() {
       maps: data.maps,
       effective,
     });
-    const lineage = new Set(jobLineage(stage));
-    const reachable = data.quests.filter(quest =>
-      questEligible(quest, { level: profile.level, job: stage }, lineage) && questReachable(quest, data.maps));
-    const longRun = onIsland(profile.job, profile.level) ? [] : longRunTasks(reachable, data.monsters).slice(0, 3);
+    // 長線跟先解同一批候選（實際等級、過期都套），規則在 now-plan 的 longRunNow
+    const longRun = longRunNow({
+      level: profile.level,
+      job: profile.job,
+      quests: data.quests,
+      monsters: data.monsters,
+      common: data.common,
+      maps: data.maps,
+      effective,
+    }).slice(0, 3);
     return { monsterIndex, pick, todo, longRun };
-  }, [data, ready, effective, profile, stage, stageGuide]);
+  }, [data, ready, effective, profile, stageGuide]);
 
   if (error) {
     return <p className="py-10 text-center text-sm ink-soft">資料讀取失敗：{error}。重新整理一次試試。</p>;

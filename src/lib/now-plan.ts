@@ -116,6 +116,12 @@ export function recUpperLevel(rec: GuideMustDo | undefined): number | undefined 
   return Math.max(...numbers) + (/[+＋]|起/.test(text) ? OPEN_ENDED_SPAN : 15);
 }
 
+/** 攻略建議等級過期了沒（過了上限 +5）；永久有用的獎勵不過期 */
+function recExpired(rec: GuideMustDo | undefined, level: number): boolean {
+  const upper = recUpperLevel(rec);
+  return upper !== undefined && level > upper + 5 && !rec?.reward?.permanent;
+}
+
 function isLongKill(quest: Quest, min = LONG_RUN_MIN): boolean {
   return (quest.needMobs ?? []).some(mob => (mob.c ?? 0) >= min);
 }
@@ -174,8 +180,7 @@ export function nowQuests(args: {
     const line = lines.get(key) ?? members;
     const parts = line.filter(quest => members.includes(quest));
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
-    const upper = recUpperLevel(rec);
-    if (upper !== undefined && level > upper + 5 && !rec?.reward?.permanent) continue;
+    if (recExpired(rec, level)) continue;
     const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
     const fraction = levelFraction(exp, level, toNext);
     const reward = rec?.reward?.label;
@@ -210,6 +215,34 @@ export function nowQuests(args: {
 /* ------------------------------------------------------------------ 長線 */
 
 export type LongRunTask = { kind: "item" | "kill"; id: number; n: string; c: number; quests: string[]; exp: number; droppers: number[] };
+
+/**
+ * 首頁的長線：先解候選裡要打／收 200 以上的那些，所以跟先解用同一套「現在接得到」——
+ * 職業、等級上下限、實際等級 ≤ 現在等級、起始 NPC 在開放地圖、不是組隊任務、攻略建議等級沒過期。
+ * 還在楓之島的不列（島上沒有長線任務，離島後回不去）。
+ */
+export function longRunNow(args: {
+  level: number;
+  job: number;
+  quests: Quest[];
+  monsters: Monster[];
+  common: GuideCommon;
+  maps: Record<string, Pick<MapRecord, "zh">>;
+  effective: Map<string, number>;
+}): LongRunTask[] {
+  const { level, job, quests, monsters, common, maps, effective } = args;
+  if (onIsland(job, level)) return [];
+  const stage = stageJob(job, level);
+  const lineage = new Set(jobLineage(stage));
+  const recs = mustDoIndex(common);
+  const candidates = quests.filter(quest =>
+    quest.cat !== "組隊任務"
+    && questReachable(quest, maps)
+    && questEligible(quest, { level, job: stage }, lineage)
+    && (effective.get(quest.id) ?? quest.minLv ?? 0) <= level
+    && !recExpired(recs.get(quest.id), level));
+  return longRunTasks(candidates, monsters);
+}
 
 /** 長線：同一道具累計 200 個以上（例：詛咒娃娃）；單一任務同一隻怪要打 200 隻以上（例：告示牌 999 隻） */
 export function longRunTasks(quests: Quest[], monsters: Monster[], min = LONG_RUN_MIN): LongRunTask[] {
