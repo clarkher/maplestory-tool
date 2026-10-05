@@ -7,7 +7,7 @@ import { GoButton } from "@/components/PlanShell";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { COMMON_ROUTE } from "@/lib/guide-data";
-import { SECOND_JOB_LEVEL, jobTier } from "@/lib/jobs";
+import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
 import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
@@ -99,7 +99,8 @@ function BandItem({
   label?: string;
 }) {
   const { band } = plan;
-  const range = band.to >= 100 ? `Lv.${band.from}–100` : `Lv.${band.from}–${band.to}`;
+  // 之前最後一段固定到 100，這裡硬寫死「–100」；100～120 那段的 to 是 120，照 band 本身的值顯示才對
+  const range = `Lv.${band.from}–${band.to}`;
 
   return (
     <li className="relative">
@@ -153,6 +154,7 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
   }, [band, next, guide, stage, job, level, quests, monsters, maps, common, prefer, effective, active]);
 
   const stuckInFirstJob = band.from >= SECOND_JOB_LEVEL && jobTier(job) === 1;
+  const stuckInSecondJob = band.from >= THIRD_JOB_LEVEL && jobTier(job) === 2;
   const gap = guide?.gaps?.find(entry => entry.from < band.to && entry.to >= band.from);
   const island = isIslandBand(band);
   // 沒有能用的玩家攻略：說明（還在讀攻略、讀取失敗、或「以下是遊戲資料推算」）＋研究時查到的狀況
@@ -191,6 +193,12 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
       {stuckInFirstJob ? (
         <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
           還沒二轉：二轉後到上面「改」選你的職業，這段會換成那個職業的攻略。
+        </p>
+      ) : null}
+
+      {stuckInSecondJob ? (
+        <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
+          還沒三轉：三轉後到上面「改」選你的職業，這段會換成那個職業的攻略。
         </p>
       ) : null}
 

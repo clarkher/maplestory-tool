@@ -674,9 +674,9 @@ export function pqFor(common: GuideCommon, job: number, level: number): { pq: Gu
   return hits.sort((a, b) => b.window[0] - a.window[0])[0];
 }
 
-/** 組隊任務範圍要看哪幾個職業的攻略：這個等級實際那一轉，再加一轉（二轉玩家也用得到一轉攻略的範圍） */
+/** 組隊任務範圍要看哪幾個職業的攻略：這個等級實際那一轉，加上整條職業線（三轉 111 → 111、110、100） */
 function pqKeys(job: number, level: number): number[] {
-  return [...new Set([stageJob(job, level), baseJob(job)])].filter(code => code > 0);
+  return jobLineage(stageJob(job, level)).filter(code => code > 0);
 }
 
 /** 組隊任務剛過遊戲上限後，主推卡多寫一行的那幾級（上限 +1 到 +5） */

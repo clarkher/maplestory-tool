@@ -240,6 +240,12 @@ describe("組隊任務範圍", () => {
     expect(pqFor(commonWith([thief]), 420, 30)).toMatchObject({ job: 400, window: [21, 30] });
     expect(pqFor(commonWith([moon, kerning]), 110, 33)).toMatchObject({ job: 110 });
   });
+
+  it("三轉也看得到二轉攻略寫的組隊任務範圍", () => {
+    const common = { pq: [{ key: "goddess", name: "女神組隊任務", entrance: 1, guide: "/guide", byJob: { "110": [70, 75] as [number, number] } }] } as unknown as GuideCommon;
+    expect(pqFor(common, 111, 72)?.window).toEqual([70, 75]);
+    expect(pqFor(common, 111, 72)?.job).toBe(110);
+  });
 });
 
 /* ------------------------------------------------------------------ 能練的最高圖、過期攻略、封頂（一套設計） */
