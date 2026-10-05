@@ -255,6 +255,9 @@ export function hubTowns(maps: Record<string, MapRecord>): number[] {
 /** 城鎮按鈕最多幾顆 */
 const TOWN_CHIPS = 8;
 
+/** 問起點時排前面的維多利亞島主要城鎮：維多利亞港、弓箭手村、魔法森林、勇士之村、墮落城市（名字照地圖資料，沒有的跳過） */
+export const MAIN_TOWNS = [VICTORIA_PORT, 100000000, 101000000, 102000000, 103000000];
+
 /**
  * 「從 X 出發」的城鎮按鈕：真的城鎮（hubTowns），走得到目的地才給；first 裡的照順序排前面（初心者的維多利亞港、
  * 問起點時維多利亞島的五個主要城鎮），其他照地圖順序。exceptTarget：目的地本身不給（問起點時，選了只會「你已經在目的地了」）。

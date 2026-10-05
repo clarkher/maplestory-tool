@@ -11,7 +11,9 @@ import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage } from "@/l
 import { normalizeJob } from "@/lib/jobs";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
-import { VICTORIA_PORT, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep, type StartChoice } from "@/lib/route";
+import {
+  MAIN_TOWNS, VICTORIA_PORT, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep, type StartChoice,
+} from "@/lib/route";
 import { isIslandMap } from "@/lib/route-planner";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 
@@ -121,7 +123,7 @@ export function GoNavigator() {
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">帶我去</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">
-          一段一段告訴你走哪個傳送門。預設從最近的城鎮出發，不對就自己改。
+          一段一段告訴你走哪個傳送門。出發點不對就自己改。
         </p>
       </header>
 
@@ -153,7 +155,16 @@ export function GoNavigator() {
           ) : choice?.kind === "ask" ? (
             <section className="space-y-3">
               <GoNotes notes={notes} from="" />
-              <EmptyBlock title="你現在在哪個城鎮？選好就幫你排路線。" />
+              {/* 城鎮捷徑：維多利亞島的主要城鎮先排、走得到目的地的才給；按了就是自己選的起點（記下來、不再提島上的事） */}
+              <div className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-6 text-center">
+                <p className="font-bold">你現在在哪個城鎮？選好就幫你排路線。</p>
+                <TownChips
+                  towns={townChips(maps!, graph!, target, { first: MAIN_TOWNS, exceptTarget: true })}
+                  maps={maps!}
+                  onPick={pickStart}
+                  className="mt-3 justify-center"
+                />
+              </div>
             </section>
           ) : !start ? (
             <EmptyBlock
@@ -322,9 +333,20 @@ function RouteCard({
 }
 
 /** 「從 X 出發」的城鎮按鈕（跨區、問起點時共用）；按了就是玩家自己選的起點 */
-function TownChips({ towns, maps, onPick }: { towns: number[]; maps: Record<string, MapRecord>; onPick: (mapId: number) => void }) {
+function TownChips({
+  towns,
+  maps,
+  onPick,
+  className = "",
+}: {
+  towns: number[];
+  maps: Record<string, MapRecord>;
+  onPick: (mapId: number) => void;
+  className?: string;
+}) {
+  if (!towns.length) return null;
   return (
-    <ul className="flex flex-wrap gap-2">
+    <ul className={`flex flex-wrap gap-2 ${className}`}>
       {towns.map(mapId => (
         <li key={mapId}>
           <button

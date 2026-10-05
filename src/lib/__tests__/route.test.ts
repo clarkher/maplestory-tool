@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { VICTORIA_PORT, boatNote, defaultStart, findRoute, goNoteText, goStart, hubTowns, townChips, townsTitle, victoriaReach } from "@/lib/route";
+import { MAIN_TOWNS, VICTORIA_PORT, boatNote, defaultStart, findRoute, goNoteText, goStart, hubTowns, townChips, townsTitle, victoriaReach } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 
 const CUPID = 100000200;
@@ -182,6 +182,11 @@ describe("城鎮按鈕（跨區、問起點時；round 3 B2／F）", () => {
   it("問起點時不給目的地本身（選了只會「你已經在目的地了」）", () => {
     expect(townChips(maps, graph, HENESYS, { first: [VICTORIA_PORT], exceptTarget: true })).toEqual([VICTORIA_PORT, SLEEPY]);
     expect(townChips(maps, graph, HENESYS)).toEqual([HENESYS, VICTORIA_PORT, SLEEPY]);
+  });
+
+  it("問起點的按鈕：維多利亞港、弓箭手村、魔法森林、勇士之村、墮落城市排前面（地圖資料沒有的跳過），再接其他走得到的城鎮", () => {
+    expect(MAIN_TOWNS).toEqual([VICTORIA_PORT, 100000000, 101000000, 102000000, 103000000]);
+    expect(townChips(maps, graph, CUPID, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([VICTORIA_PORT, HENESYS, SLEEPY]);
   });
 
   it("標題寫城鎮所在區域的中文名（地圖資料的區域名，城鎮裡最多的那個）；沒有就寫「目的地附近的城鎮」", () => {
