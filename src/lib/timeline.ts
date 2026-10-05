@@ -6,6 +6,7 @@ import { jobFit } from "./job-rules";
 import { stageJob } from "./jobs";
 import { BOSS_SPAWN_MAX, type MainPick } from "./now-plan";
 import { planTraining } from "./planner";
+import { LEVEL_CAP } from "./profile";
 import { type Band, fitLevel, isIslandBand, isIslandMap, onIsland, segmentsToShow, shortName, trainingForBand } from "./route-planner";
 import type { GuideJob, GuidePq, GuideTrain, MapRecord, Monster, TrainingRow, Verified } from "./types";
 
@@ -153,7 +154,9 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
 
   // 遊戲資料替代：沒有能用的攻略時才放；王圖（刷怪點 3 個以下）、楓之島、上面已經列的圖都不放
   const listedMaps = new Set(rows.map(entry => entry.map));
-  const middle = Math.min(99, Math.round((band.from + band.to - 1) / 2));
+  // 查哪個等級：你在的這段用你現在的等級（跟 warnOf／fitLevel 同一套），其他段用段落中點；
+  // 中點不超過等級上限前一級（原本寫死 99，100–120 那段的中點 110 會被砍成 99，查出來整段是空的）
+  const middle = active ? level : Math.min(LEVEL_CAP - 1, Math.round((band.from + band.to - 1) / 2));
   const fallback = usable || isIslandBand(band)
     ? []
     : planTraining(

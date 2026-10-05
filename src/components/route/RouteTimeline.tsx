@@ -39,7 +39,7 @@ type Context = {
   canGo: (map: number) => boolean;
 };
 
-/** 升級路線：1→100 一條路，你在哪一段就展開哪一段，其他段點開看。 */
+/** 升級路線：1→120 一條路，你在哪一段就展開哪一段，其他段點開看。 */
 export function RouteTimeline(context: Context) {
   const { bands, level, job, guides, monsterIndex, maps, training, common, pick, canGo } = context;
   const spawns = useMemo(() => spawnIndex(context.monsters), [context.monsters]);

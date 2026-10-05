@@ -209,6 +209,44 @@ describe("升級路線的標籤跟內容一致", () => {
     expect(labels[index]).toBe("沼澤地Ⅲ");
   });
 
+  it("100–120 那段沒有攻略時，遊戲資料替代查這段真正的中點，不是寫死的 Lv.99（否則 Lv.110+ 的圖全部查不到）", () => {
+    const DEEP = 108000100;
+    const deepMonster = monster(90, 114, DEEP, 30);
+    const deepMaps: Record<string, Pick<MapRecord, "zh">> = { ...maps, [DEEP]: { zh: "深境祕地" } };
+    const deepTraining = [...training, row(DEEP, 114, 90, 30)];
+    const { plans } = timelinePlans(input({
+      job: 100,
+      level: 50,
+      bands: bandsFor(100),
+      monsterIndex: new Map([...monsters, deepMonster].map(entry => [entry.id, entry])),
+      spawns: spawnIndex([...monsters, deepMonster]),
+      maps: deepMaps,
+      training: deepTraining,
+    }));
+    const band = plans.find(plan => plan.band.from === 100);
+    // 寫死 Lv.99 時：巨人之林／遺跡之峭壁／火焰之地／沼澤地（Lv.45–75）跟新圖（Lv.114）全部不在合理範圍內，查出來是空的
+    expect(band?.fallback.map(entry => entry.map)).toEqual([DEEP]);
+  });
+
+  it("你在 100–120 這段、這段沒有攻略時，遊戲資料替代用你現在的等級查，不是段落中點（跟 warnOf 同一套）", () => {
+    const DEEP = 108000200;
+    const deepMonster = monster(91, 124, DEEP, 30);
+    const deepMaps: Record<string, Pick<MapRecord, "zh">> = { ...maps, [DEEP]: { zh: "深淵裂隙" } };
+    const deepTraining = [...training, row(DEEP, 124, 91, 30)];
+    const { activeIndex, plans } = timelinePlans(input({
+      job: 100,
+      level: 118,
+      bands: bandsFor(100),
+      monsterIndex: new Map([...monsters, deepMonster].map(entry => [entry.id, entry])),
+      spawns: spawnIndex([...monsters, deepMonster]),
+      maps: deepMaps,
+      training: deepTraining,
+    }));
+    expect(plans[activeIndex].band).toEqual({ from: 100, to: 120 });
+    // 段落中點是 110（跟你在的 Lv.118 差 8 級，查不到 Lv.124 的圖）；用你現在的等級 118 查才找得到
+    expect(plans[activeIndex].fallback.map(entry => entry.map)).toEqual([DEEP]);
+  });
+
   it("還沒二轉的人看 30 等以後的段：照內容寫標籤，不寫「二轉後排給你」", () => {
     const warrior = guide(100, [segment({ from: 30, to: 40, map: SWAMP, name: "沼澤地Ⅰ～Ⅲ（鱷魚）" })]);
     const { plans, labels } = timelinePlans(input({ job: 100, level: 18, bands: bandsFor(100), guides: new Map([[100, warrior]]) }));
