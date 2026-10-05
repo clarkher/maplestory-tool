@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INSTRUCTOR_MAPS, altPrefix, canGo, mainPick, pqFor, type TrainOption } from "@/lib/now-plan";
+import { INSTRUCTOR_MAPS, advanceTitle, altPrefix, canGo, mainPick, pqFor, type TrainOption } from "@/lib/now-plan";
 import type { GuideCommon, GuideJob, GuidePq, GuideTrain, MapRecord, Monster, PortalEdge, TrainingRow } from "@/lib/types";
 
 const TOWN = 100000000;
@@ -285,5 +285,12 @@ describe("主推卡的文字規則", () => {
     expect(canGo(option({ hops: 3, town: TOWN }))).toBe(true);
     expect(canGo(option({ hops: 0, town: TOWN }))).toBe(true);
     expect(canGo(option({}))).toBe(false);
+  });
+
+  it("轉職卡標題：8–9 等只有法師能轉，寫「可以轉法師了」；10 等起「可以轉職了」", () => {
+    expect(advanceTitle(8)).toBe("Lv.8・可以轉法師了");
+    expect(advanceTitle(9)).toBe("Lv.9・可以轉法師了");
+    expect(advanceTitle(10)).toBe("Lv.10・可以轉職了");
+    expect(advanceTitle(37)).toBe("Lv.37・可以轉職了");
   });
 });

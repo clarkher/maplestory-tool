@@ -362,6 +362,11 @@ export const INSTRUCTOR_MAPS: Record<number, number> = {
   500: 120000101, // 鯨魚號航海室
 };
 
+/** 轉職卡標題：8–9 等只有法師能轉（其他職業 10 等），不寫「可以轉職了」騙想當劍士的人 */
+export function advanceTitle(level: number): string {
+  return `Lv.${level}・${level < 10 ? "可以轉法師了" : "可以轉職了"}`;
+}
+
 export function instructors(): Instructor[] {
   return JOB_LINES.map(line => ({
     job: line.base,

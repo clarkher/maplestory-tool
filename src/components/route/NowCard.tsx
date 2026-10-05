@@ -8,7 +8,7 @@ import { GoButton } from "@/components/PlanShell";
 import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
-import { altPrefix, canGo, type MainPick, type TrainOption } from "@/lib/now-plan";
+import { advanceTitle, altPrefix, canGo, type MainPick, type TrainOption } from "@/lib/now-plan";
 import type { MapRecord, Monster } from "@/lib/types";
 import { SourceTag, Sprite } from "./bits";
 
@@ -195,9 +195,10 @@ function PqCard({ pick, level, jobName, maps, routable }: Common & { pick: Extra
 }
 
 function AdvanceCard({ pick, level, maps, routable }: Common & { pick: Extract<MainPick, { kind: "advance" }> }) {
+  const title = advanceTitle(level);
   return (
-    <article aria-label="可以轉職了" className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
-      <h2 className="text-[20px] font-black">Lv.{level}・可以轉職了</h2>
+    <article aria-label={title.replace(/^Lv\.\d+・/, "")} className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
+      <h2 className="text-[20px] font-black">{title}</h2>
       <p className="mb-2.5 text-[13px] ink-soft">法師 8 等、其他職業 10 等就能轉。去找想轉的職業的教官：</p>
       <ul className="space-y-2">
         {pick.instructors.map(entry => (
