@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
+import { sourceLabels } from "@/lib/format";
 import type { Verified } from "@/lib/types";
 
 /** 遊戲圖都是點陣小圖，放大時保持像素銳利 */
@@ -35,29 +36,17 @@ export function SourceTag({ kind, verified }: { kind: "data" | "guide"; verified
   );
 }
 
-function sourceName(url: string): string {
-  try {
-    const { hostname, searchParams } = new URL(url);
-    if (hostname.includes("forum.gamer.com.tw")) return `巴哈 ${searchParams.get("snA") ?? searchParams.get("sn") ?? ""}`.trim();
-    if (hostname.includes("home.gamer.com.tw")) return "巴哈小屋";
-    if (hostname.includes("bobogameguides")) return "波波攻略島";
-    if (hostname.includes("mapleclassictools")) return "楓錄";
-    if (hostname.includes("ptt.cc")) return "PTT";
-    return hostname.replace(/^www\./, "");
-  } catch {
-    return "出處";
-  }
-}
-
+/** 出處：寫網站名（巴哈姆特、波波攻略島），同一個網站好幾篇時加 2、3；不寫貼文編號 */
 export function SourceLinks({ urls, max = 3 }: { urls: string[]; max?: number }) {
   if (!urls.length) return null;
   const shown = urls.slice(0, max);
+  const labels = sourceLabels(shown);
   return (
     <p className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] ink-faint">
       出處
-      {shown.map(url => (
+      {shown.map((url, index) => (
         <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="font-bold text-[color:var(--sky)] hover:underline">
-          {sourceName(url)}
+          {labels[index]}
         </a>
       ))}
       {urls.length > max ? <span>等 {urls.length} 篇</span> : null}
