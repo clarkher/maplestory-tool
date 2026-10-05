@@ -471,7 +471,7 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     expect(partsText(row)).toBe("第 1–3 段／共 3 段");
   });
 
-  it("第幾段／共幾段算整條線：這一段只列在這段解鎖的", () => {
+  it("每一段的必解也從那條線的第一段開始，列到這段為止解鎖的段；這段沒有解鎖任何一段的線不列（round 4 後續 2）", () => {
     const quests = [
       quest("q1", { minLv: 20, exp: 20000 }),
       quest("q2", { minLv: 20, exp: 20000, pre: ["q1"] }),
@@ -479,7 +479,34 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     ];
     expect(run(25, { from: 21, to: 30 }, quests)).toEqual([]);
     expect(run(25, { from: 10, to: 21 }, quests)[0]).toMatchObject({ firstPart: 1, lastPart: 2, totalParts: 3, exp: 40000 });
-    expect(run(25, { from: 40, to: 50 }, quests)[0]).toMatchObject({ firstPart: 3, lastPart: 3, totalParts: 3, exp: 30000 });
+    expect(run(25, { from: 40, to: 50 }, quests)[0]).toMatchObject({ firstPart: 1, lastPart: 3, totalParts: 3, exp: 70000 });
+  });
+
+  it("從第一段開始的那串到不了這段（前面有長線那種）就不列，不從後面的段開始", () => {
+    const quests = [
+      quest("j1", { minLv: 10, exp: 30000 }),
+      quest("j2", { minLv: 10, exp: 20000, pre: ["j1"], needMobs: [{ id: 9, n: "刺菇菇", c: 200 }] }),
+      quest("j3", { minLv: 35, exp: 50000, pre: ["j2"] }),
+    ];
+    expect(run(25, { from: 30, to: 40 }, quests)).toEqual([]);
+    expect(run(25, { from: 10, to: 21 }, quests).map(partsText)).toEqual(["第 1 段／共 3 段"]);
+  });
+
+  it("你在這：先解沒列的線從第一段開始列（伊卡路斯第 1–3 段不值得列在先解：你在這列第 1–4 段，不寫「第 3–4 段」）；之後的段也從第一段開始", () => {
+    const quests = [
+      quest("i1", { minLv: 10, exp: 100 }),
+      quest("i2", { minLv: 10, exp: 100, pre: ["i1"] }),
+      quest("i3", { minLv: 32, exp: 3000, pre: ["i2"] }),
+      quest("i4", { minLv: 37, exp: 30000, pre: ["i3"] }),
+      quest("i5", { minLv: 42, exp: 20000, pre: ["i4"] }),
+    ];
+    const shared = common();
+    const args = { level: 33, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
+    expect(nowQuests(args)).toEqual([]);
+    const [here] = bandQuests({ ...args, band: { from: 30, to: 40 }, active: true });
+    expect(here.quests.map(entry => entry.id)).toEqual(["i1", "i2", "i3", "i4"]);
+    expect(partsText(here)).toBe("第 1–4 段／共 5 段");
+    expect(bandQuests({ ...args, band: { from: 40, to: 50 } }).map(partsText)).toEqual(["第 1–5 段／共 5 段"]);
   });
 
   it("要打 200 隻以上的段、同一條線自己累計同一道具 200 個以上的那段（含）開始不列；前面不到 200 的段照列（詛咒娃娃第 1 段 100 個）", () => {
@@ -534,7 +561,7 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     expect(at(30, { from: 30, to: 40 }, "a")).toBeCloseTo(0.6);
   });
 
-  it("你在的這一段不再列先解已經列的段（伊卡路斯先解第 1–3 段、這段解鎖第 3–4 段 → 必解只剩第 4 段）；別段照舊", () => {
+  it("你在的這一段不再列先解已經列的段（伊卡路斯先解第 1–3 段、這段解鎖第 3–4 段 → 必解只剩第 4 段）；不是你在的那段從第一段開始列", () => {
     const quests = [
       quest("a1", { minLv: 10, exp: 20000 }),
       quest("a2", { minLv: 10, exp: 20000 }),
@@ -546,7 +573,7 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     const args = { level: 33, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
     const band = { from: 30, to: 40 };
     expect(nowQuests(args).map(partsText)).toEqual(["第 1–3 段／共 4 段"]);
-    expect(bandQuests({ ...args, band }).map(partsText)).toEqual(["第 3–4 段／共 4 段"]);
+    expect(bandQuests({ ...args, band }).map(partsText)).toEqual(["第 1–4 段／共 4 段"]);
     const [row] = bandQuests({ ...args, band, active: true });
     expect(row.quests.map(entry => entry.id)).toEqual(["a4"]);
     expect(row).toMatchObject({ exp: 20000, level: 35 });
@@ -565,8 +592,8 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     const shared = common();
     const args = { level: 25, job: 500, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
     expect(nowQuests(args).map(partsText)).toEqual(["第 1–3 段／共 6 段"]);
-    // 不是你在的那段照舊從這段第一個做得到的段開始
-    expect(bandQuests({ ...args, band: { from: 21, to: 30 } }).map(partsText)).toEqual(["第 5 段／共 6 段"]);
+    // 不是你在的那段也從第一段開始：第 1–3 段在 15 等、第 4 段長線，到不了 21–30 這段，不列
+    expect(bandQuests({ ...args, band: { from: 21, to: 30 } })).toEqual([]);
     expect(bandQuests({ ...args, band: { from: 21, to: 30 }, active: true })).toEqual([]);
   });
 
@@ -582,8 +609,8 @@ describe("升級路線的必解跟先解同一套（任務線、標題、長線�
     const shared = common();
     const args = { level: 33, job: 110, quests, monsters, common: shared, maps: {}, effective: effectiveLevels(quests, monsters, shared) };
     expect(nowQuests(args)).toEqual([]);
-    expect(bandQuests({ ...args, band: { from: 30, to: 40 } }).map(item => item.key)).toEqual(["chain:u1", "chain:t1"]);
-    // u1 現在做得到（太少不列在先解）、u2 這段後面才接得到：接得上，照列第 1–2 段；t4 前面隔著長線的 t3，不列
+    // 從第一段開始：t 那條第 1–2 段之後是長線的 t3，到不了這段的 t4，不列；u 那條第 1–2 段照列
+    expect(bandQuests({ ...args, band: { from: 30, to: 40 } }).map(item => item.key)).toEqual(["chain:u1"]);
     const rows = bandQuests({ ...args, band: { from: 30, to: 40 }, active: true });
     expect(rows.map(item => [item.key, partsText(item)])).toEqual([["chain:u1", "第 1–2 段／共 2 段"]]);
   });

@@ -310,6 +310,16 @@ describe("真資料：首頁每個組合", () => {
     expectNone("戒指沒有整條", bad);
   });
 
+  it("每一段的必解，每一列要嘛從那條線的第一段開始，要嘛接在同一條線先解那列的下一段（不會只寫「伊卡路斯 第 3–4 段」）", () => {
+    const bad = combos.flatMap(combo => combo.mustDo.flatMap((rows, index) => rows.flatMap(item => {
+      const todo = combo.todo.find(entry => entry.key === item.key);
+      return item.firstPart === 1 || (todo && item.firstPart === todo.lastPart + 1)
+        ? []
+        : [`${combo.tag} 必解第 ${index + 1} 段「${item.title}」第 ${item.firstPart}–${item.lastPart} 段`];
+    })));
+    expectNone("必解沒從第一段開始、也不是接在先解後面", bad);
+  });
+
   it("先解列過的線，你在的那一段的必解只接在先解那串的下一段（同一頁不跳段：不會先解第 1–16 段、必解第 18–52 段）", () => {
     const bad = combos.flatMap(combo => combo.mustDo[combo.activeIndex].flatMap(item => {
       const todo = combo.todo.find(entry => entry.key === item.key);

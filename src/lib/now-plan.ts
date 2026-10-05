@@ -378,9 +378,10 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
 }
 
 /**
- * 升級路線某一段的必解：在這段解鎖的任務（門檻等級，沒有門檻用攻略建議等級），規則跟先解同一套——
- * 同一條任務線、同一個標題、長線那種拿掉、同一條值不值得的門檻、不跳段（lineRun：從這段第一個做得到的段開始，
- * 碰到不在這段解鎖或長線那種的段就停）；第幾段／共幾段算整條線。
+ * 升級路線某一段的必解：有段在這段解鎖的任務線（門檻等級，沒有門檻用攻略建議等級），規則跟先解同一套——
+ * 同一條任務線、同一個標題、長線那種拿掉、同一條值不值得的門檻、不跳段；第幾段／共幾段算整條線。
+ * 每一列從那條線的第一段開始（round 4 後續 2），列到這段為止解鎖、不是長線那種的段，那一串要列到這段解鎖的段才列在這段——
+ * 不會只寫「伊卡路斯 第 3–4 段」、前面兩段在哪裡都看不到。
  * 長線那種跟先解同一個判斷，只看自己這條線（QuestLines.long，round 4 後續 B）：兩邊拿掉的段一樣、經驗是同一個數字，
  * 別條線也要交同一道具不會切斷這條線（冒險家的戒指整條）；詛咒娃娃那條累計到 200 個的那段起不列。
  * 關鍵獎勵要列到給它的那一段才算（rewardInParts，round 4 後續 C）。
@@ -390,8 +391,8 @@ function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
  * active（你在的這段，round 4）：同一頁上同一條線也不跳段、不算兩次——
  * - 先解列過的線：只接在先解那串的下一段（伊卡路斯先解第 1–3 段、這段解鎖第 3–4 段 → 必解只剩第 4 段）；
  *   下一段做不到（長線那種、不在這段解鎖）就不列，不會先解第 1–3 段、必解跳到第 5 段
- * - 先解沒列的線（現在做得到的那串不值得列）：這段那串要跟現在做得到的那串接得上，中間隔著做不到的段（湯寶寶第 3 段在長線）就不列
- * 一段都不剩的線不列；值不值得用剩下的那一串算。
+ * - 先解沒列的線（現在做得到的那串不值得列）：跟其他段一樣從第一段開始列（伊卡路斯 第 1–4 段）
+ * 一段都不剩的線不列；值不值得用列出的那一串算。
  */
 export function bandQuests(args: {
   band: Band;
@@ -423,40 +424,34 @@ export function bandQuests(args: {
     }
   }
   const unlockOf = (quest: Quest) => lineUnlock.get(quest.id);
-  const inBand = shared.forJob.filter(quest => {
+  const reachable = (quest: Quest) => (!quest.island || isIslandBand(band)) && (island || !npcOnIsland(quest)) && (!onlyIsland || !npcOffIsland(quest));
+  // 到這段為止解鎖、去得了、不是長線那種的段（從線的第一段開始列的那一串都要是這種）
+  const open = (quest: Quest) => {
     const unlock = unlockOf(quest);
-    return unlock !== undefined && unlock >= band.from && unlock < band.to
-      && (!quest.island || isIslandBand(band))
-      && (island || !npcOnIsland(quest))
-      && (!onlyIsland || !npcOffIsland(quest));
-  });
+    return unlock !== undefined && unlock < band.to && reachable(quest) && !shared.long.has(quest.id);
+  };
+  // 在這段解鎖的段：有這種段的線才列在這段
+  const inRun = (quest: Quest) => open(quest) && (unlockOf(quest) as number) >= band.from;
+  // 從線的第一段開始（round 4 後續 2）：第一段到不了、或那一串到不了這段解鎖的段，就不列（不會寫「伊卡路斯 第 3–4 段」）
+  const fromStart = (_key: string, line: Quest[]): Quest[] => {
+    if (!open(line[0])) return [];
+    const run = lineRun(line, open);
+    return run.some(inRun) ? run : [];
+  };
   const floor = band.from > level ? band.from : level;
   const levelFor = (parts: Quest[]) => Math.max(floor, effective.get(parts[0].id) ?? parts[0].minLv ?? 0);
-  const doable = new Set(inBand.filter(quest => !shared.long.has(quest.id)).map(quest => quest.id));
-  const inRun = (quest: Quest) => doable.has(quest.id);
   const keep = (rec: GuideMustDo | undefined, fraction: number, reward: boolean) => worthListing(fraction, [rec], reward);
-  // 每一列加上這條線在這段最早幾等能接
+  // 每一列加上這條線最早幾等能接
   const withLevel = (rows: Array<{ item: NowQuest; score: number }>): BandQuest[] =>
     rows.slice(0, limit).map(({ item }) => ({ ...item, level: Math.min(...item.quests.map(quest => unlockOf(quest) ?? band.from)) }));
-  if (!active) return withLevel(lineItems(shared, inRun, levelFor, common.expTable.toNext, job, keep));
+  if (!active) return withLevel(lineItems(shared, inRun, levelFor, common.expTable.toNext, job, keep, fromStart));
 
-  // 你在的這段：先解那一批（現在做得到、不是長線那種；跟先解同一批，兩邊拿掉的段一樣）跟先解列出的線
-  const nowLines = questLines(stageJob(job, level), quests, common, maps, effective);
-  const nowDoable = new Set(doableNow(nowLines, level, effective, island, onlyIsland).filter(quest => !nowLines.long.has(quest.id)).map(quest => quest.id));
+  // 你在的這段：先解列過的線接在先解那串的下一段（下一段在這段解鎖、不是長線那種才列），沒列過的線從第一段開始
   const listed = new Map(nowQuests({ level, job, quests, monsters, common, maps, effective }).map(item => [item.key, item.lastPart]));
   const runOf = (key: string, line: Quest[]): Quest[] => {
-    const run = lineRun(line, inRun);
-    const current = lineRun(line, quest => nowDoable.has(quest.id));
-    if (!current.length) return run;
-    // 現在做得到的那串的下一段（0 起算的位置）
-    const next = line.indexOf(current[current.length - 1]) + 1;
     const lastListed = listed.get(key);
-    if (lastListed !== undefined) {
-      // 先解列過：接在先解那串的下一段，下一段做不到就不列
-      return lastListed < line.length && inRun(line[lastListed]) ? lineRun(line.slice(lastListed), inRun) : [];
-    }
-    // 先解沒列：這段那串要從現在做得到的那串之內或緊接著開始，不然中間隔著做不到的段
-    return run.length && line.indexOf(run[0]) <= next ? run : [];
+    if (lastListed === undefined) return fromStart(key, line);
+    return lastListed < line.length && inRun(line[lastListed]) ? lineRun(line.slice(lastListed), inRun) : [];
   };
   return withLevel(lineItems(shared, inRun, levelFor, common.expTable.toNext, job, keep, runOf));
 }
