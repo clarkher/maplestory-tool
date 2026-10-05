@@ -2,10 +2,17 @@
  * 首頁「現在做這些」的排法：主推去哪、先解哪些任務、哪些是長線。
  * 規則：docs/superpowers/specs/2026-10-05-now-plan-design.md。全部是純函式，測試在 __tests__/now-plan.test.ts。
  */
-import { baseJob, stageJob } from "./jobs";
-import { jobLineage, questEligible } from "./planner";
-import { groupQuests, levelFraction, longRunQuests, mustDoIndex, questReachable, withoutLongRun } from "./route-planner";
-import type { GuideCommon, GuideMustDo, MapRecord, Monster, Quest, QuestNpc, QuestReward } from "./types";
+import { jobFit, type JobFit } from "./job-rules";
+import { JOB_LINES, advancementLevel, baseJob, stageJob } from "./jobs";
+import { jobLineage, planTraining, questEligible } from "./planner";
+import { findRoute, suggestStart } from "./route";
+import {
+  VERIFIED_RANK, groupQuests, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, questReachable, shortName, spawnIndex,
+  trainingForBand, withoutLongRun,
+} from "./route-planner";
+import type {
+  GuideCommon, GuideJob, GuideMustDo, GuidePq, GuideTrain, MapRecord, Monster, PortalEdge, Quest, QuestNpc, QuestReward, TrainingRow,
+} from "./types";
 
 /** 同一道具累計、或單一任務同一隻怪要打到這個數量以上，就算長線（告示牌 999 隻、詛咒娃娃 2,300 個） */
 export const LONG_RUN_MIN = 200;
@@ -212,4 +219,167 @@ export function longRunTasks(quests: Quest[], monsters: Monster[], min = LONG_RU
     }
   }
   return [...items, ...kills.values()].sort((a, b) => b.c - a.c);
+}
+
+/* ------------------------------------------------------------------ 主推大卡 */
+
+/** 刷怪點這麼少的是王圖（巴洛古整張圖 1 隻），不進練功推薦 */
+const BOSS_SPAWN_MAX = 3;
+/** 從最近城鎮要走這麼多張圖以上，排序打七折 */
+const FAR_HOPS = 8;
+
+export type TrainOption = {
+  map: number;
+  title: string;
+  party: boolean;
+  source: "guide" | "data";
+  guide?: GuideTrain;
+  row?: TrainingRow;
+  /** [怪物 id, 刷怪點數]，多的在前 */
+  mobs: Array<[number, number]>;
+  fit: JobFit;
+  /** 從最近城鎮走幾張圖 */
+  hops?: number;
+  town?: number;
+};
+
+export type Instructor = { job: number; line: string; npcId: number; npcName: string; map: number; level: number };
+
+export type MainPick =
+  | { kind: "advance"; instructors: Instructor[] }
+  | { kind: "pq"; pq: GuidePq; window: [number, number]; alt?: TrainOption }
+  | { kind: "map"; option: TrainOption; alt?: TrainOption; ceiling?: number };
+
+/**
+ * 轉職教官站的地圖（遊戲資料裡教官任務的起訖地圖）。
+ * 海盜教官卡伊琳站在隱藏的訓練場，帶去她回城的鯨魚號航海室。
+ */
+export const INSTRUCTOR_MAPS: Record<number, number> = {
+  100: 102000003, // 勇士聖殿
+  200: 101000003, // 魔法森林圖書館
+  300: 100000201, // 弓箭手培訓中心
+  400: 103000003, // 墮落城市酒吧
+  500: 120000101, // 鯨魚號航海室
+};
+
+export function instructors(): Instructor[] {
+  return JOB_LINES.map(line => ({
+    job: line.base,
+    line: line.line,
+    npcId: line.npcId,
+    npcName: line.npcName,
+    map: INSTRUCTOR_MAPS[line.base],
+    level: advancementLevel(line.base),
+  }));
+}
+
+/** 等級在這個職業的組隊任務範圍內就主推組隊；同時落在兩個範圍，選起始等級高的（比較貼近現在） */
+export function pqFor(common: GuideCommon, job: number, level: number): { pq: GuidePq; window: [number, number] } | undefined {
+  const keys = [...new Set([stageJob(job, level), baseJob(job)])].filter(code => code > 0).map(String);
+  const hits = (common.pq ?? []).flatMap(pq => {
+    const window = keys.map(key => pq.byJob[key]).find((value): value is [number, number] => Boolean(value));
+    return window && level >= window[0] && level <= window[1] ? [{ pq, window }] : [];
+  });
+  return hits.sort((a, b) => b.window[0] - a.window[0])[0];
+}
+
+function routeFrom(
+  map: number,
+  graph: Record<string, PortalEdge[]>,
+  maps: Record<string, MapRecord>,
+  nearestTown: Record<string, [number, number]>,
+): { town?: number; hops?: number } {
+  const town = suggestStart(graph, maps, nearestTown, map);
+  if (!town) return {};
+  const route = findRoute(graph, town, map);
+  return route.ok ? { town, hops: route.hops } : {};
+}
+
+/** 攻略段落的排序：跨 15 級以上的排後面 → 單人優先 → 台服實測優先 → 越窄越前面 */
+function byGuidePreference(a: GuideTrain, b: GuideTrain): number {
+  const wide = (segment: GuideTrain) => Number(segment.to - segment.from > 15);
+  return wide(a) - wide(b)
+    || Number(a.kind === "party") - Number(b.kind === "party")
+    || VERIFIED_RANK[a.v] - VERIFIED_RANK[b.v]
+    || (a.to - a.from) - (b.to - b.from);
+}
+
+export function mainPick(args: {
+  level: number;
+  job: number;
+  /** 這個等級實際那一轉的攻略 */
+  guide?: GuideJob;
+  common: GuideCommon;
+  training: TrainingRow[];
+  monsters: Monster[];
+  maps: Record<string, MapRecord>;
+  graph: Record<string, PortalEdge[]>;
+  nearestTown: Record<string, [number, number]>;
+}): MainPick | undefined {
+  const { level, job, guide, common, monsters, maps, graph, nearestTown } = args;
+  if (job === 0 && level >= 8) return { kind: "advance", instructors: instructors() };
+
+  const stage = stageJob(job, level);
+  const index = new Map(monsters.map(monster => [monster.id, monster]));
+  const spawns = spawnIndex(monsters);
+  const island = onIsland(job, level);
+  const reachable = (map: number) => isIslandMap(map) === island && Boolean(maps[String(map)]?.zh);
+  const training = args.training.filter(row => reachable(row.m) && row.sp > BOSS_SPAWN_MAX);
+  const rows = new Map(training.map(row => [row.m, row]));
+  const mobsOf = (map: number): Array<[number, number]> => spawns.get(map) ?? [];
+
+  const options: TrainOption[] = [];
+  const segments = guide ? trainingForBand({ from: level, to: level + 1 }, guide.train) : [];
+  for (const segment of [...segments].sort(byGuidePreference)) {
+    if (segment.pq || segment.map === null || !reachable(segment.map)) continue;
+    const map = segment.map;
+    const mobs = mobsOf(map);
+    const fit = jobFit(stage, level, mobs, index);
+    if (!fit.ok) continue;
+    options.push({
+      map,
+      title: maps[String(map)]?.zh ?? shortName(segment.name),
+      party: segment.kind === "party",
+      source: "guide",
+      guide: segment,
+      row: rows.get(map),
+      mobs,
+      fit,
+      ...routeFrom(map, graph, maps, nearestTown),
+    });
+  }
+
+  const ranked = planTraining({ level, job: stage }, training, index, 40)
+    .filter(pick => !options.some(option => option.map === pick.row.m))
+    .map(pick => ({ pick, mobs: mobsOf(pick.row.m), fit: jobFit(stage, level, mobsOf(pick.row.m), index) }))
+    .filter(entry => entry.fit.ok)
+    .slice(0, 8)
+    .map(entry => {
+      const route = routeFrom(entry.pick.row.m, graph, maps, nearestTown);
+      const far = route.hops !== undefined && route.hops >= FAR_HOPS ? 0.7 : 1;
+      return { ...entry, route, score: entry.pick.score * entry.fit.factor * far };
+    })
+    .sort((a, b) => b.score - a.score);
+  for (const entry of ranked) {
+    options.push({
+      map: entry.pick.row.m,
+      title: maps[String(entry.pick.row.m)]?.zh ?? String(entry.pick.row.m),
+      party: false,
+      source: "data",
+      row: entry.pick.row,
+      mobs: entry.mobs,
+      fit: entry.fit,
+      ...entry.route,
+    });
+  }
+
+  const pq = pqFor(common, job, level);
+  if (pq) return { kind: "pq", ...pq, alt: options.find(option => !option.party) ?? options[0] };
+
+  const main = options[0];
+  if (!main) return undefined;
+  const alt = options.slice(1).find(option => option.party !== main.party) ?? options[1];
+  // 設計文件：現在等級比主推圖高 10 級以上（含 10 級）就加封頂提示
+  const ceiling = main.row && level - main.row.lv >= 10 ? Math.max(...training.map(entry => entry.lv)) : undefined;
+  return { kind: "map", option: main, alt, ceiling };
 }
