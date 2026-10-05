@@ -7,10 +7,35 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } from "@/components/Icons";
 import { MapPicker } from "@/components/MapPicker";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
-import { loadGraph, loadMaps, loadNearestTown, loadRegions, mapName, minimapImage } from "@/lib/data";
-import { portalHint } from "@/lib/format";
-import { findRoute, suggestStart, type RouteStep } from "@/lib/route";
-import type { MapRecord, PortalEdge, Region } from "@/lib/types";
+import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage } from "@/lib/data";
+import { normalizeJob } from "@/lib/jobs";
+import { portalDirection, portalSentence } from "@/lib/portal-text";
+import { useProfile } from "@/lib/profile";
+import {
+  MAIN_TOWNS, VICTORIA_PORT, crossAreaText, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep,
+  type StartChoice,
+} from "@/lib/route";
+import type { MapRecord, PortalEdge } from "@/lib/types";
+
+/** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
+const START_KEY = "ms-go-start";
+
+function readRememberedStart(): number | null {
+  try {
+    const value = Number(localStorage.getItem(START_KEY));
+    return Number.isFinite(value) && value > 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberStart(mapId: number) {
+  try {
+    localStorage.setItem(START_KEY, String(mapId));
+  } catch {
+    // 停用本機儲存時照樣能用，只是下次不會記得
+  }
+}
 
 export function GoNavigator() {
   const router = useRouter();
@@ -21,25 +46,47 @@ export function GoNavigator() {
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
   const [graph, setGraph] = useState<Record<string, PortalEdge[]> | null>(null);
   const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(null);
-  const [regions, setRegions] = useState<Region[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [remembered, setRemembered] = useState<number | null>(null);
 
   useEffect(() => {
-    Promise.all([loadMaps(), loadGraph(), loadNearestTown(), loadRegions()])
-      .then(([mapData, graphData, townData, regionData]) => {
+    setRemembered(readRememberedStart());
+    Promise.all([loadMaps(), loadGraph(), loadNearestTown()])
+      .then(([mapData, graphData, townData]) => {
         setMaps(mapData);
         setGraph(graphData);
         setNearestTown(townData);
-        setRegions(regionData);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  const start = useMemo(() => {
-    if (forcedStart) return forcedStart;
-    if (!graph || !maps || !nearestTown || !target) return null;
-    return suggestStart(graph, maps, nearestTown, target);
-  }, [forcedStart, graph, maps, nearestTown, target]);
+  // 初心者不管幾等都可能還在楓之島（看本機存的角色）：沒自己選起點時從船靠岸的維多利亞港出發，路線上面先說要搭船（route.ts goStart）
+  const { profile, loaded } = useProfile();
+  const novice = loaded && profile.level > 0 && normalizeJob(profile.job) === 0;
+
+  // 自己選的起點（網址的 from）照用；沒選就用最近的城鎮，目的地本身是城鎮時改用上次選的起點，都不行就先問；初心者見上
+  const decided = useMemo<{ choice: StartChoice; notes: GoNote[] } | null>(() => {
+    if (!target) return forcedStart ? { choice: { kind: "start", map: forcedStart }, notes: [] } : null;
+    if (!graph || !maps || !nearestTown) return null;
+    return goStart({
+      target,
+      // 沒有名字的圖（未開放）不能當起點，網址帶了也不算
+      picked: forcedStart && maps[String(forcedStart)]?.zh ? forcedStart : null,
+      suggested: suggestStart(graph, maps, nearestTown, target),
+      remembered,
+      novice,
+      reaches: from => findRoute(graph, from, target).ok,
+      reach: victoriaReach(graph),
+    });
+  }, [forcedStart, graph, maps, nearestTown, target, remembered, novice]);
+  const choice = decided?.choice ?? null;
+  const notes = decided?.notes ?? [];
+  const start = choice?.kind === "start" ? choice.map : null;
+  // 問起點時的城鎮捷徑：維多利亞島的主要城鎮先排、走得到目的地的才給（目的地本身、跟它同名的不給）
+  const askTowns = useMemo(
+    () => (choice?.kind === "ask" && maps && graph && target ? townChips(maps, graph, target, { first: MAIN_TOWNS, exceptTarget: true }) : []),
+    [choice, maps, graph, target],
+  );
 
   const plan = useMemo(() => {
     if (!graph || !target || !start) return null;
@@ -56,12 +103,24 @@ export function GoNavigator() {
     [params, router],
   );
 
-  const ready = Boolean(maps && graph && nearestTown && regions);
+  /** 玩家自己選起點：記下來，下次目的地是城鎮時就從這裡出發。沒有名字的圖（未開放）不能當起點 */
+  const pickStart = useCallback(
+    (mapId: number) => {
+      if (!maps?.[String(mapId)]?.zh) return;
+      rememberStart(mapId);
+      setRemembered(mapId);
+      setParam("from", mapId);
+    },
+    [maps, setParam],
+  );
+
+  // 角色也要讀到（初心者的起點不一樣），不然會先排一條路再換掉
+  const ready = Boolean(maps && graph && nearestTown) && loaded;
 
   return (
     <div className="space-y-5 py-3 sm:py-6">
       <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
-        <Link href="/" className="hover:text-[color:var(--maple)]">今天想幹嘛</Link>
+        <Link href="/" className="hover:text-[color:var(--maple)]">我的路線</Link>
         <ChevronRight size={13} />
         <span className="text-[color:var(--ink-soft)]">帶我去</span>
       </nav>
@@ -69,7 +128,7 @@ export function GoNavigator() {
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">帶我去</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">
-          一段一段告訴你走哪個傳送門。預設從最近的城鎮出發，不對就自己改。
+          一段一段告訴你走哪個傳送門。出發點不對就自己改。
         </p>
       </header>
 
@@ -84,8 +143,8 @@ export function GoNavigator() {
               label="從哪裡出發"
               value={start}
               maps={maps!}
-              onSelect={mapId => setParam("from", mapId)}
-              placeholder="預設是最近的城鎮"
+              onSelect={pickStart}
+              placeholder={choice?.kind === "ask" ? "輸入地圖名稱" : "預設是最近的城鎮"}
             />
             <MapPicker
               label="要去哪裡"
@@ -98,20 +157,34 @@ export function GoNavigator() {
 
           {!target ? (
             <EmptyBlock title="先選一個目的地" hint="或從練功、任務、打寶的結果直接按「帶我去」。" />
+          ) : choice?.kind === "ask" ? (
+            <section className="space-y-3">
+              {/* 跨區那句這時講的是目的地（黃金海灘本身跟維多利亞島之間沒有傳送門） */}
+              <GoNotes notes={notes} from={mapName(maps!, target)} />
+              {/* 城鎮捷徑：按了就是自己選的起點（記下來、不再提島上的事）。一顆都給不出來、上面又已經說了怎麼過去時，
+                  不放空的問句（上面的「從哪裡出發」照樣可以自己選） */}
+              {askTowns.length || !notes.length ? (
+                <div className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-6 text-center">
+                  <p className="font-bold">你現在在哪個城鎮？選好就幫你排路線。</p>
+                  <TownChips towns={askTowns} maps={maps!} onPick={pickStart} className="mt-3 justify-center" />
+                </div>
+              ) : null}
+            </section>
           ) : !start ? (
             <EmptyBlock
               title="找不到可以走過去的起點"
               hint="這張圖在客戶端資料裡沒有連到任何城鎮，可能是活動地圖或副本。"
             />
           ) : plan?.ok ? (
-            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} />
+            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} notes={notes} />
           ) : plan && plan.reason === "different-area" ? (
             <CrossAreaNotice
               maps={maps!}
-              regions={regions!}
+              graph={graph!}
               from={start}
               to={target}
-              onPickStart={mapId => setParam("from", mapId)}
+              novice={novice}
+              onPickStart={pickStart}
             />
           ) : (
             <EmptyBlock title="算不出路線" hint="兩張圖之間沒有傳送門相連。" />
@@ -122,17 +195,37 @@ export function GoNavigator() {
   );
 }
 
+/** 路線上面要自己搭船的那段（route.ts goStart）；我們沒有船班資料，只照實說、不編路線。from：起點的名字（跨區那句用） */
+function GoNotes({ notes, from, className = "" }: { notes: GoNote[]; from: string; className?: string }) {
+  if (!notes.length) return null;
+  return (
+    <div className={`flex items-start gap-2.5 rounded-xl bg-[color:var(--gold-wash)] px-3.5 py-2.5 ${className}`}>
+      <BoatIcon size={18} className="mt-0.5 shrink-0 text-[color:var(--gold)]" />
+      <div className="space-y-1">
+        {notes.map(note => (
+          <p key={note} className="text-sm font-bold leading-relaxed">{goNoteText(note, from)}</p>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RouteList({
   steps,
   maps,
   hops,
+  graph,
+  notes,
 }: {
   steps: RouteStep[];
   maps: Record<string, MapRecord>;
   hops: number;
+  graph: Record<string, PortalEdge[]>;
+  notes: GoNote[];
 }) {
   return (
     <section aria-label="路線">
+      <GoNotes notes={notes} from={mapName(maps, steps[0]?.map)} className="mb-3" />
       <div className="mb-3 flex items-center gap-2 rounded-xl bg-[color:var(--leaf-wash)] px-3.5 py-2.5">
         <RouteIcon size={18} className="shrink-0 text-[color:var(--leaf)]" />
         <p className="text-sm font-bold">
@@ -148,6 +241,8 @@ function RouteList({
             index={index}
             total={steps.length}
             maps={maps}
+            graph={graph}
+            previous={steps[index - 1]?.map}
           />
         ))}
       </ol>
@@ -160,17 +255,24 @@ function RouteCard({
   index,
   total,
   maps,
+  graph,
+  previous,
 }: {
   step: RouteStep;
   index: number;
   total: number;
   maps: Record<string, MapRecord>;
+  graph: Record<string, PortalEdge[]>;
+  previous?: number;
 }) {
   const [open, setOpen] = useState(false);
   const record = maps[String(step.map)];
   const name = mapName(maps, step.map);
   const isStart = index === 0;
   const isEnd = index === total - 1;
+  const unnamed = !record?.zh;
+  const previousEdges = previous !== undefined ? graph[String(previous)] ?? [] : [];
+  const direction = portalDirection(step.via, step.x, step.y, previousEdges.map(([, , px, py]) => [px, py] as [number, number]));
 
   return (
     <li className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
@@ -190,21 +292,14 @@ function RouteCard({
 
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-baseline gap-x-2">
-            <span className="text-[17px] font-black leading-tight">{name}</span>
+            <span className="text-[17px] font-black leading-tight">{unnamed ? "一條小通道（遊戲裡沒有名字）" : name}</span>
             {record?.st ? <span className="text-xs ink-faint">{record.st}</span> : null}
           </p>
 
           {isStart ? (
             <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點</p>
           ) : (
-            <p className="mt-0.5 text-sm ink-soft">
-              從上一張圖
-              <span className="mx-1 font-bold text-[color:var(--ink)]">{portalHint(step.via).text}</span>
-              的傳送門進來
-              {portalHint(step.via).known ? (
-                <span className="ml-1 text-[11px] ink-faint">（{portalHint(step.via).raw}）</span>
-              ) : null}
-            </p>
+            <p className="mt-0.5 text-sm ink-soft">{portalSentence(direction)}</p>
           )}
           {isEnd && !isStart ? (
             <p className="mt-0.5 text-sm font-bold text-[color:var(--maple)]">到了</p>
@@ -225,17 +320,12 @@ function RouteCard({
                 <figure className="mt-2 overflow-hidden rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-2">
                   <Image
                     src={minimapImage(step.map)}
-                    alt={`${name} 小地圖`}
+                    alt={unnamed ? "小通道 小地圖" : `${name} 小地圖`}
                     width={640}
                     height={200}
                     className="mx-auto h-auto w-full object-contain"
                     unoptimized
                   />
-                  {step.x !== undefined && !isStart ? (
-                    <figcaption className="mt-1 text-center text-[11px] ink-faint">
-                      進來的傳送門在上一張圖的座標 ({step.x}, {step.y})
-                    </figcaption>
-                  ) : null}
                 </figure>
               ) : null}
             </>
@@ -246,27 +336,57 @@ function RouteCard({
   );
 }
 
+/** 「從 X 出發」的城鎮按鈕（跨區、問起點時共用）；按了就是玩家自己選的起點 */
+function TownChips({
+  towns,
+  maps,
+  onPick,
+  className = "",
+}: {
+  towns: number[];
+  maps: Record<string, MapRecord>;
+  onPick: (mapId: number) => void;
+  className?: string;
+}) {
+  if (!towns.length) return null;
+  return (
+    <ul className={`flex flex-wrap gap-2 ${className}`}>
+      {towns.map(mapId => (
+        <li key={mapId}>
+          <button
+            type="button"
+            onClick={() => onPick(mapId)}
+            className="tap-safe rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold transition-colors hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--maple)]"
+          >
+            從 {mapName(maps, mapId)} 出發
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
- * 走不到就照實說，並指出目標所在區域的城鎮。
- * 楓之谷跨大陸本來就要搭船或計程車，那一段不是傳送門，我們不假裝算得出來。
+ * 走不到就照實說，並列出走得到目的地的城鎮（真的城鎮才列：民宅、沒有名字的圖不算；初心者把維多利亞港排第一）。
+ * 楓之谷跨大陸本來就要搭船或計程車，那一段不是傳送門，我們不假裝算得出來；從楓之島出發的那段是搭船；
+ * 目的地在楓之島、起點不在時只說兩邊沒有傳送門（離開楓之島就回不去，不叫人搭車）。
  */
 function CrossAreaNotice({
   maps,
-  regions,
+  graph,
   from,
   to,
+  novice,
   onPickStart,
 }: {
   maps: Record<string, MapRecord>;
-  regions: Region[];
+  graph: Record<string, PortalEdge[]>;
   from: number;
   to: number;
+  novice: boolean;
   onPickStart: (mapId: number) => void;
 }) {
-  const targetRegion = regions.find(region => region.maps.includes(to));
-  const townsInRegion = (targetRegion?.maps || [])
-    .filter(mapId => maps[String(mapId)]?.t)
-    .slice(0, 8);
+  const towns = townChips(maps, graph, to, { first: novice ? [VICTORIA_PORT] : [] });
 
   return (
     <section className="space-y-3">
@@ -276,31 +396,15 @@ function CrossAreaNotice({
           <p className="font-bold">
             {mapName(maps, from)} 走不到 {mapName(maps, to)}
           </p>
-          <p className="mt-1 ink-soft">
-            這兩張圖不在同一個可步行區域。楓之谷跨大陸要搭船或計程車，那一段沒有傳送門資料，
-            所以我們不會編一條路線給你。先在遊戲裡搭車過去，再從下面挑一個當地城鎮重算路線。
-          </p>
+          {/* 目的地在楓之島、起點不在：只說沒有傳送門，不叫人搭車（route.ts crossAreaText） */}
+          <p className="mt-1 ink-soft">{crossAreaText(from, to)}</p>
         </div>
       </div>
 
-      {townsInRegion.length ? (
+      {towns.length ? (
         <div className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
-          <p className="mb-2 text-sm font-bold">
-            {targetRegion?.title ? `${targetRegion.title} 的城鎮` : "目標所在區域的城鎮"}
-          </p>
-          <ul className="flex flex-wrap gap-2">
-            {townsInRegion.map(mapId => (
-              <li key={mapId}>
-                <button
-                  type="button"
-                  onClick={() => onPickStart(mapId)}
-                  className="tap-safe rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold transition-colors hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--maple)]"
-                >
-                  從 {mapName(maps, mapId)} 出發
-                </button>
-              </li>
-            ))}
-          </ul>
+          <p className="mb-2 text-sm font-bold">{townsTitle(maps, towns)}</p>
+          <TownChips towns={towns} maps={maps} onPick={onPickStart} />
         </div>
       ) : (
         <div className="flex items-start gap-2 rounded-[var(--radius-card)] glass p-3.5 text-sm ink-soft">

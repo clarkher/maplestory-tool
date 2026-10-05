@@ -49,9 +49,13 @@ export type BuildProgress = {
 /**
  * 依「已經拿到幾點」推算點法走到哪一步。
  * 同一個技能在點法裡可能出現兩次（先點 3 級、之後補滿），所以每一步只算差額。
+ * 「現在」是你最新那一點落在的那一步（第 sp 點；還沒有點數時看第 1 點）：剛好點完一步時，
+ * 最新的點數就是用來點完它的，它還是現在。以前把它算成點完、改指下一步，
+ * 海盜 Lv.10 只有 1 點卻叫你點衝擊拳（那 1 點其實要給雙子星攻擊）。
  */
 export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
   const level = new Map<string, number>();
+  const target = Math.max(sp, 1);
   let spent = 0;
   let nowIndex = -1;
   let reached = 0;
@@ -63,9 +67,9 @@ export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
     level.set(key, Math.max(from, step.to));
     const start = spent;
     spent += cost;
-    if (nowIndex < 0 && spent > sp) {
+    if (nowIndex < 0 && cost > 0 && start < target && target <= spent) {
       nowIndex = index;
-      reached = from + (sp - start);
+      reached = from + Math.max(0, sp - start);
     }
     return { ...step, from, cost, start, end: spent };
   });
@@ -85,6 +89,16 @@ export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
     current: nowIndex < 0 ? undefined : { ...planned[nowIndex], reached },
     finished: nowIndex < 0,
   };
+}
+
+/** 研究檔裡沒有指定技能的步驟（楓錄原文「自由配點 1」，研究檔寫「自由配點（未指定）」） */
+export function isFreeStep(step: Pick<GuideSkillStep, "id" | "name">): boolean {
+  return step.id === null && /自由配點|未指定/.test(step.name);
+}
+
+/** 點法一步的寫法：「衝擊拳 20」；沒有指定技能的寫「自由分配 1 點」，不露研究檔的「（未指定）」 */
+export function stepText(step: Pick<PlannedStep, "id" | "name" | "to" | "cost">): string {
+  return isFreeStep(step) ? `自由分配 ${step.cost} 點` : `${step.name} ${step.to}`;
 }
 
 /**

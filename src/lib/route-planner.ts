@@ -1,6 +1,6 @@
 import { advancementLevel, stageJob } from "./jobs";
-import { jobLineage, planTraining, questEligible } from "./planner";
-import type { GuideCommon, GuideJob, GuideMustDo, GuideTrain, MapRecord, Monster, Quest, TrainingRow, Verified } from "./types";
+import { jobLineage } from "./planner";
+import type { GuideCommon, GuideMustDo, GuideTrain, MapRecord, Monster, Quest, Verified } from "./types";
 
 type MapNames = Record<string, Pick<MapRecord, "zh">>;
 
@@ -38,7 +38,7 @@ export function bandOf(bands: Band[], level: number): Band {
   return bands.find(band => level >= band.from && level < band.to) ?? bands[bands.length - 1];
 }
 
-const VERIFIED_RANK: Record<Verified, number> = { tw: 0, community: 1, legacy: 2 };
+export const VERIFIED_RANK: Record<Verified, number> = { tw: 0, community: 1, legacy: 2 };
 
 /** 攻略的等級區間是含頭含尾的（30–35），段落是含頭不含尾 */
 function overlap(band: Band, from: number, to: number): number {
@@ -49,19 +49,39 @@ function overlap(band: Band, from: number, to: number): number {
 export function trainingForBand(band: Band, train: GuideTrain[]): GuideTrain[] {
   return train
     .map(segment => ({ segment, size: overlap(band, segment.from, segment.to) }))
-    .filter(entry => entry.size > 0)
+    // 只重疊一兩級的段落（例：Lv.30–41 的圖掛在 40–50 段，只重疊 40、41 兩級）是過期的攻略，不列；段長不到 3 級時門檻跟著縮
+    .filter(entry => entry.size >= Math.min(3, band.to - band.from))
     .sort((a, b) => b.size - a.size || VERIFIED_RANK[a.segment.v] - VERIFIED_RANK[b.segment.v])
     .map(entry => entry.segment);
+}
+
+/**
+ * 段落詳情列哪幾段攻略：照重疊排序往下列，湊滿 max 段職業能用的就停；途中碰到被職業規則擋掉的照列、寫原因
+ * （火毒看得到「怪抗火」）。一段能用的都沒有時，列前 max 段被擋的，畫面下面再放遊戲資料替代。
+ * 先判斷職業規則再挑，標籤跟詳情才會一致（以前先取前 3 段再判斷，能用的第 4 段會被擠掉）。
+ */
+export function segmentsToShow<T>(all: T[], blocked: (segment: T) => boolean, max = 3): T[] {
+  const shown: T[] = [];
+  let usable = 0;
+  for (const segment of all) {
+    if (usable >= max) break;
+    shown.push(segment);
+    if (!blocked(segment)) usable += 1;
+  }
+  return usable ? shown : all.slice(0, max);
+}
+
+/**
+ * 職業規則用哪個等級判斷：你在的這段用你現在的等級（Lv.35 僧侶看 30–40 段要用 35，不是段落起點 30），
+ * 其他段用段落起點與攻略段落起點較高的那個。
+ */
+export function fitLevel(band: Band, segment: GuideTrain, current?: number): number {
+  return current ?? Math.max(band.from, segment.from);
 }
 
 /** 攻略地名常帶括號註記（會掉什麼），當段落標題時拿掉 */
 export function shortName(name: string): string {
   return name.replace(/[（(][^）)]*[）)]/g, "").trim();
-}
-
-export function bandLabel(band: Band, train: GuideTrain[]): string | undefined {
-  const top = trainingForBand(band, train)[0];
-  return top ? shortName(top.name) || undefined : undefined;
 }
 
 /* ------------------------------------------------------------------ 去得了、接得到 */
@@ -99,9 +119,11 @@ export type QuestGroup = { key: string; title: string; quests: Quest[]; exp: num
 /**
  * 把同一條任務線收成一組，免得「冒險家的戒指」九段把整個清單洗版。
  * 名稱帶【任務線】前綴的用前綴分；其餘沿著前置任務往回找到這批任務裡的源頭。
+ * 源頭同名、又是同一個 NPC 給的也算同一條（托德的打獵方法有兩個編號、彼此沒有前置，否則先解會列兩行同名的）。
  */
 export function groupQuests(quests: Quest[]): QuestGroup[] {
   const byId = new Map(quests.map(quest => [quest.id, quest]));
+  const firstRootByName = new Map<string, string>();
   const rootOf = (quest: Quest): string => {
     const line = quest.n.match(/^\[([^\]]+)\]/);
     if (line) return `line:${line[1].trim()}`;
@@ -113,7 +135,9 @@ export function groupQuests(quests: Quest[]): QuestGroup[] {
       if (!previous) break;
       current = previous;
     }
-    return `chain:${current.id}`;
+    const sameName = `${current.n}|${current.sNpc?.id ?? ""}`;
+    if (!firstRootByName.has(sameName)) firstRootByName.set(sameName, current.id);
+    return `chain:${firstRootByName.get(sameName)}`;
   };
 
   const groups = new Map<string, QuestGroup>();
@@ -154,10 +178,6 @@ export function levelFraction(exp: number, level: number, toNext: number[]): num
 
 /* ------------------------------------------------------------------ 怪物與掉落索引 */
 
-export function dropIndex(monsters: Monster[]): Map<number, Set<number>> {
-  return new Map(monsters.map(monster => [monster.id, new Set(monster.drops)]));
-}
-
 /** 地圖 → [怪物, 刷怪點數] */
 export function spawnIndex(monsters: Monster[]): Map<number, Array<[number, number]>> {
   const index = new Map<number, Array<[number, number]>>();
@@ -174,18 +194,6 @@ export function spawnIndex(monsters: Monster[]): Map<number, Array<[number, numb
 
 function droppersOf(itemId: number, monsters: Monster[]): number[] {
   return monsters.filter(monster => monster.drops.includes(itemId)).map(monster => monster.id).sort((a, b) => a - b);
-}
-
-/**
- * 這個任務能不能整個在這張圖完成：要打的怪都在、要交的道具都由這張圖的怪掉。
- * 只差一樣就不算——寫「順便完成」卻還得跑別張圖，等於騙人。
- */
-export function questDoableAt(quest: Quest, mobsOnMap: Set<number>, drops: Map<number, Set<number>>): boolean {
-  const mobs = quest.needMobs ?? [];
-  const items = quest.needItems ?? [];
-  if (!mobs.length && !items.length) return false;
-  if (!mobs.every(mob => mobsOnMap.has(mob.id))) return false;
-  return items.every(item => [...mobsOnMap].some(mob => drops.get(mob)?.has(item.id)));
 }
 
 /* ------------------------------------------------------------------ 材料 */
@@ -218,36 +226,7 @@ export function longRunQuests(quests: Quest[], monsters: Monster[], min = 200): 
   return [...totals.values()].filter(entry => entry.c >= min).sort((a, b) => b.c - a.c);
 }
 
-/**
- * 拿掉長線收集的任務（同一道具總共要收 min 個以上，例如詛咒娃娃 2,300 個）。
- * 這種要刷好幾天的不能算「這趟順便完成」，它們另外列在長線區。
- */
-export function withoutLongRun(quests: Quest[], monsters: Monster[], min = 200): Quest[] {
-  const heavy = new Set(longRunQuests(quests, monsters, min).map(entry => entry.id));
-  return quests.filter(quest => !(quest.needItems ?? []).some(item => heavy.has(item.id)));
-}
-
-/* ------------------------------------------------------------------ 必解任務 */
-
-export type MustDoPick = { quest: Quest; level: number; fraction: number; rec?: GuideMustDo };
-
-export type MustDoGroup = {
-  key: string;
-  title: string;
-  picks: MustDoPick[];
-  exp: number;
-  /** 整組經驗等於幾級 */
-  fraction: number;
-  /** 最早能接的等級 */
-  level: number;
-  rec?: GuideMustDo;
-};
-
-/** 研究裡的建議等級是文字（「15 起接，25／35／40 各解一段」），取第一個數字 */
-function recommendedLevel(rec: GuideMustDo | undefined): number | undefined {
-  const match = rec?.lv.match(/\d+/);
-  return match ? Number(match[0]) : undefined;
-}
+/* ------------------------------------------------------------------ 攻略推薦的任務 */
 
 export function mustDoIndex(common: GuideCommon): Map<string, GuideMustDo> {
   const index = new Map<string, GuideMustDo>();
@@ -255,178 +234,4 @@ export function mustDoIndex(common: GuideCommon): Map<string, GuideMustDo> {
     for (const id of [rec.q, ...rec.chain]) if (!index.has(id)) index.set(id, rec);
   }
   return index;
-}
-
-/**
- * 這一段新解鎖、值得解的任務，同一條任務線收成一組。
- * 排序看「這筆經驗等於幾級」，社群公認必解的再加權——
- * 玩家推薦的理由常常不只經驗（送裝備、卷軸、前置），只看經驗會漏掉。
- */
-export function mustDoForBand(
-  band: Band,
-  job: number,
-  quests: Quest[],
-  common: GuideCommon,
-  maps: MapNames,
-  limit = 5,
-): MustDoGroup[] {
-  const stage = isIslandBand(band) ? 0 : stageJob(job, band.from);
-  const lineage = new Set(jobLineage(stage));
-  const recs = mustDoIndex(common);
-  const toNext = common.expTable.toNext;
-
-  const picks = new Map<string, MustDoPick>();
-  for (const quest of quests) {
-    if (!quest.exp || !questReachable(quest, maps)) continue;
-    const rec = recs.get(quest.id);
-    const level = quest.minLv ?? recommendedLevel(rec);
-    if (level === undefined || level < band.from || level >= band.to) continue;
-    if (quest.jobs?.length && !quest.jobs.some(code => lineage.has(code))) continue;
-    if (quest.island && !isIslandBand(band)) continue;
-    picks.set(quest.id, { quest, level, fraction: levelFraction(quest.exp, Math.max(level, band.from), toNext), rec });
-  }
-
-  const groups: MustDoGroup[] = groupQuests([...picks.values()].map(pick => pick.quest)).map(group => {
-    const members = group.quests.map(quest => picks.get(quest.id) as MustDoPick);
-    return {
-      key: group.key,
-      title: group.title,
-      picks: members.sort((a, b) => a.level - b.level || b.fraction - a.fraction),
-      exp: group.exp,
-      fraction: members.reduce((sum, pick) => sum + pick.fraction, 0),
-      level: Math.min(...members.map(pick => pick.level)),
-      rec: members.find(pick => pick.rec)?.rec,
-    };
-  });
-  const score = (group: MustDoGroup) => group.fraction + (group.rec ? 0.15 : 0);
-  return groups.sort((a, b) => score(b) - score(a)).slice(0, limit);
-}
-
-/* ------------------------------------------------------------------ 今天跑這幾趟 */
-
-export type TripTag = "fast" | "quests" | "players" | "alt";
-
-export function mergeTrips(candidates: Array<{ map: number; tag: TripTag }>, limit = 3): Array<{ map: number; tags: TripTag[] }> {
-  const merged: Array<{ map: number; tags: TripTag[] }> = [];
-  for (const candidate of candidates) {
-    const existing = merged.find(entry => entry.map === candidate.map);
-    if (existing) {
-      if (!existing.tags.includes(candidate.tag)) existing.tags.push(candidate.tag);
-    } else if (merged.length < limit) {
-      merged.push({ map: candidate.map, tags: [candidate.tag] });
-    }
-  }
-  return merged;
-}
-
-export type Trip = {
-  map: number;
-  tags: TripTag[];
-  /** 遊戲資料的練功數字；不在練功排行裡的圖沒有 */
-  row?: TrainingRow;
-  mobs: Array<[number, number]>;
-  /** 在這張圖就能整個完成的任務，經驗高的在前 */
-  quests: Quest[];
-  questExp: number;
-  loot: Material[];
-  /** 這張圖是玩家推薦的話，附上推薦內容 */
-  guide?: GuideTrain;
-};
-
-type TripContext = {
-  level: number;
-  job: number;
-  maps: MapNames;
-  training: TrainingRow[];
-  monsters: Monster[];
-  quests: Quest[];
-  guide?: GuideJob;
-  toNext: number[];
-};
-
-/**
- * 今天去哪幾張圖。每一趟都要講得出「為什麼是它」：
- *  - fast：遊戲資料排第一的練功圖
- *  - quests：在這張圖能整個完成的任務經驗加總最高
- *  - players：這個職業這個等級，玩家攻略推薦的圖
- * 同一張圖符合多個理由就合併；只剩一趟時補一張次快的當備案。
- */
-export function planTrips(context: TripContext): Trip[] {
-  const { level, job, maps, monsters, quests, guide, toNext } = context;
-  const stage = stageJob(job, level);
-  const island = onIsland(job, level);
-  const reachableMap = (map: number) => isIslandMap(map) === island && Boolean(maps[String(map)]?.zh);
-  const training = context.training.filter(row => reachableMap(row.m));
-  const profile = { level, job: stage };
-  const monsterIndex = new Map(monsters.map(monster => [monster.id, monster]));
-  const spawns = spawnIndex(monsters);
-  const drops = dropIndex(monsters);
-  const rows = new Map(training.map(row => [row.m, row]));
-
-  const eligible = withoutLongRun(quests.filter(quest =>
-    questEligible(quest, profile)
-    && questReachable(quest, maps)
-    && (quest.exp ?? 0) > 0
-    && levelFraction(quest.exp ?? 0, level, toNext) >= 0.01), monsters);
-
-  const picks = planTraining(profile, training, monsterIndex, 10);
-  const players = guide
-    ? trainingForBand({ from: level, to: level + 1 }, guide.train).filter(segment => segment.map && reachableMap(segment.map))
-    : [];
-
-  const candidates = new Set<number>([...picks.map(pick => pick.row.m), ...players.map(segment => segment.map as number)]);
-  // 任務要打的怪常在練功排行之外的圖，也拿來比；但怪太強的圖不算
-  for (const quest of eligible) {
-    const needed = [
-      ...(quest.needMobs ?? []).map(mob => mob.id),
-      ...(quest.needItems ?? []).flatMap(item => droppersOf(item.id, monsters)),
-    ];
-    for (const mobId of needed) {
-      for (const [map] of monsterIndex.get(mobId)?.sp ?? []) {
-        const top = Math.max(...(spawns.get(map) ?? []).map(([id]) => monsterIndex.get(id)?.lv ?? 0));
-        if (top <= level + 5 && reachableMap(map)) candidates.add(map);
-      }
-    }
-  }
-
-  const mobsOf = (map: number): Array<[number, number]> =>
-    spawns.get(map) ?? rows.get(map)?.mobs.map(([id, count]) => [id, count] as [number, number]) ?? [];
-
-  const doable = new Map<number, Quest[]>();
-  for (const map of candidates) {
-    const onMap = new Set(mobsOf(map).map(([id]) => id));
-    doable.set(map, eligible.filter(quest => questDoableAt(quest, onMap, drops)).sort((a, b) => (b.exp ?? 0) - (a.exp ?? 0)));
-  }
-  const questExp = (map: number) => (doable.get(map) ?? []).reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
-
-  const order = [...candidates];
-  const pickRank = new Map(picks.map((pick, index) => [pick.row.m, index]));
-  const bestQuests = order
-    .filter(map => questExp(map) > 0)
-    .sort((a, b) => questExp(b) - questExp(a) || (pickRank.get(a) ?? 99) - (pickRank.get(b) ?? 99))[0];
-
-  const reasons: Array<{ map: number; tag: TripTag }> = [];
-  if (picks[0]) reasons.push({ map: picks[0].row.m, tag: "fast" });
-  if (bestQuests !== undefined) reasons.push({ map: bestQuests, tag: "quests" });
-  if (players[0]?.map) reasons.push({ map: players[0].map, tag: "players" });
-  let merged = mergeTrips(reasons);
-  if (merged.length < 2 && picks[1]) merged = mergeTrips([...reasons, { map: picks[1].row.m, tag: "alt" }]);
-
-  return merged.map(({ map, tags }) => {
-    const done = doable.get(map) ?? [];
-    const onMap = new Set(mobsOf(map).map(([id]) => id));
-    return {
-      map,
-      tags,
-      row: rows.get(map),
-      mobs: mobsOf(map),
-      quests: done,
-      questExp: questExp(map),
-      loot: prepMaterials(done, monsters).map(material => ({
-        ...material,
-        droppers: material.droppers.filter(id => onMap.has(id)),
-      })),
-      guide: players.find(segment => segment.map === map),
-    };
-  });
 }

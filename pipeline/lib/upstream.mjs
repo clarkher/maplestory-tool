@@ -15,14 +15,16 @@ import path from "node:path";
 
 /**
  * 每個檔案要拿哪些欄位、放到合併結構的哪個名字底下。
- * required 是 build.mjs 真的會讀的；地圖那兩份目前沒用到，缺了不該讓整條管線停擺。
+ * required 是 build.mjs 真的會讀的。maps-data.js 帶台服客戶端每張圖的刷怪點與回生秒數，
+ * 是出怪的主要來源（見 lib/spawns.mjs），缺了就會整批悄悄退回 v83，所以也是必要檔；
+ * 世界地圖那份目前沒用到，缺了不該讓整條管線停擺。
  */
 export const UPSTREAM_PARTS = [
   { file: "data.js", global: "MS_DROP_DB", required: true, take: { monsters: "monsters", mapClassificationReview: "mapClassificationReview" }, mustHave: ["monsters"] },
   { file: "items-data.js", global: "MS_ITEM_DB", required: true, take: { items: "items" }, mustHave: ["items"] },
   { file: "quests-data.js", global: "MS_QUEST_DB", required: true, take: { quests: "quests" }, mustHave: ["quests"] },
   { file: "skills-data.js", global: "MS_SKILL_DB", required: true, take: { skills: "skills", statLabels: "skillStatLabels" }, mustHave: ["skills"] },
-  { file: "maps-data.js", global: "MS_MAP_DB", required: false, take: { maps: "maps" }, mustHave: [] },
+  { file: "maps-data.js", global: "MS_MAP_DB", required: true, take: { maps: "maps" }, mustHave: ["maps"] },
   { file: "worldmaps-data.js", global: "MS_WORLD_MAP_DB", required: false, take: { worldMaps: "worldMaps" }, mustHave: [] },
 ];
 

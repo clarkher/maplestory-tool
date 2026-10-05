@@ -4,13 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { NAV, activeNav } from "@/lib/nav";
 import { MoonIcon, SunIcon } from "./Icons";
-
-const NAV = [
-  { href: "/", label: "我的路線" },
-  { href: "/go", label: "帶我去", match: "/go" },
-  { href: "/db", label: "查資料", match: ["/db", "/plan", "/guide"] },
-];
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -32,8 +27,7 @@ export function SiteHeader() {
 
         <nav className="scroll-x -mx-1 flex flex-1 items-center gap-1 px-1" aria-label="主選單">
           {NAV.map(item => {
-            const matches = typeof item.match === "string" ? [item.match] : item.match;
-            const active = matches ? matches.some(prefix => pathname.startsWith(prefix)) : pathname === "/";
+            const active = activeNav(pathname) === item.label;
             return (
               <Link
                 key={item.href}

@@ -4,7 +4,9 @@ name: 資料自動更新
 #  1. 本機抽檔（data/raw/artale.local.json）—— 有的話一律優先，那是從遊戲客戶端直接抽的
 #  2. 上游資料庫 —— 沒有本機抽檔時才用，每天排程比對版本，有變才重建
 #
-# v83 地圖資料（傳送門、刷怪點、回生秒數）是凍結版本，已進版控，不會在這裡重抓。
+# 刷怪點與回生秒數來自台服客戶端（上游 maps-data.js），跟遊戲資料一起在這裡更新。
+# v83 地圖資料（傳送門、回城點、世界地圖區域；台服客戶端沒有刷怪資料的圖才用它的刷怪點）
+# 是凍結版本，已進版控，不會在這裡重抓。
 
 on:
   schedule:
@@ -83,6 +85,12 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/verify.mjs
 
+      # 拿新資料把首頁每個職業 × 等級跑一次：主推都有、組隊任務在遊戲等級限制內、帶我去走得到、
+      # 封頂提示不自相矛盾、多升一級主推圖不會掉超過 10 級、長線沒有做不動的任務、先解沒有同名兩行。壞了就不開 PR
+      - name: 首頁每個組合跑一次真資料檢查
+        if: steps.check.outputs.changed == 'true'
+        run: npx vitest run src/lib/__tests__/now-plan-realdata.test.ts
+
       - name: 建置一次確保網站編得過
         if: steps.check.outputs.changed == 'true'
         run: npm run build
@@ -105,6 +113,6 @@ jobs:
           git checkout -b "$BRANCH"
           git commit -m "data: 同步遊戲版本 ${VERSION}（${STAMP}）"
           git push -u origin "$BRANCH"
-          # verify.mjs 已在前面把關過才會走到這裡，PR 開了就直接合
-          gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）"             --body "自動資料更新。verify.mjs 全數通過、next build 成功。合併後 Vercel 會自動部署。"             --base main --head "$BRANCH"
+          # verify.mjs 與首頁真資料檢查已在前面把關過才會走到這裡，PR 開了就直接合
+          gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）"             --body "自動資料更新。verify.mjs 與首頁真資料檢查全數通過、next build 成功。合併後 Vercel 會自動部署。"             --base main --head "$BRANCH"
           gh pr merge "$BRANCH" --squash --delete-branch --admin
