@@ -127,7 +127,7 @@ export const JOB_GUIDES: JobGuide[] = [
       level: "Lv.10",
       stat: "力量 35",
       npc: "武術教練",
-      place: "勇士之村・勇者聖殿",
+      place: "勇士之村・勇士聖殿",
       mapId: 102000000,
     },
     build: "敏捷點到「等於等級」能穿裝就好，其餘全力量。",
