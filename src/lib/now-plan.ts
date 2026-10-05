@@ -75,7 +75,7 @@ export type NowQuest = {
   /** 這次列出的是第幾段（1 起算、由小到大）；中間有段放在長線或過期時不連續 */
   positions: number[];
   exp: number;
-  /** 用現在等級換算的「約幾級」 */
+  /** 「約幾級」：先解用現在等級換算；升級路線的必解用接得到那條線的等級（見 bandQuests） */
   fraction: number;
   /** 關鍵獎勵標籤（研究檔 reward.label） */
   reward?: string;
