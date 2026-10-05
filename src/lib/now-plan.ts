@@ -251,7 +251,7 @@ function doableNow(shared: QuestLines, level: number, effective: Map<string, num
  * 一條線這次列哪幾段（先解跟升級路線的必解共用）：從第一段做得到的開始，照線的順序往下，碰到第一段做不到的就停。
  * 不跳段——遊戲裡要一段一段解，中間那段沒解、後面的接不到（round 4：湯寶寶原本寫「第 1、2、4、5 段」，跳過要收大量材料的第 3 段）。
  * 0 經驗的段也是一段（內拉的夢 → 潘喜的紅色毛球：從內拉那段開始，帶我去也是去找內拉）。
- * 過了等級上限的前段（新手劍士的第一次修煉 15 等就不能接）做不到，就從後面第一段還接得到的開始。
+ * 這裡從第一個做得到的段開始（升級路線的段接在前一段後面）；先解另外規定一定要從線的第一段開始（nowQuests）。
  */
 export function lineRun(line: Quest[], doable: (quest: Quest) => boolean): Quest[] {
   const start = line.findIndex(doable);
@@ -262,7 +262,7 @@ export function lineRun(line: Quest[], doable: (quest: Quest) => boolean): Quest
 }
 
 /**
- * 把做得到的任務照任務線收成一行一行：每條線列 lineRun 那幾段（不跳段；runOf 可以另外定，見 bandQuests 你在的這段），
+ * 把做得到的任務照任務線收成一行一行：每條線列 lineRun 那幾段（不跳段；runOf 可以另外定，見先解的從第一段開始、bandQuests 你在的這段），
  * 標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、約幾級（用 levelFor 回傳的等級換算；拿到的是列出的那幾段）。
  * 值不值得（worthListing）用列出的那幾段算、過期由呼叫端決定要不要套；這一行的 NPC 跟帶我去用列出的第一段。
  */
@@ -333,7 +333,11 @@ export function nowQuests(args: {
   const candidates = doableNow(shared, level, effective, onIsland(job, level), islandOnly(job, level));
   // 做得到＝現在接得到、做得動、不是（自己這條線的）長線那種；0 經驗的段也算（它是步驟，值不值得由整段經驗決定）
   const doable = new Set(candidates.filter(quest => !shared.long.has(quest.id)).map(quest => quest.id));
-  const sorted = lineItems(shared, quest => doable.has(quest.id), () => level, common.expTable.toNext, job, (rec, fraction) => !recExpired(rec, level) && worthListing(fraction, [rec]));
+  const inRun = (quest: Quest) => doable.has(quest.id);
+  // 先解一定從第一段開始（round 4 後續）：第一段現在做不到（長線那種、過了等級上限、接不到）就不列，不會寫「第 3 段」
+  const fromStart = (_key: string, line: Quest[]) => (inRun(line[0]) ? lineRun(line, inRun) : []);
+  const keep = (rec: GuideMustDo | undefined, fraction: number) => !recExpired(rec, level) && worthListing(fraction, [rec]);
+  const sorted = lineItems(shared, inRun, () => level, common.expTable.toNext, job, keep, fromStart);
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
 

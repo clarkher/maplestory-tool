@@ -317,16 +317,28 @@ describe("任務線不跳段（先解跟必解同一套，round 4）", () => {
     expect(band.npc).toEqual(nella);
   });
 
-  it("過了等級上限的前段不算（新手劍士的第一次修煉 15 等就不能接）：從第一段還接得到的開始", () => {
+  it("先解一定從第一段開始：第一段過了等級上限（新手劍士的第一次修煉 15 等就不能接）就不列，不從第 2 段開始", () => {
     const quests = [
       quest("t1", { minLv: 10, maxLv: 15, exp: 30000 }),
       quest("t2", { minLv: 10, exp: 30000, pre: ["t1"] }),
       quest("t3", { minLv: 10, exp: 30000, pre: ["t2"] }),
     ];
     const common = commonWith([]);
-    const [todo] = nowQuests({ level: 16, job: 100, quests, monsters: [], common, maps: {}, effective: effectiveLevels(quests, [], common) });
-    expect(ids(todo)).toEqual(["t2", "t3"]);
-    expect(partsText(todo)).toBe("第 2–3 段／共 3 段");
+    const args = (level: number) => ({ level, job: 100, quests, monsters: [], common, maps: {}, effective: effectiveLevels(quests, [], common) });
+    expect(nowQuests(args(15)).map(partsText)).toEqual(["第 1–3 段／共 3 段"]);
+    expect(nowQuests(args(16))).toEqual([]);
+  });
+
+  it("先解一定從第一段開始：第一段是長線那種（要打 200 隻以上）就不列（不寫「第 2 段」），那段照舊在長線", () => {
+    const monsters = [monster(1, 20)];
+    const quests = [
+      quest("c1", { minLv: 20, exp: 30000, needMobs: [{ id: 1, n: "刺菇菇", c: 250 }] }),
+      quest("c2", { minLv: 20, exp: 90000, pre: ["c1"] }),
+    ];
+    const common = commonWith([]);
+    const args = { level: 25, job: 110, quests, monsters, common, maps: {}, effective: effectiveLevels(quests, monsters, common) };
+    expect(nowQuests(args)).toEqual([]);
+    expect(longRunNow(args).map(entry => entry.n)).toEqual(["刺菇菇"]);
   });
 });
 

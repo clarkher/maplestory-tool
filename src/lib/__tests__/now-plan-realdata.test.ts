@@ -280,6 +280,13 @@ describe("真資料：首頁每個組合", () => {
     expectNone("先解跟你在的那一段的必解重複", bad);
   });
 
+  it("先解每一列都從那條線的第一段開始（第一段現在做不到就不列，不會寫「第 3 段」）", () => {
+    const bad = combos.flatMap(combo => combo.todo
+      .filter(item => item.firstPart !== 1)
+      .map(item => `${combo.tag}：「${item.title}」第 ${item.firstPart}–${item.lastPart} 段`));
+    expectNone("先解沒從第一段開始", bad);
+  });
+
   it("冒險家的戒指在先解是整條線（別條線也要交樹枝不會把它切斷）", () => {
     const rings = combos.flatMap(combo => combo.todo.filter(item => item.key === "rec:69039").map(item => ({ combo, item })));
     expect(rings.length).toBeGreaterThan(0);
