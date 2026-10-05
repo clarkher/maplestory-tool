@@ -105,6 +105,31 @@ describe("主推大卡", () => {
     expect(pick).toMatchObject({ kind: "pq", window: [13, 20] });
     expect(mainPick({ ...base, common: commonWith([moon]), level: 21, job: 100 })?.kind).not.toBe("pq");
   });
+
+  it("剛好跨 15 級的攻略段落也算太寬，排在窄的後面", () => {
+    const guide = guideWith([
+      segment({ map: UNDEAD_MAP, name: "不死圖", from: 40, to: 55 }),
+      segment({ map: PLAIN_MAP, name: "普通圖", from: 44, to: 48, kind: "party" }),
+    ]);
+    const pick = mainPick({ ...base, level: 45, job: 100, guide });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.option.map).toBe(PLAIN_MAP);
+  });
+
+  it("封頂只看這個職業能練的圖（僧侶不會被一般圖的等級騙）", () => {
+    const HIGH_MAP = 100010004;
+    const pick = mainPick({
+      ...base,
+      level: 56,
+      job: 230,
+      training: [...training, row(HIGH_MAP, 300, 58, 4, 30)],
+      monsters: [...monsters, monster(4, 58, HIGH_MAP, 30)],
+      maps: { ...maps, [HIGH_MAP]: { zh: "高等圖", st: "維多利亞", ret: TOWN } },
+    });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.option.map).toBe(UNDEAD_MAP);
+    expect(pick.ceiling).toBe(45);
+  });
 });
 
 describe("組隊任務範圍", () => {

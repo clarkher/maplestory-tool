@@ -297,7 +297,8 @@ function routeFrom(
 
 /** 攻略段落的排序：跨 15 級以上的排後面 → 單人優先 → 台服實測優先 → 越窄越前面 */
 function byGuidePreference(a: GuideTrain, b: GuideTrain): number {
-  const wide = (segment: GuideTrain) => Number(segment.to - segment.from > 15);
+  // 「跨 15 級以上」含 15
+  const wide = (segment: GuideTrain) => Number(segment.to - segment.from >= 15);
   return wide(a) - wide(b)
     || Number(a.kind === "party") - Number(b.kind === "party")
     || VERIFIED_RANK[a.v] - VERIFIED_RANK[b.v]
@@ -379,7 +380,8 @@ export function mainPick(args: {
   const main = options[0];
   if (!main) return undefined;
   const alt = options.slice(1).find(option => option.party !== main.party) ?? options[1];
-  // 設計文件：現在等級比主推圖高 10 級以上（含 10 級）就加封頂提示
-  const ceiling = main.row && level - main.row.lv >= 10 ? Math.max(...training.map(entry => entry.lv)) : undefined;
+  // 「最高到 Lv.N」只看這個職業能練的圖：僧侶的最高圖不是一般圖的最高圖，否則會跟推薦的圖自相矛盾
+  const fitLevels = training.filter(row => jobFit(stage, level, mobsOf(row.m), index).ok).map(row => row.lv);
+  const ceiling = main.row && level - main.row.lv >= 10 ? Math.max(...fitLevels) : undefined;
   return { kind: "map", option: main, alt, ceiling };
 }
