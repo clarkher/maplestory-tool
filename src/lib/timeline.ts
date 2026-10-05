@@ -4,7 +4,7 @@
  */
 import { jobFit } from "./job-rules";
 import { stageJob } from "./jobs";
-import { BOSS_SPAWN_MAX, type MainPick } from "./now-plan";
+import { BOSS_SPAWN_MAX, CEILING_GAP, type Ceiling, type MainPick } from "./now-plan";
 import { planTraining } from "./planner";
 import { LEVEL_CAP } from "./profile";
 import { type Band, fitLevel, isIslandBand, isIslandMap, onIsland, segmentsToShow, shortName, trainingForBand } from "./route-planner";
@@ -48,6 +48,11 @@ export type BandPlan = {
   blocked: boolean;
   /** 沒有能用的攻略時，遊戲資料推算的替代（不含王圖、楓之島、已經列在上面的圖） */
   fallback: TrainRow[];
+  /**
+   * 段落的封頂提示：沒有能用的攻略、段落（你在的那段是你的等級）比能練的最高圖高 10 級以上時才有，
+   * 跟主推卡同一種寫法（top 是列出來的怪最高幾等）；段落提示不說「這張已經是你能去最好的」
+   */
+  ceiling?: Ceiling;
 };
 
 export type TimelineInput = {
@@ -157,29 +162,40 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
   // 查哪個等級：你在的這段用你現在的等級（跟 warnOf／fitLevel 同一套），其他段用段落中點；
   // 中點不超過等級上限前一級（原本寫死 99，100–120 那段的中點 110 會被砍成 99，查出來整段是空的）
   const middle = active ? level : Math.min(LEVEL_CAP - 1, Math.round((band.from + band.to - 1) / 2));
-  const fallback = usable || isIslandBand(band)
-    ? []
-    : planTraining(
-      { level: middle, job: stage },
-      training.filter(entry => !isIslandMap(entry.m) && maps[String(entry.m)]?.zh && entry.sp > BOSS_SPAWN_MAX && !listedMaps.has(entry.m)),
-      monsterIndex,
-      8,
-    )
-      .filter(entry => jobFit(stage, middle, spawns.get(entry.row.m) ?? [], monsterIndex).ok)
-      .slice(0, FALLBACK_COUNT)
-      .map((entry): TrainRow => ({
-        key: `map:${entry.row.m}`,
-        title: maps[String(entry.row.m)]?.zh ?? String(entry.row.m),
-        map: entry.row.m,
-        party: false,
-        mobs: entry.lead ? [entry.lead.id] : mobsOn(entry.row.m).slice(0, 1),
-        source: "data",
-        exp1: entry.row.exp1,
-        go: goTo(entry.row.m),
-      }));
+  const needData = !usable && !isIslandBand(band);
+  const open = training.filter(entry => !isIslandMap(entry.m) && maps[String(entry.m)]?.zh && entry.sp > BOSS_SPAWN_MAX);
+  const fits = (map: number) => jobFit(stage, middle, spawns.get(map) ?? [], monsterIndex).ok;
+  const pickData = (query: number) =>
+    planTraining({ level: query, job: stage }, open.filter(entry => !listedMaps.has(entry.m)), monsterIndex, 8)
+      .filter(entry => fits(entry.row.m))
+      .slice(0, FALLBACK_COUNT);
+  // 能練的最高圖（跟主推卡同一套：職業規則、不是王圖、城鎮走得到，同等級先看效率高的）
+  const cap = needData ? open.filter(entry => fits(entry.m) && canGo(entry.m)).sort((a, b) => b.lv - a.lv || b.eff - a.eff)[0] : undefined;
+  let picked = needData ? pickData(middle) : [];
+  // 段落比所有開放的練功圖高太多（V002 的 100–120、沒有攻略的 90–100）：照中點每張圖都低太多、查出來是空的，
+  // 畫面只剩一句「以下是遊戲資料推算」——改從能練的最高圖那個等級查，跟主推卡在這些等級推的圖一樣
+  if (!picked.length && cap) picked = pickData(cap.lv);
+  const fallback = picked.map((entry): TrainRow => ({
+    key: `map:${entry.row.m}`,
+    title: maps[String(entry.row.m)]?.zh ?? String(entry.row.m),
+    map: entry.row.m,
+    party: false,
+    mobs: entry.lead ? [entry.lead.id] : mobsOn(entry.row.m).slice(0, 1),
+    source: "data",
+    exp1: entry.row.exp1,
+    go: goTo(entry.row.m),
+  }));
+
+  // 封頂提示（規格：新地區的怪最高只到 Lv.N，100 以上的段落照實講）：門檻跟主推卡一樣（比最高圖高 10 級以上）；
+  // 寫的等級取最高圖跟這段列出來的遊戲資料圖上最高等的怪，不會「最高到 Lv.73」旁邊擺 Lv75 的怪
+  const topMob = (map: number | null) => Math.max(0, ...(map === null ? [] : spawns.get(map) ?? []).map(([id]) => monsterIndex.get(id)?.lv ?? 0));
+  const shown = [...rows.filter(entry => entry.source === "data"), ...fallback];
+  const ceiling: Ceiling | undefined = cap && middle - cap.lv >= CEILING_GAP
+    ? { level: cap.lv, top: Math.max(topMob(cap.m) || cap.lv, ...shown.map(entry => topMob(entry.map))), best: false }
+    : undefined;
 
   // 被擋：列出來的攻略列全被職業規則擋掉（主推那列是攻略時不算被擋）
-  return { band, stage, guide, rows, usable, blocked: usable === 0 && rows.some(entry => entry.warn !== undefined), fallback };
+  return { band, stage, guide, rows, usable, blocked: usable === 0 && rows.some(entry => entry.warn !== undefined), fallback, ceiling };
 }
 
 /**

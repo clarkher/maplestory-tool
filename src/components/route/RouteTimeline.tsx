@@ -8,7 +8,7 @@ import { itemImage, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
-import { bandQuests, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
+import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
 import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
@@ -224,6 +224,8 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
                 ))}
               </ul>
             ) : null}
+            {/* 段落比所有開放的練功圖高 10 級以上（100–120 段）：照主推卡的寫法說目前最高到幾等 */}
+            {plan.ceiling ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">{ceilingText(plan.ceiling)}</p> : null}
             <div className="flex justify-end">
               <SourceTag kind="data" />
             </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAIN_TOWNS, VICTORIA_PORT, boatNote, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, townChips, townsTitle, victoriaReach,
+  MAIN_TOWNS, VICTORIA_PORT, boatNote, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, suggestStart, townChips, townsTitle,
+  victoriaReach,
 } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 
@@ -31,6 +32,47 @@ describe("帶我去的預設起點", () => {
 
   it("沒有任何城鎮走得到：找不到起點", () => {
     expect(defaultStart(910340500, null, PERION, reaches([PERION]))).toEqual({ kind: "none" });
+  });
+});
+
+describe("最近的城鎮（suggestStart）", () => {
+  // V002 真資料：廢礦的回城點是冰原雪域，但傳送門資料少了冰雪峽谷Ⅱ往上那段（腳本門），從冰原雪域走不到；
+  // 往回找城鎮會先碰到獅子城（未開放地區、沒有中文名的城鎮），以前就從那裡出發、路線還穿過未開放的圖
+  const EL_NATH = 211000000;
+  const CLIFF = 211040400;
+  const LION_FIELD = 211060000;
+  const LION = 211060010;
+  const FAR = 211000100;
+  const maps: Record<string, MapRecord> = {
+    [EL_NATH]: { zh: "冰原雪域", st: "", t: 1, ret: EL_NATH },
+    [CLIFF]: { zh: "尖銳的絕壁Ⅱ", st: "", ret: EL_NATH },
+    [LION_FIELD]: { zh: "", st: "", ret: EL_NATH },
+    [LION]: { zh: "", st: "", t: 1, ret: LION },
+    [FAR]: { zh: "遠方的城鎮", st: "", t: 1, ret: FAR },
+  };
+  const nearestTown: Record<string, [number, number]> = { [CLIFF]: [EL_NATH, 0] };
+
+  it("回城點走得到就從回城點出發", () => {
+    const graph: Record<string, PortalEdge[]> = { [EL_NATH]: [[CLIFF, "east00", 0, 0]] };
+    expect(suggestStart(graph, maps, nearestTown, CLIFF)).toBe(EL_NATH);
+  });
+
+  it("回城點走不到、往回找城鎮時：沒有中文名的城鎮（未開放地區）不當起點，繼續找有名字的", () => {
+    const graph: Record<string, PortalEdge[]> = {
+      [FAR]: [[LION, "east00", 0, 0]],
+      [LION]: [[LION_FIELD, "west00", 0, 0]],
+      [LION_FIELD]: [[CLIFF, "out00", 0, 0]],
+    };
+    expect(suggestStart(graph, maps, nearestTown, CLIFF)).toBe(FAR);
+  });
+
+  it("往回只找得到沒有中文名的城鎮：照舊回傳回城點（路線算不出來，就不給帶我去）", () => {
+    const graph: Record<string, PortalEdge[]> = {
+      [LION]: [[LION_FIELD, "west00", 0, 0]],
+      [LION_FIELD]: [[CLIFF, "out00", 0, 0]],
+    };
+    expect(suggestStart(graph, maps, nearestTown, CLIFF)).toBe(EL_NATH);
+    expect(findRoute(graph, EL_NATH, CLIFF).ok).toBe(false);
   });
 });
 

@@ -571,8 +571,8 @@ export const BOSS_SPAWN_MAX = 3;
 const FAR_HOPS = 8;
 /** 攻略圖比參考等級（現在等級與能練的最高圖取小）低這麼多級以上算過期，排在遊戲資料後面 */
 const STALE_GAP = 10;
-/** 現在等級比能練的最高圖高這麼多級以上才加封頂提示 */
-const CEILING_GAP = 10;
+/** 現在等級比能練的最高圖高這麼多級以上才加封頂提示（升級路線的段落提示也用這個門檻） */
+export const CEILING_GAP = 10;
 /** 主推圖跟能練的最高圖差這麼多級以內，封頂提示才說「這張已經是你能去最好的」 */
 const BEST_GAP = 5;
 /**
