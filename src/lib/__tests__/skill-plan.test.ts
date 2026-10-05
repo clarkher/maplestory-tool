@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { availableSp, buildProgress, mainBuild, spAtLevel, stepsBetween } from "@/lib/skill-plan";
+import { availableSp, buildProgress, isFreeStep, mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import type { GuideBuild } from "@/lib/types";
 
 describe("可用技能點", () => {
@@ -84,6 +84,15 @@ describe("點法走到哪一步", () => {
     expect(progress.finished).toBe(true);
     expect(progress.current).toBeUndefined();
     expect(progress.steps.every(step => step.state === "done")).toBe(true);
+  });
+});
+
+describe("點法一步的寫法", () => {
+  it("沒有指定技能的步驟寫「自由分配 N 點」，不露「自由配點（未指定）」", () => {
+    expect(stepText({ id: null, name: "自由配點（未指定）", to: 1, cost: 1 })).toBe("自由分配 1 點");
+    expect(stepText({ id: 5001001, name: "衝擊拳", to: 20, cost: 19 })).toBe("衝擊拳 20");
+    expect(isFreeStep({ id: null, name: "自由配點（未指定）" })).toBe(true);
+    expect(isFreeStep({ id: null, name: "某個不在站內的技能" })).toBe(false);
   });
 });
 

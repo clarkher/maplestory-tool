@@ -60,8 +60,8 @@ export function trainingForBand(band: Band, train: GuideTrain[]): GuideTrain[] {
  * （火毒看得到「怪抗火」）。一段能用的都沒有時，列前 max 段被擋的，畫面下面再放遊戲資料替代。
  * 先判斷職業規則再挑，標籤跟詳情才會一致（以前先取前 3 段再判斷，能用的第 4 段會被擠掉）。
  */
-export function segmentsToShow(all: GuideTrain[], blocked: (segment: GuideTrain) => boolean, max = 3): GuideTrain[] {
-  const shown: GuideTrain[] = [];
+export function segmentsToShow<T>(all: T[], blocked: (segment: T) => boolean, max = 3): T[] {
+  const shown: T[] = [];
   let usable = 0;
   for (const segment of all) {
     if (usable >= max) break;
@@ -82,20 +82,6 @@ export function fitLevel(band: Band, segment: GuideTrain, current?: number): num
 /** 攻略地名常帶括號註記（會掉什麼），當段落標題時拿掉 */
 export function shortName(name: string): string {
   return name.replace(/[（(][^）)]*[）)]/g, "").trim();
-}
-
-/**
- * 每一段的標籤：取覆蓋這段最多的攻略地圖；同一張圖不在相鄰兩段重複當標籤，
- * 沒有別的圖可用時寫「同上一段」。trainOf 拿到第幾段，方便「你在的這段」用現在等級判斷職業規則。
- */
-export function bandLabels(bands: Band[], trainOf: (band: Band, index: number) => GuideTrain[]): Array<string | undefined> {
-  const labels: Array<string | undefined> = [];
-  bands.forEach((band, index) => {
-    const names = trainingForBand(band, trainOf(band, index)).map(segment => shortName(segment.name)).filter(Boolean);
-    const previous = index > 0 ? labels[index - 1] : undefined;
-    labels.push(names.find(name => name !== previous) ?? (names.length ? "同上一段" : undefined));
-  });
-  return labels;
 }
 
 /* ------------------------------------------------------------------ 去得了、接得到 */

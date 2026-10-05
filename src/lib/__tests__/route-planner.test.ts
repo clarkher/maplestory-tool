@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  bandLabels, bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, onIsland, prepMaterials,
+  bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, onIsland, prepMaterials,
   questReachable, segmentsToShow, trainingForBand, withoutLongRun,
 } from "@/lib/route-planner";
 import { stepsBetween } from "@/lib/skill-plan";
@@ -29,20 +29,6 @@ describe("等級段", () => {
     expect(bandOf(bands, 30)).toEqual({ from: 30, to: 40 });
     expect(bandOf(bands, 100)).toEqual({ from: 70, to: 100 });
     expect(bandOf(bands, 1)).toEqual({ from: 1, to: 10 });
-  });
-
-  it("段落名稱取重疊最多的玩家推薦地圖，去掉括號註記；相鄰兩段不重複", () => {
-    const train = [
-      { from: 30, to: 45, name: "黑肥肥領土（會掉高原之劍）", v: "tw" },
-      { from: 30, to: 50, name: "沼澤地Ⅰ～Ⅲ（鱷魚）", v: "tw" },
-    ] as GuideTrain[];
-    const bands = [{ from: 30, to: 40 }, { from: 40, to: 50 }, { from: 50, to: 60 }];
-    expect(bandLabels(bands, () => train)).toEqual(["黑肥肥領土", "沼澤地Ⅰ～Ⅲ", undefined]);
-  });
-
-  it("只剩同一張圖可以當標籤時寫「同上一段」", () => {
-    const train = [{ from: 30, to: 50, name: "沼澤地", v: "tw" }] as GuideTrain[];
-    expect(bandLabels([{ from: 30, to: 40 }, { from: 40, to: 50 }], () => train)).toEqual(["沼澤地", "同上一段"]);
   });
 
   it("跟這段重疊不到 3 級的攻略段落不算", () => {

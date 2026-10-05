@@ -1,0 +1,235 @@
+/**
+ * 升級路線每一段的練功清單與標籤（純函式）。RouteTimeline 照這個畫，真資料常駐檢查也跑同一套，
+ * 所以「你在這一段的標籤＝主推卡」這種規則測得到。規則：docs/superpowers/specs/2026-10-05-now-plan-design.md「升級路線」。
+ */
+import { jobFit } from "./job-rules";
+import { stageJob } from "./jobs";
+import { BOSS_SPAWN_MAX, type MainPick } from "./now-plan";
+import { planTraining } from "./planner";
+import { type Band, fitLevel, isIslandBand, isIslandMap, onIsland, segmentsToShow, shortName, trainingForBand } from "./route-planner";
+import type { GuideJob, GuidePq, GuideTrain, MapRecord, Monster, TrainingRow, Verified } from "./types";
+
+/** 練功清單的一列：攻略圖（同一張圖好幾段併成一列）、組隊任務、或遊戲資料的圖 */
+export type TrainRow = {
+  key: string;
+  title: string;
+  /** 這列的地圖（組隊任務是入口）；攻略沒對到地圖時是 null */
+  map: number | null;
+  /** 攻略的等級範圍：有涵蓋你等級的段就寫那段，沒有就寫併起來的範圍 */
+  from?: number;
+  to?: number;
+  party: boolean;
+  pq?: GuidePq;
+  /** 要寫出名字的怪（攻略點名的，或遊戲資料這張圖最多的） */
+  mobs: number[];
+  /** 攻略理由與出處（攻略那幾列） */
+  why?: string;
+  v?: Verified;
+  s?: string[];
+  /** 被職業規則擋掉的原因（火毒的火焰之地：怪抗火） */
+  warn?: string;
+  source: "guide" | "data";
+  /** 遊戲資料的圖清一輪的經驗 */
+  exp1?: number;
+  /** 「去」帶到哪；城鎮走不到、或離島後的楓之島圖就沒有 */
+  go?: number;
+};
+
+export type BandPlan = {
+  band: Band;
+  stage: number;
+  guide?: GuideJob;
+  /** 攻略那幾列（你在的這段，主推卡那張圖排第一） */
+  rows: TrainRow[];
+  /** 攻略列裡職業能用的有幾列 */
+  usable: number;
+  /** 這段有攻略段落，但全被職業規則擋掉 */
+  blocked: boolean;
+  /** 沒有能用的攻略時，遊戲資料推算的替代（不含王圖、楓之島、已經列在上面的圖） */
+  fallback: TrainRow[];
+};
+
+export type TimelineInput = {
+  job: number;
+  level: number;
+  bands: Band[];
+  /** 每一轉的攻略（一轉跟二轉都要） */
+  guides: Map<number, GuideJob>;
+  monsterIndex: Map<number, Monster>;
+  spawns: Map<number, Array<[number, number]>>;
+  maps: Record<string, Pick<MapRecord, "zh">>;
+  training: TrainingRow[];
+  pqs: GuidePq[];
+  /** 主推卡；你在的那一段照它寫標籤、排第一列 */
+  pick?: MainPick;
+  /** 城鎮走得到（跟主推卡的「帶我去」同一個條件） */
+  canGo: (map: number) => boolean;
+};
+
+/** 主推卡的答案：地圖名、組隊任務名，轉職卡就是「轉職」 */
+export function pickTitle(pick: MainPick): string {
+  return pick.kind === "map" ? pick.option.title : pick.kind === "pq" ? pick.pq.name : "轉職";
+}
+
+/** 你在哪一段（滿等時是最後一段） */
+export function activeBandIndex(bands: Band[], level: number): number {
+  const index = bands.findIndex(band => level >= band.from && level < band.to);
+  return index < 0 ? bands.length - 1 : index;
+}
+
+export function bandGuide(guides: Map<number, GuideJob>, job: number, band: Band): { stage: number; guide?: GuideJob } {
+  if (isIslandBand(band)) return { stage: 0 };
+  const stage = stageJob(job, band.from);
+  return { stage, guide: guides.get(stage) };
+}
+
+/** 同一張圖、同一個組隊任務的攻略段落併成一列 */
+function rowKey(segment: GuideTrain): string {
+  if (segment.pq) return `pq:${segment.pq}`;
+  return segment.map !== null ? `map:${segment.map}` : `name:${shortName(segment.name)}`;
+}
+
+/** 這段練功清單最多列幾張能用的攻略圖 */
+const SHOWN_USABLE = 3;
+/** 遊戲資料替代最多幾張 */
+const FALLBACK_COUNT = 2;
+
+export function bandPlan(input: TimelineInput, band: Band, active: boolean): BandPlan {
+  const { job, level, guides, monsterIndex, spawns, maps, training, pqs, pick, canGo } = input;
+  const { stage, guide } = bandGuide(guides, job, band);
+  const island = onIsland(job, level);
+  const goTo = (map: number | null) => (map !== null && canGo(map) && (island || !isIslandMap(map)) ? map : undefined);
+  const mobsOn = (map: number) => (spawns.get(map) ?? []).map(([id]) => id);
+
+  // 先判斷職業規則（你在的這段用現在等級），同一張圖併成一組，再挑要列的（湊滿 3 張能用的就停）
+  const all = guide ? trainingForBand(band, guide.train) : [];
+  const warnOf = (segment: GuideTrain): string | undefined => {
+    if (!segment.map) return undefined;
+    const fit = jobFit(stage, fitLevel(band, segment, active ? level : undefined), spawns.get(segment.map) ?? [], monsterIndex);
+    return fit.ok ? undefined : fit.note ?? "這個職業不適合";
+  };
+  const groups: Array<{ key: string; segments: GuideTrain[] }> = [];
+  for (const segment of all) {
+    const key = rowKey(segment);
+    const group = groups.find(entry => entry.key === key);
+    if (group) group.segments.push(segment);
+    else groups.push({ key, segments: [segment] });
+  }
+  const blockedGroup = (group: { segments: GuideTrain[] }) => group.segments.every(segment => warnOf(segment) !== undefined);
+  const toRow = (group: { key: string; segments: GuideTrain[] }): TrainRow => {
+    const covering = group.segments.find(segment => segment.from <= level && level <= segment.to);
+    const primary = covering ?? group.segments[0];
+    const pq = primary.pq ? pqs.find(entry => entry.key === primary.pq) : undefined;
+    const map = pq ? pq.entrance : primary.map;
+    return {
+      key: group.key,
+      title: pq?.name ?? (primary.map !== null ? maps[String(primary.map)]?.zh || shortName(primary.name) : shortName(primary.name)),
+      map,
+      from: covering ? covering.from : Math.min(...group.segments.map(segment => segment.from)),
+      to: covering ? covering.to : Math.max(...group.segments.map(segment => segment.to)),
+      party: primary.kind === "party",
+      pq,
+      mobs: [...new Set(group.segments.flatMap(segment => segment.mobs))],
+      why: primary.why,
+      v: primary.v,
+      s: primary.s,
+      warn: blockedGroup(group) ? warnOf(primary) : undefined,
+      source: "guide",
+      go: goTo(map),
+    };
+  };
+  let rows = segmentsToShow(groups, blockedGroup, SHOWN_USABLE).map(toRow);
+  const usable = rows.filter(entry => !entry.warn).length;
+
+  // 你在的這段：主推卡那張圖（或組隊任務）排第一列；清單裡沒有就照主推卡補一列
+  if (active && pick && pick.kind !== "advance") {
+    const key = pick.kind === "pq" ? `pq:${pick.pq.key}` : `map:${pick.option.map}`;
+    const listed = groups.find(entry => entry.key === key);
+    let first: TrainRow;
+    if (listed) {
+      first = toRow(listed);
+    } else if (pick.kind === "pq") {
+      first = {
+        key, title: pick.pq.name, map: pick.pq.entrance, from: pick.window[0], to: pick.window[1], party: true, pq: pick.pq, mobs: [], source: "guide",
+        go: goTo(pick.pq.entrance),
+      };
+    } else {
+      const { option } = pick;
+      first = {
+        key,
+        title: option.title,
+        map: option.map,
+        from: option.guide?.from,
+        to: option.guide?.to,
+        party: option.party,
+        mobs: option.mobs.map(([id]) => id),
+        why: option.guide?.why,
+        v: option.guide?.v,
+        s: option.guide?.s,
+        source: option.source,
+        exp1: option.row?.exp1,
+        go: goTo(option.map),
+      };
+    }
+    rows = [first, ...rows.filter(entry => entry.key !== key)];
+  }
+
+  // 遊戲資料替代：沒有能用的攻略時才放；王圖（刷怪點 3 個以下）、楓之島、上面已經列的圖都不放
+  const listedMaps = new Set(rows.map(entry => entry.map));
+  const middle = Math.min(99, Math.round((band.from + band.to - 1) / 2));
+  const fallback = usable || isIslandBand(band)
+    ? []
+    : planTraining(
+      { level: middle, job: stage },
+      training.filter(entry => !isIslandMap(entry.m) && maps[String(entry.m)]?.zh && entry.sp > BOSS_SPAWN_MAX && !listedMaps.has(entry.m)),
+      monsterIndex,
+      8,
+    )
+      .filter(entry => jobFit(stage, middle, spawns.get(entry.row.m) ?? [], monsterIndex).ok)
+      .slice(0, FALLBACK_COUNT)
+      .map((entry): TrainRow => ({
+        key: `map:${entry.row.m}`,
+        title: maps[String(entry.row.m)]?.zh ?? String(entry.row.m),
+        map: entry.row.m,
+        party: false,
+        mobs: entry.lead ? [entry.lead.id] : mobsOn(entry.row.m).slice(0, 1),
+        source: "data",
+        exp1: entry.row.exp1,
+        go: goTo(entry.row.m),
+      }));
+
+  return { band, stage, guide, rows, usable, blocked: all.length > 0 && usable === 0, fallback };
+}
+
+/**
+ * 每一段的練功清單與標籤。標籤規則：
+ * - 你在的這段＝主推卡的答案（地圖名、組隊任務名、轉職卡寫「轉職」）
+ * - 楓之島那段寫「楓之島」；初心者其他段寫「轉職後排給你」
+ * - 其他照清單內容：能用的攻略圖第一張；攻略圖全被職業規則擋掉時寫遊戲資料替代的第一張；
+ *   同一張圖不在相鄰兩段重複，沒有別的可用時寫「同上一段」；沒有攻略段落就沒有標籤（畫面寫「還沒有玩家攻略」）
+ */
+export function timelinePlans(input: TimelineInput): { activeIndex: number; plans: BandPlan[]; labels: Array<string | undefined> } {
+  const activeIndex = activeBandIndex(input.bands, input.level);
+  const plans = input.bands.map((band, index) => bandPlan(input, band, index === activeIndex));
+  const labels: Array<string | undefined> = [];
+  plans.forEach((plan, index) => {
+    const previous = index > 0 ? labels[index - 1] : undefined;
+    if (index === activeIndex && input.pick) {
+      labels.push(pickTitle(input.pick));
+      return;
+    }
+    if (isIslandBand(plan.band)) {
+      labels.push("楓之島");
+      return;
+    }
+    if (input.job === 0) {
+      labels.push("轉職後排給你");
+      return;
+    }
+    const names = plan.usable
+      ? plan.rows.filter(entry => entry.source === "guide" && !entry.warn).map(entry => entry.title)
+      : plan.blocked ? plan.fallback.map(entry => entry.title) : [];
+    labels.push(names.find(name => name !== previous) ?? (names.length ? "同上一段" : undefined));
+  });
+  return { activeIndex, plans, labels };
+}

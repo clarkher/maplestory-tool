@@ -91,6 +91,16 @@ export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
   };
 }
 
+/** 研究檔裡沒有指定技能的步驟（楓錄原文「自由配點 1」，研究檔寫「自由配點（未指定）」） */
+export function isFreeStep(step: Pick<GuideSkillStep, "id" | "name">): boolean {
+  return step.id === null && /自由配點|未指定/.test(step.name);
+}
+
+/** 點法一步的寫法：「衝擊拳 20」；沒有指定技能的寫「自由分配 1 點」，不露研究檔的「（未指定）」 */
+export function stepText(step: Pick<PlannedStep, "id" | "name" | "to" | "cost">): string {
+  return isFreeStep(step) ? `自由分配 ${step.cost} 點` : `${step.name} ${step.to}`;
+}
+
 /**
  * 某一段等級會點到的步驟：這段開始時有 spFrom 點、結束時有 spTo 點，
  * 點法裡累計點數落在這個範圍內的步驟都算。

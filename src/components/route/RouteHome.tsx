@@ -8,7 +8,7 @@ import {
 } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { baseJob, isSecondJob, jobOption, normalizeJob, stageJob } from "@/lib/jobs";
-import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed } from "@/lib/now-plan";
+import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
@@ -83,6 +83,18 @@ export function RouteHome() {
 
   const effective = useMemo(() => (data ? effectiveLevels(data.quests, data.monsters, data.common) : null), [data]);
 
+  // 城鎮走得到才給「去」（跟主推卡的「帶我去」同一個條件）；同一張圖只算一次
+  const canGo = useMemo(() => {
+    const cache = new Map<number, boolean>();
+    return (map: number) => {
+      if (!data) return false;
+      if (!cache.has(map)) cache.set(map, townRoute(map, data.graph, data.maps, data.nearestTown).hops !== undefined);
+      return cache.get(map) as boolean;
+    };
+  }, [data]);
+  // 這一轉的攻略還在載入（主推卡放骨架）；升級路線也先不照主推寫標籤，免得先寫一張遊戲資料的圖又換掉
+  const guideLoading = stage > 0 && !stageGuide && guideStatus === "loading";
+
   const plan = useMemo(() => {
     if (!data || !ready || !effective) return null;
     const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
@@ -145,7 +157,7 @@ export function RouteHome() {
       {ready && data && plan ? (
         <>
           {/* 這一轉的攻略還在載入：先放骨架，不先推一張遊戲資料的圖、攻略到了又換掉 */}
-          {stage > 0 && !stageGuide && guideStatus === "loading" ? (
+          {guideLoading ? (
             <NowCardSkeleton label={`Lv.${profile.level} ${jobOption(profile.job)?.name ?? "初心者"}・現在去這裡`} />
           ) : plan.pick ? (
             <NowCard
@@ -203,7 +215,6 @@ export function RouteHome() {
               job={profile.job}
               prefer={branchName}
               guideStatus={guideStatus}
-              routable={data.routable}
               level={profile.level}
               bands={bands}
               guides={guides}
@@ -214,6 +225,8 @@ export function RouteHome() {
               training={data.training.filter(row => !isIslandMap(row.m))}
               common={data.common}
               effective={effective!}
+              pick={guideLoading ? undefined : plan.pick}
+              canGo={canGo}
             />
           </section>
 

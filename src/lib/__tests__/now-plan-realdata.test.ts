@@ -9,14 +9,26 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
-import { canGo, effectiveLevels, longRunNow, mainPick, nowQuests, type LongRunTask, type MainPick, type NowQuest } from "@/lib/now-plan";
+import { canGo, effectiveLevels, longRunNow, mainPick, nowQuests, townRoute, type LongRunTask, type MainPick, type NowQuest } from "@/lib/now-plan";
 import { findRoute, suggestStart } from "@/lib/route";
+import { bandsFor, isIslandMap, spawnIndex } from "@/lib/route-planner";
+import { pickTitle, timelinePlans } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const read = <T,>(name: string): T => JSON.parse(fs.readFileSync(`${DATA}${name}`, "utf8")) as T;
 
-type Combo = { job: number; name: string; level: number; tag: string; pick?: MainPick; todo: NowQuest[]; longRun: LongRunTask[] };
+type Combo = {
+  job: number;
+  name: string;
+  level: number;
+  tag: string;
+  pick?: MainPick;
+  todo: NowQuest[];
+  longRun: LongRunTask[];
+  /** 升級路線你在的那一段：標籤、練功第一列的地圖 */
+  active: { label?: string; firstMap?: number | null };
+};
 
 /**
  * 主推圖等級跳動的已知例外：查過原因、不是程式錯的才放這裡，key 寫到地圖名，換了圖或等級就不算、照樣擋。
@@ -51,6 +63,14 @@ beforeAll(() => {
   const common = read<GuideCommon>("guides/common.json");
   const guides = new Map<number, GuideJob>(JOB_OPTIONS.map(option => [option.id, read<GuideJob>(`guides/${option.id}.json`)]));
   effective = effectiveLevels(quests, monsters, common);
+  const monsterIndex = new Map(monsters.map(monster => [monster.id, monster]));
+  const spawns = spawnIndex(monsters);
+  const timelineTraining = training.filter(row => !isIslandMap(row.m));
+  const routes = new Map<number, boolean>();
+  const canWalk = (map: number) => {
+    if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown).hops !== undefined);
+    return routes.get(map) as boolean;
+  };
 
   combos = [];
   for (const job of [0, ...JOB_OPTIONS.map(option => option.id)]) {
@@ -58,14 +78,19 @@ beforeAll(() => {
       if (consistentJob(job, level) !== job) continue;
       const stage = stageJob(job, level);
       const name = job === 0 ? "初心者" : jobOption(job)?.name ?? String(job);
+      const pick = mainPick({ level, job, guide: stage ? guides.get(stage) : undefined, common, training, monsters, maps, graph, nearestTown });
+      const timeline = timelinePlans({
+        job, level, bands: bandsFor(job), guides, monsterIndex, spawns, maps, training: timelineTraining, pqs: common.pq ?? [], pick, canGo: canWalk,
+      });
       combos.push({
         job,
         name,
         level,
         tag: `${name} Lv.${level}`,
-        pick: mainPick({ level, job, guide: stage ? guides.get(stage) : undefined, common, training, monsters, maps, graph, nearestTown }),
+        pick,
         todo: nowQuests({ level, job, quests, monsters, common, maps, effective }),
         longRun: longRunNow({ level, job, quests, monsters, common, maps, effective }),
+        active: { label: timeline.labels[timeline.activeIndex], firstMap: timeline.plans[timeline.activeIndex].rows[0]?.map },
       });
     }
   }
@@ -149,6 +174,18 @@ describe("真資料：首頁每個組合", () => {
       if (!KNOWN_DROPS.has(key)) bad.push(`${key}（Lv.${from.level} → Lv.${to.level}）`);
     }
     expectNone("主推圖等級多升一級就掉超過 10 級", bad);
+  });
+
+  it("升級路線你在的那一段跟主推卡同一個答案：標籤是主推卡的標題，練功第一列是主推那張圖（組隊任務是入口）", () => {
+    const bad = combos.flatMap(combo => {
+      if (!combo.pick) return [];
+      const problems = [];
+      if (combo.active.label !== pickTitle(combo.pick)) problems.push(`標籤「${combo.active.label}」≠ 主推「${pickTitle(combo.pick)}」`);
+      const want = combo.pick.kind === "map" ? combo.pick.option.map : combo.pick.kind === "pq" ? combo.pick.pq.entrance : undefined;
+      if (want !== undefined && combo.active.firstMap !== want) problems.push(`練功第一列是 ${combo.active.firstMap}，主推是 ${want}`);
+      return problems.map(problem => `${combo.tag}：${problem}`);
+    });
+    expectNone("你在這一段跟主推卡不一樣", bad);
   });
 
   it("先解沒有兩行同名", () => {

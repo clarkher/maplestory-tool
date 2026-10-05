@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { skillImage } from "@/lib/data";
-import { availableSp, buildProgress, mainBuild, type PlannedStep } from "@/lib/skill-plan";
+import { availableSp, buildProgress, isFreeStep, mainBuild, stepText, type PlannedStep } from "@/lib/skill-plan";
 import type { GuideBuild, GuideJob } from "@/lib/types";
 import { SourceLinks, SourceTag, Sprite } from "./bits";
 
@@ -28,8 +28,8 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
   const progress = buildProgress(build, sp);
   const current = progress.current;
   const next = progress.steps.find(step => step.state === "next");
-  // 點完時顯示最後一步的技能圖，不留一個空白框
-  const iconId = current?.id ?? [...progress.steps].reverse().find(step => step.id)?.id ?? null;
+  // 點完時顯示最後一步的技能圖，不留一個空白框；現在這步沒有指定技能（自由分配）就不放圖
+  const iconId = current ? current.id : [...progress.steps].reverse().find(step => step.id)?.id ?? null;
 
   return (
     <section aria-label="技能怎麼點" className="overflow-hidden rounded-[var(--radius-card)] wood-frame">
@@ -50,8 +50,8 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
           </span>
           {current ? (
             <>
-              <b className="whitespace-nowrap text-[16px]">{current.name} 點到 {current.to}</b>
-              {next ? <span className="opacity-90">，再來{next.name} {next.to}</span> : null}
+              <b className="whitespace-nowrap text-[16px]">{isFreeStep(current) ? stepText(current) : `${current.name} 點到 ${current.to}`}</b>
+              {next ? <span className="opacity-90">，再來{stepText(next)}</span> : null}
             </>
           ) : (
             <b>主流點法 {progress.total} 點已經點完{sp > progress.total ? `，還剩 ${sp - progress.total} 點` : ""}</b>
@@ -135,13 +135,24 @@ const STATE_TEXT = { done: "點完", now: "現在", next: "下一個", later: ""
 function StepRow({ step }: { step: PlannedStep }) {
   return (
     <li className={`flex items-center gap-2.5 ${step.state === "done" ? "opacity-55" : ""}`}>
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[color:var(--paper-deep)]">
-        {step.id ? <Sprite src={skillImage(step.id)} size={24} /> : null}
-      </span>
+      {/* 沒有指定技能的步驟（自由分配）不放圖，只留位置對齊 */}
+      {isFreeStep(step) ? (
+        <span aria-hidden className="size-8 shrink-0" />
+      ) : (
+        <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-[color:var(--paper-deep)]">
+          {step.id ? <Sprite src={skillImage(step.id)} size={24} /> : null}
+        </span>
+      )}
       <span className="min-w-0 flex-1">
         <span className="block text-[14px] font-bold">
-          {step.name}
-          <span className="ml-1 tabular-nums">{step.from > 0 ? `${step.from} → ${step.to}` : `→ ${step.to}`}</span>
+          {isFreeStep(step) ? (
+            stepText(step)
+          ) : (
+            <>
+              {step.name}
+              <span className="ml-1 tabular-nums">{step.from > 0 ? `${step.from} → ${step.to}` : `→ ${step.to}`}</span>
+            </>
+          )}
         </span>
         {step.note ? <span className="block text-[12px] ink-soft">{step.note}</span> : null}
       </span>
@@ -165,7 +176,7 @@ function OtherBuild({ build }: { build: GuideBuild }) {
         <p className="text-[13px] font-bold">{build.label}</p>
         <SourceTag kind="guide" verified={build.v} />
       </div>
-      <p className="text-[13px] leading-relaxed ink-soft">{build.steps.map(step => `${step.name} ${step.to}`).join(" → ")}</p>
+      <p className="text-[13px] leading-relaxed ink-soft">{buildProgress(build, 0).steps.map(stepText).join(" → ")}</p>
       <SourceLinks urls={build.s} />
     </li>
   );
