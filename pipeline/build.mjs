@@ -77,7 +77,8 @@ function main() {
   const components = labelComponents(graph, maps);
   const nearestTown = computeNearestTowns(maps, graph, v83);
   const canonItem = itemAliases(artale);
-  const spawnTable = mergeSpawns(twSpawns(artale.maps), v83.maps);
+  const twTable = twSpawns(artale.maps);
+  const spawnTable = mergeSpawns(twTable, v83.maps);
   const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
   const items = buildItems(artale, monsters);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
@@ -111,8 +112,12 @@ function main() {
     release: RELEASE,
     // 客戶端已經有中文名、但所在地區還沒開放而被擋下來的地圖數
     heldBackRegions: heldBack,
-    // 刷怪資料各用了幾張圖的台服客戶端、幾張退回 v83
-    spawnSource: { client: spawnTable.fromTw, v83: spawnTable.fromV83 },
+    // 已開放地圖的刷怪資料，各有幾張用台服客戶端、幾張退回 v83（沒開放的圖不算，免得數字誤導）
+    spawnSource: (() => {
+      const open = Object.keys(spawnTable.spawns).filter(key => maps.records[key]?.zh);
+      const client = open.filter(key => twTable.has(Number(key))).length;
+      return { client, v83: open.length - client };
+    })(),
     assumptions: {
       defaultRespawnSeconds: DEFAULT_RESPAWN_SECONDS,
       expNote: "本站不提供每小時經驗值——那需要知道你的清怪速度。提供的是可查證的事實：一輪清完的總經驗、刷怪點數、回生秒數，以及據此換算的相對效率指數。",

@@ -63,8 +63,8 @@
     "日本": 1
   },
   "spawnSource": {
-    "client": 246,
-    "v83": 1985
+    "client": 207,
+    "v83": 1
   },
   "assumptions": {
     "defaultRespawnSeconds": 7,
@@ -91,5 +91,5 @@
     "monstersWithoutSpawnData": 7,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-05T06:11:22.650Z"
+  "builtAt": "2026-10-05T06:16:33.540Z"
 }
