@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { RouteIcon } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
 import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
@@ -63,6 +64,35 @@ function Chip({ tone, children }: { tone: "maple" | "gold" | "sky"; children: Re
   return <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${tones[tone]}`}>{children}</span>;
 }
 
+/**
+ * 攻略理由（卡上寫「為什麼是這張」）：先顯示兩行，比兩行長才給「展開／收起」。
+ * 長不長要等畫出來量（寬度不同斷行就不同），所以用 ResizeObserver 跟著版面重量。
+ */
+function GuideReason({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [open, setOpen] = useState(false);
+  const [long, setLong] = useState(false);
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || open) return;
+    const measure = () => setLong(element.scrollHeight > element.clientHeight + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [text, open]);
+  return (
+    <div className="mt-1.5">
+      <p ref={ref} className={`text-[13px] leading-relaxed ink-soft ${open ? "" : "line-clamp-2"}`}>{text}</p>
+      {long || open ? (
+        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="text-[12px] font-bold text-[color:var(--sky)]">
+          {open ? "收起" : "展開"}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 function AltLine({ alt, prefix }: { alt?: TrainOption; prefix: string }) {
   if (!alt) return null;
   return (
@@ -83,6 +113,7 @@ function MapCard({ pick, level, jobName, maps, monsters }: Common & { pick: Extr
         <div>
           <h2 className="text-[22px] font-black leading-tight">{option.title}</h2>
           <p className="text-[13px] ink-soft">{[record?.st, mobLine(option, monsters)].filter(Boolean).join("・")}</p>
+          {option.source === "guide" && option.guide?.why ? <GuideReason key={option.map} text={option.guide.why} /> : null}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {option.fit.note ? <Chip tone="maple">{jobName}專屬：{option.fit.note}</Chip> : null}
