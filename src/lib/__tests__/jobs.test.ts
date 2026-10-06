@@ -1,16 +1,45 @@
 import { describe, expect, it } from "vitest";
 import {
-  JOB_OPTIONS, JOB_TIERS, THIRD_JOB_LEVEL, advancementLevel, baseJob, commitLevelText, consistentJob, isSecondJob, isThirdJob, jobTier, levelHint,
-  minLevelFor, normalizeJob, pickJobKeepingLevel, previousJob, profileWithJob, skillJobGroups, stageJob, tierStartLevel, typedLevel,
+  JOB_LINES, JOB_OPTIONS, THIRD_JOB_LEVEL, advancementLevel, baseJob, branchPairs, commitLevelText, consistentJob, isSecondJob, isThirdJob, jobLineOf,
+  jobTier, levelHint, minLevelFor, normalizeJob, pickJobKeepingLevel, previousJob, profileWithJob, skillJobGroups, stageJob, thirdJobLabel,
+  tierStartLevel, typedLevel,
 } from "@/lib/jobs";
 
 describe("職業清單", () => {
   it("一轉 5 職、二轉 12 職、三轉 12 職，共 29 個", () => {
     expect(JOB_OPTIONS).toHaveLength(29);
-    expect(JOB_TIERS.map(tier => tier.jobs.length)).toEqual([5, 12, 12]);
-    expect(JOB_TIERS[2].jobs.map(([, name]) => name)).toEqual([
+    expect(JOB_LINES).toHaveLength(5);
+    expect(JOB_LINES.flatMap(line => line.branches)).toHaveLength(12);
+    expect(JOB_LINES.flatMap(line => line.thirds).map(([, name]) => name)).toEqual([
       "十字軍", "騎士", "龍騎士", "魔導士（火毒）", "魔導士（冰雷）", "祭司", "遊俠", "狙擊手", "暗殺者", "神偷", "格鬥家", "神槍手",
     ]);
+  });
+
+  it("二轉跟它接的三轉一組一組列：盜賊系是刺客 → 暗殺者、俠盜 → 神偷", () => {
+    const thief = JOB_LINES.find(line => line.base === 400)!;
+    expect(branchPairs(thief)).toEqual([
+      { second: [410, "刺客"], third: [411, "暗殺者"] },
+      { second: [420, "俠盜"], third: [421, "神偷"] },
+    ]);
+    // 每一組的三轉代碼都是二轉代碼 +1（110 → 111），配錯一組就會把三轉接到別的二轉底下
+    for (const line of JOB_LINES) {
+      for (const { second, third } of branchPairs(line)) expect(third[0]).toBe(second[0] + 1);
+    }
+  });
+
+  it("職業屬於哪個系別：三轉、二轉、一轉都找得到，初心者跟還沒選找不到", () => {
+    expect(jobLineOf(411)?.line).toBe("盜賊");
+    expect(jobLineOf(420)?.line).toBe("盜賊");
+    expect(jobLineOf(400)?.line).toBe("盜賊");
+    expect(jobLineOf(231)?.line).toBe("法師");
+    expect(jobLineOf(0)).toBeUndefined();
+    expect(jobLineOf(-1)).toBeUndefined();
+  });
+
+  it("三轉的選單名稱：名字本身有括號就併進去，其他加（三轉）", () => {
+    expect(thirdJobLabel("魔導士（火毒）")).toBe("魔導士（火毒・三轉）");
+    expect(thirdJobLabel("魔導士（冰雷）")).toBe("魔導士（冰雷・三轉）");
+    expect(thirdJobLabel("十字軍")).toBe("十字軍（三轉）");
   });
 
   it("第幾轉：初心者 0、一轉 1、二轉 2、三轉 3", () => {
@@ -75,19 +104,22 @@ describe("職業清單", () => {
 });
 
 describe("查資料頁技能篩選選單", () => {
-  it("五個系別，每組只有該系的一轉／二轉／三轉，三轉標「（三轉）」", () => {
+  it("五個系別，每組只有該系的一轉／二轉／三轉；每個二轉後面緊接它的三轉，三轉標「（三轉）」", () => {
     const groups = skillJobGroups();
     expect(groups.map(g => g.label)).toEqual(["劍士系", "法師系", "弓箭手系", "盜賊系", "海盜系"]);
 
-    const swordsman = groups[0];
-    expect(swordsman.options).toEqual([
+    expect(groups[0].options).toEqual([
       { id: 100, name: "劍士" },
       { id: 110, name: "狂戰士" },
-      { id: 120, name: "見習騎士" },
-      { id: 130, name: "槍騎兵" },
       { id: 111, name: "十字軍（三轉）" },
+      { id: 120, name: "見習騎士" },
       { id: 121, name: "騎士（三轉）" },
+      { id: 130, name: "槍騎兵" },
       { id: 131, name: "龍騎士（三轉）" },
+    ]);
+    // 名字本身有括號的三轉，括號併成一組（用戶 2026-10-06 指定「魔導士（火毒・三轉）」）
+    expect(groups[1].options.map(option => option.name)).toEqual([
+      "法師", "火毒巫師", "魔導士（火毒・三轉）", "冰雷巫師", "魔導士（冰雷・三轉）", "僧侶", "祭司（三轉）",
     ]);
   });
 
