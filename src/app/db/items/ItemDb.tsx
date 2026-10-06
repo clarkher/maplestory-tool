@@ -4,27 +4,32 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
-import { itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
+import {
+  itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage, peekItems, peekMaps, peekMonsters, peekQuests,
+} from "@/lib/data";
 import {
   compareItems, equipGroups, itemKeywords, jobLabel, sortCategories, subcategoryOptions, usableBy, wearFit, type WearFit,
 } from "@/lib/item-view";
-import { useProfile } from "@/lib/profile";
+import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
+import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
 import { isV002Item, v002MonsterIds, v002QuestIds } from "@/lib/v002";
 
 export function ItemDb() {
-  const [items, setItems] = useState<Item[] | null>(null);
-  const [monsters, setMonsters] = useState<Monster[] | null>(null);
-  const [quests, setQuests] = useState<Quest[] | null>(null);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
+  // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
+  const [items, setItems] = useState<Item[] | null>(peekItems);
+  const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
+  const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState("");
-  const [subcategory, setSubcategory] = useState("");
-  const [onlyDroppable, setOnlyDroppable] = useState(false);
-  const [onlyMine, setOnlyMine] = useState(false);
+  const [category, setCategory] = useRemembered("db:道具:category", "");
+  const [subcategory, setSubcategory] = useRemembered("db:道具:subcategory", "");
+  const [onlyDroppable, setOnlyDroppable] = useRemembered("db:道具:onlyDroppable", false);
+  const [onlyMine, setOnlyMine] = useRemembered("db:道具:onlyMine", false);
   const notOpenYet = useBeforeV002();
-  const { profile, loaded, isComplete } = useProfile();
+  // 同步讀角色：按返回時第一個畫面就套上「只看〇〇能用的」，清單才跟離開時一樣
+  const { profile, loaded, isComplete } = useStoredProfile();
   /** 角色列選了職業就出現「只看〇〇能用的裝備」，不用填等級（這個篩選本來就不看等級） */
   const mineName = loaded && profile.job >= 0 ? jobLabel(profile.job) : null;
 
