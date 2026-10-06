@@ -1,7 +1,9 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature } from "@/lib/db-browse";
+import { useRemembered } from "@/lib/remember";
 import { ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
 import Link from "next/link";
@@ -21,11 +23,56 @@ export type DbEntry = {
 
 const PAGE_SIZE = 60;
 
+/** 跟 Tailwind 的 lg 同一個斷點，瀏覽器字級調大時兩欄／單欄的判斷才會一致 */
+const WIDE = "(min-width: 64rem)";
+const isWide = () => window.matchMedia(WIDE).matches;
+const narrowOnServer = () => false;
+function subscribeWide(onChange: () => void) {
+  const query = window.matchMedia(WIDE);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
 /**
- * 四個資料頁共用的骨架：左邊清單、右邊細節，手機上則是清單在上、選中後細節展開。
+ * 按上一頁／下一頁換的網址交給瀏覽器還原位置，這裡不再捲。
+ * 全站開了平滑捲動，瀏覽器還原時也會從頂端一路滑過去：查資料這幾頁在還原前先關掉，
+ * 等使用者下一次自己點、按鍵時再恢復。
+ */
+const navHistory =
+  typeof window === "undefined"
+    ? null
+    : createHistoryTracker(window, {
+        onTraverse: () => {
+          if (!window.location.pathname.startsWith("/db/")) return;
+          document.documentElement.style.scrollBehavior = "auto";
+          // 逼瀏覽器馬上套用，還原位置時才吃得到（Next 自己關平滑捲動時也這樣做）
+          document.documentElement.getClientRects();
+        },
+        onFresh: () => {
+          document.documentElement.style.scrollBehavior = "";
+        },
+      });
+
+/** 清單每一列的 DOM id：展開、收起、從連結跳過來時用來找那一列 */
+const rowOf = (id: string) => document.getElementById(`db-row-${id}`);
+
+/** 網址上現在開著哪一筆。pushState 之後畫面要等一下才更新，連點時要看網址，不能看畫面上的 selected */
+const openIdNow = () => new URLSearchParams(window.location.search).get("id");
+
+function urlWith(id: string | null) {
+  const next = new URLSearchParams(window.location.search);
+  if (id === null) next.delete("id");
+  else next.set("id", id);
+  const search = next.toString();
+  return search ? `?${search}` : window.location.pathname;
+}
+
+/**
+ * 四個資料頁共用的骨架：桌機左邊清單、右邊細節；手機、平板點了哪一筆，細節就展開在那一筆下面。
  *
  * 原站把整包資料當同步 script 一次載入（道具那頁 19MB），這裡改成先載清單、
- * 選中才渲染細節，而且列表分批補上，捲多少算多少。
+ * 選中才渲染細節，而且列表分批補上，按「再載」才多畫。
+ * 搜尋字、已經載入幾筆記到這次瀏覽結束：離開再回來、按返回，清單跟離開時一樣。
  */
 export function DbBrowser({
   title,
@@ -46,13 +93,15 @@ export function DbBrowser({
   renderDetail: (id: string) => React.ReactNode;
   searchPlaceholder?: string;
 }) {
-  const router = useRouter();
   const params = useSearchParams();
   const selected = params.get("id");
+  const wide = useSyncExternalStore(subscribeWide, isWide, narrowOnServer);
 
-  const [query, setQuery] = useState("");
-  const [visible, setVisible] = useState(PAGE_SIZE);
+  const [query, setQuery] = useRemembered(`db:${title}:query`, "");
+  const [visible, setVisible] = useRemembered(`db:${title}:visible`, PAGE_SIZE);
   const detailRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
 
   const matches = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -67,58 +116,112 @@ export function DbBrowser({
     return [...starts, ...contains];
   }, [entries, query]);
 
+  // 篩選換了清單才從頭顯示 60 筆；內容一樣只是重算（角色讀好、標籤冒出來）不算，按過「再載」的不會被收回去
+  const signature = useMemo(() => listSignature(entries), [entries]);
+  const shownSignature = useRef(signature);
   useEffect(() => {
+    if (shownSignature.current === signature) return;
+    shownSignature.current = signature;
     setVisible(PAGE_SIZE);
-  }, [query, entries]);
+  }, [signature, setVisible]);
 
-  // 這次網址的 id 是點清單換的：select 會自己平滑捲過去，下面的 effect 就不再跳一次
+  // 這次網址的 id 是點清單換的：select 自己會捲，下面「從連結來的」effect 就不再跳一次
   const pickedFromList = useRef(false);
+  // 手機點一筆時，那一列在畫面上的位置：展開後先放回原處，再平滑捲到導覽列下方
+  const tapped = useRef<{ id: string; top: number } | null>(null);
+  // 收起的是哪一筆、是不是用返回收的、什麼時候按的
+  const collapsed = useRef<{ id: string; byBack: boolean; at: number } | null>(null);
+  // 最近一次從清單點開的是哪一筆、什麼時候點的：擋手指連點
+  const lastPick = useRef<{ id: string; at: number } | null>(null);
+
+  const collapse = useCallback(() => {
+    const openId = openIdNow();
+    if (!openId) return;
+    // 剛按過收起、還在收（例如手機上連點兩下）：不再收第二次，不然用返回收的會連退兩頁、離開這一頁
+    const pending = collapsed.current;
+    if (pending?.id === openId && performance.now() - pending.at < 1000) return;
+    const byBack = collapseByBack(window.history.state, openId, performance.timeOrigin);
+    collapsed.current = { id: openId, byBack, at: performance.now() };
+    // 從清單點開的那一筆用返回收起：上一頁就是點之前的清單，不會多留一筆紀錄
+    if (byBack) window.history.back();
+    else window.history.replaceState(null, "", urlWith(null));
+  }, []);
 
   const select = useCallback(
     (id: string) => {
-      const next = new URLSearchParams(params.toString());
-      next.set("id", id);
-      // 點同一筆網址不會變、effect 不會跑，這時不留記號，不然下一次從連結換過來會被吃掉
-      pickedFromList.current = params.get("id") !== id;
-      // push 不用 replace：看完一筆按返回，要回到上一筆，不是直接離開這一頁
-      router.push(`?${next.toString()}`, { scroll: false });
-      requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+      const openId = openIdNow();
+      if (openId === id) {
+        // 剛點開不到半秒又點同一筆，多半是手指連點，當作同一下
+        if (lastPick.current?.id === id && performance.now() - lastPick.current.at < 500) return;
+        // 手機再點一次開著的那一筆就收起；桌機細節在右邊，捲過去就好
+        if (isWide()) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        else collapse();
+        return;
+      }
+      lastPick.current = { id, at: performance.now() };
+      pickedFromList.current = true;
+      if (!isWide()) {
+        const row = rowOf(id);
+        tapped.current = row ? { id, top: row.getBoundingClientRect().top } : null;
+      }
+      // push 不用 replace：看完一筆按返回，要回到上一筆，不是直接離開這一頁。
+      // 沒開著別筆時留記號，收起時才知道可以用返回回到點之前的清單
+      window.history.pushState(fromListMark(openId, window.history.state, id, performance.timeOrigin), "", urlWith(id));
+      if (isWide()) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     },
-    [params, router],
+    [collapse],
   );
 
-  // 按上一頁／下一頁換的 id：瀏覽器會還原你離開時的位置，下面的 effect 不插手，免得兩邊搶著捲
-  const fromHistory = useRef(false);
-  const selectedNow = useRef(selected);
-  useEffect(() => {
-    selectedNow.current = selected;
+  // 手機點了一筆：上面開著的另一筆收起來時這一列會往上跳，先放回手指點的位置，再平滑捲到導覽列下方
+  useLayoutEffect(() => {
+    const tap = tapped.current;
+    if (!tap || tap.id !== selected) return;
+    tapped.current = null;
+    const row = rowOf(tap.id);
+    if (!row) return;
+    const drift = row.getBoundingClientRect().top - tap.top;
+    if (Math.abs(drift) >= 1) window.scrollBy({ top: drift, behavior: "instant" });
+    requestAnimationFrame(() => row.scrollIntoView({ behavior: "smooth", block: "start" }));
   }, [selected]);
-  useEffect(() => {
-    const onPopState = () => {
-      // id 真的有變才留記號；id 沒變時下面的 effect 不會跑，留了記號會吃掉下一次的連結
-      fromHistory.current = new URLSearchParams(window.location.search).get("id") !== selectedNow.current;
+
+  // 收起之後：把那一列放回導覽列下方，接著往下看（細節原本放在清單最上面的話，就回到清單開頭）。
+  // 用返回收的，瀏覽器會在這之後還原點之前的位置，所以等到下一個畫面前再放，畫面不會先跳一下
+  useLayoutEffect(() => {
+    const done = collapsed.current;
+    if (!done || selected === done.id) return;
+    collapsed.current = null;
+    const place = () => {
+      const row = rowOf(done.id);
+      (row ?? listRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
+      // 收起按鈕不見了，焦點放回那一列，用鍵盤、讀螢幕的人才不會迷路
+      row?.querySelector("button")?.focus({ preventScroll: true });
     };
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+    if (done.byBack) requestAnimationFrame(place);
+    else place();
+  }, [selected]);
 
   // 找不到這一筆時 renderDetail 回 null：細節是空的，下面就不捲過去（免得捲到一片空白）
   const detail = !loading && selected ? renderDetail(selected) : null;
   const hasDetail = detail !== null && detail !== undefined;
+  const shown = matches.slice(0, visible);
+  const spot = detailSpot({
+    wide,
+    selected,
+    hasDetail,
+    shown: selected !== null && shown.some(entry => entry.id === selected),
+  });
 
   // 網址的 id 是從連結來的——直接打開網址、細節裡連到同一頁的另一筆（例如任務的「要先完成」）——
-  // 手機、平板的細節排在整份清單下面，直接跳過去；桌機左右兩欄，細節本來就在畫面上，不捲。
+  // 手機、平板跳到那一筆；桌機左右兩欄，細節本來就在畫面上，不捲。按上一頁／下一頁換的交給瀏覽器還原。
   useEffect(() => {
     if (loading || !selected) return;
-    if (pickedFromList.current || fromHistory.current) {
+    if (pickedFromList.current) {
       pickedFromList.current = false;
-      fromHistory.current = false;
       return;
     }
-    // 64rem 跟 Tailwind 的 lg 同一個斷點，瀏覽器字級調大時兩欄／單欄的判斷才會一致
-    if (!hasDetail || window.matchMedia("(min-width: 64rem)").matches) return;
+    if (navHistory?.cameFromHistory() || !hasDetail || isWide()) return;
     // instant：全站開了平滑捲動，不指定會從頂端一路滑三千多 px 下來
-    detailRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    (rowOf(selected) ?? topRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
   }, [loading, selected, hasDetail]);
 
   return (
@@ -139,7 +242,10 @@ export function DbBrowser({
           <SearchIcon size={17} className="shrink-0 text-[color:var(--ink-faint)]" />
           <input
             value={query}
-            onChange={event => setQuery(event.target.value)}
+            onChange={event => {
+              setQuery(event.target.value);
+              setVisible(PAGE_SIZE);
+            }}
             placeholder={searchPlaceholder}
             className="tap-safe w-full bg-transparent py-2.5 outline-none"
             aria-label={`搜尋${title}`}
@@ -158,17 +264,25 @@ export function DbBrowser({
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
           <div className="space-y-1.5">
+            {/* 從連結打開、但那一筆不在目前的清單上：細節放在清單最上面 */}
+            {spot === "top" ? (
+              <div ref={topRef} className="scroll-mt-20 pb-2">
+                <DetailWithCollapse detail={detail} onCollapse={collapse} />
+              </div>
+            ) : null}
             {matches.length === 0 ? (
               <EmptyBlock title="沒有符合的結果" />
             ) : (
               <>
-                <ul className="space-y-1">
-                  {matches.slice(0, visible).map(entry => (
-                    <li key={entry.id}>
+                <ul ref={listRef} className="scroll-mt-20 space-y-1">
+                  {shown.map(entry => (
+                    // scroll-mt：捲過來時讓出頂端固定的導覽列，那一列和展開的細節不會被蓋住
+                    <li key={entry.id} id={`db-row-${entry.id}`} className="scroll-mt-20">
                       <button
                         type="button"
                         onClick={() => select(entry.id)}
                         aria-current={selected === entry.id ? "true" : undefined}
+                        aria-expanded={wide ? undefined : spot === "inline" && selected === entry.id}
                         className={[
                           "tap-safe flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors",
                           selected === entry.id
@@ -195,6 +309,11 @@ export function DbBrowser({
                           <span className="shrink-0 text-[11px] tabular-nums ink-faint">{entry.note}</span>
                         ) : null}
                       </button>
+                      {spot === "inline" && selected === entry.id ? (
+                        <div className="mt-2 pb-2">
+                          <DetailWithCollapse detail={detail} onCollapse={collapse} />
+                        </div>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -211,16 +330,34 @@ export function DbBrowser({
             )}
           </div>
 
-          {/* scroll-mt：捲過來時讓出頂端固定的導覽列，細節卡的標題不會被蓋住 */}
-          <div ref={detailRef} className="min-w-0 scroll-mt-20">
-            {selected ? (
-              detail
-            ) : (
-              <EmptyBlock title="左邊選一個看細節" hint="也可以直接搜尋名稱或 ID。" />
-            )}
-          </div>
+          {spot === "side" ? (
+            // scroll-mt：捲過來時讓出頂端固定的導覽列，細節卡的標題不會被蓋住
+            <div ref={detailRef} className="min-w-0 scroll-mt-20">
+              {selected ? (
+                detail
+              ) : (
+                <EmptyBlock title="左邊選一個看細節" hint="也可以直接搜尋名稱或 ID。" />
+              )}
+            </div>
+          ) : null}
         </div>
       )}
+    </div>
+  );
+}
+
+/** 手機、平板的細節：卡片下面一顆「收起，看下一筆」，看完長長的一張不用自己滑回去 */
+function DetailWithCollapse({ detail, onCollapse }: { detail: React.ReactNode; onCollapse: () => void }) {
+  return (
+    <div className="space-y-2">
+      {detail}
+      <button
+        type="button"
+        onClick={onCollapse}
+        className="tap-safe w-full rounded-xl bg-[color:var(--paper-deep)] py-2.5 text-sm font-bold ink-soft hover:text-[color:var(--maple)]"
+      >
+        收起，看下一筆
+      </button>
     </div>
   );
 }
