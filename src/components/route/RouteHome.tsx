@@ -15,6 +15,7 @@ import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
+import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
 import { Panel, SourceTag, Sprite } from "./bits";
 import { RouteTimeline } from "./RouteTimeline";
@@ -195,6 +196,9 @@ export function RouteHome() {
           {stage && !stageGuide && guideStatus === "failed" ? (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">技能點法讀取失敗，重新整理一次試試。上面的練功圖跟任務不受影響。</p>
           ) : null}
+
+          {/* 能力值點多少、拿哪把武器、衝什麼卷：只講你這個等級；自己載 gear.json，載不到只影響這張卡 */}
+          <GearCard job={stage} level={profile.level} maps={data.maps} routable={data.routable} />
 
           {plan.longRun.length ? (
             <Panel title="長線，有空再刷" aside={<SourceTag kind="data" />}>
