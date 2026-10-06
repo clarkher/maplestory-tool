@@ -6,19 +6,21 @@ import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { GoButton } from "@/components/PlanShell";
 import {
-  itemImage, loadItems, loadMaps, loadMonsters, mapName, monsterImage,
+  itemImage, loadItems, loadMaps, loadMonsters, mapName, monsterImage, peekItems, peekMaps, peekMonsters,
 } from "@/lib/data";
 import { elementalNotes, formatNumber } from "@/lib/format";
 import { useBeforeV002 } from "@/lib/release";
+import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster } from "@/lib/types";
 import { isV002Map, isV002Monster } from "@/lib/v002";
 
 export function MonsterDb() {
-  const [monsters, setMonsters] = useState<Monster[] | null>(null);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
-  const [items, setItems] = useState<Item[] | null>(null);
+  // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
+  const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
+  const [items, setItems] = useState<Item[] | null>(peekItems);
   const [error, setError] = useState<string | null>(null);
-  const [showUnnamed, setShowUnnamed] = useState(false);
+  const [showUnnamed, setShowUnnamed] = useRemembered("db:怪物:showUnnamed", false);
   const notOpenYet = useBeforeV002();
 
   useEffect(() => {

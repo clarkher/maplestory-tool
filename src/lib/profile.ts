@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { consistentJob } from "./jobs";
 import type { Profile } from "./types";
 
@@ -12,10 +12,10 @@ export const LEVEL_CAP = 120;
 /** job -1：還沒選職業（不要預選初心者，免得先填等級的人看到初心者的結果） */
 const EMPTY: Profile = { level: 0, job: -1 };
 
-function read(): Profile {
+/** 本機存的角色字串轉成角色；沒存過、存壞了都當作還沒選 */
+export function parseStoredProfile(raw: string): Profile {
+  if (!raw) return EMPTY;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return EMPTY;
     const parsed = JSON.parse(raw) as Partial<Profile>;
     const level = Number(parsed.level);
     const job = Number(parsed.job);
@@ -25,6 +25,36 @@ function read(): Profile {
   } catch {
     return EMPTY;
   }
+}
+
+function readRaw(): string {
+  try {
+    return localStorage.getItem(STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function read(): Profile {
+  return parseStoredProfile(readRaw());
+}
+
+function subscribeStorage(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+const unknownOnServer = () => null;
+
+/**
+ * 不等 effect、同步讀本機存的角色（只讀不寫）。查資料頁按返回時，第一個畫面就要套上
+ * 「只看〇〇能用的裝備」，清單才會跟離開時一樣、捲得回原處。伺服器上讀不到，當作還沒讀。
+ */
+export function useStoredProfile() {
+  const raw = useSyncExternalStore(subscribeStorage, readRaw, unknownOnServer);
+  const profile = useMemo(() => (raw === null ? EMPTY : parseStoredProfile(raw)), [raw]);
+  const loaded = raw !== null;
+  return { profile, loaded, isComplete: loaded && profile.level > 0 && profile.job >= 0 };
 }
 
 /**

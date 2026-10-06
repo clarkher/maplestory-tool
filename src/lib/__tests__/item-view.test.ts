@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  canJobUse, compareItems, equipGroups, itemKeywords, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
+  canJobUse, compareItems, equipGroups, itemKeywords, itemNote, shopGroups, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
 } from "@/lib/item-view";
 import type { Item } from "@/lib/types";
 
@@ -91,7 +91,7 @@ describe("裝備數值拆成「穿戴條件」和「裝備數值」兩組", () =
   it("需求等級、職業、力量放穿戴條件，其他放裝備數值", () => {
     expect(equipGroups(spear)).toEqual({
       requirements: [["需求等級", "90"], ["需求職業", "劍士"], ["需求力量", "280"]],
-      stats: [["物理攻擊", "97"], ["可衝卷次數", "7"]],
+      stats: [["攻擊力", "97"], ["可使用捲軸次數", "7"]],
     });
   });
 
@@ -99,7 +99,7 @@ describe("裝備數值拆成「穿戴條件」和「裝備數值」兩組", () =
     const shuffled: Item = { id: 1, n: "測試劍", c: "裝備", s: "單手劍", eq: { incPAD: 5, reqSTR: 20, reqJob: 1, reqLevel: 10 } };
     expect(equipGroups(shuffled)).toEqual({
       requirements: [["需求等級", "10"], ["需求職業", "劍士"], ["需求力量", "20"]],
-      stats: [["物理攻擊", "5"]],
+      stats: [["攻擊力", "5"]],
     });
   });
 
@@ -110,15 +110,37 @@ describe("裝備數值拆成「穿戴條件」和「裝備數值」兩組", () =
   });
 
   it("時裝不補「不限職業」；沒有數值的道具兩組都是空的", () => {
-    expect(equipGroups(fashionHat)).toEqual({ requirements: [], stats: [["物理防禦", "1"]] });
+    expect(equipGroups(fashionHat)).toEqual({ requirements: [], stats: [["防禦力", "1"]] });
     expect(equipGroups(potion)).toEqual({ requirements: [], stats: [] });
   });
 
-  it("裝備欄位只留佔兩格的「雙手，不能配盾」，只佔一格的不給格子；攻擊速度寫成字", () => {
-    const bow: Item = { id: 3, n: "測試弓", c: "裝備", s: "弓", eq: { reqLevel: 35, reqJob: 4, incPAD: 50, islot: "WpSi", attackSpeed: 5 } };
-    expect(equipGroups(bow).stats).toEqual([["物理攻擊", "50"], ["裝備欄位", "雙手，不能配盾"], ["攻擊速度", "快（5）"]]);
+  it("武器先排攻擊力、攻擊速度（挑武器時一起看），其他照資料順序", () => {
+    const bow: Item = {
+      id: 1452003, n: "測試弓", c: "裝備", s: "弓",
+      eq: { reqLevel: 35, reqJob: 4, incDEX: 2, incPAD: 50, tuc: 7, islot: "WpSi", attackSpeed: 5 },
+    };
+    expect(equipGroups(bow).stats).toEqual([
+      ["攻擊力", "50"], ["攻擊速度", "快（5）"], ["敏捷", "2"], ["可使用捲軸次數", "7"], ["裝備欄位", "雙手，不能配盾"],
+    ]);
+  });
+
+  it("沒有攻擊速度的（手套也有攻擊力）照資料順序，不搬", () => {
+    const glove: Item = { id: 1082000, n: "測試手套", c: "手套", s: "手套", eq: { incDEX: 1, incPAD: 2, incPDD: 3 } };
+    expect(equipGroups(glove).stats).toEqual([["敏捷", "1"], ["攻擊力", "2"], ["防禦力", "3"]]);
+  });
+
+  it("只佔一格的裝備欄位不給格子；攻擊速度照樣寫成字", () => {
     const oneSlot: Item = { ...spear, eq: { ...spear.eq, islot: "Wp", attackSpeed: 6 } };
-    expect(equipGroups(oneSlot).stats).toEqual([["物理攻擊", "97"], ["可衝卷次數", "7"], ["攻擊速度", "普通（6）"]]);
+    expect(equipGroups(oneSlot).stats).toEqual([["攻擊力", "97"], ["攻擊速度", "普通（6）"], ["可使用捲軸次數", "7"]]);
+  });
+
+  it("「佔兩格」只寫真的套服（105 開頭）跟雙手武器（14 開頭）；標題寫上衣的上衣、武器外觀不寫，免得跟標題打架", () => {
+    const overall: Item = { id: 1051000, n: "鋼鐵鎧甲", c: "裝備", s: "套服", eq: { incPDD: 28, islot: "MaPn" } };
+    expect(equipGroups(overall).stats).toEqual([["防禦力", "28"], ["裝備欄位", "上衣＋褲裙（佔兩格）"]]);
+    const top: Item = { id: 1042167, n: "樸素的武士上衣", c: "裝備", s: "上衣", eq: { incPDD: 3, islot: "MaPn" } };
+    expect(equipGroups(top).stats).toEqual([["防禦力", "3"]]);
+    const cover: Item = { id: 1702000, n: "測試武器外觀", c: "時裝", s: "武器外觀", eq: { islot: "WpSi" } };
+    expect(equipGroups(cover).stats).toEqual([]);
   });
 
   it("只剩不顯示的欄位時「裝備數值」是空的，道具頁不會多一組空的", () => {
@@ -211,5 +233,93 @@ describe("種類下拉", () => {
     ];
     expect(subcategoryOptions(list, "裝備")).toEqual(["帽子", "槍"]);
     expect(subcategoryOptions(list, "消耗")).toEqual(["藥水"]);
+  });
+});
+
+describe("道具清單右邊的小字", () => {
+  it("武器寫種類＋攻擊速度：矛 · 慢（8）", () => {
+    const mop: Item = { id: 1442004, n: "拖把", c: "裝備", s: "矛", eq: { incPAD: 47, attackSpeed: 8 } };
+    expect(itemNote(mop)).toBe("矛 · 慢（8）");
+  });
+
+  it("不是武器的只寫種類，沒有種類寫分類", () => {
+    expect(itemNote(medal)).toBe("勳章");
+    expect(itemNote({ id: 4000000, n: "任務道具", c: "其他" })).toBe("其他");
+  });
+
+  it("認不得的攻擊速度不寫，不露出光禿禿的數字", () => {
+    const odd: Item = { id: 1442999, n: "測試矛", c: "裝備", s: "矛", eq: { attackSpeed: 12 } };
+    expect(itemNote(odd)).toBe("矛");
+  });
+});
+
+describe("哪裡買得到", () => {
+  it("同一個價錢的店家排在一起，價錢只寫一次；有舊版資料要標", () => {
+    const mop: Item = {
+      id: 1442004, n: "拖把", c: "裝備", s: "矛",
+      sp: [
+        { p: "弓箭手村武器店", n: "克爾", m: 100000101, pr: 24000, o: 1 },
+        { p: "勇士之村武器店", n: "利伯", m: 102000001, pr: 24000, o: 1 },
+      ],
+    };
+    expect(shopGroups(mop)).toEqual({
+      groups: [{
+        price: "24,000 楓幣",
+        places: [
+          { place: "弓箭手村武器店", npc: "克爾", later: false },
+          { place: "勇士之村武器店", npc: "利伯", later: false },
+        ],
+      }],
+      fromOldData: true,
+    });
+  });
+
+  it("10/15 才開放的店標 later、排在同一組最後；現在去得了的先列（其餘照資料順序）", () => {
+    const redPotion: Item = {
+      id: 2000000, n: "紅色藥水", c: "消耗", s: "藥水",
+      sp: [
+        { p: "冰原雪域", n: "哈娜", m: 211000000, pr: 50, o: 1 },
+        { p: "弓箭手村雜貨店", n: "露娜", m: 100000102, pr: 50, o: 1 },
+        { p: "楓之谷通行證遠端商店", pr: 50 },
+      ],
+    };
+    const opensLater = (mapId: number) => mapId === 211000000;
+    expect(shopGroups(redPotion, opensLater).groups[0].places).toEqual([
+      { place: "弓箭手村雜貨店", npc: "露娜", later: false },
+      { place: "楓之谷通行證遠端商店", later: false },
+      { place: "冰原雪域", npc: "哈娜", later: true },
+    ]);
+    // 沒傳判斷就當全部現在都去得了，照資料順序
+    expect(shopGroups(redPotion).groups[0].places.map(place => place.place)).toEqual(["冰原雪域", "弓箭手村雜貨店", "楓之谷通行證遠端商店"]);
+  });
+
+  it("商城寫樂豆點、整組賣的寫幾個，不同價錢分開列；全是商城不標舊版", () => {
+    const box: Item = { id: 5068302, n: "記憶音樂盒", c: "現金", sp: [{ p: "商城", pr: 220, c: 1 }, { p: "商城", pr: 1980, k: 10, c: 1 }] };
+    expect(shopGroups(box)).toEqual({
+      groups: [
+        { price: "220 樂豆點", places: [{ place: "商城", later: false }] },
+        { price: "10 個 1,980 樂豆點", places: [{ place: "商城", later: false }] },
+      ],
+      fromOldData: false,
+    });
+  });
+
+  it("沒有店家的道具是空的", () => {
+    expect(shopGroups(potion)).toEqual({ groups: [], fromOldData: false });
+  });
+
+  it("整組賣的件數也加千分位：2,000 個 1,400 楓幣", () => {
+    const arrows: Item = { id: 2060000, n: "箭矢", c: "消耗", s: "箭矢", sp: [{ p: "楓之谷通行證遠端商店", pr: 1400, k: 2000 }] };
+    expect(shopGroups(arrows).groups.map(group => group.price)).toEqual(["2,000 個 1,400 楓幣"]);
+  });
+
+  it("整組都是 10/15 才開的價錢排在現在買得到的價錢後面", () => {
+    const coldHeart: Item = { id: 1492004, n: "冷酷之心", c: "裝備", s: "火槍", sp: [
+      { p: "天空之城", n: "妖精 娜麗", m: 200000000, pr: 75000, o: 1 },
+      { p: "中央走廊", n: "摩根", m: 120000200, pr: 50000, o: 1 },
+    ] };
+    const opensLater = (mapId: number) => mapId === 200000000;
+    expect(shopGroups(coldHeart, opensLater).groups.map(group => group.price)).toEqual(["50,000 楓幣", "75,000 楓幣"]);
+    expect(shopGroups(coldHeart).groups.map(group => group.price)).toEqual(["75,000 楓幣", "50,000 楓幣"]);
   });
 });

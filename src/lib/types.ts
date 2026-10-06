@@ -48,6 +48,13 @@ export type Monster = {
   drops: number[];
 };
 
+/**
+ * 道具「哪裡買得到」的一家店（pipeline/lib/shops.mjs，只列經典版已開放的地方）。
+ * p 地點、n NPC（商城沒有）、m 地點的地圖 id（看是不是 10/15 才開放）、pr 標價、
+ * k 一組幾個（1 個不寫）、c=1 商城的樂豆點（沒寫是楓幣）、o=1 取自舊版資料（經典版實際可能不同）。
+ */
+export type ShopRow = { p: string; n?: string; m?: number; pr: number; k?: number; c?: 1; o?: 1 };
+
 export type Item = {
   id: number;
   n: string;
@@ -62,7 +69,10 @@ export type Item = {
   qr?: string[];
   /** 需要這個道具的任務 id */
   qq?: string[];
+  /** 店家數（含還沒開放城鎮的店）；v002.ts 用來判斷「有店賣就不是 V002 限定」 */
   sh?: number;
+  /** 哪裡買得到（見 ShopRow） */
+  sp?: ShopRow[];
   cf?: number[];
   /** NPC 商店的最高標價，用來估「撿了值不值得」 */
   price?: number;
