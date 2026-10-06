@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
-import { equipStatLabel } from "@/lib/format";
+import { equipStatLabel, equipStatValue } from "@/lib/format";
 import { useBeforeV002 } from "@/lib/release";
 import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
 import { isV002Item, v002MonsterIds, v002QuestIds } from "@/lib/v002";
@@ -130,7 +130,7 @@ function ItemDetail({
 }) {
   const notOpenYet = useBeforeV002();
   const equipRows = item.eq
-    ? Object.entries(item.eq).map(([key, value]) => [equipStatLabel(key), String(value)] as [string, string])
+    ? Object.entries(item.eq).map(([key, value]) => [equipStatLabel(key), equipStatValue(key, value)] as [string, string])
     : [];
 
   return (
