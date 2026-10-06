@@ -4,6 +4,7 @@ import type {
   FarmingRow, GuideCommon, GuideJob, Item, Job, MapRecord, Meta, Monster, PortalEdge, Quest, Region, SearchRow, Skill,
   TrainingRow,
 } from "./types";
+import type { GearData } from "./gear";
 
 /**
  * 資料檔全部是編譯期產生的靜態 JSON，第一次用到才抓、抓過就留著。
@@ -68,6 +69,7 @@ export const loadTraining = () => load<TrainingRow[]>("training");
 export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
+export const loadGear = () => load<GearData>("gear");
 /**
  * 玩家攻略跟遊戲資料是兩條獨立的更新線，不能共用 meta 的版本號——
  * 攻略改了但遊戲資料沒變時，瀏覽器會一直拿快取的舊攻略。
