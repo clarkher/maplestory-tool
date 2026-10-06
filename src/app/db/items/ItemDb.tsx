@@ -2,25 +2,31 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
-import { itemImage, loadItems, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
+import { itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
 import { equipStatLabel } from "@/lib/format";
-import type { Item, Monster, Quest } from "@/lib/types";
+import { useBeforeV002 } from "@/lib/release";
+import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
+import { isV002Item, v002MonsterIds, v002QuestIds } from "@/lib/v002";
 
 export function ItemDb() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [monsters, setMonsters] = useState<Monster[] | null>(null);
   const [quests, setQuests] = useState<Quest[] | null>(null);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("");
   const [onlyDroppable, setOnlyDroppable] = useState(false);
+  const notOpenYet = useBeforeV002();
 
   useEffect(() => {
-    Promise.all([loadItems(), loadMonsters(), loadQuests()])
-      .then(([itemData, monsterData, questData]) => {
+    Promise.all([loadItems(), loadMonsters(), loadQuests(), loadMaps()])
+      .then(([itemData, monsterData, questData, mapData]) => {
         setItems(itemData);
         setMonsters(monsterData);
         setQuests(questData);
+        setMaps(mapData);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
@@ -31,6 +37,16 @@ export function ItemDb() {
     [monsters],
   );
   const questIndex = useMemo(() => new Map((quests ?? []).map(quest => [quest.id, quest])), [quests]);
+
+  /** 道具的 V002 判斷要知道「哪些怪、哪些任務是 V002」，整批算一次給下面兩處用（列表 badge、細節頁 chip）。 */
+  const v002Monsters = useMemo(
+    () => (maps ? v002MonsterIds(monsters ?? [], maps) : new Set<number>()),
+    [monsters, maps],
+  );
+  const v002Quests = useMemo(
+    () => (maps ? v002QuestIds(quests ?? [], maps) : new Set<string>()),
+    [quests, maps],
+  );
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -50,15 +66,16 @@ export function ItemDb() {
         note: item.s || item.c,
         image: itemImage(item.id),
         keywords: item.d,
+        badge: isV002Item(item, v002Monsters, v002Quests) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [items, category, onlyDroppable]);
+  }, [items, category, onlyDroppable, v002Monsters, v002Quests, notOpenYet]);
 
   return (
     <DbBrowser
       title="道具"
       lead="裝備數值、道具說明，以及最重要的：這東西誰會掉、哪個任務給。"
       entries={entries}
-      loading={!items || !monsters || !quests}
+      loading={!items || !monsters || !quests || !maps}
       error={error}
       filters={
         <div className="flex flex-wrap items-center gap-2">
@@ -87,7 +104,14 @@ export function ItemDb() {
       renderDetail={id => {
         const item = itemIndex.get(id);
         if (!item) return null;
-        return <ItemDetail item={item} monsterIndex={monsterIndex} questIndex={questIndex} />;
+        return (
+          <ItemDetail
+            item={item}
+            monsterIndex={monsterIndex}
+            questIndex={questIndex}
+            isV002={isV002Item(item, v002Monsters, v002Quests)}
+          />
+        );
       }}
     />
   );
@@ -97,11 +121,14 @@ function ItemDetail({
   item,
   monsterIndex,
   questIndex,
+  isV002,
 }: {
   item: Item;
   monsterIndex: Map<number, Monster>;
   questIndex: Map<string, Quest>;
+  isV002: boolean;
 }) {
+  const notOpenYet = useBeforeV002();
   const equipRows = item.eq
     ? Object.entries(item.eq).map(([key, value]) => [equipStatLabel(key), String(value)] as [string, string])
     : [];
@@ -112,7 +139,10 @@ function ItemDetail({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={itemImage(item.id)} alt="" width={48} height={48} className="size-12 object-contain" />
         <div className="min-w-0">
-          <h2 className="text-2xl font-black leading-tight">{item.n}</h2>
+          <h2 className="text-2xl font-black leading-tight">
+            {item.n}
+            {isV002 && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
+          </h2>
           <p className="mt-0.5 text-sm ink-soft">
             {item.c}
             {item.s ? ` · ${item.s}` : ""}
