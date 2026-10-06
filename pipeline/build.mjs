@@ -60,6 +60,24 @@ const RELEASE = {
   note: "客戶端資產含未開放內容，本站只保留已開放的部分：地圖要有中文名而且所在地區已開放，任務與職業以等級上限與轉職階段判斷。",
 };
 
+/**
+ * V002 開機日（官方公告 https://maplestoryclassic.beanfun.com/bulletin?Bid=83849）。
+ * 2026-10-06 用戶決定：資料現在就上正式機，不用等開機公告，但要讓玩家看得出冰原雪域／廢礦區／
+ * 三轉／Lv.120 是這天才開放——帶這個日期的地圖，前端（src/lib/release.ts）會標「10/15 開放」，
+ * 過了這天自動不再標，不用重新部署。
+ */
+const V002_OPEN_DATE = "2026-10-15";
+
+/** 天空之城、冰原雪域這兩座城鎮客戶端一直沒給名字（officialName 補缺），region 查不到，直接認 id。 */
+const V002_NAMED_TOWNS = new Set([200000000, 211000000]);
+
+/** 這張圖算不算「V002 才放行」：上游地區是冰原雪域或廢礦的已開放地圖，或天空之城／冰原雪域這兩座補缺的城鎮本身。 */
+function v002OpenDate(id, zh) {
+  if (V002_NAMED_TOWNS.has(id)) return V002_OPEN_DATE;
+  if (zh?.region === "冰原雪域" || zh?.region === "廢礦") return V002_OPEN_DATE;
+  return undefined;
+}
+
 function main() {
   const artale = readJson(path.join(RAW, "artale.json"));
   const v83 = readJson(path.join(RAW, "v83-maps.json"));
@@ -281,6 +299,7 @@ function buildMaps(v83, zhNames, regions, msio) {
       rg: regions.mapToRegion.get(id) || undefined,
       rate: raw.rate,
       mm: hasMinimap.has(key) ? 1 : undefined,
+      o: v002OpenDate(id, zh),
     };
     for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
     records[id] = record;

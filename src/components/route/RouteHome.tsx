@@ -11,6 +11,7 @@ import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob,
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { jobLineage } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
+import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
@@ -36,6 +37,7 @@ type GameData = {
 export type GuideStatus = "loading" | "ready" | "failed";
 
 export function RouteHome() {
+  const showV002Banner = useBeforeV002();
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
   const [data, setData] = useState<GameData | null>(null);
@@ -141,6 +143,13 @@ export function RouteHome() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
+      {/* V002 內容現在就上線，但要等官方 2026/10/15 開機才能玩；10/15 一到自動不再標，不用重新部署 */}
+      {showV002Banner ? (
+        <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
+          已經照 10/15 改版排好：三轉、Lv.120、天空之城／冰原雪域／廢礦區，要 2026/10/15 開機後才能去。
+        </p>
+      ) : null}
+
       {!ready ? (
         <header className="px-1 pt-2 text-center">
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>

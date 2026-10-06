@@ -179,6 +179,19 @@ describe("真資料：首頁每個組合", () => {
     for (let level = 1; level < levelCap; level += 1) expect(toNext[level], `Lv.${level}`).toBeGreaterThan(0);
   });
 
+  it("V002 才放行的地圖有開放日（o 欄位是 2026-10-15），楓之島、維多利亞島的地圖沒有（Task 15：直接讀 maps.json，不呼叫 src/lib/release.ts）", () => {
+    // 跟 pipeline/verify.mjs 的 REGION_SENTINELS 同一組代表地圖：冰原雪域、廢礦已開放的代表圖，
+    // 加上官方地名補缺的兩座城鎮本身（天空之城、冰原雪域——客戶端一直沒給名字，region 查不到，id 是直接認的）
+    const v002Maps = [200020000, 200080200, 211040100, 211041500, 280030000, 200000000, 211000000];
+    const missingOpenDate = v002Maps.filter(id => maps[String(id)]?.o !== "2026-10-15");
+    expectNone("V002 地圖缺開放日 o", missingOpenDate.map(id => `${id} ${maps[String(id)]?.zh ?? "（查無）"}`));
+
+    // 楓之島（菇菇村、楓葉村）、維多利亞島（弓箭手村、勇士之村、維多利亞港、奇幻村）現在就能玩，不該有開放日
+    const oldMaps = [10000, 1010000, 100000000, 102000000, 104000000, 105040300];
+    const wronglyTagged = oldMaps.filter(id => maps[String(id)]?.o !== undefined);
+    expectNone("舊地區的地圖不該有開放日 o", wronglyTagged.map(id => `${id} ${maps[String(id)]?.zh ?? "（查無）"} o=${maps[String(id)]?.o}`));
+  });
+
   it("每個組合都有主推大卡", () => {
     expectNone("沒有主推", combos.filter(combo => !combo.pick).map(combo => combo.tag));
   });

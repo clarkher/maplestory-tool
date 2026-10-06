@@ -7,10 +7,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } from "@/components/Icons";
 import { MapPicker } from "@/components/MapPicker";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
+import { Chip } from "@/components/route/bits";
 import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage } from "@/lib/data";
 import { normalizeJob } from "@/lib/jobs";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
+import { useBeforeV002 } from "@/lib/release";
 import {
   MAIN_TOWNS, VICTORIA_PORT, crossAreaText, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep,
   type StartChoice,
@@ -266,6 +268,7 @@ function RouteCard({
   previous?: number;
 }) {
   const [open, setOpen] = useState(false);
+  const notOpenYet = useBeforeV002();
   const record = maps[String(step.map)];
   const name = mapName(maps, step.map);
   const isStart = index === 0;
@@ -294,6 +297,7 @@ function RouteCard({
           <p className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-[17px] font-black leading-tight">{unnamed ? "一條小通道（遊戲裡沒有名字）" : name}</span>
             {record?.st ? <span className="text-xs ink-faint">{record.st}</span> : null}
+            {record?.o && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : null}
           </p>
 
           {isStart ? (

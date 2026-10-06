@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { npcImage } from "@/lib/data";
 import { JOB_TIERS, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, commitLevelText, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
+import { useBeforeV002 } from "@/lib/release";
 import type { Profile } from "@/lib/types";
 import { Sprite } from "./bits";
 
@@ -13,6 +14,7 @@ import { Sprite } from "./bits";
  * 第一次來（還沒填）直接展開選單，不另外做一個「開始」頁。
  */
 export function CharacterBar({ profile, onChange }: { profile: Profile; onChange: (next: Profile) => void }) {
+  const beforeOpen = useBeforeV002();
   const incomplete = profile.level <= 0 || profile.job < 0;
   const [editing, setEditing] = useState(incomplete);
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
@@ -155,7 +157,9 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
             <div className="space-y-2">
               {JOB_TIERS.map(tier => (
                 <div key={tier.label}>
-                  <p className="mb-1 text-[11px] font-bold ink-faint">{tier.label}</p>
+                  <p className="mb-1 text-[11px] font-bold ink-faint">
+                    {tier.label === "三轉" && beforeOpen ? `${tier.label}（10/15 開放）` : tier.label}
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     {tier.jobs.map(([id, name]) => {
                       const active = profile.job === id;
