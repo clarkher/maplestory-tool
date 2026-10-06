@@ -51,7 +51,8 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
           {current ? (
             <>
               <b className="whitespace-nowrap text-[16px]">{isFreeStep(current) ? stepText(current) : `${current.name} 點到 ${current.to}`}</b>
-              {next ? <span className="opacity-90">，再來{stepText(next)}</span> : null}
+              {/* 「再來致命毒霧 30」整塊不斷行，放不下就整塊換到下一行，「30」不會單獨一行；「，」跟著前一塊 */}
+              {next ? <span className="opacity-90">，<span className="whitespace-nowrap">再來{stepText(next)}</span></span> : null}
             </>
           ) : (
             <b>主流點法 {progress.total} 點已經點完{sp > progress.total ? `，還剩 ${sp - progress.total} 點` : ""}</b>

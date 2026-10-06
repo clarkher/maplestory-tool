@@ -9,6 +9,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COMMON_ROUTE } from "@/lib/guide-data";
+import { jobFit } from "@/lib/job-rules";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import {
   BOSS_SPAWN_MAX, CEILING_GAP, bandQuests, canGo, effectiveLevels, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
@@ -40,9 +41,10 @@ type Combo = {
   later: Material[][];
   /**
    * 升級路線每一段的練功清單摘要：能用的攻略列數、畫面寫「以下是遊戲資料推算」時下面列了幾張圖、
-   * 段落的封頂提示、列出來的遊戲資料圖上最高等的怪（卡片寫「黑格里芬 Lv73」那種）
+   * 段落的封頂提示、列出來的遊戲資料圖上最高等的怪（卡片寫「黑格里芬 Lv73」那種）、
+   * 參考等級，以及這裡獨立算的能練的最高圖等級（cap，楓之島那段沒有）
    */
-  bands: Array<{ band: Band; usable: number; listedBelow: number; ceiling?: Ceiling; shownTop: number }>;
+  bands: Array<{ band: Band; usable: number; listedBelow: number; ceiling?: Ceiling; shownTop: number; reference: number; cap?: number }>;
 };
 
 /**
@@ -93,6 +95,18 @@ beforeAll(() => {
     if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown).hops !== undefined);
     return routes.get(map) as boolean;
   };
+  // 能練的最高圖，這裡自己算、不讀 timeline 的結果：開放的練功圖（有中文名、不在楓之島、不是王圖）裡，
+  // 職業規則過（那一段實際那一轉、參考等級）、城鎮走得到的最高地圖等級；同一組（那一轉、參考等級）只算一次
+  const openRows = timelineTraining.filter(row => maps[String(row.m)]?.zh && row.sp > BOSS_SPAWN_MAX);
+  const capCache = new Map<string, number | undefined>();
+  const capLevel = (stage: number, reference: number): number | undefined => {
+    const key = `${stage}:${reference}`;
+    if (!capCache.has(key)) {
+      const levels = openRows.filter(row => jobFit(stage, reference, spawns.get(row.m) ?? [], monsterIndex).ok && canWalk(row.m)).map(row => row.lv);
+      capCache.set(key, levels.length ? Math.max(...levels) : undefined);
+    }
+    return capCache.get(key);
+  };
 
   combos = [];
   for (const job of [0, ...JOB_OPTIONS.map(option => option.id)]) {
@@ -111,14 +125,19 @@ beforeAll(() => {
       // 畫面上下一段的必解是不帶「你在這」的那種（RouteTimeline 的 nextMustDo）
       const plain = bands.map(band => bandQuests({ ...shared, band }));
       // 「以下是遊戲資料推算」下面的圖：沒被擋時是清單裡遊戲資料的列（你在的那段的主推）加替代；攻略圖全被擋時那句話放在被擋的列下面，只算替代
-      const summaries = timeline.plans.map(plan => {
+      const summaries = timeline.plans.map((plan, index) => {
         const shown = [...plan.rows.filter(entry => entry.source === "data"), ...plan.fallback];
+        const island = isIslandBand(plan.band);
+        // 參考等級：你在的那段是你的等級；其他段是那段代表的等級（段落中點，不超過等級上限前一級）
+        const reference = index === timeline.activeIndex ? level : Math.min(levelCap - 1, Math.round((plan.band.from + plan.band.to - 1) / 2));
         return {
           band: plan.band,
           usable: plan.usable,
           listedBelow: (plan.blocked ? 0 : plan.rows.filter(entry => entry.source === "data").length) + plan.fallback.length,
           ceiling: plan.ceiling,
           shownTop: Math.max(0, ...shown.map(entry => topMobLevel(entry.map))),
+          reference,
+          cap: island ? undefined : capLevel(stageJob(job, plan.band.from), reference),
         };
       });
       combos.push({
@@ -208,17 +227,20 @@ describe("真資料：首頁每個組合", () => {
     expectNone("以下是遊戲資料推算，下面卻沒有圖", bad);
   });
 
-  it("段落的封頂提示不自相矛盾：段落（你在的那段是你的等級）比最高圖高 10 級以上；寫的等級不比那段列出來的怪低", () => {
-    const bad = combos.flatMap(combo => combo.bands.flatMap((entry, index) => {
-      if (!entry.ceiling) return [];
-      const reference = index === combo.activeIndex ? combo.level : entry.band.to - 1;
-      const problems = [];
-      if (reference - entry.ceiling.level < CEILING_GAP) problems.push(`段落只比最高圖 Lv.${entry.ceiling.level} 高 ${reference - entry.ceiling.level}`);
+  it("段落的封頂提示跟這裡獨立算的能練的最高圖對得起來：沒有能用的攻略、參考等級比最高圖高 10 級以上才有（而且一定有）；寫的最高圖就是那個等級；寫的等級不比那段列出來的怪低", () => {
+    const bad = combos.flatMap(combo => combo.bands.flatMap(entry => {
+      const where = `${combo.tag} Lv.${entry.band.from}–${entry.band.to}`;
+      const due = entry.usable === 0 && !isIslandBand(entry.band) && entry.cap !== undefined && entry.reference - entry.cap >= CEILING_GAP;
+      if (!entry.ceiling) return due ? [`${where}：參考等級 ${entry.reference} 比最高圖 Lv.${entry.cap} 高 ${entry.reference - (entry.cap ?? 0)} 級，卻沒有封頂提示`] : [];
+      const problems: string[] = [];
+      if (!due) problems.push(`參考等級 ${entry.reference}、最高圖 Lv.${entry.cap ?? "（沒有）"}、能用的攻略 ${entry.usable} 列，不該有封頂提示`);
+      if (entry.ceiling.level !== entry.cap) problems.push(`提示的最高圖 Lv.${entry.ceiling.level} ≠ 獨立算的 Lv.${entry.cap ?? "（沒有）"}`);
       if (entry.ceiling.top < entry.shownTop) problems.push(`最高到 Lv.${entry.ceiling.top}，列出來的怪有 Lv${entry.shownTop}`);
+      // 設計決定（Task 10）：「這張已經是你能去最好的」只給主推卡，段落提示不說
       if (entry.ceiling.best) problems.push("段落提示說「這張已經是你能去最好的」");
-      return problems.map(problem => `${combo.tag} Lv.${entry.band.from}–${entry.band.to}：${problem}`);
+      return problems.map(problem => `${where}：${problem}`);
     }));
-    expectNone("段落封頂提示自相矛盾", bad);
+    expectNone("段落封頂提示跟能練的最高圖對不起來", bad);
   });
 
   it("100–120 段沒有能用的攻略時有封頂提示（規格：新地區的怪最高只到 Lv.N，100 以上的段落用封頂提示照實講）", () => {

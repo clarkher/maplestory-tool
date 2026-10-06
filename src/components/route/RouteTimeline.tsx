@@ -306,10 +306,17 @@ function TrainRowItem({ row, monsterIndex, tagData = false }: { row: TrainRow; m
         {row.source === "data" ? (
           <span className="min-w-0 flex-1 text-[14px] leading-snug">
             <b>{row.title}</b>
+            {/* 每一塊（怪幾等、清一輪幾經驗）各自不斷行，375 寬不會把「經驗」或數字拆到下一行（跟 TodoList 同一招）；
+                分隔的「 · 」放在前一塊的結尾、後面可以換行 */}
             <span className="block text-[12px] ink-soft">
-              {leadMonster ? `${leadMonster.n} Lv${leadMonster.lv ?? "?"}` : null}
-              {leadMonster && row.exp1 !== undefined ? " · " : null}
-              {row.exp1 !== undefined ? `清一輪 ${formatNumber(row.exp1)} 經驗` : null}
+              {leadMonster ? (
+                <span className="whitespace-nowrap">
+                  {leadMonster.n} Lv{leadMonster.lv ?? "?"}
+                  {row.exp1 !== undefined ? " · " : null}
+                </span>
+              ) : null}
+              <wbr />
+              {row.exp1 !== undefined ? <span className="whitespace-nowrap">清一輪 {formatNumber(row.exp1)} 經驗</span> : null}
               {tagData ? <span className="ml-1.5 inline-block align-middle"><SourceTag kind="data" /></span> : null}
             </span>
           </span>
