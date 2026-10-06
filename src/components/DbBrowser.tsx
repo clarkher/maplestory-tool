@@ -75,11 +75,23 @@ export function DbBrowser({
     (id: string) => {
       const next = new URLSearchParams(params.toString());
       next.set("id", id);
-      router.replace(`?${next.toString()}`, { scroll: false });
+      // push 不用 replace：看完一筆按返回，要回到上一筆，不是直接離開這一頁
+      router.push(`?${next.toString()}`, { scroll: false });
       requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     },
     [params, router],
   );
+
+  // 從連結直接開某一筆（網址帶 ?id=）：手機、平板的細節排在整份清單下面，載完先捲過去；
+  // 桌機左右兩欄，細節本來就在畫面上，不捲。只在第一次載完時做，之後點清單由 select 負責。
+  const openedFromLink = useRef(true);
+  useEffect(() => {
+    if (loading || !openedFromLink.current) return;
+    openedFromLink.current = false;
+    if (!selected || window.matchMedia("(min-width: 1024px)").matches) return;
+    // instant：全站開了平滑捲動，不指定會從頂端一路滑三千多 px 下來
+    detailRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [loading, selected]);
 
   return (
     <div className="space-y-4 py-3 sm:py-6">
@@ -171,7 +183,8 @@ export function DbBrowser({
             )}
           </div>
 
-          <div ref={detailRef} className="min-w-0">
+          {/* scroll-mt：捲過來時讓出頂端固定的導覽列，細節卡的標題不會被蓋住 */}
+          <div ref={detailRef} className="min-w-0 scroll-mt-20">
             {selected ? (
               renderDetail(selected)
             ) : (
@@ -195,7 +208,7 @@ export function StatGrid({ rows }: { rows: Array<[string, string | number]> }) {
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {rows.map(([label, value]) => (
         <div key={label} className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2">
-          <dt className="text-[11px] ink-faint">{label}</dt>
+          <dt className="text-[12px] ink-faint">{label}</dt>
           {/* break-keep：擠不下時只在「、」換行，「劍士、弓箭手、盜賊」不會把盜賊切成兩行 */}
           <dd className="break-keep text-[15px] font-black tabular-nums">{value}</dd>
         </div>
