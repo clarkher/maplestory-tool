@@ -91,6 +91,10 @@ export function elementalNotes(elemental: Record<string, string> | undefined) {
   }));
 }
 
+/**
+ * 裝備數值的欄位名，寫遊戲說明框的字（經典版客戶端介面字串「攻擊力 : +{0}」「可使用捲軸次數 : {0}」…，
+ * 對照表見 docs/superpowers/specs/2026-10-06-item-card-polish-design.md）。需求類欄位客戶端沒有現成的字，照舊。
+ */
 export function equipStatLabel(key: string): string {
   const labels: Record<string, string> = {
     reqLevel: "需求等級",
@@ -103,17 +107,17 @@ export function equipStatLabel(key: string): string {
     incDEX: "敏捷",
     incINT: "智力",
     incLUK: "幸運",
-    incMHP: "最大 HP",
-    incMMP: "最大 MP",
-    incPAD: "物理攻擊",
-    incMAD: "魔法攻擊",
-    incPDD: "物理防禦",
-    incMDD: "魔法防禦",
-    incACC: "命中",
-    incEVA: "迴避",
+    incMHP: "HP",
+    incMMP: "MP",
+    incPAD: "攻擊力",
+    incMAD: "魔法攻擊力",
+    incPDD: "防禦力",
+    incMDD: "魔法防禦力",
+    incACC: "命中率",
+    incEVA: "迴避率",
     incSpeed: "移動速度",
     incJump: "跳躍力",
-    tuc: "可衝卷次數",
+    tuc: "可使用捲軸次數",
     islot: "裝備欄位",
     attackSpeed: "攻擊速度",
   };
