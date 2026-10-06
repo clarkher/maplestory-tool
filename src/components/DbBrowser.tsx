@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
 import Link from "next/link";
+import { statSpansTwo } from "@/lib/stat-layout";
 
 export type DbEntry = {
   id: string;
@@ -231,11 +232,18 @@ export function DetailCard({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * 數值格子：手機兩欄、寬螢幕四欄。值太長（statSpansTwo）就佔兩欄，不在格子裡斷行；
+ * grid-flow-row-dense 讓後面短的格子回頭補空位，不會留一個洞。
+ */
 export function StatGrid({ rows }: { rows: Array<[string, string | number]> }) {
   return (
-    <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <dl className="grid grid-flow-row-dense grid-cols-2 gap-2 sm:grid-cols-4">
       {rows.map(([label, value]) => (
-        <div key={label} className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2">
+        <div
+          key={label}
+          className={`rounded-xl bg-[color:var(--paper-deep)] px-3 py-2${statSpansTwo(value) ? " col-span-2" : ""}`}
+        >
           <dt className="text-[12px] ink-faint">{label}</dt>
           {/* break-keep：擠不下時只在「、」換行，「劍士、弓箭手、盜賊」不會把盜賊切成兩行 */}
           <dd className="break-keep text-[15px] font-black tabular-nums">{value}</dd>
