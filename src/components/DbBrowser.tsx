@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { FROM_LIST, collapseByBack, createHistoryTracker, detailSpot, listSignature } from "@/lib/db-browse";
+import { collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature } from "@/lib/db-browse";
 import { useRemembered } from "@/lib/remember";
 import { ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
@@ -43,7 +43,10 @@ const navHistory =
     ? null
     : createHistoryTracker(window, {
         onTraverse: () => {
-          if (window.location.pathname.startsWith("/db/")) document.documentElement.style.scrollBehavior = "auto";
+          if (!window.location.pathname.startsWith("/db/")) return;
+          document.documentElement.style.scrollBehavior = "auto";
+          // 逼瀏覽器馬上套用，還原位置時才吃得到（Next 自己關平滑捲動時也這樣做）
+          document.documentElement.getClientRects();
         },
         onFresh: () => {
           document.documentElement.style.scrollBehavior = "";
@@ -53,8 +56,11 @@ const navHistory =
 /** 清單每一列的 DOM id：展開、收起、從連結跳過來時用來找那一列 */
 const rowOf = (id: string) => document.getElementById(`db-row-${id}`);
 
-function urlWith(params: URLSearchParams, id: string | null) {
-  const next = new URLSearchParams(params.toString());
+/** 網址上現在開著哪一筆。pushState 之後畫面要等一下才更新，連點時要看網址，不能看畫面上的 selected */
+const openIdNow = () => new URLSearchParams(window.location.search).get("id");
+
+function urlWith(id: string | null) {
+  const next = new URLSearchParams(window.location.search);
   if (id === null) next.delete("id");
   else next.set("id", id);
   const search = next.toString();
@@ -123,27 +129,36 @@ export function DbBrowser({
   const pickedFromList = useRef(false);
   // 手機點一筆時，那一列在畫面上的位置：展開後先放回原處，再平滑捲到導覽列下方
   const tapped = useRef<{ id: string; top: number } | null>(null);
-  // 收起的是哪一筆、是不是用返回收的
-  const collapsed = useRef<{ id: string; byBack: boolean } | null>(null);
+  // 收起的是哪一筆、是不是用返回收的、什麼時候按的
+  const collapsed = useRef<{ id: string; byBack: boolean; at: number } | null>(null);
+  // 最近一次從清單點開的是哪一筆、什麼時候點的：擋手指連點
+  const lastPick = useRef<{ id: string; at: number } | null>(null);
 
   const collapse = useCallback(() => {
-    // 已經在收這一筆了（例如手機上連點兩下）：不再收第二次，不然用返回收的會連退兩頁、離開這一頁
-    if (!selected || collapsed.current?.id === selected) return;
-    const byBack = collapseByBack(window.history.state, selected);
-    collapsed.current = { id: selected, byBack };
-    // 從清單點開的那一筆用返回收起：上一頁就是點之前的清單，不會多留一筆紀錄，瀏覽器也會捲回點之前的位置
+    const openId = openIdNow();
+    if (!openId) return;
+    // 剛按過收起、還在收（例如手機上連點兩下）：不再收第二次，不然用返回收的會連退兩頁、離開這一頁
+    const pending = collapsed.current;
+    if (pending?.id === openId && performance.now() - pending.at < 1000) return;
+    const byBack = collapseByBack(window.history.state, openId, performance.timeOrigin);
+    collapsed.current = { id: openId, byBack, at: performance.now() };
+    // 從清單點開的那一筆用返回收起：上一頁就是點之前的清單，不會多留一筆紀錄
     if (byBack) window.history.back();
-    else window.history.replaceState(null, "", urlWith(params, null));
-  }, [params, selected]);
+    else window.history.replaceState(null, "", urlWith(null));
+  }, []);
 
   const select = useCallback(
     (id: string) => {
-      if (selected === id) {
+      const openId = openIdNow();
+      if (openId === id) {
+        // 剛點開不到半秒又點同一筆，多半是手指連點，當作同一下
+        if (lastPick.current?.id === id && performance.now() - lastPick.current.at < 500) return;
         // 手機再點一次開著的那一筆就收起；桌機細節在右邊，捲過去就好
         if (isWide()) detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
         else collapse();
         return;
       }
+      lastPick.current = { id, at: performance.now() };
       pickedFromList.current = true;
       if (!isWide()) {
         const row = rowOf(id);
@@ -151,10 +166,10 @@ export function DbBrowser({
       }
       // push 不用 replace：看完一筆按返回，要回到上一筆，不是直接離開這一頁。
       // 沒開著別筆時留記號，收起時才知道可以用返回回到點之前的清單
-      window.history.pushState(selected ? null : { [FROM_LIST]: id }, "", urlWith(params, id));
+      window.history.pushState(fromListMark(openId, window.history.state, id, performance.timeOrigin), "", urlWith(id));
       if (isWide()) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     },
-    [collapse, params, selected],
+    [collapse],
   );
 
   // 手機點了一筆：上面開著的另一筆收起來時這一列會往上跳，先放回手指點的位置，再平滑捲到導覽列下方
@@ -169,24 +184,20 @@ export function DbBrowser({
     requestAnimationFrame(() => row.scrollIntoView({ behavior: "smooth", block: "start" }));
   }, [selected]);
 
-  // 收起之後：用返回收的，瀏覽器會捲回點之前的位置；其他情況把那一列放回導覽列下方，接著往下看
-  // （細節原本放在清單最上面的話，就回到清單開頭）
+  // 收起之後：把那一列放回導覽列下方，接著往下看（細節原本放在清單最上面的話，就回到清單開頭）。
+  // 用返回收的，瀏覽器會在這之後還原點之前的位置，所以等到下一個畫面前再放，畫面不會先跳一下
   useLayoutEffect(() => {
     const done = collapsed.current;
     if (!done || selected === done.id) return;
     collapsed.current = null;
-    const place = () => (rowOf(done.id) ?? listRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
-    if (!done.byBack) {
-      place();
-      return;
-    }
-    // 萬一瀏覽器沒有還原位置、那一列不在畫面上，還是把它放回導覽列下方
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        const box = rowOf(done.id)?.getBoundingClientRect();
-        if (!box || box.bottom < 0 || box.top > window.innerHeight) place();
-      }),
-    );
+    const place = () => {
+      const row = rowOf(done.id);
+      (row ?? listRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
+      // 收起按鈕不見了，焦點放回那一列，用鍵盤、讀螢幕的人才不會迷路
+      row?.querySelector("button")?.focus({ preventScroll: true });
+    };
+    if (done.byBack) requestAnimationFrame(place);
+    else place();
   }, [selected]);
 
   // 找不到這一筆時 renderDetail 回 null：細節是空的，下面就不捲過去（免得捲到一片空白）

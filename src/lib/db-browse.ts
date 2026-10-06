@@ -33,14 +33,29 @@ export function listSignature(entries: ReadonlyArray<{ id: string }>): string {
 
 /** 在沒開著別筆時從清單點開，會在那一筆的歷史紀錄留下這個記號 */
 export const FROM_LIST = "dbFromList";
+/** 記號是哪一份頁面留的：重新整理之後，上一筆紀錄屬於舊的頁面，返回會整頁重載 */
+export const FROM_DOC = "dbFromDoc";
+
+const asRecord = (value: unknown) =>
+  typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;
 
 /**
- * 收起時要不要用「返回」：只有沒開著別筆時從清單點開的那一筆才用——上一頁就是點之前的清單，
- * 返回不會多留一筆紀錄，瀏覽器也會把清單捲回點之前的位置。其他情況返回會離開這頁或跳回上一筆。
+ * 從清單點開一筆時要不要留記號：網址上沒開著別筆（看網址，不看還沒更新的畫面），
+ * 而且現在這筆紀錄是 Next 管的——不是的話（例如按過「跳到主要內容」），返回時 Next 不會換畫面。
+ * doc 是這份頁面的識別（performance.timeOrigin）。
  */
-export function collapseByBack(historyState: unknown, selected: string): boolean {
-  if (typeof historyState !== "object" || historyState === null) return false;
-  return (historyState as Record<string, unknown>)[FROM_LIST] === selected;
+export function fromListMark(openId: string | null, historyState: unknown, id: string, doc: number) {
+  if (openId !== null || asRecord(historyState)?.__NA !== true) return null;
+  return { [FROM_LIST]: id, [FROM_DOC]: doc };
+}
+
+/**
+ * 收起時要不要用「返回」：只有同一份頁面裡、沒開著別筆時從清單點開的那一筆才用——上一頁就是點之前的清單，
+ * 返回不會多留一筆紀錄。其他情況返回會離開這頁、跳回上一筆，或整頁重載。
+ */
+export function collapseByBack(historyState: unknown, selected: string, doc: number): boolean {
+  const state = asRecord(historyState);
+  return state?.[FROM_LIST] === selected && state?.[FROM_DOC] === doc;
 }
 
 /**
@@ -62,7 +77,7 @@ export function createHistoryTracker(
     traversing = true;
     onTraverse?.();
   });
-  target.addEventListener("pointerdown", fresh, { capture: true });
-  target.addEventListener("keydown", fresh, { capture: true });
+  // 讀螢幕軟體按連結時只送 click，也要算
+  for (const type of ["pointerdown", "keydown", "click"]) target.addEventListener(type, fresh, { capture: true });
   return { cameFromHistory: () => traversing };
 }
