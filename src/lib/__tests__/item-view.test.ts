@@ -102,4 +102,16 @@ describe("裝備數值拆成「穿戴條件」和「裝備數值」兩組", () =
     expect(equipGroups(fashionHat)).toEqual({ requirements: [], stats: [["物理防禦", "1"]] });
     expect(equipGroups(potion)).toEqual({ requirements: [], stats: [] });
   });
+
+  it("裝備欄位只留佔兩格的「雙手，不能配盾」，只佔一格的不給格子；攻擊速度寫成字", () => {
+    const bow: Item = { id: 3, n: "測試弓", c: "裝備", s: "弓", eq: { reqLevel: 35, reqJob: 4, incPAD: 50, islot: "WpSi", attackSpeed: 5 } };
+    expect(equipGroups(bow).stats).toEqual([["物理攻擊", "50"], ["裝備欄位", "雙手，不能配盾"], ["攻擊速度", "快（5）"]]);
+    const oneSlot: Item = { ...spear, eq: { ...spear.eq, islot: "Wp", attackSpeed: 6 } };
+    expect(equipGroups(oneSlot).stats).toEqual([["物理攻擊", "97"], ["可衝卷次數", "7"], ["攻擊速度", "普通（6）"]]);
+  });
+
+  it("只剩不顯示的欄位時「裝備數值」是空的，道具頁不會多一組空的", () => {
+    const wig: Item = { id: 1000030, n: "薩基爾假髮", c: "時裝", s: "帽子", eq: { islot: "HrCp" } };
+    expect(equipGroups(wig)).toEqual({ requirements: [], stats: [] });
+  });
 });

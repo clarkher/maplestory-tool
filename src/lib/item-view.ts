@@ -39,6 +39,12 @@ export function jobFit(item: Item, profile: Profile): JobFit | null {
 
 export type StatRow = [string, string];
 
+/** 一格數值；equipStatValue 回 null（只佔一格的裝備欄位，標題已經寫了）就不給這格 */
+function statRows(key: string, value: number | string): StatRow[] {
+  const text = equipStatValue(key, value);
+  return text === null ? [] : [[equipStatLabel(key), text]];
+}
+
 /**
  * 道具卡的數值拆兩組：「穿戴條件」（等級、職業、力敏智幸，固定順序）跟「裝備數值」（其餘照資料順序）。
  * 「裝備」沒寫職業限制就補一格「不限職業」，玩家才知道誰都能用；時裝不補。
@@ -49,10 +55,10 @@ export function equipGroups(item: Item): { requirements: StatRow[]; stats: StatR
   const requirements: StatRow[] = [];
   for (const key of REQUIREMENT_KEYS) {
     const value = key === "reqJob" && eq.reqJob === undefined && item.c === "裝備" ? 0 : eq[key];
-    if (value !== undefined) requirements.push([equipStatLabel(key), equipStatValue(key, value)]);
+    if (value !== undefined) requirements.push(...statRows(key, value));
   }
   const stats = Object.entries(eq)
     .filter(([key]) => !REQUIREMENT_KEYS.includes(key))
-    .map(([key, value]): StatRow => [equipStatLabel(key), equipStatValue(key, value)]);
+    .flatMap(([key, value]) => statRows(key, value));
   return { requirements, stats };
 }

@@ -137,7 +137,41 @@ function reqJobText(mask: number): string {
   return REQ_JOB_BITS.filter(([bit]) => mask & bit).map(([, name]) => name).join("、");
 }
 
-/** 裝備數值的值：需求職業解成職業名，其他照原值 */
-export function equipStatValue(key: string, value: number | string): string {
-  return key === "reqJob" && typeof value === "number" ? reqJobText(value) : String(value);
+/**
+ * 攻擊速度（數字越小越快）寫遊戲說明框的字：字取自經典版客戶端的介面字串（沒有玩家常講的「頂速」「比較快」），
+ * 數字對字跟經典版玩家的講法對得上（銀龍槍「慢 8」、九龍刀「普通 6」）。
+ * 4、5 都叫「快」、7、8 都叫「慢」，只寫字分不出來，所以括號附數字。
+ */
+const ATTACK_SPEED_WORDS: Record<number, string> = {
+  2: "更快",
+  3: "更快",
+  4: "快",
+  5: "快",
+  6: "普通",
+  7: "慢",
+  8: "慢",
+  9: "比較慢",
+};
+
+function attackSpeedText(speed: number): string {
+  const word = ATTACK_SPEED_WORDS[speed];
+  // 認不得的值照原值寫，不猜快慢
+  return word ? `${word}（${speed}）` : String(speed);
+}
+
+/**
+ * 裝備欄位只寫一件佔兩格的；標題已經寫了帽子、槍，只佔一格的再寫一次是重複，不顯示。
+ * 槍、矛在遊戲資料裡標的是單格（Wp），資料沒寫的不自己補。
+ */
+const TWO_SLOT_TEXT: Record<string, string> = {
+  WpSi: "雙手，不能配盾",
+  MaPn: "上衣＋褲裙（佔兩格）",
+};
+
+/** 裝備數值的值：需求職業解成職業名、攻擊速度寫成字，其他照原值；回 null 表示這格不用顯示 */
+export function equipStatValue(key: string, value: number | string): string | null {
+  if (key === "reqJob" && typeof value === "number") return reqJobText(value);
+  if (key === "attackSpeed" && typeof value === "number") return attackSpeedText(value);
+  if (key === "islot") return TWO_SLOT_TEXT[String(value)] ?? null;
+  return String(value);
 }
