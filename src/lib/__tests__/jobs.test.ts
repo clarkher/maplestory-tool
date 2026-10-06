@@ -1,7 +1,9 @@
+import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
-  JOB_LINES, JOB_OPTIONS, THIRD_JOB_LEVEL, advancementLevel, baseJob, branchPairs, commitLevelText, consistentJob, isSecondJob, isThirdJob, jobLineOf,
-  jobTier, levelHint, minLevelFor, normalizeJob, pickJobKeepingLevel, previousJob, profileWithJob, skillJobGroups, stageJob, thirdJobLabel,
+  JOB_LINES, JOB_OPTIONS, THIRD_JOB_LEVEL, advancementLevel, baseJob, branchPairs, commitLevelText, consistentJob, isSecondJob, isThirdJob, jobAvatar,
+  jobLineOf, jobTier, levelHint, minLevelFor, normalizeJob, pickJobKeepingLevel, previousJob, profileWithJob, skillJobGroups, stageJob, thirdJobLabel,
   tierStartLevel, typedLevel,
 } from "@/lib/jobs";
 
@@ -237,5 +239,18 @@ describe("手滑點到二轉", () => {
   it("沒有被拉高就不記；輸入框裡另外打的等級優先", () => {
     expect(pickJobKeepingLevel({ level: 35, job: 100 }, 110, undefined, null)).toEqual({ next: { job: 110, level: 35 }, note: null, raisedFrom: null });
     expect(pickJobKeepingLevel({ level: 30, job: 110 }, 100, 25, 18)).toEqual({ next: { job: 100, level: 25 }, note: null, raisedFrom: null });
+  });
+});
+
+describe("職業頭像", () => {
+  it("29 個職業每個都有自己的頭像圖檔", () => {
+    const missing = JOB_OPTIONS.filter(job => !fs.existsSync(path.join("public", jobAvatar(job.id) ?? "-")));
+    expect(missing.map(job => job.name)).toEqual([]);
+    expect(new Set(JOB_OPTIONS.map(job => jobAvatar(job.id))).size).toBe(JOB_OPTIONS.length);
+  });
+
+  it("初心者跟不認得的職業沒有頭像（用網站 logo）", () => {
+    expect(jobAvatar(0)).toBeUndefined();
+    expect(jobAvatar(1110)).toBeUndefined();
   });
 });
