@@ -94,6 +94,7 @@ export function elementalNotes(elemental: Record<string, string> | undefined) {
 export function equipStatLabel(key: string): string {
   const labels: Record<string, string> = {
     reqLevel: "需求等級",
+    reqJob: "需求職業",
     reqSTR: "需求力量",
     reqDEX: "需求敏捷",
     reqINT: "需求智力",
@@ -117,4 +118,26 @@ export function equipStatLabel(key: string): string {
     attackSpeed: "攻擊速度",
   };
   return labels[key] ?? key;
+}
+
+/** 客戶端資料的需求職業是位元疊起來的（9＝劍士＋盜賊），「需求職業 9」對玩家沒意義 */
+const REQ_JOB_BITS: Array<[number, string]> = [
+  [1, "劍士"],
+  [2, "法師"],
+  [4, "弓箭手"],
+  [8, "盜賊"],
+  [16, "海盜"],
+];
+
+function reqJobText(mask: number): string {
+  if (mask === 0) return "不限職業";
+  if (mask === -1) return "初心者"; // 清酒、藍色拖把這類只有初心者能拿的武器
+  // 有認不得的位元就照原值寫，不猜職業
+  if (mask < 0 || mask >= 32) return String(mask);
+  return REQ_JOB_BITS.filter(([bit]) => mask & bit).map(([, name]) => name).join("、");
+}
+
+/** 裝備數值的值：需求職業解成職業名，其他照原值 */
+export function equipStatValue(key: string, value: number | string): string {
+  return key === "reqJob" && typeof value === "number" ? reqJobText(value) : String(value);
 }

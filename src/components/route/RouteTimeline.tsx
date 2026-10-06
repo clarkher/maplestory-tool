@@ -139,6 +139,7 @@ function BandItem({
 function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Band; context: Context; active: boolean }) {
   const { band, stage, guide } = plan;
   const { job, level, quests, monsters, monsterIndex, maps, common, prefer, guideStatus, effective } = context;
+  const beforeOpen = useBeforeV002();
 
   const detail = useMemo(() => {
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
@@ -184,7 +185,7 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
   if (job === 0 && !island) {
     return (
       <p className="mx-3 mb-3 rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
-        還沒轉職。轉職後到上面「改」選你的職業，這段就會排出練功點、技能點法跟值得解的任務。
+        還沒轉職。轉職後按上面「換其他職業」選你的職業，這段就會排出練功點、技能點法跟值得解的任務。
       </p>
     );
   }
@@ -193,13 +194,15 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
     <div className="space-y-2.5 px-3 pb-3">
       {stuckInFirstJob ? (
         <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
-          還沒二轉：二轉後到上面「改」選你的職業，這段會換成那個職業的攻略。
+          還沒二轉：二轉後按上面「換其他職業」選你的二轉職業，這段會換成那個職業的攻略。
         </p>
       ) : null}
 
       {stuckInSecondJob ? (
         <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
-          還沒三轉：三轉後到上面「改」選你的職業，這段會換成那個職業的攻略。
+          {beforeOpen
+            ? "還沒三轉：三轉 10/15 開放，轉完按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。"
+            : "還沒三轉：三轉後按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。"}
         </p>
       ) : null}
 

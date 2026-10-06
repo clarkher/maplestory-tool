@@ -14,6 +14,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { officialName } from "./lib/map-names.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
@@ -715,6 +716,10 @@ function dropEmpty(object) {
 function buildSkills(artale, allJobs) {
   const advOf = new Map(allJobs.map(job => [job.id, job.advOrder]));
   const list = (artale.skills || [])
+    // 只收經典版實際存在的職業（見 lib/classic-jobs.mjs）：客戶端資料另外還有皇家騎士團、
+    // 狂狼勇士、龍魔導士、影武者，經典版沒有這些職業，列出來查資料頁的職業選單會選得到
+    // 一個經典版不存在的職業（2026-10-06 使用者回報的「正式機還沒看到三轉資料？」就是這樣）
+    .filter(skill => isClassicJob(Number(skill.jobId)))
     // 三轉四轉的技能現在學不到，列出來只會讓人以為練得到
     .filter(skill => (advOf.get(Number(skill.jobId)) ?? 9) <= RELEASE.maxAdvancementOrder)
     .map(skill => dropEmpty({

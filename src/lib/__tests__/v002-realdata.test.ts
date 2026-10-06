@@ -20,9 +20,11 @@ const quests = read<Quest[]>("quests.json");
 const items = read<Item[]>("items.json");
 
 describe("真資料：V002 判斷", () => {
-  it("154 個三轉技能全部判定為 V002", () => {
+  // 2026-10-06 skills.json 改成只收經典版實際存在的職業（pipeline/lib/classic-jobs.mjs），
+  // 原本 154 筆裡有 65 筆是皇家騎士團／狂狼勇士／龍魔導士／影武者的三轉技能，經典版沒有這些職業，拿掉
+  it("89 個三轉技能全部判定為 V002", () => {
     const v002Skills = skills.filter(isV002Skill);
-    expect(v002Skills.length).toBe(154);
+    expect(v002Skills.length).toBe(89);
   });
 
   it("鬥氣集中（十字軍三轉技能）判定為 V002", () => {

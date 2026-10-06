@@ -41,7 +41,9 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
       : tier === 3
         ? `${option?.line} · 三轉`
         : tier === 2
-          ? profile.level >= THIRD_JOB_LEVEL ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等可以三轉了（照舊版）` : `${option?.line} · 二轉`
+          ? profile.level >= THIRD_JOB_LEVEL
+            ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等${beforeOpen ? "可以三轉（10/15 開放）" : "可以三轉了（照舊版）"}`
+            : `${option?.line} · 二轉`
           : profile.level >= SECOND_JOB_LEVEL ? `一轉 · ${SECOND_JOB_LEVEL} 等可以二轉了` : "一轉";
 
   /** 打字當下：這個職業允許、又沒超過上限的等級才套用，其他先等，也不給提示（要打 15 先打 1 不會閃紅字） */

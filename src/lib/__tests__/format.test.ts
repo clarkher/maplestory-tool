@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { levelRange, respawnText, sourceLabels } from "@/lib/format";
+import { equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
 
 describe("回生秒數的寫法", () => {
   it("等效回生秒數帶小數，畫面寫整數秒「回生約 7 秒」", () => {
@@ -35,5 +35,39 @@ describe("等級範圍文字", () => {
   it("頭尾同一級只寫一個等級，不寫成 Lv.30–30", () => {
     expect(levelRange(30, 30)).toBe("Lv.30");
     expect(levelRange(21, 30)).toBe("Lv.21–30");
+  });
+});
+
+describe("裝備的需求職業", () => {
+  it("欄位寫「需求職業」，不露出英文 reqJob", () => {
+    expect(equipStatLabel("reqJob")).toBe("需求職業");
+  });
+
+  it("單一職業系寫職業名，不寫數字", () => {
+    expect(equipStatValue("reqJob", 1)).toBe("劍士");
+    expect(equipStatValue("reqJob", 2)).toBe("法師");
+    expect(equipStatValue("reqJob", 4)).toBe("弓箭手");
+    expect(equipStatValue("reqJob", 8)).toBe("盜賊");
+    expect(equipStatValue("reqJob", 16)).toBe("海盜");
+  });
+
+  it("好幾個職業系都能用時用頓號串起來", () => {
+    expect(equipStatValue("reqJob", 3)).toBe("劍士、法師");
+    expect(equipStatValue("reqJob", 9)).toBe("劍士、盜賊");
+    expect(equipStatValue("reqJob", 13)).toBe("劍士、弓箭手、盜賊");
+  });
+
+  it("-1 是只有初心者能用，0 是不限職業", () => {
+    expect(equipStatValue("reqJob", -1)).toBe("初心者");
+    expect(equipStatValue("reqJob", 0)).toBe("不限職業");
+  });
+
+  it("認不得的值照原值寫，不猜職業", () => {
+    expect(equipStatValue("reqJob", 32)).toBe("32");
+    expect(equipStatValue("reqJob", -2)).toBe("-2");
+  });
+
+  it("其他欄位照原值，不會被當成職業解讀", () => {
+    expect(equipStatValue("reqLevel", 8)).toBe("8");
   });
 });

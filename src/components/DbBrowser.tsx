@@ -196,7 +196,8 @@ export function StatGrid({ rows }: { rows: Array<[string, string | number]> }) {
       {rows.map(([label, value]) => (
         <div key={label} className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2">
           <dt className="text-[11px] ink-faint">{label}</dt>
-          <dd className="text-[15px] font-black tabular-nums">{value}</dd>
+          {/* break-keep：擠不下時只在「、」換行，「劍士、弓箭手、盜賊」不會把盜賊切成兩行 */}
+          <dd className="break-keep text-[15px] font-black tabular-nums">{value}</dd>
         </div>
       ))}
     </dl>

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   JOB_OPTIONS, JOB_TIERS, THIRD_JOB_LEVEL, advancementLevel, baseJob, commitLevelText, consistentJob, isSecondJob, isThirdJob, jobTier, levelHint,
-  minLevelFor, normalizeJob, pickJobKeepingLevel, previousJob, profileWithJob, stageJob, tierStartLevel, typedLevel,
+  minLevelFor, normalizeJob, pickJobKeepingLevel, previousJob, profileWithJob, skillJobGroups, stageJob, tierStartLevel, typedLevel,
 } from "@/lib/jobs";
 
 describe("職業清單", () => {
@@ -71,6 +71,30 @@ describe("職業清單", () => {
     expect(stageJob(110, 5)).toBe(0);
     expect(stageJob(200, 8)).toBe(200);
     expect(stageJob(230, 7)).toBe(0);
+  });
+});
+
+describe("查資料頁技能篩選選單", () => {
+  it("五個系別，每組只有該系的一轉／二轉／三轉，三轉標「（三轉）」", () => {
+    const groups = skillJobGroups();
+    expect(groups.map(g => g.label)).toEqual(["劍士系", "法師系", "弓箭手系", "盜賊系", "海盜系"]);
+
+    const swordsman = groups[0];
+    expect(swordsman.options).toEqual([
+      { id: 100, name: "劍士" },
+      { id: 110, name: "狂戰士" },
+      { id: 120, name: "見習騎士" },
+      { id: 130, name: "槍騎兵" },
+      { id: 111, name: "十字軍（三轉）" },
+      { id: 121, name: "騎士（三轉）" },
+      { id: 131, name: "龍騎士（三轉）" },
+    ]);
+  });
+
+  it("選項加總剛好是 JOB_OPTIONS 的 29 個職業，不多不少（不會混進皇家騎士團等經典版沒有的職業）", () => {
+    const ids = skillJobGroups().flatMap(g => g.options.map(o => o.id));
+    expect(ids).toHaveLength(29);
+    expect(new Set(ids)).toEqual(new Set(JOB_OPTIONS.map(job => job.id)));
   });
 });
 
