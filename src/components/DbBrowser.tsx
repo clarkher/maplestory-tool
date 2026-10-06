@@ -71,10 +71,15 @@ export function DbBrowser({
     setVisible(PAGE_SIZE);
   }, [query, entries]);
 
+  // 這次網址的 id 是點清單換的：select 會自己平滑捲過去，下面的 effect 就不再跳一次
+  const pickedFromList = useRef(false);
+
   const select = useCallback(
     (id: string) => {
       const next = new URLSearchParams(params.toString());
       next.set("id", id);
+      // 點同一筆網址不會變、effect 不會跑，這時不留記號，不然下一次從連結換過來會被吃掉
+      pickedFromList.current = params.get("id") !== id;
       // push 不用 replace：看完一筆按返回，要回到上一筆，不是直接離開這一頁
       router.push(`?${next.toString()}`, { scroll: false });
       requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -82,16 +87,39 @@ export function DbBrowser({
     [params, router],
   );
 
-  // 從連結直接開某一筆（網址帶 ?id=）：手機、平板的細節排在整份清單下面，載完先捲過去；
-  // 桌機左右兩欄，細節本來就在畫面上，不捲。只在第一次載完時做，之後點清單由 select 負責。
-  const openedFromLink = useRef(true);
+  // 按上一頁／下一頁換的 id：瀏覽器會還原你離開時的位置，下面的 effect 不插手，免得兩邊搶著捲
+  const fromHistory = useRef(false);
+  const selectedNow = useRef(selected);
   useEffect(() => {
-    if (loading || !openedFromLink.current) return;
-    openedFromLink.current = false;
-    if (!selected || window.matchMedia("(min-width: 1024px)").matches) return;
+    selectedNow.current = selected;
+  }, [selected]);
+  useEffect(() => {
+    const onPopState = () => {
+      // id 真的有變才留記號；id 沒變時下面的 effect 不會跑，留了記號會吃掉下一次的連結
+      fromHistory.current = new URLSearchParams(window.location.search).get("id") !== selectedNow.current;
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // 找不到這一筆時 renderDetail 回 null：細節是空的，下面就不捲過去（免得捲到一片空白）
+  const detail = !loading && selected ? renderDetail(selected) : null;
+  const hasDetail = detail !== null && detail !== undefined;
+
+  // 網址的 id 是從連結來的——直接打開網址、細節裡連到同一頁的另一筆（例如任務的「要先完成」）——
+  // 手機、平板的細節排在整份清單下面，直接跳過去；桌機左右兩欄，細節本來就在畫面上，不捲。
+  useEffect(() => {
+    if (loading || !selected) return;
+    if (pickedFromList.current || fromHistory.current) {
+      pickedFromList.current = false;
+      fromHistory.current = false;
+      return;
+    }
+    // 64rem 跟 Tailwind 的 lg 同一個斷點，瀏覽器字級調大時兩欄／單欄的判斷才會一致
+    if (!hasDetail || window.matchMedia("(min-width: 64rem)").matches) return;
     // instant：全站開了平滑捲動，不指定會從頂端一路滑三千多 px 下來
     detailRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
-  }, [loading, selected]);
+  }, [loading, selected, hasDetail]);
 
   return (
     <div className="space-y-4 py-3 sm:py-6">
@@ -186,7 +214,7 @@ export function DbBrowser({
           {/* scroll-mt：捲過來時讓出頂端固定的導覽列，細節卡的標題不會被蓋住 */}
           <div ref={detailRef} className="min-w-0 scroll-mt-20">
             {selected ? (
-              renderDetail(selected)
+              detail
             ) : (
               <EmptyBlock title="左邊選一個看細節" hint="也可以直接搜尋名稱或 ID。" />
             )}
