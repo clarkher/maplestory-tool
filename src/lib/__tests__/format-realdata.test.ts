@@ -1,6 +1,7 @@
 /**
  * 真資料常駐檢查：直接讀 public/data/items.json，確認道具頁「裝備數值」對玩家寫的是中文，
- * 不會露出英文欄位名（reqJob）或看不懂的數字（需求職業 1）。上游資料多了新欄位或新的職業值時這裡會先紅。
+ * 不會露出英文欄位名（reqJob）、欄位代碼（WpSi）或看不懂的數字（需求職業 1、攻擊速度 6）。
+ * 上游資料多了新欄位、新的職業值或新的攻擊速度時這裡會先紅。
  */
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -31,12 +32,44 @@ describe("真資料：裝備數值", () => {
       items.filter(i => i.eq?.reqJob !== undefined).map(i => equipStatValue("reqJob", i.eq!.reqJob)),
     );
     expect(shown.size).toBeGreaterThan(0);
-    expect([...shown].filter(text => /\d/.test(text))).toEqual([]);
+    expect([...shown].filter(text => text === null || /\d/.test(text))).toEqual([]);
   });
 
   it("裝備數值的每個欄位都有中文名，不露出英文欄位名", () => {
     const keys = new Set(items.flatMap(i => Object.keys(i.eq ?? {})));
     expect(keys.size).toBeGreaterThan(0);
     expect([...keys].filter(key => equipStatLabel(key) === key)).toEqual([]);
+  });
+
+  it("攻擊速度跟玩家講的對得上：銀龍槍慢（8）、九龍刀普通（6）、狼牙更快（3）、藍色拖把比較慢（9）", () => {
+    const speed = (id: number) => equipStatValue("attackSpeed", items.find(i => i.id === id)!.eq!.attackSpeed);
+    expect(speed(1432007)).toBe("慢（8）");
+    expect(speed(1442005)).toBe("普通（6）");
+    expect(speed(1472007)).toBe("更快（3）");
+    expect(speed(1442023)).toBe("比較慢（9）");
+  });
+
+  it("每件武器的攻擊速度都寫成「字（數字）」，不會只剩一個數字", () => {
+    const shown = new Set(
+      items.filter(i => i.eq?.attackSpeed !== undefined).map(i => equipStatValue("attackSpeed", i.eq!.attackSpeed)),
+    );
+    expect(shown.size).toBeGreaterThan(0);
+    expect([...shown].filter(text => text === null || !/^[一-鿿]+（\d）$/.test(text))).toEqual([]);
+  });
+
+  it("裝備欄位：雷神之錘寫雙手、標題寫上衣的樸素的武士上衣寫上衣＋褲裙，海神叉（槍）不顯示", () => {
+    const slot = (id: number) => equipStatValue("islot", items.find(i => i.id === id)!.eq!.islot);
+    expect(slot(1422012)).toBe("雙手，不能配盾");
+    expect(slot(1042167)).toBe("上衣＋褲裙（佔兩格）");
+    expect(slot(1432008)).toBeNull();
+  });
+
+  it("裝備欄位不是寫中文就是不顯示，不露出英文代碼（Cp、WpSi）", () => {
+    const shown = new Set(
+      items.filter(i => i.eq?.islot !== undefined).map(i => equipStatValue("islot", i.eq!.islot)),
+    );
+    expect(shown).toContain("雙手，不能配盾");
+    expect(shown).toContain("上衣＋褲裙（佔兩格）");
+    expect([...shown].filter(text => text !== null && /[A-Za-z]/.test(text))).toEqual([]);
   });
 });

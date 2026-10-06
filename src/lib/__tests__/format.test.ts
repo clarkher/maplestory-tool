@@ -71,3 +71,34 @@ describe("裝備的需求職業", () => {
     expect(equipStatValue("reqLevel", 8)).toBe("8");
   });
 });
+
+describe("裝備的攻擊速度", () => {
+  it("寫遊戲裡的字、括號附數字：4、5 都是快，7、8 都是慢", () => {
+    expect(equipStatValue("attackSpeed", 2)).toBe("更快（2）");
+    expect(equipStatValue("attackSpeed", 3)).toBe("更快（3）");
+    expect(equipStatValue("attackSpeed", 4)).toBe("快（4）");
+    expect(equipStatValue("attackSpeed", 5)).toBe("快（5）");
+    expect(equipStatValue("attackSpeed", 6)).toBe("普通（6）");
+    expect(equipStatValue("attackSpeed", 7)).toBe("慢（7）");
+    expect(equipStatValue("attackSpeed", 8)).toBe("慢（8）");
+    expect(equipStatValue("attackSpeed", 9)).toBe("比較慢（9）");
+  });
+
+  it("認不得的值照原值寫，不猜快慢", () => {
+    expect(equipStatValue("attackSpeed", 1)).toBe("1");
+    expect(equipStatValue("attackSpeed", 10)).toBe("10");
+  });
+});
+
+describe("裝備欄位", () => {
+  it("一件佔兩格的寫出來：雙手武器不能配盾、上衣褲裙一起佔", () => {
+    expect(equipStatValue("islot", "WpSi")).toBe("雙手，不能配盾");
+    expect(equipStatValue("islot", "MaPn")).toBe("上衣＋褲裙（佔兩格）");
+  });
+
+  it("只佔一格的不顯示——標題已經寫了帽子、槍", () => {
+    expect(equipStatValue("islot", "Cp")).toBeNull();
+    expect(equipStatValue("islot", "Wp")).toBeNull();
+    expect(equipStatValue("islot", "HrCp")).toBeNull();
+  });
+});
