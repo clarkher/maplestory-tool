@@ -82,7 +82,7 @@ export function ProfileForm({
         <label className="flex-[2]">
           <span className="mb-1.5 block text-sm font-bold">
             你的職業
-            <span className="ml-1.5 text-xs font-normal ink-faint">二轉 30 等起、三轉先照舊版 70 等</span>
+            <span className="ml-1.5 text-xs font-normal ink-faint">二轉 30 等起、三轉先照舊版 70 等（等開機公告確認）</span>
           </span>
           <select
             value={normalizeJob(profile.job)}
