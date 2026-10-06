@@ -30,15 +30,15 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { lintResearch, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
+import { inheritParentTrain, lintResearch, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SRC = path.join(ROOT, "data", "guides");
 const DATA = path.join(ROOT, "public", "data");
 const OUT = path.join(DATA, "guides");
 const JOB_FILES = ["warrior-pirate.json", "magician.json", "archer-thief.json"];
-/** 經典版的 17 個職業（src/lib/jobs.ts 的 JOB_OPTIONS），每個都要有攻略檔，首頁才不會缺 */
-const EXPECTED_JOBS = [100, 110, 120, 130, 200, 210, 220, 230, 300, 310, 320, 400, 410, 420, 500, 510, 520];
+/** 經典版的 29 個職業（一轉 5、二轉 12、三轉 12；src/lib/jobs.ts 的 JOB_OPTIONS），每個都要有攻略檔，首頁才不會缺 */
+const EXPECTED_JOBS = [100, 110, 111, 120, 121, 130, 131, 200, 210, 211, 220, 221, 230, 231, 300, 310, 311, 320, 321, 400, 410, 411, 420, 421, 500, 510, 511, 520, 521];
 const GAP = /^（無可靠出處）/;
 const NOT_A_MAP = /（非地圖）/;
 
@@ -155,7 +155,7 @@ function main() {
   lintIssues.push(...lintResearch(questResearch).map(issue => ({ file: "quests-exp.json", ...issue })));
   lintIssues.push(...lintResearch(pqResearch).map(issue => ({ file: "pq.json", ...issue })));
   const toNext = [0];
-  for (let level = 1; level < 100; level += 1) {
+  for (let level = 1; level < levelCap; level += 1) {
     const value = questResearch.expTable.toNext[String(level)];
     if (!Number.isFinite(value) || value <= 0) throw new Error(`升級經驗表缺 Lv.${level}`);
     toNext.push(value);
@@ -220,6 +220,7 @@ function main() {
     throw new Error(`研究檔有 ${lintIssues.length} 處內部筆記會上畫面，先改掉：\n${lines.join("\n")}`);
   }
 
+  inheritParentTrain(outputs);
   const missing = EXPECTED_JOBS.filter(id => !outputs.has(`${id}.json`));
   if (missing.length) throw new Error(`研究檔缺這些職業的攻略：${missing.join(", ")}`);
 
@@ -229,7 +230,7 @@ function main() {
 
   console.log(`[guides] ${summary.length} 個職業`);
   for (const line of summary) console.log(`  ${line}`);
-  console.log(`[guides] 必解 ${common.mustDo.length}（含關鍵獎勵 ${common.mustDo.filter(entry => entry.reward).length}）、不值得解 ${common.notWorth.length}、組隊任務 ${common.pq.length}、升級表 Lv.1–99`);
+  console.log(`[guides] 必解 ${common.mustDo.length}（含關鍵獎勵 ${common.mustDo.filter(entry => entry.reward).length}）、不值得解 ${common.notWorth.length}、組隊任務 ${common.pq.length}、升級表 Lv.1–${levelCap - 1}`);
   if (warnings.length) {
     console.log(`[guides] ${warnings.length} 筆以遊戲資料為準調整：`);
     for (const line of warnings) console.log(`  - ${line}`);

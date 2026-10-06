@@ -7,9 +7,11 @@ import {
   itemImage, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining, monsterImage,
 } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { baseJob, isSecondJob, jobOption, normalizeJob, stageJob } from "@/lib/jobs";
+import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
+import { jobLineage } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
+import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
@@ -35,6 +37,7 @@ type GameData = {
 export type GuideStatus = "loading" | "ready" | "failed";
 
 export function RouteHome() {
+  const showV002Banner = useBeforeV002();
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
   const [data, setData] = useState<GameData | null>(null);
@@ -52,12 +55,12 @@ export function RouteHome() {
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  // 二轉職業要同時載一轉的攻略：路線 10–30 那幾段用的是一轉內容。
+  // 要同時載整條職業線的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）
   // 快速切換職業時，晚回來的舊請求不能蓋掉新的；攻略載不到也不擋遊戲資料那部分。
   useEffect(() => {
     if (profile.job <= 0) return;
     let cancelled = false;
-    const wanted = [baseJob(profile.job), ...(isSecondJob(profile.job) ? [profile.job] : [])];
+    const wanted = jobLineage(profile.job).filter(code => code > 0);
     setGuideStatus("loading");
     Promise.all(wanted.map(job => loadGuide(job).then(guide => [job, guide] as const)))
       .then(entries => {
@@ -76,8 +79,9 @@ export function RouteHome() {
   const ready = loaded && profile.level > 0 && profile.job >= 0;
   const stage = stageJob(profile.job, profile.level);
   const stageGuide = stage ? guides.get(stage) : undefined;
-  // 一轉攻略常同時有好幾條主流（海盜分打手線、槍手線），選了二轉職業就挑那條
-  const branchName = isSecondJob(profile.job) ? jobOption(profile.job)?.name : undefined;
+  // 一轉攻略常同時有好幾條主流（海盜分打手線、槍手線），選了二轉或三轉就挑那條二轉的
+  const secondJob = isThirdJob(profile.job) ? previousJob(profile.job) : isSecondJob(profile.job) ? profile.job : 0;
+  const branchName = secondJob ? jobOption(secondJob)?.name : undefined;
   // 等級段只跟職業有關；固定同一個陣列，升級路線的標籤 memo 才不會每次重算
   const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 
@@ -139,6 +143,13 @@ export function RouteHome() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
+      {/* V002 內容現在就上線，但要等官方 2026/10/15 開機才能玩；10/15 一到自動不再標，不用重新部署 */}
+      {showV002Banner ? (
+        <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
+          已經照 10/15 改版排好：三轉、Lv.120、天空之城／冰原雪域／廢礦區，要 2026/10/15 開機後才能去。
+        </p>
+      ) : null}
+
       {!ready ? (
         <header className="px-1 pt-2 text-center">
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
@@ -177,7 +188,7 @@ export function RouteHome() {
           <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} />
 
           {stageGuide ? (
-            <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={data.common.spLeftover} />
+            <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={jobTier(stage) === 3 ? null : data.common.spLeftover} />
           ) : null}
           {stage && !stageGuide && guideStatus === "failed" ? (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">技能點法讀取失敗，重新整理一次試試。上面的練功圖跟任務不受影響。</p>

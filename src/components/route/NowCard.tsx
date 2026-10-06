@@ -9,8 +9,10 @@ import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
 import { advanceTitle, altPrefix, canGo, ceilingText, pqClosedText, type MainPick, type TrainOption } from "@/lib/now-plan";
+import { LEVEL_CAP } from "@/lib/profile";
+import { useBeforeV002 } from "@/lib/release";
 import type { GuidePq, MapRecord, Monster } from "@/lib/types";
-import { SourceTag, Sprite } from "./bits";
+import { Chip, SourceTag, Sprite } from "./bits";
 
 type Common = {
   level: number;
@@ -79,15 +81,6 @@ function mobLine(option: TrainOption, monsters: Map<number, Monster>): string {
     .join("、");
 }
 
-function Chip({ tone, children }: { tone: "maple" | "gold" | "sky"; children: React.ReactNode }) {
-  const tones = {
-    maple: "bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
-    gold: "bg-[color:var(--gold-wash)] text-[color:var(--gold)]",
-    sky: "bg-[color:var(--sky-wash)] text-[color:var(--sky)]",
-  };
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${tones[tone]}`}>{children}</span>;
-}
-
 /**
  * 攻略理由（卡上寫「為什麼是這張」）：先顯示兩行，比兩行長才給「展開／收起」。
  * 長不長要等畫出來量（寬度不同斷行就不同），所以用 ResizeObserver 跟著版面重量。
@@ -130,12 +123,16 @@ function AltLine({ alt, prefix }: { alt?: TrainOption; prefix: string }) {
 function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { pick: Extract<MainPick, { kind: "map" }> }) {
   const { option, alt, ceiling } = pick;
   const record = maps[String(option.map)];
+  const notOpenYet = useBeforeV002();
   return (
     <article aria-label="現在去這裡" className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
       <Hero map={option.map} maps={maps} mobs={option.mobs} label={`Lv.${level} ${jobName}・現在去這裡`} />
       <div className="space-y-2.5 p-3.5">
         <div>
-          <h2 className="text-[22px] font-black leading-tight">{option.title}</h2>
+          <h2 className="text-[22px] font-black leading-tight">
+            {option.title}
+            {record?.o && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
+          </h2>
           <p className="text-[13px] ink-soft">{[record?.st, mobLine(option, monsters)].filter(Boolean).join("・")}</p>
           {option.source === "guide" && option.guide?.why ? <GuideReason key={option.map} text={option.guide.why} /> : null}
         </div>
@@ -164,6 +161,8 @@ function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { 
         {/* 組隊任務剛過遊戲上限（狂戰士 31 等）：說一聲為什麼主推不再是組隊任務 */}
         {pqClosed ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[12px]">{pqClosedText(pqClosed)}</p> : null}
         {ceiling ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">{ceilingText(ceiling)}</p> : null}
+        {/* 滿等（用戶 10/06 定的寫法）：只說到了上限，不提經驗 */}
+        {level === LEVEL_CAP ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[12px]">你已經到目前的等級上限 Lv.{LEVEL_CAP}</p> : null}
       </div>
     </article>
   );

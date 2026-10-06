@@ -12,7 +12,7 @@ import { SourceLinks, SourceTag, Sprite } from "./bits";
  * 點開才看完整順序、其他點法、素質配點、注意事項。
  */
 export function SkillStrip({ guide, job, level, prefer, leftover }: {
-  guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] };
+  guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] } | null;
 }) {
   const [open, setOpen] = useState(false);
   const build = mainBuild(guide.builds, prefer);
@@ -51,7 +51,8 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
           {current ? (
             <>
               <b className="whitespace-nowrap text-[16px]">{isFreeStep(current) ? stepText(current) : `${current.name} 點到 ${current.to}`}</b>
-              {next ? <span className="opacity-90">，再來{stepText(next)}</span> : null}
+              {/* 「再來致命毒霧 30」整塊不斷行，放不下就整塊換到下一行，「30」不會單獨一行；「，」跟著前一塊 */}
+              {next ? <span className="opacity-90">，<span className="whitespace-nowrap">再來{stepText(next)}</span></span> : null}
             </>
           ) : (
             <b>主流點法 {progress.total} 點已經點完{sp > progress.total ? `，還剩 ${sp - progress.total} 點` : ""}</b>
@@ -81,8 +82,12 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
           {progress.finished && sp > progress.total ? (
             <div className="space-y-1 rounded-xl bg-[color:var(--gold-wash)] p-2.5">
               <h3 className="text-[14px] font-black">剩下的 {sp - progress.total} 點</h3>
-              <p className="text-[13px] leading-relaxed">{leftover?.t ?? "攻略沒有定論。"}</p>
-              {leftover ? <SourceLinks urls={leftover.s} /> : null}
+              {leftover !== null ? (
+                <>
+                  <p className="text-[13px] leading-relaxed">{leftover?.t ?? "攻略沒有定論。"}</p>
+                  {leftover ? <SourceLinks urls={leftover.s} /> : null}
+                </>
+              ) : null}
             </div>
           ) : null}
 

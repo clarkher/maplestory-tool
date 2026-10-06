@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
+import { officialName } from "./lib/map-names.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -35,23 +36,47 @@ const OUT = path.join(ROOT, "public", "data");
  *
  * 開服時只看第 1 點就夠了（當時只有已開放的地圖帶中文名），但客戶端會在改版前
  * 先替下一批地區補上中文名：1.15 就先放了冰原雪域 48 張、廢礦 23 張，
- * 而官方公告這兩區要到 2026-10-15 才跟三轉一起開。所以多加第 2 點把關，
+ * V002（2026-10-15）開放冰原雪域（上游地區名，含天空之城）與廢礦，三轉、等級上限 120。
+ * 官方若宣布某些地圖不開，照公告加回擋住的清單。所以多加第 2 點把關，
  * 免得推薦玩家去一個進不去的地方。
  *
  * mapRegions 用的是上游資料的 regionName。奇幻村、鯨魚號在上游是獨立地區，
  * 楓葉世界是「全地區都會出現」的活動怪用的。上游還沒分類（regionName 空白）的圖照舊放行。
  * 有中文名但地區不在清單裡的，建置時會列在 meta.heldBackRegions 與輸出訊息裡。
+ *
+ * 第 1 點也有反過來的缺口：地區已經開放，但城鎮自己的名字客戶端還沒補上
+ * （天空之城、冰原雪域兩座城鎮本身在客戶端一直是「未命名地圖」，V002 開放後主推卡因此
+ * 會寫「從未開放地圖走 N 張圖」）。這兩筆官方公告過的地名用 lib/map-names.mjs 的
+ * officialName 補，客戶端一有名字就自動換掉；其他沒公告過的沒名字城鎮不補，照舊留白。
  */
 const RELEASE = {
-  version: "V001",
+  version: "V002",
   operator: "遊戲橘子（NEXON Korea 授權）",
   launchedAt: "2026-07-29",
-  levelCap: 100,
-  maxAdvancementOrder: 2,
-  regions: ["楓之島", "維多利亞島"],
-  mapRegions: ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界"],
+  levelCap: 120,
+  maxAdvancementOrder: 3,
+  regions: ["楓之島", "維多利亞島", "天空之城", "冰原雪域", "廢礦區"],
+  mapRegions: ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界", "冰原雪域", "廢礦"],
   note: "客戶端資產含未開放內容，本站只保留已開放的部分：地圖要有中文名而且所在地區已開放，任務與職業以等級上限與轉職階段判斷。",
 };
+
+/**
+ * V002 開機日（官方公告 https://maplestoryclassic.beanfun.com/bulletin?Bid=83849）。
+ * 2026-10-06 用戶決定：資料現在就上正式機，不用等開機公告，但要讓玩家看得出冰原雪域／廢礦區／
+ * 三轉／Lv.120 是這天才開放——帶這個日期的地圖，前端（src/lib/release.ts）會標「10/15 開放」，
+ * 過了這天自動不再標，不用重新部署。
+ */
+const V002_OPEN_DATE = "2026-10-15";
+
+/** 天空之城、冰原雪域這兩座城鎮客戶端一直沒給名字（officialName 補缺），region 查不到，直接認 id。 */
+const V002_NAMED_TOWNS = new Set([200000000, 211000000]);
+
+/** 這張圖算不算「V002 才放行」：上游地區是冰原雪域或廢礦的已開放地圖，或天空之城／冰原雪域這兩座補缺的城鎮本身。 */
+function v002OpenDate(id, zh) {
+  if (V002_NAMED_TOWNS.has(id)) return V002_OPEN_DATE;
+  if (zh?.region === "冰原雪域" || zh?.region === "廢礦") return V002_OPEN_DATE;
+  return undefined;
+}
 
 function main() {
   const artale = readJson(path.join(RAW, "artale.json"));
@@ -178,7 +203,7 @@ function buildJobs(artale) {
     a.groupOrder - b.groupOrder || a.advOrder - b.advOrder || a.id - b.id);
 }
 
-/** 玩家選單只列得到的職業：遊戲開放到二轉，管理與活動用的也不算職業。 */
+/** 玩家選單只列得到的職業：開放到第幾轉看 RELEASE.maxAdvancementOrder（V002 是三轉），管理與活動用的也不算職業。 */
 function releasedJobs(jobs) {
   return jobs.filter(job =>
     job.advOrder <= RELEASE.maxAdvancementOrder
@@ -263,8 +288,10 @@ function buildMaps(v83, zhNames, regions, msio) {
 
     // 只輸出中文。上游沒給中文名的地圖就留空——與其顯示玩家在遊戲裡
     // 根本找不到的英文名（或別的版本翻錯的中文名），不如誠實留白。
+    // 客戶端沒給名字時查 officialName 的補缺表（目前只有天空之城、冰原雪域兩筆官方公告過的城鎮名）；
+    // 客戶端一有名字（改版後補上）就自動換成客戶端的，不在表裡的照舊留空。
     const record = {
-      zh: zh?.name || "",
+      zh: officialName(id, zh?.name),
       st: zh?.street || "",
       t: townSet.has(id) ? 1 : undefined,
       ret: raw.ret,
@@ -272,6 +299,7 @@ function buildMaps(v83, zhNames, regions, msio) {
       rg: regions.mapToRegion.get(id) || undefined,
       rate: raw.rate,
       mm: hasMinimap.has(key) ? 1 : undefined,
+      o: v002OpenDate(id, zh),
     };
     for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
     records[id] = record;
@@ -383,6 +411,10 @@ function buildMonsters(artale, spawns, maps, canonItem) {
   const list = (artale.monsters || [])
     // 只有出現在已開放地圖上的怪才算進得去；其餘是客戶端裡尚未開放的內容
     .filter(monster => (monster.maps || []).some(map => released.has(Number(map.id))))
+    // 地圖開放不代表圖裡的怪都在等級上限內：廢礦區的代表地圖「殘暴炎魔祭壇」開放後，
+    // 跟著漏進 22 隻 Lv.140 的殘暴炎魔／混沌殘暴炎魔（遠超 V002 上限 120），這是之後才會解鎖的首領戰內容。
+    // 比照任務（quest.minLevel ≤ RELEASE.levelCap）同樣用等級上限把關，地圖本身照樣收錄（REGION_SENTINELS 要看得到它有中文名）。
+    .filter(monster => (monster.level ?? monster.stats?.level ?? 0) <= RELEASE.levelCap)
     .map(monster => {
     const id = Number(monster.id);
     const stats = monster.stats || {};

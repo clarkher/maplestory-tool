@@ -19,8 +19,8 @@ export function SiteFooter() {
           <div className="max-w-md space-y-2">
             <p className="font-bold">楓谷幫手</p>
             <p className="ink-soft leading-relaxed">
-              台服《新楓之谷：經典版》的規劃工具，只收錄目前開放的內容（Lv.100、二轉、
-              楓之島與維多利亞島）。這不是 Artale 也不是 GMS Classic。
+              台服《新楓之谷：經典版》的規劃工具，只收錄目前開放的內容（Lv.120、三轉、
+              楓之島、維多利亞島、天空之城、冰原雪域與廢礦區）。這不是 Artale 也不是 GMS Classic。
               本站為玩家自製，與遊戲官方無關。
             </p>
             {meta ? (

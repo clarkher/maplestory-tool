@@ -209,6 +209,104 @@ describe("升級路線的標籤跟內容一致", () => {
     expect(labels[index]).toBe("沼澤地Ⅲ");
   });
 
+  it("100–120 那段沒有攻略時，遊戲資料替代查這段真正的中點，不是寫死的 Lv.99（否則 Lv.110+ 的圖全部查不到）", () => {
+    const DEEP = 108000100;
+    const deepMonster = monster(90, 114, DEEP, 30);
+    const deepMaps: Record<string, Pick<MapRecord, "zh">> = { ...maps, [DEEP]: { zh: "深境祕地" } };
+    const deepTraining = [...training, row(DEEP, 114, 90, 30)];
+    const { plans } = timelinePlans(input({
+      job: 100,
+      level: 50,
+      bands: bandsFor(100),
+      monsterIndex: new Map([...monsters, deepMonster].map(entry => [entry.id, entry])),
+      spawns: spawnIndex([...monsters, deepMonster]),
+      maps: deepMaps,
+      training: deepTraining,
+    }));
+    const band = plans.find(plan => plan.band.from === 100);
+    // 寫死 Lv.99 時：巨人之林／遺跡之峭壁／火焰之地／沼澤地（Lv.45–75）跟新圖（Lv.114）全部不在合理範圍內，查出來是空的
+    expect(band?.fallback.map(entry => entry.map)).toEqual([DEEP]);
+  });
+
+  it("你在 100–120 這段、這段沒有攻略時，遊戲資料替代用你現在的等級查，不是段落中點（跟 warnOf 同一套）", () => {
+    const DEEP = 108000200;
+    const deepMonster = monster(91, 124, DEEP, 30);
+    const deepMaps: Record<string, Pick<MapRecord, "zh">> = { ...maps, [DEEP]: { zh: "深淵裂隙" } };
+    const deepTraining = [...training, row(DEEP, 124, 91, 30)];
+    const { activeIndex, plans } = timelinePlans(input({
+      job: 100,
+      level: 118,
+      bands: bandsFor(100),
+      monsterIndex: new Map([...monsters, deepMonster].map(entry => [entry.id, entry])),
+      spawns: spawnIndex([...monsters, deepMonster]),
+      maps: deepMaps,
+      training: deepTraining,
+    }));
+    expect(plans[activeIndex].band).toEqual({ from: 100, to: 120 });
+    // 段落中點是 110（跟你在的 Lv.118 差 8 級，查不到 Lv.124 的圖）；用你現在的等級 118 查才找得到
+    expect(plans[activeIndex].fallback.map(entry => entry.map)).toEqual([DEEP]);
+  });
+
+  it("段落比所有開放的練功圖高 10 級以上、沒有攻略（100–120、90–100）：替代改列能練的最高圖（不會只剩一句「以下是遊戲資料推算」），並寫封頂提示", () => {
+    // 這份測試資料最高的練功圖是巨人之林（Lv.75）：照段落中點 110／95 查，每張圖都低太多，以前查出來是空的
+    const { plans } = timelinePlans(input({ job: 320, level: 50, bands: bandsFor(320) }));
+    for (const from of [90, 100]) {
+      const band = plans.find(plan => plan.band.from === from);
+      expect(band?.usable).toBe(0);
+      expect(band?.fallback.map(entry => entry.map)).toEqual([GIANT, CLIFF]);
+      // 封頂提示寫那張圖最高等的怪（跟主推卡同一種寫法），段落提示不說「這張已經是你能去最好的」
+      expect(band?.ceiling).toEqual({ level: 75, top: 75, best: false });
+    }
+  });
+
+  it("段落比所有開放的練功圖高太多時，能練的最高圖排第一（跟主推卡在這些等級推的一樣），效率高的低等圖排後面", () => {
+    // 冰冷的搖籃那種：Lv.68、效率比最高圖高很多——照最高圖的等級查會排第一，但主推卡在 100 以上推的是最高圖
+    const COLD = 105090311;
+    const cold = monster(7, 68, COLD, 40);
+    const { plans } = timelinePlans(input({
+      job: 320,
+      level: 50,
+      bands: bandsFor(320),
+      monsterIndex: new Map([...monsters, cold].map(entry => [entry.id, entry])),
+      spawns: spawnIndex([...monsters, cold]),
+      maps: { ...maps, [COLD]: { zh: "冰冷的搖籃" } },
+      training: [...training, row(COLD, 68, 7, 40, 1000)],
+    }));
+    const band = plans.find(plan => plan.band.from === 100);
+    expect(band?.fallback.map(entry => entry.map)).toEqual([GIANT, COLD]);
+    expect(band?.ceiling).toEqual({ level: 75, top: 75, best: false });
+  });
+
+  it("段落跟能練的最高圖差不到 10 級：照段落中點查、不加封頂提示", () => {
+    const { plans } = timelinePlans(input({ job: 320, level: 50, bands: bandsFor(320) }));
+    const band = plans.find(plan => plan.band.from === 70);
+    expect(band?.fallback.map(entry => entry.map)).toEqual([GIANT, CLIFF]);
+    expect(band?.ceiling).toBeUndefined();
+  });
+
+  it("你在 100–120 這段、主推就是能練的最高圖：第一列是主推，替代列其他圖，封頂提示照樣寫；最高圖城鎮走不到就不算", () => {
+    const pick: MainPick = { kind: "map", option: option({ map: GIANT, title: "巨人之林", mobs: [[1, 30]], level: 75 }) };
+    const { activeIndex, plans } = timelinePlans(input({ job: 320, level: 105, bands: bandsFor(320), pick }));
+    expect(plans[activeIndex].rows.map(entry => entry.map)).toEqual([GIANT]);
+    expect(plans[activeIndex].fallback.map(entry => entry.map)).toEqual([CLIFF]);
+    expect(plans[activeIndex].ceiling).toEqual({ level: 75, top: 75, best: false });
+    // 巨人之林城鎮走不到：能練的最高圖改算遺跡之峭壁（Lv.71）排第一；巨人之林照樣列在替代裡（不給去），
+    // 所以提示寫的等級取列出來的怪最高的（Lv75），不會「最高到 Lv.73」旁邊擺 Lv75 的怪
+    const unreachable = timelinePlans(input({ job: 320, level: 50, bands: bandsFor(320), canGo: map => map !== GIANT && map !== STAGE }));
+    const band = unreachable.plans.find(plan => plan.band.from === 100);
+    expect(band?.fallback.map(entry => [entry.map, entry.go])).toEqual([[CLIFF, CLIFF], [GIANT, undefined]]);
+    expect(band?.ceiling).toEqual({ level: 71, top: 75, best: false });
+  });
+
+  it("有能用的攻略的段不放替代、不加封頂提示", () => {
+    const warrior = guide(320, [segment({ from: 100, to: 120, map: GIANT, name: "巨人之林" })]);
+    const { plans } = timelinePlans(input({ job: 320, level: 50, bands: bandsFor(320), guides: new Map([[320, warrior]]) }));
+    const band = plans.find(plan => plan.band.from === 100);
+    expect(band?.usable).toBe(1);
+    expect(band?.fallback).toEqual([]);
+    expect(band?.ceiling).toBeUndefined();
+  });
+
   it("還沒二轉的人看 30 等以後的段：照內容寫標籤，不寫「二轉後排給你」", () => {
     const warrior = guide(100, [segment({ from: 30, to: 40, map: SWAMP, name: "沼澤地Ⅰ～Ⅲ（鱷魚）" })]);
     const { plans, labels } = timelinePlans(input({ job: 100, level: 18, bands: bandsFor(100), guides: new Map([[100, warrior]]) }));

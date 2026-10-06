@@ -571,8 +571,8 @@ export const BOSS_SPAWN_MAX = 3;
 const FAR_HOPS = 8;
 /** 攻略圖比參考等級（現在等級與能練的最高圖取小）低這麼多級以上算過期，排在遊戲資料後面 */
 const STALE_GAP = 10;
-/** 現在等級比能練的最高圖高這麼多級以上才加封頂提示 */
-const CEILING_GAP = 10;
+/** 現在等級比能練的最高圖高這麼多級以上才加封頂提示（升級路線的段落提示也用這個門檻） */
+export const CEILING_GAP = 10;
 /** 主推圖跟能練的最高圖差這麼多級以內，封頂提示才說「這張已經是你能去最好的」 */
 const BEST_GAP = 5;
 /**
@@ -674,9 +674,9 @@ export function pqFor(common: GuideCommon, job: number, level: number): { pq: Gu
   return hits.sort((a, b) => b.window[0] - a.window[0])[0];
 }
 
-/** 組隊任務範圍要看哪幾個職業的攻略：這個等級實際那一轉，再加一轉（二轉玩家也用得到一轉攻略的範圍） */
+/** 組隊任務範圍要看哪幾個職業的攻略：這個等級實際那一轉，加上整條職業線（三轉 111 → 111、110、100） */
 function pqKeys(job: number, level: number): number[] {
-  return [...new Set([stageJob(job, level), baseJob(job)])].filter(code => code > 0);
+  return jobLineage(stageJob(job, level)).filter(code => code > 0);
 }
 
 /** 組隊任務剛過遊戲上限後，主推卡多寫一行的那幾級（上限 +1 到 +5） */
@@ -886,8 +886,11 @@ export function mainPick(args: {
   const others = altPool(options.slice(1));
   const alt = others.find(option => option.party !== main.party) ?? others[0];
   // 封頂提示：比較用地圖等級，畫面上寫那張圖最高等的怪（跟卡上的怪同一種寫法）
+  // capRow 用平均等級（row.lv）找，main 不一定是 capRow——像「試煉的洞穴3」小獵犬 Lv43／火精靈 Lv51
+  // 把平均拉到 67，被 dangerPenalty 判定打得動而選成 main，但圖裡站著 Lv90 的煉獄獵犬。
+  // 這時封頂寫的上限不能比卡片自己秀出來的怪還低，所以跟 main 自己最高等的怪取大。
   const ceiling = capRow !== undefined && cap !== undefined && level - cap >= CEILING_GAP
-    ? { level: cap, top: topMobLevel(capRow.m) ?? cap, best: main.level !== undefined && main.level >= cap - BEST_GAP }
+    ? { level: cap, top: Math.max(topMobLevel(capRow.m) ?? cap, topMobLevel(main.map) ?? 0), best: main.level !== undefined && main.level >= cap - BEST_GAP }
     : undefined;
   return { kind: "map", option: main, alt, ceiling };
 }

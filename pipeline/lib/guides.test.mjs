@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { lintResearch, lintText, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./guides.mjs";
+import { inheritParentTrain, lintResearch, lintText, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./guides.mjs";
 
 test("攻略文字檢查：地圖編號、站內用語、屬性代碼、玩家 ID 都擋", () => {
   assert.deepEqual(lintText("人多可退到迷宮入口（106000300，黑斧木妖）").map(issue => issue.label), ["地圖／道具編號"]);
@@ -135,4 +135,17 @@ test("攻略段落寫的怪在那張圖一隻都不出才算對不上；有一�
   assert.equal(mobsMissingOnMap([4230100, 4230102], forestMaze3), false);
   assert.equal(mobsMissingOnMap([], forestMaze3), false);
   assert.equal(mobsMissingOnMap([4230100], new Set()), false);
+});
+
+test("三轉攻略檔繼承二轉 70 等以上的練功段與無攻略段", () => {
+  const outputs = new Map([
+    ["310.json", { job: 310, train: [{ from: 30, to: 40, name: "黑肥肥領土" }, { from: 80, to: 100, name: "巨人之林" }], gaps: [{ from: 70, to: 80, t: "還沒有攻略" }] }],
+    ["311.json", { job: 311, train: [], gaps: [] }],
+    ["300.json", { job: 300, train: [{ from: 10, to: 20, name: "南部森林訓練場Ⅰ" }], gaps: [] }],
+  ]);
+  inheritParentTrain(outputs);
+  assert.deepEqual(outputs.get("311.json").train.map(segment => segment.name), ["巨人之林"]);
+  assert.deepEqual(outputs.get("311.json").gaps, [{ from: 70, to: 80, t: "還沒有攻略" }]);
+  assert.equal(outputs.get("310.json").train.length, 2);
+  assert.equal(outputs.get("300.json").train.length, 1);
 });

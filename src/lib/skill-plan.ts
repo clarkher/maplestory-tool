@@ -1,27 +1,20 @@
-import { advancementLevel, isSecondJob, SECOND_JOB_LEVEL } from "./jobs";
+import { stageJob, tierStartLevel } from "./jobs";
 import type { GuideBuild, GuideSkillStep } from "./types";
 
 /**
- * 某職業在某等級「這一轉」總共拿到幾點技能點。
- * 一轉：轉職當下 1 點，之後每級 3 點；二轉：30 等 1 點，之後每級 3 點。
- * 開服後玩家整理的點法總數對得上（例如一轉 61 點、法師 67 點、二轉到 70 等 121 點）。
+ * 某職業在某等級「這一轉」總共拿到幾點技能點：轉職當下 1 點、之後每級 3 點。
+ * 三轉職業未滿 70 等算二轉的點數、二轉職業未滿 30 等算一轉的（畫面上的技能條要用）。
  */
 export function availableSp(job: number, level: number): number {
-  if (job <= 0) return 0;
-  if (isSecondJob(job) && level >= SECOND_JOB_LEVEL) return 1 + 3 * (level - SECOND_JOB_LEVEL);
-  const start = advancementLevel(job);
-  if (level < start) return 0;
-  return 1 + 3 * (level - start);
+  const stage = stageJob(job, level);
+  if (stage <= 0) return 0;
+  return 1 + 3 * (level - tierStartLevel(stage));
 }
 
-/**
- * 只算「這一轉」自己的點數：轉職前是 0。
- * 跟 availableSp 的差別在二轉職業未滿 30 等時：availableSp 回一轉點數（畫面上的技能條要用），
- * 這裡回 0（切等級段時要用，否則二轉第一段會從一轉的 58 點開始算）。
- */
+/** 只算「這一轉」自己的點數：轉職前是 0（切等級段時用，三轉第一段不會從二轉的點數開始算） */
 export function spAtLevel(stage: number, level: number): number {
   if (stage <= 0) return 0;
-  const start = isSecondJob(stage) ? SECOND_JOB_LEVEL : advancementLevel(stage);
+  const start = tierStartLevel(stage);
   return level < start ? 0 : 1 + 3 * (level - start);
 }
 

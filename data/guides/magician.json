@@ -954,6 +954,120 @@
       ]
     },
     {
+      "jobId": 211,
+      "name": "魔導士（火毒）",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：魔力激發先滿（巴哈姆特 2008）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=764",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=949"
+          ],
+          "steps": [
+            {
+              "skillId": 2110001,
+              "skillName": "魔力激發",
+              "to": 30,
+              "note": "加強所有攻擊魔法，打得更痛，但每招耗魔變多"
+            },
+            {
+              "skillId": 2111005,
+              "skillName": "極速詠唱",
+              "to": 11,
+              "note": "點到 11 施法就快兩級，三轉招式出手追回二轉的速度"
+            },
+            {
+              "skillId": 2111002,
+              "skillName": "末日烈焰",
+              "to": 30,
+              "note": "火屬性唯一的範圍攻擊，一次最多打 6 隻"
+            },
+            {
+              "skillId": 2111003,
+              "skillName": "致命毒霧",
+              "to": 30,
+              "note": "毒霧範圍裡的怪有機會中毒，沒有隻數限制；點滿持續 40 秒"
+            },
+            {
+              "skillId": 2111006,
+              "skillName": "火毒合擊",
+              "to": 30,
+              "note": "單體攻擊，比火焰箭痛一些但出手比較慢，所以排在後面"
+            },
+            {
+              "skillId": 2111004,
+              "skillName": "魔法封印",
+              "to": 20,
+              "note": "讓周圍的怪暫時不能放技能，等級越高封越久、越容易成功；也有人只點 19、留 1 點給火毒抵抗"
+            }
+          ]
+        },
+        {
+          "label": "舊版：毒法，致命毒霧先滿（巴哈姆特 2008）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12544&sn=949"
+          ],
+          "steps": [
+            {
+              "skillId": 2111002,
+              "skillName": "末日烈焰",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 2111003,
+              "skillName": "致命毒霧",
+              "to": 30,
+              "note": "毒法的主力：整片放毒、沒有隻數限制，點滿後中毒的怪 40 秒內血都會降到 1"
+            },
+            {
+              "skillId": 2110000,
+              "skillName": "火毒抵抗",
+              "to": 20,
+              "note": "常駐打可以毒、會噴火的怪，少吃火、毒魔法傷害，省水也少死"
+            },
+            {
+              "skillId": 2110001,
+              "skillName": "魔力激發",
+              "to": 3,
+              "note": "極速詠唱的前置"
+            },
+            {
+              "skillId": 2111005,
+              "skillName": "極速詠唱",
+              "to": 11,
+              "note": "點到 11 施法就快兩級"
+            },
+            {
+              "skillId": 2111002,
+              "skillName": "末日烈焰",
+              "to": 30,
+              "note": "範圍攻擊，一次最多打 6 隻，點滿清怪更快"
+            },
+            {
+              "skillId": 2111006,
+              "skillName": "火毒合擊",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2110001,
+              "skillName": "魔力激發",
+              "to": 30,
+              "note": ""
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
+    },
+    {
       "jobId": 220,
       "name": "冰雷巫師",
       "statBuild": [
@@ -1963,6 +2077,126 @@
       ]
     },
     {
+      "jobId": 221,
+      "name": "魔導士（冰雷）",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：冰風暴先滿（巴哈姆特 2006～2007）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=1128",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=1737"
+          ],
+          "steps": [
+            {
+              "skillId": 2211002,
+              "skillName": "冰風暴",
+              "to": 30,
+              "note": "三轉唯一的範圍攻擊，打到的怪會被冰住（冰屬性的怪除外）"
+            },
+            {
+              "skillId": 2210001,
+              "skillName": "魔力激發",
+              "to": 30,
+              "note": "加強所有攻擊魔法，打得更痛，但每招耗魔變多"
+            },
+            {
+              "skillId": 2211005,
+              "skillName": "極速詠唱",
+              "to": 11,
+              "note": "點到 11 施法速度就明顯變快"
+            },
+            {
+              "skillId": 2211006,
+              "skillName": "冰雷合擊",
+              "to": 30,
+              "note": "單體攻擊，怕冰或怕雷的怪都打得痛，還有機會把怪冰住"
+            },
+            {
+              "skillId": 2211003,
+              "skillName": "落雷凝聚",
+              "to": 30,
+              "note": "單體雷屬性攻擊，基本攻擊力是三招裡最高的"
+            },
+            {
+              "skillId": 2210000,
+              "skillName": "冰雷抵抗",
+              "to": 1,
+              "note": "點 1 就有 23% 冰、雷魔法抵抗；也有人抵抗、封印各點 10"
+            },
+            {
+              "skillId": 2211004,
+              "skillName": "魔法封印",
+              "to": 19,
+              "note": "剩下的點都給封印：讓周圍的怪暫時不能放技能，19 級成功率 92%、持續 19 秒"
+            }
+          ]
+        },
+        {
+          "label": "舊版：冰風暴 28 先停、封印比落雷凝聚早（巴哈姆特 2007）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12542&sn=1917"
+          ],
+          "steps": [
+            {
+              "skillId": 2211002,
+              "skillName": "冰風暴",
+              "to": 28,
+              "note": "28 級的熟練度、範圍已經跟 30 級一樣，先停下來"
+            },
+            {
+              "skillId": 2210001,
+              "skillName": "魔力激發",
+              "to": 3,
+              "note": "極速詠唱的前置"
+            },
+            {
+              "skillId": 2211005,
+              "skillName": "極速詠唱",
+              "to": 12,
+              "note": "點到 12 持續時間跟點滿的神聖祈禱一樣久，跟祭司一起練時好一起補"
+            },
+            {
+              "skillId": 2210001,
+              "skillName": "魔力激發",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2211006,
+              "skillName": "冰雷合擊",
+              "to": 30,
+              "note": "冰雷合擊跟魔法封印誰先點可以對調"
+            },
+            {
+              "skillId": 2211004,
+              "skillName": "魔法封印",
+              "to": 19,
+              "note": "19 級成功率 92%、持續 19 秒，少於 19 就不太好用"
+            },
+            {
+              "skillId": 2211003,
+              "skillName": "落雷凝聚",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2211002,
+              "skillName": "冰風暴",
+              "to": 30,
+              "note": "最後補滿"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
+    },
+    {
       "jobId": 230,
       "name": "僧侶",
       "statBuild": [
@@ -2809,6 +3043,127 @@
           ]
         }
       ]
+    },
+    {
+      "jobId": 231,
+      "name": "祭司",
+      "statBuild": [],
+      "skillBuilds": [
+        {
+          "label": "舊版主流點法：神聖祈禱先滿，適合組隊（巴哈姆特 2006）",
+          "mainstream": true,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=963",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=1202",
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=1130"
+          ],
+          "steps": [
+            {
+              "skillId": 2311001,
+              "skillName": "淨化",
+              "to": 3,
+              "note": "時空門、神聖祈禱都要先有淨化 3"
+            },
+            {
+              "skillId": 2311002,
+              "skillName": "時空門",
+              "to": 1,
+              "note": "點 1 就能開門回最近的村莊（要魔法石）；也可以晚點再點"
+            },
+            {
+              "skillId": 2311003,
+              "skillName": "神聖祈禱",
+              "to": 30,
+              "note": "組隊時全隊打怪經驗變多（點滿是 1.5 倍），當年組隊廣播都在找祈禱點滿的祭司"
+            },
+            {
+              "skillId": 2310000,
+              "skillName": "魔法抵抗",
+              "to": 20,
+              "note": "點滿對屬性魔法的抵抗有 50%，被魔法打少痛很多"
+            },
+            {
+              "skillId": 2311004,
+              "skillName": "聖光",
+              "to": 30,
+              "note": "範圍攻擊，打不死、魔族的怪特別痛"
+            },
+            {
+              "skillId": 2311006,
+              "skillName": "聖龍召喚",
+              "to": 30,
+              "note": "召喚聖龍在旁邊幫忙打（要召喚石）"
+            },
+            {
+              "skillId": 2311005,
+              "skillName": "喚化術",
+              "to": 30,
+              "note": "把一群怪變成嫩寶（要魔法石）；剩 7 點隨意，也有人先把淨化補到 20、喚化術只點 20"
+            }
+          ]
+        },
+        {
+          "label": "舊版：聖光先滿，適合單練（巴哈姆特 2006）",
+          "mainstream": false,
+          "verified": "legacy",
+          "sources": [
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=963"
+          ],
+          "steps": [
+            {
+              "skillId": 2310000,
+              "skillName": "魔法抵抗",
+              "to": 1,
+              "note": "點 1 就有 12% 屬性魔法抵抗"
+            },
+            {
+              "skillId": 2311004,
+              "skillName": "聖光",
+              "to": 30,
+              "note": "先有範圍攻擊自己練，打不死、魔族的怪特別痛"
+            },
+            {
+              "skillId": 2311001,
+              "skillName": "淨化",
+              "to": 3,
+              "note": "時空門、神聖祈禱的前置"
+            },
+            {
+              "skillId": 2311002,
+              "skillName": "時空門",
+              "to": 1,
+              "note": "點 1 就能開門回最近的村莊（要魔法石）"
+            },
+            {
+              "skillId": 2311003,
+              "skillName": "神聖祈禱",
+              "to": 30,
+              "note": "組隊時全隊打怪經驗變多"
+            },
+            {
+              "skillId": 2310000,
+              "skillName": "魔法抵抗",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 2311006,
+              "skillName": "聖龍召喚",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 2311005,
+              "skillName": "喚化術",
+              "to": 30,
+              "note": "剩 7 點隨意"
+            }
+          ]
+        }
+      ],
+      "training": [],
+      "notes": []
     }
   ],
   "notOpenYet": [

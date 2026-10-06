@@ -15,6 +15,14 @@ describe("可用技能點", () => {
     expect(availableSp(110, 35)).toBe(16);
     expect(availableSp(110, 25)).toBe(46);
   });
+
+  it("三轉：70 等 1 點、之後每級 3 點；還沒到 70 用二轉的點數", () => {
+    expect(availableSp(111, 69)).toBe(118);
+    expect(availableSp(111, 70)).toBe(1);
+    expect(availableSp(111, 75)).toBe(16);
+    expect(spAtLevel(111, 69)).toBe(0);
+    expect(spAtLevel(111, 80)).toBe(31);
+  });
 });
 
 const build: GuideBuild = {

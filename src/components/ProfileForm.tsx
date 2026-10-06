@@ -19,7 +19,7 @@ export function ProfileForm({
   compact?: boolean;
 }) {
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
-  // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等、目前等級上限 Lv.100）
+  // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等、目前等級上限 Lv.120）
   const [hint, setHint] = useState<string | null>(null);
   // 點職業選單那一刻輸入框裡的字：選單一點開輸入框就失焦、被改回去，換職業時要拿這個重新驗
   const typedOnOpen = useRef<string | null>(null);
@@ -82,7 +82,7 @@ export function ProfileForm({
         <label className="flex-[2]">
           <span className="mb-1.5 block text-sm font-bold">
             你的職業
-            <span className="ml-1.5 text-xs font-normal ink-faint">二轉 30 等起</span>
+            <span className="ml-1.5 text-xs font-normal ink-faint">二轉 30 等起、三轉先照舊版 70 等（等開機公告確認）</span>
           </span>
           <select
             value={normalizeJob(profile.job)}
@@ -118,6 +118,9 @@ export function ProfileForm({
                 <option value={line.base}>{line.line}（還沒二轉）</option>
                 {line.branches.map(([id, name]) => (
                   <option key={id} value={id}>{name}</option>
+                ))}
+                {line.thirds.map(([id, name]) => (
+                  <option key={id} value={id}>{name}（三轉）</option>
                 ))}
               </optgroup>
             ))}

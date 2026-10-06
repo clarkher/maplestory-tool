@@ -1,14 +1,38 @@
 import { describe, expect, it } from "vitest";
 import {
-  JOB_OPTIONS, advancementLevel, baseJob, commitLevelText, consistentJob, isSecondJob, levelHint, minLevelFor, normalizeJob, pickJobKeepingLevel,
-  profileWithJob, stageJob, typedLevel,
+  JOB_OPTIONS, JOB_TIERS, THIRD_JOB_LEVEL, advancementLevel, baseJob, commitLevelText, consistentJob, isSecondJob, isThirdJob, jobTier, levelHint,
+  minLevelFor, normalizeJob, pickJobKeepingLevel, previousJob, profileWithJob, stageJob, tierStartLevel, typedLevel,
 } from "@/lib/jobs";
 
 describe("職業清單", () => {
-  it("一轉 5 職加二轉 12 職，共 17 個", () => {
-    expect(JOB_OPTIONS.map(job => job.id)).toEqual([
-      100, 110, 120, 130, 200, 210, 220, 230, 300, 310, 320, 400, 410, 420, 500, 510, 520,
+  it("一轉 5 職、二轉 12 職、三轉 12 職，共 29 個", () => {
+    expect(JOB_OPTIONS).toHaveLength(29);
+    expect(JOB_TIERS.map(tier => tier.jobs.length)).toEqual([5, 12, 12]);
+    expect(JOB_TIERS[2].jobs.map(([, name]) => name)).toEqual([
+      "十字軍", "騎士", "龍騎士", "魔導士（火毒）", "魔導士（冰雷）", "祭司", "遊俠", "狙擊手", "暗殺者", "神偷", "格鬥家", "神槍手",
     ]);
+  });
+
+  it("第幾轉：初心者 0、一轉 1、二轉 2、三轉 3", () => {
+    expect([0, 100, 110, 111, 231, 1110].map(jobTier)).toEqual([0, 1, 2, 3, 3, 0]);
+    expect(isThirdJob(521)).toBe(true);
+    expect(isSecondJob(521)).toBe(false);
+    expect([111, 110, 100, 0].map(previousJob)).toEqual([110, 100, 0, 0]);
+    expect([111, 110, 200, 100].map(tierStartLevel)).toEqual([THIRD_JOB_LEVEL, 30, 8, 10]);
+  });
+
+  it("選了三轉職業但還沒到 70 等，用二轉的內容；更低就一轉、初心者", () => {
+    expect(stageJob(111, 70)).toBe(111);
+    expect(stageJob(111, 69)).toBe(110);
+    expect(stageJob(111, 29)).toBe(100);
+    expect(stageJob(111, 9)).toBe(0);
+  });
+
+  it("三轉職業最低 70 等；以前存的三轉低等組合改成實際那一轉", () => {
+    expect(minLevelFor(231)).toBe(70);
+    expect(consistentJob(231, 50)).toBe(230);
+    expect(consistentJob(231, 20)).toBe(200);
+    expect(profileWithJob({ level: 45, job: 230 }, 231).note).toBe("祭司 70 等起，等級改成 70");
   });
 
   it("二轉職業的一轉前身", () => {
@@ -26,10 +50,10 @@ describe("職業清單", () => {
     expect(advancementLevel(310)).toBe(10);
   });
 
-  it("經典版沒有的職業代碼視為還沒選", () => {
+  it("經典版沒有的職業代碼視為還沒選；111 現在是合法的三轉代碼（十字軍），不再當無效", () => {
     expect(normalizeJob(1110)).toBe(0);
     expect(normalizeJob(431)).toBe(0);
-    expect(normalizeJob(111)).toBe(0);
+    expect(normalizeJob(111)).toBe(111);
     expect(normalizeJob(220)).toBe(220);
     expect(normalizeJob(0)).toBe(0);
     expect(normalizeJob(-1)).toBe(-1);

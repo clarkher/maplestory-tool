@@ -7,14 +7,15 @@ import { GoButton } from "@/components/PlanShell";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { COMMON_ROUTE } from "@/lib/guide-data";
-import { isSecondJob } from "@/lib/jobs";
-import { bandQuests, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
+import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
+import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
+import { useBeforeV002 } from "@/lib/release";
 import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
 import type { GuideStatus } from "./RouteHome";
-import { SourceLinks, SourceTag, Sprite, levelText } from "./bits";
+import { Chip, SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 import { QuestLine } from "./QuestLine";
 
 type Context = {
@@ -39,7 +40,7 @@ type Context = {
   canGo: (map: number) => boolean;
 };
 
-/** 升級路線：1→100 一條路，你在哪一段就展開哪一段，其他段點開看。 */
+/** 升級路線：1→120 一條路，你在哪一段就展開哪一段，其他段點開看。 */
 export function RouteTimeline(context: Context) {
   const { bands, level, job, guides, monsterIndex, maps, training, common, pick, canGo } = context;
   const spawns = useMemo(() => spawnIndex(context.monsters), [context.monsters]);
@@ -99,7 +100,8 @@ function BandItem({
   label?: string;
 }) {
   const { band } = plan;
-  const range = band.to >= 100 ? `Lv.${band.from}–100` : `Lv.${band.from}–${band.to}`;
+  // 之前最後一段固定到 100，這裡硬寫死「–100」；100～120 那段的 to 是 120，照 band 本身的值顯示才對
+  const range = `Lv.${band.from}–${band.to}`;
 
   return (
     <li className="relative">
@@ -152,7 +154,8 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
     return { build, steps, mustDo, prep };
   }, [band, next, guide, stage, job, level, quests, monsters, maps, common, prefer, effective, active]);
 
-  const stuckInFirstJob = band.from >= 30 && !isSecondJob(job) && job !== 0;
+  const stuckInFirstJob = band.from >= SECOND_JOB_LEVEL && jobTier(job) === 1;
+  const stuckInSecondJob = band.from >= THIRD_JOB_LEVEL && jobTier(job) === 2;
   const gap = guide?.gaps?.find(entry => entry.from < band.to && entry.to >= band.from);
   const island = isIslandBand(band);
   // 沒有能用的玩家攻略：說明（還在讀攻略、讀取失敗、或「以下是遊戲資料推算」）＋研究時查到的狀況
@@ -194,6 +197,12 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
         </p>
       ) : null}
 
+      {stuckInSecondJob ? (
+        <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
+          還沒三轉：三轉後到上面「改」選你的職業，這段會換成那個職業的攻略。
+        </p>
+      ) : null}
+
       <Block label="練功">
         {/* 這段完全沒有玩家攻略時，說明放最上面（下面第一列就是主推卡那張遊戲資料的圖）；
             攻略圖被職業規則擋掉時，說明放在被擋的那幾列下面（「見上」） */}
@@ -201,7 +210,7 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
         {plan.rows.length ? (
           <ul className="space-y-2.5">
             {plan.rows.map(row => (
-              <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} tagData={!noGuide || plan.blocked} />
+              <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} maps={maps} tagData={!noGuide || plan.blocked} />
             ))}
           </ul>
         ) : null}
@@ -212,10 +221,12 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
             {plan.fallback.length ? (
               <ul className="space-y-2.5">
                 {plan.fallback.map(row => (
-                  <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} />
+                  <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} maps={maps} />
                 ))}
               </ul>
             ) : null}
+            {/* 段落比所有開放的練功圖高 10 級以上（100–120 段）：照主推卡的寫法說目前最高到幾等 */}
+            {plan.ceiling ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">{ceilingText(plan.ceiling)}</p> : null}
             <div className="flex justify-end">
               <SourceTag kind="data" />
             </div>
@@ -284,11 +295,24 @@ function Block({ label, tag, children }: { label: string; tag?: React.ReactNode;
  * 練功清單的一列：攻略圖（同一張圖好幾段已經併成一列）、組隊任務（寫組隊任務的名字，去帶到入口）、遊戲資料的圖。
  * tagData：列在攻略清單裡的遊戲資料圖（主推卡那張）旁邊標「遊戲資料」。
  */
-function TrainRowItem({ row, monsterIndex, tagData = false }: { row: TrainRow; monsterIndex: Map<number, Monster>; tagData?: boolean }) {
+function TrainRowItem({
+  row,
+  monsterIndex,
+  maps,
+  tagData = false,
+}: {
+  row: TrainRow;
+  monsterIndex: Map<number, Monster>;
+  maps: Record<string, MapRecord>;
+  tagData?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const lead = row.mobs.find(id => monsterIndex.has(id));
   const leadMonster = lead !== undefined ? monsterIndex.get(lead) : undefined;
   const names = row.mobs.map(id => monsterIndex.get(id)?.n).filter(Boolean).slice(0, 3).join("、");
+  // V002 才放行的圖（冰原雪域、廢礦）要 10/15 開機後才能去，過了那天自動不再標
+  const beforeOpen = useBeforeV002();
+  const notOpenYet = row.map !== null && Boolean(maps[String(row.map)]?.o) && beforeOpen;
   return (
     <li className="space-y-1.5">
       <div className="flex items-center gap-2.5">
@@ -296,16 +320,25 @@ function TrainRowItem({ row, monsterIndex, tagData = false }: { row: TrainRow; m
         {row.source === "data" ? (
           <span className="min-w-0 flex-1 text-[14px] leading-snug">
             <b>{row.title}</b>
+            {notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
+            {/* 每一塊（怪幾等、清一輪幾經驗）各自不斷行，375 寬不會把「經驗」或數字拆到下一行（跟 TodoList 同一招）；
+                分隔的「 · 」放在前一塊的結尾、後面可以換行 */}
             <span className="block text-[12px] ink-soft">
-              {leadMonster ? `${leadMonster.n} Lv${leadMonster.lv ?? "?"}` : null}
-              {leadMonster && row.exp1 !== undefined ? " · " : null}
-              {row.exp1 !== undefined ? `清一輪 ${formatNumber(row.exp1)} 經驗` : null}
+              {leadMonster ? (
+                <span className="whitespace-nowrap">
+                  {leadMonster.n} Lv{leadMonster.lv ?? "?"}
+                  {row.exp1 !== undefined ? " · " : null}
+                </span>
+              ) : null}
+              <wbr />
+              {row.exp1 !== undefined ? <span className="whitespace-nowrap">清一輪 {formatNumber(row.exp1)} 經驗</span> : null}
               {tagData ? <span className="ml-1.5 inline-block align-middle"><SourceTag kind="data" /></span> : null}
             </span>
           </span>
         ) : (
           <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="min-w-0 flex-1 text-left text-[14px] leading-snug">
             <b>{row.title}</b>
+            {notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
             <span className="block text-[12px] ink-soft">
               {[
                 row.from !== undefined && row.to !== undefined ? levelRange(row.from, row.to) : null,

@@ -6,13 +6,13 @@ type MapNames = Record<string, Pick<MapRecord, "zh">>;
 
 /* ------------------------------------------------------------------ 等級段 */
 
-/** 等級段，from 含、to 不含（最後一段含 100） */
+/** 等級段，from 含、to 不含（最後一段含 120，也就是 profile.ts 的 LEVEL_CAP） */
 export type Band = { from: number; to: number };
 
 /**
- * 路線切成 8 段：楓之島、一轉到月妙畢業、超綠、之後每 10 級、70 以上一段。
+ * 路線切成 11 段：楓之島、一轉到月妙畢業、超綠、之後每 10 級、100 以上一段。
  * 前三段跟玩家實際的分水嶺對齊（轉職、月妙 21 等上限、超綠 30 等二轉）；
- * 30 以後的攻略本身就是每 5~10 級換一張圖，用 10 級一段剛好。
+ * 30 以後的攻略本身就是每 5~10 級換一張圖，用 10 級一段剛好；100～120 新地區的怪還不多，合成一段。
  */
 export function bandsFor(job: number): Band[] {
   const start = advancementLevel(job);
@@ -24,7 +24,10 @@ export function bandsFor(job: number): Band[] {
     { from: 40, to: 50 },
     { from: 50, to: 60 },
     { from: 60, to: 70 },
-    { from: 70, to: 100 },
+    { from: 70, to: 80 },
+    { from: 80, to: 90 },
+    { from: 90, to: 100 },
+    { from: 100, to: 120 },
   ];
 }
 

@@ -1,5 +1,5 @@
 /**
- * 真資料常駐檢查：直接讀 public/data，把首頁會出現的每個組合（17 職＋初心者 × Lv.1–100，只算 consistentJob 認可的）
+ * 真資料常駐檢查：直接讀 public/data，把首頁會出現的每個組合（29 職＋初心者 × Lv.1–120，只算 consistentJob 認可的）
  * 跑一次主推、先解、長線、升級路線每一段的必解，確認不會出現 final review 抓到的那幾種錯（含多升一級主推圖就掉一大截的接縫、任務線跳段）。每天資料自動更新後也跑（.github/workflows/data-refresh.yml），
  * 上游資料變了把畫面弄壞時，自動合併會停下來。
  *
@@ -9,13 +9,15 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { beforeAll, describe, expect, it } from "vitest";
 import { COMMON_ROUTE } from "@/lib/guide-data";
+import { jobFit } from "@/lib/job-rules";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import {
-  bandQuests, canGo, effectiveLevels, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
-  type BandQuest, type LongRunTask, type MainPick, type NowQuest,
+  BOSS_SPAWN_MAX, CEILING_GAP, bandQuests, canGo, effectiveLevels, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
+  type BandQuest, type Ceiling, type LongRunTask, type MainPick, type NowQuest,
 } from "@/lib/now-plan";
+import { LEVEL_CAP } from "@/lib/profile";
 import { findRoute, suggestStart } from "@/lib/route";
-import { bandsFor, isIslandBand, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
+import { type Band, bandsFor, isIslandBand, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
 import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
 
@@ -37,6 +39,12 @@ type Combo = {
   activeIndex: number;
   /** 每一段的「先存著，Lv.N 以後要交」（跟畫面同一個算法：下一段的必解、拿掉先解跟這段必解列過的任務） */
   later: Material[][];
+  /**
+   * 升級路線每一段的練功清單摘要：能用的攻略列數、畫面寫「以下是遊戲資料推算」時下面列了幾張圖、
+   * 段落的封頂提示、列出來的遊戲資料圖上最高等的怪（卡片寫「黑格里芬 Lv73」那種）、
+   * 參考等級，以及這裡獨立算的能練的最高圖等級（cap，楓之島那段沒有）
+   */
+  bands: Array<{ band: Band; usable: number; listedBelow: number; ceiling?: Ceiling; shownTop: number; reference: number; cap?: number }>;
 };
 
 /**
@@ -54,6 +62,8 @@ let nearestTown: Record<string, [number, number]> = {};
 let levelCap = 100;
 let effective = new Map<string, number>();
 let monsterLevels = new Map<number, number>();
+/** 開放的練功圖（有中文名、不在楓之島、不是王圖）最高的地圖等級 */
+let openTop = 0;
 /** 給 lineFor 查任務線用（跟 beforeAll 建 combos 那份同一個物件，questLines 的快取才不會白做） */
 let common: GuideCommon = { researchedAt: "", builtAt: "", expTable: { toNext: [], conflicts: [], v: "tw", s: [] }, mustDo: [], notWorth: [] };
 
@@ -77,10 +87,25 @@ beforeAll(() => {
   const monsterIndex = new Map(monsters.map(monster => [monster.id, monster]));
   const spawns = spawnIndex(monsters);
   const timelineTraining = training.filter(row => !isIslandMap(row.m));
+  // 這張圖上最高等的怪幾等（卡片「黑格里芬 Lv73」、封頂提示都是這種寫法）
+  const topMobLevel = (map: number | null) => (map === null ? 0 : Math.max(0, ...(spawns.get(map) ?? []).map(([id]) => monsterLevels.get(id) ?? 0)));
+  openTop = Math.max(...timelineTraining.filter(row => maps[String(row.m)]?.zh && row.sp > BOSS_SPAWN_MAX).map(row => row.lv));
   const routes = new Map<number, boolean>();
   const canWalk = (map: number) => {
     if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown).hops !== undefined);
     return routes.get(map) as boolean;
+  };
+  // 能練的最高圖，這裡自己算、不讀 timeline 的結果：開放的練功圖（有中文名、不在楓之島、不是王圖）裡，
+  // 職業規則過（那一段實際那一轉、參考等級）、城鎮走得到的最高地圖等級；同一組（那一轉、參考等級）只算一次
+  const openRows = timelineTraining.filter(row => maps[String(row.m)]?.zh && row.sp > BOSS_SPAWN_MAX);
+  const capCache = new Map<string, number | undefined>();
+  const capLevel = (stage: number, reference: number): number | undefined => {
+    const key = `${stage}:${reference}`;
+    if (!capCache.has(key)) {
+      const levels = openRows.filter(row => jobFit(stage, reference, spawns.get(row.m) ?? [], monsterIndex).ok && canWalk(row.m)).map(row => row.lv);
+      capCache.set(key, levels.length ? Math.max(...levels) : undefined);
+    }
+    return capCache.get(key);
   };
 
   combos = [];
@@ -99,6 +124,22 @@ beforeAll(() => {
       const mustDo = bands.map((band, index) => bandQuests({ ...shared, band, active: index === timeline.activeIndex }));
       // 畫面上下一段的必解是不帶「你在這」的那種（RouteTimeline 的 nextMustDo）
       const plain = bands.map(band => bandQuests({ ...shared, band }));
+      // 「以下是遊戲資料推算」下面的圖：沒被擋時是清單裡遊戲資料的列（你在的那段的主推）加替代；攻略圖全被擋時那句話放在被擋的列下面，只算替代
+      const summaries = timeline.plans.map((plan, index) => {
+        const shown = [...plan.rows.filter(entry => entry.source === "data"), ...plan.fallback];
+        const island = isIslandBand(plan.band);
+        // 參考等級：你在的那段是你的等級；其他段是那段代表的等級（段落中點，不超過等級上限前一級）
+        const reference = index === timeline.activeIndex ? level : Math.min(levelCap - 1, Math.round((plan.band.from + plan.band.to - 1) / 2));
+        return {
+          band: plan.band,
+          usable: plan.usable,
+          listedBelow: (plan.blocked ? 0 : plan.rows.filter(entry => entry.source === "data").length) + plan.fallback.length,
+          ceiling: plan.ceiling,
+          shownTop: Math.max(0, ...shown.map(entry => topMobLevel(entry.map))),
+          reference,
+          cap: island ? undefined : capLevel(stageJob(job, plan.band.from), reference),
+        };
+      });
       combos.push({
         job,
         name,
@@ -116,6 +157,7 @@ beforeAll(() => {
         mustDo,
         activeIndex: timeline.activeIndex,
         later: bands.map((_, index) => (index + 1 < bands.length ? laterMaterials({ next: plain[index + 1], listed: [...todo, ...mustDo[index]], monsters }) : [])),
+        bands: summaries,
       });
     }
   }
@@ -125,6 +167,29 @@ beforeAll(() => {
 describe("真資料：首頁每個組合", () => {
   it("組合數合理（資料沒讀錯）", () => {
     expect(combos.length).toBeGreaterThan(1000);
+  });
+
+  it("前端的等級上限跟資料的放行版本一致（V002：120）", () => {
+    expect(levelCap).toBe(120);
+    expect(LEVEL_CAP).toBe(levelCap);
+  });
+
+  it("升級經驗表涵蓋到等級上限前一級（V002：Lv.119 → 120）", () => {
+    const toNext = common.expTable.toNext;
+    for (let level = 1; level < levelCap; level += 1) expect(toNext[level], `Lv.${level}`).toBeGreaterThan(0);
+  });
+
+  it("V002 才放行的地圖有開放日（o 欄位是 2026-10-15），楓之島、維多利亞島的地圖沒有（Task 15：直接讀 maps.json，不呼叫 src/lib/release.ts）", () => {
+    // 跟 pipeline/verify.mjs 的 REGION_SENTINELS 同一組代表地圖：冰原雪域、廢礦已開放的代表圖，
+    // 加上官方地名補缺的兩座城鎮本身（天空之城、冰原雪域——客戶端一直沒給名字，region 查不到，id 是直接認的）
+    const v002Maps = [200020000, 200080200, 211040100, 211041500, 280030000, 200000000, 211000000];
+    const missingOpenDate = v002Maps.filter(id => maps[String(id)]?.o !== "2026-10-15");
+    expectNone("V002 地圖缺開放日 o", missingOpenDate.map(id => `${id} ${maps[String(id)]?.zh ?? "（查無）"}`));
+
+    // 楓之島（菇菇村、楓葉村）、維多利亞島（弓箭手村、勇士之村、維多利亞港、奇幻村）現在就能玩，不該有開放日
+    const oldMaps = [10000, 1010000, 100000000, 102000000, 104000000, 105040300];
+    const wronglyTagged = oldMaps.filter(id => maps[String(id)]?.o !== undefined);
+    expectNone("舊地區的地圖不該有開放日 o", wronglyTagged.map(id => `${id} ${maps[String(id)]?.zh ?? "（查無）"} o=${maps[String(id)]?.o}`));
   });
 
   it("每個組合都有主推大卡", () => {
@@ -154,6 +219,66 @@ describe("真資料：首頁每個組合", () => {
       return start && findRoute(graph, start, target).ok ? [] : [`${combo.tag}：${combo.pick.option.title}`];
     });
     expectNone("帶我去會找不到起點", bad);
+  });
+
+  it("主推卡跟備案的出發城鎮：不是那張圖自己的回城點時，一定是有中文名的城鎮（不會從未開放地區的城鎮出發、穿過未開放的圖）", () => {
+    const bad = combos.flatMap(combo => {
+      const pick = combo.pick;
+      if (!pick || pick.kind === "advance") return [];
+      const options = [...(pick.kind === "map" ? [pick.option] : []), ...(pick.alt ? [pick.alt] : [])];
+      return options
+        .filter(option => option.town !== undefined && option.town !== nearestTown[String(option.map)]?.[0] && !maps[String(option.town)]?.zh)
+        .map(option => `${combo.tag}：${option.title} 從 ${option.town} 出發（回城點 ${nearestTown[String(option.map)]?.[0]}）`);
+    });
+    expectNone("從未開放地區的城鎮出發", bad);
+  });
+
+  it("主推卡跟備案出發的城鎮一定有中文名（不會寫「未開放地圖」，Task 10b：天空之城、冰原雪域官方地名補缺）", () => {
+    // 跟上一個檢查不同：這裡不排除「城鎮就是那張圖自己的回城點」的狀況——Task 10 量到的 bug
+    // 正是出在這條路徑（suggestStart 直接採用回城點，只要走得到就不再檢查有沒有中文名）。
+    // 直接斷言 maps.json 本身的中文名，跟程式邏輯無關，才會是獨立的檢查。
+    const bad = combos.flatMap(combo => {
+      const pick = combo.pick;
+      if (!pick || pick.kind === "advance") return [];
+      const options = [...(pick.kind === "map" ? [pick.option] : []), ...(pick.alt ? [pick.alt] : [])];
+      return options
+        .filter(option => option.town !== undefined && !maps[String(option.town)]?.zh)
+        .map(option => `${combo.tag}：${option.title} 從 ${option.town} 出發，那座城鎮沒有中文名`);
+    });
+    expectNone("主推卡出發城鎮沒有中文名", bad);
+  });
+
+  it("升級路線每一段寫「以下是遊戲資料推算」時，下面真的列了圖（100–120、沒有攻略的 90–100 段不會只剩一句話）", () => {
+    const bad = combos.flatMap(combo => (combo.job === 0 ? [] : combo.bands
+      .filter(entry => !isIslandBand(entry.band) && entry.usable === 0 && entry.listedBelow === 0)
+      .map(entry => `${combo.tag} Lv.${entry.band.from}–${entry.band.to}`)));
+    expectNone("以下是遊戲資料推算，下面卻沒有圖", bad);
+  });
+
+  it("段落的封頂提示跟這裡獨立算的能練的最高圖對得起來：沒有能用的攻略、參考等級比最高圖高 10 級以上才有（而且一定有）；寫的最高圖就是那個等級；寫的等級不比那段列出來的怪低", () => {
+    const bad = combos.flatMap(combo => combo.bands.flatMap(entry => {
+      const where = `${combo.tag} Lv.${entry.band.from}–${entry.band.to}`;
+      const due = entry.usable === 0 && !isIslandBand(entry.band) && entry.cap !== undefined && entry.reference - entry.cap >= CEILING_GAP;
+      if (!entry.ceiling) return due ? [`${where}：參考等級 ${entry.reference} 比最高圖 Lv.${entry.cap} 高 ${entry.reference - (entry.cap ?? 0)} 級，卻沒有封頂提示`] : [];
+      const problems: string[] = [];
+      if (!due) problems.push(`參考等級 ${entry.reference}、最高圖 Lv.${entry.cap ?? "（沒有）"}、能用的攻略 ${entry.usable} 列，不該有封頂提示`);
+      if (entry.ceiling.level !== entry.cap) problems.push(`提示的最高圖 Lv.${entry.ceiling.level} ≠ 獨立算的 Lv.${entry.cap ?? "（沒有）"}`);
+      if (entry.ceiling.top < entry.shownTop) problems.push(`最高到 Lv.${entry.ceiling.top}，列出來的怪有 Lv${entry.shownTop}`);
+      // 設計決定（Task 10）：「這張已經是你能去最好的」只給主推卡，段落提示不說
+      if (entry.ceiling.best) problems.push("段落提示說「這張已經是你能去最好的」");
+      return problems.map(problem => `${where}：${problem}`);
+    }));
+    expectNone("段落封頂提示跟能練的最高圖對不起來", bad);
+  });
+
+  it("100–120 段沒有能用的攻略時有封頂提示（規格：新地區的怪最高只到 Lv.N，100 以上的段落用封頂提示照實講）", () => {
+    // 開放的練功圖最高到 Lv.100 以上時，100–120 段照段落中點就查得到圖，不一定要提示
+    if (openTop > 100) return;
+    const bad = combos.flatMap(combo => {
+      const last = combo.bands[combo.bands.length - 1];
+      return combo.job !== 0 && last.usable === 0 && !last.ceiling ? [`${combo.tag}`] : [];
+    });
+    expectNone("100–120 段沒有封頂提示", bad);
   });
 
   it("封頂提示不自相矛盾：有提示就比最高圖高 10 級以上；說「已經是最好的」時主推圖跟最高圖差 5 級以內", () => {

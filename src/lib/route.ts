@@ -100,6 +100,8 @@ export function reachableFrom(graph: Record<string, PortalEdge[]>, start: number
 /**
  * 在同一個可步行區塊裡，挑一個離目標最近的城鎮當預設起點。
  * 玩家的習慣是回城再出發，所以起點應該是城鎮而不是隨便一張圖。
+ * 回城點走不到時往回找：只認有中文名的城鎮。沒有中文名的是未開放地區（V002 的廢礦往回會先碰到獅子城），
+ * 從那裡出發的路線會穿過玩家進不去的圖；都找不到就照舊回傳回城點（路線算不出來，不給帶我去）。
  */
 export function suggestStart(
   graph: Record<string, PortalEdge[]>,
@@ -108,18 +110,19 @@ export function suggestStart(
   target: number,
 ): number | null {
   const declared = nearestTown[String(target)]?.[0];
-  if (declared && maps[String(declared)]) {
-    // 回城點必須真的走得到目標，否則那只是死亡傳送點而不是可步行的起點
+  if (declared && maps[String(declared)]?.zh) {
+    // 回城點必須真的走得到目標（不然只是死亡傳送點），而且自己要有中文名——
+    // 沒有名字代表那是未開放地區的城鎮（海盜修練場回城點 120010000），走得到也不能當起點
     if (findRoute(graph, declared, target).ok) return declared;
   }
 
-  // 反向 BFS：第一個碰到的城鎮就是最近的，不用再比距離
+  // 反向 BFS：第一個碰到的（有中文名的）城鎮就是最近的，不用再比距離
   const visited = new Set<number>([target]);
   const queue: number[] = [target];
   const reverse = buildReverse(graph);
   for (let head = 0; head < queue.length; head += 1) {
     const current = queue[head];
-    if (current !== target && maps[String(current)]?.t) return current;
+    if (current !== target && maps[String(current)]?.t && maps[String(current)]?.zh) return current;
     for (const previous of reverse.get(current) || []) {
       if (visited.has(previous)) continue;
       visited.add(previous);

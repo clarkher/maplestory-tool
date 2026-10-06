@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LEVEL_CAP } from "@/lib/profile";
 import {
   bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, onIsland, prepMaterials,
   questReachable, segmentsToShow, trainingForBand,
@@ -17,17 +18,19 @@ describe("等級段", () => {
     expect(bandsFor(110)[1]).toEqual({ from: 10, to: 21 });
   });
 
-  it("共 8 段，最後一段到 100", () => {
+  it("共 11 段：70 以後每 10 級一段，最後一段 100–120（等級上限）", () => {
     const bands = bandsFor(110);
-    expect(bands).toHaveLength(8);
-    expect(bands.at(-1)).toEqual({ from: 70, to: 100 });
+    expect(bands).toHaveLength(11);
+    expect(bands.slice(7)).toEqual([{ from: 70, to: 80 }, { from: 80, to: 90 }, { from: 90, to: 100 }, { from: 100, to: 120 }]);
+    expect(bands.at(-1)?.to).toBe(LEVEL_CAP);
   });
 
   it("找出等級所在的段", () => {
     const bands = bandsFor(110);
     expect(bandOf(bands, 35)).toEqual({ from: 30, to: 40 });
     expect(bandOf(bands, 30)).toEqual({ from: 30, to: 40 });
-    expect(bandOf(bands, 100)).toEqual({ from: 70, to: 100 });
+    expect(bandOf(bands, 100)).toEqual({ from: 100, to: 120 });
+    expect(bandOf(bands, 120)).toEqual({ from: 100, to: 120 });
     expect(bandOf(bands, 1)).toEqual({ from: 1, to: 10 });
   });
 

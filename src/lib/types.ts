@@ -17,6 +17,8 @@ export type MapRecord = {
   rate?: number;
   /** 1 = 有小地圖圖檔 */
   mm?: 1;
+  /** V002 才放行的地圖才有：開放日（YYYY-MM-DD，目前只有 "2026-10-15"），過了這天 src/lib/release.ts 判定已開放 */
+  o?: string;
 };
 
 /** [目標地圖, 傳送門名稱, x, y] */
