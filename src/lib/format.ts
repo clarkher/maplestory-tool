@@ -157,10 +157,10 @@ const ATTACK_SPEED_WORDS: Record<number, string> = {
   9: "比較慢",
 };
 
-function attackSpeedText(speed: number): string {
+/** 攻擊速度寫成「字（數字）」（道具卡、道具清單共用）；認不得的值回 null，不猜快慢 */
+export function attackSpeedLabel(speed: number): string | null {
   const word = ATTACK_SPEED_WORDS[speed];
-  // 認不得的值照原值寫，不猜快慢
-  return word ? `${word}（${speed}）` : String(speed);
+  return word ? `${word}（${speed}）` : null;
 }
 
 /**
@@ -175,7 +175,7 @@ const TWO_SLOT_TEXT: Record<string, string> = {
 /** 裝備數值的值：需求職業解成職業名、攻擊速度寫成字，其他照原值；回 null 表示這格不用顯示 */
 export function equipStatValue(key: string, value: number | string): string | null {
   if (key === "reqJob" && typeof value === "number") return reqJobText(value);
-  if (key === "attackSpeed" && typeof value === "number") return attackSpeedText(value);
+  if (key === "attackSpeed" && typeof value === "number") return attackSpeedLabel(value) ?? String(value);
   if (key === "islot") return TWO_SLOT_TEXT[String(value)] ?? null;
   return String(value);
 }

@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { compareItems, equipGroups, itemKeywords, wearFit, usableBy } from "@/lib/item-view";
+import { compareItems, equipGroups, itemKeywords, itemNote, wearFit, usableBy } from "@/lib/item-view";
 import type { Item } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
@@ -60,6 +60,13 @@ describe("真資料：找道具", () => {
       return item.c !== "裝備" || !(reqJob === undefined || (typeof reqJob === "number" && reqJob > 0 && (reqJob & 1)));
     });
     expect(wrong.map(item => item.id)).toEqual([]);
+  });
+
+  it("清單小字：拖把寫「矛 · 慢（8）」，每件有攻擊速度的武器都帶得出攻擊速度", () => {
+    expect(itemNote(items.find(item => item.id === 1442004)!)).toBe("矛 · 慢（8）");
+    const weapons = items.filter(item => typeof item.eq?.attackSpeed === "number");
+    expect(weapons.length).toBeGreaterThan(0);
+    expect(weapons.filter(item => !itemNote(item).includes("（")).map(item => item.id)).toEqual([]);
   });
 });
 
