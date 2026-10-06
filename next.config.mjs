@@ -25,6 +25,11 @@ const nextConfig = {
         source: "/data/guides/common.json",
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
+      {
+        // 裝備卡（一半是玩家攻略，研究改了 meta 版本號不會動）：每次回伺服器確認
+        source: "/data/gear.json",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
     ];
   },
 };

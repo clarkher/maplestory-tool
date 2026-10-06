@@ -10,33 +10,42 @@ import { rewardFitsJob } from "./now-plan";
 /* ------------------------------------------------------------------ 資料型別（對應 public/data/gear.json，兩邊要一致） */
 
 export type GearSource = {
-  /** 幾個商店有賣（items.json 的 sh）；沒賣就不給 */
-  shop?: number;
+  /**
+   * 哪幾家店賣（items.json 的 sp，只留開放的地圖或有名字的城鎮、不含商城）：p 地點、n NPC、m 地圖、pr 楓幣；
+   * o：店在 10/15 才開的城鎮（冰原雪域、天空之城）。現在就開的排前面、再比便宜，最多 3 家。
+   */
+  shops?: Array<{ p: string; n?: string; m?: number; pr: number; o?: string }>;
   /** 掉落怪：只收出現在已開放地圖的怪，依怪物等級由低到高，最多 8 隻；map 是牠出現的一張已開放地圖（優先不是 V002 的） */
   drops?: Array<{ m: number; n: string; lv: number; map: number; o?: string }>;
   /**
-   * 給這個道具的已開放任務（quests.json 有的）；o：V002 任務（同 src/lib/v002.ts 的規則）；
+   * 給這個道具的已開放任務（quests.json 有的、接任務的 NPC 在開放地圖）；o：V002 任務（同 src/lib/v002.ts 的規則）；
+   * minLv：連同前置任務一路上去最高的需求等級；maxLv：等級上限；rand：好幾樣獎勵抽一樣；
    * jobs：任務限定的職業代碼；rj：這個獎勵限定的職業旗標（跟任務獎勵的 job 同一套，見 now-plan rewardFitsJob）
    */
-  quests?: Array<{ id: string; n: string; minLv?: number; o?: string; jobs?: number[]; rj?: number }>;
+  quests?: Array<{ id: string; n: string; minLv?: number; maxLv?: number; rand?: 1; o?: string; jobs?: number[]; rj?: number }>;
 };
 
+type GearShop = NonNullable<GearSource["shops"]>[number];
 type GearQuest = NonNullable<GearSource["quests"]>[number];
 
-/** 這個職業接不接得到這個任務、拿不拿得到這個獎勵（弓攻擊卷軸只發給弓箭手） */
-export function questFits(quest: GearQuest, job: number): boolean {
+/**
+ * 這個職業接不接得到這個任務、拿不拿得到這個獎勵（弓攻擊卷軸只發給弓箭手）；
+ * 給了 level 再看等級上限（超過就接不了了）。
+ */
+export function questFits(quest: GearQuest, job: number, level?: number): boolean {
   if (quest.jobs?.length && !quest.jobs.includes(job)) return false;
+  if (level !== undefined && quest.maxLv !== undefined && level > quest.maxLv) return false;
   return quest.rj === undefined || rewardFitsJob({ job: quest.rj }, job);
 }
 
 /**
- * 這個職業拿不拿得到：有商店或掉落就拿得到；只有任務時，至少要有一個任務是這個職業接得到、獎勵也發給這個職業的。
- * 完全沒有來源資料的（只會出現在測試）不在這裡擋，交給 pipeline 保證每一筆都有來源。
+ * 這個職業拿不拿得到：有商店或掉落就拿得到；只有任務時，至少要有一個任務是這個職業接得到、獎勵也發給這個職業的
+ * （給了 level 也看等級上限）。完全沒有來源資料的（只會出現在測試）不在這裡擋，交給 pipeline 保證每一筆都有來源。
  */
-export function obtainableBy(src: GearSource, job: number): boolean {
-  if (src.shop || src.drops?.length) return true;
+export function obtainableBy(src: GearSource, job: number, level?: number): boolean {
+  if (src.shops?.length || src.drops?.length) return true;
   const quests = src.quests ?? [];
-  return !quests.length || quests.some(quest => questFits(quest, job));
+  return !quests.length || quests.some(quest => questFits(quest, job, level));
 }
 
 export type GearWeapon = {
@@ -95,6 +104,8 @@ export type StatRule = {
     floor?: number;
     ratio?: [number, number];
   };
+  /** 這套點法用的武器種類（一轉盜賊「拳套需求」只看拳套）；沒寫就照職業能用的全部 */
+  weapons?: string[];
   t: string;
   s: string[];
   v: "tw" | "community" | "legacy";
@@ -257,10 +268,11 @@ export function canWear(weapon: GearWeapon, targets: Record<StatKey, number>): b
  * 法師系不卡種類——雨傘（分類是單手劍）、烈焰刃這類道具只要寫了魔攻、職業用得到就算候選，
  * 比的是魔攻不是種類（火毒巫師 40 等主流武器是黃色雨傘，不是短杖／長杖）。
  */
-function candidatePool(weapons: GearWeapon[], job: number, magic: boolean): GearWeapon[] {
+function candidatePool(weapons: GearWeapon[], job: number, magic: boolean, only?: string[]): GearWeapon[] {
   const usable = (w: GearWeapon) => canJobUse(w.job, job) === true && obtainableBy(w.src, job);
   if (magic) return weapons.filter(w => (w.mag ?? 0) > 0 && usable(w));
-  const types = new Set(weaponTypesFor(job));
+  // 點法指定了武器種類（一轉海盜「指虎需求」）就只看那幾種，不然力量流會被推火槍
+  const types = new Set(weaponTypesFor(job).filter(type => !only?.length || only.includes(type)));
   return weapons.filter(w => types.has(w.s) && usable(w));
 }
 
@@ -300,13 +312,14 @@ export function weaponPicks(
   weapons: GearWeapon[],
   job: number,
   level: number,
-  opts: { targetsAt?: (level: number) => Record<StatKey, number>; beforeOpen?: boolean } = {},
+  opts: { targetsAt?: (level: number) => Record<StatKey, number>; beforeOpen?: boolean; types?: string[] } = {},
 ): { best: GearWeapon | null; alternatives: GearWeapon[]; next: GearWeapon | null; stronger: GearWeapon | null } {
   const magic = isMagicJob(job);
-  const { targetsAt, beforeOpen } = opts;
-  const pool = candidatePool(weapons, job, magic);
+  const { targetsAt, beforeOpen, types } = opts;
+  const pool = candidatePool(weapons, job, magic, types);
 
-  const eligibleNow = pool.filter(w => w.lv <= level && (!beforeOpen || !w.o));
+  // 現在拿得到：等級夠、10/15 前不收只有 V002 才拿得到的、只靠任務拿的要現在還接得了（沒過等級上限）
+  const eligibleNow = pool.filter(w => w.lv <= level && (!beforeOpen || !w.o) && obtainableBy(w.src, job, level));
   const wearableNow = targetsAt ? eligibleNow.filter(w => canWear(w, targetsAt(level))) : eligibleNow;
 
   const rankedWearable = [...wearableNow].sort((a, b) => rankWeapon(a, b, magic));
@@ -340,6 +353,7 @@ export function weaponPicks(
 
   const nextCandidates = pool.filter(w => {
     if (w.lv <= level || offenseStat(w, magic) <= bestOffense) return false;
+    if (!obtainableBy(w.src, job, w.lv)) return false;
     return !targetsAt || canWear(w, targetsAt(w.lv));
   });
   const next = nextCandidates.sort((a, b) => rankNext(a, b, magic))[0] ?? null;
@@ -370,7 +384,7 @@ export function equipRequirement(
   const result: Partial<Record<StatKey, number>> = {};
   for (let l = 1; l <= level; l++) {
     // beforeOpen 跟 weaponPicks 一樣：10/15 前只看現在拿得到的武器，能力值目標才對得上畫面推薦的那把
-    const req = weaponPicks(candidates, job, l, { beforeOpen }).best?.req;
+    const req = weaponPicks(candidates, job, l, { beforeOpen, types: rule.weapons }).best?.req;
     if (!req) continue;
     for (const key of STAT_KEYS) {
       const value = req[key];
@@ -410,6 +424,7 @@ export function scrollPicks(
   job: number,
   weaponType: string | null,
   main: StatKey | null,
+  level?: number,
 ): Array<{ slot: string; stat: string; options: GearScroll[] }> {
   const magic = isMagicJob(job);
   const weaponStat = magic ? "魔力" : "攻擊";
@@ -418,7 +433,7 @@ export function scrollPicks(
   const families: Array<{ slot: string; stat: string; options: GearScroll[] }> = [];
   const addFamily = (slot: string, stat: string) => {
     const options = scrolls
-      .filter(s => s.slot === slot && s.stat === stat && obtainableBy(s.src, job))
+      .filter(s => s.slot === slot && s.stat === stat && obtainableBy(s.src, job, level))
       .sort((a, b) => b.rate - a.rate);
     if (options.length) families.push({ slot, stat, options });
   };
@@ -432,8 +447,8 @@ export function scrollPicks(
 
 /* ------------------------------------------------------------------ 來源 */
 
-type SourcePick =
-  | { kind: "shop" }
+export type SourcePick =
+  | { kind: "shop"; shop: GearShop }
   | { kind: "drop"; drop: NonNullable<GearSource["drops"]>[number] }
   | { kind: "quest"; quest: NonNullable<GearSource["quests"]>[number] };
 
@@ -447,7 +462,8 @@ function dropCost(drop: NonNullable<GearSource["drops"]>[number], level: number)
 
 function questCost(quest: GearQuest, level: number): number {
   const need = quest.minLv ?? 0;
-  return need <= level ? 0 : (need - level) * 2;
+  // 好幾樣獎勵抽一樣（珍的最後一個挑戰：60%、10% 隨機給一張）不一定拿得到想要的那張，多算 10 分，讓穩定的掉落優先
+  return (need <= level ? 0 : (need - level) * 2) + (quest.rand ? 10 : 0);
 }
 
 /** 掉落跟任務一起比 dropCost／questCost，最小的勝；同分任務優先（一定拿得到），再同分選等級低的怪 */
@@ -482,14 +498,18 @@ function easiest(drops: NonNullable<GearSource["drops"]>, quests: GearQuest[], l
  * 給了 job：只看這個職業接得到、獎勵也發給這個職業的任務（questFits）。
  */
 export function closestSource(src: GearSource, level: number, beforeOpen = false, job?: number): SourcePick | null {
-  if (src.shop) return { kind: "shop" };
-
+  const shops = src.shops ?? [];
   const drops = src.drops ?? [];
-  const quests = (src.quests ?? []).filter(quest => job === undefined || questFits(quest, job));
+  // 接不到的任務不算：職業不對、獎勵不發給這個職業、過了等級上限
+  const quests = (src.quests ?? []).filter(quest => job === undefined || questFits(quest, job, level));
 
   if (beforeOpen) {
+    // 10/15 前先找現在就開的店，再找現在打得到的怪、接得到的任務
+    const openShop = shops.find(shop => !shop.o);
+    if (openShop) return { kind: "shop", shop: openShop };
     const open = easiest(drops.filter(drop => !drop.o), quests.filter(quest => !quest.o), level);
     if (open) return open;
   }
+  if (shops.length) return { kind: "shop", shop: shops[0] };
   return easiest(drops, quests, level);
 }

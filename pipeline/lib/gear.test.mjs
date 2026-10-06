@@ -15,6 +15,7 @@ import {
   openMapFrom,
   parseScroll,
   questSources,
+  shopSources,
   WEAPON_TYPES,
 } from "./gear.mjs";
 
@@ -150,10 +151,28 @@ test("questSources：只收站內查得到的任務、V002 任務帶 o", () => {
 test("questSources：接任務的 NPC 沒有名字或名字是亂碼（???）的任務不算來源——遊戲裡找不到人接", () => {
   const questsById = new Map([
     ["9414", { id: "9414", n: "散發烈焰氣息的劍", sNpc: { id: 1, n: "???? ?" } }],
-    ["20", { id: "20", n: "正常任務", sNpc: { id: 2, n: "武術教練" } }],
+    ["20", { id: "20", n: "正常任務", sNpc: { id: 2, n: "武術教練", map: 101000003 } }],
   ]);
   const result = questSources({ id: 1302063, qr: ["9414", "20"] }, questsById, maps, "2026-10-15");
   assert.deepEqual(result.map(row => row.id), ["20"]);
+});
+
+test("questSources：接任務的 NPC 站在沒開放（沒中文名）的地圖 → 不算來源（同 route-planner 的 questReachable）", () => {
+  const questsById = new Map([
+    ["3379", { id: "3379", n: "瑪迦提亞的任務", sNpc: { id: 1, n: "某人", map: 261000000 } }],
+    ["21", { id: "21", n: "魔法森林的任務", sNpc: { id: 2, n: "漢斯", map: 101000003 } }],
+  ]);
+  const result = questSources({ id: 1, qr: ["3379", "21"] }, questsById, maps, "2026-10-15");
+  assert.deepEqual(result.map(row => row.id), ["21"]);
+});
+
+test("questSources：帶等級上限 maxLv、隨機獎勵 rand；minLv 取前置任務一路上去最高的等級", () => {
+  const questsById = new Map([
+    ["2109", { id: "2109", n: "前置", minLv: 30 }],
+    ["2115", { id: "2115", n: "隨機給卷軸", minLv: 10, maxLv: 65, pre: ["2109"], rewardItems: [{ id: 2041013, rand: 1 }] }],
+  ]);
+  const [row] = questSources({ id: 2041013, qr: ["2115"] }, questsById, maps, "2026-10-15");
+  assert.deepEqual(row, { id: "2115", n: "隨機給卷軸", minLv: 30, maxLv: 65, rand: 1 });
 });
 
 test("questSources：任務限定職業帶 jobs、這個道具的獎勵限定職業帶 rj（前端照玩家職業過濾）", () => {
@@ -180,20 +199,47 @@ test("questSources：查不到的任務 id 略過並呼叫 warn", () => {
 
 /* ------------------------------------------------------------ buildSource / allSourcesV002 / hasAnySource */
 
-test("buildSource：商店、掉落、任務合成一個 GearSource，沒有的欄位不給", () => {
+test("buildSource：商店（照 sp 店家清單）、掉落、任務合成一個 GearSource，沒有的欄位不給", () => {
   const monstersById = new Map([[5, { id: 5, n: "小怪", lv: 5, maps: [100000000] }]]);
   const questsById = new Map([["1", { id: "1", n: "任務一" }]]);
   const src = buildSource(
-    { sh: 2, dm: [5], qr: ["1"] },
-    { monstersById, questsById, maps: { 100000000: { zh: "弓箭手村" } }, openMap, v002Date: "2026-10-15" },
+    { sh: 2, sp: [{ p: "弓箭手村武器店", n: "赫麗娜", m: 100000001, pr: 8000, o: 1 }], dm: [5], qr: ["1"] },
+    { monstersById, questsById, maps: { 100000000: { zh: "弓箭手村" }, 100000001: { zh: "弓箭手村武器店" } }, openMap, v002Date: "2026-10-15" },
   );
-  assert.deepEqual(src, { shop: 2, drops: [{ m: 5, n: "小怪", lv: 5, map: 100000000 }], quests: [{ id: "1", n: "任務一" }] });
+  assert.deepEqual(src, {
+    shops: [{ p: "弓箭手村武器店", n: "赫麗娜", m: 100000001, pr: 8000 }],
+    drops: [{ m: 5, n: "小怪", lv: 5, map: 100000000 }],
+    quests: [{ id: "1", n: "任務一" }],
+  });
 });
 
-test("hasAnySource / allSourcesV002", () => {
+test("shopSources：商城（樂豆點）不算；10/15 才開的城鎮的店帶 o；現在開的店排前面、再比便宜", () => {
+  const maps = { 211000000: { zh: "冰原雪域", o: "2026-10-15" }, 103000001: { zh: "墮落城市武器店" } };
+  const rows = shopSources(
+    { sp: [
+      { p: "冰原雪域", n: "斯考特", m: 211000000, pr: 250000, o: 1 },
+      { p: "商城", pr: 3000, c: 1 },
+      { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 9000, o: 1 },
+    ] },
+    maps,
+    "2026-10-15",
+  );
+  assert.deepEqual(rows, [
+    { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 9000 },
+    { p: "冰原雪域", n: "斯考特", m: 211000000, pr: 250000, o: "2026-10-15" },
+  ]);
+});
+
+test("buildSource：上游寫了商店數量（sh）但店都在沒開放的城鎮（sp 是空的）→ 不算商店", () => {
+  const src = buildSource({ sh: 6, sp: [] }, { monstersById: new Map(), questsById: new Map(), maps: {}, openMap, v002Date: "2026-10-15" });
+  assert.deepEqual(src, {});
+});
+
+test("hasAnySource / allSourcesV002：只有 10/15 才開的店也算 V002", () => {
   assert.equal(hasAnySource({}), false);
-  assert.equal(hasAnySource({ shop: 1 }), true);
-  assert.equal(allSourcesV002({ shop: 1, drops: [{ o: "2026-10-15" }] }), false);
+  assert.equal(hasAnySource({ shops: [{ p: "店", pr: 1 }] }), true);
+  assert.equal(allSourcesV002({ shops: [{ p: "店", pr: 1 }], drops: [{ o: "2026-10-15" }] }), false);
+  assert.equal(allSourcesV002({ shops: [{ p: "冰原雪域", pr: 1, o: "2026-10-15" }] }), true);
   assert.equal(allSourcesV002({ drops: [{ o: "2026-10-15" }] }), true);
   assert.equal(allSourcesV002({ drops: [{ o: "2026-10-15" }, { m: 1 }] }), false);
   assert.equal(allSourcesV002({}), false);
@@ -201,12 +247,15 @@ test("hasAnySource / allSourcesV002", () => {
 
 /* ------------------------------------------------------------ mergeSources */
 
-test("mergeSources：掉落依怪物 id 去重、依等級排序、商店取最大", () => {
+test("mergeSources：掉落依怪物 id 去重、依等級排序；店家去重、現在開的排前面", () => {
   const merged = mergeSources([
-    { shop: 2, drops: [{ m: 1, n: "怪1", lv: 30, map: 1 }] },
-    { shop: 5, drops: [{ m: 1, n: "怪1", lv: 30, map: 1 }, { m: 2, n: "怪2", lv: 10, map: 1 }] },
+    { shops: [{ p: "冰原雪域", pr: 9, o: "2026-10-15" }], drops: [{ m: 1, n: "怪1", lv: 30, map: 1 }] },
+    { shops: [{ p: "冰原雪域", pr: 9, o: "2026-10-15" }, { p: "墮落城市", pr: 5 }], drops: [{ m: 1, n: "怪1", lv: 30, map: 1 }, { m: 2, n: "怪2", lv: 10, map: 1 }] },
   ]);
-  assert.deepEqual(merged, { shop: 5, drops: [{ m: 2, n: "怪2", lv: 10, map: 1 }, { m: 1, n: "怪1", lv: 30, map: 1 }] });
+  assert.deepEqual(merged, {
+    shops: [{ p: "墮落城市", pr: 5 }, { p: "冰原雪域", pr: 9, o: "2026-10-15" }],
+    drops: [{ m: 2, n: "怪2", lv: 10, map: 1 }, { m: 1, n: "怪1", lv: 30, map: 1 }],
+  });
 });
 
 /* ------------------------------------------------------------ buildScrolls（含合併案例） */
@@ -299,4 +348,11 @@ test("convertNotes：items 欄位有才帶", () => {
 
 test("convertBefore：轉成 t／s／v", () => {
   assert.deepEqual(convertBefore({ text: "轉職前自動配點", sources: ["x"], verified: "tw" }), { t: "轉職前自動配點", s: ["x"], v: "tw" });
+});
+
+test("convertStatRules：研究檔寫了這套點法的武器種類（weapons）就帶過去", () => {
+  const [rule] = convertStatRules([
+    { jobs: [400, 410], label: "幸運為主", main: "LUK", secondary: { stat: "DEX", type: "equip", floor: 25 }, weapons: ["拳套"], text: "t", sources: ["s"], verified: "tw", mainstream: true },
+  ]);
+  assert.deepEqual(rule.weapons, ["拳套"]);
 });

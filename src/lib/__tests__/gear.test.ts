@@ -360,8 +360,8 @@ describe("scrollPicks", () => {
 
 describe("closestSource", () => {
   it("商店優先", () => {
-    const src: GearSource = { shop: 1, drops: [{ m: 1, n: "怪", lv: 5, map: 1 }] };
-    expect(closestSource(src, 10)).toEqual({ kind: "shop" });
+    const src: GearSource = { shops: [{ p: "商店", pr: 1 }], drops: [{ m: 1, n: "怪", lv: 5, map: 1 }] };
+    expect(closestSource(src, 10)).toEqual({ kind: "shop", shop: { p: "商店", pr: 1 } });
   });
 
   it("沒商店選最好打的掉落怪：不高於你的越接近越好，比你高的差距算兩倍", () => {
@@ -438,13 +438,13 @@ describe("任務來源的職業限制", () => {
   it("obtainableBy：有商店或掉落就算；只有任務時至少一個任務接得到", () => {
     expect(obtainableBy(source({ quests: [archerReward] }), 110)).toBe(false);
     expect(obtainableBy(source({ quests: [archerReward, anyone] }), 110)).toBe(true);
-    expect(obtainableBy(source({ shop: 1, quests: [archerReward] }), 110)).toBe(true);
+    expect(obtainableBy(source({ shops: [{ p: "商店", pr: 1 }], quests: [archerReward] }), 110)).toBe(true);
   });
 
   it("weaponPicks：只有別的職業任務拿得到的武器不推", () => {
     const weapons: GearWeapon[] = [
       weapon({ id: 1, n: "劍士任務的通用劍", s: "單手劍", lv: 30, atk: 60, mag: 60, job: 0, src: source({ quests: [warriorOnly] }) }),
-      weapon({ id: 2, n: "商店短杖", s: "短杖", lv: 30, mag: 40, job: 2, src: source({ shop: 1 }) }),
+      weapon({ id: 2, n: "商店短杖", s: "短杖", lv: 30, mag: 40, job: 2, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
     ];
     expect(weaponPicks(weapons, 210, 30).best?.id).toBe(2);
   });
@@ -470,8 +470,8 @@ describe("stronger：更強但穿不上的那把，挑最容易補到的", () =>
     const allInt = rule({ jobs: [231], label: "全智", main: "INT", secondary: null });
     const weapons: GearWeapon[] = [
       weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ drops: [{ m: 1, n: "怪", lv: 40, map: 1 }] }) }),
-      weapon({ id: 2, n: "要幸運的杖", s: "長杖", lv: 70, mag: 90, job: 2, req: { INT: 200, LUK: 43 }, src: source({ shop: 1 }) }),
-      weapon({ id: 3, n: "黑色雨傘", s: "單手劍", lv: 70, mag: 85, job: 0, req: { STR: 6, DEX: 6, INT: 6, LUK: 6 }, src: source({ shop: 1 }) }),
+      weapon({ id: 2, n: "要幸運的杖", s: "長杖", lv: 70, mag: 90, job: 2, req: { INT: 200, LUK: 43 }, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
+      weapon({ id: 3, n: "黑色雨傘", s: "單手劍", lv: 70, mag: 85, job: 0, req: { STR: 6, DEX: 6, INT: 6, LUK: 6 }, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
     ];
     const picks = weaponPicks(weapons, 231, 75, { targetsAt: lv => statTargets(allInt, lv) });
     expect(picks.best?.id).toBe(1);
@@ -481,8 +481,8 @@ describe("stronger：更強但穿不上的那把，挑最容易補到的", () =>
   it("只強一點點的不算：至少要多 5 點或一成（妖精短杖魔力 53 對黃色雨傘 52 不列）", () => {
     const allInt = rule({ jobs: [210], label: "全智", main: "INT", secondary: null });
     const weapons: GearWeapon[] = [
-      weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ shop: 1 }) }),
-      weapon({ id: 2, n: "妖精短杖", s: "短杖", lv: 38, mag: 53, job: 2, req: { LUK: 40 }, src: source({ shop: 1 }) }),
+      weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
+      weapon({ id: 2, n: "妖精短杖", s: "短杖", lv: 38, mag: 53, job: 2, req: { LUK: 40 }, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
     ];
     const picks = weaponPicks(weapons, 210, 40, { targetsAt: lv => statTargets(allInt, lv) });
     expect(picks.best?.id).toBe(1);
@@ -494,12 +494,57 @@ describe("alternatives：差太多的備選不列", () => {
   it("攻擊／魔力不到第一名八成的不算備選（40 等法師不該看到 8 等新手短杖）", () => {
     const allInt = rule({ jobs: [210], label: "全智", main: "INT", secondary: null });
     const weapons: GearWeapon[] = [
-      weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ shop: 1 }) }),
-      weapon({ id: 2, n: "木製短杖", s: "短杖", lv: 8, mag: 15, job: 2, src: source({ shop: 1 }) }),
-      weapon({ id: 3, n: "還可以的長杖", s: "長杖", lv: 35, mag: 45, job: 2, src: source({ shop: 1 }) }),
+      weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
+      weapon({ id: 2, n: "木製短杖", s: "短杖", lv: 8, mag: 15, job: 2, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
+      weapon({ id: 3, n: "還可以的長杖", s: "長杖", lv: 35, mag: 45, job: 2, src: source({ shops: [{ p: "商店", pr: 1 }] }) }),
     ];
     const picks = weaponPicks(weapons, 210, 40, { targetsAt: lv => statTargets(allInt, lv) });
     expect(picks.best?.id).toBe(1);
     expect(picks.alternatives.map(w => w.id)).toEqual([3]);
+  });
+});
+
+describe("商店在哪、任務能不能接、點法指定武器種類", () => {
+  it("closestSource：10/15 前跳過 10/15 才開的城鎮的店，改推現在打得到的怪；之後才推那家店", () => {
+    const src = source({
+      shops: [{ p: "冰原雪域", n: "斯考特", m: 211000000, pr: 250000, o: "2026-10-15" }],
+      drops: [{ m: 1, n: "火石球", lv: 40, map: 1 }],
+    });
+    expect(closestSource(src, 38, true)).toEqual({ kind: "drop", drop: src.drops![0] });
+    expect(closestSource(src, 38, false)).toEqual({ kind: "shop", shop: src.shops![0] });
+  });
+
+  it("questFits／closestSource：過了等級上限的任務接不了，不推", () => {
+    const quest = { id: "2115", n: "有等級上限", minLv: 30, maxLv: 65 };
+    expect(questFits(quest, 110, 60)).toBe(true);
+    expect(questFits(quest, 110, 70)).toBe(false);
+    expect(closestSource(source({ quests: [quest] }), 70, false, 110)).toBeNull();
+  });
+
+  it("隨機給的任務多算 10 分：同樣好拿時，穩定的掉落優先", () => {
+    const src = source({
+      drops: [{ m: 1, n: "怪", lv: 30, map: 1 }],
+      quests: [{ id: "2013", n: "珍的最後一個挑戰", minLv: 30, rand: 1 }],
+    });
+    // 35 等：怪差 5 分；任務能接但隨機（0＋10）→ 推怪
+    expect(closestSource(src, 35)).toEqual({ kind: "drop", drop: src.drops![0] });
+  });
+
+  it("weaponPicks types：一轉海盜照「指虎需求」只看指虎，攻擊高一點的火槍不推", () => {
+    const weapons: GearWeapon[] = [
+      weapon({ id: 1, n: "黃金火槍", s: "火槍", lv: 25, atk: 27, job: 16, src: source({ shops: [{ p: "店", pr: 1 }] }) }),
+      weapon({ id: 2, n: "指虎", s: "指虎", lv: 25, atk: 26, job: 16, src: source({ shops: [{ p: "店", pr: 1 }] }) }),
+    ];
+    expect(weaponPicks(weapons, 500, 27).best?.id).toBe(1);
+    expect(weaponPicks(weapons, 500, 27, { types: ["指虎"] }).best?.id).toBe(2);
+  });
+
+  it("equipRequirement：點法指定武器種類時，敏捷目標只看那種武器的需求", () => {
+    const thief = rule({ jobs: [400], label: "拳套需求", main: "LUK", secondary: { stat: "DEX", type: "equip", floor: 25 }, weapons: ["拳套"] });
+    const weapons: GearWeapon[] = [
+      weapon({ id: 1, n: "狼牙", s: "拳套", lv: 25, atk: 16, job: 8, req: { DEX: 50 } }),
+      weapon({ id: 2, n: "短刀", s: "短刀", lv: 25, atk: 30, job: 8, req: { DEX: 40 } }),
+    ];
+    expect(equipRequirement(weapons, 400, 25, thief)).toEqual({ DEX: 50 });
   });
 });

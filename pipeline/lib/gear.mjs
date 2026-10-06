@@ -146,38 +146,86 @@ export function questSources(item, questsById, maps, v002Date, warn = () => {}) 
       warn(`道具 ${item.n}（${item.id}）：任務 ${quest.n}（${questId}）接任務的 NPC 沒有名字，略過`);
       continue;
     }
+    // 接任務的 NPC 站在沒開放（沒中文名）的地圖：去不了（同 src/lib/route-planner.ts 的 questReachable）
+    if (quest.sNpc && (quest.sNpc.map === undefined || !maps[String(quest.sNpc.map)]?.zh)) continue;
     const row = { id: quest.id, n: quest.n };
-    if (quest.minLv) row.minLv = quest.minLv;
+    // 要先解的前置任務等級更高時，用最高的那個（2115 本身 10 等，但要先解 30 等的 2109）
+    const minLv = chainMinLv(quest, questsById);
+    if (minLv) row.minLv = minLv;
+    if (quest.maxLv) row.maxLv = quest.maxLv;
     if (v002Date && isV002Quest(quest, maps)) row.o = v002Date;
     // 任務限定職業、或這個獎勵只發給某些職業（弓攻擊卷軸只給弓箭手）：前端照玩家職業過濾，不推接不到的任務
     if (quest.jobs?.length) row.jobs = quest.jobs;
     const reward = (quest.rewardItems ?? []).find(entry => entry.id === item.id);
     if (reward?.job !== undefined) row.rj = reward.job;
+    // 好幾樣獎勵抽一樣（珍的最後一個挑戰：60% 或 10% 隨機給一張），畫面要寫「隨機給」
+    if (reward?.rand) row.rand = 1;
     rows.push(row);
   }
   rows.sort((a, b) => (a.minLv ?? 0) - (b.minLv ?? 0));
   return rows;
 }
 
+/** 這個任務連同一路上的前置任務，最高的需求等級；都沒寫回 0 */
+function chainMinLv(quest, questsById, seen = new Set()) {
+  if (seen.has(quest.id)) return 0;
+  seen.add(quest.id);
+  let level = quest.minLv ?? 0;
+  for (const id of quest.pre ?? []) {
+    const previous = questsById.get(id);
+    if (previous) level = Math.max(level, chainMinLv(previous, questsById, seen));
+  }
+  return level;
+}
+
+/**
+ * 道具的商店來源：照 items.json 的 sp 店家清單（pipeline/lib/shops.mjs 已經只留開放的地圖或有名字的城鎮）。
+ * 商城（樂豆點）不算；店在 10/15 才開的城鎮（冰原雪域、天空之城）帶 o。現在就開的店排前面、再比便宜，最多 3 家。
+ * 上游的 sh 是「幾筆販售資料」，連還沒開放的城鎮都算進去，不能拿來說「商店買得到」。
+ */
+export function shopSources(item, maps, v002Date) {
+  const rows = [];
+  const seen = new Set();
+  for (const shop of item.sp ?? []) {
+    if (shop.c) continue;
+    const row = { p: shop.p };
+    if (shop.n) row.n = shop.n;
+    if (shop.m !== undefined) row.m = shop.m;
+    row.pr = shop.pr;
+    if (v002Date && shop.m !== undefined && maps[String(shop.m)]?.o) row.o = v002Date;
+    const key = `${row.p}\u0000${row.n ?? ""}\u0000${row.pr}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push(row);
+  }
+  return sortShops(rows);
+}
+
+/** 現在就開的店排前面、再比便宜，最多 3 家 */
+function sortShops(rows) {
+  return rows.sort((a, b) => Number(Boolean(a.o)) - Number(Boolean(b.o)) || a.pr - b.pr).slice(0, 3);
+}
+
 /** 這個 GearSource 有沒有任何一種拿法（商店／掉落／任務）。沒有就是現在完全拿不到，不該收進清單。 */
 export function hasAnySource(src) {
-  return Boolean(src.shop || src.drops?.length || src.quests?.length);
+  return Boolean(src.shops?.length || src.drops?.length || src.quests?.length);
 }
 
-/** 這個 GearSource 是不是「所有來源都要等 V002」：有商店賣就不算（商店隨時買得到）；掉落跟任務要全部帶 o。 */
+/** 這個 GearSource 是不是「所有來源都要等 V002」：商店、掉落、任務全部帶 o（10/15 才開的城鎮的店也算） */
 export function allSourcesV002(src) {
-  if (src.shop) return false;
+  const shops = src.shops ?? [];
   const drops = src.drops ?? [];
   const quests = src.quests ?? [];
-  if (!drops.length && !quests.length) return false;
-  return drops.every(drop => drop.o) && quests.every(quest => quest.o);
+  if (!shops.length && !drops.length && !quests.length) return false;
+  return shops.every(shop => shop.o) && drops.every(drop => drop.o) && quests.every(quest => quest.o);
 }
 
-/** 組一個道具的 GearSource：商店賣幾間、掉落怪、任務，沒有的欄位不給。 */
+/** 組一個道具的 GearSource：哪幾家店賣、掉落怪、任務，沒有的欄位不給。 */
 export function buildSource(item, ctx) {
   const { monstersById, questsById, maps, openMap, v002Date, warn = () => {} } = ctx;
   const src = {};
-  if (item.sh) src.shop = item.sh;
+  const shops = shopSources(item, maps, v002Date);
+  if (shops.length) src.shops = shops;
   const drops = dropSources(item, monstersById, openMap);
   if (drops.length) src.drops = drops;
   const quests = questSources(item, questsById, maps, v002Date, warn);
@@ -185,11 +233,17 @@ export function buildSource(item, ctx) {
   return src;
 }
 
-/** 合併好幾筆 GearSource（同名同成功率的卷軸被拆成好幾個 id 時用）：掉落依怪物 id 去重、商店取最大、任務依 id 去重。 */
+/** 合併好幾筆 GearSource（同名同成功率的卷軸被拆成好幾個 id 時用）：掉落依怪物 id 去重、店家去重、任務依 id 去重。 */
 export function mergeSources(list) {
   const src = {};
-  const shops = list.map(entry => entry.shop).filter(Boolean);
-  if (shops.length) src.shop = Math.max(...shops);
+  const shopByKey = new Map();
+  for (const entry of list) {
+    for (const shop of entry.shops ?? []) {
+      const key = `${shop.p}\u0000${shop.n ?? ""}\u0000${shop.pr}`;
+      if (!shopByKey.has(key)) shopByKey.set(key, shop);
+    }
+  }
+  if (shopByKey.size) src.shops = sortShops([...shopByKey.values()]);
 
   const dropByMonster = new Map();
   for (const entry of list) for (const drop of entry.drops ?? []) if (!dropByMonster.has(drop.m)) dropByMonster.set(drop.m, drop);
@@ -266,6 +320,8 @@ export function buildWeapon(item, ctx) {
 export function convertStatRules(researchRules) {
   return (researchRules ?? []).map(rule => ({
     jobs: rule.jobs, label: rule.label, main: rule.main, secondary: rule.secondary ?? null,
+    // 這套點法用的武器種類（一轉盜賊「拳套需求」只看拳套、一轉海盜「指虎需求」只看指虎）；沒寫就照職業能用的全部
+    ...(rule.weapons?.length ? { weapons: rule.weapons } : {}),
     t: rule.text, s: rule.sources, v: rule.verified,
     mainstream: Boolean(rule.mainstream),
   }));

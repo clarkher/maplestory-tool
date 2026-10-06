@@ -3,7 +3,7 @@
  * 算數字、挑武器、挑卷軸都在 gear.ts；這裡只把那些結果組成卡片要的一包，再把遊戲裡的寫法換成玩家看得懂的字
  * （卷軸效果的 STR → 力量、攻擊速度只寫「快」）。不碰畫面，測試在 __tests__/gear-view.test.ts。
  */
-import { equipStatValue } from "./format";
+import { equipStatValue, formatNumber } from "./format";
 import {
   canWear,
   closestSource,
@@ -99,15 +99,19 @@ export function dropLead(drop: { n: string; lv: number }): string {
   return `${drop.n}（Lv.${drop.lv}）會掉`;
 }
 
-/** 怎麼拿：「商店買得到」「火肥肥（Lv.32）會掉・螞蟻洞」「Lv.40 任務〈珍的最後一個挑戰〉給」（任務有等級限制才寫等級） */
+/**
+ * 怎麼拿：「墮落城市武器店的曼斯塔賣 8,000 楓幣」「火肥肥（Lv.32）會掉・螞蟻洞」
+ * 「Lv.40 任務〈珍的最後一個挑戰〉隨機給」（任務有等級限制才寫等級；好幾樣獎勵抽一樣寫「隨機給」）
+ */
 export function sourceText(pick: SourcePick, mapLabel: (id: number) => string): string {
-  if (pick.kind === "shop") return "商店買得到";
+  if (pick.kind === "shop") return `${pick.shop.p}${pick.shop.n ? `的${pick.shop.n}` : ""}賣 ${formatNumber(pick.shop.pr)} 楓幣`;
   if (pick.kind === "drop") return `${dropLead(pick.drop)}・${mapLabel(pick.drop.map)}`;
-  return `${pick.quest.minLv ? `Lv.${pick.quest.minLv} ` : ""}任務〈${pick.quest.n}〉給`;
+  return `${pick.quest.minLv ? `Lv.${pick.quest.minLv} ` : ""}任務〈${pick.quest.n}〉${pick.quest.rand ? "隨機給" : "給"}`;
 }
 
-/** 這個來源是不是 V002 才開放（回開放日）；商店一律不是 */
+/** 這個來源是不是 V002 才開放（回開放日）：10/15 才開的城鎮的店、只在 V002 地圖出現的怪、V002 任務 */
 export function sourceOpensLater(pick: SourcePick): string | undefined {
+  if (pick.kind === "shop") return pick.shop.o;
   if (pick.kind === "drop") return pick.drop.o;
   if (pick.kind === "quest") return pick.quest.o;
   return undefined;
@@ -251,10 +255,10 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
     : undefined;
   const targets = targetsAt ? targetsAt(level) : null;
 
-  const picks = weaponPicks(gear.weapons, job, level, { targetsAt, beforeOpen });
+  const picks = weaponPicks(gear.weapons, job, level, { targetsAt, beforeOpen, types: rule?.weapons });
   const source = (weapon: GearWeapon) => closestSource(weapon.src, level, beforeOpen, job);
 
-  const families = scrollPicks(gear.scrolls, job, picks.best?.s ?? null, rule?.main ?? null).map(family => {
+  const families = scrollPicks(gear.scrolls, job, picks.best?.s ?? null, rule?.main ?? null, level).map(family => {
     const pick = familyPick(family.options, beforeOpen);
     return { ...family, pick, source: closestSource(pick.src, level, beforeOpen, job) };
   });

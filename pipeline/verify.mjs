@@ -158,10 +158,10 @@ function main() {
   const priced = (items ?? []).filter(item => item.price).length;
   check("道具有商店價格的筆數", priced >= 300, `${priced} 個`);
 
-  // gear.json（能力值＋裝備＋衝卷卡）：2026-10-06 重建出來是武器 227 把、卷軸 106 種，
+  // gear.json（能力值＋裝備＋衝卷卡）：2026-10-06 重建出來是武器 226 把、卷軸 106 種，
   // 下限抓實際數 ×0.8 取整，跟著遊戲資料變動留一點空間，掉太多代表解析壞了
   const gear = readJson(path.join(OUT, "gear.json"));
-  check("武器數量合理", (gear?.weapons?.length ?? 0) >= Math.floor(227 * 0.8), `${gear?.weapons?.length ?? 0} 把`);
+  check("武器數量合理", (gear?.weapons?.length ?? 0) >= Math.floor(226 * 0.8), `${gear?.weapons?.length ?? 0} 把`);
   const weaponTypesSeen = new Set((gear?.weapons ?? []).map(weapon => weapon.s));
   const missingWeaponTypes = WEAPON_TYPES.filter(type => !weaponTypesSeen.has(type));
   check("每種武器種類至少 1 把", missingWeaponTypes.length === 0, missingWeaponTypes.join("、"));

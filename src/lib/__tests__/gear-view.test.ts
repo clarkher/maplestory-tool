@@ -128,7 +128,8 @@ describe("sourceText／sourceOpensLater：怎麼拿", () => {
   });
 
   it("商店、掉落、任務三種寫法", () => {
-    expect(sourceText({ kind: "shop" }, mapLabel)).toBe("商店買得到");
+    expect(sourceText({ kind: "shop", shop: { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 8000 } }, mapLabel)).toBe("墮落城市武器店的曼斯塔賣 8,000 楓幣");
+    expect(sourceText({ kind: "quest", quest: { id: "2013", n: "珍的最後一個挑戰", minLv: 40, rand: 1 } }, mapLabel)).toBe("Lv.40 任務〈珍的最後一個挑戰〉隨機給");
     expect(sourceText({ kind: "drop", drop: { m: 3210100, n: "火肥肥", lv: 32, map: 106000000 } }, mapLabel)).toBe("火肥肥（Lv.32）會掉・螞蟻洞");
     expect(sourceText({ kind: "quest", quest: { id: "9414", n: "散發烈焰氣息的劍" } }, mapLabel)).toBe("任務〈散發烈焰氣息的劍〉給");
     // 任務有等級限制就寫出來：35 等的人看到 40 等任務才知道要再等 5 級
@@ -136,7 +137,8 @@ describe("sourceText／sourceOpensLater：怎麼拿", () => {
   });
 
   it("只有 V002 才拿得到的來源回開放日，其他回 undefined", () => {
-    expect(sourceOpensLater({ kind: "shop" })).toBeUndefined();
+    expect(sourceOpensLater({ kind: "shop", shop: { p: "墮落城市武器店", pr: 8000 } })).toBeUndefined();
+    expect(sourceOpensLater({ kind: "shop", shop: { p: "冰原雪域", pr: 250000, o: "2026-10-15" } })).toBe("2026-10-15");
     expect(sourceOpensLater({ kind: "drop", drop: { m: 1, n: "月光精靈", lv: 45, map: 2, o: "2026-10-15" } })).toBe("2026-10-15");
     expect(sourceOpensLater({ kind: "quest", quest: { id: "1", n: "任務", o: "2026-10-15" } })).toBe("2026-10-15");
     expect(sourceOpensLater({ kind: "drop", drop: { m: 1, n: "青螃蟹", lv: 48, map: 2 } })).toBeUndefined();

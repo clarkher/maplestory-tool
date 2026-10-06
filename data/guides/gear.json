@@ -114,6 +114,7 @@
       "label": "弓：力量＝等級＋5，其餘全敏",
       "main": "DEX",
       "secondary": { "stat": "STR", "type": "level", "offset": 5 },
+      "weapons": ["弓"],
       "text": "力量點到等級＋5，剛好拿得動同等級的弓，其餘全點敏捷，智力、幸運留 4。",
       "sources": [
         "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
@@ -142,6 +143,7 @@
       "label": "一轉先拿弩：力量＝等級",
       "main": "DEX",
       "secondary": { "stat": "STR", "type": "level", "offset": 0 },
+      "weapons": ["弩"],
       "text": "一轉 12、18 等可以先拿弩（力量需求低），25 等再換弓；拿弩這段力量跟等級一樣就好。",
       "sources": [
         "https://forum.gamer.com.tw/C.php?bsn=85994&snA=745",
@@ -192,6 +194,7 @@
       "label": "幸運為主，敏捷只點到拳套需求",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "weapons": ["拳套"],
       "text": "敏捷只點到手上拳套要的量（25 等狼牙要 50、40 等拳套要 80），其餘全點幸運；換拳套前再補敏捷。",
       "sources": [
         "https://forum.gamer.com.tw/C.php?bsn=85994&snA=932",
@@ -220,6 +223,7 @@
       "label": "全幸：敏捷停在 25，其餘全幸",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
+      "weapons": ["拳套"],
       "text": "敏捷停在 25，其餘全點幸運，武器要的敏捷靠斗笠、桑那服、披風衝敏捷補；前期傷害較高，但要先湊齊敏捷裝。",
       "sources": [
         "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2076",
@@ -270,6 +274,7 @@
       "label": "力量為主，敏捷只點到指虎需求",
       "main": "STR",
       "secondary": { "stat": "DEX", "type": "equip", "floor": 35 },
+      "weapons": ["指虎"],
       "text": "敏捷只點到指虎要的量（指虎要的敏捷跟武器等級一樣），其餘全點力量；轉職後敏捷先留 35，打怪常打不中再補。",
       "sources": [
         "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
@@ -309,6 +314,7 @@
       "label": "力量＝等級，其餘全敏",
       "main": "DEX",
       "secondary": { "stat": "STR", "type": "level", "offset": 0 },
+      "weapons": ["火槍"],
       "text": "力量只點到跟等級一樣（拿槍的門檻），其餘全點敏捷。",
       "sources": [
         "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",

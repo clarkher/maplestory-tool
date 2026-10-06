@@ -334,7 +334,9 @@ function OpenChip({ later, where, spaced = false }: { later: string | undefined;
 /** 怎麼拿：商店／哪隻怪會掉（走得到就給「帶我去」）／哪個任務給 */
 function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; where: Where; chip?: boolean }) {
   if (!pick) return null;
-  const go = pick.kind === "drop" && where.routable.has(pick.drop.map) ? pick.drop.map : null;
+  // 掉落的怪在哪張圖、店開在哪張圖：走得到就給「帶我去」
+  const target = pick.kind === "drop" ? pick.drop.map : pick.kind === "shop" ? pick.shop.m : undefined;
+  const go = target !== undefined && where.routable.has(target) ? target : null;
   const label = (id: number) => mapName(where.maps, id);
   // 地圖名、任務名整個一起換行（「海龜沙灘」不會切成「海龜沙／灘」）；真的長到一行放不下才在字中間斷，不凸出卡片
   return (
