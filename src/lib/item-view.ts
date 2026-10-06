@@ -1,4 +1,4 @@
-import { equipStatLabel, equipStatValue } from "./format";
+import { attackSpeedLabel, equipStatLabel, equipStatValue } from "./format";
 import { baseJob, jobOption } from "./jobs";
 import type { Item, Profile } from "./types";
 
@@ -140,6 +140,14 @@ export function itemKeywords(item: Item): string {
   // 認不得的值 equipStatValue 會照原數字寫，那個數字對搜尋沒意義，不放
   const jobs = typeof reqJob === "number" && reqJob !== 0 && isKnownReqJob(reqJob) ? equipStatValue("reqJob", reqJob) : "";
   return [item.d, item.s, jobs].filter(Boolean).join(" ");
+}
+
+/** 道具清單右邊的小字：種類（沒有種類寫分類）；武器加攻擊速度，比武器不用一件件點進去。認不得的攻擊速度不寫。 */
+export function itemNote(item: Item): string {
+  const kind = item.s || item.c;
+  const speed = item.eq?.attackSpeed;
+  const label = typeof speed === "number" ? attackSpeedLabel(speed) : null;
+  return label ? `${kind} · ${label}` : kind;
 }
 
 /** 種類下拉：這個分類裡有的種類，件數多的排前面 */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
+import { attackSpeedLabel, equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
 
 describe("回生秒數的寫法", () => {
   it("等效回生秒數帶小數，畫面寫整數秒「回生約 7 秒」", () => {
@@ -87,6 +87,12 @@ describe("裝備的攻擊速度", () => {
   it("認不得的值照原值寫，不猜快慢", () => {
     expect(equipStatValue("attackSpeed", 1)).toBe("1");
     expect(equipStatValue("attackSpeed", 10)).toBe("10");
+  });
+
+  it("attackSpeedLabel：認得的寫「字（數字）」，認不得的回 null（清單就不寫）", () => {
+    expect(attackSpeedLabel(8)).toBe("慢（8）");
+    expect(attackSpeedLabel(3)).toBe("更快（3）");
+    expect(attackSpeedLabel(12)).toBeNull();
   });
 });
 

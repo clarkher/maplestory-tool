@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  canJobUse, compareItems, equipGroups, itemKeywords, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
+  canJobUse, compareItems, equipGroups, itemKeywords, itemNote, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
 } from "@/lib/item-view";
 import type { Item } from "@/lib/types";
 
@@ -233,5 +233,22 @@ describe("種類下拉", () => {
     ];
     expect(subcategoryOptions(list, "裝備")).toEqual(["帽子", "槍"]);
     expect(subcategoryOptions(list, "消耗")).toEqual(["藥水"]);
+  });
+});
+
+describe("道具清單右邊的小字", () => {
+  it("武器寫種類＋攻擊速度：矛 · 慢（8）", () => {
+    const mop: Item = { id: 1442004, n: "拖把", c: "裝備", s: "矛", eq: { incPAD: 47, attackSpeed: 8 } };
+    expect(itemNote(mop)).toBe("矛 · 慢（8）");
+  });
+
+  it("不是武器的只寫種類，沒有種類寫分類", () => {
+    expect(itemNote(medal)).toBe("勳章");
+    expect(itemNote({ id: 4000000, n: "任務道具", c: "其他" })).toBe("其他");
+  });
+
+  it("認不得的攻擊速度不寫，不露出光禿禿的數字", () => {
+    const odd: Item = { id: 1442999, n: "測試矛", c: "裝備", s: "矛", eq: { attackSpeed: 12 } };
+    expect(itemNote(odd)).toBe("矛");
   });
 });

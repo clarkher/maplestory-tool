@@ -6,7 +6,7 @@ import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
 import {
-  compareItems, equipGroups, itemKeywords, jobLabel, sortCategories, subcategoryOptions, usableBy, wearFit, type WearFit,
+  compareItems, equipGroups, itemKeywords, itemNote, jobLabel, sortCategories, subcategoryOptions, usableBy, wearFit, type WearFit,
 } from "@/lib/item-view";
 import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
@@ -92,7 +92,7 @@ export function ItemDb() {
       .map(item => ({
         id: String(item.id),
         name: item.n,
-        note: item.s || item.c,
+        note: itemNote(item),
         image: itemImage(item.id),
         keywords: keywordsById.get(item.id),
         badge: isV002Item(item, v002Monsters, v002Quests) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
