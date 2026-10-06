@@ -1,0 +1,340 @@
+import { describe, expect, it } from "vitest";
+import {
+  MAIN_TOWNS, VICTORIA_PORT, boatNote, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, suggestStart, townChips, townsTitle,
+  victoriaReach,
+} from "@/lib/route";
+import type { MapRecord, PortalEdge } from "@/lib/types";
+
+const CUPID = 100000200;
+const PERION = 102000000;
+const FLORINA = 110000000;
+const RAINBOW = 1010000;
+
+describe("帶我去的預設起點", () => {
+  const reaches = (allowed: number[]) => (from: number) => allowed.includes(from);
+
+  it("最近的城鎮不是目的地：照舊從最近的城鎮出發", () => {
+    expect(defaultStart(105040300, PERION, null, reaches([PERION]))).toEqual({ kind: "start", map: PERION });
+  });
+
+  it("目的地自己就是城鎮、沒記過起點：先問你在哪個城鎮，不說「你已經在目的地了」", () => {
+    expect(defaultStart(CUPID, CUPID, null, reaches([]))).toEqual({ kind: "ask" });
+  });
+
+  it("目的地自己就是城鎮、記過起點而且走得到：從上次選的起點出發", () => {
+    expect(defaultStart(CUPID, CUPID, PERION, reaches([PERION]))).toEqual({ kind: "start", map: PERION });
+  });
+
+  it("記過的起點就是目的地、或從那裡走不到：還是先問", () => {
+    expect(defaultStart(CUPID, CUPID, CUPID, reaches([CUPID]))).toEqual({ kind: "ask" });
+    expect(defaultStart(CUPID, CUPID, FLORINA, reaches([PERION]))).toEqual({ kind: "ask" });
+  });
+
+  it("沒有任何城鎮走得到：找不到起點", () => {
+    expect(defaultStart(910340500, null, PERION, reaches([PERION]))).toEqual({ kind: "none" });
+  });
+});
+
+describe("最近的城鎮（suggestStart）", () => {
+  // V002 真資料：廢礦的回城點是冰原雪域，但傳送門資料少了冰雪峽谷Ⅱ往上那段（腳本門），從冰原雪域走不到；
+  // 往回找城鎮會先碰到獅子城（未開放地區、沒有中文名的城鎮），以前就從那裡出發、路線還穿過未開放的圖
+  const EL_NATH = 211000000;
+  const CLIFF = 211040400;
+  const LION_FIELD = 211060000;
+  const LION = 211060010;
+  const FAR = 211000100;
+  const maps: Record<string, MapRecord> = {
+    [EL_NATH]: { zh: "冰原雪域", st: "", t: 1, ret: EL_NATH },
+    [CLIFF]: { zh: "尖銳的絕壁Ⅱ", st: "", ret: EL_NATH },
+    [LION_FIELD]: { zh: "", st: "", ret: EL_NATH },
+    [LION]: { zh: "", st: "", t: 1, ret: LION },
+    [FAR]: { zh: "遠方的城鎮", st: "", t: 1, ret: FAR },
+  };
+  const nearestTown: Record<string, [number, number]> = { [CLIFF]: [EL_NATH, 0] };
+
+  it("回城點走得到就從回城點出發", () => {
+    const graph: Record<string, PortalEdge[]> = { [EL_NATH]: [[CLIFF, "east00", 0, 0]] };
+    expect(suggestStart(graph, maps, nearestTown, CLIFF)).toBe(EL_NATH);
+  });
+
+  it("回城點走不到、往回找城鎮時：沒有中文名的城鎮（未開放地區）不當起點，繼續找有名字的", () => {
+    const graph: Record<string, PortalEdge[]> = {
+      [FAR]: [[LION, "east00", 0, 0]],
+      [LION]: [[LION_FIELD, "west00", 0, 0]],
+      [LION_FIELD]: [[CLIFF, "out00", 0, 0]],
+    };
+    expect(suggestStart(graph, maps, nearestTown, CLIFF)).toBe(FAR);
+  });
+
+  it("往回只找得到沒有中文名的城鎮：照舊回傳回城點（路線算不出來，就不給帶我去）", () => {
+    const graph: Record<string, PortalEdge[]> = {
+      [LION]: [[LION_FIELD, "west00", 0, 0]],
+      [LION_FIELD]: [[CLIFF, "out00", 0, 0]],
+    };
+    expect(suggestStart(graph, maps, nearestTown, CLIFF)).toBe(EL_NATH);
+    expect(findRoute(graph, EL_NATH, CLIFF).ok).toBe(false);
+  });
+});
+
+describe("最近的城鎮（suggestStart）：宣告的回城點自己沒有中文名就不能當起點", () => {
+  // 真資料：海盜修練場 912030000 的回城點 120010000 客戶端一直沒給名字（有真的傳送門，走得到）。
+  // 舊邏輯只看「走得到」，會讓「帶我去」從一個玩家在遊戲裡看不到名字的城鎮出發（上一輪審查 Important）。
+  const DOJO = 912030000;
+  const NAMELESS_RETURN = 120010000;
+  const TOWN = 120000000;
+  const baseMaps: Record<string, MapRecord> = {
+    [DOJO]: { zh: "海盜修練場", st: "維多利亞", ret: NAMELESS_RETURN },
+    [NAMELESS_RETURN]: { zh: "", st: "", t: 1, ret: NAMELESS_RETURN },
+    [TOWN]: { zh: "有名字的城鎮", st: "維多利亞", t: 1, ret: TOWN },
+  };
+  const nearestTown: Record<string, [number, number]> = { [DOJO]: [NAMELESS_RETURN, 0] };
+  const graph: Record<string, PortalEdge[]> = {
+    [TOWN]: [[NAMELESS_RETURN, "east00", 0, 0]],
+    [NAMELESS_RETURN]: [[DOJO, "in00", 0, 0]],
+  };
+
+  it("回城點沒有中文名、就算走得到也不用它：改走反向 BFS 找到的有名字城鎮", () => {
+    expect(suggestStart(graph, baseMaps, nearestTown, DOJO)).toBe(TOWN);
+  });
+
+  it("回城點有中文名：照舊直接用它，不用再往回找", () => {
+    const named: Record<string, MapRecord> = { ...baseMaps, [NAMELESS_RETURN]: { ...baseMaps[NAMELESS_RETURN], zh: "停泊所" } };
+    expect(suggestStart(graph, named, nearestTown, DOJO)).toBe(NAMELESS_RETURN);
+  });
+});
+
+describe("跨區要自己搭船或搭車", () => {
+  const graph: Record<string, PortalEdge[]> = {
+    [VICTORIA_PORT]: [[PERION, "east00", 0, 0]],
+    [PERION]: [[CUPID, "west00", 0, 0], [VICTORIA_PORT, "west00", 0, 0]],
+    [CUPID]: [[PERION, "east00", 0, 0]],
+    [FLORINA]: [[110040000, "east00", 0, 0]],
+    [RAINBOW]: [[1010004, "east00", 0, 0]],
+  };
+
+  it("維多利亞港走傳送門到得了的圖", () => {
+    expect([...victoriaReach(graph)].sort()).toEqual([CUPID, PERION, VICTORIA_PORT].sort());
+  });
+
+  it("不在楓之島的人：起點跟維多利亞島之間沒有傳送門就要自己搭船或搭車（region）", () => {
+    const reach = victoriaReach(graph);
+    expect(boatNote(FLORINA, reach, false)).toBe("region");
+    expect(boatNote(PERION, reach, false)).toBeUndefined();
+    expect(boatNote(RAINBOW, reach, false)).toBeUndefined();
+  });
+
+  it("還在楓之島的人：起點不在楓之島就要先搭船到維多利亞島（island）；起點在楓之島不用", () => {
+    const reach = victoriaReach(graph);
+    expect(boatNote(PERION, reach, true)).toBe("island");
+    expect(boatNote(FLORINA, reach, true)).toBe("island");
+    expect(boatNote(RAINBOW, reach, true)).toBeUndefined();
+  });
+});
+
+describe("帶我去：還可能在楓之島的初心者（round 3 B）", () => {
+  const BEACH_FIELD = 110040000;
+  const MUSHROOM = 10000;
+  const ISLAND_FIELD = 40000;
+  const graph: Record<string, PortalEdge[]> = {
+    [VICTORIA_PORT]: [[PERION, "east00", 0, 0]],
+    [PERION]: [[CUPID, "west00", 0, 0], [VICTORIA_PORT, "west00", 0, 0]],
+    [CUPID]: [[PERION, "east00", 0, 0]],
+    [FLORINA]: [[BEACH_FIELD, "east00", 0, 0]],
+    [BEACH_FIELD]: [[FLORINA, "west00", 0, 0]],
+    [MUSHROOM]: [[ISLAND_FIELD, "east00", 0, 0]],
+    [ISLAND_FIELD]: [[MUSHROOM, "west00", 0, 0]],
+  };
+  const reach = victoriaReach(graph);
+  const run = (target: number, suggested: number | null, options: { picked?: number; remembered?: number; novice?: boolean } = {}) =>
+    goStart({
+      target,
+      picked: options.picked ?? null,
+      suggested,
+      remembered: options.remembered ?? null,
+      novice: options.novice ?? true,
+      reaches: from => findRoute(graph, from, target).ok,
+      reach,
+    });
+
+  it("目的地在維多利亞島、沒自己選起點：從維多利亞港出發，路線上面說要先搭船到維多利亞港", () => {
+    expect(run(CUPID, PERION)).toEqual({ choice: { kind: "start", map: VICTORIA_PORT }, notes: ["island"] });
+  });
+
+  it("目的地是城鎮也一樣從維多利亞港出發，不先問；記住的起點（別的角色選的）不用", () => {
+    expect(run(PERION, PERION, { remembered: CUPID })).toEqual({ choice: { kind: "start", map: VICTORIA_PORT }, notes: ["island"] });
+  });
+
+  it("目的地就是維多利亞港：說搭船就會到，不給「你已經在目的地了」的路線（先問在哪個城鎮）", () => {
+    expect(run(VICTORIA_PORT, VICTORIA_PORT)).toEqual({ choice: { kind: "ask" }, notes: ["port"] });
+    expect(run(VICTORIA_PORT, VICTORIA_PORT, { remembered: PERION })).toEqual({ choice: { kind: "ask" }, notes: ["port"] });
+  });
+
+  it("維多利亞港走不到目的地（黃金海灘那邊）：照最近的城鎮出發，島上跟跨區兩句都說", () => {
+    expect(run(BEACH_FIELD, FLORINA)).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["island", "region"] });
+  });
+
+  it("沒有維多利亞島的城鎮走得到、目的地自己就是那邊的城鎮（黃金海灘）：先問，問句上面放島上那句再放跨區那句（跨區那句講目的地）", () => {
+    expect(run(FLORINA, FLORINA)).toEqual({ choice: { kind: "ask" }, notes: ["island", "region"] });
+    expect(run(FLORINA, FLORINA, { novice: false })).toEqual({ choice: { kind: "ask" }, notes: ["region"] });
+  });
+
+  it("在這頁自己選了起點：照用，不說島上的事；選的起點跟維多利亞島之間沒有傳送門時照樣說跨區", () => {
+    expect(run(CUPID, PERION, { picked: PERION })).toEqual({ choice: { kind: "start", map: PERION }, notes: [] });
+    expect(run(BEACH_FIELD, FLORINA, { picked: FLORINA })).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["region"] });
+    expect(run(CUPID, PERION, { picked: MUSHROOM })).toEqual({ choice: { kind: "start", map: MUSHROOM }, notes: [] });
+  });
+
+  it("目的地在楓之島：照一般規則（最近的城鎮），不說搭船", () => {
+    expect(run(ISLAND_FIELD, MUSHROOM)).toEqual({ choice: { kind: "start", map: MUSHROOM }, notes: [] });
+  });
+
+  it("提示的字", () => {
+    expect(goNoteText("island", "維多利亞港")).toBe("你還在楓之島的話，要先搭船到維多利亞港，再照下面的路線走。");
+    expect(goNoteText("port", "")).toBe("你還在楓之島的話，搭船就會到維多利亞港。");
+    expect(goNoteText("region", "黃金海灘")).toBe("黃金海灘跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。");
+  });
+
+  it("不是初心者：照舊——最近的城鎮、目的地是城鎮時用記住的起點或先問；起點跟維多利亞島沒有傳送門才說跨區，不說島上的事", () => {
+    expect(run(CUPID, PERION, { novice: false })).toEqual({ choice: { kind: "start", map: PERION }, notes: [] });
+    expect(run(PERION, PERION, { novice: false, remembered: CUPID })).toEqual({ choice: { kind: "start", map: CUPID }, notes: [] });
+    expect(run(VICTORIA_PORT, VICTORIA_PORT, { novice: false })).toEqual({ choice: { kind: "ask" }, notes: [] });
+    expect(run(BEACH_FIELD, FLORINA, { novice: false })).toEqual({ choice: { kind: "start", map: FLORINA }, notes: ["region"] });
+  });
+});
+
+describe("走不到（跨區）時的說明（round 4）", () => {
+  const ISLAND_FIELD = 40000;
+
+  it("目的地在楓之島、起點不在：只說楓之島跟維多利亞島之間沒有傳送門，不叫人搭車（離開楓之島就回不去）", () => {
+    expect(crossAreaText(PERION, ISLAND_FIELD)).toBe("楓之島跟維多利亞島之間沒有傳送門。");
+    expect(crossAreaText(FLORINA, RAINBOW)).toBe("楓之島跟維多利亞島之間沒有傳送門。");
+  });
+
+  it("其他照舊：照實說不在同一個可步行區域，起點在楓之島寫搭船、其他寫搭車", () => {
+    expect(crossAreaText(RAINBOW, PERION)).toContain("先在遊戲裡搭船過去");
+    expect(crossAreaText(PERION, FLORINA)).toContain("先在遊戲裡搭車過去");
+    expect(crossAreaText(PERION, FLORINA)).toContain("這兩張圖不在同一個可步行區域");
+  });
+});
+
+describe("城鎮按鈕（跨區、問起點時；round 3 B2／F）", () => {
+  const HENESYS = 100000000;
+  const HOUSE = 100000001;
+  const UNNAMED_TOWN = 101000001;
+  const UNNAMED_FIELD = 101000002;
+  const HILL = 100010000;
+  const PORT_FIELD = 104010000;
+  const SLEEPY = 105040300;
+  const SLEEPY_FIELD = 105040301;
+  const BEACH = 110040000;
+  const maps: Record<string, MapRecord> = {
+    [HENESYS]: { zh: "弓箭手村", st: "維多利亞", t: 1, ret: HENESYS },
+    // 民宅：客戶端也標成城鎮、回城點是自己，但沒有別張圖回到這裡
+    [HOUSE]: { zh: "弓箭手村民宅", st: "維多利亞", t: 1, ret: HOUSE },
+    [UNNAMED_TOWN]: { zh: "", st: "", t: 1, ret: UNNAMED_TOWN },
+    [UNNAMED_FIELD]: { zh: "", st: "", ret: UNNAMED_TOWN },
+    [HILL]: { zh: "弓箭手村東部小山", st: "維多利亞", t: 1, ret: HENESYS },
+    [CUPID]: { zh: "邱比特公園", st: "維多利亞", t: 1, ret: HENESYS },
+    [VICTORIA_PORT]: { zh: "維多利亞港", st: "維多利亞", t: 1, ret: VICTORIA_PORT },
+    [PORT_FIELD]: { zh: "維多利亞港郊外", st: "維多利亞", ret: VICTORIA_PORT },
+    [SLEEPY]: { zh: "奇幻村", st: "迷霧森林", t: 1, ret: SLEEPY },
+    [SLEEPY_FIELD]: { zh: "螞蟻洞", st: "迷霧森林", ret: SLEEPY },
+    [FLORINA]: { zh: "黃金海灘", st: "黃金海岸", t: 1, ret: FLORINA },
+    [BEACH]: { zh: "海龜沙灘", st: "黃金海岸", ret: FLORINA },
+  };
+  const both = (a: number, b: number): Record<string, PortalEdge[]> => ({ [a]: [[b, "east00", 0, 0]], [b]: [[a, "west00", 0, 0]] });
+  const link = (...pairs: Array<[number, number]>) => {
+    const graph: Record<string, PortalEdge[]> = {};
+    for (const [a, b] of pairs) for (const [key, edges] of Object.entries(both(a, b))) graph[key] = [...(graph[key] ?? []), ...edges];
+    return graph;
+  };
+  const graph = link(
+    [VICTORIA_PORT, HENESYS], [HENESYS, CUPID], [HENESYS, HOUSE], [HENESYS, UNNAMED_TOWN], [HENESYS, HILL], [HENESYS, SLEEPY],
+    [SLEEPY, SLEEPY_FIELD], [VICTORIA_PORT, PORT_FIELD], [UNNAMED_TOWN, UNNAMED_FIELD], [FLORINA, BEACH],
+  );
+
+  it("真的城鎮：有中文名、客戶端標成城鎮、回城點是自己、而且有別張圖回到這裡（民宅、沒有名字的、回城點在別處的都不算）", () => {
+    expect(hubTowns(maps)).toEqual([HENESYS, VICTORIA_PORT, SLEEPY, FLORINA]);
+  });
+
+  it("只給走得到目的地的城鎮；照 first 排前面，其他照順序", () => {
+    expect(townChips(maps, graph, CUPID)).toEqual([HENESYS, VICTORIA_PORT, SLEEPY]);
+    expect(townChips(maps, graph, CUPID, { first: [VICTORIA_PORT] })).toEqual([VICTORIA_PORT, HENESYS, SLEEPY]);
+  });
+
+  it("維多利亞港走不到目的地時不會排第一（黃金海灘那邊只剩黃金海灘）", () => {
+    expect(townChips(maps, graph, BEACH, { first: [VICTORIA_PORT] })).toEqual([FLORINA]);
+  });
+
+  it("問起點時不給目的地本身（選了只會「你已經在目的地了」）", () => {
+    expect(townChips(maps, graph, HENESYS, { first: [VICTORIA_PORT], exceptTarget: true })).toEqual([VICTORIA_PORT, SLEEPY]);
+    expect(townChips(maps, graph, HENESYS)).toEqual([HENESYS, VICTORIA_PORT, SLEEPY]);
+  });
+
+  it("問起點的按鈕：維多利亞港、弓箭手村、魔法森林、勇士之村、墮落城市排前面（地圖資料沒有的跳過），再接其他走得到的城鎮", () => {
+    expect(MAIN_TOWNS).toEqual([VICTORIA_PORT, 100000000, 101000000, 102000000, 103000000]);
+    expect(townChips(maps, graph, CUPID, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([VICTORIA_PORT, HENESYS, SLEEPY]);
+  });
+
+  it("標題寫城鎮所在區域的中文名（地圖資料的區域名，城鎮裡最多的那個）；沒有就寫「目的地附近的城鎮」", () => {
+    expect(townsTitle(maps, [VICTORIA_PORT, HENESYS, SLEEPY])).toBe("維多利亞的城鎮");
+    expect(townsTitle(maps, [FLORINA])).toBe("黃金海岸的城鎮");
+    expect(townsTitle(maps, [UNNAMED_TOWN])).toBe("目的地附近的城鎮");
+    expect(townsTitle(maps, [])).toBe("目的地附近的城鎮");
+  });
+});
+
+describe("楓之島的城鎮按鈕（round 3 最後一輪）", () => {
+  const MUSHROOM = 10000;
+  const MUSHROOM_FIELD = 10001;
+  const MUSHROOM_TWO = 20000;
+  const SNAIL = 40000;
+  const PERRY_FIELD = 50001;
+  const PERRY = 60000;
+  const PERRY_TWO = 60001;
+  const PERRY_TWO_FIELD = 60002;
+  const WEST = 1000000;
+  const WOOD = 1000001;
+  const AMHERST = 1010000;
+  const GARDEN = 1010004;
+  const EAST = 1020000;
+  const maps: Record<string, MapRecord> = {
+    [MUSHROOM]: { zh: "菇菇村", st: "楓之島", t: 1, ret: MUSHROOM },
+    [MUSHROOM_FIELD]: { zh: "菇菇村訓練場", st: "楓之島", ret: MUSHROOM },
+    // 另一張也叫菇菇村、客戶端也標成城鎮，但沒有別張圖回到這裡
+    [MUSHROOM_TWO]: { zh: "菇菇村", st: "楓之島", t: 1, ret: MUSHROOM_TWO },
+    [SNAIL]: { zh: "嫩寶狩獵場Ⅰ", st: "楓之島", t: 1, ret: SNAIL },
+    [PERRY]: { zh: "楓之港", st: "楓之島", t: 1, ret: PERRY },
+    [PERRY_FIELD]: { zh: "楓之港西郊平原", st: "楓之島", ret: PERRY },
+    // 同名的另一個城鎮（只留一顆）
+    [PERRY_TWO]: { zh: "楓之港", st: "楓之島", t: 1, ret: PERRY_TWO },
+    [PERRY_TWO_FIELD]: { zh: "楓之港碼頭", st: "楓之島", ret: PERRY_TWO },
+    // 客戶端把楓葉村的回城點指到楓葉村西郊平原：西郊平原的名字是楓葉村再加字，是郊外；楓葉村才是城鎮
+    [WEST]: { zh: "楓葉村西郊平原", st: "彩虹之地", t: 1, ret: WEST },
+    [WOOD]: { zh: "小樹林", st: "彩虹之地", ret: WEST },
+    [AMHERST]: { zh: "楓葉村", st: "彩虹之地", t: 1, ret: WEST },
+    [GARDEN]: { zh: "嫩寶花園", st: "彩虹之地", ret: AMHERST },
+    [EAST]: { zh: "楓葉村東郊平原", st: "彩虹之地", t: 1, ret: WEST },
+  };
+  const graph: Record<string, PortalEdge[]> = {};
+  for (const [a, b] of [
+    [MUSHROOM, MUSHROOM_TWO], [MUSHROOM, MUSHROOM_FIELD], [MUSHROOM_TWO, SNAIL], [SNAIL, PERRY], [PERRY, PERRY_FIELD], [PERRY, PERRY_TWO],
+    [PERRY_TWO, PERRY_TWO_FIELD], [SNAIL, WEST], [WEST, WOOD], [WEST, AMHERST], [AMHERST, GARDEN], [AMHERST, EAST],
+  ]) {
+    graph[a] = [...(graph[a] ?? []), [b, "east00", 0, 0]];
+    graph[b] = [...(graph[b] ?? []), [a, "west00", 0, 0]];
+  }
+
+  it("真的城鎮有楓葉村、沒有楓葉村西郊平原（名字是另一個城鎮再加字的算郊外），沒有別張圖回到這裡的菇菇村、嫩寶狩獵場Ⅰ不算", () => {
+    expect(hubTowns(maps)).toEqual([MUSHROOM, PERRY, PERRY_TWO, AMHERST]);
+  });
+
+  it("同名的城鎮只給一顆（先排的、走得到的那個）", () => {
+    expect(townChips(maps, graph, SNAIL, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([MUSHROOM, PERRY, AMHERST]);
+  });
+
+  it("跟目的地同名、但不是目的地那張的不給（不會排出「菇菇村 → 菇菇村 共 1 段」）", () => {
+    expect(townChips(maps, graph, MUSHROOM_TWO, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([PERRY, AMHERST]);
+    expect(townChips(maps, graph, MUSHROOM_TWO)).toEqual([PERRY, AMHERST]);
+  });
+});

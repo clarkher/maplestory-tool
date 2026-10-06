@@ -2,26 +2,25 @@
  * 把原始資料合成前端要用的正規化檔案。
  *
  *  data/raw/artale.json     Artale 客戶端匯出：怪物數值、掉落、道具、任務、技能（中文，玩家實際玩的版本）
- *  data/raw/v83-maps.json   v83 Map.wz：傳送門連線、刷怪點與回生秒數、回城點、世界地圖區域
+ *  data/raw/v83-maps.json   v83 Map.wz：傳送門連線、回城點、世界地圖區域；台服客戶端沒有刷怪資料的地圖才用它的刷怪點
  *  data/raw/msio-maps.json  maplestory.io：只用來標記哪些地圖有小地圖圖檔（選用）
  *
- * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸與刷怪密度用 v83 補。
+ * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸用 v83；刷怪以台服客戶端為準，客戶端沒有的圖才用 v83 補。
  * 對不起來的一律標記，不猜、不補假值。
+ *
+ * 刷怪點與回生秒數以台服客戶端為準（上游 maps-data.js，見 lib/spawns.mjs）：
+ * 2026-10-05 查到 197 張練功圖有 110 張的 v83 出怪跟台服對不上。
+ * 同一隻怪在同一張圖好幾個刷怪點、回生秒數不同時，逐點合成一個等效秒數（不是取最大）。
  */
 import fs from "node:fs";
 import path from "node:path";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
+import { officialName } from "./lib/map-names.mjs";
+import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const RAW = path.join(ROOT, "data", "raw");
 const OUT = path.join(ROOT, "public", "data");
-
-/**
- * 一般怪物沒有指定 mobTime 時的回生秒數。
- * 客戶端只在 boss 之類的刷怪點填 mobTime，一般圖留 0 代表走伺服器預設節奏。
- * 這個 7 秒是經典版社群通用估值，用途是地圖之間互相比較，不是宣稱實際每小時經驗。
- */
-const DEFAULT_RESPAWN_SECONDS = 7;
 
 /**
  * 台服《新楓之谷：經典版》目前開放的範圍。
@@ -37,23 +36,47 @@ const DEFAULT_RESPAWN_SECONDS = 7;
  *
  * 開服時只看第 1 點就夠了（當時只有已開放的地圖帶中文名），但客戶端會在改版前
  * 先替下一批地區補上中文名：1.15 就先放了冰原雪域 48 張、廢礦 23 張，
- * 而官方公告這兩區要到 2026-10-15 才跟三轉一起開。所以多加第 2 點把關，
+ * V002（2026-10-15）開放冰原雪域（上游地區名，含天空之城）與廢礦，三轉、等級上限 120。
+ * 官方若宣布某些地圖不開，照公告加回擋住的清單。所以多加第 2 點把關，
  * 免得推薦玩家去一個進不去的地方。
  *
  * mapRegions 用的是上游資料的 regionName。奇幻村、鯨魚號在上游是獨立地區，
  * 楓葉世界是「全地區都會出現」的活動怪用的。上游還沒分類（regionName 空白）的圖照舊放行。
  * 有中文名但地區不在清單裡的，建置時會列在 meta.heldBackRegions 與輸出訊息裡。
+ *
+ * 第 1 點也有反過來的缺口：地區已經開放，但城鎮自己的名字客戶端還沒補上
+ * （天空之城、冰原雪域兩座城鎮本身在客戶端一直是「未命名地圖」，V002 開放後主推卡因此
+ * 會寫「從未開放地圖走 N 張圖」）。這兩筆官方公告過的地名用 lib/map-names.mjs 的
+ * officialName 補，客戶端一有名字就自動換掉；其他沒公告過的沒名字城鎮不補，照舊留白。
  */
 const RELEASE = {
-  version: "V001",
+  version: "V002",
   operator: "遊戲橘子（NEXON Korea 授權）",
   launchedAt: "2026-07-29",
-  levelCap: 100,
-  maxAdvancementOrder: 2,
-  regions: ["楓之島", "維多利亞島"],
-  mapRegions: ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界"],
+  levelCap: 120,
+  maxAdvancementOrder: 3,
+  regions: ["楓之島", "維多利亞島", "天空之城", "冰原雪域", "廢礦區"],
+  mapRegions: ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界", "冰原雪域", "廢礦"],
   note: "客戶端資產含未開放內容，本站只保留已開放的部分：地圖要有中文名而且所在地區已開放，任務與職業以等級上限與轉職階段判斷。",
 };
+
+/**
+ * V002 開機日（官方公告 https://maplestoryclassic.beanfun.com/bulletin?Bid=83849）。
+ * 2026-10-06 用戶決定：資料現在就上正式機，不用等開機公告，但要讓玩家看得出冰原雪域／廢礦區／
+ * 三轉／Lv.120 是這天才開放——帶這個日期的地圖，前端（src/lib/release.ts）會標「10/15 開放」，
+ * 過了這天自動不再標，不用重新部署。
+ */
+const V002_OPEN_DATE = "2026-10-15";
+
+/** 天空之城、冰原雪域這兩座城鎮客戶端一直沒給名字（officialName 補缺），region 查不到，直接認 id。 */
+const V002_NAMED_TOWNS = new Set([200000000, 211000000]);
+
+/** 這張圖算不算「V002 才放行」：上游地區是冰原雪域或廢礦的已開放地圖，或天空之城／冰原雪域這兩座補缺的城鎮本身。 */
+function v002OpenDate(id, zh) {
+  if (V002_NAMED_TOWNS.has(id)) return V002_OPEN_DATE;
+  if (zh?.region === "冰原雪域" || zh?.region === "廢礦") return V002_OPEN_DATE;
+  return undefined;
+}
 
 function main() {
   const artale = readJson(path.join(RAW, "artale.json"));
@@ -73,11 +96,13 @@ function main() {
   const components = labelComponents(graph, maps);
   const nearestTown = computeNearestTowns(maps, graph, v83);
   const canonItem = itemAliases(artale);
-  const monsters = buildMonsters(artale, v83, maps, canonItem);
+  const twTable = twSpawns(artale.maps);
+  const spawnTable = mergeSpawns(twTable, v83.maps);
+  const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
   const items = buildItems(artale, monsters);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
-  const training = buildTraining(maps, v83, monsters);
+  const training = buildTraining(maps, spawnTable.spawns, monsters);
   const farming = buildFarmingIndex(items, monsters, maps);
   const search = buildSearch({ monsters, items, quests, skills, maps });
 
@@ -106,6 +131,12 @@ function main() {
     release: RELEASE,
     // 客戶端已經有中文名、但所在地區還沒開放而被擋下來的地圖數
     heldBackRegions: heldBack,
+    // 已開放地圖的刷怪資料，各有幾張用台服客戶端、幾張退回 v83（沒開放的圖不算，免得數字誤導）
+    spawnSource: (() => {
+      const open = Object.keys(spawnTable.spawns).filter(key => maps.records[key]?.zh);
+      const client = open.filter(key => twTable.has(Number(key))).length;
+      return { client, v83: open.length - client };
+    })(),
     assumptions: {
       defaultRespawnSeconds: DEFAULT_RESPAWN_SECONDS,
       expNote: "本站不提供每小時經驗值——那需要知道你的清怪速度。提供的是可查證的事實：一輪清完的總經驗、刷怪點數、回生秒數，以及據此換算的相對效率指數。",
@@ -172,7 +203,7 @@ function buildJobs(artale) {
     a.groupOrder - b.groupOrder || a.advOrder - b.advOrder || a.id - b.id);
 }
 
-/** 玩家選單只列得到的職業：遊戲開放到二轉，管理與活動用的也不算職業。 */
+/** 玩家選單只列得到的職業：開放到第幾轉看 RELEASE.maxAdvancementOrder（V002 是三轉），管理與活動用的也不算職業。 */
 function releasedJobs(jobs) {
   return jobs.filter(job =>
     job.advOrder <= RELEASE.maxAdvancementOrder
@@ -257,8 +288,10 @@ function buildMaps(v83, zhNames, regions, msio) {
 
     // 只輸出中文。上游沒給中文名的地圖就留空——與其顯示玩家在遊戲裡
     // 根本找不到的英文名（或別的版本翻錯的中文名），不如誠實留白。
+    // 客戶端沒給名字時查 officialName 的補缺表（目前只有天空之城、冰原雪域兩筆官方公告過的城鎮名）；
+    // 客戶端一有名字（改版後補上）就自動換成客戶端的，不在表裡的照舊留空。
     const record = {
-      zh: zh?.name || "",
+      zh: officialName(id, zh?.name),
       st: zh?.street || "",
       t: townSet.has(id) ? 1 : undefined,
       ret: raw.ret,
@@ -266,6 +299,7 @@ function buildMaps(v83, zhNames, regions, msio) {
       rg: regions.mapToRegion.get(id) || undefined,
       rate: raw.rate,
       mm: hasMinimap.has(key) ? 1 : undefined,
+      o: v002OpenDate(id, zh),
     };
     for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
     records[id] = record;
@@ -359,11 +393,11 @@ function computeNearestTowns(maps, graph, v83) {
 
 /* ---------------------------------------------------------------- 怪物 */
 
-function buildMonsters(artale, v83, maps, canonItem) {
-  // 反查：怪物 id → 出現在哪些地圖、各幾個刷怪點、回生秒數
+function buildMonsters(artale, spawns, maps, canonItem) {
+  // 反查：怪物 id → 出現在哪些地圖、各幾個刷怪點、回生秒數（台服客戶端優先，見 lib/spawns.mjs）
   const spawnOf = new Map();
-  for (const [key, raw] of Object.entries(v83.maps)) {
-    for (const [mobId, count, mobTime] of raw.m || []) {
+  for (const [key, list] of Object.entries(spawns)) {
+    for (const [mobId, count, mobTime] of list) {
       if (!spawnOf.has(mobId)) spawnOf.set(mobId, []);
       spawnOf.get(mobId).push([Number(key), count, mobTime || 0]);
     }
@@ -377,12 +411,16 @@ function buildMonsters(artale, v83, maps, canonItem) {
   const list = (artale.monsters || [])
     // 只有出現在已開放地圖上的怪才算進得去；其餘是客戶端裡尚未開放的內容
     .filter(monster => (monster.maps || []).some(map => released.has(Number(map.id))))
+    // 地圖開放不代表圖裡的怪都在等級上限內：廢礦區的代表地圖「殘暴炎魔祭壇」開放後，
+    // 跟著漏進 22 隻 Lv.140 的殘暴炎魔／混沌殘暴炎魔（遠超 V002 上限 120），這是之後才會解鎖的首領戰內容。
+    // 比照任務（quest.minLevel ≤ RELEASE.levelCap）同樣用等級上限把關，地圖本身照樣收錄（REGION_SENTINELS 要看得到它有中文名）。
+    .filter(monster => (monster.level ?? monster.stats?.level ?? 0) <= RELEASE.levelCap)
     .map(monster => {
     const id = Number(monster.id);
     const stats = monster.stats || {};
     const declaredMaps = (monster.maps || []).map(map => Number(map.id)).filter(Number.isFinite);
-    const spawns = spawnOf.get(id) || [];
-    if (spawns.length) withSpawnData += 1;
+    const spawnRows = spawnOf.get(id) || [];
+    if (spawnRows.length) withSpawnData += 1;
 
     const record = {
       id,
@@ -401,7 +439,7 @@ function buildMonsters(artale, v83, maps, canonItem) {
       und: stats.undead ? 1 : undefined,
       el: compactElemental(monster.elemental),
       maps: declaredMaps,
-      sp: spawns.length ? spawns : undefined,
+      sp: spawnRows.length ? spawnRows : undefined,
       drops: [...new Set((monster.drops || []).map(drop => canonItem(Number(drop.id))).filter(Number.isFinite))],
     };
     for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
@@ -705,13 +743,13 @@ function buildSkills(artale, allJobs) {
  * 一輪清完的總經驗、刷怪點數、回生秒數——外加一個純粹用來排序的密度值 eff，
  * 前端會把它換算成同等級帶內的相對指數再顯示。
  */
-function buildTraining(maps, v83, monsters) {
+function buildTraining(maps, spawns, monsters) {
   const rows = [];
-  for (const [key, raw] of Object.entries(v83.maps)) {
+  for (const [key, list] of Object.entries(spawns)) {
     const mapId = Number(key);
     const record = maps.records[mapId];
     // 沒有中文名的地圖不進推薦——玩家在遊戲裡找不到它
-    if (!record || !record.zh || !raw.m?.length) continue;
+    if (!record || !record.zh || !list?.length) continue;
 
     let totalSpawn = 0;
     let density = 0;
@@ -724,13 +762,14 @@ function buildTraining(maps, v83, monsters) {
     let unknownSpawn = 0;
     const mobs = [];
 
-    for (const [mobId, count, mobTime] of raw.m) {
+    for (const [mobId, count, mobTime] of list) {
       const monster = monsters.byId.get(mobId);
       if (!monster || !monster.lv) {
         unknownSpawn += count;
         continue;
       }
-      const respawn = mobTime > 0 ? mobTime : DEFAULT_RESPAWN_SECONDS;
+      // 等效回生秒數（lib/spawns.mjs 逐點合成）；沒指定或比預設快的照預設 7 秒算，當保險
+      const respawn = respawnSeconds(mobTime);
       totalSpawn += count;
       expPerClear += (monster.exp || 0) * count;
       hpPerClear += (monster.hp || 0) * count;

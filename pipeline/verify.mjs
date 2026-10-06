@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readJson } from "./lib/http.mjs";
+import { OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
 
 const OUT = path.resolve(import.meta.dirname, "..", "public", "data");
 
@@ -19,6 +20,7 @@ const notes = [];
  * 客戶端會在改版前先替下一批地區補上中文名（1.15 就先放了冰原雪域與廢礦），
  * 所以「有中文名」不等於已開放。這裡用具體的地圖編號再把關一次：
  * 地區還不在 meta.release.mapRegions 裡，它的地圖就不該帶中文名出現在站上。
+ * 地區開放後同一組地圖改成「要出現」的檢查。
  */
 const REGION_SENTINELS = {
   冰原雪域: [200020000 /* 雲彩公園Ⅱ */, 200080200 /* 天空之城塔<20層> */, 211040100 /* 冰雪峽谷Ⅰ */],
@@ -44,16 +46,28 @@ function main() {
   const search = readJson(path.join(OUT, "search.json"));
 
   check("meta 有遊戲版本", Boolean(meta?.gameVersion), String(meta?.gameVersion));
-  check("怪物數量合理（僅已開放）", monsters?.length >= 50 && monsters?.length <= 150, `${monsters?.length} 隻`);
+  check("怪物數量合理（僅已開放）", monsters?.length >= 100 && monsters?.length <= 157, `${monsters?.length} 隻`);
   check("道具數量合理", items?.length >= 10000, `${items?.length} 個`);
-  check("任務數量合理（僅已開放）", quests?.length >= 250 && quests?.length <= 450, `${quests?.length} 個`);
-  check("技能數量合理（僅到二轉）", skills?.length >= 250 && skills?.length <= 450, `${skills?.length} 個`);
+  check("任務數量合理（僅已開放）", quests?.length >= 348 && quests?.length <= 545, `${quests?.length} 個`);
+  check("技能數量合理（到三轉）", skills?.length >= 421 && skills?.length <= 659, `${skills?.length} 個`);
   check("地圖數量合理", Object.keys(maps ?? {}).length >= 5000, `${Object.keys(maps ?? {}).length} 張`);
 
   const edges = Object.values(graph ?? {}).reduce((sum, list) => sum + list.length, 0);
   check("傳送門邊數合理", edges >= 3000, `${edges} 條`);
 
-  check("練功索引非空", training?.length >= 120, `${training?.length} 張圖`);
+  check("練功索引非空", training?.length >= 220 && training?.length <= 345, `${training?.length} 張圖`);
+
+  // 出怪要用台服客戶端：冰獨眼獸洞穴Ⅱ在台服是冰獨眼獸，v83 是赤龍（2026-10-05 玩家在畫面上抓到）
+  const coldEye = training?.find(row => row.m === 105090100);
+  check(
+    "冰獨眼獸洞穴Ⅱ 用台服出怪（冰獨眼獸，不是赤龍）",
+    Boolean(coldEye) && coldEye.mobs.some(([id]) => id === 4230100) && !coldEye.mobs.some(([id]) => id === 6130100),
+  );
+  // 已開放地圖的出怪幾乎都來自台服客戶端（2026-10-05：207 張，v83 1 張）。掉到 180 以下代表上游
+  // maps-data.js 格式變了、刷怪點讀不到，整批悄悄退回 v83——那會把 110 張圖的出怪換回錯的
+  const fromClient = meta?.spawnSource?.client ?? 0;
+  check("已開放地圖的出怪大多用台服客戶端", fromClient >= 180, `${fromClient} 張（v83 ${meta?.spawnSource?.v83 ?? "?"} 張）`);
+
   check("打寶索引非空", Object.keys(farming ?? {}).length >= 500, `${Object.keys(farming ?? {}).length} 個道具`);
   check("搜尋索引非空", search?.length >= 8000, `${search?.length} 筆`);
 
@@ -68,10 +82,18 @@ function main() {
   const openRegions = meta?.release?.mapRegions ?? [];
   check("meta 有列出已開放的地區", openRegions.length > 0, openRegions.join("、"));
   for (const [region, ids] of Object.entries(REGION_SENTINELS)) {
-    if (openRegions.includes(region)) continue;
-    const leaked = ids.filter(id => maps?.[String(id)]?.zh);
-    check(`未開放的${region}沒有被當成已開放`, leaked.length === 0,
-      leaked.length ? `漏進來：${leaked.map(id => `${id} ${maps[String(id)].zh}`).join("、")}` : `${ids.length} 張代表地圖都沒有中文名`);
+    const named = ids.filter(id => maps?.[String(id)]?.zh);
+    if (openRegions.includes(region)) {
+      check(`已開放的${region}有出現`, named.length === ids.length, `${named.length}/${ids.length} 張代表地圖有中文名`);
+    } else {
+      check(`未開放的${region}沒有被當成已開放`, named.length === 0,
+        named.length ? `漏進來：${named.map(id => `${id} ${maps[String(id)].zh}`).join("、")}` : `${ids.length} 張代表地圖都沒有中文名`);
+    }
+  }
+
+  // 官方公告過、但客戶端還沒補中文名的城鎮（Task 10b 補缺表）：要用公告的地名，不是空白或別的字
+  for (const [id, entry] of Object.entries(OFFICIAL_MAP_NAMES)) {
+    check(`補缺的城鎮有官方地名：${entry.name}`, maps?.[id]?.zh === entry.name, `地圖 ${id} 目前是「${maps?.[id]?.zh ?? ""}」`);
   }
 
   // 站上不該出現任何英文地圖名
@@ -116,8 +138,11 @@ function main() {
   check("有打怪需求的任務", withMobs >= 30, `${withMobs} 個`);
   const beginnerOnly = (quests ?? []).filter(quest => quest.jobs?.length === 1 && quest.jobs[0] === 0).length;
   check("初心者專屬任務有被標記", beginnerOnly >= 40, `${beginnerOnly} 個`);
-  const advJobs = (readJson(path.join(OUT, "jobs.json")) ?? []).filter(job => job.advOrder > 2).length;
-  check("職業選單只到二轉", advJobs === 0, `${advJobs} 個三轉以上`);
+  // 開放到第幾轉看 meta.release.maxAdvancementOrder（V002 是三轉），避免下次改版又漏改這裡的硬編碼
+  const maxAdv = meta?.release?.maxAdvancementOrder ?? 2;
+  const advLabel = ["初心者", "一轉", "二轉", "三轉", "四轉"][maxAdv] ?? `第 ${maxAdv} 轉`;
+  const advJobs = (readJson(path.join(OUT, "jobs.json")) ?? []).filter(job => job.advOrder > maxAdv).length;
+  check(`職業選單只到${advLabel}`, advJobs === 0, `${advJobs} 個超過放行範圍`);
   const island = (quests ?? []).filter(quest => quest.island).length;
   check("楓之島任務有被標記", island >= 40, `${island} 個`);
   // 獎勵清單裡混著 action=remove（完成時收走的道具），曾經被當成獎勵列出來

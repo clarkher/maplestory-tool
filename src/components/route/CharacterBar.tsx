@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { npcImage } from "@/lib/data";
-import { JOB_LINES, advancementLevel, isSecondJob, jobOption } from "@/lib/jobs";
+import { JOB_TIERS, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, commitLevelText, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
+import { useBeforeV002 } from "@/lib/release";
 import type { Profile } from "@/lib/types";
 import { Sprite } from "./bits";
 
@@ -13,9 +14,15 @@ import { Sprite } from "./bits";
  * 第一次來（還沒填）直接展開選單，不另外做一個「開始」頁。
  */
 export function CharacterBar({ profile, onChange }: { profile: Profile; onChange: (next: Profile) => void }) {
-  const incomplete = profile.level <= 0;
+  const beforeOpen = useBeforeV002();
+  const incomplete = profile.level <= 0 || profile.job < 0;
   const [editing, setEditing] = useState(incomplete);
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
+  // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等、目前等級上限 Lv.120）
+  const [hint, setHint] = useState<string | null>(null);
+  // 選職業把等級拉高前的等級（劍士 18 手滑點狂戰士 → 30）；點回允許它的職業就還原
+  const raisedFrom = useRef<number | null>(null);
+  const min = minLevelFor(profile.job);
 
   useEffect(() => {
     setLevelText(profile.level ? String(profile.level) : "");
@@ -26,21 +33,65 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   }, [incomplete]);
 
   const option = jobOption(profile.job);
-  const stageText = profile.job === 0
-    ? "還沒轉職"
-    : profile.level > 0 && profile.level < advancementLevel(profile.job)
-      ? `還沒轉職（${advancementLevel(profile.job)} 等可以轉${option?.line}）`
-      : isSecondJob(profile.job) ? `${option?.line} · 二轉` : "一轉";
+  const tier = jobTier(profile.job);
+  const stageText = profile.job < 0
+    ? "還沒選職業"
+    : profile.job === 0
+      ? "還沒轉職"
+      : tier === 3
+        ? `${option?.line} · 三轉`
+        : tier === 2
+          ? profile.level >= THIRD_JOB_LEVEL ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等可以三轉了（照舊版）` : `${option?.line} · 二轉`
+          : profile.level >= SECOND_JOB_LEVEL ? `一轉 · ${SECOND_JOB_LEVEL} 等可以二轉了` : "一轉";
 
+  /** 打字當下：這個職業允許、又沒超過上限的等級才套用，其他先等，也不給提示（要打 15 先打 1 不會閃紅字） */
   function setLevel(raw: string) {
     setLevelText(raw);
-    const value = Number(raw.replace(/[^0-9]/g, ""));
-    if (Number.isFinite(value) && value > 0) onChange({ ...profile, level: Math.min(LEVEL_CAP, value) });
+    setHint(null);
+    const value = typedLevel(raw, profile.job, LEVEL_CAP);
+    if (value === null || value === profile.level) return;
+    raisedFrom.current = null;
+    onChange({ ...profile, level: value });
+  }
+
+  /** 離開輸入框或按 Enter：空白、0 改回現在的等級；超過上限改成上限並提示；比職業最低等級低給提示、等級不動 */
+  function commitLevel() {
+    const { level, hint: note } = commitLevelText(levelText, profile, LEVEL_CAP);
+    setHint(note);
+    setLevelText(level ? String(level) : "");
+    if (level === profile.level) return;
+    raisedFrom.current = null;
+    onChange({ ...profile, level });
   }
 
   function step(delta: number) {
-    const next = Math.max(1, Math.min(LEVEL_CAP, (profile.level || 0) + delta));
+    setHint(null);
+    raisedFrom.current = null;
+    const next = Math.max(min, Math.min(LEVEL_CAP, (profile.level || 0) + delta));
     onChange({ ...profile, level: next });
+  }
+
+  /**
+   * 按職業鈕時不讓等級輸入框失焦：失焦會先把輸入框改回去、提示收掉，按鈕往上跳一行、點擊落空，
+   * 打的數字也來不及拿給 pickJob 重新驗。
+   */
+  function keepTyping(event: React.MouseEvent) {
+    event.preventDefault();
+  }
+
+  /**
+   * 選的職業等級不夠時，直接把等級調到它的最低等級並說一聲。
+   * 輸入框裡被原本職業擋下的等級（狂戰士狀態下打的 25）一起重新驗：新職業允許就套用，
+   * 不允許就把輸入框改回實際等級——輸入框跟標題不會對不起來。
+   * 手滑點到二轉被拉到 30 時記住原本的等級，點回允許那個等級的職業就改回去（pickJobKeepingLevel）。
+   */
+  function pickJob(id: number) {
+    const typed = Number(levelText.replace(/[^0-9]/g, ""));
+    const { next, note, raisedFrom: memory } = pickJobKeepingLevel(profile, id, typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined, raisedFrom.current);
+    raisedFrom.current = memory;
+    setHint(note);
+    setLevelText(next.level ? String(next.level) : "");
+    onChange(next);
   }
 
   return (
@@ -56,18 +107,18 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold ink-faint">{incomplete ? "先選職業跟等級" : stageText}</span>
           <span className="block text-xl font-black leading-tight">
-            {option?.name ?? "初心者"}
+            {option?.name ?? (profile.job === 0 ? "初心者" : "選職業")}
             {profile.level > 0 ? <span className="ml-1.5 tabular-nums text-[color:var(--maple)]">Lv.{profile.level}</span> : null}
           </span>
         </span>
-        {!incomplete ? (
+        {!incomplete && !editing ? (
           <button
             type="button"
-            onClick={() => setEditing(open => !open)}
-            aria-expanded={editing}
+            onClick={() => setEditing(true)}
+            aria-expanded={false}
             className="tap-safe shrink-0 rounded-full border border-[color:var(--paper-edge)] px-4 text-sm font-bold transition-colors hover:border-[color:var(--maple)]"
           >
-            {editing ? "好了" : "改"}
+            改
           </button>
         ) : null}
       </div>
@@ -79,54 +130,66 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
               等級 <span className="text-xs font-normal ink-faint">目前開放到 {LEVEL_CAP}</span>
             </p>
             <div className="flex items-center gap-2">
-              <button type="button" onClick={() => step(-1)} className="tap-safe grid w-11 place-items-center rounded-xl border border-[color:var(--paper-edge)] text-lg font-black" aria-label="等級減一">−</button>
+              <button type="button" onClick={() => step(-1)} disabled={profile.level > 0 && profile.level <= min} className="tap-safe grid w-11 place-items-center rounded-xl border border-[color:var(--paper-edge)] text-lg font-black disabled:opacity-40" aria-label="等級減一">−</button>
               <input
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 value={levelText}
-                placeholder={`1–${LEVEL_CAP}`}
+                placeholder={`${min}–${LEVEL_CAP}`}
                 onChange={event => setLevel(event.target.value)}
+                onBlur={commitLevel}
+                onKeyDown={event => {
+                  if (event.key === "Enter") event.currentTarget.blur();
+                }}
                 className="tap-safe w-24 rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 text-center text-lg font-black tabular-nums outline-none focus:border-[color:var(--maple)]"
                 aria-label="你的等級"
               />
               <button type="button" onClick={() => step(1)} className="tap-safe grid w-11 place-items-center rounded-xl border border-[color:var(--paper-edge)] text-lg font-black" aria-label="等級加一">+</button>
             </div>
+            {hint ? <p role="status" className="mt-1.5 text-[12px] font-bold text-[color:var(--maple)]">{hint}</p> : null}
           </div>
 
           <div>
             <p className="mb-1.5 text-sm font-bold">
-              職業 <span className="text-xs font-normal ink-faint">還沒二轉就選第一個</span>
+              職業 <span className="text-xs font-normal ink-faint">法師 8 等、其他 10 等轉職；二轉 30 等起；三轉先照舊版 70 等（等開機公告確認）</span>
             </p>
-            <div className="space-y-1.5">
-              {JOB_LINES.map(line => (
-                <div key={line.base} className="flex flex-wrap gap-1.5">
-                  {[[line.base, line.line] as [number, string], ...line.branches].map(([id, name]) => {
-                    const active = profile.job === id;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => onChange({ ...profile, job: id })}
-                        aria-pressed={active}
-                        className={[
-                          "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
-                          active
-                            ? "bg-[color:var(--maple)] text-white"
-                            : id === line.base
-                              ? "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
-                              : "bg-[color:var(--paper-deep)]",
-                        ].join(" ")}
-                      >
-                        {name}
-                      </button>
-                    );
-                  })}
+            <div className="space-y-2">
+              {JOB_TIERS.map(tier => (
+                <div key={tier.label}>
+                  <p className="mb-1 text-[11px] font-bold ink-faint">
+                    {tier.label === "三轉" && beforeOpen ? `${tier.label}（10/15 開放）` : tier.label}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {tier.jobs.map(([id, name]) => {
+                      const active = profile.job === id;
+                      return (
+                        <button
+                          key={id}
+                          type="button"
+                          onMouseDown={keepTyping}
+                          onClick={() => pickJob(id)}
+                          aria-pressed={active}
+                          className={[
+                            "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
+                            active
+                              ? "bg-[color:var(--maple)] text-white"
+                              : tier.label === "一轉"
+                                ? "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
+                                : "bg-[color:var(--paper-deep)]",
+                          ].join(" ")}
+                        >
+                          {name}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
               <button
                 type="button"
-                onClick={() => onChange({ ...profile, job: 0 })}
+                onMouseDown={keepTyping}
+                onClick={() => pickJob(0)}
                 aria-pressed={profile.job === 0}
                 className={[
                   "rounded-full px-3 py-1.5 text-[13px] font-bold",
@@ -138,15 +201,14 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
             </div>
           </div>
 
-          {!incomplete ? (
-            <button
-              type="button"
-              onClick={() => setEditing(false)}
-              className="tap-safe w-full rounded-full bg-[color:var(--maple)] text-sm font-bold text-white"
-            >
-              看我的路線
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            disabled={incomplete}
+            className="tap-safe w-full rounded-full bg-[color:var(--maple)] text-sm font-bold text-white disabled:opacity-40"
+          >
+            {incomplete ? "選好職業、填好等級就能看" : "看我的路線"}
+          </button>
         </div>
       ) : null}
     </section>

@@ -114,13 +114,22 @@ test("assembleUpstream 缺了管線用得到的資料就擋下來，並說是哪
   assert.throws(() => assembleUpstream(empty), /quests-data\.js.*quests/);
 });
 
-test("assembleUpstream 少了管線沒用到的地圖檔不擋", () => {
+test("assembleUpstream 少了世界地圖檔不擋（管線沒用到）", () => {
   const parts = fixtureParts();
-  delete parts["maps-data.js"];
   delete parts["worldmaps-data.js"];
   const payload = assembleUpstream(parts);
-  assert.equal(payload.maps, undefined);
+  assert.equal(payload.worldMaps, undefined);
   assert.equal(payload.monsters.length, 1);
+});
+
+test("assembleUpstream 少了地圖檔或地圖是空的就擋：出怪的刷怪點從這份來", () => {
+  const missing = fixtureParts();
+  delete missing["maps-data.js"];
+  assert.throws(() => assembleUpstream(missing), /maps-data\.js/);
+
+  const empty = fixtureParts();
+  empty["maps-data.js"].maps = [];
+  assert.throws(() => assembleUpstream(empty), /maps-data\.js.*maps/);
 });
 
 test("readUpstream 從資料夾讀六個檔併成一份", t => {

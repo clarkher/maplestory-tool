@@ -23,7 +23,7 @@ export function PlanShell({
   return (
     <div className="space-y-5 py-3 sm:py-6">
       <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
-        <Link href="/" className="hover:text-[color:var(--maple)]">今天想幹嘛</Link>
+        <Link href="/" className="hover:text-[color:var(--maple)]">我的路線</Link>
         <ChevronRight size={13} />
         <span className="text-[color:var(--ink-soft)]">{title}</span>
       </nav>
@@ -37,7 +37,7 @@ export function PlanShell({
 
       {needsProfile ? (
         <p className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-8 text-center text-[15px] ink-soft">
-          先填等級，下面就會跳出建議。
+          先選職業、填好等級，下面就會跳出建議。
         </p>
       ) : (
         children

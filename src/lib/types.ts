@@ -17,6 +17,8 @@ export type MapRecord = {
   rate?: number;
   /** 1 = 有小地圖圖檔 */
   mm?: 1;
+  /** V002 才放行的地圖才有：開放日（YYYY-MM-DD，目前只有 "2026-10-15"），過了這天 src/lib/release.ts 判定已開放 */
+  o?: string;
 };
 
 /** [目標地圖, 傳送門名稱, x, y] */
@@ -37,11 +39,11 @@ export type Monster = {
   eva: number;
   spd: number;
   und?: 1;
-  /** 屬性抗性：鍵取首字母 f/i/l/p/h，值 i=免疫 s=抗 w=弱 */
+  /** 屬性抗性：鍵取首字母 f/i/l/p/h，值 i=免疫 r=抗 w=弱 */
   el?: Record<string, string>;
   /** Artale 宣告這隻怪出現的地圖 */
   maps: number[];
-  /** [地圖, 刷怪點數, mobTime 秒（0 = 預設）] */
+  /** [地圖, 刷怪點數, 等效回生秒數]：同一隻怪好幾個刷怪點時合成的秒數（pipeline/lib/spawns.mjs），0 = 預設 7 秒 */
   sp?: [number, number, number][];
   drops: number[];
 };
@@ -156,6 +158,7 @@ export type TrainingRow = {
   lvMax: number;
   /** 這張圖有幾個刷怪點的怪不在 Artale 圖鑑裡 */
   unk?: number;
+  /** [怪物 id, 刷怪點數, 等效回生秒數（0 = 預設 7 秒）]，刷怪點多的在前 */
   mobs: [number, number, number][];
 };
 
@@ -193,6 +196,8 @@ export type Meta = {
   parts?: Record<string, { gameVersion: string | null; generatedAt: string | null }>;
   /** 客戶端已有中文名、但地區還沒開放而沒收錄的地圖數，依地區分 */
   heldBackRegions?: Record<string, number>;
+  /** 已開放地圖的刷怪資料，各有幾張用台服客戶端、幾張退回 v83 */
+  spawnSource?: { client: number; v83: number };
   assumptions: {
     defaultRespawnSeconds: number;
     expNote: string;
@@ -208,7 +213,7 @@ export type PlanMode = "quest" | "train" | "farm";
 
 export type Profile = {
   level: number;
-  /** 職業代碼；0 代表初心者／未選 */
+  /** 職業代碼；0 代表初心者，-1 代表還沒選 */
   job: number;
 };
 
@@ -239,6 +244,8 @@ export type GuideTrain = {
   why: string;
   v: Verified;
   s: string[];
+  /** 這個組隊段落對應的組隊任務（pq.json 的 key）；不是組隊任務就沒有 */
+  pq?: string;
 };
 
 export type GuideJob = {
@@ -253,6 +260,18 @@ export type GuideJob = {
   notOpenYet: Array<{ from: number; to: number; place: string; s: string[] }>;
 };
 
+/**
+ * 關鍵獎勵：畫面上的標籤，與用來放圖的遊戲道具 id（抽獎型的 label 寫「隨機」）。
+ * permanent：任何等級都有用（冒險家的戒指的永久戒指），這條任務不會因為等級過了建議範圍就不推。
+ */
+export type GuideReward = { label: string; items: number[]; permanent?: boolean };
+
+/**
+ * 組隊任務：入口地圖、圖解連結、各職業打它的等級範圍（從攻略的組隊段落整理，build 時已裁進遊戲任務的等級限制）。
+ * quest 是對應的遊戲任務 id（月妙的年糕 1200、第一次同行 1201）。
+ */
+export type GuidePq = { key: string; name: string; quest?: string; entrance: number; guide: string; byJob: Record<string, [number, number]> };
+
 export type GuideMustDo = {
   q: string;
   /** 同一條任務線的其他任務 id，一起標成推薦 */
@@ -262,6 +281,7 @@ export type GuideMustDo = {
   why: string;
   v: Verified;
   s: string[];
+  reward?: GuideReward;
 };
 
 export type GuideCommon = {
@@ -276,4 +296,7 @@ export type GuideCommon = {
   };
   mustDo: GuideMustDo[];
   notWorth: Array<{ q: string; related: string[]; name: string; why: string; s: string[] }>;
+  pq?: GuidePq[];
+  /** 主流點法點完還有剩點時，攻略怎麼說 */
+  spLeftover?: { t: string; s: string[] };
 };

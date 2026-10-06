@@ -82,7 +82,7 @@ export function DbBrowser({
   return (
     <div className="space-y-4 py-3 sm:py-6">
       <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
-        <Link href="/" className="hover:text-[color:var(--maple)]">今天想幹嘛</Link>
+        <Link href="/" className="hover:text-[color:var(--maple)]">我的路線</Link>
         <ChevronRight size={13} />
         <span className="text-[color:var(--ink-soft)]">{title}</span>
       </nav>

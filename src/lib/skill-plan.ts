@@ -1,27 +1,20 @@
-import { advancementLevel, isSecondJob, SECOND_JOB_LEVEL } from "./jobs";
+import { stageJob, tierStartLevel } from "./jobs";
 import type { GuideBuild, GuideSkillStep } from "./types";
 
 /**
- * 某職業在某等級「這一轉」總共拿到幾點技能點。
- * 一轉：轉職當下 1 點，之後每級 3 點；二轉：30 等 1 點，之後每級 3 點。
- * 開服後玩家整理的點法總數對得上（例如一轉 61 點、法師 67 點、二轉到 70 等 121 點）。
+ * 某職業在某等級「這一轉」總共拿到幾點技能點：轉職當下 1 點、之後每級 3 點。
+ * 三轉職業未滿 70 等算二轉的點數、二轉職業未滿 30 等算一轉的（畫面上的技能條要用）。
  */
 export function availableSp(job: number, level: number): number {
-  if (job <= 0) return 0;
-  if (isSecondJob(job) && level >= SECOND_JOB_LEVEL) return 1 + 3 * (level - SECOND_JOB_LEVEL);
-  const start = advancementLevel(job);
-  if (level < start) return 0;
-  return 1 + 3 * (level - start);
+  const stage = stageJob(job, level);
+  if (stage <= 0) return 0;
+  return 1 + 3 * (level - tierStartLevel(stage));
 }
 
-/**
- * 只算「這一轉」自己的點數：轉職前是 0。
- * 跟 availableSp 的差別在二轉職業未滿 30 等時：availableSp 回一轉點數（畫面上的技能條要用），
- * 這裡回 0（切等級段時要用，否則二轉第一段會從一轉的 58 點開始算）。
- */
+/** 只算「這一轉」自己的點數：轉職前是 0（切等級段時用，三轉第一段不會從二轉的點數開始算） */
 export function spAtLevel(stage: number, level: number): number {
   if (stage <= 0) return 0;
-  const start = isSecondJob(stage) ? SECOND_JOB_LEVEL : advancementLevel(stage);
+  const start = tierStartLevel(stage);
   return level < start ? 0 : 1 + 3 * (level - start);
 }
 
@@ -49,9 +42,13 @@ export type BuildProgress = {
 /**
  * 依「已經拿到幾點」推算點法走到哪一步。
  * 同一個技能在點法裡可能出現兩次（先點 3 級、之後補滿），所以每一步只算差額。
+ * 「現在」是你最新那一點落在的那一步（第 sp 點；還沒有點數時看第 1 點）：剛好點完一步時，
+ * 最新的點數就是用來點完它的，它還是現在。以前把它算成點完、改指下一步，
+ * 海盜 Lv.10 只有 1 點卻叫你點衝擊拳（那 1 點其實要給雙子星攻擊）。
  */
 export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
   const level = new Map<string, number>();
+  const target = Math.max(sp, 1);
   let spent = 0;
   let nowIndex = -1;
   let reached = 0;
@@ -63,9 +60,9 @@ export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
     level.set(key, Math.max(from, step.to));
     const start = spent;
     spent += cost;
-    if (nowIndex < 0 && spent > sp) {
+    if (nowIndex < 0 && cost > 0 && start < target && target <= spent) {
       nowIndex = index;
-      reached = from + (sp - start);
+      reached = from + Math.max(0, sp - start);
     }
     return { ...step, from, cost, start, end: spent };
   });
@@ -85,6 +82,16 @@ export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
     current: nowIndex < 0 ? undefined : { ...planned[nowIndex], reached },
     finished: nowIndex < 0,
   };
+}
+
+/** 研究檔裡沒有指定技能的步驟（楓錄原文「自由配點 1」，研究檔寫「自由配點（未指定）」） */
+export function isFreeStep(step: Pick<GuideSkillStep, "id" | "name">): boolean {
+  return step.id === null && /自由配點|未指定/.test(step.name);
+}
+
+/** 點法一步的寫法：「衝擊拳 20」；沒有指定技能的寫「自由分配 1 點」，不露研究檔的「（未指定）」 */
+export function stepText(step: Pick<PlannedStep, "id" | "name" | "to" | "cost">): string {
+  return isFreeStep(step) ? `自由分配 ${step.cost} 點` : `${step.name} ${step.to}`;
 }
 
 /**

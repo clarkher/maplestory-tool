@@ -78,7 +78,7 @@ export function FarmPlanner() {
       lead="不用自己想要刷什麼——下面直接列你這等級該收的東西，勾起來就排地圖。"
       profile={profile}
       onProfileChange={setProfile}
-      needsProfile={loaded && profile.level <= 0}
+      needsProfile={loaded && (profile.level <= 0 || profile.job < 0)}
     >
       {error ? (
         <EmptyBlock title="資料載入失敗" hint={error} />

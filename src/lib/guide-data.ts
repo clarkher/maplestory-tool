@@ -27,8 +27,8 @@ export type GuideStep = {
   mobs?: Array<{ id: number; name: string; lv: number }>;
   /** 台服實測 or 舊版經驗 */
   verified: "tw" | "legacy";
-  /** 有圖解的組隊任務 */
-  pq?: "moon" | "kpq";
+  /** 有圖解的組隊任務（跟 pq.json 的 key 一樣；段落 id 是 pq-key，首頁的「看打法」直接跳到這裡） */
+  pq?: "moon" | "kerning";
 };
 
 export type JobGuide = {
@@ -102,7 +102,7 @@ export const COMMON_ROUTE: GuideStep[] = [
     mapId: 103000000,
     mapName: "墮落城市",
     verified: "tw",
-    pq: "kpq",
+    pq: "kerning",
   },
   {
     range: "21–30（單練備案）",
@@ -127,7 +127,7 @@ export const JOB_GUIDES: JobGuide[] = [
       level: "Lv.10",
       stat: "力量 35",
       npc: "武術教練",
-      place: "勇士之村・勇者聖殿",
+      place: "勇士之村・勇士聖殿",
       mapId: 102000000,
     },
     build: "敏捷點到「等於等級」能穿裝就好，其餘全力量。",
@@ -141,7 +141,7 @@ export const JOB_GUIDES: JobGuide[] = [
       level: "Lv.8",
       stat: "智力 20",
       npc: "漢斯",
-      place: "魔法森林・魔法圖書館",
+      place: "魔法森林・魔法森林圖書館",
       mapId: 101000000,
     },
     build: "全智力。",
@@ -155,7 +155,7 @@ export const JOB_GUIDES: JobGuide[] = [
       level: "Lv.10",
       stat: "敏捷 25",
       npc: "赫麗娜",
-      place: "弓箭手村・弓箭手培育中心",
+      place: "弓箭手村・弓箭手培訓中心",
       mapId: 100000000,
     },
     build: "獵人：力量＝等級＋5，其餘全敏捷。弩手：力量＝等級。",
@@ -169,7 +169,7 @@ export const JOB_GUIDES: JobGuide[] = [
       level: "Lv.10",
       stat: "敏捷 25",
       npc: "達克魯",
-      place: "墮落城市・盜賊基地的酒吧",
+      place: "墮落城市・墮落城市酒吧",
       mapId: 103000000,
     },
     build: "主幸運，敏捷點到裝備需求即止（常見比例約敏 2：幸 3）。",

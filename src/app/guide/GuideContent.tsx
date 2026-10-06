@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckIcon, ChevronDown, ChevronRight } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
 import { monsterImage } from "@/lib/data";
@@ -20,7 +20,7 @@ export function GuideContent() {
   return (
     <div className="space-y-6 py-3 sm:py-6">
       <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
-        <Link href="/" className="hover:text-[color:var(--maple)]">今天想幹嘛</Link>
+        <Link href="/" className="hover:text-[color:var(--maple)]">我的路線</Link>
         <ChevronRight size={13} />
         <span className="text-[color:var(--ink-soft)]">1–30 懶人包</span>
       </nav>
@@ -213,9 +213,14 @@ function StepCard({
   const [open, setOpen] = useState(index === 0);
   // 法師 8 等轉職，出島那步對法師顯示不同重點；其他步驟共通
   void jobKey;
+  // 組隊任務的段落有固定的 id（#pq-moon、#pq-kerning），首頁的「看打法」跳過來時直接展開
+  const anchor = step.pq ? `pq-${step.pq}` : undefined;
+  useEffect(() => {
+    if (anchor && window.location.hash === `#${anchor}`) setOpen(true);
+  }, [anchor]);
 
   return (
-    <li className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
+    <li id={anchor} className="scroll-mt-20 overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
@@ -261,7 +266,7 @@ function StepCard({
       {open ? (
         <div className="space-y-3 border-t border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]/50 p-3.5">
           {step.pq === "moon" ? <MoonBunnyGuide /> : null}
-          {step.pq === "kpq" ? <KpqGuide /> : null}
+          {step.pq === "kerning" ? <KpqGuide /> : null}
           {step.detail ? (
             <p className="text-sm leading-relaxed">{step.detail}</p>
           ) : null}

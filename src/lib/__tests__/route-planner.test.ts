@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { LEVEL_CAP } from "@/lib/profile";
 import {
-  bandLabel, bandOf, bandsFor, dropIndex, groupQuests, isIslandMap, levelFraction, longRunQuests, mergeTrips, mustDoForBand,
-  onIsland,
-  prepMaterials, questDoableAt, questReachable, withoutLongRun,
+  bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, onIsland, prepMaterials,
+  questReachable, segmentsToShow, trainingForBand,
 } from "@/lib/route-planner";
 import { stepsBetween } from "@/lib/skill-plan";
 import type { GuideBuild, GuideTrain, Monster, Quest } from "@/lib/types";
@@ -18,45 +18,51 @@ describe("等級段", () => {
     expect(bandsFor(110)[1]).toEqual({ from: 10, to: 21 });
   });
 
-  it("共 8 段，最後一段到 100", () => {
+  it("共 11 段：70 以後每 10 級一段，最後一段 100–120（等級上限）", () => {
     const bands = bandsFor(110);
-    expect(bands).toHaveLength(8);
-    expect(bands.at(-1)).toEqual({ from: 70, to: 100 });
+    expect(bands).toHaveLength(11);
+    expect(bands.slice(7)).toEqual([{ from: 70, to: 80 }, { from: 80, to: 90 }, { from: 90, to: 100 }, { from: 100, to: 120 }]);
+    expect(bands.at(-1)?.to).toBe(LEVEL_CAP);
   });
 
   it("找出等級所在的段", () => {
     const bands = bandsFor(110);
     expect(bandOf(bands, 35)).toEqual({ from: 30, to: 40 });
     expect(bandOf(bands, 30)).toEqual({ from: 30, to: 40 });
-    expect(bandOf(bands, 100)).toEqual({ from: 70, to: 100 });
+    expect(bandOf(bands, 100)).toEqual({ from: 100, to: 120 });
+    expect(bandOf(bands, 120)).toEqual({ from: 100, to: 120 });
     expect(bandOf(bands, 1)).toEqual({ from: 1, to: 10 });
   });
 
-  it("段落名稱取重疊最多的玩家推薦地圖，去掉括號註記", () => {
+  it("跟這段重疊不到 3 級的攻略段落不算", () => {
     const train = [
-      { from: 30, to: 35, name: "黑肥肥領土（會掉高原之劍）", v: "tw" },
-      { from: 30, to: 40, name: "沼澤地Ⅰ～Ⅲ（鱷魚）", v: "tw" },
+      { from: 30, to: 42, name: "火焰之地Ⅱ", v: "community" },
+      { from: 40, to: 52, name: "猴子沼澤地Ⅲ", v: "tw" },
     ] as GuideTrain[];
-    expect(bandLabel({ from: 30, to: 40 }, train)).toBe("沼澤地Ⅰ～Ⅲ");
-    expect(bandLabel({ from: 50, to: 60 }, train)).toBeUndefined();
+    expect(trainingForBand({ from: 40, to: 50 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ", "火焰之地Ⅱ"]);
+    expect(trainingForBand({ from: 41, to: 50 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ"]);
+    expect(trainingForBand({ from: 45, to: 46 }, train).map(segment => segment.name)).toEqual(["猴子沼澤地Ⅲ"]);
   });
 });
 
-describe("一趟能完成的任務", () => {
-  const drops = dropIndex([monster(1, [900]), monster(2, [901])]);
+describe("段落詳情列哪幾段攻略", () => {
+  const seg = (name: string, from = 30): GuideTrain => ({ from, to: 40, kind: "solo", map: 1, name, mobs: [], why: "", v: "tw", s: [] });
 
-  it("要打的怪在圖上、要交的道具由圖上的怪掉，才算在這裡完成", () => {
-    const q = quest("a", { needMobs: [{ id: 1, n: "怪1", c: 99 }], needItems: [{ id: 900, n: "尾巴", c: 50 }] });
-    expect(questDoableAt(q, new Set([1]), drops)).toBe(true);
+  it("先看職業規則再挑：湊滿 3 段能用的才停，途中被擋的照列（不會把能用的第 4 段擠掉）", () => {
+    const [b1, u1, b2, u2, u3, u4] = ["擋1", "可1", "擋2", "可2", "可3", "可4"].map(name => seg(name));
+    const blocked = (segment: GuideTrain) => segment.name.startsWith("擋");
+    expect(segmentsToShow([b1, u1, b2, u2, u3, u4], blocked).map(segment => segment.name)).toEqual(["擋1", "可1", "擋2", "可2", "可3"]);
   });
 
-  it("有一樣不在這張圖就不算", () => {
-    const q = quest("b", { needItems: [{ id: 900, n: "尾巴", c: 50 }, { id: 901, n: "角", c: 10 }] });
-    expect(questDoableAt(q, new Set([1]), drops)).toBe(false);
+  it("一段能用的都沒有時列前 3 段被擋的（下面另外放遊戲資料替代）", () => {
+    const all = ["擋1", "擋2", "擋3", "擋4"].map(name => seg(name));
+    expect(segmentsToShow(all, () => true).map(segment => segment.name)).toEqual(["擋1", "擋2", "擋3"]);
   });
 
-  it("沒有任何收集或打怪需求的任務不算", () => {
-    expect(questDoableAt(quest("c", { exp: 100 }), new Set([1]), drops)).toBe(false);
+  it("職業規則的等級：你在的這段用現在等級，其他段用段落起點與攻略起點較高的", () => {
+    expect(fitLevel({ from: 30, to: 40 }, seg("x", 31), 35)).toBe(35);
+    expect(fitLevel({ from: 30, to: 40 }, seg("x", 31))).toBe(31);
+    expect(fitLevel({ from: 30, to: 40 }, seg("x", 25))).toBe(30);
   });
 });
 
@@ -76,23 +82,6 @@ describe("經驗換算成幾級", () => {
   it("滿等之後不換算", () => {
     const toNext = Array.from({ length: 100 }, () => 1000);
     expect(levelFraction(5000, 100, toNext)).toBe(0);
-  });
-});
-
-describe("合併同一張圖的推薦", () => {
-  it("同一張圖兼具多個理由時合成一趟，最多三趟", () => {
-    const trips = mergeTrips([
-      { map: 1, tag: "fast" },
-      { map: 1, tag: "quests" },
-      { map: 2, tag: "players" },
-      { map: 3, tag: "fast" },
-      { map: 4, tag: "quests" },
-    ]);
-    expect(trips).toEqual([
-      { map: 1, tags: ["fast", "quests"] },
-      { map: 2, tags: ["players"] },
-      { map: 3, tags: ["fast"] },
-    ]);
   });
 });
 
@@ -165,6 +154,21 @@ describe("任務線合併", () => {
     ]);
     expect(groups.map(group => [group.title, group.quests.length, group.exp])).toEqual([["收集400個詛咒娃娃", 3, 31000]]);
   });
+
+  it("同一個 NPC 給的同名任務（托德的打獵方法有兩個編號、沒有前置相連）算同一條線", () => {
+    const todd = { id: 2101, n: "托德", map: 30000 };
+    const groups = groupQuests([
+      quest("1018", { n: "托德的打獵方法", exp: 10, sNpc: todd }),
+      quest("1035", { n: "托德的打獵方法", exp: 30, sNpc: todd }),
+      quest("6700", { n: "弓箭手之路", sNpc: { id: 1012100, n: "赫麗娜" } }),
+      quest("2078", { n: "弓箭手之路", sNpc: { id: 1, n: "坤" } }),
+    ]);
+    expect(groups.map(group => [group.title, group.quests.map(item => item.id)])).toEqual([
+      ["托德的打獵方法", ["1018", "1035"]],
+      ["弓箭手之路", ["6700"]],
+      ["弓箭手之路", ["2078"]],
+    ]);
+  });
 });
 
 describe("接不接得到", () => {
@@ -185,43 +189,5 @@ describe("接不接得到", () => {
     expect(onIsland(200, 8)).toBe(false);
     expect(isIslandMap(40000)).toBe(true);
     expect(isIslandMap(100000000)).toBe(false);
-  });
-});
-
-describe("必解任務的職業判斷", () => {
-  const common = {
-    researchedAt: "",
-    builtAt: "",
-    expTable: { toNext: Array.from({ length: 100 }, () => 1000), conflicts: [], v: "tw" as const, s: [] },
-    mustDo: [],
-    notWorth: [],
-  };
-  const maps = { 1: { zh: "魔法森林" } };
-  const npc = { id: 1, n: "漢斯", map: 1 };
-
-  it("法師 8 等轉職後的那一段用法師的任務，不是初心者的", () => {
-    const quests = [
-      quest("mage", { minLv: 10, exp: 500, jobs: [200], sNpc: npc }),
-      quest("novice", { minLv: 9, exp: 500, jobs: [0], sNpc: npc }),
-    ];
-    const titles = mustDoForBand({ from: 8, to: 21 }, 230, quests, common, maps).map(group => group.title);
-    expect(titles).toEqual(["任務mage"]);
-  });
-
-  it("楓之島那一段用初心者的任務", () => {
-    const quests = [quest("novice", { minLv: 2, exp: 500, jobs: [0], island: 1, sNpc: npc })];
-    expect(mustDoForBand({ from: 1, to: 8 }, 230, quests, common, maps).map(group => group.title)).toEqual(["任務novice"]);
-  });
-});
-
-describe("一趟不算長線收集", () => {
-  it("同一道具總共要收 200 個以上的任務群不算「順便完成」", () => {
-    const monsters = [monster(1, [900, 901])];
-    const quests = [
-      quest("doll1", { exp: 6000, needItems: [{ id: 900, n: "娃娃", c: 100 }] }),
-      quest("doll2", { exp: 10000, needItems: [{ id: 900, n: "娃娃", c: 200 }] }),
-      quest("tail", { exp: 9000, needItems: [{ id: 901, n: "尾巴", c: 50 }] }),
-    ];
-    expect(withoutLongRun(quests, monsters).map(q => q.id)).toEqual(["tail"]);
   });
 });
