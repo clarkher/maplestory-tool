@@ -1,0 +1,707 @@
+{
+  "researchedAt": "2026-10-06",
+  "statRules": [
+    {
+      "jobs": [100, 110, 120, 130],
+      "label": "敏捷＝等級×2，到 60 就停，其餘全力",
+      "main": "STR",
+      "secondary": { "stat": "DEX", "type": "double-level", "cap": 60 },
+      "text": "一轉時敏捷點到等級的兩倍，30 等點到 60 就停，之後全點力量。劍士要靠敏捷才打得中怪，60 以後缺的命中用裝備或命中卷補。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+      ],
+      "verified": "tw",
+      "mainstream": true
+    },
+    {
+      "jobs": [100, 110, 120, 130],
+      "label": "敏捷＝等級，其餘全力",
+      "main": "STR",
+      "secondary": { "stat": "DEX", "type": "level", "offset": 0 },
+      "text": "另一派：敏捷跟等級一樣，其餘全點力量，穿得上同等級裝備就好；打不中怪再補敏捷。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+      ],
+      "verified": "community",
+      "mainstream": false
+    },
+    {
+      "jobs": [100, 110, 120, 130],
+      "label": "敏捷＝等級＋20，其餘全力",
+      "main": "STR",
+      "secondary": { "stat": "DEX", "type": "level", "offset": 20 },
+      "text": "另一派：敏捷多留一些，抓等級＋20，其餘全點力量。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+      ],
+      "verified": "community",
+      "mainstream": false
+    },
+    {
+      "jobs": [131],
+      "label": "三轉：空身敏捷停在 70，其餘全力",
+      "main": "STR",
+      "secondary": { "stat": "DEX", "type": "fixed", "value": 70 },
+      "text": "舊版槍騎攻略：120 等以前，不算裝備的敏捷壓在 70 左右、最多 80，其餘全點力量。",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2395727"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    },
+    {
+      "jobs": [200, 210, 220, 230],
+      "label": "全點智力",
+      "main": "INT",
+      "secondary": null,
+      "text": "能力點全部點智力。前期武器用不吃幸運的轉職短杖、黃色雨傘就好，不用花錢湊幸運裝備。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+        "https://home.gamer.com.tw/artwork.php?sn=6374051",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+      ],
+      "verified": "tw",
+      "mainstream": true
+    },
+    {
+      "jobs": [200, 210, 220, 230],
+      "label": "裝備法：幸運＝等級＋3，其餘智力",
+      "main": "INT",
+      "secondary": { "stat": "LUK", "type": "level", "offset": 3 },
+      "text": "幸運點到等級＋3，就穿得上同等級的法師武器和防具，其餘點智力。魔攻跟全智差不多，但被打比較不痛，要花錢買裝備；前期先全智、之後再轉也可以。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288",
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html"
+      ],
+      "verified": "tw",
+      "mainstream": false
+    },
+    {
+      "jobs": [211, 221, 231],
+      "label": "三轉：全點智力",
+      "main": "INT",
+      "secondary": null,
+      "text": "舊版法師攻略一路算到 120 等：全智就是智力以外都留 4，三轉繼續全點智力。",
+      "sources": [
+        "https://www.ptt.cc/bbs/MapleStory/M.1222068617.A.945.html",
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2972860",
+        "https://www.ptt.cc/bbs/MapleStory/M.1221552430.A.5C9.html"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    },
+    {
+      "jobs": [211, 221, 231],
+      "label": "三轉裝備法：幸運＝等級＋3",
+      "main": "INT",
+      "secondary": { "stat": "LUK", "type": "level", "offset": 3 },
+      "text": "舊版算法：裝備法三轉一樣把幸運維持在等級＋3，到四轉才不再點幸運。",
+      "sources": [
+        "https://www.ptt.cc/bbs/MapleStory/M.1222068617.A.945.html"
+      ],
+      "verified": "legacy",
+      "mainstream": false
+    },
+    {
+      "jobs": [300, 310],
+      "label": "弓：力量＝等級＋5，其餘全敏",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "level", "offset": 5 },
+      "weapons": ["弓"],
+      "text": "力量點到等級＋5，剛好拿得動同等級的弓，其餘全點敏捷，智力、幸運留 4。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=103"
+      ],
+      "verified": "community",
+      "mainstream": true
+    },
+    {
+      "jobs": [320],
+      "label": "弩：力量＝等級，其餘全敏",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "level", "offset": 0 },
+      "text": "力量跟等級一樣就拿得動同等級的弩，比弓少花力量、多點敏捷；其餘全點敏捷。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1434",
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12533&sn=234"
+      ],
+      "verified": "tw",
+      "mainstream": true
+    },
+    {
+      "jobs": [300],
+      "label": "一轉先拿弩：力量＝等級",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "level", "offset": 0 },
+      "weapons": ["弩"],
+      "text": "一轉 12、18 等可以先拿弩（力量需求低），25 等再換弓；拿弩這段力量跟等級一樣就好。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=745",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1434"
+      ],
+      "verified": "community",
+      "mainstream": false
+    },
+    {
+      "jobs": [300, 310, 320],
+      "label": "每級 4 敏 1 力",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "ratio", "ratio": [4, 1] },
+      "text": "每升一級點 4 敏捷、1 力量（照這個比例，力量大約是等級＋4）；換武器前確認力量夠不夠。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=745"
+      ],
+      "verified": "community",
+      "mainstream": false
+    },
+    {
+      "jobs": [311],
+      "label": "三轉弓：力量＝等級＋5，其餘全敏",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "level", "offset": 5 },
+      "text": "舊版弓箭手攻略：三轉後一樣力量維持等級＋5、其餘全敏；80、90 等的弓要力量 85、95（含裝備）。",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2314226"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    },
+    {
+      "jobs": [321],
+      "label": "三轉弩：力量＝等級，其餘全敏",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "level", "offset": 0 },
+      "text": "舊版弓箭手攻略：三轉後一樣力量跟等級相同、其餘全敏；80、90 等的弩要力量 80、90（含裝備）。",
+      "sources": [
+        "https://forum.gamer.com.tw/Co.php?bsn=7650&sn=2314226"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    },
+    {
+      "jobs": [400, 410],
+      "label": "幸運為主，敏捷只點到拳套需求",
+      "main": "LUK",
+      "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "weapons": ["拳套"],
+      "text": "敏捷只點到手上拳套要的量（25 等狼牙要 50、40 等拳套要 80），其餘全點幸運；換拳套前再補敏捷。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=932",
+        "https://home.gamer.com.tw/artwork.php?sn=6375411",
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=146"
+      ],
+      "verified": "tw",
+      "mainstream": true
+    },
+    {
+      "jobs": [420],
+      "label": "幸運為主，敏捷只點到短刀需求",
+      "main": "LUK",
+      "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "text": "敏捷只點到手上短刀要的量，其餘全點幸運；換刀前先確認敏捷夠不夠。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=115"
+      ],
+      "verified": "community",
+      "mainstream": true
+    },
+    {
+      "jobs": [400, 410],
+      "label": "全幸：敏捷停在 25，其餘全幸",
+      "main": "LUK",
+      "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
+      "weapons": ["拳套"],
+      "text": "敏捷停在 25，其餘全點幸運，武器要的敏捷靠斗笠、桑那服、披風衝敏捷補；前期傷害較高，但要先湊齊敏捷裝。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2076",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=146"
+      ],
+      "verified": "tw",
+      "mainstream": false
+    },
+    {
+      "jobs": [411],
+      "label": "三轉：敏捷只點到拳套需求，其餘全幸",
+      "main": "LUK",
+      "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "text": "舊版攻略：三轉一樣敏捷只點到拳套要的量（40 等以上的拳套要等級＋40），其餘全點幸運。",
+      "sources": [
+        "https://www.ptt.cc/bbs/MapleStory/M.1213528198.A.8DF.html"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    },
+    {
+      "jobs": [421],
+      "label": "三轉：敏捷只點到短刀需求，其餘全幸",
+      "main": "LUK",
+      "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "text": "舊版刀賊攻略：三轉一樣敏捷跟著裝備需求走（70 等要 110、80 等要 120），其餘全點幸運。",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&sn=1476"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    },
+    {
+      "jobs": [411, 421],
+      "label": "三轉全幸：敏捷停在 25",
+      "main": "LUK",
+      "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
+      "text": "舊版攻略：全幸型三轉一樣敏捷停在 25，其餘全點幸運，武器要的敏捷靠裝備補。",
+      "sources": [
+        "https://www.ptt.cc/bbs/MapleStory/M.1213528198.A.8DF.html",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&sn=1476"
+      ],
+      "verified": "legacy",
+      "mainstream": false
+    },
+    {
+      "jobs": [500, 510],
+      "label": "力量為主，敏捷只點到指虎需求",
+      "main": "STR",
+      "secondary": { "stat": "DEX", "type": "equip", "floor": 35 },
+      "weapons": ["指虎"],
+      "text": "敏捷只點到指虎要的量（指虎要的敏捷跟武器等級一樣），其餘全點力量；轉職後敏捷先留 35，打怪常打不中再補。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1413"
+      ],
+      "verified": "tw",
+      "mainstream": true
+    },
+    {
+      "jobs": [510],
+      "label": "舊版：敏捷＝等級＋5，其餘全力",
+      "main": "STR",
+      "secondary": { "stat": "DEX", "type": "level", "offset": 5 },
+      "text": "舊版打手攻略：敏捷維持等級＋5，其餘全點力量；沒有命中裝的新手特別需要。",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486"
+      ],
+      "verified": "legacy",
+      "mainstream": false
+    },
+    {
+      "jobs": [520],
+      "label": "每級 4 敏 1 力",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "ratio", "ratio": [4, 1] },
+      "text": "每升一級點 4 敏捷、1 力量（照這個比例，力量大約是等級＋4，剛好拿得動同等級的槍）；槍手本身不缺命中。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774",
+        "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+        "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+      ],
+      "verified": "tw",
+      "mainstream": true
+    },
+    {
+      "jobs": [500, 520],
+      "label": "力量＝等級，其餘全敏",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "level", "offset": 0 },
+      "weapons": ["火槍"],
+      "text": "力量只點到跟等級一樣（拿槍的門檻），其餘全點敏捷。",
+      "sources": [
+        "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462"
+      ],
+      "verified": "community",
+      "mainstream": false
+    },
+    {
+      "jobs": [521],
+      "label": "三轉：力量＝等級，其餘全敏",
+      "main": "DEX",
+      "secondary": { "stat": "STR", "type": "level", "offset": 0 },
+      "text": "舊版 1～120 等槍手攻略：力量點到跟自己等級一樣（配合裝備），其餘全點敏捷。",
+      "sources": [
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    },
+    {
+      "jobs": [511],
+      "label": "三轉：敏捷只點到指虎需求，其餘全力",
+      "main": "STR",
+      "secondary": { "stat": "DEX", "type": "equip" },
+      "text": "舊版打手攻略：指虎要的敏捷跟武器等級一樣（100 等指虎要 100），敏捷點到穿得上就好，其餘全點力量。",
+      "sources": [
+        "https://www.ptt.cc/bbs/MapleStory/M.1219821936.A.2BD.html"
+      ],
+      "verified": "legacy",
+      "mainstream": true
+    }
+  ],
+  "beforeAdvancement": {
+    "text": "轉職前的能力點由系統自動分配，沒辦法自己點；一轉時能力值會重新分配，從一轉開始再照職業點法自己點就好，轉職前不用煩惱。",
+    "sources": [
+      "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=304",
+      "https://home.gamer.com.tw/artwork.php?sn=6375411",
+      "https://home.gamer.com.tw/artwork.php?sn=6374051",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+      "https://forum.gamer.com.tw/C.php?bsn=85994&snA=107"
+    ],
+    "verified": "tw"
+  },
+  "gearNotes": [
+    {
+      "jobs": [100],
+      "topic": "weapon",
+      "text": "一轉 25 等可以買白銀之錘來打怪，攻速很快；二轉再換武器。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=777"],
+      "verified": "tw",
+      "items": [1322004]
+    },
+    {
+      "jobs": [110, 120],
+      "topic": "weapon",
+      "text": "二轉可以先在拍賣買一把鋁球棍過渡；35 等換高原之劍（攻速快，黑肥肥領土會掉），好的高原能一路用到 70、80 等。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+      ],
+      "verified": "tw",
+      "items": [1402010, 1402006]
+    },
+    {
+      "jobs": [110],
+      "topic": "weapon",
+      "text": "狂戰前期的主力是高原之劍；紅色鞭子和 45 等單手劍也可以考慮，不過板上多數人還是拿雙手武器。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=993",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+      ],
+      "verified": "tw",
+      "items": [1402006, 1302013]
+    },
+    {
+      "jobs": [110],
+      "topic": "scroll",
+      "text": "斧頭攻擊卷軸比劍的便宜很多，做一把好武器的成本能差到數十倍；想省錢可以劍、斧熟練都點（雙修）。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1615"],
+      "verified": "community"
+    },
+    {
+      "jobs": [120],
+      "topic": "weapon",
+      "text": "見習騎士前期走劍：高原之劍攻速快，同等級的棍比不上；60 等後可以換單手劍配盾，造價只要雙手劍的一兩成，還省紅水。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1051"
+      ],
+      "verified": "tw",
+      "items": [1402006]
+    },
+    {
+      "jobs": [130],
+      "topic": "weapon",
+      "text": "槍騎兵一轉先弄一把海神叉，40 等前後換雙天戟過渡，50 等拿九龍刀或丈八蛇矛（數值一樣）；70 等的銀龍槍攻速慢，先別換。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+      ],
+      "verified": "tw",
+      "items": [1432008, 1432005, 1442005, 1432004, 1432007]
+    },
+    {
+      "jobs": [130],
+      "topic": "scroll",
+      "text": "雙天戟可以先拚一張槍攻擊卷軸10%，成功後剩下的格子衝槍攻擊卷軸60%。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"],
+      "verified": "tw",
+      "items": [1432005, 2044302, 2044301]
+    },
+    {
+      "jobs": [100, 110, 120, 130],
+      "topic": "scroll",
+      "text": "防具換得很快，前期防具卷可以不衝；真的想衝，點一張 10% 就好。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"],
+      "verified": "tw"
+    },
+    {
+      "jobs": [100],
+      "topic": "armor",
+      "text": "25 等女角買天藍騎士甲、天藍騎士裙（加移動速度），男角買一般 25 等上下衣；鞋子穿 26 等紅皮鞋；盾牌解「修理酋長的家」任務拿。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=777",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306"
+      ],
+      "verified": "tw",
+      "items": [1041023, 1061019, 1072012]
+    },
+    {
+      "jobs": [100, 110, 120, 130],
+      "topic": "stat",
+      "text": "劍士要靠敏捷或命中卷才打得中怪，例如 33 等打冰獨眼獸，命中要 59 才能全中；換練功地點前先算一下要多少命中。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1905",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1306",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1413"
+      ],
+      "verified": "tw"
+    },
+    {
+      "jobs": [200, 210, 220, 230],
+      "topic": "weapon",
+      "text": "轉職送的新手法師之杖先衝短杖魔力卷軸100% 來用；40 等換黃色雨傘（不吃幸運、魔力約 50），之後可以一路用到黑色雨傘。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
+        "https://home.gamer.com.tw/artwork.php?sn=6374051",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+      ],
+      "verified": "tw",
+      "items": [1372043, 2043700, 1302016, 1302026]
+    },
+    {
+      "jobs": [200, 210, 220, 230],
+      "topic": "weapon",
+      "text": "法師技能不吃武器攻速（攻速只影響普通攻擊），挑魔力高的武器就好。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1266"],
+      "verified": "community"
+    },
+    {
+      "jobs": [200, 210, 220, 230],
+      "topic": "scroll",
+      "text": "衝卷先用 100% 卷就好：武器衝短杖魔力卷軸100%，耳環衝耳環智力卷軸100%。",
+      "sources": [
+        "https://home.gamer.com.tw/artwork.php?sn=6374051",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+      ],
+      "verified": "tw",
+      "items": [2043700, 2040300]
+    },
+    {
+      "jobs": [220],
+      "topic": "armor",
+      "text": "前期先撐防禦再求智力：帽子戴年糕頭（頭頂上的一個年糕）、手套工地手套、衣服桑那服、盾牌鍋蓋、鞋子 30 等超綠鞋（黏稠稠鞋子），55 等再換披風；有錢再衝防禦卷。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1922"],
+      "verified": "tw",
+      "items": [1002798, 1082002, 1050018, 1051017, 1092008, 1072369]
+    },
+    {
+      "jobs": [230],
+      "topic": "armor",
+      "text": "僧侶全智配裝：鞋子超綠鞋（黏稠稠鞋子）、帽子褐色斗笠（之後解任務換骷髏頭盔）、衣服桑那服、手套工地手套、耳環綠葉耳環、盾牌木盾或鍋蓋（之後換鑽石護盾）。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"],
+      "verified": "tw",
+      "items": [1072369, 1002026, 1002006, 1050018, 1051017, 1082002, 1032025, 1092003, 1092008, 1092029]
+    },
+    {
+      "jobs": [300],
+      "topic": "weapon",
+      "text": "一轉 12、18 等可以先拿弩（係數高、力量需求低、攻速一樣），25 等再換弓；25、35 等的弓攻速特別快。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=745"],
+      "verified": "community"
+    },
+    {
+      "jobs": [310],
+      "topic": "weapon",
+      "text": "弓的關鍵是 35 等火焰之弓，攻速快。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1434"],
+      "verified": "tw",
+      "items": [1452006]
+    },
+    {
+      "jobs": [310],
+      "topic": "weapon",
+      "text": "舊版獵人換弓：30 等雷電、35 等火焰之弓、40 等暴風弓、50 等天弓、60 等鳳凰之弓、70 等青神弓或黃神弓。",
+      "sources": ["https://forum.gamer.com.tw/Co.php?bsn=7650&sn=666344"],
+      "verified": "legacy",
+      "items": [1452005, 1452006, 1452007, 1452008, 1452004, 1452010, 1452011]
+    },
+    {
+      "jobs": [310],
+      "topic": "scroll",
+      "text": "舊版獵人：40 等暴風弓衝 7 張弓攻擊卷軸100%，50 等天弓衝 100% 或 60%；披風衝披風敏捷卷軸100%（或 60%）。",
+      "sources": ["https://forum.gamer.com.tw/Co.php?bsn=7650&sn=666344"],
+      "verified": "legacy",
+      "items": [1452007, 1452008, 2044500, 2041018]
+    },
+    {
+      "jobs": [310],
+      "topic": "armor",
+      "text": "舊版獵人：35 等把力量點到 37，再戴藍色斗笠（力量 +3）就拿得動火焰之弓。",
+      "sources": ["https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=2997"],
+      "verified": "legacy",
+      "items": [1002090, 1452006]
+    },
+    {
+      "jobs": [320],
+      "topic": "weapon",
+      "text": "38 等雙弦弩攻速快，買的話至少挑 61 攻以上；50 等換炎弩。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1434"],
+      "verified": "tw",
+      "items": [1462005, 1462007]
+    },
+    {
+      "jobs": [320],
+      "topic": "scroll",
+      "text": "弩的卷軸比弓便宜很多（板上說差到 10 倍），衝滿的弩價格只有 6 攻手套的四分之一，衝卷很划算。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1434"],
+      "verified": "tw"
+    },
+    {
+      "jobs": [400, 410],
+      "topic": "weapon",
+      "text": "25 等狼牙是攻速最快的拳套，只要 50 敏捷；最終目標是 40 等的高攻黑護腕，之後每 10 等補敏捷換下一把。",
+      "sources": [
+        "https://home.gamer.com.tw/artwork.php?sn=6375411",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2076",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=932"
+      ],
+      "verified": "tw",
+      "items": [1472007, 1472017]
+    },
+    {
+      "jobs": [400, 410],
+      "topic": "scroll",
+      "text": "狼牙先衝拳套攻擊卷軸100%，有本錢的話用拳套攻擊卷軸60% 全過最好。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=932",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=457"
+      ],
+      "verified": "tw",
+      "items": [1472007, 2044700, 2044701]
+    },
+    {
+      "jobs": [410],
+      "topic": "weapon",
+      "text": "極速暗殺點高後所有拳套攻速都到頂，狼牙優勢就沒了；不想花大錢的話，40 等乖乖換拳套最平滑。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=932"],
+      "verified": "tw"
+    },
+    {
+      "jobs": [410],
+      "topic": "weapon",
+      "text": "不用盲目追高等拳套：60 等戰神拳套要 100 敏、70 等閃電甲要 110 敏，多點的敏捷就是少點的幸運。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=2076"],
+      "verified": "tw"
+    },
+    {
+      "jobs": [400, 410],
+      "topic": "armor",
+      "text": "全幸賊的敏捷靠裝備湊：25 等綠色斗笠（敏捷 +3）、30 等桑那服衝 10 張套服敏捷卷軸100%、破舊的披風衝 5 張披風敏捷卷軸100%，再加超綠鞋（黏稠稠鞋子）和結婚戒指各 +1。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2076",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=146"
+      ],
+      "verified": "tw",
+      "items": [1002089, 1050018, 1051017, 2040500, 1102053, 2041018, 1072369]
+    },
+    {
+      "jobs": [410],
+      "topic": "armor",
+      "text": "40 等後以紅飛影甲或藍飛影甲（加敏捷）配全職業防具（3 敏斗笠、5 敏披風）為核心，衝過卷的能穿到 70 等以上；飛影甲只有女角能穿，男角改穿桑那服、自己多補幾點敏捷。",
+      "sources": ["https://home.gamer.com.tw/artwork.php?sn=6375411"],
+      "verified": "tw",
+      "items": [1051007, 1051008, 1050018, 1051017]
+    },
+    {
+      "jobs": [400, 410],
+      "topic": "stat",
+      "text": "防具等級別超過武器等級：防具要的敏捷比武器還高，就是把點數浪費在敏捷上。",
+      "sources": ["https://home.gamer.com.tw/artwork.php?sn=6375411"],
+      "verified": "tw"
+    },
+    {
+      "jobs": [420],
+      "topic": "weapon",
+      "text": "這版沒有太極扇；從拳套換短刀的時機各有說法，37、38 等、43 等或 46 等都有人，看迴旋斬點到幾等再換。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=459",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=115"
+      ],
+      "verified": "community"
+    },
+    {
+      "jobs": [510],
+      "topic": "weapon",
+      "text": "30、35、40 等的指虎挑一把投資就好；沒有 45 等的指虎，40 等之後要撐 10 等才有下一把。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"],
+      "verified": "tw"
+    },
+    {
+      "jobs": [510],
+      "topic": "armor",
+      "text": "披風拿墮落城市醫院任務送的破舊的披風（迴避高，被打常常閃過、省水錢）；帽子拿超綠通關獎勵；鞋子有黏稠稠鞋子就不用換。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647"
+      ],
+      "verified": "tw",
+      "items": [1102053, 1072369]
+    },
+    {
+      "jobs": [510],
+      "topic": "stat",
+      "text": "打手敏捷一般點到 60 差不多，剩下靠裝備補；40 等想打天使猴，命中 92 就能全中。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1413"],
+      "verified": "community"
+    },
+    {
+      "jobs": [520],
+      "topic": "weapon",
+      "text": "30 等換子彈（攻擊 +12）、50 等換強力子彈（攻擊 +14），這兩次換彈傷害提升很明顯。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"],
+      "verified": "tw",
+      "items": [2330001, 2330002]
+    },
+    {
+      "jobs": [500, 520],
+      "topic": "weapon",
+      "text": "換槍挑攻速快的；前期節點是 10 等火槍、15 等迪林格火槍、20 等格蘭德火槍、25 等黃金火槍、30 等冷酷之心。",
+      "sources": ["https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"],
+      "verified": "community",
+      "items": [1492000, 1492001, 1492002, 1492003, 1492004]
+    },
+    {
+      "jobs": [100, 110, 111, 120, 121, 130, 131, 200, 210, 211, 220, 221, 230, 231, 300, 310, 311, 320, 321, 400, 410, 411, 420, 421, 500, 510, 511, 520, 521],
+      "topic": "stat",
+      "text": "經典版不能卡裝：靠別件裝備墊能力值穿上再拔掉，裝備會直接失效；要換裝就老實把能力值點到需求。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1796",
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=932"
+      ],
+      "verified": "tw"
+    },
+    {
+      "jobs": [100, 110, 120, 130, 300, 310, 320, 400, 410, 420, 500, 510, 520],
+      "topic": "scroll",
+      "text": "40 等解「珍的最後一個挑戰」會隨機拿到手套攻擊卷軸60% 或手套攻擊卷軸10%，60% 那張最值錢。",
+      "sources": [
+        "https://forum.gamer.com.tw/C.php?bsn=85994&snA=647",
+        "https://home.gamer.com.tw/artwork.php?sn=6375371"
+      ],
+      "verified": "tw",
+      "items": [2040804, 2040805]
+    },
+    {
+      "jobs": [100, 110, 120, 130, 200, 210, 220, 230, 300, 310, 320, 400, 410, 420, 500, 510, 520],
+      "topic": "scroll",
+      "text": "值得解的卷軸任務：25 等「珍和黑肥肥」隨機給一張 60% 武器卷軸；52 等「消滅鱷魚」可以挑 60% 披風卷軸和自己職業的 10% 武器卷軸。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=647"],
+      "verified": "tw"
+    }
+  ]
+}

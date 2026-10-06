@@ -9,7 +9,7 @@ import { SourceLinks, SourceTag, Sprite } from "./bits";
 
 /**
  * 技能條：依等級算出現在有幾點，對照主流點法，只講「現在點哪個」。
- * 點開才看完整順序、其他點法、素質配點、注意事項。
+ * 點開才看完整順序、其他點法、注意事項。能力值怎麼點改由下面的「能力值與裝備」卡給數字（GearCard）。
  */
 export function SkillStrip({ guide, job, level, prefer, leftover }: {
   guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] } | null;
@@ -97,20 +97,6 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
               <ul className="space-y-2.5">
                 {guide.builds.filter(other => other !== build).map(other => (
                   <OtherBuild key={other.label} build={other} />
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {guide.stat.length ? (
-            <div>
-              <h3 className="mb-2 text-[14px] font-black">素質怎麼點</h3>
-              <ul className="space-y-2">
-                {guide.stat.map((entry, index) => (
-                  <li key={index} className="space-y-1 rounded-xl bg-[color:var(--paper-deep)] p-2.5">
-                    <p className="text-[13px] leading-relaxed">{entry.t}</p>
-                    <SourceLinks urls={entry.s} />
-                  </li>
                 ))}
               </ul>
             </div>

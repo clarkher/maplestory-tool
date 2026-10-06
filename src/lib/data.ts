@@ -4,6 +4,7 @@ import type {
   FarmingRow, GuideCommon, GuideJob, Item, Job, MapRecord, Meta, Monster, PortalEdge, Quest, Region, SearchRow, Skill,
   TrainingRow,
 } from "./types";
+import type { GearData } from "./gear";
 
 /**
  * 資料檔全部是編譯期產生的靜態 JSON，第一次用到才抓、抓過就留著。
@@ -89,6 +90,24 @@ export const loadTraining = () => load<TrainingRow[]>("training");
 export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
+/**
+ * 裝備卡的資料：一半是玩家攻略（研究檔），研究改了但遊戲資料沒變時 meta 的版本號不會動，
+ * 跟 guides/common.json 一樣每次回伺服器確認（next.config 對 /data/gear.json 設 must-revalidate），沒變就 304。
+ */
+let gearPromise: Promise<GearData> | null = null;
+export function loadGear(): Promise<GearData> {
+  if (!gearPromise) {
+    gearPromise = fetch("/data/gear.json", { cache: "no-cache" }).then(response => {
+      if (!response.ok) throw new Error(`載入裝備資料失敗（${response.status}）`);
+      return response.json() as Promise<GearData>;
+    });
+    // 載失敗不要記住，下次再試
+    gearPromise.catch(() => {
+      gearPromise = null;
+    });
+  }
+  return gearPromise;
+}
 /**
  * 玩家攻略跟遊戲資料是兩條獨立的更新線，不能共用 meta 的版本號——
  * 攻略改了但遊戲資料沒變時，瀏覽器會一直拿快取的舊攻略。

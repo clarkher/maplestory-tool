@@ -11,11 +11,12 @@
     "data:artale": "node pipeline/fetch-artale.mjs",
     "data:msio": "node pipeline/fetch-msio.mjs",
     "data:build": "node pipeline/build.mjs",
-    "data:all": "npm run data:artale && npm run data:v83 && npm run data:build && npm run data:guides && npm run data:verify",
+    "data:all": "npm run data:artale && npm run data:v83 && npm run data:build && npm run data:guides && npm run data:gear && npm run data:verify",
     "data:v83": "node pipeline/extract-v83-maps.mjs",
     "data:verify": "node pipeline/verify.mjs",
     "test": "node --test \"pipeline/**/*.test.mjs\" && vitest run",
-    "data:guides": "node pipeline/build-guides.mjs"
+    "data:guides": "node pipeline/build-guides.mjs",
+    "data:gear": "node pipeline/build-gear.mjs"
   },
   "dependencies": {
     "next": "^16.3.0",
