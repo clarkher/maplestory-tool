@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  canWear,
   closestSource,
   equipRequirement,
   isMagicJob,
@@ -168,13 +169,41 @@ describe("statTargets", () => {
 });
 
 describe("equipRequirement", () => {
+  const dexEquipRule = rule({
+    jobs: [410],
+    label: "敏捷點到裝備需求",
+    main: "LUK",
+    secondary: { stat: "DEX", type: "equip", floor: 25 },
+  });
+
   it("取每個等級最強武器需求的最大值，不會因為更強武器沒寫需求而往回掉", () => {
     const clawA = weapon({ id: 1, n: "楓葉拳套A", s: "拳套", lv: 25, atk: 16, job: 8, req: { DEX: 50 } });
     const clawB = weapon({ id: 2, n: "楓葉拳套B（更強但沒寫需求）", s: "拳套", lv: 30, atk: 20, job: 8, req: {} });
     const weapons: GearWeapon[] = [clawA, clawB];
-    expect(equipRequirement(weapons, 410, 25)).toEqual({ DEX: 50 });
-    expect(equipRequirement(weapons, 410, 30)).toEqual({ DEX: 50 });
-    expect(equipRequirement(weapons, 410, 20)).toEqual({});
+    expect(equipRequirement(weapons, 410, 25, dexEquipRule)).toEqual({ DEX: 50 });
+    expect(equipRequirement(weapons, 410, 30, dexEquipRule)).toEqual({ DEX: 50 });
+    expect(equipRequirement(weapons, 410, 20, dexEquipRule)).toEqual({});
+  });
+
+  it("忽略需要力量（非 main／非 secondary）的武器，不會讓敏捷目標被不相干的需求拉高", () => {
+    const r = rule({ jobs: [420], label: "幸運為主", main: "LUK", secondary: { stat: "DEX", type: "equip", floor: 25 } });
+    const strDagger = weapon({ id: 1, n: "華氏短劍（需要力量 40）", s: "短刀", lv: 50, atk: 65, job: 8, req: { STR: 40, DEX: 90 } });
+    const okDagger = weapon({ id: 2, n: "一般短刀", s: "短刀", lv: 30, atk: 30, job: 8, req: { DEX: 40 } });
+    const weapons: GearWeapon[] = [strDagger, okDagger];
+    expect(equipRequirement(weapons, 420, 55, r)).toEqual({ DEX: 40 });
+  });
+});
+
+describe("canWear", () => {
+  it("每項需求都要 ≤ 目標才算穿得上", () => {
+    const w = weapon({ id: 1, n: "測試短刀", s: "短刀", lv: 10, job: 8, req: { DEX: 35, STR: 10 } });
+    expect(canWear(w, { STR: 10, DEX: 35, INT: 4, LUK: 4 })).toBe(true);
+    expect(canWear(w, { STR: 10, DEX: 34, INT: 4, LUK: 4 })).toBe(false);
+  });
+
+  it("沒寫需求的武器一定穿得上", () => {
+    const w = weapon({ id: 2, n: "沒有需求的武器", s: "短刀", lv: 10, job: 8 });
+    expect(canWear(w, { STR: 4, DEX: 4, INT: 4, LUK: 4 })).toBe(true);
   });
 });
 
@@ -209,7 +238,7 @@ describe("weaponPicks", () => {
   });
 
   it("沒有能用的武器時三項都是空／null", () => {
-    expect(weaponPicks([], 110, 10)).toEqual({ best: null, alternatives: [], next: null });
+    expect(weaponPicks([], 110, 10)).toEqual({ best: null, alternatives: [], next: null, stronger: null });
   });
 
   it("備選排除同種類：非 best 的兩把種類相同時只算一次", () => {
@@ -222,6 +251,48 @@ describe("weaponPicks", () => {
     const result = weaponPicks(weapons, 110, 20);
     expect(result.best?.id).toBe(1);
     expect(result.alternatives.map(w => w.id)).toEqual([2, 4]);
+  });
+
+  it("法師候選不卡種類：任意型態只要有魔攻就算（雨傘）；stronger 是穿不上的那把", () => {
+    const umbrella = weapon({ id: 1, n: "測試雨傘", s: "單手劍", lv: 10, mag: 50, atk: 50, job: 0 });
+    const staff = weapon({ id: 2, n: "測試高幸杖", s: "長杖", lv: 10, mag: 60, job: 2, req: { LUK: 40 } });
+    const weapons: GearWeapon[] = [umbrella, staff];
+    const targetsAt = () => ({ STR: 4, DEX: 4, INT: 4, LUK: 4 });
+    const result = weaponPicks(weapons, 210, 10, { targetsAt });
+    expect(result.best?.id).toBe(1);
+    expect(result.stronger?.id).toBe(2);
+  });
+
+  it("物理職業：力量需求穿不上時退回可穿的那把，stronger 是需求較高那把", () => {
+    const strDagger = weapon({ id: 1, n: "需要力量的短刀", s: "短刀", lv: 40, atk: 65, job: 8, req: { STR: 40 } });
+    const wearableDagger = weapon({ id: 2, n: "穿得上的短刀", s: "短刀", lv: 40, atk: 50, job: 8, req: { DEX: 40 } });
+    const weapons: GearWeapon[] = [strDagger, wearableDagger];
+    const targetsAt = () => ({ STR: 4, DEX: 90, INT: 4, LUK: 200 });
+    const result = weaponPicks(weapons, 420, 50, { targetsAt });
+    expect(result.best?.id).toBe(2);
+    expect(result.stronger?.id).toBe(1);
+  });
+
+  it("beforeOpen：best／stronger 都不會選到只有 V002 來源的武器", () => {
+    const v002Dagger = weapon({ id: 1, n: "V002短刀", s: "短刀", lv: 10, atk: 100, job: 8, o: "2026-10-15" });
+    const openDagger = weapon({ id: 2, n: "現在短刀", s: "短刀", lv: 10, atk: 50, job: 8 });
+    const weapons: GearWeapon[] = [v002Dagger, openDagger];
+
+    const withoutFilter = weaponPicks(weapons, 420, 10);
+    expect(withoutFilter.best?.id).toBe(1);
+
+    const result = weaponPicks(weapons, 420, 10, { beforeOpen: true });
+    expect(result.best?.id).toBe(2);
+    expect(result.stronger).toBeNull();
+  });
+
+  it("下一把同分時優先選沒有 o 的", () => {
+    const current = weapon({ id: 3, n: "目前武器", s: "短刀", lv: 10, atk: 50, job: 8 });
+    const v002Next = weapon({ id: 1, n: "V002下一把", s: "短刀", lv: 20, atk: 80, spd: 4, job: 8, o: "2026-10-15" });
+    const openNext = weapon({ id: 2, n: "現在能打的下一把", s: "短刀", lv: 20, atk: 80, spd: 4, job: 8 });
+    const weapons: GearWeapon[] = [current, v002Next, openNext];
+    const result = weaponPicks(weapons, 420, 10);
+    expect(result.next?.id).toBe(2);
   });
 });
 

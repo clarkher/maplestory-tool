@@ -224,59 +224,115 @@ function offenseStat(weapon: GearWeapon, magic: boolean): number {
   return (magic ? weapon.mag : weapon.atk) ?? 0;
 }
 
-function eligibleWeapons(weapons: GearWeapon[], types: Set<string>, job: number, level: number): GearWeapon[] {
-  return weapons.filter(w => types.has(w.s) && w.lv <= level && canJobUse(w.job, job) === true);
+/** 這把武器穿不穿得上：每一項需求都要 ≤ 對應的能力值目標；沒寫需求就沒有限制。 */
+export function canWear(weapon: GearWeapon, targets: Record<StatKey, number>): boolean {
+  if (!weapon.req) return true;
+  return STAT_KEYS.every(key => (weapon.req![key] ?? 0) <= targets[key]);
 }
 
 /**
- * 第一名（拿得到、符合職業與種類裡攻擊／魔力最高的，同分攻速數字小的先，再同分需求等級高的先）；
- * 備選最多兩把、彼此跟第一名都不同種類；下一把＝需求等級比現在高、攻擊／魔力比第一名高的第一把
- * （依需求等級由低到高，最近能換的排前面）。
+ * 職業能選的武器候選：物理職業照種類（weaponTypesFor）＋職業限制；
+ * 法師系不卡種類——雨傘（分類是單手劍）、烈焰刃這類道具只要寫了魔攻、職業用得到就算候選，
+ * 比的是魔攻不是種類（火毒巫師 40 等主流武器是黃色雨傘，不是短杖／長杖）。
+ */
+function candidatePool(weapons: GearWeapon[], job: number, magic: boolean): GearWeapon[] {
+  if (magic) return weapons.filter(w => (w.mag ?? 0) > 0 && canJobUse(w.job, job) === true);
+  const types = new Set(weaponTypesFor(job));
+  return weapons.filter(w => types.has(w.s) && canJobUse(w.job, job) === true);
+}
+
+/** best／alternatives／stronger 的排序：攻擊／魔力高的在前；同分攻速數字小的先；再同分需求等級高的先；再同分非 V002 的先。 */
+function rankWeapon(a: GearWeapon, b: GearWeapon, magic: boolean): number {
+  const offense = offenseStat(b, magic) - offenseStat(a, magic);
+  if (offense) return offense;
+  const speed = (a.spd ?? Infinity) - (b.spd ?? Infinity);
+  if (speed) return speed;
+  const level = b.lv - a.lv;
+  if (level) return level;
+  return Number(Boolean(a.o)) - Number(Boolean(b.o));
+}
+
+/** next 的排序：需求等級低的先（最近能換的）；同分非 V002 的先；再同分攻擊／魔力高的先；再同分攻速數字小的先。 */
+function rankNext(a: GearWeapon, b: GearWeapon, magic: boolean): number {
+  const level = a.lv - b.lv;
+  if (level) return level;
+  const openFirst = Number(Boolean(a.o)) - Number(Boolean(b.o));
+  if (openFirst) return openFirst;
+  const offense = offenseStat(b, magic) - offenseStat(a, magic);
+  if (offense) return offense;
+  return (a.spd ?? Infinity) - (b.spd ?? Infinity);
+}
+
+/**
+ * best＝拿得到、職業能用、穿得上（有給 `targetsAt` 才檢查穿不穿得上）裡攻擊／魔力最高的；
+ * alternatives＝最多兩把、彼此跟 best 都不同種類的次佳；
+ * stronger＝不管穿不穿得上、攻擊／魔力比 best 還高的那把（沒有就 null）——
+ * 用來顯示「想用更強的，幸運還差 N」，而不是直接把穿不上的武器當 best 推薦出去
+ * （火毒巫師全智點法：護法之杖魔攻更高但要幸運 43，穿不上，不該是 best）；
+ * next＝需求等級比現在高、攻擊／魔力比 best 高的第一把，依「最近能換的」排序、同分優先選非 V002 的——
+ * 10/15 前 next 仍可能是只有 V002 來源的武器（nothing else），畫面自己標「10/15 開放」，
+ * 這裡不因為 beforeOpen 就直接濾掉（跟 best／alternatives／stronger 不同）。
  */
 export function weaponPicks(
   weapons: GearWeapon[],
   job: number,
   level: number,
-): { best: GearWeapon | null; alternatives: GearWeapon[]; next: GearWeapon | null } {
+  opts: { targetsAt?: (level: number) => Record<StatKey, number>; beforeOpen?: boolean } = {},
+): { best: GearWeapon | null; alternatives: GearWeapon[]; next: GearWeapon | null; stronger: GearWeapon | null } {
   const magic = isMagicJob(job);
-  const types = new Set(weaponTypesFor(job));
+  const { targetsAt, beforeOpen } = opts;
+  const pool = candidatePool(weapons, job, magic);
 
-  const sorted = eligibleWeapons(weapons, types, job, level).sort((a, b) => {
-    const offense = offenseStat(b, magic) - offenseStat(a, magic);
-    if (offense) return offense;
-    const speed = (a.spd ?? Infinity) - (b.spd ?? Infinity);
-    if (speed) return speed;
-    return b.lv - a.lv;
-  });
+  const eligibleNow = pool.filter(w => w.lv <= level && (!beforeOpen || !w.o));
+  const wearableNow = targetsAt ? eligibleNow.filter(w => canWear(w, targetsAt(level))) : eligibleNow;
 
-  const best = sorted[0] ?? null;
+  const rankedWearable = [...wearableNow].sort((a, b) => rankWeapon(a, b, magic));
+  const best = rankedWearable[0] ?? null;
+
   const alternatives: GearWeapon[] = [];
   if (best) {
-    for (const w of sorted.slice(1)) {
+    for (const w of rankedWearable.slice(1)) {
       if (w.s === best.s || alternatives.some(pick => pick.s === w.s)) continue;
       alternatives.push(w);
       if (alternatives.length === 2) break;
     }
   }
 
-  const bestOffense = best ? offenseStat(best, magic) : -Infinity;
-  const next =
-    weapons
-      .filter(w => types.has(w.s) && w.lv > level && canJobUse(w.job, job) === true && offenseStat(w, magic) > bestOffense)
-      .sort((a, b) => a.lv - b.lv)[0] ?? null;
+  const rawBest = [...eligibleNow].sort((a, b) => rankWeapon(a, b, magic))[0] ?? null;
+  const stronger = best && rawBest && offenseStat(rawBest, magic) > offenseStat(best, magic) ? rawBest : null;
 
-  return { best, alternatives, next };
+  const bestOffense = best ? offenseStat(best, magic) : -Infinity;
+  const nextCandidates = pool.filter(w => {
+    if (w.lv <= level || offenseStat(w, magic) <= bestOffense) return false;
+    return !targetsAt || canWear(w, targetsAt(w.lv));
+  });
+  const next = nextCandidates.sort((a, b) => rankNext(a, b, magic))[0] ?? null;
+
+  return { best, alternatives, next, stronger };
 }
 
 /**
- * 從 1 等算到現在，每一等「當時拿得到的第一名」的力敏智幸需求，取各屬性出現過的最大值。
+ * 從 1 等算到現在，每一等「當時拿得到的第一名」的力敏智幸需求，取各屬性出現過的最大值；
+ * 事先濾掉這套點法另外兩項（非 main、非 secondary.stat）需求超過 4 的武器——
+ * 那兩項這套點法本來就不會點超過 4，那種武器不管哪個等級都穿不上，不該拿來決定
+ * secondary 這項該點多少（俠盜全幸：華氏短劍要力量 40，但全幸點法力量就停在 4；
+ * 不能因為它敏捷需求也很高就把 DEX 目標拉到那邊去，其實它本來就穿不上，問題不在敏捷）。
  * 不會因為等級到了之後換上的更強武器剛好沒寫某項需求（楓葉拳套不需要敏捷，但之前的狼牙拳套要 50）
  * 就讓那項需求往回掉——玩家點下去的能力值不會因為換裝備就消失。
  */
-export function equipRequirement(weapons: GearWeapon[], job: number, level: number): Partial<Record<StatKey, number>> {
+export function equipRequirement(
+  weapons: GearWeapon[],
+  job: number,
+  level: number,
+  rule: StatRule,
+): Partial<Record<StatKey, number>> {
+  const secondaryStat = rule.secondary?.stat;
+  const otherKeys = STAT_KEYS.filter(key => key !== rule.main && key !== secondaryStat);
+  const candidates = weapons.filter(w => otherKeys.every(key => (w.req?.[key] ?? 0) <= STAT_FLOOR));
+
   const result: Partial<Record<StatKey, number>> = {};
   for (let l = 1; l <= level; l++) {
-    const req = weaponPicks(weapons, job, l).best?.req;
+    const req = weaponPicks(candidates, job, l).best?.req;
     if (!req) continue;
     for (const key of STAT_KEYS) {
       const value = req[key];
