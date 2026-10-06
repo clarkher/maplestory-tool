@@ -147,6 +147,15 @@ test("questSources：只收站內查得到的任務、V002 任務帶 o", () => {
   ]);
 });
 
+test("questSources：接任務的 NPC 沒有名字或名字是亂碼（???）的任務不算來源——遊戲裡找不到人接", () => {
+  const questsById = new Map([
+    ["9414", { id: "9414", n: "散發烈焰氣息的劍", sNpc: { id: 1, n: "???? ?" } }],
+    ["20", { id: "20", n: "正常任務", sNpc: { id: 2, n: "武術教練" } }],
+  ]);
+  const result = questSources({ id: 1302063, qr: ["9414", "20"] }, questsById, maps, "2026-10-15");
+  assert.deepEqual(result.map(row => row.id), ["20"]);
+});
+
 test("questSources：任務限定職業帶 jobs、這個道具的獎勵限定職業帶 rj（前端照玩家職業過濾）", () => {
   const questsById = new Map([
     ["10", { id: "10", n: "劍士才能接", jobs: [100, 110, 111], rewardItems: [{ id: 2044001, n: "弓攻擊卷軸10%" }] }],

@@ -98,11 +98,11 @@ export function dropLead(drop: { n: string; lv: number }): string {
   return `${drop.n}（Lv.${drop.lv}）會掉`;
 }
 
-/** 怎麼拿：「商店買得到」「火肥肥（Lv.32）會掉・螞蟻洞」「任務〈散發烈焰氣息的劍〉給」 */
+/** 怎麼拿：「商店買得到」「火肥肥（Lv.32）會掉・螞蟻洞」「Lv.40 任務〈珍的最後一個挑戰〉給」（任務有等級限制才寫等級） */
 export function sourceText(pick: SourcePick, mapLabel: (id: number) => string): string {
   if (pick.kind === "shop") return "商店買得到";
   if (pick.kind === "drop") return `${dropLead(pick.drop)}・${mapLabel(pick.drop.map)}`;
-  return `任務〈${pick.quest.n}〉給`;
+  return `${pick.quest.minLv ? `Lv.${pick.quest.minLv} ` : ""}任務〈${pick.quest.n}〉給`;
 }
 
 /** 這個來源是不是 V002 才開放（回開放日）；商店一律不是 */

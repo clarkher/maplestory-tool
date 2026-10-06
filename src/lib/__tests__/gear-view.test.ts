@@ -131,6 +131,8 @@ describe("sourceText／sourceOpensLater：怎麼拿", () => {
     expect(sourceText({ kind: "shop" }, mapLabel)).toBe("商店買得到");
     expect(sourceText({ kind: "drop", drop: { m: 3210100, n: "火肥肥", lv: 32, map: 106000000 } }, mapLabel)).toBe("火肥肥（Lv.32）會掉・螞蟻洞");
     expect(sourceText({ kind: "quest", quest: { id: "9414", n: "散發烈焰氣息的劍" } }, mapLabel)).toBe("任務〈散發烈焰氣息的劍〉給");
+    // 任務有等級限制就寫出來：35 等的人看到 40 等任務才知道要再等 5 級
+    expect(sourceText({ kind: "quest", quest: { id: "2013", n: "珍的最後一個挑戰", minLv: 40 } }, mapLabel)).toBe("Lv.40 任務〈珍的最後一個挑戰〉給");
   });
 
   it("只有 V002 才拿得到的來源回開放日，其他回 undefined", () => {
@@ -210,12 +212,18 @@ describe("真資料：gearPlan 組出來的卡片內容", () => {
     expect(plan.bestShort).toEqual([]);
   });
 
-  it("火毒巫師 Lv40：黃色雨傘，更強的杖幸運不夠", () => {
+  it("火毒巫師 Lv40：黃色雨傘；同等級的杖只多 3 點魔力，不列「想用更強的」", () => {
     const plan = gearPlan(gear, 210, 40, true);
     expect(plan.best?.n).toBe("黃色雨傘");
-    expect(plan.stronger?.s.endsWith("杖")).toBe(true);
-    expect(plan.strongerShort.some(entry => entry.stat === "LUK")).toBe(true);
+    expect(plan.stronger).toBeNull();
     expect(plan.targets).toEqual({ STR: 4, DEX: 4, INT: 208, LUK: 4 });
+  });
+
+  it("祭司 Lv75：黃色雨傘；「想用更強的」是差在幸運的杖", () => {
+    const plan = gearPlan(gear, 231, 75, true);
+    expect(plan.best?.n).toBe("黃色雨傘");
+    expect(plan.stronger?.s.endsWith("杖")).toBe(true);
+    expect(plan.strongerShort.map(entry => entry.stat)).toEqual(["LUK"]);
   });
 
   it("十字軍 Lv75：沿用狂戰士的點法", () => {
@@ -224,11 +232,11 @@ describe("真資料：gearPlan 組出來的卡片內容", () => {
     expect(plan.rule?.jobs).toContain(110);
   });
 
-  it("俠盜 Lv55：破碎刃；更強的華氏短劍差在力量", () => {
+  it("俠盜 Lv55：破碎刃；華氏短劍只多 3 攻擊卻要力量 40，不列「想用更強的」", () => {
     const plan = gearPlan(gear, 420, 55, true);
     expect(plan.best?.n).toBe("破碎刃");
-    expect(plan.stronger?.n).toBe("華氏短劍");
-    expect(plan.strongerShort).toEqual([{ stat: "STR", short: 36 }]);
+    expect(plan.stronger).toBeNull();
+    expect(plan.strongerShort).toEqual([]);
   });
 
   it("每組卷軸都挑了一張，10/15 前不挑只有 V002 才拿得到的（同一組還有別張時）", () => {

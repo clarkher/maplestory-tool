@@ -364,7 +364,7 @@ describe("closestSource", () => {
     expect(closestSource(src, 10)).toEqual({ kind: "shop" });
   });
 
-  it("沒商店選等級最接近的掉落怪，同分選等級低的", () => {
+  it("沒商店選最好打的掉落怪：不高於你的越接近越好，比你高的差距算兩倍", () => {
     const src: GearSource = {
       drops: [
         { m: 1, n: "怪A", lv: 10, map: 1 },
@@ -374,6 +374,20 @@ describe("closestSource", () => {
     };
     expect(closestSource(src, 20)).toEqual({ kind: "drop", drop: src.drops![1] });
     expect(closestSource(src, 15)).toEqual({ kind: "drop", drop: src.drops![0] });
+    // 35 等：7 等的肥肥（差 28）比 55 等的巨居蟹（差 20×2＝40）好打
+    const far: GearSource = { drops: [{ m: 4, n: "肥肥", lv: 7, map: 1 }, { m: 5, n: "巨居蟹", lv: 55, map: 1 }] };
+    expect(closestSource(far, 35)).toEqual({ kind: "drop", drop: far.drops![0] });
+  });
+
+  it("任務：現在接得到的算差距 0、等級還不夠的差距算兩倍；同分任務優先（一定拿得到）", () => {
+    // 35 等刺客的手套攻擊卷軸：40 等任務（差 5×2＝10）勝過 55 等巨居蟹（差 40）
+    const glove: GearSource = {
+      drops: [{ m: 5, n: "巨居蟹", lv: 55, map: 1 }],
+      quests: [{ id: "2013", n: "珍的最後一個挑戰", minLv: 40 }],
+    };
+    expect(closestSource(glove, 35)).toEqual({ kind: "quest", quest: glove.quests![0] });
+    const tie: GearSource = { drops: [{ m: 1, n: "同等級的怪", lv: 30, map: 1 }], quests: [{ id: "1", n: "現在就能接", minLv: 20 }] };
+    expect(closestSource(tie, 30)).toEqual({ kind: "quest", quest: tie.quests![0] });
   });
 
   it("沒掉落選第一個任務", () => {
@@ -400,11 +414,11 @@ describe("closestSource", () => {
 
   it("beforeOpen 要跨層看：non-V002 的任務贏過只有 V002 的掉落（弩攻擊卷軸實例）", () => {
     const src: GearSource = {
-      drops: [{ m: 1, n: "小雪球", lv: 50, map: 1, o: "2026-10-15" }],
-      quests: [{ id: "2001", n: "酋長蓋房子", minLv: 30 }],
+      drops: [{ m: 1, n: "小雪球", lv: 31, map: 1, o: "2026-10-15" }],
+      quests: [{ id: "2001", n: "酋長蓋房子", minLv: 40 }],
     };
-    expect(closestSource(src, 50, true)).toEqual({ kind: "quest", quest: src.quests![0] });
-    expect(closestSource(src, 50, false)).toEqual({ kind: "drop", drop: src.drops![0] });
+    expect(closestSource(src, 30, true)).toEqual({ kind: "quest", quest: src.quests![0] });
+    expect(closestSource(src, 30, false)).toEqual({ kind: "drop", drop: src.drops![0] });
   });
 });
 
@@ -462,5 +476,16 @@ describe("stronger：更強但穿不上的那把，挑最容易補到的", () =>
     const picks = weaponPicks(weapons, 231, 75, { targetsAt: lv => statTargets(allInt, lv) });
     expect(picks.best?.id).toBe(1);
     expect(picks.stronger?.id).toBe(3);
+  });
+
+  it("只強一點點的不算：至少要多 5 點或一成（妖精短杖魔力 53 對黃色雨傘 52 不列）", () => {
+    const allInt = rule({ jobs: [210], label: "全智", main: "INT", secondary: null });
+    const weapons: GearWeapon[] = [
+      weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ shop: 1 }) }),
+      weapon({ id: 2, n: "妖精短杖", s: "短杖", lv: 38, mag: 53, job: 2, req: { LUK: 40 }, src: source({ shop: 1 }) }),
+    ];
+    const picks = weaponPicks(weapons, 210, 40, { targetsAt: lv => statTargets(allInt, lv) });
+    expect(picks.best?.id).toBe(1);
+    expect(picks.stronger).toBeNull();
   });
 });

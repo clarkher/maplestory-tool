@@ -321,17 +321,19 @@ export function weaponPicks(
     }
   }
 
-  // stronger：比 best 強、但照這套點法穿不上的裡面，缺的點數總和最少的（最容易靠裝備補到）；
-  // 同樣缺的少就比攻擊／魔力（祭司：黑色雨傘只缺力敏幸各 2，勝過要幸運再多 74 的杖）。沒給 targetsAt 就沒有「穿不上」可言。
+  // stronger：比 best 強、但照這套點法穿不上的裡面，最划算的那把——多出來的攻擊／魔力除以缺的點數最高
+  // （黑色雨傘多 33 魔力只缺力敏幸各 2，勝過多 38 魔力卻要幸運再多 39 的杖；75 等祭司則是魔力 90 的死靈法杖）。
+  // 只強一點點的不值得換點法：至少要多 5 點或一成（妖精短杖 53 對黃色雨傘 52 不列）。沒給 targetsAt 就沒有「穿不上」可言。
   const bestOffense = best ? offenseStat(best, magic) : -Infinity;
   const targetsNow = targetsAt?.(level);
   const missing = (w: GearWeapon) =>
     targetsNow ? statShortfall(w, targetsNow).reduce((sum, entry) => sum + entry.short, 0) : 0;
+  const worth = (w: GearWeapon) => (offenseStat(w, magic) - bestOffense) / Math.max(1, missing(w));
   const stronger =
     best && targetsNow
       ? eligibleNow
-          .filter(w => offenseStat(w, magic) > bestOffense && !canWear(w, targetsNow))
-          .sort((a, b) => missing(a) - missing(b) || rankWeapon(a, b, magic))[0] ?? null
+          .filter(w => offenseStat(w, magic) >= bestOffense + Math.max(5, Math.ceil(bestOffense * 0.1)) && !canWear(w, targetsNow))
+          .sort((a, b) => worth(b) - worth(a) || rankWeapon(a, b, magic))[0] ?? null
       : null;
 
   const nextCandidates = pool.filter(w => {
@@ -433,25 +435,47 @@ type SourcePick =
   | { kind: "drop"; drop: NonNullable<GearSource["drops"]>[number] }
   | { kind: "quest"; quest: NonNullable<GearSource["quests"]>[number] };
 
-function closestDrop(drops: NonNullable<GearSource["drops"]>, level: number) {
-  return drops.reduce((best, drop) => {
-    const diff = Math.abs(drop.lv - level);
-    const bestDiff = Math.abs(best.lv - level);
-    if (diff < bestDiff) return drop;
-    if (diff === bestDiff && drop.lv < best.lv) return drop;
-    return best;
-  });
+/**
+ * 這個來源對你多難：不高於你等級的怪，差幾級算幾分（越接近越好、低等怪一定打得過）；
+ * 比你高的怪差距算兩倍（打不太動）。任務現在接得到算 0（一定拿得到），等級還不夠的差距算兩倍。
+ */
+function dropCost(drop: NonNullable<GearSource["drops"]>[number], level: number): number {
+  return drop.lv <= level ? level - drop.lv : (drop.lv - level) * 2;
+}
+
+function questCost(quest: GearQuest, level: number): number {
+  const need = quest.minLv ?? 0;
+  return need <= level ? 0 : (need - level) * 2;
+}
+
+/** 掉落跟任務一起比 dropCost／questCost，最小的勝；同分任務優先（一定拿得到），再同分選等級低的怪 */
+function easiest(drops: NonNullable<GearSource["drops"]>, quests: GearQuest[], level: number): SourcePick | null {
+  let pick: SourcePick | null = null;
+  let pickCost = Infinity;
+  for (const quest of quests) {
+    const cost = questCost(quest, level);
+    if (cost < pickCost) {
+      pick = { kind: "quest", quest };
+      pickCost = cost;
+    }
+  }
+  for (const drop of drops) {
+    const cost = dropCost(drop, level);
+    const better = cost < pickCost || (cost === pickCost && pick?.kind === "drop" && drop.lv < pick.drop.lv);
+    if (better) {
+      pick = { kind: "drop", drop };
+      pickCost = cost;
+    }
+  }
+  return pick;
 }
 
 /**
- * 最好打的來源：商店優先；再來是掉落怪等級最接近你的（同分選等級低的那隻，比較好打）；
- * 最後是任務（列第一個）。
+ * 最好拿的來源：商店優先；否則掉落跟任務一起比誰最好拿（見 dropCost／questCost）——
+ * 35 等刺客的手套攻擊卷軸推 40 等任務「珍的最後一個挑戰」，不推 55 等巨居蟹。
  *
- * beforeOpen＝true（10/15 前）時，要跨「掉落」「任務」兩層一起看現在真的拿得到什麼：
- * 先看掉落裡沒有 o 的（一樣取等級最接近的），沒有就看任務裡沒有 o 的（取第一個）；
- * 兩層都只剩 V002 的（或兩層都是空的）才整個退回正常順序（不分 o，掉落先於任務）。
- * 不然像「弩攻擊卷軸」這種掉落怪剛好只掛在 V002 地圖、但任務還是現在就能接的道具，
- * 會被「掉落優先」誤判成只能等 10/15，其實任務那條路現在就打得到。
+ * beforeOpen＝true（10/15 前）時先只看沒有 o 的掉落跟任務；全部都是 V002 的（或都沒資料）才退回不分 o。
+ * 不然像「弩攻擊卷軸」這種掉落怪剛好只掛在 V002 地圖、但任務現在就能接的道具，會被誤判成只能等 10/15。
  *
  * 給了 job：只看這個職業接得到、獎勵也發給這個職業的任務（questFits）。
  */
@@ -462,15 +486,8 @@ export function closestSource(src: GearSource, level: number, beforeOpen = false
   const quests = (src.quests ?? []).filter(quest => job === undefined || questFits(quest, job));
 
   if (beforeOpen) {
-    const openDrops = drops.filter(d => !d.o);
-    if (openDrops.length) return { kind: "drop", drop: closestDrop(openDrops, level) };
-    const openQuests = quests.filter(q => !q.o);
-    if (openQuests.length) return { kind: "quest", quest: openQuests[0] };
-    // 掉落、任務全部都是 V002 的（或兩邊都沒資料）：沒有「現在拿得到」的選項，退回正常順序。
+    const open = easiest(drops.filter(drop => !drop.o), quests.filter(quest => !quest.o), level);
+    if (open) return open;
   }
-
-  if (drops.length) return { kind: "drop", drop: closestDrop(drops, level) };
-  if (quests.length) return { kind: "quest", quest: quests[0] };
-
-  return null;
+  return easiest(drops, quests, level);
 }

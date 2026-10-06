@@ -141,6 +141,11 @@ export function questSources(item, questsById, maps, v002Date, warn = () => {}) 
       warn(`道具 ${item.n}（${item.id}）：任務 ${questId} 不在站內資料，略過`);
       continue;
     }
+    // 接任務的 NPC 沒有名字或是亂碼（散發烈焰氣息的劍：「???? ?」）：遊戲裡找不到人接，不算拿得到
+    if (quest.sNpc && (!quest.sNpc.n || quest.sNpc.n.includes("?"))) {
+      warn(`道具 ${item.n}（${item.id}）：任務 ${quest.n}（${questId}）接任務的 NPC 沒有名字，略過`);
+      continue;
+    }
     const row = { id: quest.id, n: quest.n };
     if (quest.minLv) row.minLv = quest.minLv;
     if (v002Date && isV002Quest(quest, maps)) row.o = v002Date;

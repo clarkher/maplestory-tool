@@ -27,8 +27,8 @@ import { useBeforeV002 } from "@/lib/release";
 import type { MapRecord, Verified } from "@/lib/types";
 import { Chip, SourceLinks, SourceTag, Sprite } from "./bits";
 
-/** 收合時衝卷列幾組，其餘按「看全部」 */
-const FIRST_FAMILIES = 3;
+/** 收合時衝卷列幾組（武器卷＋手套攻擊卷，法師是兩種智力卷），其餘按「看全部」；三組時卡片收合也要 800px 高，太長 */
+const FIRST_FAMILIES = 2;
 
 type Where = {
   maps: Record<string, MapRecord>;

@@ -28,11 +28,24 @@ describe("真資料：火毒巫師（210）Lv40 全點智力", () => {
   const rule = mainstreamRule(210);
   const targetsAt = targetsAtFor(210, rule);
 
-  it("best 是黃色雨傘（不吃幸運，穿得上），stronger 是需要幸運 43 穿不上的杖", () => {
+  it("best 是黃色雨傘（不吃幸運，穿得上）；同等級的杖只多 3 點魔力卻要幸運 43，不值得列 stronger", () => {
     const result = weaponPicks(gear.weapons, 210, 40, { targetsAt });
     expect(result.best?.n).toBe("黃色雨傘");
-    expect(result.stronger).not.toBeNull();
+    expect(result.stronger).toBeNull();
+  });
+});
+
+describe("真資料：祭司（231）Lv75 三轉全點智力", () => {
+  const rule = mainstreamRule(231);
+  const targetsAt = targetsAtFor(231, rule);
+
+  it("best 還是黃色雨傘；stronger 是最划算的杖（魔力高很多、差在幸運）", () => {
+    const result = weaponPicks(gear.weapons, 231, 75, { targetsAt });
+    expect(result.best?.n).toBe("黃色雨傘");
     expect(result.stronger?.s.endsWith("杖")).toBe(true);
+    expect(result.stronger!.mag! - result.best!.mag!).toBeGreaterThanOrEqual(20);
+    const shortfall = statShortfall(result.stronger!, targetsAt(75));
+    expect(shortfall.map(s => s.stat)).toEqual(["LUK"]);
   });
 });
 
@@ -40,14 +53,11 @@ describe("真資料：俠盜（420）Lv55 幸運為主、敏捷點到短刀需�
   const rule = mainstreamRule(420);
   const targetsAt = targetsAtFor(420, rule);
 
-  it("best 沒有力量需求（這套點法力量只有 4），stronger 存在且有力量差距", () => {
+  it("best 沒有力量需求（這套點法力量只有 4）；華氏短劍只多 3 攻擊卻要力量 40，不列 stronger", () => {
     const result = weaponPicks(gear.weapons, 420, 55, { targetsAt });
-    expect(result.best).not.toBeNull();
+    expect(result.best?.n).toBe("破碎刃");
     expect(result.best?.req?.STR ?? 0).toBeLessThanOrEqual(4);
-
-    expect(result.stronger).not.toBeNull();
-    const shortfall = statShortfall(result.stronger!, targetsAt(55));
-    expect(shortfall.some(s => s.stat === "STR" && s.short > 0)).toBe(true);
+    expect(result.stronger).toBeNull();
   });
 });
 
