@@ -5,7 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
-import { equipStatLabel, equipStatValue } from "@/lib/format";
+import { equipGroups, jobFit } from "@/lib/item-view";
+import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
 import { isV002Item, v002MonsterIds, v002QuestIds } from "@/lib/v002";
@@ -129,9 +130,9 @@ function ItemDetail({
   isV002: boolean;
 }) {
   const notOpenYet = useBeforeV002();
-  const equipRows = item.eq
-    ? Object.entries(item.eq).map(([key, value]) => [equipStatLabel(key), equipStatValue(key, value)] as [string, string])
-    : [];
+  const { profile, isComplete } = useProfile();
+  const { requirements, stats } = equipGroups(item);
+  const fit = isComplete ? jobFit(item, profile) : null;
 
   return (
     <DetailCard>
@@ -153,9 +154,15 @@ function ItemDetail({
 
       {item.d ? <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{item.d}</p> : null}
 
-      {equipRows.length ? (
+      {requirements.length ? (
+        <Section title="穿戴條件" extra={fit ? <Chip tone={fit.tone}>{fit.text}</Chip> : undefined}>
+          <StatGrid rows={requirements} />
+        </Section>
+      ) : null}
+
+      {stats.length ? (
         <Section title="裝備數值">
-          <StatGrid rows={equipRows} />
+          <StatGrid rows={stats} />
         </Section>
       ) : null}
 
