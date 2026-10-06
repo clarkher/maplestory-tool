@@ -113,16 +113,68 @@ function TodoRow({ item, routable, maps, questNames }: RowProps) {
         </div>
       ) : null}
       {detail ? (
-        <div className="mt-2 space-y-3 rounded-lg bg-[color:var(--paper)] p-2.5">
-          {item.quests.map((quest, index) => (
-            <div key={quest.id} className="space-y-2">
-              {/* 一次列好幾段的任務線，每段分開寫，才知道哪一段要交什麼 */}
-              {item.quests.length > 1 ? <p className="text-[12px] font-black">第 {item.positions[index]} 段・{quest.n}</p> : null}
-              <QuestDetailBody quest={quest} maps={maps} questNames={questNames} />
-            </div>
-          ))}
+        <div className="mt-2 rounded-lg bg-[color:var(--paper)] p-2.5">
+          {item.quests.length === 1 ? (
+            <QuestDetailBody quest={item.quests[0]} maps={maps} questNames={questNames} />
+          ) : (
+            <PartList item={item} maps={maps} questNames={questNames} />
+          )}
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** 長任務線一開始列幾段；其餘按「還有 N 段」展開（冒險家的戒指一次 52 段，全攤開太長） */
+const FIRST_PARTS = 5;
+
+/** 好幾段的任務線：一段一行（名稱＋要交什麼），點哪一段才展開那一段的細節 */
+function PartList({ item, maps, questNames }: Omit<RowProps, "routable">) {
+  const [showAll, setShowAll] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const shown = showAll ? item.quests : item.quests.slice(0, FIRST_PARTS);
+  return (
+    <div className="space-y-1.5">
+      <ol className="space-y-1.5">
+        {shown.map((quest, index) => {
+          const open = openId === quest.id;
+          const needs = [
+            ...(quest.needItems ?? []).map(need => `${need.n}×${formatNumber(need.c ?? 1)}`),
+            ...(quest.needMobs ?? []).map(mob => `打${mob.n}×${formatNumber(mob.c ?? 1)}`),
+          ].slice(0, 3).join("、");
+          return (
+            <li key={quest.id} className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-2">
+              <button
+                type="button"
+                onClick={() => setOpenId(open ? null : quest.id)}
+                aria-expanded={open}
+                className="flex w-full items-start justify-between gap-2 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-bold leading-snug">第 {item.positions[index]} 段・{quest.n}</span>
+                  {needs ? <span className="mt-0.5 block text-[12px] ink-soft">{needs}</span> : null}
+                </span>
+                <ChevronDown size={14} className={["mt-0.5 shrink-0 ink-faint transition-transform", open ? "rotate-180" : ""].join(" ")} />
+              </button>
+              {open ? (
+                <div className="mt-2">
+                  <QuestDetailBody quest={quest} maps={maps} questNames={questNames} />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+      {item.quests.length > FIRST_PARTS ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(value => !value)}
+          aria-expanded={showAll}
+          className="tap-safe w-full rounded-full border border-[color:var(--paper-edge)] text-[13px] font-bold"
+        >
+          {showAll ? "收起" : `還有 ${item.quests.length - FIRST_PARTS} 段`}
+        </button>
+      ) : null}
+    </div>
   );
 }
