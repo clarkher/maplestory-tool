@@ -147,6 +147,20 @@ test("questSources：只收站內查得到的任務、V002 任務帶 o", () => {
   ]);
 });
 
+test("questSources：任務限定職業帶 jobs、這個道具的獎勵限定職業帶 rj（前端照玩家職業過濾）", () => {
+  const questsById = new Map([
+    ["10", { id: "10", n: "劍士才能接", jobs: [100, 110, 111], rewardItems: [{ id: 2044001, n: "弓攻擊卷軸10%" }] }],
+    ["11", { id: "11", n: "獎勵分職業", rewardItems: [{ id: 2044001, n: "弓攻擊卷軸10%", job: 8200 }, { id: 2043001, n: "別的" }] }],
+    ["12", { id: "12", n: "誰都能接", rewardItems: [{ id: 2044001, n: "弓攻擊卷軸10%" }] }],
+  ]);
+  const result = questSources({ id: 2044001, qr: ["10", "11", "12"] }, questsById, maps, "2026-10-15");
+  assert.deepEqual(result, [
+    { id: "10", n: "劍士才能接", jobs: [100, 110, 111] },
+    { id: "11", n: "獎勵分職業", rj: 8200 },
+    { id: "12", n: "誰都能接" },
+  ]);
+});
+
 test("questSources：查不到的任務 id 略過並呼叫 warn", () => {
   const warnings = [];
   const result = questSources({ id: 1, n: "測試道具", qr: ["999"] }, new Map(), maps, "2026-10-15", message => warnings.push(message));

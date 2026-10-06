@@ -5,6 +5,7 @@
  */
 import { canJobUse } from "./item-view";
 import { baseJob, previousJob } from "./jobs";
+import { rewardFitsJob } from "./now-plan";
 
 /* ------------------------------------------------------------------ 資料型別（對應 public/data/gear.json，兩邊要一致） */
 
@@ -13,9 +14,30 @@ export type GearSource = {
   shop?: number;
   /** 掉落怪：只收出現在已開放地圖的怪，依怪物等級由低到高，最多 8 隻；map 是牠出現的一張已開放地圖（優先不是 V002 的） */
   drops?: Array<{ m: number; n: string; lv: number; map: number; o?: string }>;
-  /** 給這個道具的已開放任務（quests.json 有的）；o：V002 任務（同 src/lib/v002.ts 的規則） */
-  quests?: Array<{ id: string; n: string; minLv?: number; o?: string }>;
+  /**
+   * 給這個道具的已開放任務（quests.json 有的）；o：V002 任務（同 src/lib/v002.ts 的規則）；
+   * jobs：任務限定的職業代碼；rj：這個獎勵限定的職業旗標（跟任務獎勵的 job 同一套，見 now-plan rewardFitsJob）
+   */
+  quests?: Array<{ id: string; n: string; minLv?: number; o?: string; jobs?: number[]; rj?: number }>;
 };
+
+type GearQuest = NonNullable<GearSource["quests"]>[number];
+
+/** 這個職業接不接得到這個任務、拿不拿得到這個獎勵（弓攻擊卷軸只發給弓箭手） */
+export function questFits(quest: GearQuest, job: number): boolean {
+  if (quest.jobs?.length && !quest.jobs.includes(job)) return false;
+  return quest.rj === undefined || rewardFitsJob({ job: quest.rj }, job);
+}
+
+/**
+ * 這個職業拿不拿得到：有商店或掉落就拿得到；只有任務時，至少要有一個任務是這個職業接得到、獎勵也發給這個職業的。
+ * 完全沒有來源資料的（只會出現在測試）不在這裡擋，交給 pipeline 保證每一筆都有來源。
+ */
+export function obtainableBy(src: GearSource, job: number): boolean {
+  if (src.shop || src.drops?.length) return true;
+  const quests = src.quests ?? [];
+  return !quests.length || quests.some(quest => questFits(quest, job));
+}
 
 export type GearWeapon = {
   id: number;
@@ -236,9 +258,10 @@ export function canWear(weapon: GearWeapon, targets: Record<StatKey, number>): b
  * 比的是魔攻不是種類（火毒巫師 40 等主流武器是黃色雨傘，不是短杖／長杖）。
  */
 function candidatePool(weapons: GearWeapon[], job: number, magic: boolean): GearWeapon[] {
-  if (magic) return weapons.filter(w => (w.mag ?? 0) > 0 && canJobUse(w.job, job) === true);
+  const usable = (w: GearWeapon) => canJobUse(w.job, job) === true && obtainableBy(w.src, job);
+  if (magic) return weapons.filter(w => (w.mag ?? 0) > 0 && usable(w));
   const types = new Set(weaponTypesFor(job));
-  return weapons.filter(w => types.has(w.s) && canJobUse(w.job, job) === true);
+  return weapons.filter(w => types.has(w.s) && usable(w));
 }
 
 /** best／alternatives／stronger 的排序：攻擊／魔力高的在前；同分攻速數字小的先；再同分需求等級高的先；再同分非 V002 的先。 */
@@ -298,10 +321,19 @@ export function weaponPicks(
     }
   }
 
-  const rawBest = [...eligibleNow].sort((a, b) => rankWeapon(a, b, magic))[0] ?? null;
-  const stronger = best && rawBest && offenseStat(rawBest, magic) > offenseStat(best, magic) ? rawBest : null;
-
+  // stronger：比 best 強、但照這套點法穿不上的裡面，缺的點數總和最少的（最容易靠裝備補到）；
+  // 同樣缺的少就比攻擊／魔力（祭司：黑色雨傘只缺力敏幸各 2，勝過要幸運再多 74 的杖）。沒給 targetsAt 就沒有「穿不上」可言。
   const bestOffense = best ? offenseStat(best, magic) : -Infinity;
+  const targetsNow = targetsAt?.(level);
+  const missing = (w: GearWeapon) =>
+    targetsNow ? statShortfall(w, targetsNow).reduce((sum, entry) => sum + entry.short, 0) : 0;
+  const stronger =
+    best && targetsNow
+      ? eligibleNow
+          .filter(w => offenseStat(w, magic) > bestOffense && !canWear(w, targetsNow))
+          .sort((a, b) => missing(a) - missing(b) || rankWeapon(a, b, magic))[0] ?? null
+      : null;
+
   const nextCandidates = pool.filter(w => {
     if (w.lv <= level || offenseStat(w, magic) <= bestOffense) return false;
     return !targetsAt || canWear(w, targetsAt(w.lv));
@@ -381,7 +413,9 @@ export function scrollPicks(
 
   const families: Array<{ slot: string; stat: string; options: GearScroll[] }> = [];
   const addFamily = (slot: string, stat: string) => {
-    const options = scrolls.filter(s => s.slot === slot && s.stat === stat).sort((a, b) => b.rate - a.rate);
+    const options = scrolls
+      .filter(s => s.slot === slot && s.stat === stat && obtainableBy(s.src, job))
+      .sort((a, b) => b.rate - a.rate);
     if (options.length) families.push({ slot, stat, options });
   };
 
@@ -418,12 +452,14 @@ function closestDrop(drops: NonNullable<GearSource["drops"]>, level: number) {
  * 兩層都只剩 V002 的（或兩層都是空的）才整個退回正常順序（不分 o，掉落先於任務）。
  * 不然像「弩攻擊卷軸」這種掉落怪剛好只掛在 V002 地圖、但任務還是現在就能接的道具，
  * 會被「掉落優先」誤判成只能等 10/15，其實任務那條路現在就打得到。
+ *
+ * 給了 job：只看這個職業接得到、獎勵也發給這個職業的任務（questFits）。
  */
-export function closestSource(src: GearSource, level: number, beforeOpen = false): SourcePick | null {
+export function closestSource(src: GearSource, level: number, beforeOpen = false, job?: number): SourcePick | null {
   if (src.shop) return { kind: "shop" };
 
   const drops = src.drops ?? [];
-  const quests = src.quests ?? [];
+  const quests = (src.quests ?? []).filter(quest => job === undefined || questFits(quest, job));
 
   if (beforeOpen) {
     const openDrops = drops.filter(d => !d.o);

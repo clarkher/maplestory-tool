@@ -4,6 +4,8 @@ import {
   closestSource,
   equipRequirement,
   isMagicJob,
+  obtainableBy,
+  questFits,
   rulesFor,
   scrollPicks,
   statShortfall,
@@ -403,5 +405,62 @@ describe("closestSource", () => {
     };
     expect(closestSource(src, 50, true)).toEqual({ kind: "quest", quest: src.quests![0] });
     expect(closestSource(src, 50, false)).toEqual({ kind: "drop", drop: src.drops![0] });
+  });
+});
+
+describe("任務來源的職業限制", () => {
+  const warriorOnly = { id: "10", n: "劍士才能接", jobs: [100, 110, 111] };
+  const archerReward = { id: "11", n: "獎勵只發弓箭手", rj: 8200 };
+  const anyone = { id: "12", n: "誰都能接" };
+
+  it("questFits：任務限定職業要包含你的職業；獎勵職業旗標要對到你的系別", () => {
+    expect(questFits(warriorOnly, 110)).toBe(true);
+    expect(questFits(warriorOnly, 210)).toBe(false);
+    expect(questFits(archerReward, 310)).toBe(true);
+    expect(questFits(archerReward, 110)).toBe(false);
+    expect(questFits(anyone, 520)).toBe(true);
+  });
+
+  it("obtainableBy：有商店或掉落就算；只有任務時至少一個任務接得到", () => {
+    expect(obtainableBy(source({ quests: [archerReward] }), 110)).toBe(false);
+    expect(obtainableBy(source({ quests: [archerReward, anyone] }), 110)).toBe(true);
+    expect(obtainableBy(source({ shop: 1, quests: [archerReward] }), 110)).toBe(true);
+  });
+
+  it("weaponPicks：只有別的職業任務拿得到的武器不推", () => {
+    const weapons: GearWeapon[] = [
+      weapon({ id: 1, n: "劍士任務的通用劍", s: "單手劍", lv: 30, atk: 60, mag: 60, job: 0, src: source({ quests: [warriorOnly] }) }),
+      weapon({ id: 2, n: "商店短杖", s: "短杖", lv: 30, mag: 40, job: 2, src: source({ shop: 1 }) }),
+    ];
+    expect(weaponPicks(weapons, 210, 30).best?.id).toBe(2);
+  });
+
+  it("scrollPicks：只有別的職業拿得到的成功率不列", () => {
+    const scrolls: GearScroll[] = [
+      scroll({ id: 1, n: "矛攻擊卷軸", slot: "矛", stat: "攻擊", rate: 10, effect: "物理攻擊力+5", src: source({ quests: [archerReward] }) }),
+      scroll({ id: 2, n: "矛攻擊卷軸", slot: "矛", stat: "攻擊", rate: 60, effect: "物理攻擊力+2", src: source({ drops: [{ m: 1, n: "怪", lv: 30, map: 1 }] }) }),
+    ];
+    const families = scrollPicks(scrolls, 130, "矛", "STR");
+    expect(families[0].options.map(o => o.rate)).toEqual([60]);
+  });
+
+  it("closestSource 給了職業：跳過接不到的任務", () => {
+    const src = source({ quests: [archerReward, anyone] });
+    expect(closestSource(src, 30, false, 110)).toEqual({ kind: "quest", quest: anyone });
+    expect(closestSource(src, 30, false, 310)).toEqual({ kind: "quest", quest: archerReward });
+  });
+});
+
+describe("stronger：更強但穿不上的那把，挑最容易補到的", () => {
+  it("兩把都比 best 強時，選缺的點數總和最少的（黑色雨傘缺 6 點勝過缺 39 點的杖）", () => {
+    const allInt = rule({ jobs: [231], label: "全智", main: "INT", secondary: null });
+    const weapons: GearWeapon[] = [
+      weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ drops: [{ m: 1, n: "怪", lv: 40, map: 1 }] }) }),
+      weapon({ id: 2, n: "要幸運的杖", s: "長杖", lv: 70, mag: 90, job: 2, req: { INT: 200, LUK: 43 }, src: source({ shop: 1 }) }),
+      weapon({ id: 3, n: "黑色雨傘", s: "單手劍", lv: 70, mag: 85, job: 0, req: { STR: 6, DEX: 6, INT: 6, LUK: 6 }, src: source({ shop: 1 }) }),
+    ];
+    const picks = weaponPicks(weapons, 231, 75, { targetsAt: lv => statTargets(allInt, lv) });
+    expect(picks.best?.id).toBe(1);
+    expect(picks.stronger?.id).toBe(3);
   });
 });

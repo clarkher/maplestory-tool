@@ -144,6 +144,10 @@ export function questSources(item, questsById, maps, v002Date, warn = () => {}) 
     const row = { id: quest.id, n: quest.n };
     if (quest.minLv) row.minLv = quest.minLv;
     if (v002Date && isV002Quest(quest, maps)) row.o = v002Date;
+    // 任務限定職業、或這個獎勵只發給某些職業（弓攻擊卷軸只給弓箭手）：前端照玩家職業過濾，不推接不到的任務
+    if (quest.jobs?.length) row.jobs = quest.jobs;
+    const reward = (quest.rewardItems ?? []).find(entry => entry.id === item.id);
+    if (reward?.job !== undefined) row.rj = reward.job;
     rows.push(row);
   }
   rows.sort((a, b) => (a.minLv ?? 0) - (b.minLv ?? 0));
