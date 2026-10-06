@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { JOB_LINES, commitLevelText, minLevelFor, normalizeJob, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
+import { JOB_LINES, branchPairs, commitLevelText, minLevelFor, normalizeJob, pickJobKeepingLevel, thirdJobLabel, typedLevel } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
 
 /**
- * 等級與職業。職業清單跟首頁同一份（經典版的 5 個一轉＋12 個二轉），
+ * 等級與職業。職業清單跟首頁同一份（經典版的 5 個一轉＋12 個二轉＋12 個三轉），
  * 客戶端資料裡有、經典版沒有的職業（皇家騎士團、影武者等）不列。
  */
 export function ProfileForm({
@@ -116,12 +116,11 @@ export function ProfileForm({
             {JOB_LINES.map(line => (
               <optgroup key={line.base} label={`${line.line}系`}>
                 <option value={line.base}>{line.line}（還沒二轉）</option>
-                {line.branches.map(([id, name]) => (
-                  <option key={id} value={id}>{name}</option>
-                ))}
-                {line.thirds.map(([id, name]) => (
-                  <option key={id} value={id}>{name}（三轉）</option>
-                ))}
+                {/* 每個二轉後面緊接它的三轉，看得出三轉是從哪個二轉來的 */}
+                {branchPairs(line).flatMap(({ second: [id, name], third: [thirdId, thirdName] }) => [
+                  <option key={id} value={id}>{name}</option>,
+                  <option key={thirdId} value={thirdId}>{thirdJobLabel(thirdName)}</option>,
+                ])}
               </optgroup>
             ))}
           </select>

@@ -86,6 +86,8 @@ export function RouteHome() {
   const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 
   const effective = useMemo(() => (data ? effectiveLevels(data.quests, data.monsters, data.common) : null), [data]);
+  // 先解展開任務細節時，「要先完成」寫前置任務的名字
+  const questNames = useMemo(() => new Map((data?.quests ?? []).map(quest => [quest.id, quest.n])), [data]);
 
   // 城鎮走得到才給「去」（跟主推卡的「帶我去」同一個條件）；同一張圖只算一次
   const canGo = useMemo(() => {
@@ -185,7 +187,7 @@ export function RouteHome() {
           )}
 
           {/* 換職業或等級時重新掛載，「還有 N 個任務」的展開狀態不帶到別的角色 */}
-          <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} />
+          <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} questNames={questNames} />
 
           {stageGuide ? (
             <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={jobTier(stage) === 3 ? null : data.common.spLeftover} />

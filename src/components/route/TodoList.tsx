@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { Fragment, useState } from "react";
-import { RouteIcon } from "@/components/Icons";
+import { ChevronDown, RouteIcon } from "@/components/Icons";
+import { QuestDetailBody } from "@/components/QuestDetailBody";
 import { itemImage, mapName, npcImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { npcGoTarget, partsText, type NowQuest } from "@/lib/now-plan";
@@ -12,8 +13,10 @@ import { PartsText, SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 /** 一開始顯示幾條；其餘按「還有 N 個任務」展開（關鍵獎勵可能超過 5 個，不能藏掉） */
 const FIRST_SHOWN = 5;
 
+type RowProps = { item: NowQuest; routable: Set<number>; maps: Record<string, MapRecord>; questNames: Map<string, string> };
+
 /** 先解：一次就做完的任務，關鍵獎勵排前面。 */
-export function TodoList({ items, routable, maps }: { items: NowQuest[]; routable: Set<number>; maps: Record<string, MapRecord> }) {
+export function TodoList({ items, routable, maps, questNames }: Omit<RowProps, "item"> & { items: NowQuest[] }) {
   const [showAll, setShowAll] = useState(false);
   if (!items.length) return null;
   const shown = showAll ? items : items.slice(0, FIRST_SHOWN);
@@ -22,7 +25,7 @@ export function TodoList({ items, routable, maps }: { items: NowQuest[]; routabl
       <h2 className="px-1 pt-1 text-[16px] font-black">出發前，先解這 {items.length} 個任務</h2>
       <ul className="space-y-2">
         {shown.map(item => (
-          <TodoRow key={item.key} item={item} routable={routable} maps={maps} />
+          <TodoRow key={item.key} item={item} routable={routable} maps={maps} questNames={questNames} />
         ))}
       </ul>
       {items.length > FIRST_SHOWN ? (
@@ -39,8 +42,10 @@ export function TodoList({ items, routable, maps }: { items: NowQuest[]; routabl
   );
 }
 
-function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<number>; maps: Record<string, MapRecord> }) {
+function TodoRow({ item, routable, maps, questNames }: RowProps) {
   const [open, setOpen] = useState(false);
+  // 任務細節（找誰、要交什麼、拿什麼）：點任務名稱或「看細節」在卡片裡展開，跟「現在能接的任務」頁同一份內容
+  const [detail, setDetail] = useState(false);
   const fraction = levelText(item.fraction);
   const parts = partsText(item);
   const lead = [item.exp ? `+${formatNumber(item.exp)} 經驗` : null, fraction].filter((chunk): chunk is string => Boolean(chunk));
@@ -54,7 +59,9 @@ function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<numbe
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
-            <b className="text-[14px] leading-snug">{item.title}</b>
+            <button type="button" onClick={() => setDetail(value => !value)} aria-expanded={detail} className="text-left text-[14px] font-bold leading-snug">
+              {item.title}
+            </button>
             {item.reward ? (
               <span className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--gold)]">{item.reward}</span>
             ) : null}
@@ -87,11 +94,17 @@ function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<numbe
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5">
         {item.rec ? <SourceTag kind="guide" verified={item.rec.v} /> : <SourceTag kind="data" />}
-        {item.rec ? (
-          <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="text-[12px] font-bold text-[color:var(--sky)]">
-            {open ? "收起" : "為什麼要解"}
+        <span className="flex items-center gap-3">
+          {item.rec ? (
+            <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="text-[12px] font-bold text-[color:var(--sky)]">
+              {open ? "收起" : "為什麼要解"}
+            </button>
+          ) : null}
+          <button type="button" onClick={() => setDetail(value => !value)} aria-expanded={detail} className="inline-flex items-center gap-0.5 text-[12px] font-bold text-[color:var(--sky)]">
+            {detail ? "收起細節" : "看細節"}
+            <ChevronDown size={13} className={detail ? "rotate-180 transition-transform" : "transition-transform"} />
           </button>
-        ) : null}
+        </span>
       </div>
       {open && item.rec ? (
         <div className="mt-2 space-y-1 rounded-lg bg-[color:var(--paper)] p-2">
@@ -99,6 +112,69 @@ function TodoRow({ item, routable, maps }: { item: NowQuest; routable: Set<numbe
           <SourceLinks urls={item.rec.s} />
         </div>
       ) : null}
+      {detail ? (
+        <div className="mt-2 rounded-lg bg-[color:var(--paper)] p-2.5">
+          {item.quests.length === 1 ? (
+            <QuestDetailBody quest={item.quests[0]} maps={maps} questNames={questNames} />
+          ) : (
+            <PartList item={item} maps={maps} questNames={questNames} />
+          )}
+        </div>
+      ) : null}
     </li>
+  );
+}
+
+/** 長任務線一開始列幾段；其餘按「還有 N 段」展開（冒險家的戒指一次 52 段，全攤開太長） */
+const FIRST_PARTS = 5;
+
+/** 好幾段的任務線：一段一行（名稱＋要交什麼），點哪一段才展開那一段的細節 */
+function PartList({ item, maps, questNames }: Omit<RowProps, "routable">) {
+  const [showAll, setShowAll] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const shown = showAll ? item.quests : item.quests.slice(0, FIRST_PARTS);
+  return (
+    <div className="space-y-1.5">
+      <ol className="space-y-1.5">
+        {shown.map((quest, index) => {
+          const open = openId === quest.id;
+          const needs = [
+            ...(quest.needItems ?? []).map(need => `${need.n}×${formatNumber(need.c ?? 1)}`),
+            ...(quest.needMobs ?? []).map(mob => `打${mob.n}×${formatNumber(mob.c ?? 1)}`),
+          ].slice(0, 3).join("、");
+          return (
+            <li key={quest.id} className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-2">
+              <button
+                type="button"
+                onClick={() => setOpenId(open ? null : quest.id)}
+                aria-expanded={open}
+                className="flex w-full items-start justify-between gap-2 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-bold leading-snug">第 {item.positions[index]} 段・{quest.n}</span>
+                  {needs ? <span className="mt-0.5 block text-[12px] ink-soft">{needs}</span> : null}
+                </span>
+                <ChevronDown size={14} className={["mt-0.5 shrink-0 ink-faint transition-transform", open ? "rotate-180" : ""].join(" ")} />
+              </button>
+              {open ? (
+                <div className="mt-2">
+                  <QuestDetailBody quest={quest} maps={maps} questNames={questNames} />
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ol>
+      {item.quests.length > FIRST_PARTS ? (
+        <button
+          type="button"
+          onClick={() => setShowAll(value => !value)}
+          aria-expanded={showAll}
+          className="tap-safe w-full rounded-full border border-[color:var(--paper-edge)] text-[13px] font-bold"
+        >
+          {showAll ? "收起" : `還有 ${item.quests.length - FIRST_PARTS} 段`}
+        </button>
+      ) : null}
+    </div>
   );
 }

@@ -1,9 +1,12 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
+import { ChevronRight } from "@/components/Icons";
 import { npcImage } from "@/lib/data";
-import { JOB_TIERS, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, commitLevelText, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel } from "@/lib/jobs";
+import {
+  JOB_LINES, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, branchPairs, commitLevelText, jobLineOf, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel,
+} from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import type { Profile } from "@/lib/types";
@@ -34,6 +37,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
 
   const option = jobOption(profile.job);
   const tier = jobTier(profile.job);
+  const currentLine = jobLineOf(profile.job);
   const stageText = profile.job < 0
     ? "還沒選職業"
     : profile.job === 0
@@ -79,6 +83,25 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
    */
   function keepTyping(event: React.MouseEvent) {
     event.preventDefault();
+  }
+
+  /** 二轉、三轉那一格的按鈕：撐滿欄寬，一組二轉 → 三轉左右對齊 */
+  function jobPill([id, name]: [number, string]) {
+    const active = profile.job === id;
+    return (
+      <button
+        type="button"
+        onMouseDown={keepTyping}
+        onClick={() => pickJob(id)}
+        aria-pressed={active}
+        className={[
+          "w-full rounded-full px-2 py-1.5 text-[13px] font-bold transition-colors",
+          active ? "bg-[color:var(--maple)] text-white" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]",
+        ].join(" ")}
+      >
+        {name}
+      </button>
+    );
   }
 
   /**
@@ -167,38 +190,56 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
             <p className="mb-1.5 text-sm font-bold">
               職業 <span className="text-xs font-normal ink-faint">法師 8 等、其他 10 等轉職；二轉 30 等起；三轉先照舊版 70 等（等開機公告確認）</span>
             </p>
-            <div className="space-y-2">
-              {JOB_TIERS.map(tier => (
-                <div key={tier.label}>
-                  <p className="mb-1 text-[11px] font-bold ink-faint">
-                    {tier.label === "三轉" && beforeOpen ? `${tier.label}（10/15 開放）` : tier.label}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {tier.jobs.map(([id, name]) => {
-                      const active = profile.job === id;
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          onMouseDown={keepTyping}
-                          onClick={() => pickJob(id)}
-                          aria-pressed={active}
-                          className={[
-                            "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
-                            active
-                              ? "bg-[color:var(--maple)] text-white"
-                              : tier.label === "一轉"
-                                ? "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
-                                : "bg-[color:var(--paper-deep)]",
-                          ].join(" ")}
-                        >
-                          {name}
-                        </button>
-                      );
-                    })}
-                  </div>
+            {/* 先選一轉（系別），下面只列這一系的二轉，每個二轉右邊接它的三轉（刺客 → 暗殺者）；
+                2026-10-06 使用者：三排全列「不好找也不直覺、不曉得是從哪個職業二轉的」 */}
+            <div className="space-y-2.5">
+              <div>
+                <p className="mb-1 text-[11px] font-bold ink-faint">一轉</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {JOB_LINES.map(line => {
+                    const selected = profile.job === line.base;
+                    // 選的是這一系的二轉或三轉：系別也標起來，看得出下面列的是哪一系
+                    const inLine = !selected && currentLine?.base === line.base;
+                    return (
+                      <button
+                        key={line.base}
+                        type="button"
+                        onMouseDown={keepTyping}
+                        onClick={() => pickJob(line.base)}
+                        aria-pressed={selected}
+                        className={[
+                          "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
+                          selected
+                            ? "bg-[color:var(--maple)] text-white"
+                            : inLine
+                              ? "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]"
+                              : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]",
+                        ].join(" ")}
+                      >
+                        {line.line}
+                      </button>
+                    );
+                  })}
                 </div>
-              ))}
+              </div>
+
+              {currentLine ? (
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 gap-y-2 rounded-xl bg-[color:var(--paper-deep)] p-2.5">
+                  <p className="text-[11px] font-bold ink-faint">二轉</p>
+                  <span />
+                  <p className="text-[11px] font-bold ink-faint">{beforeOpen ? "三轉（10/15 開放）" : "三轉"}</p>
+                  {branchPairs(currentLine).map(({ second, third }) => (
+                    <Fragment key={second[0]}>
+                      {jobPill(second)}
+                      <ChevronRight size={14} className="ink-faint" />
+                      {jobPill(third)}
+                    </Fragment>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-[12px] ink-faint">選了一轉，這裡會列出它的二轉跟三轉。</p>
+              )}
+
               <button
                 type="button"
                 onMouseDown={keepTyping}
