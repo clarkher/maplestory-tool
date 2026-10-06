@@ -188,6 +188,16 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
 所以資料 commit 進 `main` 之後不需要另外下指令。
 注意別在本機用還沒 `git pull` 的工作樹跑 `vercel deploy --prod`，那會把新的部署蓋回舊資料。
 
+## 10/15 自動上線
+
+`.github/workflows/release-on-open.yml`（排程只認 `main` 上的檔案，這份 workflow 跟 `pipeline/release/` 要先進 `main`）：
+
+- 觸發：台灣時間 10/15 08:00～23:45，每 15 分鐘查一次官方公告；也能手動觸發（`workflow_dispatch`）演練
+- 偵測規則：標題含「開機公告」、寫著 `1015`、且不是關機／延後開機／延長維護公告（`pipeline/release/opening.mjs`）
+- 找到開機公告就依序：查正式機是不是已經是 V002（已經是就結束）→ 把 `main` 的資料更新併進 `dev` → 用 `dev` 的管線重建資料、編攻略、`verify.mjs` → `npm test` → `npm run build` → 資料有變就提交回 `dev` → 合併 `dev → main`（正式機）→ 每 30 秒查一次正式機，最多 20 分鐘，換成 V002 就在 PR 留言貼網址
+- 失敗（任何一步出錯、合併後 20 分鐘內正式機沒換版）或整天沒看到開機公告（台灣時間 23:45 後）都會開 issue
+- 演練：`gh workflow run release-on-open.yml --ref main -f dry_run=true -f bulletin_id=83836 -f date=2026/10/01`——只跑偵測與檢查，不推 `dev`、不合併、不查正式機換版，結果開一則「演練」issue
+
 ## 技術
 
 Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScript。

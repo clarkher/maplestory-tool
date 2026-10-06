@@ -1,0 +1,188 @@
+name: 開機公告出來就上線（V002）
+
+# 10/15 官方開機公告一出來，就把 dev 合進 main（正式機）。
+# 規格：docs/superpowers/specs/2026-10-05-v002-release-design.md 第五節。
+# 排程只會跑 main 上的這份檔案（GitHub 的規定），所以這份檔案與 pipeline/release/ 要先放進 main。
+
+on:
+  schedule:
+    # 台灣時間 10/15 08:00～23:45，每 15 分鐘一次（cron 是 UTC）
+    - cron: "*/15 0-15 15 10 *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "演練：不推 dev、不合併、不查正式機，只開一則演練結果 issue"
+        type: boolean
+        default: true
+      date:
+        description: "找哪一天的開機公告（YYYY/MM/DD）"
+        type: string
+        default: "2026/10/15"
+      bulletin_id:
+        description: "演練用：直接拿這則公告當開機公告（例：83836）"
+        type: string
+        default: ""
+
+concurrency:
+  # 跟每天的資料更新排同一隊，不會同時改 main
+  group: data-refresh
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  LEVEL_CAP: "120"
+  PROD_URL: https://maplestory-tool-three.vercel.app
+  DRY_RUN: ${{ inputs.dry_run == true }}
+  GH_TOKEN: ${{ github.token }}
+  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.opening.outputs.found }}
+      id: ${{ steps.opening.outputs.id }}
+      title: ${{ steps.opening.outputs.title }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 找開機公告
+        id: opening
+        run: |
+          if [ -n "${{ inputs.bulletin_id }}" ]; then
+            node pipeline/release/check-opening.mjs --bulletin "${{ inputs.bulletin_id }}"
+          else
+            node pipeline/release/check-opening.mjs --date "${{ inputs.date || '2026/10/15' }}"
+          fi
+
+      - name: 23:45 還沒看到開機公告就開 issue
+        if: steps.opening.outputs.found != 'true' && env.DRY_RUN != 'true'
+        run: |
+          if [ "$(date -u +%H%M)" -ge 1545 ]; then
+            TITLE="今天沒看到開機公告（V002）"
+            if [ -z "$(gh issue list --state open --search "$TITLE in:title" --json number --jq '.[0].number')" ]; then
+              gh issue create --title "$TITLE" --body "台灣時間 23:45 前沒在官方公告列表看到 10/15 的開機公告，正式機維持原樣。要手動上線：到 Actions 跑這個 workflow、取消勾選 dry_run。$RUN_URL"
+            fi
+          fi
+
+  release:
+    needs: detect
+    if: needs.detect.outputs.found == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 正式機已經是 V002 就不用再上
+        id: prod
+        run: |
+          echo "released=$(node pipeline/release/prod-check.mjs "$PROD_URL" "$LEVEL_CAP")" >> "$GITHUB_OUTPUT"
+
+      - name: 把 main 的資料更新併進 dev
+        id: sync
+        if: steps.prod.outputs.released != 'true'
+        run: |
+          git config user.name "maplestory-tool bot"
+          git config user.email "actions@github.com"
+          git checkout dev
+          if ! git merge --no-ff --no-edit origin/main; then
+            OTHER=$(git diff --name-only --diff-filter=U | grep -v '^public/data/' || true)
+            if [ -n "$OTHER" ]; then
+              echo "::error::public/data 以外有衝突：$OTHER"
+              exit 1
+            fi
+            # 資料檔是產出物，下面會用 dev 的管線整包重建，先用 dev 的版本
+            git checkout --ours -- public/data
+            git add public/data
+            git commit --no-edit
+          fi
+
+      - name: 安裝相依套件
+        if: steps.prod.outputs.released != 'true'
+        run: npm ci
+
+      - name: 用 dev 的管線重建資料、編攻略、驗證
+        id: data
+        if: steps.prod.outputs.released != 'true'
+        run: |
+          node pipeline/fetch-artale.mjs
+          node pipeline/build.mjs
+          node pipeline/build-guides.mjs
+          node pipeline/verify.mjs
+
+      - name: 測試（含真資料常駐檢查）
+        id: test
+        if: steps.prod.outputs.released != 'true'
+        run: npm test
+
+      - name: 建置網站
+        id: build
+        if: steps.prod.outputs.released != 'true'
+        run: npm run build
+
+      - name: 資料有變就提交回 dev
+        if: steps.prod.outputs.released != 'true'
+        run: |
+          git add public/data public/assets
+          if ! git diff --cached --quiet; then
+            git commit -m "v0.16: 發版前重建資料（$(node -p "require('./public/data/meta.json').gameVersion ?? '?'")）"
+          fi
+          if [ "$DRY_RUN" != "true" ]; then
+            git push origin dev
+          fi
+
+      - name: 合併 dev → main（正式機）
+        id: merge
+        if: steps.prod.outputs.released != 'true' && env.DRY_RUN != 'true'
+        run: |
+          PR=$(gh pr list --base main --head dev --state open --json number --jq '.[0].number')
+          if [ -z "$PR" ]; then
+            gh pr create --base main --head dev --title "release: V002 覺醒的力量（10/15 開機）" \
+              --body "官方開機公告：${{ needs.detect.outputs.title }}（https://maplestoryclassic.beanfun.com/bulletin?Bid=${{ needs.detect.outputs.id }}）。測試、資料驗證、網站建置都過了，由自動上線合併。$RUN_URL"
+            PR=$(gh pr list --base main --head dev --state open --json number --jq '.[0].number')
+          fi
+          echo "pr=$PR" >> "$GITHUB_OUTPUT"
+          gh pr merge "$PR" --merge --admin
+
+      - name: 等正式機換成 V002（最多 20 分鐘）
+        if: steps.merge.outcome == 'success'
+        run: |
+          for i in $(seq 1 40); do
+            if [ "$(node pipeline/release/prod-check.mjs "$PROD_URL" "$LEVEL_CAP")" = "true" ]; then
+              gh pr comment "${{ steps.merge.outputs.pr }}" --body "正式機已經是 V002：$PROD_URL"
+              exit 0
+            fi
+            sleep 30
+          done
+          gh issue create --title "上線檢查失敗（V002）" --body "dev 已合進 main，但 20 分鐘內正式機的 /data/meta.json 還不是 Lv.$LEVEL_CAP。請看 Vercel 部署。$RUN_URL"
+          exit 1
+
+      - name: 演練結果
+        if: always() && env.DRY_RUN == 'true'
+        run: |
+          gh issue create --title "演練：開機公告自動上線（${{ job.status }}）" --body "偵測：${{ needs.detect.outputs.title }}（Bid=${{ needs.detect.outputs.id }}）
+          正式機已是 V002：${{ steps.prod.outputs.released }}
+          併 main→dev：${{ steps.sync.outcome }}／重建資料與驗證：${{ steps.data.outcome }}／測試：${{ steps.test.outcome }}／建置：${{ steps.build.outcome }}
+          演練不推 dev、不合併、不查正式機。$RUN_URL"
+
+      - name: 失敗就開 issue
+        if: failure() && env.DRY_RUN != 'true'
+        run: |
+          gh issue create --title "自動上線失敗（V002）" --body "沒有合併，正式機維持原樣。
+          併 main→dev：${{ steps.sync.outcome }}／重建資料與驗證：${{ steps.data.outcome }}／測試：${{ steps.test.outcome }}／建置：${{ steps.build.outcome }}／合併 main：${{ steps.merge.outcome }}
+          看 log：$RUN_URL"
