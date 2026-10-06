@@ -3,14 +3,12 @@
 import Image from "next/image";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ChevronRight } from "@/components/Icons";
-import { npcImage } from "@/lib/data";
 import {
-  JOB_LINES, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, branchPairs, commitLevelText, jobLineOf, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel,
+  JOB_LINES, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, branchPairs, commitLevelText, jobAvatar, jobLineOf, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel,
 } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import type { Profile } from "@/lib/types";
-import { Sprite } from "./bits";
 
 /**
  * 角色列：職業＋等級。升級了改這裡，整頁跟著換。
@@ -122,13 +120,13 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   return (
     <section aria-label="你的角色" className="rounded-[var(--radius-card)] glass wood-frame p-3 sm:p-4">
       <div className="flex items-start gap-3">
-        <span className="grid size-14 shrink-0 place-items-end overflow-hidden rounded-2xl bg-[color:var(--paper-deep)]">
-          {option ? (
-            <Sprite src={npcImage(option.npcId)} size={56} alt={option.npcName} />
-          ) : (
-            <Image src="/brand-emblem.png" alt="" width={56} height={56} className="size-14" />
-          )}
-        </span>
+        <Image
+          src={jobAvatar(profile.job) ?? "/brand-emblem.png"}
+          alt={option ? `${option.name}頭像` : ""}
+          width={60}
+          height={60}
+          className="size-[60px] shrink-0 rounded-full drop-shadow-sm"
+        />
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold ink-faint">{incomplete ? "先選職業跟等級" : stageText}</span>
           {/* 收合時把等級 −/+ 跟「換其他職業」都放這裡：寬度夠（桌機）擠成一行，不夠（手機）換其他職業自動換到第二行、跟名字對齊 */}
