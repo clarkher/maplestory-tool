@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { AlertIcon, ChevronDown } from "@/components/Icons";
+import { PixelMinimap } from "@/components/PixelMinimap";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
 import { loadMaps, loadMeta, loadMonsters, loadTraining, mapName, minimapImage, monsterImage } from "@/lib/data";
 import { respawnText } from "@/lib/format";
@@ -243,14 +244,7 @@ function TrainCard({
 
           {record?.mm ? (
             <figure className="overflow-hidden rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-2">
-              <Image
-                src={minimapImage(row.m)}
-                alt={`${name} 小地圖`}
-                width={640}
-                height={200}
-                className="mx-auto h-auto w-full max-w-md object-contain"
-                unoptimized
-              />
+              <PixelMinimap src={minimapImage(row.m)} alt={`${name} 小地圖`} className="max-w-md mx-auto" />
               <figcaption className="mt-1 text-center text-[11px] ink-faint">遊戲內小地圖</figcaption>
             </figure>
           ) : null}
