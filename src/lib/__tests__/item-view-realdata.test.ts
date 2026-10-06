@@ -127,14 +127,25 @@ describe("真資料：哪裡買得到", () => {
     expect(fromOldData).toBe(false);
   });
 
+  it("冷酷之心、精鋼拳套、褐色無袖服：現在買得到的價錢排第一組", () => {
+    for (const id of [1492004, 1482004, 1052107]) {
+      const { groups } = shopGroups(items.find(item => item.id === id)!, opensLater);
+      expect(groups[0].places.some(place => !place.later), String(id)).toBe(true);
+      expect(groups[groups.length - 1].places.every(place => place.later), String(id)).toBe(true);
+    }
+  });
+
   it("店家地點都有名字，沒有「未命名地圖」", () => {
     const bad = items.flatMap(item => (item.sp ?? []).filter(row => !row.p || row.p.includes("未命名")).map(row => `${item.id} ${row.p}`));
     expect(bad).toEqual([]);
   });
 
-  it("天空之城、冰原雪域的店都帶得出開放日（畫面標 10/15 開放）", () => {
-    const rows = items.flatMap(item => item.sp ?? []).filter(row => row.p === "天空之城" || row.p === "冰原雪域");
-    expect(rows.length).toBeGreaterThan(0);
-    expect(rows.filter(row => row.m === undefined || !isV002Map(maps[String(row.m)])).map(row => `${row.p} ${row.n}`)).toEqual([]);
+  it("10/15 才開的地區（世界地圖 WorldMap020、WorldMap021）的店全部帶得出開放日，畫面才標得到 10/15 開放", () => {
+    const rows = items.flatMap(item => item.sp ?? []).filter(row => row.m !== undefined && ["WorldMap020", "WorldMap021"].includes(maps[String(row.m)]?.rg ?? ""));
+    expect(rows.length).toBeGreaterThan(300);
+    expect(rows.filter(row => !isV002Map(maps[String(row.m)])).map(row => `${row.p} ${row.n}`)).toEqual([]);
+    const named = items.flatMap(item => item.sp ?? []).filter(row => row.p === "天空之城" || row.p === "冰原雪域");
+    expect(named.length).toBeGreaterThan(0);
+    expect(named.every(row => rows.includes(row))).toBe(true);
   });
 });

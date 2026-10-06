@@ -800,7 +800,7 @@ Expected：
 node -e "const items=require('./public/data/items.json');const pick=id=>JSON.stringify(items.find(i=>i.id===id)?.sp);console.log(pick(1442004));console.log(pick(5068302));console.log(items.filter(i=>i.sp).length, items.reduce((n,i)=>n+(i.sp?.length||0),0))"
 ```
 
-Expected：拖把（1442004）有弓箭手村武器店、勇士之村武器店（24000、o:1），沒有水世界的卡利；記憶音樂盒（5068302）是 `[{"p":"商城","pr":220,"c":1},{"p":"商城","pr":1980,"k":10,"c":1}]`；有 sp 的道具 1,450 件、1,900 筆（2026-10-06 實數；計畫初稿寫 1,505／2,052 是沒扣掉 184 筆價格不明的商城資料）。
+Expected：拖把（1442004）有弓箭手村武器店、勇士之村武器店（24000、o:1），沒有水世界的卡利；記憶音樂盒（5068302）是 `[{"p":"商城","pr":220,"c":1},{"p":"商城","pr":1980,"k":10,"c":1}]`；有 sp 的道具 1,450 件、1,917 筆（2026-10-06 實數，含 fix round 1 多列的 17 筆科爾分店；計畫初稿寫 1,505／2,052 是沒扣掉 184 筆價格不明的商城資料）。
 
 - [ ] **Step 8: 全部測試與型別**
 
