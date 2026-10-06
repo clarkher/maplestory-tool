@@ -1,6 +1,8 @@
-# 道具卡優化 12 項（v0.30）設計
+# 道具卡優化 12 項（v0.32）設計
 
 日期：2026-10-06　前置：v0.26（#24 攻擊速度寫字、裝備欄位只留佔兩格）、v0.24（#22 穿戴條件／裝備數值分組）、v0.25（#25 找道具）已在 `dev`。
+
+版號：原本佔 v0.30，開發途中 v0.30（#28 職業頭像）、v0.31（feat/db-inline-detail）被別支用掉，合併時改用 v0.32；分支上的個別 commit 仍寫 v0.30，squash 進 dev 的那一筆寫 v0.32。
 
 相容性：另一支 session 的裝備卡（feat/gear-card，v0.27）會 import `item-view.ts` 的 `canJobUse`／`usableBy`、`format.ts` 的 `equipStatValue`，
 並讀 items.json 的 `c／s／eq／dm／sh／qr／un／d`——這些簽名、欄位、行為一律不改；本次只新增匯出與 `sp` 欄位。
