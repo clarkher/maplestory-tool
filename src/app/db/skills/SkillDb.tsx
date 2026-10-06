@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
 import { loadSkills } from "@/lib/data";
+import { skillJobGroups } from "@/lib/jobs";
 import { useBeforeV002 } from "@/lib/release";
 import type { Skill } from "@/lib/types";
 import { isV002Skill } from "@/lib/v002";
@@ -11,7 +12,8 @@ import { isV002Skill } from "@/lib/v002";
 export function SkillDb() {
   const [skills, setSkills] = useState<Skill[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [group, setGroup] = useState("");
+  // "" 是全部職業，其餘存職業代碼的字串（跟 <select> value 同型，比對時不用再轉數字）
+  const [jobFilter, setJobFilter] = useState("");
   const notOpenYet = useBeforeV002();
 
   useEffect(() => {
@@ -23,16 +25,10 @@ export function SkillDb() {
     [skills],
   );
 
-  const groups = useMemo(() => {
-    const set = new Set<string>();
-    for (const skill of skills ?? []) if (skill.group) set.add(skill.group);
-    return [...set];
-  }, [skills]);
-
   const entries = useMemo<DbEntry[]>(() => {
     if (!skills) return [];
     return skills
-      .filter(skill => !group || skill.group === group)
+      .filter(skill => !jobFilter || String(skill.job) === jobFilter)
       .map(skill => ({
         id: String(skill.id),
         name: skill.n,
@@ -41,7 +37,7 @@ export function SkillDb() {
         keywords: `${skill.jobName} ${skill.group}`,
         badge: isV002Skill(skill) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [skills, group, notOpenYet]);
+  }, [skills, jobFilter, notOpenYet]);
 
   return (
     <DbBrowser
@@ -52,14 +48,19 @@ export function SkillDb() {
       error={error}
       filters={
         <select
-          value={group}
-          onChange={event => setGroup(event.target.value)}
+          value={jobFilter}
+          onChange={event => setJobFilter(event.target.value)}
           className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
           aria-label="職業分類"
         >
           <option value="">全部職業</option>
-          {groups.map(name => (
-            <option key={name} value={name}>{name}</option>
+          <option value="0">初心者</option>
+          {skillJobGroups().map(group => (
+            <optgroup key={group.label} label={group.label}>
+              {group.options.map(option => (
+                <option key={option.id} value={option.id}>{option.name}</option>
+              ))}
+            </optgroup>
           ))}
         </select>
       }

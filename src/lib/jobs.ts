@@ -43,6 +43,20 @@ export const JOB_TIERS: Array<{ label: "一轉" | "二轉" | "三轉"; jobs: Arr
   { label: "三轉", jobs: JOB_LINES.flatMap(line => line.thirds) },
 ];
 
+/** 查資料頁的職業篩選選單：每個系別一組（optgroup），一轉用系名當選項、三轉標「（三轉）」。 */
+export type SkillJobGroup = { label: string; options: Array<{ id: number; name: string }> };
+
+export function skillJobGroups(): SkillJobGroup[] {
+  return JOB_LINES.map(line => ({
+    label: `${line.line}系`,
+    options: [
+      { id: line.base, name: line.line },
+      ...line.branches.map(([id, name]) => ({ id, name })),
+      ...line.thirds.map(([id, name]) => ({ id, name: `${name}（三轉）` })),
+    ],
+  }));
+}
+
 const BY_ID = new Map(JOB_OPTIONS.map(job => [job.id, job]));
 
 /** 二轉開放的等級 */

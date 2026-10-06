@@ -49,7 +49,9 @@ function main() {
   check("怪物數量合理（僅已開放）", monsters?.length >= 100 && monsters?.length <= 157, `${monsters?.length} 隻`);
   check("道具數量合理", items?.length >= 10000, `${items?.length} 個`);
   check("任務數量合理（僅已開放）", quests?.length >= 348 && quests?.length <= 545, `${quests?.length} 個`);
-  check("技能數量合理（到三轉）", skills?.length >= 421 && skills?.length <= 659, `${skills?.length} 個`);
+  // 2026-10-06 技能改成只收經典版實際存在的職業（lib/classic-jobs.mjs），上限跟著從 659 降下來；
+  // 範圍公式不變：[floor(實際數×0.8), ceil(實際數×1.25)]，實際數基準是當時重建出來的 242 筆
+  check("技能數量合理（僅經典版職業，到三轉）", skills?.length >= 193 && skills?.length <= 303, `${skills?.length} 個`);
   check("地圖數量合理", Object.keys(maps ?? {}).length >= 5000, `${Object.keys(maps ?? {}).length} 張`);
 
   const edges = Object.values(graph ?? {}).reduce((sum, list) => sum + list.length, 0);
