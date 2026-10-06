@@ -64,6 +64,21 @@ export function wearFit(item: Item, profile: Profile): WearFit | null {
 
 export type StatRow = [string, string];
 
+/** 武器的「裝備數值」先排攻擊力、攻擊速度：挑武器時這兩個一起看。其他照資料順序（就是遊戲說明框的順序）。 */
+const WEAPON_LEAD_KEYS = ["incPAD", "attackSpeed"];
+
+/**
+ * 「佔兩格」只寫真的那一類：套服（105 開頭）、雙手武器（140–149 開頭的雙手劍／斧／棍、弓、弩）。
+ * 有 91 件 104 開頭的上衣（多半是時裝）跟 61 件 170 開頭的武器外觀，資料也標 MaPn／WpSi，
+ * 但遊戲把它們分在上衣、武器外觀，標題也這樣寫；穿了會不會真的佔兩格查不到，寫了只會跟標題打架，所以不寫。
+ */
+function showsSlot(item: Item, islot: string): boolean {
+  const kind = Math.floor(item.id / 10000);
+  if (islot === "MaPn") return kind === 105;
+  if (islot === "WpSi") return kind >= 140 && kind < 150;
+  return true;
+}
+
 /** 一格數值；equipStatValue 回 null（只佔一格的裝備欄位，標題已經寫了）就不給這格 */
 function statRows(key: string, value: number | string): StatRow[] {
   const text = equipStatValue(key, value);
@@ -71,7 +86,8 @@ function statRows(key: string, value: number | string): StatRow[] {
 }
 
 /**
- * 道具卡的數值拆兩組：「穿戴條件」（等級、職業、力敏智幸，固定順序）跟「裝備數值」（其餘照資料順序）。
+ * 道具卡的數值拆兩組：「穿戴條件」（等級、職業、力敏智幸，固定順序）跟「裝備數值」。
+ * 「裝備數值」照資料順序；武器（有攻擊速度）把攻擊力、攻擊速度提到最前面。
  * 「裝備」沒寫職業限制就補一格「不限職業」，玩家才知道誰都能用；時裝不補。
  */
 export function equipGroups(item: Item): { requirements: StatRow[]; stats: StatRow[] } {
@@ -82,9 +98,11 @@ export function equipGroups(item: Item): { requirements: StatRow[]; stats: StatR
     const value = key === "reqJob" && eq.reqJob === undefined && item.c === "裝備" ? 0 : eq[key];
     if (value !== undefined) requirements.push(...statRows(key, value));
   }
-  const stats = Object.entries(eq)
-    .filter(([key]) => !REQUIREMENT_KEYS.includes(key))
-    .flatMap(([key, value]) => statRows(key, value));
+  const lead = eq.attackSpeed === undefined ? [] : WEAPON_LEAD_KEYS.filter(key => eq[key] !== undefined);
+  const rest = Object.keys(eq).filter(key => !REQUIREMENT_KEYS.includes(key) && !lead.includes(key));
+  const stats = [...lead, ...rest]
+    .filter(key => key !== "islot" || showsSlot(item, String(eq.islot)))
+    .flatMap(key => statRows(key, eq[key]));
   return { requirements, stats };
 }
 
