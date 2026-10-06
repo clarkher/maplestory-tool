@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
 import { loadSkills } from "@/lib/data";
+import { useBeforeV002 } from "@/lib/release";
 import type { Skill } from "@/lib/types";
+import { isV002Skill } from "@/lib/v002";
 
 export function SkillDb() {
   const [skills, setSkills] = useState<Skill[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [group, setGroup] = useState("");
+  const notOpenYet = useBeforeV002();
 
   useEffect(() => {
     loadSkills().then(setSkills).catch(loadError => setError(String(loadError.message ?? loadError)));
@@ -35,8 +39,9 @@ export function SkillDb() {
         note: skill.adv,
         image: `/assets/skills/${skill.id}.png`,
         keywords: `${skill.jobName} ${skill.group}`,
+        badge: isV002Skill(skill) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [skills, group]);
+  }, [skills, group, notOpenYet]);
 
   return (
     <DbBrowser
@@ -68,6 +73,7 @@ export function SkillDb() {
 }
 
 function SkillDetail({ skill }: { skill: Skill }) {
+  const notOpenYet = useBeforeV002();
   const fields = useMemo(() => {
     const keys = new Set<string>();
     for (const level of skill.levels) for (const key of Object.keys(level)) keys.add(key);
@@ -80,7 +86,10 @@ function SkillDetail({ skill }: { skill: Skill }) {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={`/assets/skills/${skill.id}.png`} alt="" width={40} height={40} className="size-10 object-contain" />
         <div className="min-w-0">
-          <h2 className="text-2xl font-black leading-tight">{skill.n}</h2>
+          <h2 className="text-2xl font-black leading-tight">
+            {skill.n}
+            {isV002Skill(skill) && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
+          </h2>
           <p className="mt-0.5 text-sm ink-soft">
             {skill.group} · {skill.jobName} · {skill.adv}
             {skill.max ? ` · 上限 ${skill.max} 級` : ""}

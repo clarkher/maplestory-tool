@@ -2,13 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { GoButton } from "@/components/PlanShell";
 import {
   itemImage, loadItems, loadMaps, loadMonsters, mapName, monsterImage,
 } from "@/lib/data";
 import { elementalNotes, formatNumber } from "@/lib/format";
+import { useBeforeV002 } from "@/lib/release";
 import type { Item, MapRecord, Monster } from "@/lib/types";
+import { isV002Map, isV002Monster } from "@/lib/v002";
 
 export function MonsterDb() {
   const [monsters, setMonsters] = useState<Monster[] | null>(null);
@@ -16,6 +19,7 @@ export function MonsterDb() {
   const [items, setItems] = useState<Item[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showUnnamed, setShowUnnamed] = useState(false);
+  const notOpenYet = useBeforeV002();
 
   useEffect(() => {
     Promise.all([loadMonsters(), loadMaps(), loadItems()])
@@ -34,7 +38,7 @@ export function MonsterDb() {
   const itemIndex = useMemo(() => new Map((items ?? []).map(item => [item.id, item])), [items]);
 
   const entries = useMemo<DbEntry[]>(() => {
-    if (!monsters) return [];
+    if (!monsters || !maps) return [];
     return monsters
       .filter(monster => showUnnamed || !monster.un)
       .sort((a, b) => (a.lv ?? 0) - (b.lv ?? 0) || a.id - b.id)
@@ -43,8 +47,9 @@ export function MonsterDb() {
         name: monster.n,
         note: monster.lv ? `Lv.${monster.lv}` : undefined,
         image: monsterImage(monster.id),
+        badge: isV002Monster(monster, maps) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [monsters, showUnnamed]);
+  }, [monsters, maps, showUnnamed, notOpenYet]);
 
   return (
     <DbBrowser
@@ -82,6 +87,7 @@ function MonsterDetail({
   maps: Record<string, MapRecord>;
   itemIndex: Map<number, Item>;
 }) {
+  const notOpenYet = useBeforeV002();
   const elements = elementalNotes(monster.el);
   const spawnMap = new Map((monster.sp ?? []).map(([mapId, count]) => [mapId, count]));
   const allMaps = [...new Set([...(monster.sp ?? []).map(row => row[0]), ...monster.maps])];
@@ -92,7 +98,10 @@ function MonsterDetail({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={monsterImage(monster.id)} alt="" width={56} height={56} className="size-14 object-contain" />
         <div className="min-w-0">
-          <h2 className="text-2xl font-black leading-tight">{monster.n}</h2>
+          <h2 className="text-2xl font-black leading-tight">
+            {monster.n}
+            {isV002Monster(monster, maps) && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
+          </h2>
           <p className="mt-0.5 text-sm ink-soft">
             Lv.{monster.lv} · HP {formatNumber(monster.hp)} · 經驗 {formatNumber(monster.exp)}
             <span className="ml-2 text-xs ink-faint">#{monster.id}</span>
@@ -141,7 +150,10 @@ function MonsterDetail({
                 className="flex items-center justify-between gap-2 rounded-xl bg-[color:var(--paper-deep)] px-3 py-2"
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-bold">{mapName(maps, mapId)}</span>
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="min-w-0 truncate font-bold">{mapName(maps, mapId)}</span>
+                    {isV002Map(maps[String(mapId)]) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : null}
+                  </span>
                   <span className="block text-[11px] ink-faint">
                     {maps[String(mapId)]?.st}
                     {spawnMap.has(mapId) ? ` · ${spawnMap.get(mapId)} 個刷怪點` : " · 沒有刷怪點資料"}
