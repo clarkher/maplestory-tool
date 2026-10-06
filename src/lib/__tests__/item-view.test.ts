@@ -307,4 +307,19 @@ describe("哪裡買得到", () => {
   it("沒有店家的道具是空的", () => {
     expect(shopGroups(potion)).toEqual({ groups: [], fromOldData: false });
   });
+
+  it("整組賣的件數也加千分位：2,000 個 1,400 楓幣", () => {
+    const arrows: Item = { id: 2060000, n: "箭矢", c: "消耗", s: "箭矢", sp: [{ p: "楓之谷通行證遠端商店", pr: 1400, k: 2000 }] };
+    expect(shopGroups(arrows).groups.map(group => group.price)).toEqual(["2,000 個 1,400 楓幣"]);
+  });
+
+  it("整組都是 10/15 才開的價錢排在現在買得到的價錢後面", () => {
+    const coldHeart: Item = { id: 1492004, n: "冷酷之心", c: "裝備", s: "火槍", sp: [
+      { p: "天空之城", n: "妖精 娜麗", m: 200000000, pr: 75000, o: 1 },
+      { p: "中央走廊", n: "摩根", m: 120000200, pr: 50000, o: 1 },
+    ] };
+    const opensLater = (mapId: number) => mapId === 200000000;
+    expect(shopGroups(coldHeart, opensLater).groups.map(group => group.price)).toEqual(["50,000 楓幣", "75,000 楓幣"]);
+    expect(shopGroups(coldHeart).groups.map(group => group.price)).toEqual(["75,000 楓幣", "50,000 楓幣"]);
+  });
 });
