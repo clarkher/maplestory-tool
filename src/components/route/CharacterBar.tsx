@@ -96,7 +96,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
 
   return (
     <section aria-label="你的角色" className="rounded-[var(--radius-card)] glass wood-frame p-3 sm:p-4">
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <span className="grid size-14 shrink-0 place-items-end overflow-hidden rounded-2xl bg-[color:var(--paper-deep)]">
           {option ? (
             <Sprite src={npcImage(option.npcId)} size={56} alt={option.npcName} />
@@ -106,21 +106,32 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-xs font-bold ink-faint">{incomplete ? "先選職業跟等級" : stageText}</span>
-          <span className="block text-xl font-black leading-tight">
-            {option?.name ?? (profile.job === 0 ? "初心者" : "選職業")}
-            {profile.level > 0 ? <span className="ml-1.5 tabular-nums text-[color:var(--maple)]">Lv.{profile.level}</span> : null}
+          {/* 收合時把等級 −/+ 跟「換其他職業」都放這裡：寬度夠（桌機）擠成一行，不夠（手機）換其他職業自動換到第二行、跟名字對齊 */}
+          <span className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-xl font-black leading-tight">
+                {option?.name ?? (profile.job === 0 ? "初心者" : "選職業")}
+                {profile.level > 0 ? <span className="ml-1.5 tabular-nums text-[color:var(--maple)]">Lv.{profile.level}</span> : null}
+              </span>
+              {!incomplete && !editing ? (
+                <span className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => step(-1)} disabled={profile.level > 0 && profile.level <= min} className="tap-safe grid w-11 place-items-center rounded-xl border border-[color:var(--paper-edge)] text-lg font-black disabled:opacity-40" aria-label="等級減一">−</button>
+                  <button type="button" onClick={() => step(1)} className="tap-safe grid w-11 place-items-center rounded-xl border border-[color:var(--paper-edge)] text-lg font-black" aria-label="等級加一">+</button>
+                </span>
+              ) : null}
+            </span>
+            {!incomplete && !editing ? (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                aria-expanded={false}
+                className="tap-safe shrink-0 rounded-full border border-[color:var(--paper-edge)] px-4 text-sm font-bold transition-colors hover:border-[color:var(--maple)]"
+              >
+                換其他職業
+              </button>
+            ) : null}
           </span>
         </span>
-        {!incomplete && !editing ? (
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            aria-expanded={false}
-            className="tap-safe shrink-0 rounded-full border border-[color:var(--paper-edge)] px-4 text-sm font-bold transition-colors hover:border-[color:var(--maple)]"
-          >
-            改
-          </button>
-        ) : null}
       </div>
 
       {editing ? (
