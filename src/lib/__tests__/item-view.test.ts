@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  canJobUse, compareItems, equipGroups, itemKeywords, itemNote, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
+  canJobUse, compareItems, equipGroups, itemKeywords, itemNote, shopGroups, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
 } from "@/lib/item-view";
 import type { Item } from "@/lib/types";
 
@@ -250,5 +250,61 @@ describe("道具清單右邊的小字", () => {
   it("認不得的攻擊速度不寫，不露出光禿禿的數字", () => {
     const odd: Item = { id: 1442999, n: "測試矛", c: "裝備", s: "矛", eq: { attackSpeed: 12 } };
     expect(itemNote(odd)).toBe("矛");
+  });
+});
+
+describe("哪裡買得到", () => {
+  it("同一個價錢的店家排在一起，價錢只寫一次；有舊版資料要標", () => {
+    const mop: Item = {
+      id: 1442004, n: "拖把", c: "裝備", s: "矛",
+      sp: [
+        { p: "弓箭手村武器店", n: "克爾", m: 100000101, pr: 24000, o: 1 },
+        { p: "勇士之村武器店", n: "利伯", m: 102000001, pr: 24000, o: 1 },
+      ],
+    };
+    expect(shopGroups(mop)).toEqual({
+      groups: [{
+        price: "24,000 楓幣",
+        places: [
+          { place: "弓箭手村武器店", npc: "克爾", later: false },
+          { place: "勇士之村武器店", npc: "利伯", later: false },
+        ],
+      }],
+      fromOldData: true,
+    });
+  });
+
+  it("10/15 才開放的店標 later、排在同一組最後；現在去得了的先列（其餘照資料順序）", () => {
+    const redPotion: Item = {
+      id: 2000000, n: "紅色藥水", c: "消耗", s: "藥水",
+      sp: [
+        { p: "冰原雪域", n: "哈娜", m: 211000000, pr: 50, o: 1 },
+        { p: "弓箭手村雜貨店", n: "露娜", m: 100000102, pr: 50, o: 1 },
+        { p: "楓之谷通行證遠端商店", pr: 50 },
+      ],
+    };
+    const opensLater = (mapId: number) => mapId === 211000000;
+    expect(shopGroups(redPotion, opensLater).groups[0].places).toEqual([
+      { place: "弓箭手村雜貨店", npc: "露娜", later: false },
+      { place: "楓之谷通行證遠端商店", later: false },
+      { place: "冰原雪域", npc: "哈娜", later: true },
+    ]);
+    // 沒傳判斷就當全部現在都去得了，照資料順序
+    expect(shopGroups(redPotion).groups[0].places.map(place => place.place)).toEqual(["冰原雪域", "弓箭手村雜貨店", "楓之谷通行證遠端商店"]);
+  });
+
+  it("商城寫樂豆點、整組賣的寫幾個，不同價錢分開列；全是商城不標舊版", () => {
+    const box: Item = { id: 5068302, n: "記憶音樂盒", c: "現金", sp: [{ p: "商城", pr: 220, c: 1 }, { p: "商城", pr: 1980, k: 10, c: 1 }] };
+    expect(shopGroups(box)).toEqual({
+      groups: [
+        { price: "220 樂豆點", places: [{ place: "商城", later: false }] },
+        { price: "10 個 1,980 樂豆點", places: [{ place: "商城", later: false }] },
+      ],
+      fromOldData: false,
+    });
+  });
+
+  it("沒有店家的道具是空的", () => {
+    expect(shopGroups(potion)).toEqual({ groups: [], fromOldData: false });
   });
 });

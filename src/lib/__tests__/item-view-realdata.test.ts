@@ -5,8 +5,9 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { compareItems, equipGroups, itemKeywords, itemNote, wearFit, usableBy } from "@/lib/item-view";
-import type { Item } from "@/lib/types";
+import { compareItems, equipGroups, itemKeywords, itemNote, shopGroups, wearFit, usableBy } from "@/lib/item-view";
+import { isV002Map } from "@/lib/v002";
+import type { Item, MapRecord } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const items = JSON.parse(fs.readFileSync(`${DATA}items.json`, "utf8")) as Item[];
@@ -95,5 +96,45 @@ describe("真資料：裝備數值的順序與佔兩格", () => {
     expect(overalls.filter(item => item.s !== "套服").map(item => `${item.id} ${item.s}`)).toEqual([]);
     expect(twoHanded.filter(item => item.c !== "裝備").map(item => `${item.id} ${item.c}`)).toEqual([]);
     expect(slotText(items.find(item => item.id === 1042167)!)).toBeUndefined();
+  });
+});
+
+describe("真資料：哪裡買得到", () => {
+  const maps = JSON.parse(fs.readFileSync(`${DATA}maps.json`, "utf8")) as Record<string, MapRecord>;
+  const opensLater = (mapId: number) => isV002Map(maps[String(mapId)]);
+
+  it("紅色藥水：10/15 才開的冰原雪域、天空之城排在最後，現在去得了的雜貨店先列", () => {
+    const { groups } = shopGroups(items.find(item => item.id === 2000000)!, opensLater);
+    const places = groups[0].places;
+    expect(places[0].later).toBe(false);
+    expect(places.filter(place => place.later).map(place => place.place).sort()).toEqual(["冰原雪域", "天空之城"]);
+    expect(places.slice(-2).every(place => place.later)).toBe(true);
+  });
+
+  it("拖把：弓箭手村武器店、勇士之村武器店都是 24,000 楓幣，標舊版資料；水世界（還沒開放）的店不列", () => {
+    const { groups, fromOldData } = shopGroups(items.find(item => item.id === 1442004)!);
+    expect(fromOldData).toBe(true);
+    expect(groups.map(group => group.price)).toEqual(["24,000 楓幣"]);
+    const places = groups[0].places.map(place => place.place);
+    expect(places).toContain("弓箭手村武器店");
+    expect(places).toContain("勇士之村武器店");
+    expect(groups[0].places.map(place => place.npc)).not.toContain("卡利");
+  });
+
+  it("記憶音樂盒：商城 220 樂豆點、10 個 1,980 樂豆點；下架的限時售價（40、360）不列", () => {
+    const { groups, fromOldData } = shopGroups(items.find(item => item.id === 5068302)!);
+    expect(groups.map(group => group.price)).toEqual(["220 樂豆點", "10 個 1,980 樂豆點"]);
+    expect(fromOldData).toBe(false);
+  });
+
+  it("店家地點都有名字，沒有「未命名地圖」", () => {
+    const bad = items.flatMap(item => (item.sp ?? []).filter(row => !row.p || row.p.includes("未命名")).map(row => `${item.id} ${row.p}`));
+    expect(bad).toEqual([]);
+  });
+
+  it("天空之城、冰原雪域的店都帶得出開放日（畫面標 10/15 開放）", () => {
+    const rows = items.flatMap(item => item.sp ?? []).filter(row => row.p === "天空之城" || row.p === "冰原雪域");
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.filter(row => row.m === undefined || !isV002Map(maps[String(row.m)])).map(row => `${row.p} ${row.n}`)).toEqual([]);
   });
 });
