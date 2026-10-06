@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } from "@/components/Icons";
 import { MapPicker } from "@/components/MapPicker";
+import { PixelMinimap } from "@/components/PixelMinimap";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
 import { Chip } from "@/components/route/bits";
 import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage } from "@/lib/data";
@@ -322,14 +322,7 @@ function RouteCard({
               </button>
               {open ? (
                 <figure className="mt-2 overflow-hidden rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-2">
-                  <Image
-                    src={minimapImage(step.map)}
-                    alt={unnamed ? "小通道 小地圖" : `${name} 小地圖`}
-                    width={640}
-                    height={200}
-                    className="mx-auto h-auto w-full object-contain"
-                    unoptimized
-                  />
+                  <PixelMinimap src={minimapImage(step.map)} alt={unnamed ? "小通道 小地圖" : `${name} 小地圖`} />
                 </figure>
               ) : null}
             </>
