@@ -109,11 +109,12 @@ export function totalStats(level: number): number {
 }
 
 /**
- * 這套點法在這個等級的四圍目標。沒給 weapon 時 equip 類型的副屬沒有需求可查，退回 floor。
+ * 這套點法在這個等級的四圍目標。equip 類型的副屬看 equipReq（見 equipRequirement）；
+ * 沒給 equipReq、或那個屬性沒資料時退回 floor。
  * 副屬算出來若超過「總點數－12」會夾住（留給主屬性跟其餘兩項各自最低 4 點）；
  * 所有算出來的數字最低都是 4。
  */
-export function statTargets(rule: StatRule, level: number, weapon?: GearWeapon): Record<StatKey, number> {
+export function statTargets(rule: StatRule, level: number, equipReq?: Partial<Record<StatKey, number>>): Record<StatKey, number> {
   const total = totalStats(level);
   const result: Record<StatKey, number> = { STR: STAT_FLOOR, DEX: STAT_FLOOR, INT: STAT_FLOOR, LUK: STAT_FLOOR };
   const sec = rule.secondary;
@@ -136,14 +137,13 @@ export function statTargets(rule: StatRule, level: number, weapon?: GearWeapon):
       break;
     case "equip": {
       const floor = sec.floor ?? STAT_FLOOR;
-      const req = weapon?.req?.[sec.stat];
-      secondaryValue = req !== undefined ? Math.max(req, floor) : floor;
+      secondaryValue = Math.max(floor, equipReq?.[sec.stat] ?? 0);
       break;
     }
     case "ratio": {
       const [mainShare, secondaryShare] = sec.ratio ?? [1, 1];
       const pool = total - STAT_FLOOR * STAT_KEYS.length;
-      secondaryValue = STAT_FLOOR + Math.round((pool * secondaryShare) / (mainShare + secondaryShare));
+      secondaryValue = STAT_FLOOR + Math.floor((pool * secondaryShare) / (mainShare + secondaryShare));
       break;
     }
     default:
@@ -160,43 +160,36 @@ export function statTargets(rule: StatRule, level: number, weapon?: GearWeapon):
 
 /**
  * 職業能用的武器種類，依遊戲資料的熟練技能分流（skills.json 的「精準之劍」「精準之斧」…，
- * 一個二轉只點得出其中一支熟練技能，能用的武器種類就跟著那支技能走）；二轉、三轉用同一組
- * （111 跟 110 一樣，因為三轉沒有新的熟練技能、沿用二轉那支）。初心者（0）與認不得的職業代碼回空陣列。
+ * 一個二轉只點得出其中一支熟練技能，能用的武器種類就跟著那支技能走）。只列一轉跟二轉；
+ * 三轉沒有新的熟練技能、沿用二轉那支，所以 weaponTypesFor 查不到時會沿 previousJob 往上找
+ * （111 → 110），不在表裡另外重複一份。
  */
 const WEAPON_TYPES_BY_JOB: Record<number, string[]> = {
   100: ["單手劍", "雙手劍", "單手斧", "雙手斧", "單手棍", "雙手棍"],
   110: ["單手劍", "雙手劍", "單手斧", "雙手斧"],
-  111: ["單手劍", "雙手劍", "單手斧", "雙手斧"],
   120: ["單手劍", "雙手劍", "單手棍", "雙手棍"],
-  121: ["單手劍", "雙手劍", "單手棍", "雙手棍"],
   130: ["槍", "矛"],
-  131: ["槍", "矛"],
   200: ["短杖", "長杖"],
   210: ["短杖", "長杖"],
-  211: ["短杖", "長杖"],
   220: ["短杖", "長杖"],
-  221: ["短杖", "長杖"],
   230: ["短杖", "長杖"],
-  231: ["短杖", "長杖"],
   300: ["弓", "弩"],
   310: ["弓"],
-  311: ["弓"],
   320: ["弩"],
-  321: ["弩"],
   400: ["拳套", "短刀"],
   410: ["拳套"],
-  411: ["拳套"],
   420: ["短刀"],
-  421: ["短刀"],
   500: ["指虎", "火槍"],
   510: ["指虎"],
-  511: ["指虎"],
   520: ["火槍"],
-  521: ["火槍"],
 };
 
+/** 初心者（0）與認不得的職業代碼回空陣列；三轉（表裡查不到）沿 previousJob 往上找二轉那組。 */
 export function weaponTypesFor(job: number): string[] {
-  return WEAPON_TYPES_BY_JOB[job] ?? [];
+  const direct = WEAPON_TYPES_BY_JOB[job];
+  if (direct) return direct;
+  const prev = previousJob(job);
+  return prev > 0 ? weaponTypesFor(prev) : [];
 }
 
 /** 法師系：一轉、二轉、三轉都算（200 系） */
@@ -275,6 +268,25 @@ export function weaponPicks(
   return { best, alternatives, next };
 }
 
+/**
+ * 從 1 等算到現在，每一等「當時拿得到的第一名」的力敏智幸需求，取各屬性出現過的最大值。
+ * 不會因為等級到了之後換上的更強武器剛好沒寫某項需求（楓葉拳套不需要敏捷，但之前的狼牙拳套要 50）
+ * 就讓那項需求往回掉——玩家點下去的能力值不會因為換裝備就消失。
+ */
+export function equipRequirement(weapons: GearWeapon[], job: number, level: number): Partial<Record<StatKey, number>> {
+  const result: Partial<Record<StatKey, number>> = {};
+  for (let l = 1; l <= level; l++) {
+    const req = weaponPicks(weapons, job, l).best?.req;
+    if (!req) continue;
+    for (const key of STAT_KEYS) {
+      const value = req[key];
+      if (value === undefined) continue;
+      if (result[key] === undefined || value > result[key]!) result[key] = value;
+    }
+  }
+  return result;
+}
+
 /** 武器的力敏智幸需求比目標高的部分：「照這套點法敏捷還差 10」。沒寫需求或沒超過目標的不列。 */
 export function statShortfall(weapon: GearWeapon, targets: Record<StatKey, number>): Array<{ stat: StatKey; short: number }> {
   const result: Array<{ stat: StatKey; short: number }> = [];
@@ -341,20 +353,30 @@ function closestDrop(drops: NonNullable<GearSource["drops"]>, level: number) {
 
 /**
  * 最好打的來源：商店優先；再來是掉落怪等級最接近你的（同分選等級低的那隻，比較好打）；
- * 最後是任務（列第一個）。beforeOpen＝true（10/15 前）時，掉落跟任務各自先只看沒有 o 的，
- * 那個分類全部都是 V002 的才退回全部——不然「只有 V002 來源」的東西會整組憑空消失，
- * 變成「現在完全拿不到」的假象，但其實只是還沒到 10/15。
+ * 最後是任務（列第一個）。
+ *
+ * beforeOpen＝true（10/15 前）時，要跨「掉落」「任務」兩層一起看現在真的拿得到什麼：
+ * 先看掉落裡沒有 o 的（一樣取等級最接近的），沒有就看任務裡沒有 o 的（取第一個）；
+ * 兩層都只剩 V002 的（或兩層都是空的）才整個退回正常順序（不分 o，掉落先於任務）。
+ * 不然像「弩攻擊卷軸」這種掉落怪剛好只掛在 V002 地圖、但任務還是現在就能接的道具，
+ * 會被「掉落優先」誤判成只能等 10/15，其實任務那條路現在就打得到。
  */
 export function closestSource(src: GearSource, level: number, beforeOpen = false): SourcePick | null {
   if (src.shop) return { kind: "shop" };
 
   const drops = src.drops ?? [];
-  const dropPool = beforeOpen && drops.some(d => !d.o) ? drops.filter(d => !d.o) : drops;
-  if (dropPool.length) return { kind: "drop", drop: closestDrop(dropPool, level) };
-
   const quests = src.quests ?? [];
-  const questPool = beforeOpen && quests.some(q => !q.o) ? quests.filter(q => !q.o) : quests;
-  if (questPool.length) return { kind: "quest", quest: questPool[0] };
+
+  if (beforeOpen) {
+    const openDrops = drops.filter(d => !d.o);
+    if (openDrops.length) return { kind: "drop", drop: closestDrop(openDrops, level) };
+    const openQuests = quests.filter(q => !q.o);
+    if (openQuests.length) return { kind: "quest", quest: openQuests[0] };
+    // 掉落、任務全部都是 V002 的（或兩邊都沒資料）：沒有「現在拿得到」的選項，退回正常順序。
+  }
+
+  if (drops.length) return { kind: "drop", drop: closestDrop(drops, level) };
+  if (quests.length) return { kind: "quest", quest: quests[0] };
 
   return null;
 }

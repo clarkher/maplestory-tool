@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   closestSource,
+  equipRequirement,
   isMagicJob,
   rulesFor,
   scrollPicks,
@@ -140,21 +141,21 @@ describe("statTargets", () => {
     expect(statTargets(r, 40)).toEqual({ STR: 4, DEX: 4, INT: 208, LUK: 4 });
   });
 
-  it("equip：副屬點到武器需求、至少 floor；沒給武器只拿 floor", () => {
+  it("equip：副屬＝floor 跟目前裝備需求（equipRequirement）的較大值；沒給就只拿 floor", () => {
     const r = rule({
       jobs: [420],
       label: "俠盜全幸（敏點到裝備需求）",
       main: "LUK",
       secondary: { stat: "DEX", type: "equip", floor: 25 },
     });
-    const w = weapon({ id: 1, n: "測試短刀", s: "短刀", lv: 35, job: 8, req: { DEX: 35 } });
-    expect(statTargets(r, 35, w)).toMatchObject({ DEX: 35, LUK: 152 });
+    expect(statTargets(r, 35, { DEX: 35 })).toMatchObject({ DEX: 35, LUK: 152 });
     expect(statTargets(r, 35)).toMatchObject({ DEX: 25 });
   });
 
-  it("ratio：主 DEX、副 STR 比例 4:1", () => {
+  it("ratio：主 DEX、副 STR 比例 4:1，無條件捨去（floor，不是四捨五入）", () => {
     const r = rule({ jobs: [500], label: "槍手", main: "DEX", secondary: { stat: "STR", type: "ratio", ratio: [4, 1] } });
-    expect(statTargets(r, 50)).toMatchObject({ STR: 55, DEX: 207 });
+    expect(statTargets(r, 50)).toMatchObject({ STR: 54, DEX: 208 });
+    expect(statTargets(r, 30)).toMatchObject({ STR: 34, DEX: 128 });
   });
 
   it("副屬算出來超過「總點數－12」要夾住，主屬性不會變負的", () => {
@@ -163,6 +164,17 @@ describe("statTargets", () => {
     const result = statTargets(r, 10);
     expect(result.STR).toBe(total - 12);
     expect(result.DEX).toBe(4);
+  });
+});
+
+describe("equipRequirement", () => {
+  it("取每個等級最強武器需求的最大值，不會因為更強武器沒寫需求而往回掉", () => {
+    const clawA = weapon({ id: 1, n: "楓葉拳套A", s: "拳套", lv: 25, atk: 16, job: 8, req: { DEX: 50 } });
+    const clawB = weapon({ id: 2, n: "楓葉拳套B（更強但沒寫需求）", s: "拳套", lv: 30, atk: 20, job: 8, req: {} });
+    const weapons: GearWeapon[] = [clawA, clawB];
+    expect(equipRequirement(weapons, 410, 25)).toEqual({ DEX: 50 });
+    expect(equipRequirement(weapons, 410, 30)).toEqual({ DEX: 50 });
+    expect(equipRequirement(weapons, 410, 20)).toEqual({});
   });
 });
 
@@ -198,6 +210,18 @@ describe("weaponPicks", () => {
 
   it("沒有能用的武器時三項都是空／null", () => {
     expect(weaponPicks([], 110, 10)).toEqual({ best: null, alternatives: [], next: null });
+  });
+
+  it("備選排除同種類：非 best 的兩把種類相同時只算一次", () => {
+    const weapons: GearWeapon[] = [
+      weapon({ id: 1, n: "單手劍（best）", s: "單手劍", lv: 10, atk: 50, spd: 5, job: 1 }),
+      weapon({ id: 2, n: "雙手斧甲", s: "雙手斧", lv: 10, atk: 45, spd: 5, job: 1 }),
+      weapon({ id: 3, n: "雙手斧乙（較弱、同種類）", s: "雙手斧", lv: 10, atk: 40, spd: 5, job: 1 }),
+      weapon({ id: 4, n: "單手斧", s: "單手斧", lv: 10, atk: 35, spd: 5, job: 1 }),
+    ];
+    const result = weaponPicks(weapons, 110, 20);
+    expect(result.best?.id).toBe(1);
+    expect(result.alternatives.map(w => w.id)).toEqual([2, 4]);
   });
 });
 
@@ -291,5 +315,14 @@ describe("closestSource", () => {
 
     const onlyV002: GearSource = { drops: [{ m: 1, n: "怪A", lv: 10, map: 1, o: "2026-10-15" }] };
     expect(closestSource(onlyV002, 10, true)).toEqual({ kind: "drop", drop: onlyV002.drops![0] });
+  });
+
+  it("beforeOpen 要跨層看：non-V002 的任務贏過只有 V002 的掉落（弩攻擊卷軸實例）", () => {
+    const src: GearSource = {
+      drops: [{ m: 1, n: "小雪球", lv: 50, map: 1, o: "2026-10-15" }],
+      quests: [{ id: "2001", n: "酋長蓋房子", minLv: 30 }],
+    };
+    expect(closestSource(src, 50, true)).toEqual({ kind: "quest", quest: src.quests![0] });
+    expect(closestSource(src, 50, false)).toEqual({ kind: "drop", drop: src.drops![0] });
   });
 });
