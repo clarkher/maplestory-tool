@@ -315,6 +315,8 @@ export function weaponPicks(
   const alternatives: GearWeapon[] = [];
   if (best) {
     for (const w of rankedWearable.slice(1)) {
+      // 差太多的不算備選：攻擊／魔力不到第一名八成就停（已依攻擊排序，後面只會更低）——40 等法師不該看到 8 等新手短杖
+      if (offenseStat(w, magic) < offenseStat(best, magic) * 0.8) break;
       if (w.s === best.s || alternatives.some(pick => pick.s === w.s)) continue;
       alternatives.push(w);
       if (alternatives.length === 2) break;

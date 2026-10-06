@@ -256,7 +256,7 @@ describe("weaponPicks", () => {
       weapon({ id: 1, n: "單手劍（best）", s: "單手劍", lv: 10, atk: 50, spd: 5, job: 1 }),
       weapon({ id: 2, n: "雙手斧甲", s: "雙手斧", lv: 10, atk: 45, spd: 5, job: 1 }),
       weapon({ id: 3, n: "雙手斧乙（較弱、同種類）", s: "雙手斧", lv: 10, atk: 40, spd: 5, job: 1 }),
-      weapon({ id: 4, n: "單手斧", s: "單手斧", lv: 10, atk: 35, spd: 5, job: 1 }),
+      weapon({ id: 4, n: "單手斧", s: "單手斧", lv: 10, atk: 41, spd: 5, job: 1 }),
     ];
     const result = weaponPicks(weapons, 110, 20);
     expect(result.best?.id).toBe(1);
@@ -487,5 +487,19 @@ describe("stronger：更強但穿不上的那把，挑最容易補到的", () =>
     const picks = weaponPicks(weapons, 210, 40, { targetsAt: lv => statTargets(allInt, lv) });
     expect(picks.best?.id).toBe(1);
     expect(picks.stronger).toBeNull();
+  });
+});
+
+describe("alternatives：差太多的備選不列", () => {
+  it("攻擊／魔力不到第一名八成的不算備選（40 等法師不該看到 8 等新手短杖）", () => {
+    const allInt = rule({ jobs: [210], label: "全智", main: "INT", secondary: null });
+    const weapons: GearWeapon[] = [
+      weapon({ id: 1, n: "黃色雨傘", s: "單手劍", lv: 40, mag: 52, job: 0, src: source({ shop: 1 }) }),
+      weapon({ id: 2, n: "木製短杖", s: "短杖", lv: 8, mag: 15, job: 2, src: source({ shop: 1 }) }),
+      weapon({ id: 3, n: "還可以的長杖", s: "長杖", lv: 35, mag: 45, job: 2, src: source({ shop: 1 }) }),
+    ];
+    const picks = weaponPicks(weapons, 210, 40, { targetsAt: lv => statTargets(allInt, lv) });
+    expect(picks.best?.id).toBe(1);
+    expect(picks.alternatives.map(w => w.id)).toEqual([3]);
   });
 });

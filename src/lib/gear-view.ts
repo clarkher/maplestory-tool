@@ -5,6 +5,7 @@
  */
 import { equipStatValue } from "./format";
 import {
+  canWear,
   closestSource,
   equipRequirement,
   isMagicJob,
@@ -184,6 +185,11 @@ export type GearPlan = {
   next: GearWeapon | null;
   stronger: GearWeapon | null;
   strongerShort: Array<{ stat: StatKey; short: number }>;
+  /**
+   * 「其他點法」裡照著點就穿得上 stronger 的那條（祭司：三轉裝備法，幸運＝等級＋3 → 死靈法杖）。
+   * 有的話畫面改講「改用這套點法就能用」，不講「幸運還差 74」——主流點法那項永遠是 4，叫人補是補不到的。
+   */
+  strongerVia: StatRule | null;
   families: GearFamily[];
   notes: ReturnType<typeof notesFor>;
 };
@@ -200,9 +206,26 @@ const EMPTY_PLAN: Omit<GearPlan, "magic"> = {
   next: null,
   stronger: null,
   strongerShort: [],
+  strongerVia: null,
   families: [],
   notes: [],
 };
+
+/** 其他點法裡，照著點到這個等級就穿得上這把武器的第一條；都穿不上回 null */
+function otherRuleThatWears(
+  gear: GearData,
+  job: number,
+  level: number,
+  others: StatRule[],
+  weapon: GearWeapon,
+  beforeOpen: boolean,
+): StatRule | null {
+  for (const other of others) {
+    const equipReq = other.secondary?.type === "equip" ? equipRequirement(gear.weapons, job, level, other, beforeOpen) : undefined;
+    if (canWear(weapon, statTargets(other, level, equipReq))) return other;
+  }
+  return null;
+}
 
 /**
  * 卡片要的一切，照 gear-realdata.test.ts 的方式組：能力值目標 targetsAt 只有 equip 類型的點法才吃
@@ -249,6 +272,7 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
     next: picks.next,
     stronger: picks.stronger,
     strongerShort: picks.stronger && targets ? statShortfall(picks.stronger, targets) : [],
+    strongerVia: picks.stronger ? otherRuleThatWears(gear, job, level, others, picks.stronger, beforeOpen) : null,
     families,
     notes: notesFor(gear.notes, job),
   };

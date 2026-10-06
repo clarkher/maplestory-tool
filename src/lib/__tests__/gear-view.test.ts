@@ -224,6 +224,13 @@ describe("真資料：gearPlan 組出來的卡片內容", () => {
     expect(plan.best?.n).toBe("黃色雨傘");
     expect(plan.stronger?.s.endsWith("杖")).toBe(true);
     expect(plan.strongerShort.map(entry => entry.stat)).toEqual(["LUK"]);
+    // 全智點法幸運永遠是 4，「還差 74」等於叫人補不可能的點數：改講「換成另一種點法就能用」
+    expect(plan.strongerVia?.label).toBe("三轉裝備法：幸運＝等級＋3");
+  });
+
+  it("其他點法也穿不上時 strongerVia 是 null（只講還差幾點）", () => {
+    const plan = gearPlan(gear, 410, 35, true);
+    expect(plan.strongerVia).toBeNull();
   });
 
   it("十字軍 Lv75：沿用狂戰士的點法", () => {

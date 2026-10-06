@@ -139,6 +139,10 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
       <WeaponBlock plan={plan} where={where} />
       {families.length ? (
         <Block label="衝卷" tag={<SourceTag kind="data" />}>
+          {/* 法師拿雨傘：雨傘的卷軸只加物理攻擊，沒有加魔力的，先講清楚為什麼這裡沒有武器卷 */}
+          {plan.magic && plan.best && !plan.families.some(family => family.slot === plan.best?.s) ? (
+            <p className="mb-1 text-[12px] ink-soft">{plan.best.n}沒有可以加魔力的卷軸，先衝下面這些。</p>
+          ) : null}
           <ul className="divide-y divide-[color:var(--paper-edge)]">
             {families.map(family => (
               <FamilyItem key={`${family.slot}:${family.stat}`} family={family} where={where} />
@@ -247,7 +251,13 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
           {plan.bestShort.length ? (
             <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">照這套點法{shortText(plan.bestShort)}</p>
           ) : null}
-          {stronger ? (
+          {stronger && plan.strongerVia ? (
+            // 主流點法那項永遠是 4（全智的幸運），講「還差 74」是叫人補補不到的點數；改講換哪套點法就能用
+            <WeaponLine weapon={stronger}>
+              改用另一種點法「{plan.strongerVia.label}」就能用 <NameLink weapon={stronger} />
+              <span className="whitespace-nowrap">（{offenseText(stronger, magic)}）</span>
+            </WeaponLine>
+          ) : stronger ? (
             <WeaponLine weapon={stronger}>
               想用更強的 <NameLink weapon={stronger} />
               <span className="whitespace-nowrap">（{offenseText(stronger, magic)}）</span>，
@@ -336,6 +346,11 @@ function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; whe
             <wbr />
             <span className="break-keep wrap-anywhere">{label(pick.drop.map)}</span>
           </>
+        ) : pick.kind === "quest" ? (
+          // 任務名連到任務細節（找誰接、在哪、要交什麼），不用自己再查一次
+          <Link href={`/db/quests?id=${pick.quest.id}`} className="break-keep wrap-anywhere underline decoration-dotted underline-offset-2">
+            {sourceText(pick, label)}
+          </Link>
         ) : (
           <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
         )}
