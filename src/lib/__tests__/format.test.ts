@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
+import { attackSpeedLabel, equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
 
 describe("回生秒數的寫法", () => {
   it("等效回生秒數帶小數，畫面寫整數秒「回生約 7 秒」", () => {
@@ -88,6 +88,12 @@ describe("裝備的攻擊速度", () => {
     expect(equipStatValue("attackSpeed", 1)).toBe("1");
     expect(equipStatValue("attackSpeed", 10)).toBe("10");
   });
+
+  it("attackSpeedLabel：認得的寫「字（數字）」，認不得的回 null（清單就不寫）", () => {
+    expect(attackSpeedLabel(8)).toBe("慢（8）");
+    expect(attackSpeedLabel(3)).toBe("更快（3）");
+    expect(attackSpeedLabel(12)).toBeNull();
+  });
 });
 
 describe("裝備欄位", () => {
@@ -100,5 +106,25 @@ describe("裝備欄位", () => {
     expect(equipStatValue("islot", "Cp")).toBeNull();
     expect(equipStatValue("islot", "Wp")).toBeNull();
     expect(equipStatValue("islot", "HrCp")).toBeNull();
+  });
+});
+
+describe("裝備數值的欄位名寫遊戲說明框的字", () => {
+  it("攻擊力、魔法攻擊力、防禦力、魔法防禦力、命中率、迴避率、HP、MP、可使用捲軸次數（經典版客戶端的字）", () => {
+    expect(equipStatLabel("incPAD")).toBe("攻擊力");
+    expect(equipStatLabel("incMAD")).toBe("魔法攻擊力");
+    expect(equipStatLabel("incPDD")).toBe("防禦力");
+    expect(equipStatLabel("incMDD")).toBe("魔法防禦力");
+    expect(equipStatLabel("incACC")).toBe("命中率");
+    expect(equipStatLabel("incEVA")).toBe("迴避率");
+    expect(equipStatLabel("incMHP")).toBe("HP");
+    expect(equipStatLabel("incMMP")).toBe("MP");
+    expect(equipStatLabel("tuc")).toBe("可使用捲軸次數");
+  });
+
+  it("本來就跟遊戲一樣的不動：力量、移動速度、跳躍力", () => {
+    expect(equipStatLabel("incSTR")).toBe("力量");
+    expect(equipStatLabel("incSpeed")).toBe("移動速度");
+    expect(equipStatLabel("incJump")).toBe("跳躍力");
   });
 });

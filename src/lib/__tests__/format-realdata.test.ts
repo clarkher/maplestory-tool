@@ -57,10 +57,10 @@ describe("真資料：裝備數值", () => {
     expect([...shown].filter(text => text === null || !/^[一-鿿]+（\d）$/.test(text))).toEqual([]);
   });
 
-  it("裝備欄位：雷神之錘寫雙手、標題寫上衣的樸素的武士上衣寫上衣＋褲裙，海神叉（槍）不顯示", () => {
+  it("裝備欄位的字：雷神之錘（雙手武器）寫雙手、鋼鐵鎧甲（套服）寫上衣＋褲裙，海神叉（槍）不給格子", () => {
     const slot = (id: number) => equipStatValue("islot", items.find(i => i.id === id)!.eq!.islot);
     expect(slot(1422012)).toBe("雙手，不能配盾");
-    expect(slot(1042167)).toBe("上衣＋褲裙（佔兩格）");
+    expect(slot(1051000)).toBe("上衣＋褲裙（佔兩格）");
     expect(slot(1432008)).toBeNull();
   });
 

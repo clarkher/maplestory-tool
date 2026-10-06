@@ -8,13 +8,13 @@ import {
   itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage, peekItems, peekMaps, peekMonsters, peekQuests,
 } from "@/lib/data";
 import {
-  compareItems, equipGroups, itemKeywords, jobLabel, sortCategories, subcategoryOptions, usableBy, wearFit, type WearFit,
+  compareItems, equipGroups, itemKeywords, itemNote, jobLabel, shopGroups, sortCategories, subcategoryOptions, usableBy, wearFit, type WearFit,
 } from "@/lib/item-view";
 import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
-import { isV002Item, v002MonsterIds, v002QuestIds } from "@/lib/v002";
+import { isV002Item, isV002Map, v002MonsterIds, v002QuestIds } from "@/lib/v002";
 
 export function ItemDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -97,7 +97,7 @@ export function ItemDb() {
       .map(item => ({
         id: String(item.id),
         name: item.n,
-        note: item.s || item.c,
+        note: itemNote(item),
         image: itemImage(item.id),
         keywords: keywordsById.get(item.id),
         badge: isV002Item(item, v002Monsters, v002Quests) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
@@ -178,6 +178,7 @@ export function ItemDb() {
             item={item}
             monsterIndex={monsterIndex}
             questIndex={questIndex}
+            maps={maps ?? {}}
             isV002={isV002Item(item, v002Monsters, v002Quests)}
             fit={isComplete ? wearFit(item, profile) : null}
           />
@@ -191,18 +192,23 @@ function ItemDetail({
   item,
   monsterIndex,
   questIndex,
+  maps,
   isV002,
   fit,
 }: {
   item: Item;
   monsterIndex: Map<number, Monster>;
   questIndex: Map<string, Quest>;
+  /** 店家地點要看是不是 10/15 才開放 */
+  maps: Record<string, MapRecord>;
   isV002: boolean;
   /** 穿戴條件旁的小標籤；角色列沒選職業或沒填等級時是 null */
   fit: WearFit | null;
 }) {
   const notOpenYet = useBeforeV002();
   const { requirements, stats } = equipGroups(item);
+  // 店的地點 10/15 才開放、而且現在還沒到：標「10/15 開放」並排在最後
+  const shops = shopGroups(item, mapId => notOpenYet && isV002Map(maps[String(mapId)]));
 
   return (
     <DetailCard>
@@ -282,6 +288,30 @@ function ItemDetail({
         </Section>
       ) : null}
 
+      {shops.groups.length ? (
+        <Section title="哪裡買得到" extra={shops.fromOldData ? "參考舊版資料，可能有出入" : undefined}>
+          <div className="space-y-2">
+            {shops.groups.map(group => (
+              <div key={group.price} className="space-y-1">
+                <p className="text-[13px] font-black tabular-nums">{group.price}</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {group.places.map((place, index) => (
+                    <li
+                      key={`${index}-${place.place}`}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] px-2.5 py-1"
+                    >
+                      <span className="text-[13px] font-bold">{place.place}</span>
+                      {place.npc ? <span className="text-[11px] ink-faint">{place.npc}</span> : null}
+                      {place.later ? <Chip tone="gold">10/15 開放</Chip> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+
       {item.qq?.length ? (
         <Section title="哪些任務要用到">
           <ul className="space-y-1">
@@ -301,8 +331,7 @@ function ItemDetail({
 
       {!item.dm?.length && !item.qr?.length && !item.qq?.length ? (
         <p className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2.5 text-sm ink-soft">
-          客戶端資料裡沒有記錄這個道具的來源。
-          {item.sh ? `商店有販售（${item.sh} 個販賣點）。` : ""}
+          目前查不到哪隻怪會掉、哪個任務給。
         </p>
       ) : null}
     </DetailCard>
