@@ -76,6 +76,33 @@ describe("最近的城鎮（suggestStart）", () => {
   });
 });
 
+describe("最近的城鎮（suggestStart）：宣告的回城點自己沒有中文名就不能當起點", () => {
+  // 真資料：海盜修練場 912030000 的回城點 120010000 客戶端一直沒給名字（有真的傳送門，走得到）。
+  // 舊邏輯只看「走得到」，會讓「帶我去」從一個玩家在遊戲裡看不到名字的城鎮出發（上一輪審查 Important）。
+  const DOJO = 912030000;
+  const NAMELESS_RETURN = 120010000;
+  const TOWN = 120000000;
+  const baseMaps: Record<string, MapRecord> = {
+    [DOJO]: { zh: "海盜修練場", st: "維多利亞", ret: NAMELESS_RETURN },
+    [NAMELESS_RETURN]: { zh: "", st: "", t: 1, ret: NAMELESS_RETURN },
+    [TOWN]: { zh: "有名字的城鎮", st: "維多利亞", t: 1, ret: TOWN },
+  };
+  const nearestTown: Record<string, [number, number]> = { [DOJO]: [NAMELESS_RETURN, 0] };
+  const graph: Record<string, PortalEdge[]> = {
+    [TOWN]: [[NAMELESS_RETURN, "east00", 0, 0]],
+    [NAMELESS_RETURN]: [[DOJO, "in00", 0, 0]],
+  };
+
+  it("回城點沒有中文名、就算走得到也不用它：改走反向 BFS 找到的有名字城鎮", () => {
+    expect(suggestStart(graph, baseMaps, nearestTown, DOJO)).toBe(TOWN);
+  });
+
+  it("回城點有中文名：照舊直接用它，不用再往回找", () => {
+    const named: Record<string, MapRecord> = { ...baseMaps, [NAMELESS_RETURN]: { ...baseMaps[NAMELESS_RETURN], zh: "停泊所" } };
+    expect(suggestStart(graph, named, nearestTown, DOJO)).toBe(NAMELESS_RETURN);
+  });
+});
+
 describe("跨區要自己搭船或搭車", () => {
   const graph: Record<string, PortalEdge[]> = {
     [VICTORIA_PORT]: [[PERION, "east00", 0, 0]],

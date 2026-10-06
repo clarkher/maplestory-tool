@@ -110,8 +110,9 @@ export function suggestStart(
   target: number,
 ): number | null {
   const declared = nearestTown[String(target)]?.[0];
-  if (declared && maps[String(declared)]) {
-    // 回城點必須真的走得到目標，否則那只是死亡傳送點而不是可步行的起點
+  if (declared && maps[String(declared)]?.zh) {
+    // 回城點必須真的走得到目標（不然只是死亡傳送點），而且自己要有中文名——
+    // 沒有名字代表那是未開放地區的城鎮（海盜修練場回城點 120010000），走得到也不能當起點
     if (findRoute(graph, declared, target).ok) return declared;
   }
 
