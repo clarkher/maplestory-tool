@@ -67,3 +67,15 @@ test("同一家店同一個價錢重複只留一筆；沒有店、沒有標價�
   assert.equal(shopRows([], context), undefined);
   assert.equal(shopRows(undefined, context), undefined);
 });
+
+test("一家店在好幾張圖：每張已開放的圖各列一筆；沒開放的那張跳過", () => {
+  const shop = npcShop({ merchantName: "科爾", maps: [
+    { id: 230000002, name: "未命名地圖 230000002", unnamed: true, regionName: "" },
+    { id: 100000202, name: "寵物公園", unnamed: false, regionName: "維多利亞島" },
+    { id: 100000100, name: "弓箭手村市集", unnamed: false, regionName: "維多利亞島" },
+  ] });
+  assert.deepEqual(shopRows([shop], context), [
+    { p: "寵物公園", n: "科爾", m: 100000202, pr: 24000, o: 1 },
+    { p: "弓箭手村市集", n: "科爾", m: 100000100, pr: 24000, o: 1 },
+  ]);
+});
