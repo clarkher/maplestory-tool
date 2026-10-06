@@ -114,11 +114,33 @@ describe("裝備數值拆成「穿戴條件」和「裝備數值」兩組", () =
     expect(equipGroups(potion)).toEqual({ requirements: [], stats: [] });
   });
 
-  it("裝備欄位只留佔兩格的「雙手，不能配盾」，只佔一格的不給格子；攻擊速度寫成字", () => {
-    const bow: Item = { id: 3, n: "測試弓", c: "裝備", s: "弓", eq: { reqLevel: 35, reqJob: 4, incPAD: 50, islot: "WpSi", attackSpeed: 5 } };
-    expect(equipGroups(bow).stats).toEqual([["攻擊力", "50"], ["裝備欄位", "雙手，不能配盾"], ["攻擊速度", "快（5）"]]);
+  it("武器先排攻擊力、攻擊速度（挑武器時一起看），其他照資料順序", () => {
+    const bow: Item = {
+      id: 1452003, n: "測試弓", c: "裝備", s: "弓",
+      eq: { reqLevel: 35, reqJob: 4, incDEX: 2, incPAD: 50, tuc: 7, islot: "WpSi", attackSpeed: 5 },
+    };
+    expect(equipGroups(bow).stats).toEqual([
+      ["攻擊力", "50"], ["攻擊速度", "快（5）"], ["敏捷", "2"], ["可使用捲軸次數", "7"], ["裝備欄位", "雙手，不能配盾"],
+    ]);
+  });
+
+  it("沒有攻擊速度的（手套也有攻擊力）照資料順序，不搬", () => {
+    const glove: Item = { id: 1082000, n: "測試手套", c: "手套", s: "手套", eq: { incDEX: 1, incPAD: 2, incPDD: 3 } };
+    expect(equipGroups(glove).stats).toEqual([["敏捷", "1"], ["攻擊力", "2"], ["防禦力", "3"]]);
+  });
+
+  it("只佔一格的裝備欄位不給格子；攻擊速度照樣寫成字", () => {
     const oneSlot: Item = { ...spear, eq: { ...spear.eq, islot: "Wp", attackSpeed: 6 } };
-    expect(equipGroups(oneSlot).stats).toEqual([["攻擊力", "97"], ["可使用捲軸次數", "7"], ["攻擊速度", "普通（6）"]]);
+    expect(equipGroups(oneSlot).stats).toEqual([["攻擊力", "97"], ["攻擊速度", "普通（6）"], ["可使用捲軸次數", "7"]]);
+  });
+
+  it("「佔兩格」只寫真的套服（105 開頭）跟雙手武器（14 開頭）；標題寫上衣的上衣、武器外觀不寫，免得跟標題打架", () => {
+    const overall: Item = { id: 1051000, n: "鋼鐵鎧甲", c: "裝備", s: "套服", eq: { incPDD: 28, islot: "MaPn" } };
+    expect(equipGroups(overall).stats).toEqual([["防禦力", "28"], ["裝備欄位", "上衣＋褲裙（佔兩格）"]]);
+    const top: Item = { id: 1042167, n: "樸素的武士上衣", c: "裝備", s: "上衣", eq: { incPDD: 3, islot: "MaPn" } };
+    expect(equipGroups(top).stats).toEqual([["防禦力", "3"]]);
+    const cover: Item = { id: 1702000, n: "測試武器外觀", c: "時裝", s: "武器外觀", eq: { islot: "WpSi" } };
+    expect(equipGroups(cover).stats).toEqual([]);
   });
 
   it("只剩不顯示的欄位時「裝備數值」是空的，道具頁不會多一組空的", () => {

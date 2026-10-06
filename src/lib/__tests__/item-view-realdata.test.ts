@@ -62,3 +62,31 @@ describe("真資料：找道具", () => {
     expect(wrong.map(item => item.id)).toEqual([]);
   });
 });
+
+describe("真資料：裝備數值的順序與佔兩格", () => {
+  it("拖把（1442004）的裝備數值先寫攻擊力 47、攻擊速度慢（8）", () => {
+    const mop = items.find(item => item.id === 1442004)!;
+    expect(equipGroups(mop).stats.slice(0, 2)).toEqual([["攻擊力", "47"], ["攻擊速度", "慢（8）"]]);
+  });
+
+  it("有攻擊力的武器，攻擊速度都緊接在攻擊力後面", () => {
+    const weapons = items.filter(item => item.eq?.attackSpeed !== undefined && item.eq?.incPAD !== undefined);
+    expect(weapons.length).toBeGreaterThan(0);
+    const wrong = weapons.filter(item => {
+      const labels = equipGroups(item).stats.map(([label]) => label);
+      return labels.indexOf("攻擊速度") !== labels.indexOf("攻擊力") + 1;
+    });
+    expect(wrong.map(item => item.id)).toEqual([]);
+  });
+
+  it("寫「上衣＋褲裙（佔兩格）」的都是套服、寫「雙手，不能配盾」的都是「裝備」分類的武器；樸素的武士上衣（標題寫上衣）不寫", () => {
+    const slotText = (item: Item) => equipGroups(item).stats.find(([label]) => label === "裝備欄位")?.[1];
+    const overalls = items.filter(item => slotText(item) === "上衣＋褲裙（佔兩格）");
+    const twoHanded = items.filter(item => slotText(item) === "雙手，不能配盾");
+    expect(overalls.length).toBeGreaterThan(0);
+    expect(twoHanded.length).toBeGreaterThan(0);
+    expect(overalls.filter(item => item.s !== "套服").map(item => `${item.id} ${item.s}`)).toEqual([]);
+    expect(twoHanded.filter(item => item.c !== "裝備").map(item => `${item.id} ${item.c}`)).toEqual([]);
+    expect(slotText(items.find(item => item.id === 1042167)!)).toBeUndefined();
+  });
+});
