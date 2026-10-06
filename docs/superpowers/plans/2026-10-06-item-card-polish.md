@@ -800,7 +800,7 @@ Expected：
 node -e "const items=require('./public/data/items.json');const pick=id=>JSON.stringify(items.find(i=>i.id===id)?.sp);console.log(pick(1442004));console.log(pick(5068302));console.log(items.filter(i=>i.sp).length, items.reduce((n,i)=>n+(i.sp?.length||0),0))"
 ```
 
-Expected：拖把（1442004）有弓箭手村武器店、勇士之村武器店（24000、o:1），沒有水世界的卡利；記憶音樂盒（5068302）是 `[{"p":"商城","pr":220,"c":1},{"p":"商城","pr":1980,"k":10,"c":1}]`；有 sp 的道具約 1,505 件、約 2,052 筆。
+Expected：拖把（1442004）有弓箭手村武器店、勇士之村武器店（24000、o:1），沒有水世界的卡利；記憶音樂盒（5068302）是 `[{"p":"商城","pr":220,"c":1},{"p":"商城","pr":1980,"k":10,"c":1}]`；有 sp 的道具 1,450 件、1,900 筆（2026-10-06 實數；計畫初稿寫 1,505／2,052 是沒扣掉 184 筆價格不明的商城資料）。
 
 - [ ] **Step 8: 全部測試與型別**
 
@@ -827,8 +827,11 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 **Interfaces:**
 - Consumes: Task 5 的 `ShopRow`、`Item.sp`、重建後的 `public/data/items.json`；Task 4 改過的 item-view import 行。
-- Produces: `shopGroups(item: Item): { groups: ShopGroup[]; fromOldData: boolean }`，
-  `ShopGroup = { price: string; places: ShopPlace[] }`，`ShopPlace = { place: string; npc?: string; mapId?: number }`。
+- Produces: `shopGroups(item: Item, opensLater?: (mapId: number) => boolean): { groups: ShopGroup[]; fromOldData: boolean }`，
+  `ShopGroup = { price: string; places: ShopPlace[] }`，`ShopPlace = { place: string; npc?: string; later: boolean }`。
+  `later`＝這家店的地點 10/15 才開放（由呼叫端傳進來的 `opensLater` 判斷；沒傳就全部 false）；同一組裡 `later` 的排最後。
+- 2026-10-06 計畫修正（controller ruling）：紅色藥水這類到處都賣的，資料順序會把冰原雪域、天空之城（10/15 才開）排在最前面，
+  玩家現在要買卻先看到去不了的地方，所以「現在去得了的先列」，並把 10/15 判斷收進 `shopGroups`（純函式、可測），畫面只看 `later`。
 
 - [ ] **Step 1: 寫會失敗的測試**
 
@@ -848,20 +851,39 @@ describe("哪裡買得到", () => {
       groups: [{
         price: "24,000 楓幣",
         places: [
-          { place: "弓箭手村武器店", npc: "克爾", mapId: 100000101 },
-          { place: "勇士之村武器店", npc: "利伯", mapId: 102000001 },
+          { place: "弓箭手村武器店", npc: "克爾", later: false },
+          { place: "勇士之村武器店", npc: "利伯", later: false },
         ],
       }],
       fromOldData: true,
     });
   });
 
+  it("10/15 才開放的店標 later、排在同一組最後；現在去得了的先列（其餘照資料順序）", () => {
+    const redPotion: Item = {
+      id: 2000000, n: "紅色藥水", c: "消耗", s: "藥水",
+      sp: [
+        { p: "冰原雪域", n: "哈娜", m: 211000000, pr: 50, o: 1 },
+        { p: "弓箭手村雜貨店", n: "露娜", m: 100000102, pr: 50, o: 1 },
+        { p: "楓之谷通行證遠端商店", pr: 50 },
+      ],
+    };
+    const opensLater = (mapId: number) => mapId === 211000000;
+    expect(shopGroups(redPotion, opensLater).groups[0].places).toEqual([
+      { place: "弓箭手村雜貨店", npc: "露娜", later: false },
+      { place: "楓之谷通行證遠端商店", later: false },
+      { place: "冰原雪域", npc: "哈娜", later: true },
+    ]);
+    // 沒傳判斷就當全部現在都去得了，照資料順序
+    expect(shopGroups(redPotion).groups[0].places.map(place => place.place)).toEqual(["冰原雪域", "弓箭手村雜貨店", "楓之谷通行證遠端商店"]);
+  });
+
   it("商城寫樂豆點、整組賣的寫幾個，不同價錢分開列；全是商城不標舊版", () => {
     const box: Item = { id: 5068302, n: "記憶音樂盒", c: "現金", sp: [{ p: "商城", pr: 220, c: 1 }, { p: "商城", pr: 1980, k: 10, c: 1 }] };
     expect(shopGroups(box)).toEqual({
       groups: [
-        { price: "220 樂豆點", places: [{ place: "商城" }] },
-        { price: "10 個 1,980 樂豆點", places: [{ place: "商城" }] },
+        { price: "220 樂豆點", places: [{ place: "商城", later: false }] },
+        { price: "10 個 1,980 樂豆點", places: [{ place: "商城", later: false }] },
       ],
       fromOldData: false,
     });
@@ -884,6 +906,17 @@ import type { MapRecord } from "@/lib/types";
 
 ```ts
 describe("真資料：哪裡買得到", () => {
+  const maps = JSON.parse(fs.readFileSync(`${DATA}maps.json`, "utf8")) as Record<string, MapRecord>;
+  const opensLater = (mapId: number) => isV002Map(maps[String(mapId)]);
+
+  it("紅色藥水：10/15 才開的冰原雪域、天空之城排在最後，現在去得了的雜貨店先列", () => {
+    const { groups } = shopGroups(items.find(item => item.id === 2000000)!, opensLater);
+    const places = groups[0].places;
+    expect(places[0].later).toBe(false);
+    expect(places.filter(place => place.later).map(place => place.place).sort()).toEqual(["冰原雪域", "天空之城"]);
+    expect(places.slice(-2).every(place => place.later)).toBe(true);
+  });
+
   it("拖把：弓箭手村武器店、勇士之村武器店都是 24,000 楓幣，標舊版資料；水世界（還沒開放）的店不列", () => {
     const { groups, fromOldData } = shopGroups(items.find(item => item.id === 1442004)!);
     expect(fromOldData).toBe(true);
@@ -906,7 +939,6 @@ describe("真資料：哪裡買得到", () => {
   });
 
   it("天空之城、冰原雪域的店都帶得出開放日（畫面標 10/15 開放）", () => {
-    const maps = JSON.parse(fs.readFileSync(`${DATA}maps.json`, "utf8")) as Record<string, MapRecord>;
     const rows = items.flatMap(item => item.sp ?? []).filter(row => row.p === "天空之城" || row.p === "冰原雪域");
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.filter(row => row.m === undefined || !isV002Map(maps[String(row.m)])).map(row => `${row.p} ${row.n}`)).toEqual([]);
@@ -927,7 +959,8 @@ Expected: FAIL——`shopGroups` 不存在。
 - 檔尾加：
 
 ```ts
-export type ShopPlace = { place: string; npc?: string; mapId?: number };
+/** later：這家店的地點 10/15 才開放（畫面標「10/15 開放」） */
+export type ShopPlace = { place: string; npc?: string; later: boolean };
 export type ShopGroup = { price: string; places: ShopPlace[] };
 
 /** 標價寫法：楓幣、商城的樂豆點（客戶端「{0}楓幣」「{0}個{1}樂豆點」）；整組賣的寫「10 個 1,980 樂豆點」 */
@@ -938,9 +971,14 @@ function shopPriceText(row: ShopRow): string {
 
 /**
  * 「哪裡買得到」：同一個標價的店家排在一起，價錢只寫一次（一般道具每家都賣一樣的價錢）。
+ * opensLater 判斷店的地點是不是 10/15 才開放（呼叫端用 maps.json 跟現在日期判斷）；這種店排在同一組最後——
+ * 紅色藥水這類到處都賣的，玩家現在要買，先看到現在去得了的地方。其餘照資料順序。
  * fromOldData：有任何一家取自舊版資料，畫面要標「參考舊版資料，可能有出入」。
  */
-export function shopGroups(item: Item): { groups: ShopGroup[]; fromOldData: boolean } {
+export function shopGroups(
+  item: Item,
+  opensLater: (mapId: number) => boolean = () => false,
+): { groups: ShopGroup[]; fromOldData: boolean } {
   const groups: ShopGroup[] = [];
   for (const row of item.sp ?? []) {
     const price = shopPriceText(row);
@@ -949,8 +987,10 @@ export function shopGroups(item: Item): { groups: ShopGroup[]; fromOldData: bool
       group = { price, places: [] };
       groups.push(group);
     }
-    group.places.push({ place: row.p, npc: row.n, mapId: row.m });
+    group.places.push({ place: row.p, npc: row.n, later: row.m !== undefined && opensLater(row.m) });
   }
+  // sort 是穩定排序：later 一樣的維持資料順序
+  for (const group of groups) group.places.sort((a, b) => Number(a.later) - Number(b.later));
   return { groups, fromOldData: (item.sp ?? []).some(row => row.o === 1) };
 }
 ```
@@ -973,7 +1013,12 @@ Expected: PASS。
   maps: Record<string, MapRecord>;
 ```
 
-- `ItemDetail` 函式本體 `const { requirements, stats } = equipGroups(item);` 下一行加 `const shops = shopGroups(item);`
+- `ItemDetail` 函式本體 `const { requirements, stats } = equipGroups(item);` 下一行加（`notOpenYet` 是函式開頭既有的 `useBeforeV002()`）：
+
+```ts
+  // 店的地點 10/15 才開放、而且現在還沒到：標「10/15 開放」並排在最後
+  const shops = shopGroups(item, mapId => notOpenYet && isV002Map(maps[String(mapId)]));
+```
 - 在「哪些任務會給」那個區塊（`{item.qr?.length ? (` … `) : null}`）**後面**、「哪些任務要用到」前面加：
 
 ```tsx
@@ -991,9 +1036,7 @@ Expected: PASS。
                     >
                       <span className="text-[13px] font-bold">{place.place}</span>
                       {place.npc ? <span className="text-[11px] ink-faint">{place.npc}</span> : null}
-                      {notOpenYet && place.mapId !== undefined && isV002Map(maps[String(place.mapId)]) ? (
-                        <Chip tone="gold">10/15 開放</Chip>
-                      ) : null}
+                      {place.later ? <Chip tone="gold">10/15 開放</Chip> : null}
                     </li>
                   ))}
                 </ul>
