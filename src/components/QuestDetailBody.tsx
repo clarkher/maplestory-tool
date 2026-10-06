@@ -2,9 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Chip } from "@/components/route/bits";
 import { itemImage, mapName, npcImage } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
+import { useBeforeV002 } from "@/lib/release";
 import type { MapRecord, Quest, QuestRef, QuestReward } from "@/lib/types";
+import { isV002Map } from "@/lib/v002";
 
 /**
  * 任務細節。任務規劃與任務資料庫共用同一份，避免兩邊顯示的東西不一樣。
@@ -21,6 +24,7 @@ export function QuestDetailBody({
   maps: Record<string, MapRecord>;
   questNames?: Map<string, string>;
 }) {
+  const notOpenYet = useBeforeV002();
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
 
   return (
@@ -128,7 +132,12 @@ export function QuestDetailBody({
                 <Image src={npcImage(npc.id)} alt="" width={26} height={26} className="size-[26px] object-contain" unoptimized />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate font-bold">{npc.n}</span>
-                  {npc.map ? <span className="block truncate text-[11px] ink-faint">{mapName(maps, npc.map)}</span> : null}
+                  {npc.map ? (
+                    <span className="flex min-w-0 items-center gap-1.5 text-[11px] ink-faint">
+                      <span className="min-w-0 truncate">{mapName(maps, npc.map)}</span>
+                      {isV002Map(maps[String(npc.map)]) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : null}
+                    </span>
+                  ) : null}
                 </span>
                 {npc.map ? (
                   <Link

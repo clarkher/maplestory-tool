@@ -15,6 +15,8 @@ export type DbEntry = {
   image?: string;
   /** 搜尋時額外比對的字串 */
   keywords?: string;
+  /** 名字後面的小標籤，例如「10/15 開放」的 Chip */
+  badge?: React.ReactNode;
 };
 
 const PAGE_SIZE = 60;
@@ -148,6 +150,7 @@ export function DbBrowser({
                           <span className="size-7 shrink-0" />
                         )}
                         <span className="min-w-0 flex-1 truncate font-bold">{entry.name}</span>
+                        {entry.badge}
                         {entry.note ? (
                           <span className="shrink-0 text-[11px] tabular-nums ink-faint">{entry.note}</span>
                         ) : null}

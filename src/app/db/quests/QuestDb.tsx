@@ -2,18 +2,22 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
 import { GoButton } from "@/components/PlanShell";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
 import { loadMaps, loadQuests, mapName, npcImage } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
+import { useBeforeV002 } from "@/lib/release";
 import type { MapRecord, Quest } from "@/lib/types";
+import { isV002Map, isV002Quest } from "@/lib/v002";
 
 export function QuestDb() {
   const [quests, setQuests] = useState<Quest[] | null>(null);
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("");
+  const notOpenYet = useBeforeV002();
 
   useEffect(() => {
     Promise.all([loadQuests(), loadMaps()])
@@ -34,7 +38,7 @@ export function QuestDb() {
   }, [quests]);
 
   const entries = useMemo<DbEntry[]>(() => {
-    if (!quests) return [];
+    if (!quests || !maps) return [];
     return quests
       .filter(quest => !category || quest.cat === category)
       .sort((a, b) => (a.minLv ?? 0) - (b.minLv ?? 0))
@@ -44,8 +48,9 @@ export function QuestDb() {
         note: quest.minLv ? `Lv.${quest.minLv}` : quest.cat,
         image: quest.sNpc ? npcImage(quest.sNpc.id) : undefined,
         keywords: `${quest.parent ?? ""} ${quest.sNpc?.n ?? ""}`,
+        badge: isV002Quest(quest, maps) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [quests, category]);
+  }, [quests, maps, category, notOpenYet]);
 
   return (
     <DbBrowser
@@ -85,12 +90,16 @@ function QuestDetail({
   maps: Record<string, MapRecord>;
   questNames: Map<string, string>;
 }) {
+  const notOpenYet = useBeforeV002();
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
 
   return (
     <DetailCard>
       <header>
-        <h2 className="text-2xl font-black leading-tight">{quest.n}</h2>
+        <h2 className="text-2xl font-black leading-tight">
+          {quest.n}
+          {isV002Quest(quest, maps) && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
+        </h2>
         <p className="mt-1 text-sm ink-soft">
           {quest.cat}
           {quest.parent ? ` · ${quest.parent}` : ""}
@@ -119,6 +128,7 @@ function NpcBlock({
   npc: NonNullable<Quest["sNpc"]>;
   maps: Record<string, MapRecord>;
 }) {
+  const notOpenYet = useBeforeV002();
   return (
     <div className="rounded-xl bg-[color:var(--paper-deep)] p-3">
       <p className="text-[11px] ink-faint">{title}</p>
@@ -127,7 +137,12 @@ function NpcBlock({
         <img src={npcImage(npc.id)} alt="" width={32} height={32} className="size-8 object-contain" />
         <div className="min-w-0 flex-1">
           <p className="truncate font-bold">{npc.n}</p>
-          {npc.map ? <p className="truncate text-[12px] ink-faint">{mapName(maps, npc.map)}</p> : null}
+          {npc.map ? (
+            <p className="flex min-w-0 items-center gap-1.5 text-[12px] ink-faint">
+              <span className="min-w-0 truncate">{mapName(maps, npc.map)}</span>
+              {isV002Map(maps[String(npc.map)]) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : null}
+            </p>
+          ) : null}
         </div>
         {npc.map ? <GoButton to={npc.map} label="路線" /> : null}
       </div>
