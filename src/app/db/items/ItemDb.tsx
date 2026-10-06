@@ -5,7 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
-import { equipGroups, jobFit } from "@/lib/item-view";
+import {
+  compareItems, equipGroups, itemKeywords, jobLabel, sortCategories, subcategoryOptions, usableBy, wearFit, type WearFit,
+} from "@/lib/item-view";
 import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
@@ -18,8 +20,13 @@ export function ItemDb() {
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useState("");
+  const [subcategory, setSubcategory] = useState("");
   const [onlyDroppable, setOnlyDroppable] = useState(false);
+  const [onlyMine, setOnlyMine] = useState(false);
   const notOpenYet = useBeforeV002();
+  const { profile, loaded, isComplete } = useProfile();
+  /** 角色列選了職業就出現「只看〇〇能用的裝備」，不用填等級（這個篩選本來就不看等級） */
+  const mineName = loaded && profile.job >= 0 ? jobLabel(profile.job) : null;
 
   useEffect(() => {
     Promise.all([loadItems(), loadMonsters(), loadQuests(), loadMaps()])
@@ -52,24 +59,45 @@ export function ItemDb() {
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const item of items ?? []) if (item.c) set.add(item.c);
-    return [...set].sort();
+    return sortCategories([...set]);
   }, [items]);
 
+  /** 清單預設順序：裝備在前、依需求等級由低到高（原本依名稱，一打開是一整排勳章） */
+  const sortedItems = useMemo(() => (items ?? []).filter(item => !item.un).sort(compareItems), [items]);
+
+  /** 搜尋關鍵字只跟道具本身有關，載完算一次，切篩選不用重算一萬多筆 */
+  const keywordsById = useMemo(() => new Map(sortedItems.map(item => [item.id, itemKeywords(item)])), [sortedItems]);
+
+  const mineOnly = onlyMine && mineName !== null;
+  /** 種類下拉只列篩選後還有東西的種類：劍士勾了「只看能用的」不會看到拳套，勾了「只看打得到的」不會看到沒人掉的種類 */
+  const subcategories = useMemo(() => {
+    if (!category) return [];
+    const pool = sortedItems.filter(item => (!onlyDroppable || item.dm?.length) && (!mineOnly || usableBy(item, profile.job)));
+    return subcategoryOptions(pool, category);
+  }, [sortedItems, category, onlyDroppable, mineOnly, profile.job]);
+
+  /** 選的種類在新的篩選下沒東西了，畫面當場回到全部種類（不等 effect，不會先閃一次空清單） */
+  const activeSubcategory = subcategories.includes(subcategory) ? subcategory : "";
+  // 狀態也一起清掉，之後取消勾選才不會突然跳回先前選的種類
+  useEffect(() => {
+    if (subcategory !== activeSubcategory) setSubcategory(activeSubcategory);
+  }, [subcategory, activeSubcategory]);
+
   const entries = useMemo<DbEntry[]>(() => {
-    if (!items) return [];
-    return items
-      .filter(item => !item.un)
+    return sortedItems
       .filter(item => !category || item.c === category)
+      .filter(item => !activeSubcategory || item.s === activeSubcategory)
       .filter(item => !onlyDroppable || item.dm?.length)
+      .filter(item => !mineOnly || usableBy(item, profile.job))
       .map(item => ({
         id: String(item.id),
         name: item.n,
         note: item.s || item.c,
         image: itemImage(item.id),
-        keywords: item.d,
+        keywords: keywordsById.get(item.id),
         badge: isV002Item(item, v002Monsters, v002Quests) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [items, category, onlyDroppable, v002Monsters, v002Quests, notOpenYet]);
+  }, [sortedItems, keywordsById, category, activeSubcategory, onlyDroppable, mineOnly, profile.job, v002Monsters, v002Quests, notOpenYet]);
 
   return (
     <DbBrowser
@@ -82,7 +110,12 @@ export function ItemDb() {
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={category}
-            onChange={event => setCategory(event.target.value)}
+            onChange={event => {
+              setCategory(event.target.value);
+              setSubcategory("");
+              // 「只看〇〇能用的裝備」只看裝備分類，換到別的分類就一起取消
+              if (event.target.value !== "裝備") setOnlyMine(false);
+            }}
             className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
             aria-label="道具分類"
           >
@@ -91,6 +124,19 @@ export function ItemDb() {
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
+          {subcategories.length ? (
+            <select
+              value={activeSubcategory}
+              onChange={event => setSubcategory(event.target.value)}
+              className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+              aria-label="道具種類"
+            >
+              <option value="">全部種類</option>
+              {subcategories.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          ) : null}
           <label className="flex items-center gap-2 text-[13px] ink-soft">
             <input
               type="checkbox"
@@ -100,6 +146,23 @@ export function ItemDb() {
             />
             只看打得到的
           </label>
+          {mineName ? (
+            <label className="flex items-center gap-2 text-[13px] ink-soft">
+              <input
+                type="checkbox"
+                checked={onlyMine}
+                onChange={event => {
+                  setOnlyMine(event.target.checked);
+                  if (event.target.checked && category !== "裝備") {
+                    setCategory("裝備");
+                    setSubcategory("");
+                  }
+                }}
+                className="size-4 accent-[color:var(--maple)]"
+              />
+              只看{mineName}能用的裝備
+            </label>
+          ) : null}
         </div>
       }
       renderDetail={id => {
@@ -111,6 +174,7 @@ export function ItemDb() {
             monsterIndex={monsterIndex}
             questIndex={questIndex}
             isV002={isV002Item(item, v002Monsters, v002Quests)}
+            fit={isComplete ? wearFit(item, profile) : null}
           />
         );
       }}
@@ -123,16 +187,17 @@ function ItemDetail({
   monsterIndex,
   questIndex,
   isV002,
+  fit,
 }: {
   item: Item;
   monsterIndex: Map<number, Monster>;
   questIndex: Map<string, Quest>;
   isV002: boolean;
+  /** 穿戴條件旁的小標籤；角色列沒選職業或沒填等級時是 null */
+  fit: WearFit | null;
 }) {
   const notOpenYet = useBeforeV002();
-  const { profile, isComplete } = useProfile();
   const { requirements, stats } = equipGroups(item);
-  const fit = isComplete ? jobFit(item, profile) : null;
 
   return (
     <DetailCard>

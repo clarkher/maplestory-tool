@@ -13,23 +13,48 @@ const REQUIREMENT_KEYS = ["reqLevel", "reqJob", "reqSTR", "reqDEX", "reqINT", "r
 export function canJobUse(reqJob: number | undefined, job: number): boolean | null {
   if (!reqJob) return true;
   if (reqJob === -1) return job === 0;
-  if (reqJob < 0 || reqJob >= 32) return null;
+  if (!isKnownReqJob(reqJob)) return null;
   if (job === 0) return false;
   if (!jobOption(job)) return null;
   return (reqJob & (1 << (baseJob(job) / 100 - 1))) !== 0;
 }
 
-export type JobFit = { tone: "sky" | "gold" | "maple"; text: string };
+/** 認得的需求職業值：-1（只限初心者）、0（不限）、1～31（五個職業系的位元組合） */
+function isKnownReqJob(reqJob: number): boolean {
+  return reqJob === -1 || (reqJob >= 0 && reqJob < 32);
+}
+
+/** 職業代碼的稱呼：0 是初心者，其他照職業選單的名字；認不得的回 null */
+export function jobLabel(job: number): string | null {
+  if (job === 0) return "初心者";
+  return jobOption(job)?.name ?? null;
+}
+
+/** 這件道具寫的需求職業：沒寫是 undefined，資料怪掉（不是數字）回 null */
+function reqJobOf(item: Item): number | undefined | null {
+  const value = item.eq?.reqJob;
+  return value === undefined || typeof value === "number" ? value : null;
+}
+
+/** 篩選「只看我的職業能用的裝備」：只算「裝備」分類而且有數值的，認不得的職業值不算 */
+export function usableBy(item: Item, job: number): boolean {
+  if (item.c !== "裝備" || !item.eq) return false;
+  const reqJob = reqJobOf(item);
+  return reqJob !== null && canJobUse(reqJob, job) === true;
+}
+
+export type WearFit = { tone: "sky" | "gold" | "maple"; text: string };
 
 /**
  * 穿戴條件旁的小標籤：對照角色列的職業和等級（藍：能用、金：還差幾級、紅：職業不能用）。
  * 力量這類能力值網站不知道，不判斷；時裝、消耗品這些不是「裝備」的不顯示。
+ * （job-rules.ts 的 jobFit 是「練功圖適不適合這個職業」，跟這個無關。）
  */
-export function jobFit(item: Item, profile: Profile): JobFit | null {
+export function wearFit(item: Item, profile: Profile): WearFit | null {
   if (item.c !== "裝備" || !item.eq || profile.job < 0 || profile.level <= 0) return null;
-  const name = profile.job === 0 ? "初心者" : jobOption(profile.job)?.name;
-  const reqJob = item.eq.reqJob;
-  if (!name || (reqJob !== undefined && typeof reqJob !== "number")) return null;
+  const name = jobLabel(profile.job);
+  const reqJob = reqJobOf(item);
+  if (!name || reqJob === null) return null;
   const usable = canJobUse(reqJob, profile.job);
   if (usable === null) return null;
   if (!usable) return { tone: "maple", text: `${name}不能用` };
@@ -61,4 +86,47 @@ export function equipGroups(item: Item): { requirements: StatRow[]; stats: StatR
     .filter(([key]) => !REQUIREMENT_KEYS.includes(key))
     .flatMap(([key, value]) => statRows(key, value));
   return { requirements, stats };
+}
+
+/** 道具清單的分類順序：新手最常找的裝備在前，時裝最後；沒列到的分類排在最後 */
+const CATEGORY_ORDER = ["裝備", "消耗", "其他", "裝飾", "現金", "時裝"];
+
+function categoryRank(category: string): number {
+  const rank = CATEGORY_ORDER.indexOf(category);
+  return rank < 0 ? CATEGORY_ORDER.length : rank;
+}
+
+/**
+ * 道具清單的預設排序：裝備在最前面、依需求等級由低到高，沒寫等級的（多半是勳章、活動道具）排在裝備最後；
+ * 其他分類照 CATEGORY_ORDER。同一組回 0，靠穩定排序維持資料原本的順序（依名稱）。
+ */
+export function compareItems(a: Item, b: Item): number {
+  const byCategory = categoryRank(a.c) - categoryRank(b.c);
+  if (byCategory || a.c !== "裝備") return byCategory;
+  const levelA = Number(a.eq?.reqLevel ?? 0) || Infinity;
+  const levelB = Number(b.eq?.reqLevel ?? 0) || Infinity;
+  return levelA === levelB ? 0 : levelA - levelB;
+}
+
+/** 分類下拉跟清單用同一個順序 */
+export function sortCategories(categories: string[]): string[] {
+  return [...categories].sort((a, b) => categoryRank(a) - categoryRank(b) || a.localeCompare(b));
+}
+
+/**
+ * 搜尋時額外比對的字：說明、種類（短刀）、需求職業（劍士、盜賊）。
+ * 沒有職業限制的不放職業名，免得搜「劍士」被全職業裝備洗版（要看全部能用的，用「只看我能用的」篩選）。
+ */
+export function itemKeywords(item: Item): string {
+  const reqJob = reqJobOf(item);
+  // 認不得的值 equipStatValue 會照原數字寫，那個數字對搜尋沒意義，不放
+  const jobs = typeof reqJob === "number" && reqJob !== 0 && isKnownReqJob(reqJob) ? equipStatValue("reqJob", reqJob) : "";
+  return [item.d, item.s, jobs].filter(Boolean).join(" ");
+}
+
+/** 種類下拉：這個分類裡有的種類，件數多的排前面 */
+export function subcategoryOptions(items: Item[], category: string): string[] {
+  const counts = new Map<string, number>();
+  for (const item of items) if (item.c === category && item.s) counts.set(item.s, (counts.get(item.s) ?? 0) + 1);
+  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
 }

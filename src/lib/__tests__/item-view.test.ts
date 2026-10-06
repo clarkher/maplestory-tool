@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { canJobUse, equipGroups, jobFit } from "@/lib/item-view";
+import {
+  canJobUse, compareItems, equipGroups, itemKeywords, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
+} from "@/lib/item-view";
 import type { Item } from "@/lib/types";
 
 const spear: Item = {
@@ -30,49 +32,58 @@ describe("職業能不能用這件裝備", () => {
     expect(canJobUse(13, 210)).toBe(false);
   });
 
+  it("五個職業系各自對上自己的位元（1 劍士、2 法師、4 弓箭手、8 盜賊、16 海盜），二轉三轉照一轉的系", () => {
+    const table: Array<[number, number]> = [[1, 111], [2, 230], [4, 320], [8, 421], [16, 510]];
+    for (const [bit, job] of table) {
+      expect(canJobUse(bit, job)).toBe(true);
+      for (const [otherBit] of table) if (otherBit !== bit) expect(canJobUse(otherBit, job)).toBe(false);
+    }
+  });
+
   it("-1 只有初心者能用；初心者不能用有職業限制的", () => {
     expect(canJobUse(-1, 0)).toBe(true);
     expect(canJobUse(-1, 130)).toBe(false);
     expect(canJobUse(1, 0)).toBe(false);
   });
 
-  it("認不得的值回 null，不猜能不能用", () => {
+  it("認不得的值或認不得的職業代碼回 null，不猜能不能用", () => {
     expect(canJobUse(32, 130)).toBeNull();
     expect(canJobUse(-2, 130)).toBeNull();
+    expect(canJobUse(1, 999)).toBeNull();
   });
 });
 
 describe("穿戴條件旁的小標籤（對照角色列的職業和等級）", () => {
   it("職業對、等級夠：藍色「槍騎兵能用」", () => {
-    expect(jobFit(spear, { job: 130, level: 95 })).toEqual({ tone: "sky", text: "槍騎兵能用" });
-    expect(jobFit(spear, { job: 130, level: 90 })).toEqual({ tone: "sky", text: "槍騎兵能用" });
+    expect(wearFit(spear, { job: 130, level: 95 })).toEqual({ tone: "sky", text: "槍騎兵能用" });
+    expect(wearFit(spear, { job: 130, level: 90 })).toEqual({ tone: "sky", text: "槍騎兵能用" });
   });
 
   it("職業對、等級不夠：金色「槍騎兵還差 55 級」", () => {
-    expect(jobFit(spear, { job: 130, level: 35 })).toEqual({ tone: "gold", text: "槍騎兵還差 55 級" });
+    expect(wearFit(spear, { job: 130, level: 35 })).toEqual({ tone: "gold", text: "槍騎兵還差 55 級" });
   });
 
   it("職業不對：紅色「火毒巫師不能用」，等級夠不夠都一樣", () => {
-    expect(jobFit(spear, { job: 210, level: 95 })).toEqual({ tone: "maple", text: "火毒巫師不能用" });
-    expect(jobFit(spear, { job: 210, level: 35 })).toEqual({ tone: "maple", text: "火毒巫師不能用" });
+    expect(wearFit(spear, { job: 210, level: 95 })).toEqual({ tone: "maple", text: "火毒巫師不能用" });
+    expect(wearFit(spear, { job: 210, level: 35 })).toEqual({ tone: "maple", text: "火毒巫師不能用" });
   });
 
   it("初心者專用武器：初心者看等級，其他職業不能用", () => {
-    expect(jobFit(sake, { job: 0, level: 20 })).toEqual({ tone: "gold", text: "初心者還差 10 級" });
-    expect(jobFit(sake, { job: 0, level: 30 })).toEqual({ tone: "sky", text: "初心者能用" });
-    expect(jobFit(sake, { job: 130, level: 95 })).toEqual({ tone: "maple", text: "槍騎兵不能用" });
+    expect(wearFit(sake, { job: 0, level: 20 })).toEqual({ tone: "gold", text: "初心者還差 10 級" });
+    expect(wearFit(sake, { job: 0, level: 30 })).toEqual({ tone: "sky", text: "初心者能用" });
+    expect(wearFit(sake, { job: 130, level: 95 })).toEqual({ tone: "maple", text: "槍騎兵不能用" });
   });
 
   it("沒有職業和等級限制的裝備：誰都能用", () => {
-    expect(jobFit(medal, { job: 410, level: 10 })).toEqual({ tone: "sky", text: "刺客能用" });
+    expect(wearFit(medal, { job: 410, level: 10 })).toEqual({ tone: "sky", text: "刺客能用" });
   });
 
   it("還沒選職業、沒填等級、不是裝備（藥水、時裝）、職業值認不得：都不顯示", () => {
-    expect(jobFit(spear, { job: -1, level: 50 })).toBeNull();
-    expect(jobFit(spear, { job: 130, level: 0 })).toBeNull();
-    expect(jobFit(potion, { job: 130, level: 95 })).toBeNull();
-    expect(jobFit(fashionHat, { job: 130, level: 95 })).toBeNull();
-    expect(jobFit({ ...spear, eq: { ...spear.eq, reqJob: 32 } }, { job: 130, level: 95 })).toBeNull();
+    expect(wearFit(spear, { job: -1, level: 50 })).toBeNull();
+    expect(wearFit(spear, { job: 130, level: 0 })).toBeNull();
+    expect(wearFit(potion, { job: 130, level: 95 })).toBeNull();
+    expect(wearFit(fashionHat, { job: 130, level: 95 })).toBeNull();
+    expect(wearFit({ ...spear, eq: { ...spear.eq, reqJob: 32 } }, { job: 130, level: 95 })).toBeNull();
   });
 });
 
@@ -113,5 +124,92 @@ describe("裝備數值拆成「穿戴條件」和「裝備數值」兩組", () =
   it("只剩不顯示的欄位時「裝備數值」是空的，道具頁不會多一組空的", () => {
     const wig: Item = { id: 1000030, n: "薩基爾假髮", c: "時裝", s: "帽子", eq: { islot: "HrCp" } };
     expect(equipGroups(wig)).toEqual({ requirements: [], stats: [] });
+  });
+});
+
+describe("職業的稱呼", () => {
+  it("職業代碼寫成職業名，0 是初心者，認不得的回 null", () => {
+    expect(jobLabel(130)).toBe("槍騎兵");
+    expect(jobLabel(0)).toBe("初心者");
+    expect(jobLabel(-1)).toBeNull();
+    expect(jobLabel(999)).toBeNull();
+  });
+});
+
+describe("篩選「只看我的職業能用的裝備」", () => {
+  it("槍騎兵能用劍士武器、沒有職業限制的裝備，不能用法師武器", () => {
+    expect(usableBy(spear, 130)).toBe(true);
+    expect(usableBy(medal, 130)).toBe(true);
+    expect(usableBy(spear, 210)).toBe(false);
+  });
+
+  it("初心者專用武器只有初心者能用", () => {
+    expect(usableBy(sake, 0)).toBe(true);
+    expect(usableBy(sake, 130)).toBe(false);
+  });
+
+  it("時裝、消耗品、沒有數值的裝備、認不得的職業值都不算", () => {
+    expect(usableBy(fashionHat, 130)).toBe(false);
+    expect(usableBy(potion, 130)).toBe(false);
+    expect(usableBy({ id: 1902040, n: "1階段龍", c: "裝備", s: "騎寵" }, 130)).toBe(false);
+    expect(usableBy({ ...spear, eq: { ...spear.eq, reqJob: 32 } }, 130)).toBe(false);
+  });
+});
+
+describe("道具清單的預設排序", () => {
+  it("裝備最前面、依需求等級由低到高，沒寫等級的排在裝備最後；再來消耗、其他、裝飾、現金、時裝", () => {
+    const shield: Item = { id: 1092000, n: "木盾", c: "裝備", s: "盾牌", eq: { reqLevel: 10 } };
+    const quest: Item = { id: 4000000, n: "任務道具", c: "其他", s: "任務道具" };
+    const chair: Item = { id: 3010000, n: "椅子", c: "裝飾", s: "椅子" };
+    const megaphone: Item = { id: 5071000, n: "喇叭", c: "現金", s: "喇叭" };
+    const input = [fashionHat, potion, medal, megaphone, spear, chair, quest, shield];
+    expect([...input].sort(compareItems).map(item => item.n)).toEqual([
+      "木盾", "佛羅利刃", "10日夢勳章", "紅色藥水", "任務道具", "椅子", "喇叭", "時裝帽",
+    ]);
+  });
+
+  it("同一類、同等級的維持原本的順序（資料本來依名稱排）", () => {
+    const first: Item = { id: 1, n: "甲", c: "消耗" };
+    const second: Item = { id: 2, n: "乙", c: "消耗" };
+    expect([first, second].sort(compareItems).map(item => item.n)).toEqual(["甲", "乙"]);
+    expect([second, first].sort(compareItems).map(item => item.n)).toEqual(["乙", "甲"]);
+  });
+
+  it("分類下拉也照同一個順序", () => {
+    expect(sortCategories(["其他", "時裝", "裝備", "消耗", "現金", "裝飾"])).toEqual(["裝備", "消耗", "其他", "裝飾", "現金", "時裝"]);
+  });
+});
+
+describe("搜尋也比對職業和種類", () => {
+  it("有職業限制的放進職業名：偃月刃（劍士、盜賊）搜「盜賊」「短刀」都找得到", () => {
+    const dagger: Item = { id: 1332009, n: "偃月刃", c: "裝備", s: "短刀", d: "鋒利的刀", eq: { reqLevel: 30, reqJob: 9 } };
+    const keywords = itemKeywords(dagger);
+    expect(keywords).toContain("盜賊");
+    expect(keywords).toContain("短刀");
+    expect(keywords).toContain("鋒利的刀");
+  });
+
+  it("沒有職業限制的不放職業名，免得搜「劍士」被全職業裝備洗版", () => {
+    expect(itemKeywords(medal)).not.toContain("劍士");
+    expect(itemKeywords(medal)).toContain("勳章");
+  });
+
+  it("初心者專用的搜「初心者」找得到；認不得的職業值不把數字塞進去", () => {
+    expect(itemKeywords(sake)).toContain("初心者");
+    expect(itemKeywords({ ...spear, eq: { ...spear.eq, reqJob: 32 } })).not.toContain("32");
+  });
+});
+
+describe("種類下拉", () => {
+  it("只列這個分類裡有的種類，件數多的排前面", () => {
+    const list: Item[] = [
+      { id: 1, n: "a", c: "裝備", s: "槍" },
+      { id: 2, n: "b", c: "裝備", s: "帽子" },
+      { id: 3, n: "c", c: "裝備", s: "帽子" },
+      { id: 4, n: "d", c: "消耗", s: "藥水" },
+      { id: 5, n: "e", c: "裝備" },
+    ];
+    expect(subcategoryOptions(list, "裝備")).toEqual(["帽子", "槍"]);
+    expect(subcategoryOptions(list, "消耗")).toEqual(["藥水"]);
   });
 });
