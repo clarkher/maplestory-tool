@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
+import { officialName } from "./lib/map-names.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -42,6 +43,11 @@ const OUT = path.join(ROOT, "public", "data");
  * mapRegions 用的是上游資料的 regionName。奇幻村、鯨魚號在上游是獨立地區，
  * 楓葉世界是「全地區都會出現」的活動怪用的。上游還沒分類（regionName 空白）的圖照舊放行。
  * 有中文名但地區不在清單裡的，建置時會列在 meta.heldBackRegions 與輸出訊息裡。
+ *
+ * 第 1 點也有反過來的缺口：地區已經開放，但城鎮自己的名字客戶端還沒補上
+ * （天空之城、冰原雪域兩座城鎮本身在客戶端一直是「未命名地圖」，V002 開放後主推卡因此
+ * 會寫「從未開放地圖走 N 張圖」）。這兩筆官方公告過的地名用 lib/map-names.mjs 的
+ * officialName 補，客戶端一有名字就自動換掉；其他沒公告過的沒名字城鎮不補，照舊留白。
  */
 const RELEASE = {
   version: "V002",
@@ -264,8 +270,10 @@ function buildMaps(v83, zhNames, regions, msio) {
 
     // 只輸出中文。上游沒給中文名的地圖就留空——與其顯示玩家在遊戲裡
     // 根本找不到的英文名（或別的版本翻錯的中文名），不如誠實留白。
+    // 客戶端沒給名字時查 officialName 的補缺表（目前只有天空之城、冰原雪域兩筆官方公告過的城鎮名）；
+    // 客戶端一有名字（改版後補上）就自動換成客戶端的，不在表裡的照舊留空。
     const record = {
-      zh: zh?.name || "",
+      zh: officialName(id, zh?.name),
       st: zh?.street || "",
       t: townSet.has(id) ? 1 : undefined,
       ret: raw.ret,

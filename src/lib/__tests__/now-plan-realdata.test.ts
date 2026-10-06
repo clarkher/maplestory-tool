@@ -220,6 +220,21 @@ describe("真資料：首頁每個組合", () => {
     expectNone("從未開放地區的城鎮出發", bad);
   });
 
+  it("主推卡跟備案出發的城鎮一定有中文名（不會寫「未開放地圖」，Task 10b：天空之城、冰原雪域官方地名補缺）", () => {
+    // 跟上一個檢查不同：這裡不排除「城鎮就是那張圖自己的回城點」的狀況——Task 10 量到的 bug
+    // 正是出在這條路徑（suggestStart 直接採用回城點，只要走得到就不再檢查有沒有中文名）。
+    // 直接斷言 maps.json 本身的中文名，跟程式邏輯無關，才會是獨立的檢查。
+    const bad = combos.flatMap(combo => {
+      const pick = combo.pick;
+      if (!pick || pick.kind === "advance") return [];
+      const options = [...(pick.kind === "map" ? [pick.option] : []), ...(pick.alt ? [pick.alt] : [])];
+      return options
+        .filter(option => option.town !== undefined && !maps[String(option.town)]?.zh)
+        .map(option => `${combo.tag}：${option.title} 從 ${option.town} 出發，那座城鎮沒有中文名`);
+    });
+    expectNone("主推卡出發城鎮沒有中文名", bad);
+  });
+
   it("升級路線每一段寫「以下是遊戲資料推算」時，下面真的列了圖（100–120、沒有攻略的 90–100 段不會只剩一句話）", () => {
     const bad = combos.flatMap(combo => (combo.job === 0 ? [] : combo.bands
       .filter(entry => !isIslandBand(entry.band) && entry.usable === 0 && entry.listedBelow === 0)

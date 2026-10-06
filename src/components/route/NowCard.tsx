@@ -9,6 +9,7 @@ import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
 import { advanceTitle, altPrefix, canGo, ceilingText, pqClosedText, type MainPick, type TrainOption } from "@/lib/now-plan";
+import { LEVEL_CAP } from "@/lib/profile";
 import type { GuidePq, MapRecord, Monster } from "@/lib/types";
 import { SourceTag, Sprite } from "./bits";
 
@@ -164,6 +165,8 @@ function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { 
         {/* 組隊任務剛過遊戲上限（狂戰士 31 等）：說一聲為什麼主推不再是組隊任務 */}
         {pqClosed ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[12px]">{pqClosedText(pqClosed)}</p> : null}
         {ceiling ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">{ceilingText(ceiling)}</p> : null}
+        {/* 滿等（用戶 10/06 定的寫法）：只說到了上限，不提經驗 */}
+        {level === LEVEL_CAP ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[12px]">你已經到目前的等級上限 Lv.{LEVEL_CAP}</p> : null}
       </div>
     </article>
   );

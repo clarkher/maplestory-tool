@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readJson } from "./lib/http.mjs";
+import { OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
 
 const OUT = path.resolve(import.meta.dirname, "..", "public", "data");
 
@@ -88,6 +89,11 @@ function main() {
       check(`未開放的${region}沒有被當成已開放`, named.length === 0,
         named.length ? `漏進來：${named.map(id => `${id} ${maps[String(id)].zh}`).join("、")}` : `${ids.length} 張代表地圖都沒有中文名`);
     }
+  }
+
+  // 官方公告過、但客戶端還沒補中文名的城鎮（Task 10b 補缺表）：要用公告的地名，不是空白或別的字
+  for (const [id, entry] of Object.entries(OFFICIAL_MAP_NAMES)) {
+    check(`補缺的城鎮有官方地名：${entry.name}`, maps?.[id]?.zh === entry.name, `地圖 ${id} 目前是「${maps?.[id]?.zh ?? ""}」`);
   }
 
   // 站上不該出現任何英文地圖名
