@@ -8,7 +8,7 @@ export type JobOption = {
   name: string;
   /** 所屬系別（一轉職業名） */
   line: string;
-  /** 轉職教官，頭像用他的遊戲圖 */
+  /** 轉職教官（首頁提醒去轉職時用他的遊戲圖；角色頭像改用 jobAvatar） */
   npcId: number;
   npcName: string;
 };
@@ -136,6 +136,14 @@ export function stageJob(job: number, level: number): number {
   if (tier === 3 && level < THIRD_JOB_LEVEL) return stageJob(previousJob(job), level);
   if (tier === 2 && level < SECOND_JOB_LEVEL) return baseJob(job);
   return job;
+}
+
+/**
+ * 職業頭像：木框圓章裡放該職業的代表武器，跟網站 logo 同一套手繪風格（AI 生圖，public/jobs/）。
+ * 初心者跟不認得的代碼沒有頭像，畫面上用網站 logo。
+ */
+export function jobAvatar(job: number): string | undefined {
+  return BY_ID.has(job) ? `/jobs/${job}.webp` : undefined;
 }
 
 export function jobOption(job: number): JobOption | undefined {
