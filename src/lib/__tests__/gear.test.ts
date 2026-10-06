@@ -192,6 +192,14 @@ describe("equipRequirement", () => {
     const weapons: GearWeapon[] = [strDagger, okDagger];
     expect(equipRequirement(weapons, 420, 55, r)).toEqual({ DEX: 40 });
   });
+
+  it("beforeOpen：10/15 前只算現在拿得到的武器，不讓只有 V002 掉的武器把敏捷目標拉高", () => {
+    const v002Claw = weapon({ id: 1, n: "只有 V002 掉的拳套", s: "拳套", lv: 40, atk: 24, job: 8, req: { DEX: 90 }, o: "2026-10-15" });
+    const openClaw = weapon({ id: 2, n: "現在拿得到的拳套", s: "拳套", lv: 40, atk: 22, job: 8, req: { DEX: 80 } });
+    const weapons: GearWeapon[] = [v002Claw, openClaw];
+    expect(equipRequirement(weapons, 410, 40, dexEquipRule, true)).toEqual({ DEX: 80 });
+    expect(equipRequirement(weapons, 410, 40, dexEquipRule)).toEqual({ DEX: 90 });
+  });
 });
 
 describe("canWear", () => {

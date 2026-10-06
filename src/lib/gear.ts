@@ -325,6 +325,7 @@ export function equipRequirement(
   job: number,
   level: number,
   rule: StatRule,
+  beforeOpen = false,
 ): Partial<Record<StatKey, number>> {
   const secondaryStat = rule.secondary?.stat;
   const otherKeys = STAT_KEYS.filter(key => key !== rule.main && key !== secondaryStat);
@@ -332,7 +333,8 @@ export function equipRequirement(
 
   const result: Partial<Record<StatKey, number>> = {};
   for (let l = 1; l <= level; l++) {
-    const req = weaponPicks(candidates, job, l).best?.req;
+    // beforeOpen 跟 weaponPicks 一樣：10/15 前只看現在拿得到的武器，能力值目標才對得上畫面推薦的那把
+    const req = weaponPicks(candidates, job, l, { beforeOpen }).best?.req;
     if (!req) continue;
     for (const key of STAT_KEYS) {
       const value = req[key];
