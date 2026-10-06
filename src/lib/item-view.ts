@@ -1,6 +1,6 @@
-import { attackSpeedLabel, equipStatLabel, equipStatValue } from "./format";
+import { attackSpeedLabel, equipStatLabel, equipStatValue, formatNumber } from "./format";
 import { baseJob, jobOption } from "./jobs";
-import type { Item, Profile } from "./types";
+import type { Item, Profile, ShopRow } from "./types";
 
 /** 「穿戴條件」那一組，照遊戲說明框的順序：等級、職業、力敏智幸 */
 const REQUIREMENT_KEYS = ["reqLevel", "reqJob", "reqSTR", "reqDEX", "reqINT", "reqLUK"];
@@ -155,4 +155,39 @@ export function subcategoryOptions(items: Item[], category: string): string[] {
   const counts = new Map<string, number>();
   for (const item of items) if (item.c === category && item.s) counts.set(item.s, (counts.get(item.s) ?? 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+}
+
+/** later：這家店的地點 10/15 才開放（畫面標「10/15 開放」） */
+export type ShopPlace = { place: string; npc?: string; later: boolean };
+export type ShopGroup = { price: string; places: ShopPlace[] };
+
+/** 標價寫法：楓幣、商城的樂豆點（客戶端「{0}楓幣」「{0}個{1}樂豆點」）；整組賣的寫「10 個 1,980 樂豆點」 */
+function shopPriceText(row: ShopRow): string {
+  const amount = `${formatNumber(row.pr)} ${row.c ? "樂豆點" : "楓幣"}`;
+  return row.k ? `${row.k} 個 ${amount}` : amount;
+}
+
+/**
+ * 「哪裡買得到」：同一個標價的店家排在一起，價錢只寫一次（一般道具每家都賣一樣的價錢）。
+ * opensLater 判斷店的地點是不是 10/15 才開放（呼叫端用 maps.json 跟現在日期判斷）；這種店排在同一組最後——
+ * 紅色藥水這類到處都賣的，玩家現在要買，先看到現在去得了的地方。其餘照資料順序。
+ * fromOldData：有任何一家取自舊版資料，畫面要標「參考舊版資料，可能有出入」。
+ */
+export function shopGroups(
+  item: Item,
+  opensLater: (mapId: number) => boolean = () => false,
+): { groups: ShopGroup[]; fromOldData: boolean } {
+  const groups: ShopGroup[] = [];
+  for (const row of item.sp ?? []) {
+    const price = shopPriceText(row);
+    let group = groups.find(entry => entry.price === price);
+    if (!group) {
+      group = { price, places: [] };
+      groups.push(group);
+    }
+    group.places.push({ place: row.p, npc: row.n, later: row.m !== undefined && opensLater(row.m) });
+  }
+  // sort 是穩定排序：later 一樣的維持資料順序
+  for (const group of groups) group.places.sort((a, b) => Number(a.later) - Number(b.later));
+  return { groups, fromOldData: (item.sp ?? []).some(row => row.o === 1) };
 }
