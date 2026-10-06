@@ -2,11 +2,11 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { FROM_LIST, collapseByBack, createHistoryTracker, detailSpot, listSignature } from "@/lib/db-browse";
+import { useRemembered } from "@/lib/remember";
 import { ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
 import Link from "next/link";
-import { FROM_LIST, collapseByBack, createHistoryTracker, detailSpot, listSignature } from "@/lib/db-browse";
-import { useRemembered } from "@/lib/remember";
 
 export type DbEntry = {
   id: string;

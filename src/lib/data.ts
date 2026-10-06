@@ -65,6 +65,13 @@ function peek<T>(name: string): T | null {
   return (ready.get(name) as T | undefined) ?? null;
 }
 
+/** 查資料四頁用：載過就同步拿到，沒載過是 null */
+export const peekMaps = () => peek<Record<string, MapRecord>>("maps");
+export const peekMonsters = () => peek<Monster[]>("monsters");
+export const peekItems = () => peek<Item[]>("items");
+export const peekQuests = () => peek<Quest[]>("quests");
+export const peekSkills = () => peek<Skill[]>("skills");
+
 export const loadMeta = (): Promise<Meta> => {
   const cached = cache.get("meta") as Promise<Meta> | undefined;
   if (cached) return cached;
@@ -82,12 +89,6 @@ export const loadTraining = () => load<TrainingRow[]>("training");
 export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
-/** 查資料四頁用：載過就同步拿到，沒載過是 null */
-export const peekMaps = () => peek<Record<string, MapRecord>>("maps");
-export const peekMonsters = () => peek<Monster[]>("monsters");
-export const peekItems = () => peek<Item[]>("items");
-export const peekQuests = () => peek<Quest[]>("quests");
-export const peekSkills = () => peek<Skill[]>("skills");
 /**
  * 玩家攻略跟遊戲資料是兩條獨立的更新線，不能共用 meta 的版本號——
  * 攻略改了但遊戲資料沒變時，瀏覽器會一直拿快取的舊攻略。
