@@ -32,6 +32,10 @@ const PAGE_SIZE = 60;
 const WIDE = "(min-width: 64rem)";
 const isWide = () => window.matchMedia(WIDE).matches;
 const narrowOnServer = () => false;
+/** 瀏覽器接手畫面了沒（伺服器上一律還沒） */
+const noSubscribe = () => () => {};
+const onClient = () => true;
+const onServer = () => false;
 function subscribeWide(onChange: () => void) {
   const query = window.matchMedia(WIDE);
   query.addEventListener("change", onChange);
@@ -111,6 +115,8 @@ export function DbBrowser({
   // 這是哪一頁：紀錄裡的卡片要是這一頁的才照著放（從怪物卡連到道具頁時，編號可能剛好一樣）
   const page = usePathname();
   const wide = useSyncExternalStore(subscribeWide, isWide, narrowOnServer);
+  // 記住的搜尋字第一個畫面就讀得到，伺服器畫的頁面卻沒有：「×」等瀏覽器接手後才放，兩邊才對得上
+  const hydrated = useSyncExternalStore(noSubscribe, onClient, onServer);
 
   const [query, setQuery] = useRemembered(`db:${title}:query`, "");
   const [visible, setVisible] = useRemembered(`db:${title}:visible`, PAGE_SIZE);
@@ -428,7 +434,7 @@ export function DbBrowser({
             className="tap-safe w-full bg-transparent py-2.5 outline-none"
             aria-label={`搜尋${title}`}
           />
-          {query ? (
+          {query && hydrated ? (
             <SearchClear
               onClear={() => {
                 setQuery("");

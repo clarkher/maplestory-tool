@@ -97,16 +97,27 @@ function useHideOnSwipe(pathname: string) {
       if (next.hidden !== motion.current.hidden) setHidden(next.hidden);
       motion.current = next;
     };
+    // 平板、觸控筆電用手指收起來之後改用觸控板、滑鼠滾輪往上捲：一樣叫得出來（只會叫出來，不會收）
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY < 0 && motion.current.hidden) reveal();
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: true });
     return () => {
       observer.disconnect();
       finger.dispose();
       window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", onWheel);
     };
-  }, []);
+  }, [reveal]);
 
-  // 換頁：新的一頁從頂端開始、或按返回回到原位，都不是手指滑的，導覽列出來
-  useEffect(() => reveal(), [pathname, reveal]);
+  // 換頁：新的一頁從頂端開始、或按返回回到原位，都不是手指滑的，導覽列出來。
+  // 要在新頁面捲到錨點、捲到卡片之前就拿掉收起來的記號（layout effect，導覽列排在 <main> 前面，比它們先跑），
+  // 不然新頁面照「導覽列收著」放好位置，導覽列一回來就蓋住標題
+  useLayoutEffect(() => {
+    document.documentElement.removeAttribute("data-header-hidden");
+    reveal();
+  }, [pathname, reveal]);
 
   // 跟導覽列同一個畫面更新：黏在它下面的那一列才會一起動
   useLayoutEffect(() => {

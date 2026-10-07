@@ -982,7 +982,7 @@ try {
 
   // ── 手機：手指往下滑時導覽列收起來，往上滑一點就出來；網站自己捲不收（v0.53，全站） ──
 
-  await section("H1–H7", async () => {
+  await section("H1–H10", async () => {
     await mobile();
     await touchMode(true);
     try {
@@ -1021,13 +1021,32 @@ try {
       r = await ev(`return { header: __headerBottom(), stuck: Math.round(__rowBtn("210100").getBoundingClientRect().top) };`);
       check("H4 往上滑一點、導覽列出來：那一列跟著回到導覽列下面", r.header >= 60 && near(r.stuck, r.header, 2), r);
 
-      // H5 網站自己捲（點清單上的一筆、按返回還原位置）：導覽列出來的不收
+      // H5 網站自己捲不收也不叫出來：手指點一筆（不移動）讓網站往下捲，導覽列在的不收；
+      // 收著的時候手指點一筆、再按返回（網站往上捲回原位），收著的也不跑出來
       await fresh("/db/items");
-      r = await ev(`const id = __rowId(25); __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
-        return { id, y: Math.round(scrollY), header: __headerBottom() };`);
+      const tapAt = async index => {
+        const pos = await ev(`const id = __rowId(${index}); const b = __rowBtn(id); const rc = b.getBoundingClientRect();
+          return { id, x: Math.round(rc.left + rc.width / 2), y: Math.round(rc.top + rc.height / 2) };`);
+        await fingerTap(pos.x, pos.y);
+        return ev(`await __waitFor(() => __id() === ${JSON.stringify(pos.id)}, 3000); await __sleep(1400);
+          return { id: __id(), y: Math.round(scrollY), header: __headerBottom() };`);
+      };
+      // 手指點得到的：畫面裡、離頂端 300px 以下的第一列
+      const visibleRow = () => ev(`const rows = __rows(); return rows.indexOf(rows.find(l => l.getBoundingClientRect().top > 300 && l.getBoundingClientRect().bottom < innerHeight - 40));`);
+      await ev(`window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300); return 1;`);
+      const shownBefore = await ev(`return { header: __headerBottom() };`);
+      const shownTap = { before: shownBefore, after: await tapAt(await visibleRow()) };
+      check("H5 導覽列在的時候手指點一筆（網站往下捲）：導覽列不收", shownTap.before.header >= 60 && shownTap.after.y > 200 && shownTap.after.header >= 60, shownTap);
       await traverse(-1);
-      const back = await ev(`await __waitFor(() => __id() === null, 3000); await __sleep(800); return { y: Math.round(scrollY), header: __headerBottom() };`);
-      check("H5 網站自己捲（點一筆往下捲、按返回還原位置）：導覽列不收", r.y > 500 && r.header >= 60 && back.header >= 60, { ...r, back });
+      await ev(`await __waitFor(() => __id() === null, 3000); await __sleep(600); window.scrollTo({ top: 1500, behavior: "instant" }); await __sleep(400); return 1;`);
+      await swipe(300);
+      const yBeforeTap = await ev(`return Math.round(scrollY);`);
+      const hiddenTap = { index: await visibleRow(), header: await ev(`return __headerBottom();`) };
+      const hiddenAfterTap = await tapAt(hiddenTap.index);
+      await traverse(-1);
+      const hiddenBack = await ev(`await __waitFor(() => __id() === null, 3000); await __sleep(900); return { y: Math.round(scrollY), header: __headerBottom() };`);
+      check("H5 導覽列收著的時候手指點一筆、再按返回（網站捲回原位）：導覽列一直收著、回到點之前的位置",
+        hiddenTap.header <= 0 && hiddenAfterTap.header <= 0 && hiddenBack.header <= 0 && near(hiddenBack.y, yBeforeTap, 3), { yBeforeTap, hiddenTap, hiddenAfterTap, hiddenBack });
 
       // H6 收著的時候用鍵盤移到導覽列上：導覽列出來（不然焦點在看不到的地方）
       await swipe(500);
@@ -1035,12 +1054,47 @@ try {
         return { hiddenBefore, header: __headerBottom() };`);
       check("H6 收著的時候用鍵盤移到導覽列：導覽列出來", r.hiddenBefore && r.header >= 60, r);
 
-      // H7 收著的時候往回滑到頁面最上面：導覽列出來，不會留一塊空白
+      // H7 收著的時候網站自己捲回頁面最上面（例如 iPhone 點狀態列）：導覽列出來，不會留一塊空白
       await swipe(250);
       const hiddenBefore = await ev(`return __headerBottom() <= 0;`);
-      for (let i = 0; i < 6; i++) await swipe(-600);
-      r = await ev(`return { y: Math.round(scrollY), header: __headerBottom() };`);
-      check("H7 往回滑到頁面最上面：導覽列出來", hiddenBefore && r.y === 0 && r.header >= 60, { hiddenBefore, ...r });
+      r = await ev(`window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(600); return { y: Math.round(scrollY), header: __headerBottom() };`);
+      check("H7 收著的時候回到頁面最上面：導覽列出來", hiddenBefore && r.y === 0 && r.header >= 60, { hiddenBefore, ...r });
+
+      // H8 平板、觸控筆電：手指收起來之後改用觸控板、滑鼠滾輪往上捲，導覽列一樣出來
+      await ev(`window.scrollTo({ top: 1500, behavior: "instant" }); await __sleep(400); return 1;`);
+      await swipe(300);
+      const hiddenWheel = await ev(`return __headerBottom() <= 0;`);
+      await page.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: 190, y: 400, deltaX: 0, deltaY: -120 });
+      r = await ev(`await __sleep(700); return { header: __headerBottom() };`);
+      check("H8 手指收起來之後用觸控板、滑鼠滾輪往上捲：導覽列出來", hiddenWheel && r.header >= 60, { hiddenWheel, ...r });
+
+      // H9 收著的時候換到別頁（點卡片裡的掉落物）：新頁面照「導覽列在」放卡片，導覽列回來不會蓋住卡片標題
+      // （道具頁先載過，換過去第一個畫面就有清單、馬上跳到卡片——這時候最容易照收著的位置放）
+      await fresh("/db/items");
+      await ev(`window.next.router.push("/db/monsters?id=210100");
+        await __waitFor(() => location.pathname === "/db/monsters" && !!__row("210100")?.querySelector("article"), 10000); await __sleep(1200); return 1;`);
+      await swipe(400);
+      const hiddenCross = await ev(`return __headerBottom() <= 0;`);
+      r = await ev(`const link = __row("210100")?.querySelector("article a[href^='/db/items']");
+        if (!link) return { skipped: "綠水靈卡片裡找不到道具連結" };
+        const id = new URLSearchParams(link.getAttribute("href").split("?")[1]).get("id");
+        link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+        await __waitFor(() => location.pathname === "/db/items" && __id() === id, 10000); await __sleep(1300);
+        const inline = !!__row(id)?.querySelector("article"); const block = inline ? __row(id) : __topWrap();
+        const title = block?.querySelector("article h2")?.getBoundingClientRect(); const stuck = (inline ? __rowBtn(id) : __topCollapse())?.getBoundingClientRect();
+        return { id, header: __headerBottom(), blockTop: block ? Math.round(block.getBoundingClientRect().top) : null,
+          titleTop: title ? Math.round(title.top) : null, stuckBottom: stuck ? Math.round(stuck.bottom) : null };`);
+      check("H9 導覽列收著時點卡片裡的掉落物換到道具頁：導覽列出來、卡片放在導覽列下方、標題沒被蓋住",
+        hiddenCross && !r.skipped && r.header >= 60 && near(r.blockTop, 80) && r.titleTop > r.stuckBottom, { hiddenCross, ...r });
+
+      // H10 收著的時候點「看打法」換到組隊圖解的那一段：那一段放在導覽列下方（約 80px），導覽列回來不會蓋住標題
+      await ev(`window.scrollTo({ top: 1500, behavior: "instant" }); await __sleep(400); return 1;`);
+      await swipe(300);
+      const hiddenGuide = await ev(`return __headerBottom() <= 0;`);
+      r = await ev(`window.next.router.push("/guide#pq-moon");
+        await __waitFor(() => location.pathname === "/guide" && !!document.getElementById("pq-moon"), 10000); await __sleep(1500);
+        return { header: __headerBottom(), sectionTop: Math.round(document.getElementById("pq-moon").getBoundingClientRect().top) };`);
+      check("H10 導覽列收著時點「看打法」換到組隊圖解：那一段放在導覽列下方、標題沒被蓋住", hiddenGuide && r.header >= 60 && near(r.sectionTop, 80), { hiddenGuide, ...r });
     } finally {
       await touchMode(false);
     }
@@ -1086,18 +1140,20 @@ try {
   // D5 桌機：右邊那一欄黏在導覽列下面；清單捲到很下面再點一筆，頁面不跳回上面，右邊直接換成那一筆、從頭顯示
   await section("D5", async () => {
     await desktop();
-    await fresh("/db/items");
-    const r = await ev(`const a = __rowId(2); __tap(a); await __waitFor(() => __id() === a); await __sleep(800);
-      const side = __side(); side.scrollTo({ top: 200, behavior: "instant" });
+    await fresh("/db/monsters");
+    // 先開綠水靈、看全部（卡片很長），右邊那一欄捲到 600：換一筆後要回到卡片頂端，才看得出有沒有「從頭顯示」
+    const r = await ev(`const a = "210100"; __tap(a); await __waitFor(() => __id() === a); await __sleep(1000);
+      const side = __side(); [...side.querySelectorAll("button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400);
+      side.scrollTo({ top: 600, behavior: "instant" }); await __sleep(300); const sideBefore = Math.round(side.scrollTop);
       const b = __rowId(40); __row(b).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
       const y = Math.round(scrollY); const header = __headerBottom();
       __tap(b); await __waitFor(() => __id() === b); await __sleep(1200);
       const rect = side.getBoundingClientRect();
-      return { y, yAfter: Math.round(scrollY), header, sideTop: Math.round(rect.top), sideBottom: Math.round(rect.bottom), view: innerHeight,
+      return { sideBefore, y, yAfter: Math.round(scrollY), header, sideTop: Math.round(rect.top), sideBottom: Math.round(rect.bottom), view: innerHeight,
         scrollTop: Math.round(side.scrollTop), name: __rowBtn(b).querySelector("span.truncate")?.textContent ?? "", title: side.querySelector("article h2")?.textContent ?? "" };`);
     check("D5 桌機清單捲到下面點一筆：頁面不跳回上面", r.y > 1000 && Math.abs(r.yAfter - r.y) <= 2, r);
     check("D5 右邊那一欄黏在導覽列下面、整欄在畫面裡", r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.sideBottom <= r.view, r);
-    check("D5 右邊換成新點的那一筆、從頭顯示", r.scrollTop === 0 && r.name !== "" && r.title.includes(r.name), r);
+    check("D5 右邊換成新點的那一筆、從卡片頂端開始（原本那張捲到一半）", r.sideBefore > 300 && r.scrollTop === 0 && r.name !== "" && r.title.includes(r.name), r);
     await shot("d5-desktop-sticky.png");
   });
 
@@ -1180,13 +1236,13 @@ try {
     check("D8 同一頁點別筆（從卡片頂端開始）再按返回：回到原本讀到的地方", same.otherTop === 0 && near(afterSameBack, 700, 8), { ...same, afterSameBack });
   });
 
-  // H8 桌機用滑鼠滾輪往下捲：導覽列不收（只有手指滑才收）
-  await section("H8", async () => {
+  // H11 桌機用滑鼠滾輪往下捲：導覽列不收（只有手指滑才收）
+  await section("H11", async () => {
     await desktop();
     await fresh("/db/items");
     await page.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: 200, y: 400, deltaX: 0, deltaY: 1500 });
     const r = await ev(`await __sleep(1200); return { y: Math.round(scrollY), header: __headerBottom() };`);
-    check("H8 桌機滑鼠滾輪往下捲：導覽列不收", r.y > 800 && r.header >= 60, r);
+    check("H11 桌機滑鼠滾輪往下捲：導覽列不收", r.y > 800 && r.header >= 60, r);
   });
 } catch (error) {
   results.push({ name: "ERROR", ok: false, detail: String(error?.stack ?? error).slice(0, 800) });
