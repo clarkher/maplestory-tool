@@ -487,4 +487,31 @@ describe("清單中間的分組小標", () => {
     expect(groupLabeler("劍士", prefer)({ id: "2" })).toBe("名字或說明提到劍士的");
     expect(groupLabeler("帽", null)({ id: "1", group: "剛解鎖" })).toBeUndefined();
   });
+
+  it("搜尋字是空的或只有空白：就算有 prefer，也照每一筆自己的 group（先看有沒有搜尋字，再看 prefer）", () => {
+    const prefer = { ids: new Set(["1"]), title: "劍士能用的裝備", rest: "名字或說明提到劍士的" };
+    for (const query of ["", "  "]) {
+      const label = groupLabeler(query, prefer);
+      expect(label({ id: "1", group: "剛解鎖" })).toBe("剛解鎖");
+      expect(label({ id: "2" })).toBeUndefined();
+    }
+  });
+
+  it("搜職業名從搜尋接到小標：兩組各只出一個小標，能用的那組在前面", () => {
+    const entries = [
+      { id: "10", name: "新手劍", keywords: "劍士 單手劍" },
+      { id: "11", name: "劍士的證明" },
+      { id: "12", name: "布甲", keywords: "劍士 盜賊" },
+      { id: "13", name: "紅色藥水", keywords: "劍士專用的飲料" },
+      { id: "14", name: "毫無關係" },
+    ];
+    const prefer = { ids: new Set(["10", "12", "14"]), title: "劍士能用的裝備", rest: "名字或說明提到劍士的" };
+    const matches = searchEntries(entries, "劍士", prefer.ids);
+    // 14 不符合搜尋字，就算在 prefer 裡也不會出現；能用的（10、12）在前，其他（開頭符合的 11、說明提到的 13）在後
+    expect(matches.map(entry => entry.id)).toEqual(["10", "12", "11", "13"]);
+    expect(groupHeads(matches, groupLabeler("劍士", prefer))).toEqual(["劍士能用的裝備", null, "名字或說明提到劍士的", null]);
+    // 其中一組沒有任何一筆：只出現另一個小標
+    expect(groupHeads(searchEntries(entries, "劍士", new Set()), groupLabeler("劍士", { ...prefer, ids: new Set() }))).toEqual(["名字或說明提到劍士的", null, null, null]);
+    expect(groupHeads(searchEntries(entries.slice(0, 1), "劍士", prefer.ids), groupLabeler("劍士", prefer))).toEqual(["劍士能用的裝備"]);
+  });
 });

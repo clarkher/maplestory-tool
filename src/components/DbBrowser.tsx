@@ -1,10 +1,10 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, moreRows,
-  needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot,
+  cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, groupHeads, groupLabeler, isTraversal, keptFromHistory,
+  listSignature, moreRows, needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot, type Prefer,
 } from "@/lib/db-browse";
 import { reloadRestore } from "@/lib/reload-scroll";
 import { useRemembered } from "@/lib/remember";
@@ -25,6 +25,8 @@ export type DbEntry = {
   keywords?: string;
   /** 名字後面的小標籤，例如「10/15 開放」的 Chip */
   badge?: React.ReactNode;
+  /** 清單中間的小標：跟上一筆不同時，在這一筆上面放一行（沒有搜尋字時才用；任務頁「接得到的」分快過期、剛解鎖、隨時可以補） */
+  group?: string;
 };
 
 const PAGE_SIZE = 60;
@@ -108,8 +110,11 @@ export function DbBrowser({
   filters?: React.ReactNode;
   renderDetail: (id: string) => React.ReactNode;
   searchPlaceholder?: string;
-  /** 這次搜尋要排最前面的 id（例：道具頁搜「劍士」時劍士能用的裝備）；回 null 照一般排法。要用 useCallback 包，不然每次重算 */
-  preferFor?: (keyword: string) => ReadonlySet<string> | null;
+  /**
+   * 這次搜尋要排最前面的那一組跟兩組的小標（例：道具頁搜「劍士」→ 劍士能用的裝備排最前面，
+   * 清單中間分「劍士能用的裝備」「名字或說明提到劍士的」兩組）；回 null 照一般排法、不分組。要用 useCallback 包，不然每次重算
+   */
+  preferFor?: (keyword: string) => Prefer | null;
 }) {
   const params = useSearchParams();
   const selected = params.get("id");
@@ -129,10 +134,8 @@ export function DbBrowser({
   // 卡片上一次放在哪裡：同一筆開著時留在原位，清單多載、把那一筆載進來，卡片也不會從最上面搬到清單中間
   const [kept, setKept] = useState<{ id: string; spot: DetailSpot } | null>(null);
 
-  const matches = useMemo(
-    () => searchEntries(entries, query, preferFor?.(query.trim())),
-    [entries, query, preferFor],
-  );
+  const prefer = useMemo(() => preferFor?.(query.trim()) ?? null, [preferFor, query]);
+  const matches = useMemo(() => searchEntries(entries, query, prefer?.ids), [entries, query, prefer]);
 
   // 篩選換了清單才從頭顯示 60 筆；內容一樣只是重算（角色讀好、標籤冒出來）不算，多載過的不會被收回去
   const signature = useMemo(() => listSignature(entries), [entries]);
@@ -232,6 +235,7 @@ export function DbBrowser({
   const detail = !loading && selected ? renderDetail(selected) : null;
   const hasDetail = detail !== null && detail !== undefined;
   const shown = matches.slice(0, visible);
+  const heads = groupHeads(shown, groupLabeler(query, prefer));
   const spot = detailSpot({
     wide,
     selected,
@@ -525,58 +529,64 @@ export function DbBrowser({
             ) : (
               <>
                 <ul ref={listRef} className="scroll-mt-header space-y-1">
-                  {shown.map(entry => {
+                  {shown.map((entry, index) => {
                     const open = spot === "inline" && selected === entry.id;
                     return (
-                      // scroll-mt：捲過來時讓出頂端固定的導覽列，那一列和展開的細節不會被蓋住
-                      <li key={entry.id} id={`db-row-${entry.id}`} className="scroll-mt-header">
-                        <button
-                          type="button"
-                          onClick={() => select(entry.id)}
-                          aria-current={selected === entry.id ? "true" : undefined}
-                          // 細節開著就算展開——放在清單最上面的也算，讀螢幕軟體才不會念「已收合」
-                          aria-expanded={wide ? undefined : selected === entry.id && spot !== null}
-                          className={[
-                            "tap-safe flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left",
-                            // 展開著的那一列黏在導覽列下面：往下看長卡片時一直看得到是哪一筆，點它就收起
-                            open
-                              ? STUCK
-                              : selected === entry.id
-                                ? "bg-[color:var(--maple-wash)] ring-1 ring-[color:var(--maple)] transition-colors"
-                                : "transition-colors hover:bg-[color:var(--paper-deep)]",
-                          ].join(" ")}
-                        >
-                          {entry.image ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              src={entry.image}
-                              alt=""
-                              width={28}
-                              height={28}
-                              loading="lazy"
-                              className="size-7 shrink-0 object-contain"
-                            />
-                          ) : (
-                            <span className="size-7 shrink-0" />
-                          )}
-                          <span className="min-w-0 flex-1 truncate font-bold">{entry.name}</span>
-                          {entry.badge}
-                          {open ? (
-                            // 讀螢幕軟體從 aria-expanded 就知道開著，不用再念一次
-                            <span aria-hidden="true" className="flex shrink-0 items-center gap-0.5 text-sm font-bold text-[color:var(--maple)]">
-                              收起
-                              <ChevronDown size={16} className="rotate-180" />
-                            </span>
-                          ) : entry.note ? (
-                            <span className="shrink-0 text-[11px] tabular-nums ink-faint">{entry.note}</span>
-                          ) : null}
-                        </button>
-                        {open ? (
-                          <div onClickCapture={stayOnPage} className="mt-2 pb-2">
-                            <DetailWithCollapse detail={detail} onCollapse={collapse} />
-                          </div>
+                      <Fragment key={entry.id}>
+                        {heads[index] ? (
+                          // 小標不是清單的一筆：沒有 db-row- 的 id，不算進筆數、不影響展開與還原位置
+                          <li className="px-2.5 pb-0.5 pt-3 text-[12px] font-bold ink-faint first:pt-1">{heads[index]}</li>
                         ) : null}
-                      </li>
+                        {/* scroll-mt：捲過來時讓出頂端固定的導覽列，那一列和展開的細節不會被蓋住 */}
+                        <li id={`db-row-${entry.id}`} className="scroll-mt-header">
+                          <button
+                            type="button"
+                            onClick={() => select(entry.id)}
+                            aria-current={selected === entry.id ? "true" : undefined}
+                            // 細節開著就算展開——放在清單最上面的也算，讀螢幕軟體才不會念「已收合」
+                            aria-expanded={wide ? undefined : selected === entry.id && spot !== null}
+                            className={[
+                              "tap-safe flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left",
+                              // 展開著的那一列黏在導覽列下面：往下看長卡片時一直看得到是哪一筆，點它就收起
+                              open
+                                ? STUCK
+                                : selected === entry.id
+                                  ? "bg-[color:var(--maple-wash)] ring-1 ring-[color:var(--maple)] transition-colors"
+                                  : "transition-colors hover:bg-[color:var(--paper-deep)]",
+                            ].join(" ")}
+                          >
+                            {entry.image ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={entry.image}
+                                alt=""
+                                width={28}
+                                height={28}
+                                loading="lazy"
+                                className="size-7 shrink-0 object-contain"
+                              />
+                            ) : (
+                              <span className="size-7 shrink-0" />
+                            )}
+                            <span className="min-w-0 flex-1 truncate font-bold">{entry.name}</span>
+                            {entry.badge}
+                            {open ? (
+                              // 讀螢幕軟體從 aria-expanded 就知道開著，不用再念一次
+                              <span aria-hidden="true" className="flex shrink-0 items-center gap-0.5 text-sm font-bold text-[color:var(--maple)]">
+                                收起
+                                <ChevronDown size={16} className="rotate-180" />
+                              </span>
+                            ) : entry.note ? (
+                              <span className="shrink-0 text-[11px] tabular-nums ink-faint">{entry.note}</span>
+                            ) : null}
+                          </button>
+                          {open ? (
+                            <div onClickCapture={stayOnPage} className="mt-2 pb-2">
+                              <DetailWithCollapse detail={detail} onCollapse={collapse} />
+                            </div>
+                          ) : null}
+                        </li>
+                      </Fragment>
                     );
                   })}
                 </ul>
