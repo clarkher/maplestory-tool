@@ -9,7 +9,8 @@
 //
 // 為什麼用無頭 Chrome：Claude 的瀏覽器窗格常是隱藏的，requestAnimationFrame 不跑、平滑捲動不播、按返回不還原位置，
 // 量不到真的畫面。無頭頁面算看得見，動畫照跑。取樣要在畫完之後（requestAnimationFrame 之後再 setTimeout），
-// 不然會量到沒畫出來的那一格。
+// 不然會量到沒畫出來的那一格。按返回／下一頁一律用 DevTools 的 Page.navigateToHistoryEntry（跟按瀏覽器的返回鍵一樣），
+// 不用頁面裡的 history.back()。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -124,6 +125,19 @@ const mobile = () => page.send("Emulation.setDeviceMetricsOverride", { width: 37
 const desktop = () => page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 const reduceMotion = on =>
   page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: on ? "reduce" : "no-preference" }] });
+/** 跟按瀏覽器的返回／下一頁一樣（不是頁面自己呼叫 history.back）：量按返回一律這樣按 */
+async function traverse(delta) {
+  const history = await page.send("Page.getNavigationHistory");
+  const entry = history.entries[history.currentIndex + delta];
+  if (!entry) throw new Error(`沒有第 ${history.currentIndex + delta} 筆歷史紀錄`);
+  await page.send("Page.navigateToHistoryEntry", { entryId: entry.id });
+}
+/** 按返回（或下一頁），同時逐格記 expr 的值；painted：畫完之後才取樣。回傳有變的那幾格 */
+async function traverseRecording(delta, ms, expr, painted = false) {
+  await evaluate(`(() => { ${H} window.__fp = window.${painted ? "__painted" : "__frames"}(${ms}, () => ${expr}); return 1; })()`);
+  await traverse(delta);
+  return evaluate(`window.__fp.then(list => list.filter((f, i) => i === 0 || f !== list[i - 1]))`);
+}
 
 // 頁面裡的小工具
 const H = `
@@ -291,44 +305,50 @@ try {
 
   // M8 頁內返回（v0.28）：A → B（開著 A 點 B）→ 返回：回到 A，位置是點 B 之前的位置
   await fresh("/db/items");
-  r = await ev(`const a = __rowId(3), b = __rowId(10); __tap(a); await __waitFor(() => __id() === a); await __sleep(1200);
+  let ctx = await ev(`const a = __rowId(3), b = __rowId(10); __tap(a); await __waitFor(() => __id() === a); await __sleep(1200);
     __row(b).scrollIntoView({ block: "end", behavior: "instant" }); await __sleep(300);
     const yBeforeB = Math.round(scrollY); __tap(b); await __waitFor(() => __id() === b); await __sleep(1200);
-    const framesP = __frames(1000, () => Math.round(scrollY)); history.back(); const frames = await framesP;
-    await __waitFor(() => __id() === a, 3000); await __sleep(300);
-    return { a, b, id: __id(), open: __open(), yBeforeB, yAfterBack: Math.round(scrollY), frames: __changes(frames) };`);
+    return { a, b, yBeforeB };`);
+  let frames = await traverseRecording(-1, 1000, "Math.round(scrollY)");
+  r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(ctx.a)}, 3000); await __sleep(300);
+    return { id: __id(), open: __open(), yAfterBack: Math.round(scrollY) };`);
+  r = { ...ctx, ...r, frames };
   check("M8 頁內返回：回到上一筆", r.id === r.a && r.open[0] === r.a, r);
   check("M8 頁內返回：回到點下一筆前的位置", near(r.yAfterBack, r.yBeforeB), { yBeforeB: r.yBeforeB, yAfterBack: r.yAfterBack });
   check("M8 頁內返回：直接跳、不滑", r.frames.length <= 3, r.frames);
 
   // M9 離開再返回（沒開卡片）：第一個畫面就有清單（不閃載入中），捲回原位
   await fresh("/db/items");
-  r = await ev(`window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(400);
+  // 捲到底會自動多載一批：等它停下來再記離開的位置
+  ctx = await ev(`window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(800);
     const leftY = Math.round(scrollY);
     document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-    let firstRows = -1, firstLoading = null;
-    const mo = new MutationObserver(() => { if (location.pathname === "/db/items" && firstRows < 0 && __search()) { firstRows = __rows().length; firstLoading = document.querySelector("main").textContent.includes("載入中"); } });
-    mo.observe(document.documentElement, { childList: true, subtree: true });
-    const framesP = __frames(1200, () => Math.round(scrollY)); history.back(); const frames = await framesP;
-    await __waitFor(() => location.pathname === "/db/items"); await __sleep(300); mo.disconnect();
-    return { leftY, firstRows, firstLoading, backY: Math.round(scrollY), frames: __changes(frames) };`);
+    window.__first = { rows: -1, loading: null };
+    window.__mo = new MutationObserver(() => { if (location.pathname === "/db/items" && window.__first.rows < 0 && __search()) window.__first = { rows: __rows().length, loading: document.querySelector("main").textContent.includes("載入中") }; });
+    window.__mo.observe(document.documentElement, { childList: true, subtree: true });
+    return { leftY };`);
+  frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
+  r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300); window.__mo.disconnect();
+    return { firstRows: window.__first.rows, firstLoading: window.__first.loading, backY: Math.round(scrollY) };`);
+  r = { ...ctx, ...r, frames };
   check("M9 離開再返回：第一個畫面就有清單（不閃載入中）", r.firstRows >= 60 && r.firstLoading === false, r);
   check("M9 離開再返回：捲回原位", near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
   check("M9 離開再返回：直接跳、不滑", r.frames.length <= 3, r.frames);
 
   // M10 有搜尋＋篩選＋多載過：離開再返回，清單一樣、捲回原位
   await fresh("/db/items");
-  r = await ev(`__setSearch("帽"); await __sleep(400);
+  ctx = await ev(`__setSearch("帽"); await __sleep(400);
     __droppable()?.click(); await __sleep(400);
     const before = __rows().length; await __loadMore();
     // 捲到靠近底部時可能又自動多載一批：等它停下來，離開前那一刻的筆數才準
     window.scrollTo({ top: document.documentElement.scrollHeight - 1600, behavior: "instant" }); await __sleep(800);
     const rows = __rows().length; const leftY = Math.round(scrollY);
     document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-    const framesP = __frames(1200, () => Math.round(scrollY)); history.back(); const frames = await framesP;
-    await __waitFor(() => location.pathname === "/db/items"); await __sleep(300);
-    return { query: __search().value, droppable: __droppable()?.checked, rowsBeforeMore: before, rowsBefore: rows, rowsAfter: __rows().length, leftY, backY: Math.round(scrollY),
-      frames: __changes(frames) };`);
+    return { rowsBeforeMore: before, rowsBefore: rows, leftY };`);
+  frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
+  r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300);
+    return { query: __search().value, droppable: __droppable()?.checked, rowsAfter: __rows().length, backY: Math.round(scrollY) };`);
+  r = { ...ctx, ...r, frames };
   check("M10 搜尋、篩選、多載過的筆數都還在", r.query === "帽" && r.droppable === true && r.rowsBefore > r.rowsBeforeMore && r.rowsAfter === r.rowsBefore, r);
   check("M10 捲回原位", near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
   check("M10 直接跳、不滑", r.frames.length <= 3, r.frames);
@@ -343,7 +363,7 @@ try {
   await ev(`__setSearch(""); await __sleep(300); if (__droppable()?.checked) __droppable().click(); await __sleep(400); return 1;`);
 
   // M12 開著卡片離開（點卡片裡的怪物連結）再返回：卡片還開著、捲回原位
-  r = await ev(`await __ready(); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
+  ctx = await ev(`await __ready(); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
     let id = null, link = null;
     for (let i = 0; i < 30 && !link; i++) {
       id = __rowId(i); __tap(id); await __waitFor(() => __id() === id); await __sleep(700);
@@ -354,33 +374,43 @@ try {
     link.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
     const leftY = Math.round(scrollY);
     link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click(); await __waitFor(() => location.pathname === "/db/monsters"); await __sleep(1200);
-    const framesP = __frames(1200, () => Math.round(scrollY)); history.back(); const frames = await framesP;
-    await __waitFor(() => location.pathname === "/db/items"); await __sleep(300);
-    return { id, open: __open(), leftY, backY: Math.round(scrollY), frames: __changes(frames) };`);
+    return { id, leftY };`);
+  r = ctx;
+  if (!ctx.skipped) {
+    frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
+    r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300); return { open: __open(), backY: Math.round(scrollY) };`);
+    r = { ...ctx, ...r, frames };
+  }
   check("M12 開著卡片離開再返回：卡片還開著", !r.skipped && r.open[0] === r.id, r);
   check("M12 開著卡片離開再返回：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY, skipped: r.skipped });
   check("M12 開著卡片離開再返回：直接跳、不滑", !r.skipped && r.frames.length <= 3, r.frames);
 
-  // M13 勾「只看狂戰士能用的裝備」：離開再返回，篩選還在、清單一樣、捲回原位（角色要同步讀，第一個畫面就套上）
+  // M13 「誰能用」選〇〇能用的：離開再返回，篩選還在、清單一樣、捲回原位（角色要同步讀，第一個畫面就套上）
   await fresh("/db/items");
-  r = await ev(`const mine = [...document.querySelectorAll("main label")].find(l => l.textContent.includes("能用的裝備"))?.querySelector("input");
-    if (!mine) return { skipped: "沒有「只看能用的」" };
-    mine.click(); await __sleep(500);
+  ctx = await ev(`const mine = document.querySelector("main select[aria-label='誰能用']");
+    if (!mine || ![...mine.options].some(o => o.value === "usable")) return { skipped: "沒有「誰能用」下拉或「〇〇能用的」選項" };
+    __select("誰能用", "usable"); await __sleep(500);
     const firstId = __rowId(0);
     // 捲到靠近底部時可能又自動多載一批：等它停下來，離開前那一刻的筆數才準
     window.scrollTo({ top: document.documentElement.scrollHeight - 1400, behavior: "instant" }); await __sleep(800);
     const rows = __rows().length; const leftY = Math.round(scrollY);
     document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-    let firstFirstId = null;
-    const mo = new MutationObserver(() => { if (location.pathname === "/db/items" && firstFirstId === null && __rows().length) firstFirstId = __rowId(0); });
-    mo.observe(document.documentElement, { childList: true, subtree: true });
-    history.back(); await __waitFor(() => location.pathname === "/db/items"); await __sleep(1500); mo.disconnect();
-    const mine2 = [...document.querySelectorAll("main label")].find(l => l.textContent.includes("能用的裝備"))?.querySelector("input");
-    const out = { checked: mine2?.checked, rowsBefore: rows, rowsAfter: __rows().length, firstId, firstFirstId, leftY, backY: Math.round(scrollY) };
-    if (mine2?.checked) mine2.click(); await __sleep(300);
-    return out;`);
-  check("M13 只看能用的：返回後第一個畫面就套上篩選、清單一樣", !r.skipped && r.checked && r.rowsAfter === r.rowsBefore && r.firstFirstId === r.firstId, r);
-  check("M13 只看能用的：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
+    window.__firstFirstId = null;
+    window.__mo = new MutationObserver(() => { if (location.pathname === "/db/items" && window.__firstFirstId === null && __rows().length) window.__firstFirstId = __rowId(0); });
+    window.__mo.observe(document.documentElement, { childList: true, subtree: true });
+    return { rowsBefore: rows, firstId, leftY };`);
+  r = ctx;
+  if (!ctx.skipped) {
+    await traverse(-1);
+    r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(1500); window.__mo.disconnect();
+      const mine2 = document.querySelector("main select[aria-label='誰能用']");
+      const out = { checked: mine2?.value === "usable", rowsAfter: __rows().length, firstFirstId: window.__firstFirstId, backY: Math.round(scrollY) };
+      if (mine2) { __select("誰能用", ""); await __sleep(300); }
+      return out;`);
+    r = { ...ctx, ...r };
+  }
+  check("M13 〇〇能用的：返回後第一個畫面就套上篩選、清單一樣", !r.skipped && r.checked && r.rowsAfter === r.rowsBefore && r.firstFirstId === r.firstId, r);
+  check("M13 〇〇能用的：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
 
   // M14 技能頁：展開在那一筆下面、職業篩選離開再回來還在
   await fresh("/db/skills");
@@ -405,15 +435,17 @@ try {
 
   // M16 同一列極快連點兩下（畫面還沒更新就點第二下）：只開一次、紀錄只多一筆，之後收起正常
   await fresh("/db/items");
-  r = await ev(`const id = __rowId(7); __tap(id); __tap(id);
+  ctx = await ev(`const id = __rowId(7); __tap(id); __tap(id);
     await __waitFor(() => __id() === id); await __sleep(1200);
-    const openAfterTaps = __open();
-    // 只多一筆紀錄的話，按一次返回就回到沒開卡片的清單；多兩筆的話還會停在同一筆
-    history.back(); await __waitFor(() => __id() === null, 2000); await __sleep(400);
-    const idAfterOneBack = __id();
-    history.forward(); await __waitFor(() => __id() === id, 2000); await __sleep(600);
+    return { id, openAfterTaps: __open() };`);
+  // 只多一筆紀錄的話，按一次返回就回到沒開卡片的清單；多兩筆的話還會停在同一筆
+  await traverse(-1);
+  const idAfterOneBack = await ev(`await __waitFor(() => __id() === null, 2000); await __sleep(400); return __id();`);
+  await traverse(+1);
+  r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(ctx.id)}, 2000); await __sleep(600);
     __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(700);
-    return { id, openAfterTaps, idAfterOneBack, idAfter: __id(), open: __open(), path: location.pathname };`);
+    return { idAfter: __id(), open: __open(), path: location.pathname };`);
+  r = { ...ctx, idAfterOneBack, ...r };
   check("M16 連點同一列：只開一次、紀錄只多一筆（返回一次就回到清單）", r.openAfterTaps[0] === r.id && r.idAfterOneBack === null, r);
   check("M16 連點同一列之後：收起正常、還在這頁", r.idAfter === null && r.open.length === 0 && r.path === "/db/items", r);
 
@@ -512,7 +544,7 @@ try {
   // N5 按返回後位置對不上：開著卡片離開，在別處改了篩選（記憶整頁共用），按返回回來 → 那一筆和卡片要看得到，而且直接跳
   await section("N5", async () => {
     await fresh("/db/items");
-    const r = await ev(`let id = null, link = null;
+    const ctx = await ev(`let id = null, link = null;
       for (let i = 30; i < 60 && !link; i++) {
         id = __rowId(i); __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(150);
         __tap(id); await __waitFor(() => __id() === id); await __sleep(900);
@@ -527,14 +559,22 @@ try {
       document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
       document.querySelector('main a[href="/db/items"]').click(); await __waitFor(() => location.pathname === "/db/items"); await __ready(); await __sleep(800);
       __select("道具分類", "消耗"); await __sleep(800);
-      history.back(); await __waitFor(() => location.pathname === "/db"); await __sleep(700);
-      history.back(); await __waitFor(() => location.pathname === "/db/monsters"); await __sleep(900);
-      const framesP = __painted(1200, () => Math.round(scrollY)); history.back(); const frames = await framesP;
-      await __waitFor(() => location.pathname === "/db/items" && __id() === id, 3000); await __sleep(400);
-      const block = __row(id)?.querySelector("article") ? __row(id) : __topWrap();
-      const rect = block ? block.getBoundingClientRect() : null;
-      return { id, leftY, backY: Math.round(scrollY), category: document.querySelector("main select[aria-label='道具分類']").value,
-        top: rect && Math.round(rect.top), bottom: rect && Math.round(rect.bottom), header: __headerBottom(), view: innerHeight, frames: __changes(frames) };`);
+      return { id, leftY };`);
+    let r = ctx;
+    if (!ctx.skipped) {
+      await traverse(-1);
+      await ev(`await __waitFor(() => location.pathname === "/db"); await __sleep(700); return 1;`);
+      await traverse(-1);
+      await ev(`await __waitFor(() => location.pathname === "/db/monsters"); await __sleep(900); return 1;`);
+      const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)", true);
+      r = await ev(`const id = ${JSON.stringify(ctx.id)};
+        await __waitFor(() => location.pathname === "/db/items" && __id() === id, 3000); await __sleep(400);
+        const block = __row(id)?.querySelector("article") ? __row(id) : __topWrap();
+        const rect = block ? block.getBoundingClientRect() : null;
+        return { backY: Math.round(scrollY), category: document.querySelector("main select[aria-label='道具分類']").value,
+          top: rect && Math.round(rect.top), bottom: rect && Math.round(rect.bottom), header: __headerBottom(), view: innerHeight };`);
+      r = { ...ctx, ...r, frames };
+    }
     check("N5 按返回、中途在別處改了篩選：那一筆和卡片看得到（跳到導覽列下方）", !r.skipped && r.category === "消耗" && r.bottom > r.header && r.top < r.view && near(r.top, 80), r);
     check("N5 補救時直接跳、不滑", !r.skipped && r.frames.length <= 3, r.frames);
     await shot("n5-back-rescued.png");
@@ -544,12 +584,14 @@ try {
   // N6 按返回不誤跳：開著卡片、自己捲去看清單別處（卡片不在畫面上）再離開，返回時照離開時的位置
   await section("N6", async () => {
     await fresh("/db/items");
-    const r = await ev(`const id = __rowId(3); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+    const ctx = await ev(`const id = __rowId(3); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
       window.scrollBy({ top: 3000, behavior: "instant" }); await __sleep(800);
       const leftY = Math.round(scrollY); const cardBottom = Math.round(__row(id).getBoundingClientRect().bottom);
       document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-      history.back(); await __waitFor(() => location.pathname === "/db/items"); await __sleep(800);
-      return { id, leftY, cardBottom, backY: Math.round(scrollY), open: __open() };`);
+      return { id, leftY, cardBottom };`);
+    await traverse(-1);
+    let r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(800); return { backY: Math.round(scrollY), open: __open() };`);
+    r = { ...ctx, ...r };
     check("N6 離開時卡片不在畫面上、清單沒變：返回照離開時的位置，不跳回卡片", r.cardBottom < 0 && r.open[0] === r.id && near(r.backY, r.leftY), r);
   });
 
