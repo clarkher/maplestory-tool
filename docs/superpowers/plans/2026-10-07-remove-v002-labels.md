@@ -832,8 +832,10 @@ git grep -n -E "v002-open" -- . ':!docs/superpowers/plans'   # 還有引用（RE
 
 ```bash
 git rm scripts/verify/first-frame.mjs
-git grep -n "first-frame" -- . ':!docs/superpowers/plans'   # README、其他腳本的引用一起拿掉
+git grep -n -E "(^|[^-])first-frame" -- . ':!docs/superpowers/plans'   # README、config、其他腳本的引用一起拿掉
 ```
+
+`scripts/verify/README.md` 拿掉「`first-frame.mjs`：「10/15 開放」標示第一個畫面就要在（v0.37）」整節，以及前面埠號清單、exit code、實測時間裡提到 first-frame 的那幾句。**`home-first-frame.mjs` 不准動**（站內換頁進首頁的第一格，跟 10/15 無關；上面的 grep 用 `[^-]` 排除了它）。`config.mjs` 裡如果有 first-frame 專用的埠設定一起拿掉。
 
 - [ ] **Step 6: 全部測試＋最終守門**
 
@@ -899,7 +901,7 @@ const [OUT, BEFORE, AFTER, DATA] = process.argv.slice(2, 6);
 const AT = process.argv.find(arg => arg.startsWith("--at="))?.slice(5);
 const ONLY = process.argv.find(arg => arg.startsWith("--only="))?.slice(7).split(",");
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
-const PORT = 9361;
+const PORT = 9361; // 避開 scripts/verify 用的 9333／9343／9347／9400–9799；同時只能跑一支
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 fs.mkdirSync(OUT, { recursive: true });
 
