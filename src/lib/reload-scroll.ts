@@ -114,12 +114,13 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
     env.scrollAnchoring(true);
     for (const type of HANDS_ON) env.events.removeEventListener(type, stop, true);
   };
-  // 還沒停手、也還是同一筆紀錄（程式換了網址就不算）
-  const active = () => restoring && env.key() === startKey;
+  // 還沒停手、也還是同一筆紀錄。已經換到別筆紀錄（程式換的網址）就停手：不把這一頁的位置套過去，新的那一筆照常記
+  const active = () => {
+    if (restoring && env.key() !== startKey) stop();
+    return restoring;
+  };
   const place = () => {
-    if (!restoring) return;
-    // 已經換到別筆紀錄（程式換的網址）：不把這一頁的位置套過去
-    if (!active()) return stop();
+    if (!active()) return;
     // 還放不下（資料還沒畫出來）：先不動，等下一次長高
     if (env.maxScroll() + 1 < target) return;
     if (Math.abs(env.scrollY() - target) > 1) env.jump(target);

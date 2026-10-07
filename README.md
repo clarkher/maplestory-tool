@@ -290,7 +290,7 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
 - 驗測試機（正式建置）約 4 分鐘；本機 dev server 約 10 分鐘，第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次（還有 `/plan/farm`、`/go`）。
   跑的時候別改程式：dev server 熱更新會重新載入頁面，檢查會亂掉。
 - 改了查資料頁的行為，要一起改或加這裡的檢查。
-- 重新整理、離站再返回回到原位，是全站的 `src/lib/reload-scroll.ts` 在放。v0.57 起開著卡片也一樣，不再跳回卡片頂端；
+- 重新整理、離站再返回回到原位，是全站的 `src/lib/reload-scroll.ts` 在放。v0.62 起開著卡片也一樣，不再跳回卡片頂端；
   卡片搬家（重新整理後清單只剩前 60 筆）時，DbBrowser 叫它跟著挪。M18、M20 在驗這段。
   離站再返回要關返回快取才量得到，用 `scripts/verify/reload-all.mjs`。
 

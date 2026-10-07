@@ -278,6 +278,8 @@ export function DbBrowser({
   // 這次載入時紀錄裡記的卡片（離開那一刻在頁面上的位置）。畫出來之後紀錄會一直改成現在的位置，所以一開始就先拿起來
   const [cardWhenLeft] = useState(() => (typeof window === "undefined" ? undefined : cardOf(window.history.state)));
   const followReload = useRef(true);
+  // 上一次叫 reload-scroll 挪了多少：卡片沒再搬就不再叫，不去拉回使用者用捲軸、讀螢幕軟體捲到的地方
+  const shiftedBy = useRef<number | null>(null);
   // 重新整理、離站再返回（整頁重載）回到開著卡片的那一筆：位置由 reload-scroll 放回離開時讀到的地方。
   // 卡片跟離開時不在同一個地方（重新整理後清單只剩前 60 筆，卡片從清單中間搬到最上面）：要放回去的位置跟著卡片挪，
   // 一樣停在卡片裡讀到的那一段。清單分兩次畫（先照記住的筆數、再縮回 60 筆），所以每次畫完都對一次；
@@ -290,7 +292,11 @@ export function DbBrowser({
       return;
     }
     const block = cardWhenLeft?.id === selected && cardWhenLeft.page === page ? cardBlock(selected) : null;
-    if (cardWhenLeft && block) restore.shift(cardShift(cardWhenLeft.at, Math.round(block.getBoundingClientRect().top + window.scrollY)));
+    if (!cardWhenLeft || !block) return;
+    const by = cardShift(cardWhenLeft.at, Math.round(block.getBoundingClientRect().top + window.scrollY));
+    if (by === shiftedBy.current) return;
+    shiftedBy.current = by;
+    restore.shift(by);
   });
 
   // 手機點了一筆：上面開著的另一筆收起來、或最上面的卡片搬下來時，這一列會往上跳——先放回手指點的位置，再捲到導覽列下方

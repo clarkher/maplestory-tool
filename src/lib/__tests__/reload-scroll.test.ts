@@ -386,6 +386,36 @@ describe("查資料卡片搬家：要跳回去的位置跟著卡片挪，一樣�
     }
   });
 
+  it("換到別筆紀錄：一問 restoring 就停手，新那一筆的捲動馬上照記（不用等頁面長高或逾時）", () => {
+    const t = fakePage({ key: "entry-wolf", height: 6200, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    t.page.key = "entry-other";
+    expect(restore.restoring()).toBe(false);
+    t.scrollTo(500);
+    t.fire("pagehide");
+    expect(t.saved()).toEqual({ "entry-wolf": 9000, "entry-other": 500 });
+  });
+
+  it("換了紀錄之後才挪：不跳，也不替原本那一筆存挪過的位置", () => {
+    const t = fakePage({ key: "entry-wolf", height: 6200, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    t.page.key = "entry-other";
+    restore.shift(-5643);
+    expect(t.page.jumps).toEqual([]);
+    t.fire("pagehide");
+    expect(t.saved()["entry-wolf"]).toBe(9000);
+  });
+
+  it("挪過之後使用者自己捲了、再離開：存的是實際位置，不是挪過的位置", () => {
+    const t = fakePage({ key: "entry-wolf", height: 6200, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    restore.shift(-5643);
+    t.fire("pointerdown");
+    t.scrollTo(1200);
+    t.fire("pagehide");
+    expect(t.saved()).toEqual({ "entry-wolf": 1200 });
+  });
+
   it("不是整頁重載、或這一筆沒記過位置：restoring 是 false，挪也不跳", () => {
     for (const [restore, saved] of [[false, { "entry-wolf": 9000 }], [true, {}], [true, { "entry-wolf": 0 }]] as const) {
       const t = fakePage({ key: "entry-wolf", height: 6200, saved });
