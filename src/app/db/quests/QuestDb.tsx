@@ -29,6 +29,8 @@ export function QuestDb() {
   // 沒寫需求等級的任務，要看怪物跟玩家攻略才推得出建議等級（跟首頁同一套 effectiveLevels）
   const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
   const [common, setCommon] = useState<GuideCommon | null>(peekGuideCommon);
+  // 這兩樣載不到：清單照列，只是沒有建議等級（沒寫需求等級的小字寫分類、排最後）；任務、地圖載不到才整頁寫「資料載入失敗」
+  const [suggestFailed, setSuggestFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useRemembered("db:任務:category", "");
   const [onlyEligible, setOnlyEligible] = useRemembered("db:任務:onlyEligible", false);
@@ -42,15 +44,22 @@ export function QuestDb() {
   const keepId = eligibleOn ? openId : null;
 
   useEffect(() => {
-    Promise.all([loadQuests(), loadMaps(), loadMonsters(), loadGuideCommon()])
-      .then(([questData, mapData, monsterData, commonData]) => {
+    Promise.all([loadQuests(), loadMaps()])
+      .then(([questData, mapData]) => {
         setQuests(questData);
         setMaps(mapData);
+      })
+      .catch(loadError => setError(String(loadError.message ?? loadError)));
+    Promise.all([loadMonsters(), loadGuideCommon()])
+      .then(([monsterData, commonData]) => {
         setMonsters(monsterData);
         setCommon(commonData);
       })
-      .catch(loadError => setError(String(loadError.message ?? loadError)));
+      .catch(() => setSuggestFailed(true));
   }, []);
+
+  // 建議等級用的資料載完（或載不到、放棄）才畫清單：第一個畫出來的清單就是最後的樣子，返回、重新整理回到原位時位置才對得上
+  const loaded = Boolean(quests && maps) && (Boolean(monsters && common) || suggestFailed);
 
   const questIndex = useMemo(() => new Map((quests ?? []).map(quest => [quest.id, quest])), [quests]);
   const questNames = useMemo(() => new Map((quests ?? []).map(quest => [quest.id, quest.n])), [quests]);
@@ -120,8 +129,9 @@ export function QuestDb() {
       title="任務"
       lead="每個任務的等級與職業條件、去找誰、要交什麼、完成拿多少。"
       entries={entries}
-      loading={!quests || !maps || !monsters || !common}
-      resetKey={`${quests && maps && monsters && common ? "loaded" : "loading"}|${category}|${eligibleOn}|${profile.level}|${profile.job}`}
+      loading={!loaded}
+      // 每一種會改變列出哪些任務的篩選都要放進 resetKey（一般清單不看角色，所以等級、職業只在「接得到的」開著時才算）
+      resetKey={`${loaded ? "loaded" : "loading"}|${category}|${eligibleOn ? `${profile.level}|${profile.job}` : "all"}`}
       error={error}
       filters={
         <div className="space-y-2">
