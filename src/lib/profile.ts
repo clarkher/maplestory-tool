@@ -107,7 +107,7 @@ export function useStoredProfile() {
 
 /**
  * 等級與職業記在本機，玩家不用每次進來重填。
- * 這是唯一存在瀏覽器的個人資料，沒有帳號、也不會送到伺服器。
+ * 沒有帳號、也不會送到伺服器（任務頁「我做完了」打勾的任務也記在這台裝置，見 done-quests.ts）。
  */
 export function useProfile() {
   return { ...useStoredProfile(), setProfile: saveProfile };

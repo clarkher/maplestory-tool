@@ -74,7 +74,10 @@ export function questEligible(quest: Quest, profile: Profile, lineage = new Set(
   return true;
 }
 
-/** 快過期／剛解鎖／隨時可以補：首頁「現在能接的任務」跟任務頁「接得到的」同一套分法 */
+/**
+ * 快過期／剛解鎖／隨時可以補：「現在能接的任務」頁（/plan/quest，planQuests）跟查資料任務頁的「接得到的」（quest-view）同一套分法。
+ * 給 questEligible 過了的任務用；等級已經超過上限的（levelsLeft 會是負的）不會傳進來。
+ */
 export function questBucket(quest: Quest, profile: Profile): { bucket: QuestBucket; levelsLeft?: number } {
   const levelsLeft = quest.maxLv !== undefined ? quest.maxLv - profile.level : undefined;
   const justUnlocked = quest.minLv !== undefined && profile.level - quest.minLv <= FRESH_WINDOW;
