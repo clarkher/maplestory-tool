@@ -4,6 +4,9 @@ name: 測試
 #  - 單元測試：npm test（pipeline 的 node:test＋src 的 vitest）。裡面鎖著「資料自動更新 dry-run 絕不開 PR、合進正式機」、
 #    失敗通知的判斷這類防呆，以前只有有人手動跑才會執行，改壞了也不會被擋
 #  - 建置：next build（型別檢查、編得過）。Vercel 預覽也會建，但它的 log 要登入 Vercel 才看得到；這裡失敗用 gh run view 就看得到原因
+#  - 第一格：在這台機器上建置、開站（next start），無頭 Chrome 跑 scripts/verify/check-first-frame.mjs——站內換頁第一格就是
+#    完整畫面、硬重新整理不問「你現在幾等」、沒有 hydration 警告。只看結構不看時間（機器快慢不穩），壞了紅燈、截圖跟紀錄上傳成 artifact。
+#    不靠 Vercel 預覽（部署額度用完時預覽建不起來，這條照跑）
 # 用 pull_request（不是 pull_request_target）、權限只有讀：PR 的程式碼拿不到寫入權限跟 secrets。
 # 資料自動更新、V002 重新部署用 github.token 開的 PR、推的 commit 不會觸發這裡（GitHub 不讓 workflow 用自己的 token 觸發別的 workflow），
 # 資料自動更新自己會跑 verify.mjs、首頁真資料檢查跟 next build。
@@ -58,3 +61,48 @@ jobs:
 
       - name: 建置
         run: npm run build
+
+  first-frame:
+    name: 第一格
+    runs-on: ubuntu-latest
+    # 2026-10-07 本機實測：建置約 1 分鐘、量測約 25 秒；無頭 Chrome 卡住時 15 分鐘就停，不會佔著機器
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 安裝相依套件
+        run: npm ci
+
+      - name: 建置
+        run: npm run build
+
+      - name: 開站
+        run: |
+          nohup npx next start -p 3000 > "$RUNNER_TEMP/next.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3000/; then exit 0; fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/next.log"
+          exit 1
+
+      - name: 量換頁第一格
+        run: |
+          # Chrome 的位置交給 command -v 找（runner 換版本時路徑可能不同）
+          export CHROME_PATH="$(command -v google-chrome || command -v google-chrome-stable || command -v chromium || command -v chromium-browser)"
+          node scripts/verify/check-first-frame.mjs "$RUNNER_TEMP/first-frame" http://localhost:3000
+
+      - name: 沒過時上傳截圖跟紀錄
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: first-frame
+          path: ${{ runner.temp }}/first-frame
+          retention-days: 7

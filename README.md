@@ -260,8 +260,10 @@ Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScri
 npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 ```
 
-開 PR（進 `dev` 或 `main`）和合進 `dev` 之後，GitHub Actions 會自動跑 `npm test` 跟 `next build`（`.github/workflows/test.yml`），
-結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」，紅燈點進去看是哪一步。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
+開 PR（進 `dev` 或 `main`）和合進 `dev` 之後，GitHub Actions 會自動跑 `npm test`、`next build`，再在同一台機器上開站、
+用無頭 Chrome 量換頁第一格（`scripts/verify/check-first-frame.mjs`，`.github/workflows/test.yml`），
+結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」「測試 / 第一格」，紅燈點進去看是哪一步；第一格沒過時截圖跟紀錄在
+那次執行的 artifact。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
 
 ### 查資料頁驗收（改查資料四頁之後跑）
 
