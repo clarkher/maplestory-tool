@@ -11,6 +11,7 @@ import {
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
+import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import { CharacterBar } from "./CharacterBar";
@@ -82,7 +83,11 @@ export function RouteHome() {
   // 等級段只跟職業有關；固定同一個陣列，升級路線的標籤 memo 才不會每次重算
   const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 
-  const effective = useMemo(() => (data ? effectiveLevels(data.quests, data.monsters, data.common) : null), [data]);
+  // 推算記在這次瀏覽裡（session-memo）：換頁離開首頁再回來，資料跟角色沒變就直接拿上次算好的，慢手機換頁比較快
+  const effective = useMemo(
+    () => (data ? sessionMemo("home:effective", [data.quests, data.monsters, data.common], () => effectiveLevels(data.quests, data.monsters, data.common)) : null),
+    [data],
+  );
   // 先解展開任務細節時，「要先完成」寫前置任務的名字
   const questNames = useMemo(() => new Map((data?.quests ?? []).map(quest => [quest.id, quest.n])), [data]);
 
@@ -100,40 +105,44 @@ export function RouteHome() {
 
   const plan = useMemo(() => {
     if (!data || !ready || !effective) return null;
-    const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
-    const pick = mainPick({
-      level: profile.level,
-      job: profile.job,
-      guide: stageGuide,
-      common: data.common,
-      training: data.training,
-      monsters: data.monsters,
-      maps: data.maps,
-      graph: data.graph,
-      nearestTown: data.nearestTown,
+    // 主推卡、先解、長線也記在這次瀏覽裡：資料、攻略、等級、職業都一樣就直接拿上次的
+    const deps = [data.quests, data.monsters, data.common, data.training, data.maps, data.graph, data.nearestTown, effective, stageGuide, profile.level, profile.job];
+    return sessionMemo("home:plan", deps, () => {
+      const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
+      const pick = mainPick({
+        level: profile.level,
+        job: profile.job,
+        guide: stageGuide,
+        common: data.common,
+        training: data.training,
+        monsters: data.monsters,
+        maps: data.maps,
+        graph: data.graph,
+        nearestTown: data.nearestTown,
+      });
+      const todo = nowQuests({
+        level: profile.level,
+        job: profile.job,
+        quests: data.quests,
+        monsters: data.monsters,
+        common: data.common,
+        maps: data.maps,
+        effective,
+      });
+      // 長線跟先解同一批候選（實際等級、過期都套），規則在 now-plan 的 longRunNow
+      const longRun = longRunNow({
+        level: profile.level,
+        job: profile.job,
+        quests: data.quests,
+        monsters: data.monsters,
+        common: data.common,
+        maps: data.maps,
+        effective,
+      }).slice(0, 3);
+      // 組隊任務剛過遊戲上限（超綠 30 等）時，主推卡說一聲
+      const pqClosed = pqJustClosed(data.common, profile.job, profile.level, data.quests);
+      return { monsterIndex, pick, todo, longRun, pqClosed };
     });
-    const todo = nowQuests({
-      level: profile.level,
-      job: profile.job,
-      quests: data.quests,
-      monsters: data.monsters,
-      common: data.common,
-      maps: data.maps,
-      effective,
-    });
-    // 長線跟先解同一批候選（實際等級、過期都套），規則在 now-plan 的 longRunNow
-    const longRun = longRunNow({
-      level: profile.level,
-      job: profile.job,
-      quests: data.quests,
-      monsters: data.monsters,
-      common: data.common,
-      maps: data.maps,
-      effective,
-    }).slice(0, 3);
-    // 組隊任務剛過遊戲上限（超綠 30 等）時，主推卡說一聲
-    const pqClosed = pqJustClosed(data.common, profile.job, profile.level, data.quests);
-    return { monsterIndex, pick, todo, longRun, pqClosed };
   }, [data, ready, effective, profile, stageGuide]);
 
   if (error) {
@@ -149,7 +158,8 @@ export function RouteHome() {
         </p>
       ) : null}
 
-      {!ready ? (
+      {/* 讀到角色之前（硬重新整理那一下）不問「你現在幾等」，存過角色的人才不會以為角色被清掉；讀到了、真的還沒選才問 */}
+      {loaded && !ready ? (
         <header className="px-1 pt-2 text-center">
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed ink-soft">
