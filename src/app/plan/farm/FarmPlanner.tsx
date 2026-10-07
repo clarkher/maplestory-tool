@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CloseIcon, SearchIcon } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
+import { SearchClear } from "@/components/SearchClear";
 import {
   itemImage, loadFarming, loadItems, loadMaps, loadMonsters, loadQuests, mapName, monsterImage,
   peekFarming, peekItems, peekMaps, peekMonsters, peekQuests,
@@ -262,6 +263,7 @@ export function FarmPlanner() {
                 className="tap-safe w-full bg-transparent py-2.5 outline-none"
                 aria-label="搜尋道具"
               />
+              {query ? <SearchClear onClear={() => setQuery("")} /> : null}
             </div>
             {searchResults.length ? (
               <ul className="mt-2 flex flex-wrap gap-1.5">

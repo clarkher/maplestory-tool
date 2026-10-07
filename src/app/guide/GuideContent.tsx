@@ -224,7 +224,7 @@ function StepCard({
   }, [anchor, setOpen]);
 
   return (
-    <li id={anchor} className="scroll-mt-20 overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
+    <li id={anchor} className="scroll-mt-header overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
       <button
         type="button"
         onClick={() => setOpen(value => !value)}

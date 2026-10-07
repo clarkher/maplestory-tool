@@ -3,15 +3,24 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createFingerScroll, nextHeader, type HeaderMotion } from "@/lib/header-hide";
 import { NAV, activeNav } from "@/lib/nav";
 import { MoonIcon, SunIcon } from "./Icons";
 
 export function SiteHeader() {
   const pathname = usePathname();
+  const { headerRef, hidden, reveal } = useHideOnSwipe(pathname);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[color:var(--paper-edge)] glass-fill">
+    // 手指往下滑時整條往上收，剛好收掉自己的高度：黏在它下面的那一列移一樣的距離，一起動、中間不裂開。
+    // 收著時拿掉下緣的陰影，不然會在畫面頂端留一條影子。
+    // 只動 transform：切換白天／夜晚時邊框色、毛玻璃底不要跟著漸變。用鍵盤移進來就出來
+    <header
+      ref={headerRef}
+      onFocus={reveal}
+      className={`sticky top-0 z-40 border-b border-[color:var(--paper-edge)] glass-fill transition-transform duration-200 ease-out${hidden ? " -translate-y-full shadow-none!" : ""}`}
+    >
       <div className="mx-auto flex w-full max-w-6xl items-center gap-2 px-3 py-2.5 sm:gap-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 tap-safe" aria-label="楓谷幫手首頁">
           <Image
@@ -50,6 +59,74 @@ export function SiteHeader() {
       </div>
     </header>
   );
+}
+
+/**
+ * 手機上方被導覽列佔掉太多：手指往下滑時收起來，往上滑一點就出來（規則在 header-hide.ts）。
+ * 網站自己捲（點一筆、按返回、重新整理回到原位）不收也不叫出來。
+ * 會叫出來的時候：回到頁面最上面、換頁（新頁面照「導覽列在」放錨點和卡片，標題不會被蓋住）、用鍵盤移到導覽列上、
+ * 手指收起來後改用觸控板或滑鼠滾輪往上捲。只有手指會收，桌機用滾輪不收。
+ * 導覽列的高度、有沒有收起來，寫到 <html>（--header-h、data-header-hidden）：黏在導覽列下面的東西跟著走。
+ */
+function useHideOnSwipe(pathname: string) {
+  const headerRef = useRef<HTMLElement>(null);
+  const motion = useRef<HeaderMotion>({ hidden: false, lastY: 0, travel: 0 });
+  const [hidden, setHidden] = useState(false);
+
+  const reveal = useCallback(() => {
+    motion.current = { ...motion.current, hidden: false, travel: 0 };
+    setHidden(false);
+  }, []);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const root = document.documentElement;
+    // offsetHeight 不受收起來的位移影響，一直是導覽列本身的高度；量好存著，捲動時不用每次重量
+    let height = header.offsetHeight;
+    const measure = () => {
+      height = header.offsetHeight;
+      root.style.setProperty("--header-h", `${height}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+
+    const finger = createFingerScroll(window);
+    motion.current = { hidden: false, lastY: window.scrollY, travel: 0 };
+    const onScroll = () => {
+      const next = nextHeader(motion.current, { y: window.scrollY, byFinger: finger.scrolled(), headerHeight: height });
+      if (next.hidden !== motion.current.hidden) setHidden(next.hidden);
+      motion.current = next;
+    };
+    // 平板、觸控筆電用手指收起來之後改用觸控板、滑鼠滾輪往上捲：一樣叫得出來（只會叫出來，不會收）
+    const onWheel = (event: WheelEvent) => {
+      if (event.deltaY < 0 && motion.current.hidden) reveal();
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("wheel", onWheel, { passive: true });
+    return () => {
+      observer.disconnect();
+      finger.dispose();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("wheel", onWheel);
+    };
+  }, [reveal]);
+
+  // 換頁：新的一頁從頂端開始、或按返回回到原位，都不是手指滑的，導覽列出來。
+  // 要在新頁面捲到錨點、捲到卡片之前就拿掉收起來的記號（layout effect，導覽列排在 <main> 前面，比它們先跑），
+  // 不然新頁面照「導覽列收著」放好位置，導覽列一回來就蓋住標題
+  useLayoutEffect(() => {
+    document.documentElement.removeAttribute("data-header-hidden");
+    reveal();
+  }, [pathname, reveal]);
+
+  // 跟導覽列同一個畫面更新：黏在它下面的那一列才會一起動
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute("data-header-hidden", hidden);
+  }, [hidden]);
+
+  return { headerRef, hidden, reveal };
 }
 
 function ThemeToggle() {
