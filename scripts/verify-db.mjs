@@ -1331,6 +1331,33 @@ try {
     const r = await ev(`await __sleep(1200); return { y: Math.round(scrollY), header: __headerBottom() };`);
     check("H11 桌機滑鼠滾輪往下捲：導覽列不收", r.y > 800 && r.header >= 60, r);
   });
+
+  // G4 道具頁選了分類、種類之後整頁重新整理（不是站內換頁）：種類還在、清單還是只有那個種類。
+  // 資料載入中種類清單是空的，曾經因此把記住的種類清成「全部種類」
+  await section("G4", async () => {
+    await mobile();
+    await fresh("/db/items");
+    const picked = await ev(`
+      __select("道具分類", "裝備"); await __sleep(500);
+      const sub = document.querySelector("main select[aria-label='道具種類']");
+      if (!sub || ![...sub.options].some(o => o.value === "單手劍")) return { skipped: "選了裝備之後沒有「單手劍」這個種類" };
+      __select("道具種類", "單手劍"); await __sleep(700);
+      const rows = __rows();
+      return { count: __count(), rows: rows.length, onlySword: rows.every(li => li.querySelector("button").textContent.includes("單手劍")) };`);
+    let r = picked;
+    if (!picked.skipped) {
+      await reload();
+      r = await ev(`await __ready(); await __sleep(900);
+        const sub = document.querySelector("main select[aria-label='道具種類']");
+        const rows = __rows();
+        return { category: document.querySelector("main select[aria-label='道具分類']")?.value ?? null, subcategory: sub?.value ?? null, count: __count(), rows: rows.length,
+          onlySword: rows.every(li => li.querySelector("button").textContent.includes("單手劍")) };`);
+      r = { before: picked, after: r };
+      await shot("g4-reload-subcategory.png");
+    }
+    check("G4 選了「裝備」「單手劍」之後整頁重新整理：兩個下拉都還在", !picked.skipped && r.after.category === "裝備" && r.after.subcategory === "單手劍", r);
+    check("G4 整頁重新整理後：清單還是只有單手劍、筆數跟重新整理前一樣", !picked.skipped && r.before.onlySword === true && r.after.onlySword === true && r.after.rows > 0 && r.after.count === r.before.count, r);
+  });
 } catch (error) {
   results.push({ name: "ERROR", ok: false, detail: String(error?.stack ?? error).slice(0, 800) });
 } finally {

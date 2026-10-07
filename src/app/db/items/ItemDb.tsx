@@ -103,12 +103,15 @@ export function ItemDb() {
   }, [sortedItems, category, onlyDroppable, fitsMine]);
   const subcategories = useMemo(() => subcategoryGroupList.flatMap(group => group.options), [subcategoryGroupList]);
 
-  /** 選的種類在新的篩選下沒東西了，畫面當場回到全部種類（不等 effect，不會先閃一次空清單） */
-  const activeSubcategory = subcategories.includes(subcategory) ? subcategory : "";
-  // 狀態也一起清掉，之後取消勾選才不會突然跳回先前選的種類
+  /**
+   * 選的種類在新的篩選下沒東西了，畫面當場回到全部種類（不等 effect，不會先閃一次空清單）。
+   * 資料還沒載好時種類清單一定是空的，那不是「沒東西了」：照記住的種類，不然整頁重新整理會把選的種類弄丟
+   */
+  const activeSubcategory = !items || subcategories.includes(subcategory) ? subcategory : "";
+  // 狀態也一起清掉，之後取消勾選才不會突然跳回先前選的種類（資料載好之前不清）
   useEffect(() => {
-    if (subcategory !== activeSubcategory) setSubcategory(activeSubcategory);
-  }, [subcategory, activeSubcategory]);
+    if (items && subcategory !== activeSubcategory) setSubcategory(activeSubcategory);
+  }, [items, subcategory, activeSubcategory]);
 
   const entries = useMemo<DbEntry[]>(() => {
     return sortedItems
