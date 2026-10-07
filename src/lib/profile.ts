@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { consistentJob } from "./jobs";
 import type { Profile } from "./types";
 
@@ -27,7 +27,18 @@ export function parseStoredProfile(raw: string): Profile {
   }
 }
 
+/*
+ * 所有頁共用同一份角色：角色列改了，同一個分頁所有用到角色的地方立刻跟著換。
+ * 同一個分頁寫 localStorage 不會觸發 storage 事件，所以存的時候自己通知；別的分頁改了才靠 storage 事件。
+ */
+const listeners = new Set<() => void>();
+/** 瀏覽器不讓存（空間滿了、隱私模式）時先記在這個分頁：畫面照樣換，只是重新整理後不會記得 */
+let unsaved: string | null = null;
+let lastRaw: string | null = null;
+let lastProfile: Profile = EMPTY;
+
 function readRaw(): string {
+  if (unsaved !== null) return unsaved;
   try {
     return localStorage.getItem(STORAGE_KEY) ?? "";
   } catch {
@@ -35,25 +46,47 @@ function readRaw(): string {
   }
 }
 
-function read(): Profile {
-  return parseStoredProfile(readRaw());
+/** 現在的角色（不可能的組合已經修正）。存的字沒變就回傳同一份，React 才不會一直重畫 */
+export function readProfile(): Profile {
+  const raw = readRaw();
+  if (raw !== lastRaw) {
+    lastRaw = raw;
+    lastProfile = parseStoredProfile(raw);
+  }
+  return lastProfile;
 }
 
-function subscribeStorage(onChange: () => void) {
+export function subscribeProfile(onChange: () => void) {
+  listeners.add(onChange);
   window.addEventListener("storage", onChange);
-  return () => window.removeEventListener("storage", onChange);
+  return () => {
+    listeners.delete(onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+export function saveProfile(next: Profile) {
+  const raw = JSON.stringify(next);
+  try {
+    localStorage.setItem(STORAGE_KEY, raw);
+    unsaved = null;
+  } catch {
+    unsaved = raw;
+  }
+  for (const listener of [...listeners]) listener();
 }
 
 const unknownOnServer = () => null;
 
 /**
- * 不等 effect、同步讀本機存的角色（只讀不寫）。查資料頁按返回時，第一個畫面就要套上
- * 「只看〇〇能用的裝備」，清單才會跟離開時一樣、捲得回原處。伺服器上讀不到，當作還沒讀。
+ * 不等 effect、同步讀本機存的角色（只讀不寫）。站內換頁時第一個畫面就有角色，不先閃「讀取你的角色…」；
+ * 查資料頁按返回時，第一個畫面就套上「只看〇〇能用的裝備」，清單才會跟離開時一樣、捲得回原處。
+ * 伺服器上讀不到，當作還沒讀（硬重新整理那一下還是會先畫讀取中）。
  */
 export function useStoredProfile() {
-  const raw = useSyncExternalStore(subscribeStorage, readRaw, unknownOnServer);
-  const profile = useMemo(() => (raw === null ? EMPTY : parseStoredProfile(raw)), [raw]);
-  const loaded = raw !== null;
+  const stored = useSyncExternalStore(subscribeProfile, readProfile, unknownOnServer);
+  const loaded = stored !== null;
+  const profile = stored ?? EMPTY;
   return { profile, loaded, isComplete: loaded && profile.level > 0 && profile.job >= 0 };
 }
 
@@ -62,24 +95,5 @@ export function useStoredProfile() {
  * 這是唯一存在瀏覽器的個人資料，沒有帳號、也不會送到伺服器。
  */
 export function useProfile() {
-  const [profile, setProfileState] = useState<Profile>(EMPTY);
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    setProfileState(read());
-    setLoaded(true);
-  }, []);
-
-  const setProfile = useCallback((next: Profile) => {
-    setProfileState(next);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      // 停用本機儲存時仍可使用，只是不會被記住
-    }
-  }, []);
-
-  const isComplete = loaded && profile.level > 0 && profile.job >= 0;
-
-  return { profile, setProfile, loaded, isComplete };
+  return { ...useStoredProfile(), setProfile: saveProfile };
 }
