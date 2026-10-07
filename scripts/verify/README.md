@@ -77,9 +77,11 @@ node scripts/verify/home-first-frame.mjs <輸出> <網址>
 ```
 
 - 情境：A 首頁 → 查資料 → 我的路線（A4／A6 是 CPU 慢 4／6 倍）、B 從查資料進站、C 等級加一、D 硬重新整理、
-  D2 沒存過角色的人硬重新整理、E 沒選職業、F 不可能的組合（狂戰士 25 等）、G 道具頁「誰能用」、H 首頁換職業。
+  D2 沒存過角色的人硬重新整理、E 沒選職業、F 不可能的組合（狂戰士 25 等）、G 道具頁的「狂戰士能用」標籤、H 首頁換職業。
 - D 的 `questionFrames`／`domQuestion`：存過角色的人硬重新整理時，畫出來的格數／DOM 裡出現「你現在幾等、什麼職業？」
   的次數，v0.54 起都要是 0（大標看不見，位置照留）。D2 是沒存過角色的人，第一格就要看到那句問題。
+- G 找 `main button[aria-pressed]` 裡文字以「能用」結尾的那顆（v0.55 起道具頁的「誰能用」下拉換成標籤按鈕，之前找 `select[aria-label="誰能用"]`），
+  印出它的文字（`text`，預期「狂戰士能用」）跟 `aria-pressed`（`pressed`，一打開預期 `"false"`）；`textOk`、`pressedOk` 是跟預期值比的結果。
 - `ONLY=A6,H` 只跑名稱開頭符合的情境。
 - 每一格（rAF，畫出來之前）記高度跟有哪些區塊，另外用 screencast 存真的畫出來的畫面。
 - 輸出：`<情境>-cast-<序號>-<毫秒>ms.jpg`（換頁後每一張 screencast）、`<情境>-settled-*.png`、`results.json`
@@ -184,12 +186,14 @@ node scripts/verify/after-back.mjs <輸出> <網址> [埠=9354]
 - 兩個都跟「沒按返回」對照。
 - 輸出：`item-tap-*.png`、`results.json`。
 
-#### `m13-select.mjs`：道具清單「誰能用」篩選＋按返回（v0.35 以後）
+#### `m13-select.mjs`：道具清單「誰能用」篩選＋按返回（只適用 v0.35～v0.54）
 
 ```bash
 node scripts/verify/m13-select.mjs <輸出> <網址> [埠=9361]
 ```
 
+- **v0.55 起不能用**：「誰能用」下拉換成「〇〇能用」「現在就能穿」標籤按鈕，這支找不到下拉選單、會卡在等選項再出錯。
+  同一件事（按「〇〇能用」標籤 → 離開再返回 → 篩選還在、清單一樣、捲回原位）改跑 `npm run verify:db` 的 M13（`VERIFY_ONLY=M13`）。
 - 選「狂戰士能用的」→ 捲到中間 → 頁首「查資料」→ 返回：篩選還在、清單一樣、捲回原位、直接跳。
 - 這是舊查資料頁驗收的 M13 改成下拉選單的版本。
 - 輸出：`m13-after-back.png`、`results.json`。

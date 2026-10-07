@@ -9,7 +9,7 @@
 //   D2 沒存過角色的人硬重新整理：讀到之後才出現「你現在幾等、什麼職業？」跟選職業
 //   E 沒選職業：首頁 → 查資料 → 點「我的路線」，第一格是選職業畫面，不是讀取中
 //   F 存了不可能的組合（狂戰士 25 等）：首頁顯示劍士 25 等
-//   G 道具頁「只看狂戰士能用的裝備」照常出現
+//   G 道具頁的「狂戰士能用」標籤照常出現（v0.55 起是標籤按鈕，之前是「誰能用」下拉）
 //
 // 每一格（requestAnimationFrame，畫出來之前）記高度跟有哪些區塊；另外用 screencast 存真的畫出來的畫面。
 import { spawn } from "node:child_process";
@@ -410,10 +410,12 @@ try {
   await scenario("G 道具頁只看狂戰士能用", async () => {
     await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(JSON.stringify(BERSERKER_45))}); "ok"`);
     await navigate(BASE + "/db/items");
-    const ok = await waitFor(`() => document.querySelector('main select[aria-label="誰能用"]')`, 30000);
-    const options = await evaluate(`[...(document.querySelector('main select[aria-label="誰能用"]')?.options ?? [])].map(o => o.textContent.trim())`);
+    // v0.55 起「誰能用」下拉換成標籤按鈕：找 main 裡文字以「能用」結尾的那顆（角色列選了職業就有），預期寫「狂戰士能用」、一打開沒按（aria-pressed="false"）
+    const mine = `[...document.querySelectorAll("main button[aria-pressed]")].find(b => b.textContent.trim().endsWith("能用"))`;
+    const ok = await waitFor(`() => ${mine}`, 30000);
+    const tag = await evaluate(`(() => { const b = ${mine}; return b ? { text: b.textContent.trim(), pressed: b.getAttribute("aria-pressed") } : null; })()`);
     const file = await shot("G-items.png");
-    return { select: ok, options, file };
+    return { tag: ok, text: tag?.text ?? null, textOk: tag?.text === "狂戰士能用", pressed: tag?.pressed ?? null, pressedOk: tag?.pressed === "false", file };
   });
 
   await scenario("B 從查資料進站→我的路線", async () => {
