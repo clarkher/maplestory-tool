@@ -55,11 +55,12 @@ export function SourceLinks({ urls, max = 3 }: { urls: string[]; max?: number })
 }
 
 /** 小標籤：職業專屬提示、組隊、「10/15 開放」這種短短一句都用它，顏色挑 tone 就好，不要另外做樣式。 */
-export function Chip({ tone, children }: { tone: "maple" | "gold" | "sky"; children: ReactNode }) {
+export function Chip({ tone, children }: { tone: "maple" | "gold" | "sky" | "leaf"; children: ReactNode }) {
   const tones = {
     maple: "bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
     gold: "bg-[color:var(--gold-wash)] text-[color:var(--gold)]",
     sky: "bg-[color:var(--sky-wash)] text-[color:var(--sky)]",
+    leaf: "bg-[color:var(--leaf-wash)] text-[color:var(--leaf)]",
   };
   return <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${tones[tone]}`}>{children}</span>;
 }
