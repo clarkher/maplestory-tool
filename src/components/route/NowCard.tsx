@@ -53,7 +53,8 @@ function Hero({ map, maps, mobs, label }: { map?: number; maps: Record<string, M
   return (
     <div className="relative">
       {map !== undefined && record?.mm ? (
-        <Image src={minimapImage(map)} alt="" width={750} height={288} unoptimized className="h-36 w-full object-cover [image-rendering:pixelated]" />
+        // 首頁第一屏最大張的圖：不延遲、優先抓（預設是捲到才載，畫面都畫好了圖還沒來）
+        <Image src={minimapImage(map)} alt="" width={750} height={288} unoptimized loading="eager" fetchPriority="high" className="h-36 w-full object-cover [image-rendering:pixelated]" />
       ) : (
         <div className="h-20 w-full bg-[color:var(--paper-deep)]" />
       )}

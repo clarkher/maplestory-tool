@@ -43,7 +43,8 @@ export function SiteHeader() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold transition-colors",
+                  // 只有滑鼠移上去才漸變：換頁時「目前這頁」的橘底直接換過去，不會兩顆同時偏橘
+                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold hover:transition-colors",
                   active
                     ? "bg-[color:var(--maple)] text-white shadow-sm"
                     : "text-[color:var(--ink-soft)] hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--ink)]",
