@@ -8,6 +8,8 @@ import { GoButton } from "@/components/PlanShell";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
 import { loadMaps, loadQuests, mapName, npcImage, peekMaps, peekQuests } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
+import { questEligible } from "@/lib/planner";
+import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import type { MapRecord, Quest } from "@/lib/types";
@@ -19,7 +21,11 @@ export function QuestDb() {
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useRemembered("db:任務:category", "");
+  const [onlyEligible, setOnlyEligible] = useRemembered("db:任務:onlyEligible", false);
   const notOpenYet = useBeforeV002();
+  // 角色列填了職業和等級才出現「只看我現在接得到的」：跟首頁同一套判斷（等級、等級上限、職業、楓之島）
+  const { profile, isComplete } = useStoredProfile();
+  const eligibleOn = onlyEligible && isComplete;
 
   useEffect(() => {
     Promise.all([loadQuests(), loadMaps()])
@@ -43,6 +49,7 @@ export function QuestDb() {
     if (!quests || !maps) return [];
     return quests
       .filter(quest => !category || quest.cat === category)
+      .filter(quest => !eligibleOn || questEligible(quest, profile))
       .sort((a, b) => (a.minLv ?? 0) - (b.minLv ?? 0))
       .map(quest => ({
         id: quest.id,
@@ -52,7 +59,7 @@ export function QuestDb() {
         keywords: `${quest.parent ?? ""} ${quest.sNpc?.n ?? ""}`,
         badge: isV002Quest(quest, maps) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [quests, maps, category, notOpenYet]);
+  }, [quests, maps, category, eligibleOn, profile, notOpenYet]);
 
   return (
     <DbBrowser
@@ -62,17 +69,34 @@ export function QuestDb() {
       loading={!quests || !maps}
       error={error}
       filters={
-        <select
-          value={category}
-          onChange={event => setCategory(event.target.value)}
-          className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
-          aria-label="任務分類"
-        >
-          <option value="">全部分類</option>
-          {categories.map(name => (
-            <option key={name} value={name}>{name}</option>
-          ))}
-        </select>
+        <div className="space-y-2">
+          <select
+            value={category}
+            onChange={event => setCategory(event.target.value)}
+            className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+            aria-label="任務分類"
+          >
+            <option value="">全部分類</option>
+            {categories.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+          {isComplete ? (
+            <div className="space-y-1">
+              <label className="flex items-center gap-2 text-[13px] ink-soft">
+                <input
+                  type="checkbox"
+                  checked={onlyEligible}
+                  onChange={event => setOnlyEligible(event.target.checked)}
+                  className="size-4 accent-[color:var(--maple)]"
+                />
+                只看我現在接得到的
+              </label>
+              {/* 前置任務做了沒網站不知道，照實說 */}
+              {onlyEligible ? <p className="pl-6 text-xs ink-faint">看等級跟職業；前置任務做了沒網站不知道，要自己確認</p> : null}
+            </div>
+          ) : null}
+        </div>
       }
       renderDetail={id => {
         const quest = questIndex.get(id);

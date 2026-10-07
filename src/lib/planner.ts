@@ -143,6 +143,14 @@ export function requiredAccuracy(playerLevel: number, monster: Pick<Monster, "lv
 }
 
 /**
+ * 練功帶：跟你同級到高你 5 級（levelFit 的甜蜜區）。怪物頁「只看適合我練的」也用這一條，兩邊說法才一致。
+ */
+export function inTrainingBand(playerLevel: number, monsterLevel: number): boolean {
+  const diff = monsterLevel - playerLevel;
+  return diff >= 0 && diff <= 5;
+}
+
+/**
  * 等級適配度。
  *
  * 原本上緣開到 +10 太寬鬆，結果 Lv.27 會被推去打 Lv.35 的小幽靈，
@@ -151,7 +159,7 @@ export function requiredAccuracy(playerLevel: number, monster: Pick<Monster, "lv
  */
 export function levelFit(playerLevel: number, mapLevel: number): number {
   const diff = mapLevel - playerLevel;
-  if (diff >= 0 && diff <= 5) return 1;            // 甜蜜區：同級到高 5 級
+  if (inTrainingBand(playerLevel, mapLevel)) return 1;  // 甜蜜區：同級到高 5 級
   if (diff > 5 && diff <= 10) return 1 - (diff - 5) / 8;  // 高 10 級只剩 0.38
   if (diff > 10) return Math.max(0, 0.38 - (diff - 10) / 10);
   if (diff >= -5) return 0.9;                      // 略低於你，經驗差一點但打得順

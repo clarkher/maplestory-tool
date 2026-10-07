@@ -3,17 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
-import {
-  itemImage, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining, monsterImage,
-} from "@/lib/data";
+import { itemImage, loadGuide, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
+import { cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, type HomeData } from "@/lib/home-data";
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
-import { jobLineage } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
-import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
+import type { GuideJob } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
 import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
@@ -22,55 +20,50 @@ import { RouteTimeline } from "./RouteTimeline";
 import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
 
-type GameData = {
-  maps: Record<string, MapRecord>;
-  monsters: Monster[];
-  quests: Quest[];
-  training: TrainingRow[];
-  common: GuideCommon;
-  meta: Meta;
-  /** 傳送門資料走得到的地圖；組隊任務內部的圖不在裡面，不給「帶我去」 */
-  routable: Set<number>;
-  graph: Record<string, PortalEdge[]>;
-  nearestTown: Record<string, [number, number]>;
-};
-
 export type GuideStatus = "loading" | "ready" | "failed";
+
+type GuideState = { job: number; guides: Map<number, GuideJob>; status: GuideStatus };
 
 export function RouteHome() {
   const showV002Banner = useBeforeV002();
+  // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
-  const [data, setData] = useState<GameData | null>(null);
-  const [guides, setGuides] = useState<Map<number, GuideJob>>(new Map());
-  const [guideStatus, setGuideStatus] = useState<GuideStatus>("loading");
+  const [data, setData] = useState<HomeData | null>(peekHomeData);
+  const [guideState, setGuideState] = useState<GuideState>(() => ({ job: profile.job, ...guidesFor(profile.job, new Map()) }));
   const [error, setError] = useState<string | null>(null);
 
+  // 換職業的那一次渲染就把攻略換好（React「props 變了就在渲染時調整 state」的寫法）：載過的直接用、沒載過的先放骨架，
+  // 不會先拿上一個職業的攻略狀態畫一張不對的主推卡
+  let shownGuides = guideState;
+  if (shownGuides.job !== profile.job) {
+    shownGuides = { job: profile.job, ...guidesFor(profile.job, guideState.guides) };
+    setGuideState(shownGuides);
+  }
+  const { guides, status: guideStatus } = shownGuides;
+
   useEffect(() => {
-    Promise.all([loadMaps(), loadMonsters(), loadQuests(), loadTraining(), loadGuideCommon(), loadMeta(), loadGraph(), loadNearestTown()])
-      .then(([maps, monsters, quests, training, common, meta, graph, nearestTown]) => {
-        const routable = new Set<number>(Object.keys(graph).map(Number));
-        for (const edges of Object.values(graph)) for (const [target] of edges) routable.add(target);
-        setData({ maps, monsters, quests, training, common, meta, routable, graph, nearestTown });
-      })
+    // 一開始就拿到了（這次瀏覽載過）就不用再載
+    if (data) return;
+    loadHomeData()
+      .then(setData)
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  // 要同時載整條職業線的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）
+  // 載整條職業線的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）；都載過的上面已經直接用了。
   // 快速切換職業時，晚回來的舊請求不能蓋掉新的；攻略載不到也不擋遊戲資料那部分。
   useEffect(() => {
-    if (profile.job <= 0) return;
+    const job = profile.job;
+    const wanted = guideJobs(job);
+    if (cachedGuides(wanted).size === wanted.length) return;
     let cancelled = false;
-    const wanted = jobLineage(profile.job).filter(code => code > 0);
-    setGuideStatus("loading");
-    Promise.all(wanted.map(job => loadGuide(job).then(guide => [job, guide] as const)))
+    Promise.all(wanted.map(code => loadGuide(code).then(guide => [code, guide] as const)))
       .then(entries => {
         if (cancelled) return;
-        setGuides(previous => new Map([...previous, ...entries]));
-        setGuideStatus("ready");
+        setGuideState(previous => (previous.job === job ? { job, guides: new Map([...previous.guides, ...entries]), status: "ready" } : previous));
       })
       .catch(() => {
-        if (!cancelled) setGuideStatus("failed");
+        if (!cancelled) setGuideState(previous => (previous.job === job ? { ...previous, status: "failed" } : previous));
       });
     return () => {
       cancelled = true;
@@ -166,7 +159,13 @@ export function RouteHome() {
 
       {loaded ? <CharacterBar profile={profile} onChange={setProfile} /> : <LoadingBlock label="讀取你的角色…" />}
 
-      {ready && !data ? <LoadingBlock label="幫你排路線…" /> : null}
+      {/* 至少佔一個螢幕高：從捲到底的長頁換過來時，首頁頂端被推出畫面，Next 才會捲回頂端。只比螢幕高一點的話，
+          位置被截在頁底、頁尾也在畫面裡，路線長出來時瀏覽器的捲動錨定會把畫面一路推到頁底 */}
+      {ready && !data ? (
+        <div className="min-h-dvh">
+          <LoadingBlock label="幫你排路線…" />
+        </div>
+      ) : null}
 
       {ready && data && plan ? (
         <>

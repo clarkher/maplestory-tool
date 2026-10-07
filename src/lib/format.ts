@@ -74,21 +74,29 @@ const ELEMENT_LABEL: Record<string, string> = {
   l: "雷",
   p: "毒",
   h: "聖",
-  s: "毒", // 部分資料用 s 代表 poison 的首字
+  s: "毒", // 遊戲客戶端的屬性代碼（elemAttr）毒是 S
 };
 
-const RESIST_LABEL: Record<string, { text: string; tone: "good" | "bad" | "flat" }> = {
+/**
+ * 屬性抗性的代碼（管線 pipeline/lib/elemental.mjs 存的）：i 免疫、r 抗性、w 弱點。
+ * s 也是抗性：管線原本把 strong 存成 s（實際資料沒出現過），留著相容；只給畫面用，職業規則（job-rules.ts）不認 s，
+ * 管線現在也不會再存出 s。
+ */
+const RESIST_LABEL: Record<string, { text: string; tone: "good" | "bad" }> = {
   i: { text: "免疫", tone: "bad" },
+  r: { text: "抗性", tone: "bad" },
   s: { text: "抗性", tone: "bad" },
   w: { text: "弱點", tone: "good" },
 };
 
+/** 怪物卡的「屬性抗性」；認不得的屬性或代碼不顯示，不把資料代碼（冰 r）寫給玩家看 */
 export function elementalNotes(elemental: Record<string, string> | undefined) {
   if (!elemental) return [];
-  return Object.entries(elemental).map(([element, value]) => ({
-    element: ELEMENT_LABEL[element] ?? element,
-    ...(RESIST_LABEL[value] ?? { text: value, tone: "flat" as const }),
-  }));
+  return Object.entries(elemental).flatMap(([key, value]) => {
+    const element = ELEMENT_LABEL[key];
+    const resist = RESIST_LABEL[value];
+    return element && resist ? [{ element, ...resist }] : [];
+  });
 }
 
 /**

@@ -548,3 +548,23 @@ describe("商店在哪、任務能不能接、點法指定武器種類", () => {
     expect(equipRequirement(weapons, 400, 25, thief)).toEqual({ DEX: 50 });
   });
 });
+
+describe("合成來源", () => {
+  const craft = { n: "後街吉姆", m: 103000000, mats: [{ id: 1472000, n: "拳套", c: 1 }, { id: 4011001, n: "鋼鐵", c: 3 }], fee: 5000 };
+
+  it("只有合成也算拿得到", () => {
+    expect(obtainableBy(source({ crafts: [craft] }), 410)).toBe(true);
+  });
+
+  it("closestSource：合成排在商店後面、掉落前面（材料湊齊一定做得出來）", () => {
+    const src = source({ crafts: [craft], drops: [{ m: 1, n: "黑斧木妖", lv: 22, map: 1 }] });
+    expect(closestSource(src, 25)).toEqual({ kind: "craft", craft });
+    expect(closestSource(source({ ...src, shops: [{ p: "店", pr: 1 }] }), 25)).toEqual({ kind: "shop", shop: { p: "店", pr: 1 } });
+  });
+
+  it("10/15 前跳過只在 10/15 才開的城鎮的合成 NPC", () => {
+    const later = { ...craft, n: "冰原雪域工匠", m: 211000000, o: "2026-10-15" };
+    const src = source({ crafts: [later], drops: [{ m: 1, n: "怪", lv: 25, map: 1 }] });
+    expect(closestSource(src, 25, true)).toEqual({ kind: "drop", drop: src.drops![0] });
+  });
+});

@@ -36,11 +36,17 @@ export function spawnShare(mobs: Array<[number, number]>, monsters: Map<number, 
 
 const percent = (value: number) => `${Math.round(value * 100)}%`;
 
+/** 僧侶這一系 31～70 等只靠群體治癒打不死系 */
+const clericUndeadOnly = (branch: number, level: number) => branch === 230 && level >= 31 && level <= 70;
+const isUndead = (monster: Monster) => Boolean(monster.und);
+const resistsFire = (monster: Monster) => monster.el?.f === "r" || monster.el?.f === "i";
+const resistsIce = (monster: Monster) => monster.el?.i === "r" || monster.el?.i === "i";
+
 export function jobFit(stage: number, level: number, mobs: Array<[number, number]>, monsters: Map<number, Monster>): JobFit {
   const branch = branchOf(stage);
 
-  if (branch === 230 && level >= 31 && level <= 70) {
-    const undead = spawnShare(mobs, monsters, monster => Boolean(monster.und));
+  if (clericUndeadOnly(branch, level)) {
+    const undead = spawnShare(mobs, monsters, isUndead);
     if (undead < 0.3) return { ok: false, factor: 0, note: "沒有不死系，群體治癒打不到" };
     return {
       ok: true,
@@ -52,17 +58,38 @@ export function jobFit(stage: number, level: number, mobs: Array<[number, number
 
   if (branch === 210) {
     const weak = spawnShare(mobs, monsters, monster => monster.el?.f === "w" || monster.el?.p === "w");
-    const resist = spawnShare(mobs, monsters, monster => monster.el?.f === "r" || monster.el?.f === "i");
+    const resist = spawnShare(mobs, monsters, resistsFire);
     if (resist >= 0.5) return { ok: false, factor: 0, note: "怪抗火，火焰箭傷害打折" };
     return { ok: true, factor: 1 + 0.6 * weak - 0.8 * resist, ...(weak >= 0.3 ? { note: "怪怕火／毒" } : {}) };
   }
 
   if (branch === 220) {
     const weak = spawnShare(mobs, monsters, monster => monster.el?.i === "w" || monster.el?.l === "w");
-    const resist = spawnShare(mobs, monsters, monster => monster.el?.i === "r" || monster.el?.i === "i");
+    const resist = spawnShare(mobs, monsters, resistsIce);
     if (resist >= 0.5) return { ok: false, factor: 0, note: "怪抗冰，冰雷傷害打折" };
     return { ok: true, factor: 1 + 0.6 * weak - 0.8 * resist, ...(weak >= 0.3 ? { note: "怪怕冰／雷" } : {}) };
   }
 
   return NEUTRAL;
+}
+
+/**
+ * 單隻怪合不合這個職業練（怪物頁「只看適合我練的」）：跟 jobFit 同一套條件——
+ * 僧侶這一系 31～70 只打不死系、火毒不打抗火的、冰雷不打抗冰的；其他職業、還沒選職業不加規則。
+ */
+export function monsterSuitsJob(stage: number, level: number, monster: Monster): boolean {
+  const branch = branchOf(stage);
+  if (clericUndeadOnly(branch, level)) return isUndead(monster);
+  if (branch === 210) return !resistsFire(monster);
+  if (branch === 220) return !resistsIce(monster);
+  return true;
+}
+
+/** 怪物頁篩選旁邊寫的職業規則（原因跟練功卡片同一套說法）；沒有特別規則回 null */
+export function trainingRuleNote(stage: number, level: number): string | null {
+  const branch = branchOf(stage);
+  if (clericUndeadOnly(branch, level)) return "只列不死系：群體治癒補得到";
+  if (branch === 210) return "不列抗火的怪：火焰箭傷害打折";
+  if (branch === 220) return "不列抗冰的怪：冰雷傷害打折";
+  return null;
 }

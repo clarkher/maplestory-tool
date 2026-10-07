@@ -16,7 +16,8 @@
     "data:verify": "node pipeline/verify.mjs",
     "test": "node --test \"pipeline/**/*.test.mjs\" && vitest run",
     "data:guides": "node pipeline/build-guides.mjs",
-    "data:gear": "node pipeline/build-gear.mjs"
+    "data:gear": "node pipeline/build-gear.mjs",
+    "verify:db": "node scripts/verify-db.mjs"
   },
   "dependencies": {
     "next": "^16.3.0",

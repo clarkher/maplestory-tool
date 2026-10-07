@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, RouteIcon } from "@/components/Icons";
-import { itemImage, loadGear, mapName } from "@/lib/data";
+import { itemImage, loadGear, mapName, peekGear } from "@/lib/data";
 import type { GearData, GearWeapon, StatKey } from "@/lib/gear";
 import {
   STAT_ORDER,
   STAT_SHORT,
   STAT_WORD,
+  craftMaterialsText,
   dropLead,
   effectParts,
   gearPlan,
@@ -43,9 +44,9 @@ type Where = {
  * 自己載 gear.json（載不到只影響這張卡）；算法都在 lib/gear.ts，組裝跟用字在 lib/gear-view.ts。
  */
 export function GearCard({ job, level, maps, routable }: { job: number; level: number; maps: Record<string, MapRecord>; routable: Set<number> }) {
-  const [gear, setGear] = useState<GearData | null>(null);
+  // 這次瀏覽載過就直接拿：換頁回首頁不先畫骨架
+  const [gear, setGear] = useState<GearData | null>(peekGear);
   const [failed, setFailed] = useState(false);
-  // 放在外層：卡片內容掛上去之前就已經換成瀏覽器當下的日期，不會先算一次 10/15 後的版本又換掉
   const beforeOpen = useBeforeV002();
 
   useEffect(() => {
@@ -335,7 +336,7 @@ function OpenChip({ later, where, spaced = false }: { later: string | undefined;
 function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; where: Where; chip?: boolean }) {
   if (!pick) return null;
   // 掉落的怪在哪張圖、店開在哪張圖：走得到就給「帶我去」
-  const target = pick.kind === "drop" ? pick.drop.map : pick.kind === "shop" ? pick.shop.m : undefined;
+  const target = pick.kind === "drop" ? pick.drop.map : pick.kind === "shop" ? pick.shop.m : pick.kind === "craft" ? pick.craft.m : undefined;
   const go = target !== undefined && where.routable.has(target) ? target : null;
   const label = (id: number) => mapName(where.maps, id);
   // 地圖名、任務名整個一起換行（「海龜沙灘」不會切成「海龜沙／灘」）；真的長到一行放不下才在字中間斷，不凸出卡片
@@ -353,6 +354,12 @@ function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; whe
           <Link href={`/db/quests?id=${pick.quest.id}`} className="break-keep wrap-anywhere underline decoration-dotted underline-offset-2">
             {sourceText(pick, label)}
           </Link>
+        ) : pick.kind === "craft" ? (
+          <>
+            <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
+            {/* 合成要的材料另起一行：要先去打這些東西 */}
+            <span className="block break-keep wrap-anywhere ink-faint">材料：{craftMaterialsText(pick.craft)}</span>
+          </>
         ) : (
           <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
         )}

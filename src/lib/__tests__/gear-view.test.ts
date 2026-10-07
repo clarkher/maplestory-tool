@@ -8,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { GearData, GearNote, GearScroll, GearWeapon, StatRule } from "@/lib/gear";
 import {
+  bandGear,
+  craftMaterialsText,
   dropLead,
   effectParts,
   effectText,
@@ -128,7 +130,7 @@ describe("sourceText／sourceOpensLater：怎麼拿", () => {
   });
 
   it("商店、掉落、任務三種寫法", () => {
-    expect(sourceText({ kind: "shop", shop: { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 8000 } }, mapLabel)).toBe("墮落城市武器店的曼斯塔賣 8,000 楓幣");
+    expect(sourceText({ kind: "shop", shop: { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 8000 } }, mapLabel)).toBe("墮落城市武器店的曼斯塔賣 8,000 楓幣");
     expect(sourceText({ kind: "quest", quest: { id: "2013", n: "珍的最後一個挑戰", minLv: 40, rand: 1 } }, mapLabel)).toBe("Lv.40 任務〈珍的最後一個挑戰〉隨機給");
     expect(sourceText({ kind: "drop", drop: { m: 3210100, n: "火肥肥", lv: 32, map: 106000000 } }, mapLabel)).toBe("火肥肥（Lv.32）會掉・螞蟻洞");
     expect(sourceText({ kind: "quest", quest: { id: "9414", n: "散發烈焰氣息的劍" } }, mapLabel)).toBe("任務〈散發烈焰氣息的劍〉給");
@@ -205,10 +207,10 @@ const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const gear = JSON.parse(fs.readFileSync(`${DATA}gear.json`, "utf8")) as GearData;
 
 describe("真資料：gearPlan 組出來的卡片內容", () => {
-  it("刺客 Lv35（10/15 前）：銀守護拳套，火肥肥會掉；下一把 40 等、現在就拿得到", () => {
+  it("刺客 Lv35（10/15 前）：銀守護拳套（同數值裡拿法最多），墮落城市後街吉姆合成；下一把 40 等、現在就拿得到", () => {
     const plan = gearPlan(gear, 410, 35, true);
     expect(plan.best?.n).toBe("銀守護拳套");
-    expect(plan.bestSource).toMatchObject({ kind: "drop", drop: { n: "火肥肥" } });
+    expect(plan.bestSource).toMatchObject({ kind: "craft", craft: { n: "後街吉姆" } });
     expect(plan.next?.lv).toBe(40);
     expect(plan.next?.o).toBeUndefined();
     expect(plan.bestShort).toEqual([]);
@@ -276,5 +278,114 @@ describe("真資料：gearPlan 組出來的卡片內容", () => {
     expect(plan.best).toBeNull();
     expect(plan.families).toEqual([]);
     expect(plan.notes).toEqual([]);
+  });
+});
+
+describe("bandGear：升級路線一段裡的武器跟卷", () => {
+  const drop = (lv: number, o?: string) => ({ drops: [{ m: lv, n: `怪${lv}`, lv, map: 1, ...(o ? { o } : {}) }] });
+  const fixture: GearData = {
+    builtAt: "test",
+    rules: [],
+    notes: [],
+    weapons: [
+      weapon({ id: 25, n: "拳套25", lv: 25, atk: 16, src: { shops: [{ p: "店", pr: 1 }] } }),
+      weapon({ id: 30, n: "拳套30", lv: 30, atk: 18, src: drop(30) }),
+      weapon({ id: 35, n: "拳套35", lv: 35, atk: 20, src: drop(33) }),
+      weapon({ id: 401, n: "只有V002的拳套40", lv: 40, atk: 22, src: drop(58, "2026-10-15"), o: "2026-10-15" }),
+      weapon({ id: 402, n: "現在拿得到的拳套40", lv: 40, atk: 22, src: drop(40) }),
+    ],
+    scrolls: [
+      scroll({ id: 1, n: "拳套攻擊卷軸", slot: "拳套", stat: "攻擊", rate: 60, src: drop(30) }),
+      scroll({ id: 2, n: "手套攻擊卷軸", slot: "手套", stat: "攻擊", rate: 60, effect: "物理攻擊力+2", src: drop(55) }),
+      scroll({ id: 3, n: "披風幸運卷軸", slot: "披風", stat: "幸運", rate: 60, effect: "幸運+2", src: drop(7) }),
+    ],
+  };
+
+  it("只列「換武器的那一級」：30 等拿拳套30、35 等換拳套35", () => {
+    const band = bandGear(fixture, 410, 30, 39, true);
+    expect(band.weapons.map(entry => [entry.level, entry.weapon.id])).toEqual([[30, 30], [35, 35]]);
+    expect(band.weapons[1].source).toMatchObject({ kind: "drop", drop: { lv: 33 } });
+  });
+
+  it("10/15 前同等級有現在拿得到的，就不推只有 V002 才拿得到的", () => {
+    const band = bandGear(fixture, 410, 40, 49, true);
+    expect(band.weapons.map(entry => entry.weapon.id)).toEqual([402]);
+  });
+
+  it("卷只列武器卷跟手套攻擊卷（部位的主屬性卷不隨等級變，留在首頁卡片）", () => {
+    const band = bandGear(fixture, 410, 30, 39, true);
+    expect(band.families.map(family => family.options[0].n)).toEqual(["拳套攻擊卷軸", "手套攻擊卷軸"]);
+  });
+
+  it("初心者回空的", () => {
+    expect(bandGear(fixture, 0, 1, 9, true)).toEqual({ weapons: [], families: [] });
+  });
+});
+
+describe("真資料：bandGear", () => {
+  it("刺客 30–39：從 30 等起、依等級排、10/15 前來源都現在拿得到", () => {
+    const band = bandGear(gear, 410, 30, 39, true);
+    expect(band.weapons[0].level).toBe(30);
+    const levels = band.weapons.map(entry => entry.level);
+    expect([...levels].sort((a, b) => a - b)).toEqual(levels);
+    for (const entry of band.weapons) expect(sourceOpensLater(entry.source!)).toBeUndefined();
+    expect(band.families.length).toBeGreaterThan(0);
+  });
+});
+
+describe("bandGear：還沒轉到選的職業時，用那一轉實際用的武器", () => {
+  const shop = { shops: [{ p: "店", pr: 1 }] };
+  const rule = (over: Partial<StatRule> & Pick<StatRule, "jobs" | "label" | "main">): StatRule => ({
+    secondary: null, t: "", s: [], v: "tw", mainstream: true, ...over,
+  });
+  const fixture: GearData = {
+    builtAt: "test",
+    notes: [],
+    scrolls: [],
+    rules: [
+      rule({ jobs: [400, 410], label: "幸運為主，敏捷只點到拳套需求", main: "LUK", weapons: ["拳套"] }),
+      rule({ jobs: [420], label: "幸運為主，敏捷只點到短刀需求", main: "LUK" }),
+      rule({ jobs: [500, 510], label: "力量為主，敏捷只點到指虎需求", main: "STR", weapons: ["指虎"] }),
+      rule({ jobs: [500, 520], label: "力量＝等級，其餘全敏", main: "DEX", weapons: ["火槍"], mainstream: false }),
+      rule({ jobs: [520], label: "每級 4 敏 1 力", main: "DEX" }),
+    ],
+    weapons: [
+      weapon({ id: 1, n: "拳套", s: "拳套", lv: 20, atk: 14, job: 8, src: shop }),
+      weapon({ id: 2, n: "短刀", s: "短刀", lv: 20, atk: 40, job: 8, src: shop }),
+      weapon({ id: 3, n: "指虎", s: "指虎", lv: 20, atk: 20, job: 16, src: shop }),
+      weapon({ id: 4, n: "火槍", s: "火槍", lv: 20, atk: 18, job: 16, src: shop }),
+    ],
+  };
+
+  it("俠盜的一轉（10–29）列拳套：一轉盜賊不管之後走哪條都是丟標；30 等起才列短刀", () => {
+    expect(bandGear(fixture, 420, 21, 29, true).weapons.map(entry => entry.weapon.s)).toEqual(["拳套"]);
+    expect(bandGear(fixture, 420, 30, 39, true).weapons.map(entry => entry.weapon.s)).toEqual(["短刀"]);
+  });
+
+  it("槍手的一轉照「力量＝等級」那套列火槍（那一轉有對得上槍手武器的點法就用它）", () => {
+    expect(bandGear(fixture, 520, 21, 29, true).weapons.map(entry => entry.weapon.s)).toEqual(["火槍"]);
+  });
+});
+
+describe("合成的寫法", () => {
+  const craft = { n: "後街吉姆", m: 103000000, mats: [{ id: 1472000, n: "拳套", c: 1 }, { id: 4011001, n: "鋼鐵", c: 3 }, { id: 4000021, n: "動物皮", c: 20 }, { id: 4003001, n: "木材", c: 30 }], fee: 5000 };
+
+  it("「墮落城市的後街吉姆合成」＋材料「拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣」", () => {
+    expect(sourceText({ kind: "craft", craft }, id => (id === 103000000 ? "墮落城市" : "?"))).toBe("墮落城市的後街吉姆合成");
+    expect(craftMaterialsText(craft)).toBe("拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣");
+    expect(sourceOpensLater({ kind: "craft", craft: { ...craft, o: "2026-10-15" } })).toBe("2026-10-15");
+  });
+});
+
+describe("真資料：狼牙（台服靠後街吉姆合成）", () => {
+  it("一轉盜賊 25 等推狼牙，來源是合成", () => {
+    const plan = gearPlan(gear, 400, 25, true);
+    expect(plan.best?.n).toBe("狼牙");
+    expect(plan.bestSource?.kind).toBe("craft");
+  });
+
+  it("俠盜的升級路線 21–29（一轉）在 25 等換狼牙", () => {
+    const band = bandGear(gear, 420, 21, 29, true);
+    expect(band.weapons.find(entry => entry.weapon.n === "狼牙")?.level).toBe(25);
   });
 });

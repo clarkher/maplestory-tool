@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
-import { itemImage, monsterImage, skillImage } from "@/lib/data";
+import { itemImage, loadGear, mapName, monsterImage, peekGear, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
+import { isMagicJob, type GearData } from "@/lib/gear";
+import { bandGear, craftMaterialsText, offenseText, sourceOpensLater, sourceText, type SourcePick } from "@/lib/gear-view";
+import { LEVEL_CAP } from "@/lib/profile";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
@@ -107,12 +110,9 @@ function BandItem({
     <li className="relative">
       <span
         aria-hidden
-        className={`absolute -left-8 top-3 grid size-[27px] place-items-center rounded-full border-[3px] ${
-          state === "current"
-            ? "border-[color:var(--maple)] bg-[color:var(--maple)]"
-            : state === "done"
-              ? "border-[color:var(--leaf)] bg-[color:var(--leaf)]"
-              : "border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
+        // 三種圓點都套米色外圈，接上後面那條米色直線（2026-10-07 使用者看過實心版，選維持外圈）
+        className={`absolute -left-8 top-3 grid size-[27px] place-items-center rounded-full border-[3px] border-[color:var(--paper-edge)] ${
+          state === "current" ? "bg-[color:var(--maple)]" : state === "done" ? "bg-[color:var(--leaf)]" : "bg-[color:var(--paper)]"
         }`}
       >
         {state === "done" ? (
@@ -254,6 +254,8 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
           </div>
         </Block>
       ) : null}
+
+      {!island && job > 0 ? <BandGearBlock job={job} band={band} maps={maps} /> : null}
 
       {detail.mustDo.length ? (
         <Block label="必解任務" tag={<SourceTag kind="data" />}>
@@ -427,5 +429,83 @@ function PqLink({ pqKey, common, text }: { pqKey: string; common: GuideCommon; t
     <Link href={href} className="block rounded-lg bg-[color:var(--sky-wash)] px-2.5 py-1.5 text-[13px] font-bold text-[color:var(--sky)]">
       {text}（圖解）→
     </Link>
+  );
+}
+
+/**
+ * 這一段該拿的武器（幾等換哪把、去哪拿）跟武器卷、手套攻擊卷（2026-10-07 使用者：「升級路線每一段也列裝備跟卷」）。
+ * 算法在 lib/gear-view.ts 的 bandGear；裝備資料跟首頁「能力值與裝備」卡共用（loadGear 只載一次）。載不到就不顯示這塊。
+ */
+function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Record<string, MapRecord> }) {
+  // 這次瀏覽載過就直接拿：換頁回首頁時展開的那一段不會晚一格才冒出裝備
+  const [gear, setGear] = useState<GearData | null>(peekGear);
+  const beforeOpen = useBeforeV002();
+  useEffect(() => {
+    let cancelled = false;
+    loadGear()
+      .then(data => {
+        if (!cancelled) setGear(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // 一段是 from 到 to 前一級（下一段從 to 開始）；最後一段（100–120）含上限那一級
+  const last = band.to >= LEVEL_CAP ? band.to : band.to - 1;
+  const plan = useMemo(() => (gear ? bandGear(gear, job, band.from, last, beforeOpen) : null), [gear, job, band.from, last, beforeOpen]);
+  if (!plan || (!plan.weapons.length && !plan.families.length)) return null;
+  const magic = isMagicJob(job);
+  const label = (id: number) => mapName(maps, id);
+  const chip = (later: string | undefined) =>
+    later && beforeOpen ? (
+      <span className="ml-1 inline-block align-middle">
+        <Chip tone="gold">10/15 開放</Chip>
+      </span>
+    ) : null;
+
+  return (
+    <Block label="裝備" tag={<SourceTag kind="data" />}>
+      <ul className="space-y-2">
+        {plan.weapons.map((entry, index) => (
+          <li key={entry.weapon.id} className="flex gap-2">
+            <Sprite src={itemImage(entry.weapon.id)} size={28} />
+            <span className="min-w-0 text-[13px] leading-snug">
+              <span className="whitespace-nowrap font-bold">
+                Lv.{entry.level}
+                {index > 0 ? " 換" : ""}
+              </span>{" "}
+              <Link href={`/db/items?id=${entry.weapon.id}`} className="font-bold text-[color:var(--sky)]">
+                {entry.weapon.n}
+              </Link>
+              <span className="whitespace-nowrap ink-soft">（{offenseText(entry.weapon, magic)}）</span>
+              {entry.source ? <BandSource pick={entry.source} label={label} chip={chip} /> : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {plan.families.length ? (
+        <ul className="space-y-1.5 border-t border-[color:var(--paper-edge)] pt-2">
+          {plan.families.map(family => (
+            <li key={`${family.slot}:${family.stat}`} className="text-[13px] leading-snug">
+              <span className="font-bold">{family.options[0].n}</span>{" "}
+              <span className="whitespace-nowrap tabular-nums ink-soft">{family.options.map(option => `${option.rate}%`).join("／")}</span>
+              {family.source ? <BandSource pick={family.source} label={label} chip={chip} /> : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Block>
+  );
+}
+
+/** 一段裡「怎麼拿」那一行；合成另外一行寫材料 */
+function BandSource({ pick, label, chip }: { pick: SourcePick; label: (id: number) => string; chip: (later: string | undefined) => React.ReactNode }) {
+  return (
+    <span className="block text-[12px] ink-soft">
+      {sourceText(pick, label)}
+      {chip(sourceOpensLater(pick))}
+      {pick.kind === "craft" ? <span className="block ink-faint">材料：{craftMaterialsText(pick.craft)}</span> : null}
+    </span>
   );
 }

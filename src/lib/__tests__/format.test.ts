@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { attackSpeedLabel, equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
+import { attackSpeedLabel, elementalNotes, equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
+import { ELEMENT_KEY, RESIST_CODE } from "../../../pipeline/lib/elemental.mjs";
 
 describe("回生秒數的寫法", () => {
   it("等效回生秒數帶小數，畫面寫整數秒「回生約 7 秒」", () => {
@@ -126,5 +127,33 @@ describe("裝備數值的欄位名寫遊戲說明框的字", () => {
     expect(equipStatLabel("incSTR")).toBe("力量");
     expect(equipStatLabel("incSpeed")).toBe("移動速度");
     expect(equipStatLabel("incJump")).toBe("跳躍力");
+  });
+});
+
+describe("怪物的屬性抗性", () => {
+  it("抗性代碼 r 寫「抗性」：白狼人寫「火 弱點」「冰 抗性」，不露出「冰 r」", () => {
+    expect(elementalNotes({ f: "w", i: "r" })).toEqual([
+      { element: "火", text: "弱點", tone: "good" },
+      { element: "冰", text: "抗性", tone: "bad" },
+    ]);
+  });
+
+  it("s 也寫「抗性」（管線原本的對照表會把 strong 存成 s，實際資料沒出現過，留著相容）；免疫寫「免疫」", () => {
+    expect(elementalNotes({ l: "s", p: "i" })).toEqual([
+      { element: "雷", text: "抗性", tone: "bad" },
+      { element: "毒", text: "免疫", tone: "bad" },
+    ]);
+  });
+
+  it("認不得的抗性代碼或屬性不顯示，不把資料代碼寫給玩家看", () => {
+    expect(elementalNotes({ f: "absorb", dark: "w", h: "w" })).toEqual([{ element: "聖", text: "弱點", tone: "good" }]);
+  });
+
+  it("管線存得出來的每個屬性、每種抗性代碼，怪物卡都寫得出中文（不會再有管線存 r、卡片只認 s 這種對不上）", () => {
+    const keys = Object.values(ELEMENT_KEY);
+    const codes = [...new Set(Object.values(RESIST_CODE))];
+    expect(keys.length * codes.length).toBeGreaterThan(0);
+    const missing = keys.flatMap(key => codes.filter(code => elementalNotes({ [key]: code }).length !== 1).map(code => `${key}:${code}`));
+    expect(missing).toEqual([]);
   });
 });

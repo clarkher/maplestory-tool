@@ -134,6 +134,11 @@ function main() {
   check("怪物有刷怪點資料的比例", withSpawn / Math.max(monsters?.length ?? 1, 1) >= 0.7,
     `${withSpawn}/${monsters?.length}`);
 
+  // 屬性抗性：怪物卡、火毒避抗火的圖、冰雷找怕冰雷的圖都靠它。上游整個 elemental.values 不見時
+  // 每隻怪的 el 會靜靜清空、照樣建置成功。2026-10-07 重建出來 71 隻帶 el，下限抓 ×0.8 取整
+  const withElemental = (monsters ?? []).filter(monster => monster.el).length;
+  check("怪物有屬性抗性資料", withElemental >= Math.floor(71 * 0.8), `${withElemental} 隻`);
+
   // 任務細節曾經整批漏掉（texts 被當成物件而不是陣列），加上檢查避免再犯
   const withTexts = (quests ?? []).filter(quest => Array.isArray(quest.texts) && quest.texts.length).length;
   check("任務有敘述的比例", withTexts / Math.max(quests?.length ?? 1, 1) >= 0.9, `${withTexts}/${quests?.length}`);
@@ -158,10 +163,10 @@ function main() {
   const priced = (items ?? []).filter(item => item.price).length;
   check("道具有商店價格的筆數", priced >= 300, `${priced} 個`);
 
-  // gear.json（能力值＋裝備＋衝卷卡）：2026-10-06 重建出來是武器 226 把、卷軸 106 種，
+  // gear.json（能力值＋裝備＋衝卷卡）：2026-10-07 加上 NPC 合成來源後是武器 232 把、卷軸 106 種，
   // 下限抓實際數 ×0.8 取整，跟著遊戲資料變動留一點空間，掉太多代表解析壞了
   const gear = readJson(path.join(OUT, "gear.json"));
-  check("武器數量合理", (gear?.weapons?.length ?? 0) >= Math.floor(226 * 0.8), `${gear?.weapons?.length ?? 0} 把`);
+  check("武器數量合理", (gear?.weapons?.length ?? 0) >= Math.floor(232 * 0.8), `${gear?.weapons?.length ?? 0} 把`);
   const weaponTypesSeen = new Set((gear?.weapons ?? []).map(weapon => weapon.s));
   const missingWeaponTypes = WEAPON_TYPES.filter(type => !weaponTypesSeen.has(type));
   check("每種武器種類至少 1 把", missingWeaponTypes.length === 0, missingWeaponTypes.join("、"));
