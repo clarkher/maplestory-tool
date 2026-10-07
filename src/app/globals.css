@@ -23,7 +23,6 @@
 
   --glass: rgb(255 253 249 / 0.74);
   --glass-strong: rgb(255 253 249 / 0.92);
-  --glass-border: rgb(255 255 255 / 0.85);
   --glass-shadow: 0 10px 30px -12px rgb(89 58 28 / 0.28), 0 2px 6px -2px rgb(89 58 28 / 0.14);
 
   --ink: #2c2015;
@@ -58,7 +57,6 @@
 
   --glass: rgb(56 43 30 / 0.52);
   --glass-strong: rgb(46 35 24 / 0.86);
-  --glass-border: rgb(255 226 186 / 0.14);
   --glass-shadow: 0 14px 40px -16px rgb(0 0 0 / 0.75), 0 2px 6px -2px rgb(0 0 0 / 0.5);
 
   --ink: #f6ead9;
@@ -84,8 +82,14 @@
   --grid-line: rgb(255 210 160 / 0.05);
 }
 
-* {
-  border-color: var(--paper-edge);
+/*
+  全站規則放進 @layer base：Tailwind 的 class 都在 @layer utilities，沒進 layer 的樣式會一律壓過 class。
+  預設邊框是羊皮紙邊，class 寫的顏色（聚焦時的楓葉橘、「看打法」的藍）才蓋得過。
+*/
+@layer base {
+  * {
+    border-color: var(--paper-edge);
+  }
 }
 
 html {
@@ -115,9 +119,10 @@ body {
   }
 }
 
+/* 毛玻璃的邊用羊皮紙邊色：白邊在白天的米色底上看不到，導覽列下緣會像沒有線 */
 @utility glass {
   background-color: var(--glass);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--paper-edge);
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(16px) saturate(1.35);
   -webkit-backdrop-filter: blur(16px) saturate(1.35);
@@ -125,7 +130,7 @@ body {
 
 @utility glass-solid {
   background-color: var(--glass-strong);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--paper-edge);
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(20px) saturate(1.4);
   -webkit-backdrop-filter: blur(20px) saturate(1.4);
@@ -161,10 +166,13 @@ body {
   color: #fff;
 }
 
-:focus-visible {
-  outline: 2px solid var(--maple);
-  outline-offset: 2px;
-  border-radius: 6px;
+/* 一樣放進 @layer base：自己畫聚焦框的輸入框（outline-none）、膠囊按鈕的圓角，class 才蓋得過 */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--maple);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
 }
 
 /* 捲軸配色跟著主題走，深色模式不要出現亮白捲軸 */
