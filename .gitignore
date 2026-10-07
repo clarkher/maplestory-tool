@@ -13,3 +13,9 @@ data/cache/
 
 # 上游同步下來的原始檔，每次 CI 都會重抓，沒必要留在歷史裡（27MB）
 data/raw/artale.json
+
+# 驗收腳本的輸出不進版控：scripts/verify/ 只收腳本跟 README，截圖、結果 JSON、無頭 Chrome 的設定檔都擋掉
+scripts/verify/**
+!scripts/verify/*.mjs
+!scripts/verify/README.md
+chrome-profile*/
