@@ -14,6 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { ASSET_DIRS, syncAssets } from "./lib/assets.mjs";
 import { humanBytes } from "./lib/http.mjs";
 import { readUpstream } from "./lib/upstream.mjs";
 
@@ -26,13 +27,6 @@ const CACHE_DIR = path.join(ROOT, "data", "cache", "upstream");
 const LOCAL_FILE = path.join(RAW_DIR, "artale.local.json");
 const OUT_FILE = path.join(RAW_DIR, "artale.json");
 const ASSET_DEST = path.join(ROOT, "public", "assets");
-
-/**
- * 前端實際會載的圖檔目錄（src/lib/data.ts 的 monsterImage／itemImage／npcImage，以及技能圖）。
- * 上游的 assets 已經長到 500MB 以上（光整張地圖的渲染圖 map_renders 就 342MB），
- * 整包鏡像會把這個 repo 跟部署一起撐爆，所以只同步用得到的。
- */
-const ASSET_DIRS = ["items", "monster_frames", "npcs", "skills"];
 
 function main() {
   fs.mkdirSync(RAW_DIR, { recursive: true });
@@ -49,7 +43,9 @@ function main() {
 
   const payload = readUpstream(CACHE_DIR);
   stamp(payload, "upstream", UPSTREAM);
-  syncAssets();
+  // 圖檔自己鏡像一份，不要熱連對方的 GitHub Pages —— 對方站掛掉我們不能跟著掛。
+  // 只收四個目錄最上層的 png／json，捷徑、網頁檔一律不收（lib/assets.mjs）
+  syncAssets(path.join(CACHE_DIR, "assets"), ASSET_DEST, ASSET_DIRS);
   console.log(`[artale] 使用上游資料：遊戲版本 ${payload.metadata?.gameVersion}，${payload.metadata?.generatedAtText}`);
   for (const [file, part] of Object.entries(payload.metadata?.parts ?? {})) {
     console.log(`[artale]   ${file.padEnd(18)} ${part.gameVersion}  ${part.generatedAt}`);
@@ -65,36 +61,6 @@ function syncUpstream() {
     fs.mkdirSync(path.dirname(CACHE_DIR), { recursive: true });
     execFileSync("git", ["clone", "--depth", "1", UPSTREAM, CACHE_DIR], { stdio: "inherit" });
   }
-}
-
-/**
- * 圖檔自己鏡像一份，不要熱連對方的 GitHub Pages —— 對方站掛掉我們不能跟著掛。
- */
-function syncAssets() {
-  const source = path.join(CACHE_DIR, "assets");
-  if (!fs.existsSync(source)) {
-    console.log("[artale] 上游沒有 assets 目錄，跳過圖檔同步");
-    return;
-  }
-  for (const name of ASSET_DIRS) {
-    const from = path.join(source, name);
-    const to = path.join(ASSET_DEST, name);
-    if (!fs.existsSync(from)) {
-      console.log(`[artale] 上游沒有 assets/${name}，保留現有圖檔`);
-      continue;
-    }
-    fs.mkdirSync(to, { recursive: true });
-    execFileSync("rsync", ["-a", "--delete", `${from}/`, `${to}/`], { stdio: "inherit" });
-    console.log(`[artale] 鏡像 assets/${name}：${countFiles(to)} 個檔案`);
-  }
-}
-
-function countFiles(dir) {
-  let total = 0;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    total += entry.isDirectory() ? countFiles(path.join(dir, entry.name)) : 1;
-  }
-  return total;
 }
 
 function stamp(payload, origin, ref) {
