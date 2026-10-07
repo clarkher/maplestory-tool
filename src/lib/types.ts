@@ -39,7 +39,7 @@ export type Monster = {
   eva: number;
   spd: number;
   und?: 1;
-  /** 屬性抗性：鍵 f/i/l/p/h（火冰雷毒聖），值 i=免疫 r=抗 w=弱；上游寫法怎麼對過來見 pipeline/lib/elemental.mjs */
+  /** 屬性抗性：鍵 f/i/l/p/h/d（火冰雷毒聖暗），值 i=免疫 r=抗 w=弱；上游寫法怎麼對過來見 pipeline/lib/elemental.mjs */
   el?: Record<string, string>;
   /** Artale 宣告這隻怪出現的地圖 */
   maps: number[];
