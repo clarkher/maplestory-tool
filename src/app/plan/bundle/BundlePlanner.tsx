@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
 import {
-  itemImage, loadFarming, loadMaps, loadMonsters, loadQuests, mapName, monsterImage,
+  itemImage, loadFarming, loadMaps, loadMonsters, loadQuests, mapName, monsterImage, peekFarming, peekMaps, peekMonsters, peekQuests,
 } from "@/lib/data";
 import { formatCompact, formatNumber } from "@/lib/format";
 import { planQuestBundles, type QuestBundle } from "@/lib/planner";
@@ -15,13 +15,15 @@ import type { FarmingRow, MapRecord, Monster, Quest } from "@/lib/types";
 
 export function BundlePlanner() {
   const { profile, setProfile, loaded } = useProfile();
-  const [quests, setQuests] = useState<Quest[] | null>(null);
-  const [farming, setFarming] = useState<Record<string, FarmingRow[]> | null>(null);
-  const [monsters, setMonsters] = useState<Monster[] | null>(null);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
+  // 這次瀏覽載過的資料直接拿：站內換頁進來第一個畫面就是打包結果，不先畫「整理資料中…」
+  const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
+  const [farming, setFarming] = useState<Record<string, FarmingRow[]> | null>(peekFarming);
+  const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (quests && farming && monsters && maps) return;
     Promise.all([loadQuests(), loadFarming(), loadMonsters(), loadMaps()])
       .then(([questData, farmData, monsterData, mapData]) => {
         setQuests(questData);

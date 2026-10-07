@@ -4,6 +4,7 @@ import {
   loadGraph, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining,
   peekGraph, peekGuide, peekGuideCommon, peekMaps, peekMeta, peekMonsters, peekNearestTown, peekQuests, peekTraining,
 } from "./data";
+import { JOB_LINES, jobLineOf } from "./jobs";
 import { jobLineage } from "./planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "./types";
 
@@ -56,6 +57,16 @@ export function guideJobs(job: number): number[] {
   return jobLineage(job).filter(code => code > 0);
 }
 
+/**
+ * 打開「換其他職業」時先在背景載的攻略：選單上看得到的職業鈕——五個一轉，加上現在這一系的二轉、三轉。
+ * 點下去時攻略已經在了，主推卡不用先放骨架（換到別的一轉，選單換成那一系，再載那一系的）。
+ */
+export function guidesToPrefetch(job: number): number[] {
+  const line = jobLineOf(job);
+  const shown = line ? [...line.branches, ...line.thirds].map(([code]) => code) : [];
+  return [...JOB_LINES.map(entry => entry.base), ...shown];
+}
+
 /** 這些攻略裡，這次瀏覽已經載過的那幾份 */
 export function cachedGuides(jobs: number[]): Map<number, GuideJob> {
   const found = new Map<number, GuideJob>();
@@ -77,4 +88,17 @@ export function guidesFor(job: number, shown: Map<number, GuideJob>): { guides: 
   const fresh = [...cached].filter(([code, guide]) => shown.get(code) !== guide);
   const guides = fresh.length ? new Map([...shown, ...fresh]) : shown;
   return { guides, status: wanted.length > 0 && cached.size === wanted.length ? "ready" : "loading" };
+}
+
+/** 首頁攻略的狀態：跟著哪個職業、畫面上有哪些攻略、載好了沒 */
+export type GuideState = { job: number; guides: Map<number, GuideJob>; status: "loading" | "ready" | "failed" };
+
+/**
+ * 攻略其實都載好了，畫面卻還停在讀取中或讀取失敗（剛好在這次渲染之後才載好，或失敗後被打開選單時的預載重抓成功）：
+ * 換成載好的。其他情況（已經載好、職業對不上、還有沒載好的）回傳同一份，不重畫。
+ */
+export function settleGuides(state: GuideState, job: number): GuideState {
+  if (state.job !== job || state.status === "ready") return state;
+  const next = guidesFor(job, state.guides);
+  return next.status === "ready" ? { job, ...next } : state;
 }

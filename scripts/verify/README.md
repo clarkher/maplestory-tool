@@ -66,6 +66,20 @@ node scripts/verify/home-first-frame.mjs <輸出> <網址>
 - 輸出：`<情境>-cast-<序號>-<毫秒>ms.jpg`（換頁後每一張 screencast）、`<情境>-settled-*.png`、`results.json`
   （含 console 跟 hydration 警告）。console 印整份 JSON，自己判讀。
 
+#### `pages-first-frame.mjs`：站內換頁進 /go、/plan 四頁的第一個畫面，打開「換其他職業」先載攻略（v0.45）
+
+```bash
+node scripts/verify/pages-first-frame.mjs <輸出> <網址>
+```
+
+- 情境：P1 首頁「帶我去」→ /go、P2 查資料 → 練功地圖排行、P3 查資料 → 現在能接的任務、P4 任務打包（第二次進）、
+  P5 道具頁「這個去哪打」→ 打寶、P6 /go 城鎮目的地＋上次自己選的起點、P7 打開「換其他職業」→ 點法師
+  （記打開後在背景載了哪些攻略、主推卡有沒有出骨架）、P8／PQ4／PQ6／PF6 CPU 慢 4／6 倍、P9 從捲到底的長頁換頁要回到頂端。
+- `ONLY=P7,PQ6` 只跑名稱開頭符合的情境。站內換頁用頁面裡的 `window.next.router.push`（跟點連結一樣不整頁重載）。
+- 每一格記兩份：rAF（畫出來之前）跟 MutationObserver（DOM 每次變動）。`painted`／`dom` 只留跟上一格不一樣的狀態，
+  只有一個狀態＝第一格就是結果。
+- 輸出：`P*-*.png` 截圖、`results.json`（含 console 跟 hydration 警告）。console 印整份 JSON，自己判讀。
+
 ### 捲動、按返回、重新整理
 
 #### `scroll-proof.mjs`：換頁捲回頂端、頁內平滑捲動（v0.29）

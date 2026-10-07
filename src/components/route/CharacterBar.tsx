@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ChevronRight } from "@/components/Icons";
+import { loadGuide } from "@/lib/data";
+import { guidesToPrefetch } from "@/lib/home-data";
 import {
   JOB_LINES, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, branchPairs, commitLevelText, jobAvatar, jobLineOf, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel,
 } from "@/lib/jobs";
@@ -24,6 +26,8 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   // 選職業把等級拉高前的等級（劍士 18 手滑點狂戰士 → 30）；點回允許它的職業就還原
   const raisedFrom = useRef<number | null>(null);
   const min = minLevelFor(profile.job);
+  const currentLine = jobLineOf(profile.job);
+  const lineBase = currentLine?.base ?? 0;
 
   useEffect(() => {
     setLevelText(profile.level ? String(profile.level) : "");
@@ -33,9 +37,15 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
     if (incomplete) setEditing(true);
   }, [incomplete]);
 
+  // 選單一打開就在背景先載選單上看得到的職業攻略（五個一轉＋這一系），點下去主推卡不用先放骨架；
+  // 換到別的一轉，選單換成那一系，再載那一系的。載過的不會重抓，載失敗下次再試（data.ts 的 loadGuide）
+  useEffect(() => {
+    if (!editing) return;
+    for (const job of guidesToPrefetch(lineBase)) loadGuide(job).catch(() => {});
+  }, [editing, lineBase]);
+
   const option = jobOption(profile.job);
   const tier = jobTier(profile.job);
-  const currentLine = jobLineOf(profile.job);
   const stageText = profile.job < 0
     ? "還沒選職業"
     : profile.job === 0
