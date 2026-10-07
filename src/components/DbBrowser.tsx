@@ -36,23 +36,9 @@ function subscribeWide(onChange: () => void) {
 
 /**
  * 按上一頁／下一頁換的網址交給瀏覽器還原位置，這裡不再捲。
- * 全站開了平滑捲動，瀏覽器還原時也會從頂端一路滑過去：查資料這幾頁在還原前先關掉，
- * 等使用者下一次自己點、按鍵時再恢復。
+ * （還原時直接跳、不從頂端一路滑過去，是全站的 HistoryScrollJump 在管）
  */
-const navHistory =
-  typeof window === "undefined"
-    ? null
-    : createHistoryTracker(window, {
-        onTraverse: () => {
-          if (!window.location.pathname.startsWith("/db/")) return;
-          document.documentElement.style.scrollBehavior = "auto";
-          // 逼瀏覽器馬上套用，還原位置時才吃得到（Next 自己關平滑捲動時也這樣做）
-          document.documentElement.getClientRects();
-        },
-        onFresh: () => {
-          document.documentElement.style.scrollBehavior = "";
-        },
-      });
+const navHistory = typeof window === "undefined" ? null : createHistoryTracker(window);
 
 /** 清單每一列的 DOM id：展開、收起、從連結跳過來時用來找那一列 */
 const rowOf = (id: string) => document.getElementById(`db-row-${id}`);
