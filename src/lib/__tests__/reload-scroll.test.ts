@@ -19,6 +19,8 @@ function fakePage({ key = "entry-quest", height = 991, saved }: { key?: string; 
     viewport: 812,
     hidden: false,
     jumps: [] as number[],
+    /** 捲動錨定開著嗎（瀏覽器預設開） */
+    anchoring: true,
     onResize: null as null | (() => void),
     timers: [] as Array<() => void>,
   };
@@ -40,6 +42,9 @@ function fakePage({ key = "entry-quest", height = 991, saved }: { key?: string; 
       };
     },
     wait: (_ms, then) => void page.timers.push(then),
+    scrollAnchoring: on => {
+      page.anchoring = on;
+    },
   };
   const fire = (type: string) => events.dispatchEvent(new Event(type));
   return {
@@ -200,6 +205,21 @@ describe("整頁重載：內容晚出現，放得下了再直接跳回原位", (
     expect(t.page.y).toBe(2525);
   });
 
+  it("跳回去的這段時間關掉捲動錨定：內容插進上面時，位置不會先被推走、下一格才拉回來", () => {
+    const t = fakePage({ key: "entry-home", height: 812, saved: { "entry-home": 2525 } });
+    keepScrollAcrossReloads(t.env, { restore: true });
+    expect(t.page.anchoring).toBe(false);
+  });
+
+  it("一般進來、或這一筆沒記過位置：捲動錨定照舊開著", () => {
+    for (const [restore, saved] of [[false, { "entry-quest": 8548 }], [true, {}]] as const) {
+      const t = fakePage({ saved });
+      keepScrollAcrossReloads(t.env, { restore });
+      t.grow(14247);
+      expect(t.page.anchoring, `${restore}`).toBe(true);
+    }
+  });
+
   it("已經在原位就不再跳一次（瀏覽器自己還原成功的頁面，例如懶人包）", () => {
     const t = fakePage({ key: "entry-guide", height: 2848, saved: { "entry-guide": 1709 } });
     keepScrollAcrossReloads(t.env, { restore: true });
@@ -243,6 +263,8 @@ describe("整頁重載：使用者一動就停手，不跟他搶", () => {
       t.grow(14247);
       expect(t.page.jumps, type).toEqual([]);
       expect(t.page.onResize, type).toBeNull();
+      // 交還給瀏覽器：之後內容插進上面，照常幫他把位置往下推
+      expect(t.page.anchoring, type).toBe(true);
     }
   });
 
@@ -270,6 +292,7 @@ describe("整頁重載：使用者一動就停手，不跟他搶", () => {
     t.page.key = "entry-farm";
     t.grow(14247);
     expect(t.page.jumps).toEqual([]);
+    expect(t.page.anchoring).toBe(true);
   });
 
   it("等太久（資料一直沒來）就放棄：之後頁面才長高也不跳", () => {
@@ -280,6 +303,7 @@ describe("整頁重載：使用者一動就停手，不跟他搶", () => {
     t.grow(14247);
     expect(t.page.jumps).toEqual([]);
     expect(t.page.onResize).toBeNull();
+    expect(t.page.anchoring).toBe(true);
   });
 });
 
@@ -326,7 +350,7 @@ function fakeBrowser({
   const root = {
     scrollHeight: 991,
     clientHeight: 812,
-    style: { scrollBehavior: type === "navigate" ? "" : "auto" },
+    style: { scrollBehavior: type === "navigate" ? "" : "auto", overflowAnchor: "" },
     getClientRects: () => [],
   };
   const win = Object.assign(new EventTarget(), {
@@ -366,6 +390,14 @@ describe("裝到真的瀏覽器上（window、document、sessionStorage、Resize
     b.root.scrollHeight = 14247;
     b.observers[0].callback();
     expect(b.scrolls).toEqual([{ top: 8548, behavior: "instant" }]);
+  });
+
+  it("跳回去的這段時間 <html> 關掉捲動錨定（overflow-anchor: none），使用者一動就拿掉、交還給瀏覽器", () => {
+    const b = fakeBrowser({ saved: { "/plan/quest": 8548 } });
+    installReloadScroll(b.win as never, b.doc as never);
+    expect(b.root.style.overflowAnchor).toBe("none");
+    b.win.dispatchEvent(new Event("pointerdown"));
+    expect(b.root.style.overflowAnchor).toBe("");
   });
 
   it("瀏覽器分得出是哪一筆紀錄（navigation.currentEntry.key）就照紀錄記，同一個網址出現兩次也分得開", () => {

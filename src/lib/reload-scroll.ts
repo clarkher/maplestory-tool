@@ -33,6 +33,8 @@ export type ScrollEnv = {
   /** 頁面高度每變一次就通知（畫面更新前）；回傳停止的函式 */
   watchResize(onResize: () => void): () => void;
   wait(ms: number, then: () => void): void;
+  /** 捲動錨定（內容插進上面時，瀏覽器把位置往下推、讓畫面上的東西不動）開或關 */
+  scrollAnchoring(on: boolean): void;
 };
 
 function readAll(storage: Store | null): Record<string, unknown> {
@@ -96,8 +98,11 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
     if (!restoring) return;
     restoring = false;
     unwatch();
+    env.scrollAnchoring(true);
     for (const type of HANDS_ON) env.events.removeEventListener(type, stop, true);
   };
+  // 記下的位置就是內容全部長出來之後的位置：這段時間內容插進上面，位置本來就該留在原處，不用瀏覽器幫忙往下推
+  env.scrollAnchoring(false);
   for (const type of HANDS_ON) env.events.addEventListener(type, stop, { capture: true, passive: true });
   env.wait(GIVE_UP_MS, stop);
   unwatch = env.watchResize(() => {
@@ -157,6 +162,10 @@ export function installReloadScroll(win: BrowserWindow, doc: Document) {
           return () => observer.disconnect();
         },
         wait: (ms, then) => void win.setTimeout(then, ms),
+        // 整頁的捲動錨定看 <html> 的 overflow-anchor
+        scrollAnchoring: on => {
+          root.style.overflowAnchor = on ? "" : "none";
+        },
       },
       { restore: isFullReload(win.performance) && !placesItself(win.location) },
     );
