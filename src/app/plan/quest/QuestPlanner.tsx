@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertIcon, CheckIcon, ChevronDown, PinIcon } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
-import { itemImage, loadMaps, loadQuests, mapName, npcImage } from "@/lib/data";
+import { itemImage, loadMaps, loadQuests, mapName, npcImage, peekMaps, peekQuests } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
 import { planQuests, QUEST_BUCKET_LABEL, type QuestPlan } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
@@ -14,12 +14,14 @@ import type { MapRecord, Quest } from "@/lib/types";
 
 export function QuestPlanner() {
   const { profile, setProfile, loaded } = useProfile();
-  const [quests, setQuests] = useState<Quest[] | null>(null);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
+  // 這次瀏覽載過的資料直接拿：站內換頁進來第一個畫面就是任務清單，不先畫「整理資料中…」
+  const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
   const [showBlocked, setShowBlocked] = useState(false);
 
   useEffect(() => {
+    if (quests && maps) return;
     Promise.all([loadQuests(), loadMaps()])
       .then(([questData, mapData]) => {
         setQuests(questData);

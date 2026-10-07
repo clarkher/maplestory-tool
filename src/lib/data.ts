@@ -42,6 +42,11 @@ function loadVersion(): Promise<string> {
 /**
  * 已經載好的資料，同步拿得到。Promise 就算早就完成，也要等下一輪才拿到值，
  * 頁面會先畫一次「載入中」；再進同一頁時直接從這裡拿，第一個畫面就是完整清單。
+ *
+ * 頁面用 useState(peekX) 當初始值不會跟伺服器畫的對不起來，前提是：伺服器上這裡永遠是空的（effect 不在伺服器跑），
+ * 整頁載入 hydrate 時也還是空的——頁面跟外框（SiteHeader、SiteFooter）同一輪 hydrate，effect 都還沒跑。
+ * 加 loading.tsx 或在頁面外包 Suspense 會讓頁面比外框晚 hydrate（外框的 effect 可能先載好資料），到時要改用
+ * useSyncExternalStore(…, peekX, () => null) 拿初始值。
  */
 const ready = new Map<string, unknown>();
 
@@ -80,6 +85,7 @@ export const peekNearestTown = () => peek<Record<string, [number, number]>>("nea
 export const peekGear = () => peek<GearData>("gear");
 export const peekGuideCommon = () => peek<GuideCommon>("guides/common");
 export const peekGuide = (job: number) => peek<GuideJob>(`guides/${job}`);
+export const peekFarming = () => peek<Record<string, FarmingRow[]>>("farming");
 
 export const loadMeta = (): Promise<Meta> => {
   const cached = cache.get("meta") as Promise<Meta> | undefined;
@@ -139,6 +145,10 @@ export function loadGuideCommon(): Promise<GuideCommon> {
         ready.set("guides/common", common);
         return common;
       });
+    // 載失敗不要記住，下次再試（打開「換其他職業」會先在背景載攻略，網路一時不穩不能讓攻略一直讀不到）
+    guideCommon.catch(() => {
+      guideCommon = null;
+    });
   }
   return guideCommon;
 }
@@ -159,6 +169,11 @@ export function loadGuide(job: number): Promise<GuideJob> {
         return guide;
       });
     cache.set(name, pending);
+    // 載失敗不要記住，下次再試（同上）
+    const failed = pending;
+    failed.catch(() => {
+      if (cache.get(name) === failed) cache.delete(name);
+    });
   }
   return pending;
 }

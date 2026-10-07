@@ -8,7 +8,7 @@ import { MapPicker } from "@/components/MapPicker";
 import { PixelMinimap } from "@/components/PixelMinimap";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
 import { Chip } from "@/components/route/bits";
-import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage } from "@/lib/data";
+import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage, peekGraph, peekMaps, peekNearestTown } from "@/lib/data";
 import { normalizeJob } from "@/lib/jobs";
 import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
@@ -45,14 +45,16 @@ export function GoNavigator() {
   const target = Number(params.get("to")) || null;
   const forcedStart = Number(params.get("from")) || null;
 
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
-  const [graph, setGraph] = useState<Record<string, PortalEdge[]> | null>(null);
-  const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(null);
+  // 這次瀏覽載過的地圖資料直接拿：站內換頁進來第一個畫面就是路線，不先畫「載入地圖資料…」
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
+  const [graph, setGraph] = useState<Record<string, PortalEdge[]> | null>(peekGraph);
+  const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(peekNearestTown);
   const [error, setError] = useState<string | null>(null);
-  const [remembered, setRemembered] = useState<number | null>(null);
+  // 上次自己選的起點也一開始就讀，不會先排一條路再換掉（這頁用了網址參數，只在瀏覽器上畫，讀得到本機儲存）
+  const [remembered, setRemembered] = useState<number | null>(readRememberedStart);
 
   useEffect(() => {
-    setRemembered(readRememberedStart());
+    if (maps && graph && nearestTown) return;
     Promise.all([loadMaps(), loadGraph(), loadNearestTown()])
       .then(([mapData, graphData, townData]) => {
         setMaps(mapData);

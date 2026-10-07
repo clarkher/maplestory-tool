@@ -53,7 +53,8 @@
 
   --paper: #16110c;
   --paper-deep: #0e0b07;
-  --paper-edge: #33261a;
+  /* 夜晚的邊要比頁底亮一階（對比約 2:1），輸入框、按鈕才看得出能點；不亮過卡片的木框 */
+  --paper-edge: #5b442e;
 
   --glass: rgb(56 43 30 / 0.52);
   --glass-strong: rgb(46 35 24 / 0.86);
@@ -119,13 +120,18 @@ body {
   }
 }
 
-/* 毛玻璃的邊用羊皮紙邊色：白邊在白天的米色底上看不到，導覽列下緣會像沒有線 */
-@utility glass {
+/* 毛玻璃的底：不畫框。導覽列用它，只加自己的下緣線（上、左、右貼著螢幕邊不要線） */
+@utility glass-fill {
   background-color: var(--glass);
-  border: 1px solid var(--paper-edge);
   box-shadow: var(--glass-shadow);
   backdrop-filter: blur(16px) saturate(1.35);
   -webkit-backdrop-filter: blur(16px) saturate(1.35);
+}
+
+/* 毛玻璃框：底＋四邊框。邊用羊皮紙邊色，白邊在白天的米色底上看不到 */
+@utility glass {
+  @apply glass-fill;
+  border: 1px solid var(--paper-edge);
 }
 
 @utility glass-solid {

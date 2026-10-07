@@ -40,6 +40,12 @@ test("剛好跟物件內建屬性同名的寫法（constructor、toString）也�
 });
 
 test("上游多了認不得的屬性：有抗性或弱點就讓重建失敗，全是一般就不影響", () => {
-  assert.throws(() => compactElemental({ values: { fire: "normal", dark: "weak" } }), /dark/);
-  assert.deepEqual(compactElemental({ values: { fire: "weak", dark: "normal" } }), { f: "w" });
+  assert.throws(() => compactElemental({ values: { fire: "normal", unknownElement: "weak" } }), /unknownElement/);
+  assert.deepEqual(compactElemental({ values: { fire: "weak", unknownElement: "normal" } }), { f: "w" });
+});
+
+// 客戶端原始代碼（elemental.raw）裡有 4 隻混沌系怪帶暗屬性（例：混沌魔精靈 H2D3），
+// 上游整理過的 values 目前沒給；上游若用 dark 這個名字補進來，重建不該因此停下來
+test("上游的暗屬性（dark）存成 d", () => {
+  assert.deepEqual(compactElemental({ values: { fire: "normal", holy: "resist", dark: "weak" } }), { h: "r", d: "w" });
 });

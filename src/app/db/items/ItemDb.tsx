@@ -144,7 +144,7 @@ export function ItemDb() {
               // 「〇〇能用的」只看裝備分類，換到別的分類就回到全部裝備
               if (event.target.value !== "裝備") setMineMode("");
             }}
-            className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+            className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
             aria-label="道具分類"
           >
             <option value="">全部分類</option>
@@ -156,7 +156,7 @@ export function ItemDb() {
             <select
               value={activeSubcategory}
               onChange={event => setSubcategory(event.target.value)}
-              className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+              className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
               aria-label="道具種類"
             >
               <option value="">全部種類</option>
@@ -182,7 +182,7 @@ export function ItemDb() {
                   setSubcategory("");
                 }
               }}
-              className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+              className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
               aria-label="誰能用"
             >
               <option value="">全部裝備</option>

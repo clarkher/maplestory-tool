@@ -5,13 +5,14 @@ import { useEffect, useMemo, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { itemImage, loadGuide, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, type HomeData } from "@/lib/home-data";
+import {
+  cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, settleGuides, type GuideState, type HomeData,
+} from "@/lib/home-data";
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
-import type { GuideJob } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
 import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
@@ -20,9 +21,7 @@ import { RouteTimeline } from "./RouteTimeline";
 import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
 
-export type GuideStatus = "loading" | "ready" | "failed";
-
-type GuideState = { job: number; guides: Map<number, GuideJob>; status: GuideStatus };
+export type GuideStatus = GuideState["status"];
 
 export function RouteHome() {
   const showV002Banner = useBeforeV002();
@@ -55,7 +54,11 @@ export function RouteHome() {
   useEffect(() => {
     const job = profile.job;
     const wanted = guideJobs(job);
-    if (cachedGuides(wanted).size === wanted.length) return;
+    if (cachedGuides(wanted).size === wanted.length) {
+      // 都載過了：畫面若還停在讀取中、讀取失敗（剛好在這次渲染之後才載好、或被選單的預載重抓成功），換成載好的
+      setGuideState(previous => settleGuides(previous, job));
+      return;
+    }
     let cancelled = false;
     Promise.all(wanted.map(code => loadGuide(code).then(guide => [code, guide] as const)))
       .then(entries => {

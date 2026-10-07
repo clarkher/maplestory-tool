@@ -73,7 +73,7 @@ export function QuestDb() {
           <select
             value={category}
             onChange={event => setCategory(event.target.value)}
-            className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+            className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
             aria-label="任務分類"
           >
             <option value="">全部分類</option>

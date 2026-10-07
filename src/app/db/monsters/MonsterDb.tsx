@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { GoButton } from "@/components/PlanShell";
@@ -10,6 +10,7 @@ import {
 } from "@/lib/data";
 import { elementalNotes, formatNumber } from "@/lib/format";
 import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
+import { FIRST_MAPS, monsterDrops, monsterMaps } from "@/lib/monster-view";
 import { inTrainingBand } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
@@ -102,7 +103,8 @@ export function MonsterDb() {
       renderDetail={id => {
         const monster = monsterIndex.get(id);
         if (!monster || !maps) return null;
-        return <MonsterDetail monster={monster} maps={maps} itemIndex={itemIndex} />;
+        // key：換一隻怪，「看全部」重新收起來
+        return <MonsterDetail key={monster.id} monster={monster} maps={maps} itemIndex={itemIndex} />;
       }}
     />
   );
@@ -119,8 +121,21 @@ function MonsterDetail({
 }) {
   const notOpenYet = useBeforeV002();
   const elements = elementalNotes(monster.el);
-  const spawnMap = new Map((monster.sp ?? []).map(([mapId, count]) => [mapId, count]));
-  const allMaps = [...new Set([...(monster.sp ?? []).map(row => row[0]), ...monster.maps])];
+  // 出沒地圖只列開放的圖：現在就能去、刷怪點多的在前，10/15 才開的排後面；先列幾張，按「看全部」才全部列
+  const { rows: mapRows, hidden: hiddenMaps } = monsterMaps(monster, maps, map => notOpenYet && isV002Map(map));
+  // 展開記到關掉分頁為止：點地圖、掉落物離開再按返回，卡片還是一樣長，瀏覽器才捲得回原位
+  const [allMapsShown, setAllMapsShown] = useRemembered(`db:怪物:allMaps:${monster.id}`, false);
+  const visibleMaps = allMapsShown ? mapRows : mapRows.slice(0, FIRST_MAPS);
+  // 按「看全部」後按鈕不見了：焦點放到新列出來的第一列，用鍵盤、讀螢幕的人才不會被丟回頁首
+  const firstNewMap = useRef<HTMLLIElement>(null);
+  const justExpanded = useRef(false);
+  useEffect(() => {
+    if (!allMapsShown || !justExpanded.current) return;
+    justExpanded.current = false;
+    firstNewMap.current?.querySelector("a")?.focus({ preventScroll: true });
+  }, [allMapsShown]);
+  // 掉落物不列沒有名字的道具（道具清單本來就不列）
+  const { shown: drops, hidden: hiddenDrops } = monsterDrops(monster.drops, itemIndex);
 
   return (
     <DetailCard>
@@ -171,53 +186,77 @@ function MonsterDetail({
         </Section>
       ) : null}
 
-      {allMaps.length ? (
-        <Section title="出沒地圖" extra={`${allMaps.length} 張`}>
-          <ul className="space-y-1.5">
-            {allMaps.slice(0, 40).map(mapId => (
-              <li
-                key={mapId}
-                className="flex items-center justify-between gap-2 rounded-xl bg-[color:var(--paper-deep)] px-3 py-2"
-              >
-                <span className="min-w-0">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className="min-w-0 truncate font-bold">{mapName(maps, mapId)}</span>
-                    {isV002Map(maps[String(mapId)]) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : null}
+      {mapRows.length || hiddenMaps ? (
+        <Section title="出沒地圖" extra={mapRows.length ? `${mapRows.length} 張` : undefined}>
+          {mapRows.length ? (
+            <ul className="space-y-1.5">
+              {visibleMaps.map((row, index) => (
+                <li
+                  key={row.id}
+                  ref={index === FIRST_MAPS ? firstNewMap : undefined}
+                  className="flex items-center justify-between gap-2 rounded-xl bg-[color:var(--paper-deep)] px-3 py-2"
+                >
+                  <span className="min-w-0">
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <span className="min-w-0 truncate font-bold">{mapName(maps, row.id)}</span>
+                      {row.later ? <Chip tone="gold">10/15 開放</Chip> : null}
+                    </span>
+                    <span className="block text-[11px] ink-faint">
+                      {maps[String(row.id)]?.st}
+                      {row.spawns !== null ? ` · ${row.spawns} 個刷怪點` : " · 沒有刷怪點資料"}
+                    </span>
                   </span>
-                  <span className="block text-[11px] ink-faint">
-                    {maps[String(mapId)]?.st}
-                    {spawnMap.has(mapId) ? ` · ${spawnMap.get(mapId)} 個刷怪點` : " · 沒有刷怪點資料"}
-                  </span>
-                </span>
-                <GoButton to={mapId} label="路線" />
-              </li>
-            ))}
-          </ul>
-          {allMaps.length > 40 ? (
-            <p className="text-xs ink-faint">另有 {allMaps.length - 40} 張沒列出來</p>
+                  <GoButton to={row.id} label="路線" />
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {visibleMaps.length < mapRows.length ? (
+            <button
+              type="button"
+              onClick={() => {
+                justExpanded.current = true;
+                setAllMapsShown(true);
+              }}
+              className="tap-safe w-full rounded-xl border border-[color:var(--paper-edge)] py-2.5 text-sm font-bold ink-soft hover:text-[color:var(--maple)]"
+            >
+              看全部 {mapRows.length} 張
+            </button>
+          ) : null}
+          {hiddenMaps ? (
+            <p className="text-xs ink-faint">
+              {mapRows.length ? `另有 ${hiddenMaps} 張還沒開放的地圖沒列出來` : `出沒的 ${hiddenMaps} 張地圖都還沒開放，沒列出來`}
+            </p>
           ) : null}
         </Section>
       ) : null}
 
-      {monster.drops.length ? (
-        <Section title="掉落物" extra={`${monster.drops.length} 樣 · 官方未公開機率`}>
-          <ul className="flex flex-wrap gap-1.5">
-            {monster.drops.map(itemId => {
-              const item = itemIndex.get(itemId);
-              return (
-                <li key={itemId}>
-                  <Link
-                    href={`/db/items?id=${itemId}`}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={itemImage(itemId)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />
-                    <span className="text-[13px] font-bold">{item?.n ?? `#${itemId}`}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+      {drops.length || hiddenDrops ? (
+        <Section title="掉落物" extra={drops.length ? `${drops.length} 樣 · 官方未公開機率` : undefined}>
+          {drops.length ? (
+            <ul className="flex flex-wrap gap-1.5">
+              {drops.map(itemId => {
+                const item = itemIndex.get(itemId);
+                return (
+                  <li key={itemId}>
+                    <Link
+                      href={`/db/items?id=${itemId}`}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={itemImage(itemId)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />
+                      <span className="text-[13px] font-bold">{item?.n}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
+          {hiddenDrops ? (
+            <p className="text-xs ink-faint">
+              {drops.length ? `另有 ${hiddenDrops} 樣還沒有名字的道具沒列出來` : `掉的 ${hiddenDrops} 樣道具都還沒有名字，沒列出來`}
+            </p>
+          ) : null}
         </Section>
       ) : null}
     </DetailCard>

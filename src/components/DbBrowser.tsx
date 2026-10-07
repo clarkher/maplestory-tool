@@ -493,7 +493,7 @@ export function DbBrowser({
   );
 }
 
-/** 手機、平板的細節：卡片下面一顆「收起，看下一筆」，看完長長的一張不用自己滑回去 */
+/** 手機、平板的細節：卡片下面一顆「收起」，看完長長的一張不用自己滑回去（收起後那一列放回導覽列下方，下一筆就在下面） */
 function DetailWithCollapse({ id, detail, onCollapse }: { id?: string; detail: React.ReactNode; onCollapse: () => void }) {
   return (
     <div id={id} className="space-y-2">
@@ -503,7 +503,7 @@ function DetailWithCollapse({ id, detail, onCollapse }: { id?: string; detail: R
         onClick={onCollapse}
         className="tap-safe w-full rounded-xl bg-[color:var(--paper-deep)] py-2.5 text-sm font-bold ink-soft hover:text-[color:var(--maple)]"
       >
-        收起，看下一筆
+        收起
       </button>
     </div>
   );

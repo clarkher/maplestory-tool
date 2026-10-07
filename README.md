@@ -232,6 +232,11 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
 - 按返回、下一頁用 DevTools 按瀏覽器的返回鍵（`Page.navigateToHistoryEntry`），不是頁面自己呼叫 `history.back()`。
 - 一段出錯（例如找不到按鈕）只記那一段失敗，後面照跑；每一段從乾淨的搜尋、篩選開始。
 - 只跑某幾段：`VERIFY_ONLY=N10,N13 npm run verify:db -- <網址>`（寫段名，一組的像「M1–M5」寫 M1 也行）。
-- 裡面寫死了幾筆資料（綠水靈、白狼人、道具 1302020、任務 6931／6930），遊戲資料改版後對不上會 FAIL 並寫原因，換 id 就好。
+- 裡面寫死了幾筆資料（綠水靈、白狼人、幼黑格里芬 6230401、道具 1302020、任務 6931／6930），遊戲資料改版後對不上會 FAIL 並寫原因，換 id 就好。
 - 跑一次約 6 分鐘。本機 dev server 第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次。
 - 改了查資料頁的行為，要一起改或加這裡的檢查。
+
+### 其他畫面驗收腳本（`scripts/verify/`）
+
+換頁第一格、按返回的位置、重新整理、邊框顏色、卡片截圖這些單元測試量不到的，用 `scripts/verify/` 的無頭 Chrome 腳本實際量。
+每支驗什麼、怎麼跑、輸出什麼、已知的坑，見 [scripts/verify/README.md](scripts/verify/README.md)。

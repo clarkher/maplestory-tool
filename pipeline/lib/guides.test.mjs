@@ -8,6 +8,7 @@ test("攻略文字檢查：地圖編號、站內用語、屬性代碼、玩家 I
   assert.deepEqual(lintText("近戰常搶不到（見 notWorth）").map(issue => issue.label), ["站內資料的內部用語"]);
   assert.deepEqual(lintText("危險的洞穴（未開放地區，見 notOpenYet）").map(issue => issue.label), ["站內資料的內部用語"]);
   assert.deepEqual(lintText("殭屍菇菇是不死系（el h:w）").map(issue => issue.label), ["屬性代碼"]);
+  assert.deepEqual(lintText("混沌魔精靈怕暗（el d:w）").map(issue => issue.label), ["屬性代碼"]);
   assert.deepEqual(lintText("gappyhay493：40 等打冰獨眼獸").map(issue => issue.label), ["玩家 ID", "玩家署名"]);
 });
 
