@@ -143,6 +143,35 @@ export function cardOf(historyState: unknown): CardRecord | undefined {
     : undefined;
 }
 
+/** 桌機右邊那一欄捲到哪裡（卡片比畫面長時在那一欄裡自己捲）：哪一頁、哪一筆、捲了幾 px */
+export const SIDE = "dbSide";
+export type SideRecord = { id: string; page: string; top: number };
+
+/** 把右邊那一欄捲到哪裡記進這筆紀錄：其他記號都留著，跟記的一樣就回 null。不是 Next 管的紀錄不寫（理由同 withCard） */
+export function withSide(historyState: unknown, side: SideRecord): Record<string, unknown> | null {
+  const state = asRecord(historyState);
+  if (state?.__NA !== true) return null;
+  const old = sideOf(state);
+  if (old?.id === side.id && old.page === side.page && old.top === side.top) return null;
+  return { ...state, [SIDE]: { ...side } };
+}
+
+function sideOf(historyState: unknown): SideRecord | undefined {
+  const side = asRecord(asRecord(historyState)?.[SIDE]);
+  if (!side) return undefined;
+  const { id, page, top } = side;
+  return typeof id === "string" && typeof page === "string" && typeof top === "number" && top >= 0 ? { id, page, top } : undefined;
+}
+
+/**
+ * 右邊那一欄從哪裡開始看：這筆紀錄記的就是這一頁的這一筆（重新整理、按返回、下一頁回來），捲回原本讀到的地方；
+ * 其他（新點的一筆、從連結來的）從卡片頂端開始
+ */
+export function sideTopFor(historyState: unknown, selected: string | null, page: string): number {
+  const side = sideOf(historyState);
+  return selected !== null && side?.id === selected && side.page === page ? side.top : 0;
+}
+
 /**
  * 按返回、下一頁、重新整理回到開著卡片的那一筆：卡片照這筆紀錄記的地方放——放在最上面的就還是最上面，不會搬到清單中間。
  * 一定要同一頁：從怪物卡連到道具頁、換頁那一下還讀到上一頁的紀錄，編號剛好一樣也不能照著放。

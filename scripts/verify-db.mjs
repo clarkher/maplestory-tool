@@ -1144,6 +1144,42 @@ try {
       r.rows === r.total && r.pushedBy > 20 && r.yAfter < r.yBefore && r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.rowTop >= r.header && r.rowBottom <= r.view, r);
   });
 
+  // D8 桌機右邊那一欄捲到卡片中段：重新整理、點卡片裡的連結離開再按返回、同一頁點別筆再按返回，都回到原本讀到的地方
+  await section("D8", async () => {
+    await desktop();
+    await fresh("/db/monsters");
+    // 開綠水靈、看全部（卡片很長），那一欄捲到 900；捲動停下來才記進紀錄，等一下
+    await ev(`const id = "210100"; __tap(id); await __waitFor(() => __id() === id); await __sleep(1000);
+      const side = __side(); [...side.querySelectorAll("button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400);
+      side.scrollTo({ top: 900, behavior: "instant" }); await __sleep(700); return 1;`);
+    await reload();
+    const afterReload = await ev(`await __ready(); await __waitFor(() => !!__side()?.querySelector("article")); await __sleep(1200); return Math.round(__side().scrollTop);`);
+
+    // 點卡片裡的掉落物離開，再按返回
+    const left = await ev(`const side = __side(); side.scrollTo({ top: 900, behavior: "instant" }); await __sleep(700);
+      const link = side.querySelector("a[href^='/db/items']"); if (!link) return { skipped: "綠水靈卡片裡找不到道具連結" };
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+      await __waitFor(() => location.pathname === "/db/items"); await __sleep(1000); return {};`);
+    let afterBack = null;
+    if (!left.skipped) {
+      await traverse(-1);
+      afterBack = await ev(`await __waitFor(() => location.pathname === "/db/monsters" && __id() === "210100"); await __waitFor(() => !!__side()?.querySelector("article"));
+        await __sleep(1200); return Math.round(__side().scrollTop);`);
+    }
+
+    // 同一頁點別筆（那一筆從卡片頂端開始），再按返回
+    const same = await ev(`const side = __side(); side.scrollTo({ top: 700, behavior: "instant" }); await __sleep(700);
+      const other = __rows().map(li => li.id.replace("db-row-", "")).find(x => x !== "210100");
+      __tap(other); await __waitFor(() => __id() === other); await __sleep(1000);
+      return { other, otherTop: Math.round(__side().scrollTop) };`);
+    await traverse(-1);
+    const afterSameBack = await ev(`await __waitFor(() => __id() === "210100", 3000); await __sleep(1000); return Math.round(__side().scrollTop);`);
+
+    check("D8 桌機右邊那一欄捲到卡片中段，重新整理：回到原本讀到的地方", near(afterReload, 900, 8), { afterReload });
+    check("D8 點卡片裡的連結離開再按返回：右邊那一欄回到原本讀到的地方", !left.skipped && near(afterBack, 900, 8), { ...left, afterBack });
+    check("D8 同一頁點別筆（從卡片頂端開始）再按返回：回到原本讀到的地方", same.otherTop === 0 && near(afterSameBack, 700, 8), { ...same, afterSameBack });
+  });
+
   // H8 桌機用滑鼠滾輪往下捲：導覽列不收（只有手指滑才收）
   await section("H8", async () => {
     await desktop();

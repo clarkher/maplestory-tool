@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory,
-  listSignature, moreRows, needsRescue, sameRowAction, scrollMotion, searchEntries, withCard,
+  AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, SIDE, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory,
+  listSignature, moreRows, needsRescue, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide,
 } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
@@ -373,5 +373,43 @@ describe("清單下面怎麼多載：自動接到 600 筆就停，換成看得�
   it("全部列完了：不用再載", () => {
     expect(moreRows(180, 180)).toBeNull();
     expect(moreRows(720, 650)).toBeNull();
+  });
+});
+
+describe("桌機右邊那一欄捲到哪裡，記在每一筆紀錄：重新整理、按返回、下一頁回到原本讀到的地方", () => {
+  const nextEntry = { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 1 } };
+  const side = { id: "210100", page: "/db/monsters", top: 860 };
+
+  it("記下來時，Next 的紀錄、從清單點開的記號、手機卡片的紀錄都留著", () => {
+    const card = { id: "210100", at: 300, spot: "inline", page: "/db/monsters" };
+    expect(withSide({ ...nextEntry, [FROM_LIST]: "210100", [FROM_DOC]: 7, [CARD]: card }, side)).toEqual({
+      ...nextEntry,
+      [FROM_LIST]: "210100",
+      [FROM_DOC]: 7,
+      [CARD]: card,
+      [SIDE]: { id: "210100", page: "/db/monsters", top: 860 },
+    });
+  });
+
+  it("跟記的一樣：不用再寫一次；捲到別的地方：要再寫", () => {
+    expect(withSide({ ...nextEntry, [SIDE]: { ...side } }, side)).toBeNull();
+    expect(withSide({ ...nextEntry, [SIDE]: { ...side, top: 120 } }, side)).toEqual({ ...nextEntry, [SIDE]: side });
+  });
+
+  it("不是 Next 管的紀錄（例如按過「跳到主要內容」）：不寫——寫了之後按返回、下一頁到這筆，Next 會整頁重載", () => {
+    expect(withSide(null, side)).toBeNull();
+    expect(withSide({}, side)).toBeNull();
+  });
+
+  it("讀回來：同一頁的同一筆才照記的捲；別筆、別頁、沒記過、記壞了、沒開著卡片，都從卡片頂端開始", () => {
+    const entry = { ...nextEntry, [SIDE]: side };
+    expect(sideTopFor(entry, "210100", "/db/monsters")).toBe(860);
+    expect(sideTopFor(entry, "210101", "/db/monsters")).toBe(0);
+    expect(sideTopFor(entry, "210100", "/db/items")).toBe(0);
+    expect(sideTopFor(entry, null, "/db/monsters")).toBe(0);
+    expect(sideTopFor(nextEntry, "210100", "/db/monsters")).toBe(0);
+    expect(sideTopFor(null, "210100", "/db/monsters")).toBe(0);
+    expect(sideTopFor({ [SIDE]: { ...side, top: "860" } }, "210100", "/db/monsters")).toBe(0);
+    expect(sideTopFor({ [SIDE]: { ...side, top: -20 } }, "210100", "/db/monsters")).toBe(0);
   });
 });

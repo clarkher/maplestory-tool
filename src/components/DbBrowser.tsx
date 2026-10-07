@@ -4,7 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, moreRows, needsRescue,
-  sameRowAction, scrollMotion, searchEntries, withCard, type DetailSpot,
+  sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot,
 } from "@/lib/db-browse";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
@@ -150,6 +150,9 @@ export function DbBrowser({
   const rescuing = useRef(false);
   // 桌機從清單點了一筆：畫出來後看右邊那一欄有沒有被往上推走
   const sideRevealPending = useRef(false);
+  // 桌機右邊那一欄現在畫的是哪一筆、捲動停下來才記（記進紀錄的計時器）
+  const selectedNow = useRef(selected);
+  const sideScrollTimer = useRef<number | undefined>(undefined);
   // 按了「再載」：從第幾筆開始是新載的（按鈕載完全部後不見了，焦點移到新載的第一筆）
   const loadedFrom = useRef<number | null>(null);
 
@@ -235,6 +238,7 @@ export function DbBrowser({
   useLayoutEffect(() => {
     spotNow.current = spot;
     pageNow.current = page;
+    selectedNow.current = selected;
   });
 
   /** 卡片（加上它那一列）現在在畫面上的那一塊：展開在那一列下面就是那一列，放在最上面就是最上面那一塊 */
@@ -293,15 +297,35 @@ export function DbBrowser({
     else place();
   }, [selected]);
 
-  // 桌機右邊換了一筆：那一欄從卡片頂端開始看（從清單點、從卡片裡的連結、按返回都一樣）。
+  // 桌機右邊換了一筆：新點的、從連結來的，那一欄從卡片頂端開始看；重新整理、按返回、下一頁回到這一筆，
+  // 照這筆紀錄記的捲回原本讀到的地方。卡片畫出來（資料載好）才捲得到。
   // 從清單點的，那一欄被往上推走一截時（清單到底）再讓卡片頂端出來
   useLayoutEffect(() => {
-    if (spot !== "side") return;
-    detailRef.current?.scrollTo({ top: 0, behavior: "instant" });
+    if (spot !== "side" || !hasDetail) return;
+    detailRef.current?.scrollTo({ top: sideTopFor(window.history.state, selected, page), behavior: "instant" });
     if (!sideRevealPending.current) return;
     sideRevealPending.current = false;
     revealSide();
-  }, [selected, spot, revealSide]);
+  }, [selected, spot, hasDetail, page, revealSide]);
+
+  /** 右邊那一欄捲動停下來，把捲到哪裡記進這一筆紀錄 */
+  const recordSideSoon = useCallback(() => {
+    window.clearTimeout(sideScrollTimer.current);
+    sideScrollTimer.current = window.setTimeout(() => {
+      const side = detailRef.current;
+      const id = openIdNow();
+      // 網址已經換成別筆、那一欄還是舊的：不記，免得把舊卡片捲到哪裡記進新的那一筆
+      if (!side || !id || id !== selectedNow.current) return;
+      const next = withSide(window.history.state, { id, page: pageNow.current, top: Math.round(side.scrollTop) });
+      if (!next) return;
+      try {
+        window.history.replaceState(next, "");
+      } catch {
+        // 瀏覽器限制短時間內改紀錄的次數：這次記不到，下次捲動停下來再記
+      }
+    }, 150);
+  }, []);
+  useEffect(() => () => window.clearTimeout(sideScrollTimer.current), []);
 
   // 網址的 id 是從連結來的——直接打開網址、細節裡連到同一頁的另一筆（例如任務的「要先完成」）——
   // 手機、平板跳到那一筆；桌機左右兩欄，細節本來就在畫面上，不捲。
@@ -534,6 +558,7 @@ export function DbBrowser({
             <div
               ref={detailRef}
               id="db-side"
+              onScroll={recordSideSoon}
               className="min-w-0 lg:sticky lg:top-[calc(var(--header-offset)+0.25rem)] lg:-m-2 lg:max-h-[calc(100dvh-var(--header-offset)-0.5rem)] lg:self-start lg:overflow-y-auto lg:p-2 lg:transition-[top] lg:duration-200 lg:ease-out lg:[scrollbar-gutter:stable] lg:[scrollbar-width:thin]"
             >
               {selected ? (
