@@ -1,10 +1,18 @@
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
-import { inTrainingBand, questEligible } from "@/lib/planner";
+import { inTrainingBand, isDevQuest, questBucket, questEligible } from "@/lib/planner";
 import type { Monster, Quest } from "@/lib/types";
+
+const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
+const quests = JSON.parse(fs.readFileSync(`${DATA}quests.json`, "utf8")) as Quest[];
 
 const monster = (extra: Partial<Monster> = {}): Monster =>
   ({ id: 1, n: "怪", lv: 40, exp: 1, hp: 1, pad: 0, pdd: 0, mad: 0, mdd: 0, acc: 0, eva: 0, spd: 0, maps: [], drops: [], ...extra }) as Monster;
+
+const quest = (extra: Partial<Quest> = {}): Quest =>
+  ({ id: "1", n: "任務", cat: "主線", ...extra }) as Quest;
 
 describe("怪物頁「只看適合我練的」：練功帶", () => {
   it("從你的等級到高你 5 級（Lv.35 → 35～40），跟練功推薦的甜蜜區同一條", () => {
@@ -47,8 +55,6 @@ describe("怪物頁「只看適合我練的」：職業規則（跟練功推薦�
 });
 
 describe("任務頁「只看我現在接得到的」（沿用首頁的判斷）", () => {
-  const quest = (extra: Partial<Quest>): Quest => ({ id: "1", n: "任務", cat: "主線", ...extra }) as Quest;
-
   it("等級在範圍內、職業對得上才算；前置任務做了沒網站不知道，不判斷", () => {
     expect(questEligible(quest({ minLv: 30 }), { job: 130, level: 35 })).toBe(true);
     expect(questEligible(quest({ minLv: 40 }), { job: 130, level: 35 })).toBe(false);
@@ -56,5 +62,39 @@ describe("任務頁「只看我現在接得到的」（沿用首頁的判斷）"
     expect(questEligible(quest({ jobs: [200] }), { job: 130, level: 35 })).toBe(false);
     expect(questEligible(quest({ jobs: [100] }), { job: 130, level: 35 })).toBe(true);
     expect(questEligible(quest({ pre: ["999"] }), { job: 130, level: 35 })).toBe(true);
+  });
+});
+
+describe("開發測試用的任務哪裡都不列", () => {
+  it("名字剛好是「開發測試用」的是開發測試任務；「白瑞德的測試」是正常任務", () => {
+    expect(isDevQuest({ n: "開發測試用" })).toBe(true);
+    expect(isDevQuest({ n: "白瑞德的測試" })).toBe(false);
+  });
+
+  it("名字只是帶「測試用」的正常任務不算（只認整個名字）", () => {
+    expect(isDevQuest({ n: "測試用的鑰匙" })).toBe(false);
+    expect(isDevQuest({ n: "開發測試用（２）" })).toBe(false);
+  });
+
+  it("接得到的判斷直接排除開發測試任務", () => {
+    expect(questEligible({ id: "9999", n: "開發測試用", cat: "職業" } as Quest, { level: 35, job: 130 })).toBe(false);
+  });
+
+  it("真資料裡只有 9999 是開發測試任務", () => {
+    expect(quests.filter(isDevQuest).map(item => item.id)).toEqual(["9999"]);
+  });
+});
+
+describe("任務分段（「現在能接的任務」頁跟查資料的任務頁同一套）", () => {
+  const profile = { level: 35, job: 130 };
+
+  it("等級上限在 8 級內是快過期，levelsLeft＝上限－現在等級", () => {
+    expect(questBucket(quest({ minLv: 30, maxLv: 40 }), profile)).toEqual({ bucket: "expiring", levelsLeft: 5 });
+  });
+
+  it("10 級內解鎖的是剛解鎖；其他是隨時可以補", () => {
+    expect(questBucket(quest({ minLv: 30 }), profile).bucket).toBe("fresh");
+    expect(questBucket(quest({ minLv: 20 }), profile).bucket).toBe("backlog");
+    expect(questBucket(quest({}), profile).bucket).toBe("backlog");
   });
 });

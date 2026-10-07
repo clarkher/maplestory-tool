@@ -1,11 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
-/** 瀏覽器接手（hydrate）了沒：伺服器上、接手的那一格一律是 false，接手後馬上換成 true（DbBrowser 的「×」也是這樣） */
-const noSubscribe = () => () => {};
-const onClient = () => true;
-const onServer = () => false;
+import { useHydrated } from "@/lib/hydrated";
 
 /**
  * 篩選用的標籤按鈕：點一下開、再點一下關（aria-pressed），開著是楓葉橘底白字，跟角色列選職業的膠囊按鈕同一個樣子。
@@ -15,7 +10,7 @@ const onServer = () => false;
  * 接手後再照 on 畫。屬性對不上時 React 不會補，整頁重新整理後標籤會一直停在沒開的樣子，清單卻已經篩過了。
  */
 export function FilterTag({ on, onClick, children }: { on: boolean; onClick: () => void; children: React.ReactNode }) {
-  const hydrated = useSyncExternalStore(noSubscribe, onClient, onServer);
+  const hydrated = useHydrated();
   const pressed = hydrated && on;
   return (
     <button
