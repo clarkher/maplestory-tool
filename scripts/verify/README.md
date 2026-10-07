@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，back-all 和 card-shot 都是 9347，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，back-all 和 card-shot 都是 9347，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -118,6 +118,23 @@ node scripts/verify/crossdoc.mjs <輸出> <網址> [埠=9348] [plain|early] [nob
 - 第 5 個參數：`plain` 只跑現況，`early` 只跑「一開頭先關平滑」的實驗，不給就兩種都跑。
 - 第 6 個參數 `nobf`：關掉返回快取（`--disable-features=BackForwardCache`），離站返回一定整頁重載。
 - 輸出：`results.json`，console 每個情境一行。
+
+#### `reload-open.mjs`：展開過的卡片，重新整理、返回之後還在不在、停在不在同一段（v0.59）
+
+```bash
+node scripts/verify/reload-open.mjs <輸出> <網址> [埠=9363] [情境，逗號分隔：home,quest,train,bundle,go,guide]
+```
+
+- 每個情境跑三種：重新整理、離站再返回（關返回快取，一定整頁重載）、站內按返回（點「關於」再按返回）。
+- 每一種都先從別頁點進來，這樣是新的一筆瀏覽紀錄。先記「剛進來時開著幾個」，應該是預設：首頁 1（你在的那段）、懶人包 1（第一步），其他 0。
+  再像使用者一樣點開幾張卡：首頁是還有 N 個任務、第二列看細節、技能條、裝備看全部、升級路線第一段；
+  解任務是連卡住的一起看、三張看細節；懶人包是收起第一步、點開第二三步。
+- 捲到可捲高度 70% 的地方，記下畫面兩個固定點是哪一塊：頁首下方 y=90、畫面中間 y=420。
+  回來後同一塊、差 2px 內，而且開著的數量一樣，才印「同一段」。
+- 手機 375×812，角色 Lv.45（job 110）。環境變數 `WAIT`：回來後等幾毫秒再量，預設 5000。
+- 輸出：`<情境>-<種類>-1-before.png`／`-2-after.png`、`results.json`。console 每種一行：離開／停的位置、頁高、開著幾個、兩個點對不對得上。
+  對不上時多印兩行，是兩邊各看到哪一塊。
+- 測試機實測時間（2026-10-07）：全跑約 6 分鐘。
 
 #### `after-back.mjs`：按完返回後，頁內平滑捲動還在不在（v0.40）
 
