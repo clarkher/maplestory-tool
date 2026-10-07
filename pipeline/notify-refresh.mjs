@@ -1,7 +1,8 @@
 /**
  * 資料自動更新（.github/workflows/data-refresh.yml）的失敗通知，跑在 notify job。
  *
- * refresh 失敗：開一張 issue（label「資料更新失敗」、指派給 repo 擁有者），已經有開著的就在那張留言，不會每天開新的。
+ * refresh 失敗：開一張 issue（label「資料更新失敗」、指派給 repo 擁有者）；已經有開著的就不另開——
+ *   同樣的失敗（同一步、同一個上游版本）只更新內文「最後一次失敗」那行（不發通知），有變才在那張留言。
  * refresh 成功：有開著的就留言「恢復了」並關掉。被取消（含 GitHub 沒派到機器）不通知。
  * 內容與判斷在 lib/refresh-issue.mjs；這支只負責打 GitHub API。
  *
@@ -116,6 +117,10 @@ function githubApi({ token, repo, runId, runAttempt, apiUrl }) {
       await json("POST", `repos/${repo}/issues/${number}/comments`, { body });
     },
 
+    async updateIssue(number, body) {
+      await json("PATCH", `repos/${repo}/issues/${number}`, { body });
+    },
+
     async close(number) {
       await json("PATCH", `repos/${repo}/issues/${number}`, { state: "closed", state_reason: "completed" });
     },
@@ -137,6 +142,9 @@ function printOnly(github) {
     async comment(number, body) {
       print(`在 #${number} 留言`, body);
     },
+    async updateIssue(number, body) {
+      print(`改 #${number} 的內文（不發通知）`, body);
+    },
     async close(number) {
       print("關閉", `#${number}`);
     },
@@ -145,6 +153,7 @@ function printOnly(github) {
 
 const repo = required("GITHUB_REPOSITORY");
 const runId = required("GITHUB_RUN_ID");
+const server = env.GITHUB_SERVER_URL || "https://github.com";
 const github = githubApi({
   token: env.GH_TOKEN || required("GITHUB_TOKEN"),
   repo,
@@ -159,12 +168,19 @@ const outcome = await notifyRefresh(
     dryRun: env.DRY_RUN === "true",
     upstreamStamp: env.UPSTREAM_STAMP ?? "",
     siteStamp: env.SITE_STAMP ?? "",
-    runUrl: `${env.GITHUB_SERVER_URL || "https://github.com"}/${repo}/actions/runs/${runId}`,
+    runUrl: `${server}/${repo}/actions/runs/${runId}`,
+    readmeUrl: `${server}/${repo}/blob/${env.GITHUB_REF_NAME || "main"}/README.md#${encodeURIComponent("自動更新")}`,
     assignee: env.ASSIGNEE ?? "",
   },
   env.PRINT_ONLY === "true" ? printOnly(github) : github,
 );
 
-const DONE = { create: "開 issue", comment: "在開著的 issue 留言", close: "留言並關掉 issue", none: "不用通知" };
+const DONE = {
+  create: "開 issue",
+  comment: "失敗有變，在開著的 issue 留言",
+  update: "同樣的失敗，只更新開著的 issue 內文（不發通知）",
+  close: "留言並關掉 issue",
+  none: "不用通知",
+};
 const done = `${env.PRINT_ONLY === "true" ? "（預覽）會" : ""}${DONE[outcome.action]}`;
 console.log(`refresh 結果 ${env.REFRESH_RESULT} → ${done}${outcome.issue?.number ? `：${outcome.issue.html_url}` : ""}`);

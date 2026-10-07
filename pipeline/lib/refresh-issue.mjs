@@ -110,13 +110,18 @@ export function issueKeys(dryRun) {
 const DRY_RUN_NOTE = "這是 dry-run 測試（手動觸發，不開 PR、不合併）。";
 
 /**
- * 失敗時的 issue 內容；repeat = 在已經開著的那張底下留言（開頭不同，不再重講之後會怎樣）。
- * tail 是 errorTail() 的結果，抓不到時改寫 tailNote（原因）。
+ * 失敗時的 issue 內容（含「最後一次失敗」那行與藏著的註解，之後同樣的失敗只換這兩處）；
+ * repeat = 失敗有變、在已經開著的那張底下留言（開頭寫連續第幾次，不帶那一行與註解）。
+ * tail 是 errorTail() 的結果，抓不到時改寫 tailNote（原因）。at 是 taipeiTime()。
  */
-export function failureBody({ stepName, upstreamStamp, siteStamp, runUrl, tail = [], tailNote, dryRun = false, repeat = false }) {
+export function failureBody({ stepName, upstreamStamp, siteStamp, runUrl, readmeUrl, tail = [], tailNote, dryRun = false, repeat = false, count = 1, at }) {
   const lines = dryRun ? [DRY_RUN_NOTE, ""] : [];
+  if (repeat) {
+    lines.push(`又失敗了（連續第 ${count} 次），這次失敗的步驟或上游版本跟上次不同；網站資料還停在原本那一版。`);
+  } else {
+    lines.push("資料自動更新沒有跑完，網站資料停在原本那一版。", statusLine({ count, at, runUrl }));
+  }
   lines.push(
-    repeat ? "又失敗一次，網站資料還停在原本那一版。" : "資料自動更新沒有跑完，網站資料停在原本那一版。",
     "",
     `- 失敗的步驟：${stepName ?? "（沒有哪一步標成失敗，可能是逾時或執行的機器出問題）"}`,
     `- 上游版本：${upstreamStamp ? `\`${upstreamStamp}\`` : "（沒取到：在讀到上游版本之前就失敗了）"}`,
@@ -131,9 +136,12 @@ export function failureBody({ stepName, upstreamStamp, siteStamp, runUrl, tail =
     lines.push(`錯誤訊息：${tailNote ?? "log 裡找不到錯誤訊息"}，請點上面的執行紀錄看。`);
   }
   if (!repeat) {
+    const readme = readmeUrl ? `[README「自動更新」](${readmeUrl})` : "README「自動更新」";
     lines.push(
       "",
-      "之後再失敗會留言在這張，不會另開新的；修好後下一次更新成功，會自動留言並關掉這張。怎麼處理見 README「自動更新」。",
+      "之後同樣的失敗只會更新上面「最後一次失敗」那行，不另外通知；失敗的步驟或上游版本變了，才會在這裡留言。" +
+        `修好後下一次更新成功，會自動留言並關掉這張。怎麼處理見 ${readme}。`,
+      failureMark({ stepName, upstreamStamp, count }),
     );
   }
   return lines.join("\n");
@@ -158,13 +166,15 @@ function fenceFor(lines) {
 }
 
 /**
- * notify job 的主流程：refresh 失敗就開 issue／在開著的那張留言，成功就留言並關掉。
+ * notify job 的主流程：refresh 失敗就開 issue（已經有開著的就更新那張），成功就留言並關掉。
+ * 已經有開著的時候，同樣的失敗（同一步、同一個上游版本）只改內文的「最後一次失敗」那行——改內文不發通知，
+ * 排程一天兩次壞著不修才不會每 12 小時吵一次；失敗的步驟或上游版本變了才留言（會通知）。
  *
- * ctx：{ result（refresh job 的結果）, dryRun, upstreamStamp, siteStamp, runUrl, assignee }
+ * ctx：{ result（refresh job 的結果）, dryRun, upstreamStamp, siteStamp, runUrl, readmeUrl, assignee, now }
  * github：打 GitHub API 的動作（pipeline/notify-refresh.mjs 給真的，測試給假的）——
  *   findOpenIssue(label)、refreshJob()、jobLog(jobId)、ensureLabel(label)、
- *   createIssue({ title, body, label, assignee })、comment(number, body)、close(number)
- * 回傳 { action: "create" | "comment" | "close" | "none", issue? }
+ *   createIssue({ title, body, label, assignee })、comment(number, body)、updateIssue(number, body)、close(number)
+ * 回傳 { action: "create" | "comment" | "update" | "close" | "none", issue? }
  */
 export async function notifyRefresh(ctx, github) {
   if (ctx.result !== "failure" && ctx.result !== "success") return { action: "none" };
@@ -179,14 +189,20 @@ export async function notifyRefresh(ctx, github) {
   }
   if (action === "none") return { action };
 
-  const body = failureBody({ ...ctx, ...(await failureDetails(github)), repeat: action === "comment" });
-  if (action === "comment") {
-    await github.comment(open.number, body);
-    return { action, issue: open };
+  const failure = { ...ctx, ...(await failureDetails(github)), at: taipeiTime(ctx.now ?? new Date()) };
+  if (action === "create") {
+    await github.ensureLabel(label);
+    const issue = await github.createIssue({ title, body: failureBody(failure), label, assignee: ctx.assignee });
+    return { action, issue };
   }
-  await github.ensureLabel(label);
-  const issue = await github.createIssue({ title, body, label, assignee: ctx.assignee });
-  return { action, issue };
+
+  const previous = readFailureMark(open.body);
+  const same = previous !== null && previous.step === (failure.stepName ?? null) && previous.upstream === (failure.upstreamStamp || "");
+  const count = Number.isInteger(previous?.count) ? previous.count + 1 : 2;
+  // 先留言再改內文：改內文失敗頂多下次再留一次，反過來會漏掉通知
+  if (!same) await github.comment(open.number, failureBody({ ...failure, repeat: true, count }));
+  await github.updateIssue(open.number, markFailure(open.body ?? "", { ...failure, count }));
+  return { action: same ? "update" : "comment", issue: open };
 }
 
 /** 失敗的步驟名＋錯誤最後幾行；API 讀不到也照樣回內容，通知本身不能因此開不出來。 */
@@ -204,4 +220,45 @@ async function failureDetails(github) {
   } catch (error) {
     return { stepName, tail: [], tailNote: `抓不到 log（${error.message}）` };
   }
+}
+
+const STATUS_LINE = /^最後一次失敗：.*$/m;
+const MARK = /<!-- data-refresh-failure (.*?) -->/;
+
+/** 台灣時間「YYYY-MM-DD HH:mm」（runner 跑在 UTC）。 */
+export function taipeiTime(date) {
+  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16).replace("T", " ");
+}
+
+function statusLine({ count, at, runUrl }) {
+  return `最後一次失敗：${at}（台灣時間），連續第 ${count} 次，[執行紀錄](${runUrl})`;
+}
+
+/** 藏在 issue 內文裡（畫面上看不到）的這次失敗：步驟、上游版本、連續次數，下一次拿來比是不是同樣的失敗。 */
+function failureMark({ stepName, upstreamStamp, count }) {
+  // 步驟名可能帶著錯誤訊息原文；< > 改用 JSON 跳脫，裡面的 --> 才不會把註解提早結束
+  const json = JSON.stringify({ step: stepName ?? null, upstream: upstreamStamp || "", count })
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e");
+  return `<!-- data-refresh-failure ${json} -->`;
+}
+
+/** 讀出 failureMark 藏的內容；沒有、或被改壞了就回 null。 */
+export function readFailureMark(body) {
+  const match = body?.match(MARK);
+  if (!match) return null;
+  try {
+    const { step, upstream, count } = JSON.parse(match[1]);
+    return { step, upstream, count };
+  } catch {
+    return null;
+  }
+}
+
+/** 同樣的失敗又發生：換掉內文的「最後一次失敗」那行與藏著的註解（沒有就補在最後），其他內容不動。 */
+export function markFailure(body, { stepName, upstreamStamp, count, at, runUrl }) {
+  const status = statusLine({ count, at, runUrl });
+  const mark = failureMark({ stepName, upstreamStamp, count });
+  const withStatus = STATUS_LINE.test(body) ? body.replace(STATUS_LINE, () => status) : body ? `${body}\n\n${status}` : status;
+  return MARK.test(withStatus) ? withStatus.replace(MARK, () => mark) : `${withStatus}\n${mark}`;
 }

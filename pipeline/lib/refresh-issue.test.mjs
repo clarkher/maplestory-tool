@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { errorTail, failedStepName, planAction, issueKeys, failureBody, recoveredBody, notifyRefresh } from "./refresh-issue.mjs";
+import {
+  errorTail, failedStepName, planAction, issueKeys, failureBody, recoveredBody, notifyRefresh,
+  taipeiTime, readFailureMark, markFailure,
+} from "./refresh-issue.mjs";
 
 const ESC = "\x1b";
 
@@ -212,10 +215,12 @@ const VERIFY_FAILED = {
   siteStamp: "2026-09-24T11:25:10+08:00",
   runUrl: RUN_URL,
   tail: ["  FAIL 怪物有屬性抗性資料 — 0 隻", "1 項檢查未通過，資料不要上線。"],
+  at: "2026-10-07 13:56",
 };
 
 test("issue 內容：哪一步失敗、上游版本、網站目前的資料版本、執行紀錄連結、錯誤最後幾行包在程式碼區塊", () => {
   const body = failureBody(VERIFY_FAILED);
+  assert.ok(body.includes(`最後一次失敗：2026-10-07 13:56（台灣時間），連續第 1 次，[執行紀錄](${RUN_URL})`));
   assert.match(body, /失敗的步驟：確認產出沒有壞掉/);
   assert.match(body, /上游版本：`2026-10-05T10:00:00\+08:00`/);
   assert.match(body, /網站目前的資料版本：`2026-09-24T11:25:10\+08:00`/);
@@ -224,10 +229,48 @@ test("issue 內容：哪一步失敗、上游版本、網站目前的資料版�
   assert.ok(body.includes("```\n  FAIL 怪物有屬性抗性資料 — 0 隻\n1 項檢查未通過，資料不要上線。\n```"));
 });
 
-test("新開的 issue 寫清楚之後會怎樣：再失敗留言在這張、不另開，成功一次自動關", () => {
+test("新開的 issue 寫清楚之後會怎樣：一樣的失敗只更新那一行不通知，有變才留言，成功一次自動關", () => {
   const body = failureBody(VERIFY_FAILED);
-  assert.match(body, /不會另開新的/);
+  assert.match(body, /同樣的失敗只會更新上面「最後一次失敗」那行，不另外通知/);
+  assert.match(body, /失敗的步驟或上游版本變了，才會在這裡留言/);
   assert.match(body, /自動留言並關掉/);
+});
+
+test("內文藏著這次失敗的步驟、上游版本、次數（看不到的註解），下次拿來比是不是同樣的失敗", () => {
+  const body = failureBody(VERIFY_FAILED);
+  assert.match(body, /<!-- data-refresh-failure .* -->$/);
+  assert.deepEqual(readFailureMark(body), { step: "確認產出沒有壞掉", upstream: "2026-10-05T10:00:00+08:00", count: 1 });
+  assert.equal(readFailureMark("別人手動開的 issue"), null);
+  assert.equal(readFailureMark("<!-- data-refresh-failure {壞掉的 -->"), null);
+});
+
+test("同樣的失敗：換掉「最後一次失敗」那行與藏著的次數，其他內容不動", () => {
+  const before = failureBody(VERIFY_FAILED);
+  const runUrl = "https://github.com/clarkher/maplestory-tool/actions/runs/456?$&";
+  const after = markFailure(before, { stepName: "確認產出沒有壞掉", upstreamStamp: "2026-10-05T10:00:00+08:00", count: 3, at: "2026-10-08 08:21", runUrl });
+  assert.ok(after.includes(`最後一次失敗：2026-10-08 08:21（台灣時間），連續第 3 次，[執行紀錄](${runUrl})`));
+  assert.doesNotMatch(after, /2026-10-07 13:56/);
+  assert.equal(readFailureMark(after).count, 3);
+  const strip = text => text.replace(/^最後一次失敗：.*$/m, "").replace(/<!-- data-refresh-failure .* -->/, "");
+  assert.equal(strip(after), strip(before));
+});
+
+test("沒有那一行、沒有藏註解的內文（別人改過）：補在最後", () => {
+  const after = markFailure("手動寫的內容", { stepName: "取得 Artale 資料", upstreamStamp: "", count: 2, at: "2026-10-08 08:21", runUrl: RUN_URL });
+  assert.match(after, /^手動寫的內容\n\n最後一次失敗：2026-10-08 08:21（台灣時間），連續第 2 次/);
+  assert.deepEqual(readFailureMark(after), { step: "取得 Artale 資料", upstream: "", count: 2 });
+});
+
+test("步驟名裡有 --> 之類的字也不會把藏著的註解提早結束", () => {
+  const stepName = "（讀不到：GET x → HTTP 500：<html>--></html>）";
+  const after = markFailure("x", { stepName, upstreamStamp: "", count: 1, at: "2026-10-08 08:21", runUrl: RUN_URL });
+  assert.equal(readFailureMark(after).step, stepName);
+  assert.equal(after.match(/-->/g).length, 1);
+});
+
+test("時間用台灣時間，跨午夜也對", () => {
+  assert.equal(taipeiTime(new Date("2026-10-07T05:56:17Z")), "2026-10-07 13:56");
+  assert.equal(taipeiTime(new Date("2026-10-07T16:30:00Z")), "2026-10-08 00:30");
 });
 
 test("取上游那步就失敗、沒有上游版本：寫明沒取到，不留空白", () => {
@@ -251,12 +294,14 @@ test("錯誤訊息裡本來就有 ``` 時，外框加長，不會提早結束程
   assert.ok(body.includes("````\n```js\nthrow x\n```\n````"));
 });
 
-test("又失敗的留言：開頭不同、內容一樣齊，不再重講之後會怎樣", () => {
-  const body = failureBody({ ...VERIFY_FAILED, repeat: true });
-  assert.match(body, /^又失敗一次/);
+test("失敗有變的留言：開頭寫連續第幾次、內容一樣齊，不再重講之後會怎樣，也不帶那一行與藏著的註解", () => {
+  const body = failureBody({ ...VERIFY_FAILED, repeat: true, count: 2 });
+  assert.match(body, /^又失敗了（連續第 2 次）/);
   assert.match(body, /失敗的步驟：確認產出沒有壞掉/);
   assert.ok(body.includes(`執行紀錄：${RUN_URL}`));
-  assert.ok(!body.includes("不會另開新的"));
+  assert.ok(!body.includes("不另外通知"));
+  assert.ok(!body.includes("最後一次失敗："));
+  assert.equal(readFailureMark(body), null);
 });
 
 test("dry-run 的內容第一行就標明是測試、不會開 PR 不會合併", () => {
@@ -277,18 +322,22 @@ function fakeGitHub({ open = null, job = FAILED_JOB, log = FETCH_FAILURE, jobErr
   const calls = [];
   return {
     calls,
-    writes: () => calls.filter(([name]) => ["ensureLabel", "createIssue", "comment", "close"].includes(name)),
+    writes: () => calls.filter(([name]) => ["ensureLabel", "createIssue", "comment", "updateIssue", "close"].includes(name)),
     async findOpenIssue(label) { calls.push(["findOpenIssue", label]); return open; },
     async refreshJob() { calls.push(["refreshJob"]); if (jobError) throw jobError; return job; },
     async jobLog(id) { calls.push(["jobLog", id]); if (logError) throw logError; return log; },
     async ensureLabel(label) { calls.push(["ensureLabel", label]); },
     async createIssue(issue) { calls.push(["createIssue", issue]); return { number: 7, html_url: "https://github.com/clarkher/maplestory-tool/issues/7" }; },
     async comment(number, body) { calls.push(["comment", number, body]); },
+    async updateIssue(number, body) { calls.push(["updateIssue", number, body]); },
     async close(number) { calls.push(["close", number]); },
   };
 }
 
-const FAILED = { result: "failure", dryRun: false, upstreamStamp: "", siteStamp: "2026-09-24T11:25:10+08:00", runUrl: RUN_URL, assignee: "clarkher" };
+const FAILED = {
+  result: "failure", dryRun: false, upstreamStamp: "", siteStamp: "2026-09-24T11:25:10+08:00", runUrl: RUN_URL, assignee: "clarkher",
+  now: new Date("2026-10-07T05:56:17Z"),
+};
 const OPEN_ISSUE = { number: 5, html_url: "https://github.com/clarkher/maplestory-tool/issues/5" };
 
 test("失敗、沒有開著的：先確保 label 在，再開一張指派給擁有者的 issue，寫失敗那一步與錯誤最後幾行", async () => {
@@ -306,18 +355,52 @@ test("失敗、沒有開著的：先確保 label 在，再開一張指派給擁�
   assert.match(issue.body, /失敗的步驟：取得 Artale 資料/);
   assert.match(issue.body, /Error: 上游 repo 沒有 drops\.json/);
   assert.match(issue.body, /上游版本：（沒取到/);
+  assert.match(issue.body, /最後一次失敗：2026-10-07 13:56（台灣時間），連續第 1 次/);
+  assert.deepEqual(readFailureMark(issue.body), { step: "取得 Artale 資料", upstream: "", count: 1 });
   assert.deepEqual(github.calls.find(([name]) => name === "jobLog"), ["jobLog", 111137077969]);
 });
 
-test("失敗、已經有開著的：在那張留言，不開新的", async () => {
+/** 上一次通知開出來的那張（取得 Artale 資料失敗、沒有上游版本）。 */
+function openedBy(details) {
+  return { ...OPEN_ISSUE, body: failureBody({ runUrl: RUN_URL, siteStamp: "x", at: "2026-10-07 01:56", ...details }) };
+}
+
+test("失敗、已經有開著的、而且跟上次一樣（同一步、同一個上游版本）：只更新內文那一行，不留言、不另開", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "取得 Artale 資料", upstreamStamp: "" }) });
+  const outcome = await notifyRefresh(FAILED, github);
+  assert.equal(outcome.action, "update");
+  assert.equal(outcome.issue.number, 5);
+  const writes = github.writes();
+  assert.deepEqual(writes.map(([name, number]) => [name, number]), [["updateIssue", 5]]);
+  assert.match(writes[0][2], /最後一次失敗：2026-10-07 13:56（台灣時間），連續第 2 次/);
+  assert.equal(readFailureMark(writes[0][2]).count, 2);
+});
+
+test("失敗、已經有開著的、但失敗的步驟不一樣：先留言（會通知），再更新內文那一行", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "確認產出沒有壞掉", upstreamStamp: "" }) });
+  const outcome = await notifyRefresh(FAILED, github);
+  assert.equal(outcome.action, "comment");
+  const writes = github.writes();
+  assert.deepEqual(writes.map(([name, number]) => [name, number]), [["comment", 5], ["updateIssue", 5]]);
+  assert.match(writes[0][2], /^又失敗了（連續第 2 次）/);
+  assert.match(writes[0][2], /失敗的步驟：取得 Artale 資料/);
+  assert.match(writes[0][2], /Error: 上游 repo 沒有 drops\.json/);
+  assert.deepEqual(readFailureMark(writes[1][2]), { step: "取得 Artale 資料", upstream: "", count: 2 });
+});
+
+test("失敗、已經有開著的、同一步但上游出了新版本：也留言", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "取得 Artale 資料", upstreamStamp: "2026-09-24T11:25:10+08:00" }) });
+  assert.equal((await notifyRefresh({ ...FAILED, upstreamStamp: "2026-10-05T10:00:00+08:00" }, github)).action, "comment");
+  assert.deepEqual(github.writes().map(([name]) => name), ["comment", "updateIssue"]);
+});
+
+test("開著的那張沒有藏註解（手動開的、內文被改過）：當成不一樣，留言並補上", async () => {
   const github = fakeGitHub({ open: OPEN_ISSUE });
   const outcome = await notifyRefresh(FAILED, github);
   assert.equal(outcome.action, "comment");
-  assert.equal(outcome.issue.number, 5);
   const writes = github.writes();
-  assert.deepEqual(writes.map(([name, number]) => [name, number]), [["comment", 5]]);
-  assert.match(writes[0][2], /^又失敗一次/);
-  assert.match(writes[0][2], /Error: 上游 repo 沒有 drops\.json/);
+  assert.deepEqual(writes.map(([name, number]) => [name, number]), [["comment", 5], ["updateIssue", 5]]);
+  assert.deepEqual(readFailureMark(writes[1][2]), { step: "取得 Artale 資料", upstream: "", count: 2 });
 });
 
 test("成功、有開著的：先留言說恢復了，再關掉", async () => {
@@ -375,4 +458,10 @@ test("log 裡找不到錯誤：寫找不到，請人點執行紀錄", async () =
   await notifyRefresh(FAILED, github);
   const [, issue] = github.writes()[1];
   assert.match(issue.body, /錯誤訊息：log 裡找不到錯誤訊息，請點上面的執行紀錄看/);
+});
+
+test("有 README 網址時，「怎麼處理」寫成點得到的連結", () => {
+  const readmeUrl = "https://github.com/clarkher/maplestory-tool/blob/main/README.md#%E8%87%AA%E5%8B%95%E6%9B%B4%E6%96%B0";
+  assert.ok(failureBody({ ...VERIFY_FAILED, readmeUrl }).includes(`怎麼處理見 [README「自動更新」](${readmeUrl})。`));
+  assert.ok(failureBody(VERIFY_FAILED).includes("怎麼處理見 README「自動更新」。"));
 });
