@@ -4,6 +4,7 @@ import {
   loadGraph, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining,
   peekGraph, peekGuide, peekGuideCommon, peekMaps, peekMeta, peekMonsters, peekNearestTown, peekQuests, peekTraining,
 } from "./data";
+import { JOB_LINES, jobLineOf } from "./jobs";
 import { jobLineage } from "./planner";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "./types";
 
@@ -54,6 +55,16 @@ export function peekHomeData(): HomeData | null {
 /** 這個職業整條線要用的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）；初心者、還沒選職業不用 */
 export function guideJobs(job: number): number[] {
   return jobLineage(job).filter(code => code > 0);
+}
+
+/**
+ * 打開「換其他職業」時先在背景載的攻略：選單上看得到的職業鈕——五個一轉，加上現在這一系的二轉、三轉。
+ * 點下去時攻略已經在了，主推卡不用先放骨架（換到別的一轉，選單換成那一系，再載那一系的）。
+ */
+export function guidesToPrefetch(job: number): number[] {
+  const line = jobLineOf(job);
+  const shown = line ? [...line.branches, ...line.thirds].map(([code]) => code) : [];
+  return [...JOB_LINES.map(entry => entry.base), ...shown];
 }
 
 /** 這些攻略裡，這次瀏覽已經載過的那幾份 */

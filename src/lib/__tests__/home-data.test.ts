@@ -82,6 +82,21 @@ describe("首頁要的攻略", () => {
     expect(home.guideJobs(-1)).toEqual([]);
   });
 
+  describe("打開「換其他職業」時先在背景載的攻略：畫面上看得到的職業鈕", () => {
+    it("狂戰士：五個一轉，加上劍士這一系的二轉、三轉", () => {
+      expect([...home.guidesToPrefetch(110)].sort((a, b) => a - b)).toEqual([100, 110, 111, 120, 121, 130, 131, 200, 300, 400, 500]);
+    });
+
+    it("三轉神槍手：五個一轉，加上海盜這一系（打手、槍手、格鬥家、神槍手）", () => {
+      expect([...home.guidesToPrefetch(521)].sort((a, b) => a - b)).toEqual([100, 200, 300, 400, 500, 510, 511, 520, 521]);
+    });
+
+    it("初心者、還沒選職業：選單只看得到五個一轉", () => {
+      expect([...home.guidesToPrefetch(0)].sort((a, b) => a - b)).toEqual([100, 200, 300, 400, 500]);
+      expect([...home.guidesToPrefetch(-1)].sort((a, b) => a - b)).toEqual([100, 200, 300, 400, 500]);
+    });
+  });
+
   describe("換到某個職業那一次渲染的攻略狀態", () => {
     const GUIDES = {
       "/data/guides/common.json": { builtAt: "g1" },

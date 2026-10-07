@@ -80,6 +80,7 @@ export const peekNearestTown = () => peek<Record<string, [number, number]>>("nea
 export const peekGear = () => peek<GearData>("gear");
 export const peekGuideCommon = () => peek<GuideCommon>("guides/common");
 export const peekGuide = (job: number) => peek<GuideJob>(`guides/${job}`);
+export const peekFarming = () => peek<Record<string, FarmingRow[]>>("farming");
 
 export const loadMeta = (): Promise<Meta> => {
   const cached = cache.get("meta") as Promise<Meta> | undefined;
@@ -139,6 +140,10 @@ export function loadGuideCommon(): Promise<GuideCommon> {
         ready.set("guides/common", common);
         return common;
       });
+    // 載失敗不要記住，下次再試（打開「換其他職業」會先在背景載攻略，網路一時不穩不能讓攻略一直讀不到）
+    guideCommon.catch(() => {
+      guideCommon = null;
+    });
   }
   return guideCommon;
 }
@@ -159,6 +164,11 @@ export function loadGuide(job: number): Promise<GuideJob> {
         return guide;
       });
     cache.set(name, pending);
+    // 載失敗不要記住，下次再試（同上）
+    const failed = pending;
+    failed.catch(() => {
+      if (cache.get(name) === failed) cache.delete(name);
+    });
   }
   return pending;
 }

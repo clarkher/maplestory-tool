@@ -51,6 +51,31 @@ describe("首頁的攻略跟裝備卡也一樣（換頁回首頁不先放骨架�
     expect(data.peekGuide(110)).toBeNull();
   });
 
+  it("職業攻略這次載失敗，下次再載會重新抓，不會一直卡在失敗（打開換其他職業會先在背景載）", async () => {
+    stubFetch({ "/data/guides/common.json": { builtAt: "g1" } });
+    await expect(data.loadGuide(110)).rejects.toThrow("載入攻略失敗（404）");
+
+    stubFetch({ "/data/guides/common.json": { builtAt: "g1" }, "/data/guides/110.json": { job: 110, builds: [] } });
+    await expect(data.loadGuide(110)).resolves.toEqual({ job: 110, builds: [] });
+    expect(data.peekGuide(110)).toEqual({ job: 110, builds: [] });
+  });
+
+  it("攻略總表這次載失敗，下次再載會重新抓，職業攻略也跟著載得到", async () => {
+    stubFetch({});
+    await expect(data.loadGuide(110)).rejects.toThrow("載入攻略失敗（404）");
+
+    stubFetch({ "/data/guides/common.json": { builtAt: "g1" }, "/data/guides/110.json": { job: 110, builds: [] } });
+    await expect(data.loadGuideCommon()).resolves.toEqual({ builtAt: "g1" });
+    await expect(data.loadGuide(110)).resolves.toEqual({ job: 110, builds: [] });
+  });
+
+  it("打寶資料載過一次，之後同步拿得到（/plan 的打寶、任務打包換頁回來不先畫載入中）", async () => {
+    stubFetch({ "/data/meta.json": { builtAt: "t1" }, "/data/farming.json": { "4000000": [[100000001, 3]] } });
+    expect(data.peekFarming()).toBeNull();
+    const farming = await data.loadFarming();
+    expect(data.peekFarming()).toBe(farming);
+  });
+
   it("裝備卡資料載過一次，之後同步拿得到", async () => {
     stubFetch({ "/data/gear.json": { builtAt: "e1", weapons: [], scrolls: [], rules: [], notes: [] } });
     const gear = await data.loadGear();
