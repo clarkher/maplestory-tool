@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，back-all 和 card-shot 都是 9347，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，back-all 和 card-shot 都是 9347，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -27,7 +27,8 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
   first-frame 會印 PASS／FAIL，但一律 exit 0。
 - 測試機實測時間（2026-10-07）：first-frame 的 nav 段 25 秒、scroll-proof 45 秒、crossdoc（plain）75 秒、
-  after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒。
+  after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
+  gear-source-shot 三個角色 13 秒。
   border-compare 全部跑約 20 分鐘。
 - 不會被 `npm test` 跑到：vitest 只抓 `src/**/*.test.ts`，`node --test` 只抓 `pipeline/**/*.test.mjs`。
 - `.gitignore` 擋掉這個資料夾裡除了 `.mjs` 跟本檔以外的東西，也擋掉任何 `chrome-profile*/`。
@@ -255,6 +256,23 @@ node scripts/verify/card-shot.mjs <輸出> <檔名前綴> <網址> [<網址> …
 - 輸出：`<前綴>-<id>-mobile.png`、`<前綴>-<id>-desktop.png`，console 印 JSON。
 - v0.39 起長卡片頂端有一條黏著的「收起」列，截圖頂端的怪名會被它蓋住一點。chip 的文字跟顏色不受影響。
 
+### 首頁裝備卡
+
+#### `gear-source-shot.mjs`：武器、卷軸「去哪拿」截圖，可以把瀏覽器時間調到 10/15 之後（v0.66）
+
+```bash
+AT=2026-10-16T10:00:00+08:00 node scripts/verify/gear-source-shot.mjs <輸出> <網址> 400:25,100:35,210:45
+```
+
+- 第三個參數是要看的角色，`職業代碼:等級`，逗號分隔（400 一轉盜賊、100 劍士、210 火毒巫師）。
+  手機 390 寬，每個角色另外開一次首頁（先清 localStorage、sessionStorage，再放 `ms-profile`）。
+- `AT`：瀏覽器時鐘調到這個時間（ISO）；不給就用真的時間。調到 10/15 開機之後，看的就是開放後的推薦。
+  v0.61 起開放後也先推舊地區的來源：一轉盜賊 25 等狼牙「墮落城市的後街吉姆合成」、劍士 35 等綠蛇刀「小幽靈會掉」、
+  火毒巫師 45 等黃色雨傘「青螃蟹會掉」（v0.61 以前，開放後會變成冰原雪域斯考特的店、雲彩公園的月光精靈）。
+- 輸出：`<職業>-<等級>.png`（裝備卡從頂端截到武器那塊）、`<職業>-<等級>-route.png`（升級路線「你在這」那一段的「裝備」，
+  沒展開會自己點開）、`results.json`；console 印主推武器、去哪拿、路線每一列的字。
+- 改前／改後：同一個 `AT` 各跑一次改前、改後的網址（例如正式機 vs 測試機），兩邊的字直接比。
+
 ### 沒收進來的
 
 - `db-verify.mjs`：已被 `scripts/verify-db.mjs`（`npm run verify:db`）取代。M1–M19、D1–D3 都在，還多了 N1–N13、D4。
@@ -285,6 +303,12 @@ node scripts/verify/card-shot.mjs <輸出> <檔名前綴> <網址> [<網址> …
 - **頁首按鈕有 0.15 秒變色動畫**，截圖裡舊的那顆還是橘色不是 bug。
 - **`captureBeyondViewport: true` 會把固定頁首畫進截圖範圍**，蓋住卡片頂端。
   改用 `false`，先把目標捲到頁首下面再截（card-shot）。
+- **`Page.captureScreenshot` 的 `clip` 是整頁座標**：`getBoundingClientRect()` 量到的視窗座標要加上 `scrollX`／`scrollY`，
+  不然截到的是頁面最上面那一段（全空白）。**高度是負的 clip 會讓它一直不回**，整支腳本卡死不報錯——
+  捲動還沒到位就量（全站 `html` 是平滑捲動）最容易算出負的。量位置前先把 `html` 設 `scroll-behavior: auto !important`
+  再跳過去，DevTools 呼叫也要設等待上限（gear-source-shot 的 `send` 每個最多 60 秒）。
+- **剛開的 Chrome 停在 `about:blank`，再 `Page.navigate` 到 `about:blank` 不會有 load 事件**，沒設逾時會一直等下去。
+  第一頁直接導到要量的網址。
 - **手機觸控點長頁面底部的輸入框可能點不到**：點完檢查 `activeElement`，沒點中就 `el.focus()`（border-* 的 `tap`）。
 - **改前／改後要用每個 commit 固定的部署網址**，不要拿 dev 測試機當改前（它一小時會被合好幾次）。
   `gh api "repos/clarkher/maplestory-tool/deployments?sha=<完整 sha>"` 拿 id，
