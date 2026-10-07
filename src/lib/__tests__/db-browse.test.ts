@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FROM_DOC, FROM_LIST, collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature } from "@/lib/db-browse";
+import { FROM_DOC, FROM_LIST, collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature, searchEntries } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
   it("桌機：右邊那一欄（沒選也是，那裡寫「左邊選一個看細節」）", () => {
@@ -106,5 +106,36 @@ describe("這次換頁是不是按上一頁／下一頁", () => {
     target.dispatchEvent(new Event("popstate"));
     target.dispatchEvent(new Event("click"));
     expect(history.cameFromHistory()).toBe(false);
+  });
+});
+
+describe("搜尋結果的順序", () => {
+  const list = [
+    { id: "1", name: "劍士冒險家表揚狀" },
+    { id: "2", name: "長槍", keywords: "槍 劍士" },
+    { id: "3", name: "木劍", keywords: "雙手劍 劍士、弓箭手、盜賊" },
+    { id: "4", name: "紅色藥水" },
+    { id: "5", name: "劍士轉職證明書" },
+  ];
+  const names = (rows: ReadonlyArray<{ name: string }>) => rows.map(row => row.name);
+
+  it("沒打字：清單原樣", () => {
+    expect(names(searchEntries(list, "  "))).toEqual(["劍士冒險家表揚狀", "長槍", "木劍", "紅色藥水", "劍士轉職證明書"]);
+  });
+
+  it("名字開頭符合的排前面，再來是名字或關鍵字含這個字的；各組照清單順序", () => {
+    expect(names(searchEntries(list, "劍士"))).toEqual(["劍士冒險家表揚狀", "劍士轉職證明書", "長槍", "木劍"]);
+  });
+
+  it("打編號：編號完全一樣的算開頭符合", () => {
+    expect(names(searchEntries(list, "4"))).toEqual(["紅色藥水"]);
+  });
+
+  it("指定要排最前面的（例如搜「劍士」時劍士能用的裝備）：照清單順序排在最前面，其他照原本的分組", () => {
+    expect(names(searchEntries(list, "劍士", new Set(["2", "3"])))).toEqual(["長槍", "木劍", "劍士冒險家表揚狀", "劍士轉職證明書"]);
+  });
+
+  it("指定的如果根本不符合搜尋字，不會被硬塞進結果", () => {
+    expect(names(searchEntries(list, "劍士", new Set(["4"])))).toEqual(["劍士冒險家表揚狀", "劍士轉職證明書", "長槍", "木劍"]);
   });
 });

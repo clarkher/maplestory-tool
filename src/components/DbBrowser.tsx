@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSyncExternalStore } from "react";
-import { collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature } from "@/lib/db-browse";
+import { collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature, searchEntries } from "@/lib/db-browse";
 import { useRemembered } from "@/lib/remember";
 import { ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
@@ -84,6 +84,7 @@ export function DbBrowser({
   filters,
   renderDetail,
   searchPlaceholder = "輸入名稱或 ID",
+  preferFor,
 }: {
   title: string;
   lead: string;
@@ -93,6 +94,8 @@ export function DbBrowser({
   filters?: React.ReactNode;
   renderDetail: (id: string) => React.ReactNode;
   searchPlaceholder?: string;
+  /** 這次搜尋要排最前面的 id（例：道具頁搜「劍士」時劍士能用的裝備）；回 null 照一般排法。要用 useCallback 包，不然每次重算 */
+  preferFor?: (keyword: string) => ReadonlySet<string> | null;
 }) {
   const params = useSearchParams();
   const selected = params.get("id");
@@ -104,18 +107,10 @@ export function DbBrowser({
   const topRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  const matches = useMemo(() => {
-    const keyword = query.trim().toLowerCase();
-    if (!keyword) return entries;
-    const starts: DbEntry[] = [];
-    const contains: DbEntry[] = [];
-    for (const entry of entries) {
-      const name = entry.name.toLowerCase();
-      if (name.startsWith(keyword) || entry.id === keyword) starts.push(entry);
-      else if (name.includes(keyword) || entry.keywords?.toLowerCase().includes(keyword)) contains.push(entry);
-    }
-    return [...starts, ...contains];
-  }, [entries, query]);
+  const matches = useMemo(
+    () => searchEntries(entries, query, preferFor?.(query.trim())),
+    [entries, query, preferFor],
+  );
 
   // 篩選換了清單才從頭顯示 60 筆；內容一樣只是重算（角色讀好、標籤冒出來）不算，按過「再載」的不會被收回去
   const signature = useMemo(() => listSignature(entries), [entries]);
