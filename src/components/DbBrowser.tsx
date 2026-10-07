@@ -3,9 +3,10 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, moreRows, needsRescue,
-  sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot,
+  cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, moreRows,
+  needsRescue, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot,
 } from "@/lib/db-browse";
+import { reloadRestore } from "@/lib/reload-scroll";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
@@ -274,6 +275,24 @@ export function DbBrowser({
     [cardBlock],
   );
 
+  // 這次載入時紀錄裡記的卡片（離開那一刻在頁面上的位置）。畫出來之後紀錄會一直改成現在的位置，所以一開始就先拿起來
+  const [cardWhenLeft] = useState(() => (typeof window === "undefined" ? undefined : cardOf(window.history.state)));
+  const followReload = useRef(true);
+  // 重新整理、離站再返回（整頁重載）回到開著卡片的那一筆：位置由 reload-scroll 放回離開時讀到的地方。
+  // 卡片跟離開時不在同一個地方（重新整理後清單只剩前 60 筆，卡片從清單中間搬到最上面）：要放回去的位置跟著卡片挪，
+  // 一樣停在卡片裡讀到的那一段。清單分兩次畫（先照記住的筆數、再縮回 60 筆），所以每次畫完都對一次；
+  // 在畫面出來之前挪，不會先閃到舊的位置
+  useLayoutEffect(() => {
+    if (!followReload.current) return;
+    const restore = reloadRestore();
+    if (!restore?.restoring()) {
+      followReload.current = false;
+      return;
+    }
+    const block = cardWhenLeft?.id === selected && cardWhenLeft.page === page ? cardBlock(selected) : null;
+    if (cardWhenLeft && block) restore.shift(cardShift(cardWhenLeft.at, Math.round(block.getBoundingClientRect().top + window.scrollY)));
+  });
+
   // 手機點了一筆：上面開著的另一筆收起來、或最上面的卡片搬下來時，這一列會往上跳——先放回手指點的位置，再捲到導覽列下方
   useLayoutEffect(() => {
     const tap = tapped.current;
@@ -363,8 +382,10 @@ export function DbBrowser({
         cancelAnimationFrame(frame);
       };
     }
+    // 重新整理、離站再返回：位置由 reload-scroll 放回離開時讀到的地方（卡片搬家時上面已經跟著挪），不跳到卡片頂端
+    if (reloadRestore()?.restoring()) return;
     if (!hasDetail || isWide()) return;
-    // 卡片在哪就跳到哪（重新整理時照紀錄放在最上面的，那一列就算也在清單上，也跳到卡片）。
+    // 卡片在哪就跳到哪（沒記到位置的重新整理也是：照紀錄放在最上面的，那一列就算也在清單上，也跳到卡片）。
     // instant：全站開了平滑捲動，不指定會從頂端一路滑三千多 px 下來
     (cardBlock(selected) ?? rowOf(selected) ?? topRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
   }, [loading, selected, hasDetail, page, cardBlock, recordCardAt]);

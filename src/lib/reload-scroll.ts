@@ -3,6 +3,7 @@
  * 瀏覽器一載入就還原位置，可是首頁、規劃頁、查資料清單的內容要等資料抓完才畫出來：還原的那一刻頁面很短，
  * 位置被截掉（任務頁 8548 → 179）；內容晚插進上面時，捲動錨定還會把位置往下推（關於頁 1952 → 2414）。
  * 所以自己記每一筆瀏覽紀錄的位置，整頁重載時頁面每長高一次，放得下了就直接跳回去；使用者一動就停手。
+ * 查資料開著某一筆（?id=）也是這裡放回去：讀到卡片中段重新整理，回到中段；卡片搬了家，查資料頁叫這裡跟著挪（shift）。
  * 站內按上一頁／下一頁不靠這裡：React 當下就畫好那一頁，瀏覽器自己還原得回去（直接跳、不滑是 history-scroll 在管）。
  */
 
@@ -64,16 +65,28 @@ function writeAll(storage: Store | null, recorded: Map<string, number>) {
   }
 }
 
+/** 這次整頁重載的還原：查資料頁用來決定要不要自己跳卡片、卡片搬家時叫它跟著挪 */
+export type ReloadRestore = {
+  /** 還在把位置放回去：整頁重載、這一筆記過位置、使用者還沒動、還是同一筆紀錄、還沒等太久 */
+  restoring(): boolean;
+  /**
+   * 頁面上的東西比離開時搬了 by px（查資料重新整理後清單只剩前 60 筆，卡片從清單中間搬到最上面）：
+   * 要跳回去的位置＝記下的位置＋by，放得下就馬上跳。照記下的位置算，每次畫面更新都叫也不會越挪越多
+   */
+  shift(by: number): void;
+};
+
 /**
  * 記住每一筆瀏覽紀錄捲到哪；restore（這次是整頁重載）時，頁面長高、放得下了就跳回記下的位置。
  * 跳回去的這段時間，瀏覽器截掉、錨定推動造成的捲動都不記，連按兩次重新整理也回得去。
  */
-export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: boolean }) {
+export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: boolean }): ReloadRestore {
   // 這次載入動到的位置，離開時才併進 sessionStorage
   const recorded = new Map<string, number>();
   const startKey = restore ? env.key() : "";
   const saved = restore ? readAll(env.storage)[startKey] : undefined;
-  const target = typeof saved === "number" && Number.isFinite(saved) && saved > 0 ? saved : 0;
+  const savedTop = typeof saved === "number" && Number.isFinite(saved) && saved > 0 ? saved : 0;
+  let target = savedTop;
   let restoring = target > 0;
 
   const record = () => {
@@ -92,7 +105,7 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
     if (env.hidden()) save();
   });
 
-  if (!restoring) return;
+  if (!restoring) return { restoring: () => false, shift: () => {} };
   let unwatch = () => {};
   const stop = () => {
     if (!restoring) return;
@@ -101,29 +114,45 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
     env.scrollAnchoring(true);
     for (const type of HANDS_ON) env.events.removeEventListener(type, stop, true);
   };
+  // 還沒停手、也還是同一筆紀錄（程式換了網址就不算）
+  const active = () => restoring && env.key() === startKey;
+  const place = () => {
+    if (!restoring) return;
+    // 已經換到別筆紀錄（程式換的網址）：不把這一頁的位置套過去
+    if (!active()) return stop();
+    // 還放不下（資料還沒畫出來）：先不動，等下一次長高
+    if (env.maxScroll() + 1 < target) return;
+    if (Math.abs(env.scrollY() - target) > 1) env.jump(target);
+  };
   // 記下的位置就是內容全部長出來之後的位置：這段時間內容插進上面，位置本來就該留在原處，不用瀏覽器幫忙往下推
   env.scrollAnchoring(false);
   for (const type of HANDS_ON) env.events.addEventListener(type, stop, { capture: true, passive: true });
   env.wait(GIVE_UP_MS, stop);
-  unwatch = env.watchResize(() => {
-    if (!restoring) return;
-    // 已經換到別筆紀錄（程式換的網址）：不把這一頁的位置套過去
-    if (env.key() !== startKey) return stop();
-    // 還放不下（資料還沒畫出來）：先不動，等下一次長高
-    if (env.maxScroll() + 1 < target) return;
-    if (Math.abs(env.scrollY() - target) > 1) env.jump(target);
-  });
+  unwatch = env.watchResize(place);
+  return {
+    restoring: active,
+    shift: by => {
+      if (!active()) return;
+      target = Math.max(0, savedTop + by);
+      // 離開時記挪過的位置（還原的這段時間捲動不記）：還沒動又按一次重新整理，回到同一個地方
+      recorded.set(startKey, target);
+      place();
+    },
+  };
+}
+
+/** 這個分頁這次載入裝上的還原（installReloadScroll）；裝不起來是 null */
+let installed: ReloadRestore | null = null;
+
+/** 查資料頁問：位置是不是有人在放回去（是的話不自己跳到卡片），卡片搬家時叫它跟著挪 */
+export function reloadRestore(): ReloadRestore | null {
+  return installed;
 }
 
 /** 這次是不是整頁重載：重新整理、或離站再按返回但瀏覽器沒留住頁面（一載入瀏覽器就在還原位置） */
 export function isFullReload(performance: { getEntriesByType?(kind: string): readonly object[] } | undefined): boolean {
   const entry = performance?.getEntriesByType?.("navigation")[0] as { type?: string } | undefined;
   return entry?.type === "reload" || entry?.type === "back_forward";
-}
-
-/** 查資料網址指定了某一筆（/db/…?id=）：那一頁重新整理時自己會把卡片放回去、跳到卡片（DbBrowser），這裡不還原 */
-export function placesItself({ pathname, search }: Pick<Location, "pathname" | "search">): boolean {
-  return pathname.startsWith("/db/") && new URLSearchParams(search).has("id");
 }
 
 type BrowserWindow = Window &
@@ -142,9 +171,10 @@ function sessionStorageOf(win: BrowserWindow): Store | null {
 
 /** 裝到這個分頁上（layout 的 HistoryScrollJump 一載入就裝，不等畫面出來） */
 export function installReloadScroll(win: BrowserWindow, doc: Document) {
+  installed = null;
   try {
     const root = doc.documentElement;
-    keepScrollAcrossReloads(
+    installed = keepScrollAcrossReloads(
       {
         events: win,
         // 分得出是哪一筆紀錄就照紀錄記（同一個網址在上一頁清單裡出現兩次也分得開），不然照網址（不含 #）
@@ -167,7 +197,7 @@ export function installReloadScroll(win: BrowserWindow, doc: Document) {
           root.style.overflowAnchor = on ? "" : "none";
         },
       },
-      { restore: isFullReload(win.performance) && !placesItself(win.location) },
+      { restore: isFullReload(win.performance) },
     );
   } catch {
     // 回到原位只是加分：瀏覽器少了什麼功能，也不能拖垮整頁

@@ -5,7 +5,7 @@ import { installReloadScroll } from "@/lib/reload-scroll";
 
 // 一載入就裝好，不等畫面出來：第一次按上一頁就有效。
 // 重新整理、整頁重載的返回，<head> 已經先關掉平滑捲動（restoreScrollBootstrap），等使用者第一次自己操作再恢復；
-// 內容晚出現的頁面（首頁、規劃頁、查資料清單），等頁面長高、放得下了再跳回原位（reload-scroll）
+// 內容晚出現的頁面（首頁、規劃頁、查資料清單和開著的卡片），等頁面長高、放得下了再跳回原位（reload-scroll）
 if (typeof window !== "undefined") {
   const root = document.documentElement;
   jumpWhenRestoring(window, root, { restoring: root.style.scrollBehavior === "auto" });

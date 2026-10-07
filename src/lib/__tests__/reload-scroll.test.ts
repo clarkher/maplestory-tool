@@ -3,7 +3,7 @@
  * 還原的那一刻頁面很短，位置被截掉（任務頁 8548 → 179）。所以自己記位置，頁面長高、放得下了再直接跳回去。
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { installReloadScroll, isFullReload, keepScrollAcrossReloads, placesItself, type ScrollEnv } from "@/lib/reload-scroll";
+import { installReloadScroll, isFullReload, keepScrollAcrossReloads, reloadRestore, type ScrollEnv } from "@/lib/reload-scroll";
 
 const STORE = "ms-scroll";
 
@@ -307,6 +307,96 @@ describe("整頁重載：使用者一動就停手，不跟他搶", () => {
   });
 });
 
+// 白狼人開在怪物清單第 121 筆（卡片離頁面頂端 6000），讀到卡片中段（9000）重新整理。
+// 重新整理後清單只剩前 60 筆，卡片從清單中間搬到最上面（357），往上搬了 5643
+describe("查資料卡片搬家：要跳回去的位置跟著卡片挪，一樣停在卡片裡讀到的那一段", () => {
+  it("卡片往上搬了 5643：跳到 9000 − 5643 = 3357", () => {
+    const t = fakePage({ key: "entry-wolf", height: 812, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    // 清單先照記住的筆數畫出來（卡片還在第 121 筆）：放得下，跳回 9000
+    t.grow(14000);
+    expect(t.page.y).toBe(9000);
+    // 接著只剩前 60 筆，卡片搬到最上面：頁面變短，瀏覽器把位置截到底
+    t.grow(6200);
+    restore.shift(-5643);
+    expect(t.page.y).toBe(3357);
+    expect(t.page.jumps).toEqual([9000, 3357]);
+  });
+
+  it("挪的時候還放不下：先記著，頁面長高、放得下了再跳到挪過的位置", () => {
+    const t = fakePage({ key: "entry-wolf", height: 812, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    restore.shift(-5643);
+    expect(t.page.jumps).toEqual([]);
+    t.grow(6200);
+    expect(t.page.jumps).toEqual([3357]);
+  });
+
+  it("每次畫面更新都可以再對一次：照離開時記的位置算，重複叫不會越挪越多", () => {
+    const t = fakePage({ key: "entry-wolf", height: 6200, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    restore.shift(-5643);
+    restore.shift(-5643);
+    expect(t.page.y).toBe(3357);
+    // 卡片又回到離開時的地方（例如清單又長回去）：回到記下的 9000
+    t.grow(14000);
+    restore.shift(0);
+    expect(t.page.y).toBe(9000);
+  });
+
+  it("挪過的位置也記下來：還沒動又按一次重新整理，回到挪過的地方", () => {
+    const t = fakePage({ key: "entry-wolf", height: 6200, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    restore.shift(-5643);
+    t.fire("pagehide");
+    expect(t.saved()).toEqual({ "entry-wolf": 3357 });
+  });
+
+  it("挪到頂端以上（離開時在卡片上方、卡片又往上搬）：停在頂端", () => {
+    const t = fakePage({ key: "entry-wolf", height: 14000, saved: { "entry-wolf": 2000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    t.grow(14000);
+    expect(t.page.y).toBe(2000);
+    restore.shift(-5643);
+    expect(t.page.y).toBe(0);
+  });
+
+  it("還在還原就說 restoring：查資料頁這時不自己跳到卡片", () => {
+    const t = fakePage({ key: "entry-wolf", height: 812, saved: { "entry-wolf": 9000 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    expect(restore.restoring()).toBe(true);
+    t.grow(14000);
+    // 已經跳回去了也還算：使用者還沒動，之後清單變短、卡片搬家還要跟著挪
+    expect(restore.restoring()).toBe(true);
+  });
+
+  it("使用者動過、等太久、換到別筆紀錄：不再挪，restoring 變 false（查資料頁照舊跳到卡片）", () => {
+    const cases: Array<[string, (t: ReturnType<typeof fakePage>) => void]> = [
+      ["點了", t => t.fire("pointerdown")],
+      ["等太久", t => t.page.timers[0]()],
+      ["換到別筆紀錄", t => void (t.page.key = "entry-other")],
+    ];
+    for (const [name, act] of cases) {
+      const t = fakePage({ key: "entry-wolf", height: 6200, saved: { "entry-wolf": 9000 } });
+      const restore = keepScrollAcrossReloads(t.env, { restore: true });
+      act(t);
+      expect(restore.restoring(), name).toBe(false);
+      restore.shift(-5643);
+      expect(t.page.jumps, name).toEqual([]);
+    }
+  });
+
+  it("不是整頁重載、或這一筆沒記過位置：restoring 是 false，挪也不跳", () => {
+    for (const [restore, saved] of [[false, { "entry-wolf": 9000 }], [true, {}], [true, { "entry-wolf": 0 }]] as const) {
+      const t = fakePage({ key: "entry-wolf", height: 6200, saved });
+      const control = keepScrollAcrossReloads(t.env, { restore });
+      expect(control.restoring(), JSON.stringify([restore, saved])).toBe(false);
+      control.shift(-5643);
+      expect(t.page.jumps, JSON.stringify([restore, saved])).toEqual([]);
+    }
+  });
+});
+
 describe("哪些載入要還原", () => {
   const navigationOf = (type: string) => ({
     getEntriesByType: (kind: string) => (kind === "navigation" ? [{ type }] : []),
@@ -323,15 +413,6 @@ describe("哪些載入要還原", () => {
     expect(isFullReload({ getEntriesByType: () => [] })).toBe(false);
     expect(isFullReload({} as never)).toBe(false);
     expect(isFullReload(undefined)).toBe(false);
-  });
-
-  it("查資料網址指定了某一筆（?id=）：那一頁自己會跳到那張卡，這裡不還原", () => {
-    expect(placesItself({ pathname: "/db/monsters", search: "?id=100100" })).toBe(true);
-    expect(placesItself({ pathname: "/db/items", search: "?q=1&id=1302000" })).toBe(true);
-    expect(placesItself({ pathname: "/db/monsters", search: "" })).toBe(false);
-    expect(placesItself({ pathname: "/plan/farm", search: "?want=4000019" })).toBe(false);
-    expect(placesItself({ pathname: "/plan/quest", search: "?id=1" })).toBe(false);
-    expect(placesItself({ pathname: "/", search: "" })).toBe(false);
   });
 });
 
@@ -418,10 +499,28 @@ describe("裝到真的瀏覽器上（window、document、sessionStorage、Resize
     expect(JSON.parse(b.store.get(STORE) ?? "{}")).toEqual({ "/db/monsters?id=100100": 4001 });
   });
 
-  it("查資料開著某一筆重新整理：照舊讓那一頁自己跳到卡片，這裡不盯", () => {
+  it("查資料開著某一筆重新整理：一樣盯著，放得下就跳回卡片裡讀到的地方（4001，不是卡片頂端）", () => {
     const b = fakeBrowser({ pathname: "/db/monsters", search: "?id=100100", saved: { "/db/monsters?id=100100": 4001 } });
     installReloadScroll(b.win as never, b.doc as never);
-    expect(b.observers).toHaveLength(0);
+    expect(b.observers).toHaveLength(1);
+    b.root.scrollHeight = 6700;
+    b.observers[0].callback();
+    expect(b.scrolls).toEqual([{ top: 4001, behavior: "instant" }]);
+  });
+
+  it("查資料頁拿得到這次的還原（reloadRestore）：還在還原就不自己跳卡片，卡片搬家時叫它跟著挪", () => {
+    const b = fakeBrowser({ navigationKey: "k-wolf", pathname: "/db/monsters", search: "?id=8140000", saved: { "k-wolf": 9000 } });
+    installReloadScroll(b.win as never, b.doc as never);
+    expect(reloadRestore()?.restoring()).toBe(true);
+    b.root.scrollHeight = 6200;
+    reloadRestore()?.shift(-5643);
+    expect(b.scrolls).toEqual([{ top: 3357, behavior: "instant" }]);
+  });
+
+  it("一般點連結進來：reloadRestore 說沒在還原（查資料頁照舊跳到卡片）", () => {
+    const b = fakeBrowser({ type: "navigate", pathname: "/db/monsters", search: "?id=100100", saved: { "/db/monsters?id=100100": 4001 } });
+    installReloadScroll(b.win as never, b.doc as never);
+    expect(reloadRestore()?.restoring()).toBe(false);
   });
 
   it("瀏覽器少了哪個功能（沒有 ResizeObserver、sessionStorage、performance）都不出錯，頁面照常", () => {
