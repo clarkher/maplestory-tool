@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  canJobUse, compareItems, equipGroups, itemKeywords, itemNote, shopGroups, wearFit, jobLabel, sortCategories, subcategoryOptions, usableBy,
+  canJobUse, compareItems, equipGroups, fitsJobSearch, hiddenFromList, itemKeywords, itemNote, jobSearchBit, shopGroups, wearFit,
+  jobLabel, sortCategories, subcategoryGroups, subcategoryOptions, usableBy, wearableNow,
 } from "@/lib/item-view";
 import type { Item } from "@/lib/types";
 
@@ -178,6 +179,34 @@ describe("篩選「只看我的職業能用的裝備」", () => {
   });
 });
 
+describe("篩選「現在就能穿的」：職業能用、而且等級到了", () => {
+  it("佛羅利刃要 Lv.90：槍騎兵 Lv.95 能穿、Lv.35 還不行；火毒巫師等級夠也不行", () => {
+    expect(wearableNow(spear, { job: 130, level: 95 })).toBe(true);
+    expect(wearableNow(spear, { job: 130, level: 90 })).toBe(true);
+    expect(wearableNow(spear, { job: 130, level: 35 })).toBe(false);
+    expect(wearableNow(spear, { job: 210, level: 95 })).toBe(false);
+  });
+
+  it("沒寫等級的裝備（勳章）等級幾都算到了；沒填等級（0）就不判斷", () => {
+    expect(wearableNow(medal, { job: 130, level: 1 })).toBe(true);
+    expect(wearableNow(medal, { job: 130, level: 0 })).toBe(false);
+  });
+});
+
+describe("種類叫「裝備」、又拿不到的道具不列", () => {
+  it("影武者的刀、龍魔導士的龍裝備這類：分類、種類都寫「裝備」而且沒有任何來源，不列", () => {
+    expect(hiddenFromList({ id: 1342001, n: "地天刀", c: "裝備", s: "裝備" })).toBe(true);
+    expect(hiddenFromList({ id: 1942000, n: "銀面具", c: "裝備", s: "裝備", eq: { reqLevel: 20, reqJob: 2 } })).toBe(true);
+  });
+
+  it("有怪掉、有任務給或有店賣的照樣列；一般種類的照樣列", () => {
+    expect(hiddenFromList({ id: 1342001, n: "地天刀", c: "裝備", s: "裝備", dm: [100100] })).toBe(false);
+    expect(hiddenFromList({ id: 1342001, n: "地天刀", c: "裝備", s: "裝備", qr: ["1000"] })).toBe(false);
+    expect(hiddenFromList(spear)).toBe(false);
+    expect(hiddenFromList(medal)).toBe(false);
+  });
+});
+
 describe("道具清單的預設排序", () => {
   it("裝備最前面、依需求等級由低到高，沒寫等級的排在裝備最後；再來消耗、其他、裝飾、現金、時裝", () => {
     const shield: Item = { id: 1092000, n: "木盾", c: "裝備", s: "盾牌", eq: { reqLevel: 10 } };
@@ -188,6 +217,22 @@ describe("道具清單的預設排序", () => {
     expect([...input].sort(compareItems).map(item => item.n)).toEqual([
       "木盾", "佛羅利刃", "10日夢勳章", "紅色藥水", "任務道具", "椅子", "喇叭", "時裝帽",
     ]);
+  });
+
+  it("同一個等級裡，拿得到的（有怪掉、任務給、店賣）排前面；等級還是比拿不拿得到優先", () => {
+    const noSource: Item = { id: 1302001, n: "沒來源的劍", c: "裝備", s: "單手劍", eq: { reqLevel: 10 } };
+    const dropped: Item = { id: 1302002, n: "會掉的劍", c: "裝備", s: "單手劍", eq: { reqLevel: 10 }, dm: [100100] };
+    const fromQuest: Item = { id: 1302003, n: "任務給的劍", c: "裝備", s: "單手劍", eq: { reqLevel: 10 }, qr: ["1000"] };
+    const higher: Item = { id: 1302004, n: "高等會掉的劍", c: "裝備", s: "單手劍", eq: { reqLevel: 20 }, dm: [100100] };
+    expect([higher, noSource, dropped, fromQuest].sort(compareItems).map(item => item.n)).toEqual([
+      "會掉的劍", "任務給的劍", "沒來源的劍", "高等會掉的劍",
+    ]);
+  });
+
+  it("沒有等級的分類（消耗品）也是拿得到的排前面", () => {
+    const sold: Item = { id: 2000000, n: "紅色藥水", c: "消耗", s: "藥水", sp: [{ p: "弓箭手村", pr: 50 }] };
+    const none: Item = { id: 2000999, n: "拿不到的藥水", c: "消耗", s: "藥水" };
+    expect([none, sold].sort(compareItems).map(item => item.n)).toEqual(["紅色藥水", "拿不到的藥水"]);
   });
 
   it("同一類、同等級的維持原本的順序（資料本來依名稱排）", () => {
@@ -220,6 +265,69 @@ describe("搜尋也比對職業和種類", () => {
     expect(itemKeywords(sake)).toContain("初心者");
     expect(itemKeywords({ ...spear, eq: { ...spear.eq, reqJob: 32 } })).not.toContain("32");
   });
+
+  it("時裝不放職業名（「劍士一、二轉技能效果」不會被搜「劍士」找到）", () => {
+    const effect: Item = { id: 1602004, n: "劍士一、二轉技能效果", c: "時裝", s: "戒指", eq: { reqJob: 1 } };
+    const fashionSword: Item = { id: 1702000, n: "時裝劍", c: "時裝", s: "武器外觀", eq: { reqJob: 1 } };
+    expect(itemKeywords(fashionSword)).not.toContain("劍士");
+    expect(itemKeywords(effect)).not.toContain("劍士、");
+    expect(itemKeywords(effect)).toBe("戒指");
+  });
+});
+
+describe("搜職業名時，那個職業能用的裝備排最前面", () => {
+  it("認得五個職業系跟初心者，其他字回 null", () => {
+    expect(jobSearchBit("劍士")).toBe(1);
+    expect(jobSearchBit("法師")).toBe(2);
+    expect(jobSearchBit("弓箭手")).toBe(4);
+    expect(jobSearchBit(" 盜賊 ")).toBe(8);
+    expect(jobSearchBit("海盜")).toBe(16);
+    expect(jobSearchBit("初心者")).toBe(-1);
+    expect(jobSearchBit("劍")).toBeNull();
+    expect(jobSearchBit("槍騎兵")).toBeNull();
+  });
+
+  it("只算「裝備」分類裡寫了這個職業的：劍士、劍士＋盜賊都算；沒職業限制的、時裝不算", () => {
+    const dagger: Item = { id: 1332009, n: "偃月刃", c: "裝備", s: "短刀", eq: { reqLevel: 30, reqJob: 9 } };
+    expect(fitsJobSearch(spear, 1)).toBe(true);
+    expect(fitsJobSearch(dagger, 1)).toBe(true);
+    expect(fitsJobSearch(dagger, 8)).toBe(true);
+    expect(fitsJobSearch(spear, 2)).toBe(false);
+    expect(fitsJobSearch(medal, 1)).toBe(false);
+    expect(fitsJobSearch({ id: 1702000, n: "時裝劍", c: "時裝", s: "武器外觀", eq: { reqJob: 1 } }, 1)).toBe(false);
+  });
+
+  it("初心者只算初心者專用的（-1）", () => {
+    expect(fitsJobSearch(sake, -1)).toBe(true);
+    expect(fitsJobSearch(spear, -1)).toBe(false);
+    expect(fitsJobSearch(sake, 1)).toBe(false);
+  });
+});
+
+describe("種類下拉分組", () => {
+  it("裝備分成武器、防具、飾品、其他（看道具編號是哪一類），每組裡件數多的排前面；空的組不列", () => {
+    const list: Item[] = [
+      { id: 1432000, n: "長槍", c: "裝備", s: "槍" },
+      { id: 1002000, n: "帽 1", c: "裝備", s: "帽子" },
+      { id: 1002001, n: "帽 2", c: "裝備", s: "帽子" },
+      { id: 1092000, n: "木盾", c: "裝備", s: "盾牌" },
+      { id: 1032000, n: "耳環", c: "裝備", s: "耳環" },
+      { id: 1142000, n: "勳章", c: "裝備", s: "勳章" },
+      { id: 1142001, n: "勳章 2", c: "裝備", s: "勳章" },
+      { id: 1902000, n: "坐騎", c: "裝備", s: "騎寵" },
+    ];
+    expect(subcategoryGroups(list, "裝備")).toEqual([
+      { label: "武器", options: ["槍"] },
+      { label: "防具", options: ["帽子", "盾牌"] },
+      { label: "飾品", options: ["勳章", "耳環"] },
+      { label: "其他", options: ["騎寵"] },
+    ]);
+  });
+
+  it("其他分類不分組", () => {
+    const list: Item[] = [{ id: 2000000, n: "紅色藥水", c: "消耗", s: "藥水" }];
+    expect(subcategoryGroups(list, "消耗")).toEqual([{ label: null, options: ["藥水"] }]);
+  });
 });
 
 describe("種類下拉", () => {
@@ -237,6 +345,12 @@ describe("種類下拉", () => {
 });
 
 describe("道具清單右邊的小字", () => {
+  it("有需求等級的寫在最前面（清單依等級排）：Lv.90 · 槍 · 慢（7）、Lv.10 · 盾牌", () => {
+    const florid: Item = { id: 1432011, n: "佛羅利刃", c: "裝備", s: "槍", eq: { reqLevel: 90, attackSpeed: 7 } };
+    expect(itemNote(florid)).toBe("Lv.90 · 槍 · 慢（7）");
+    expect(itemNote({ id: 1092000, n: "木盾", c: "裝備", s: "盾牌", eq: { reqLevel: 10 } })).toBe("Lv.10 · 盾牌");
+  });
+
   it("武器寫種類＋攻擊速度：矛 · 慢（8）", () => {
     const mop: Item = { id: 1442004, n: "拖把", c: "裝備", s: "矛", eq: { incPAD: 47, attackSpeed: 8 } };
     expect(itemNote(mop)).toBe("矛 · 慢（8）");

@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { compareItems, equipGroups, itemKeywords, itemNote, shopGroups, wearFit, usableBy } from "@/lib/item-view";
+import { compareItems, equipGroups, hiddenFromList, itemKeywords, itemNote, shopGroups, wearFit, usableBy } from "@/lib/item-view";
 import { isV002Map } from "@/lib/v002";
 import type { Item, MapRecord } from "@/lib/types";
 
@@ -47,8 +47,8 @@ describe("真資料：找道具", () => {
     expect(categories.lastIndexOf("裝備")).toBeLessThan(categories.findIndex(c => c !== "裝備"));
   });
 
-  it("搜尋「劍士」找得到每件劍士能用的裝備（需求職業的位元 1）", () => {
-    const warriorGear = items.filter(item => typeof item.eq?.reqJob === "number" && item.eq.reqJob > 0 && (item.eq.reqJob & 1));
+  it("搜尋「劍士」找得到每件劍士能用的裝備（「裝備」分類、需求職業的位元 1；時裝不算）", () => {
+    const warriorGear = items.filter(item => item.c === "裝備" && typeof item.eq?.reqJob === "number" && item.eq.reqJob > 0 && (item.eq.reqJob & 1));
     expect(warriorGear.length).toBeGreaterThan(0);
     expect(warriorGear.filter(item => !itemKeywords(item).includes("劍士")).map(item => item.id)).toEqual([]);
   });
@@ -63,11 +63,21 @@ describe("真資料：找道具", () => {
     expect(wrong.map(item => item.id)).toEqual([]);
   });
 
-  it("清單小字：拖把寫「矛 · 慢（8）」，每件有攻擊速度的武器都帶得出攻擊速度", () => {
-    expect(itemNote(items.find(item => item.id === 1442004)!)).toBe("矛 · 慢（8）");
+  it("清單小字：拖把寫「Lv.25 · 矛 · 慢（8）」，每件有攻擊速度的武器都帶得出攻擊速度", () => {
+    expect(itemNote(items.find(item => item.id === 1442004)!)).toBe("Lv.25 · 矛 · 慢（8）");
     const weapons = items.filter(item => typeof item.eq?.attackSpeed === "number");
     expect(weapons.length).toBeGreaterThan(0);
     expect(weapons.filter(item => !itemNote(item).includes("（")).map(item => item.id)).toEqual([]);
+  });
+});
+
+describe("真資料：清單不列拿不到又用不到的", () => {
+  it("不列的每一件都是「裝備」分類、種類也寫「裝備」而且沒有任何來源；影武者的地天刀在裡面", () => {
+    const hidden = items.filter(item => !item.un && hiddenFromList(item));
+    expect(hidden.length).toBeGreaterThan(0);
+    const wrong = hidden.filter(item => item.c !== "裝備" || item.s !== "裝備" || item.dm?.length || item.qr?.length || item.sp?.length);
+    expect(wrong.map(item => item.id)).toEqual([]);
+    expect(hidden.some(item => item.id === 1342001)).toBe(true);
   });
 });
 

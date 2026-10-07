@@ -31,6 +31,31 @@ export function listSignature(entries: ReadonlyArray<{ id: string }>): string {
   return entries.map(entry => entry.id).join(",");
 }
 
+/**
+ * 搜尋：名字開頭符合（或編號完全一樣）的排前面，再來是名字或關鍵字含這個字的；各組照清單原本的順序。
+ * preferred：這次搜尋要排最前面的 id（例如道具頁搜「劍士」時劍士能用的裝備），一樣要符合搜尋字才算，照清單順序。
+ */
+export function searchEntries<T extends { id: string; name: string; keywords?: string }>(
+  entries: readonly T[],
+  query: string,
+  preferred?: ReadonlySet<string> | null,
+): readonly T[] {
+  const keyword = query.trim().toLowerCase();
+  if (!keyword) return entries;
+  const first: T[] = [];
+  const starts: T[] = [];
+  const contains: T[] = [];
+  for (const entry of entries) {
+    const name = entry.name.toLowerCase();
+    const startsWith = name.startsWith(keyword) || entry.id === keyword;
+    if (!startsWith && !name.includes(keyword) && !entry.keywords?.toLowerCase().includes(keyword)) continue;
+    if (preferred?.has(entry.id)) first.push(entry);
+    else if (startsWith) starts.push(entry);
+    else contains.push(entry);
+  }
+  return [...first, ...starts, ...contains];
+}
+
 /** 在沒開著別筆時從清單點開，會在那一筆的歷史紀錄留下這個記號 */
 export const FROM_LIST = "dbFromList";
 /** 記號是哪一份頁面留的：重新整理之後，上一筆紀錄屬於舊的頁面，返回會整頁重載 */

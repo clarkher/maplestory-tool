@@ -43,6 +43,27 @@ export function usableBy(item: Item, job: number): boolean {
   return reqJob !== null && canJobUse(reqJob, job) === true;
 }
 
+/** 篩選「現在就能穿的」：職業能用、而且需求等級到了（沒寫等級的算到了）；沒填等級就不判斷 */
+export function wearableNow(item: Item, profile: Profile): boolean {
+  if (profile.level <= 0 || !usableBy(item, profile.job)) return false;
+  return Number(item.eq?.reqLevel ?? 0) <= profile.level;
+}
+
+/** 拿得到：有怪掉、有任務給，或已開放的地方有店賣（sp 只收已開放地點，見 pipeline/lib/shops.mjs） */
+function hasSource(item: Item): boolean {
+  return Boolean(item.dm?.length || item.qr?.length || item.sp?.length);
+}
+
+/**
+ * 清單不列：分類、種類都寫「裝備」而且拿不到的。
+ * 遊戲資料把認不得種類的裝備都歸成「裝備」，2026-10-07 查有 38 件、全都沒有來源：
+ * 24 件影武者的刀、12 件龍魔導士的龍裝備（經典版沒有這兩個職業，資料卻寫盜賊、法師能用）、2 件虎爪。
+ * 以後哪件有了來源就會自動列回來。網址直接打開照樣看得到細節。
+ */
+export function hiddenFromList(item: Item): boolean {
+  return item.c === "裝備" && item.s === "裝備" && !hasSource(item);
+}
+
 export type WearFit = { tone: "sky" | "gold" | "maple"; text: string };
 
 /**
@@ -120,10 +141,14 @@ function categoryRank(category: string): number {
  */
 export function compareItems(a: Item, b: Item): number {
   const byCategory = categoryRank(a.c) - categoryRank(b.c);
-  if (byCategory || a.c !== "裝備") return byCategory;
-  const levelA = Number(a.eq?.reqLevel ?? 0) || Infinity;
-  const levelB = Number(b.eq?.reqLevel ?? 0) || Infinity;
-  return levelA === levelB ? 0 : levelA - levelB;
+  if (byCategory) return byCategory;
+  if (a.c === "裝備") {
+    const levelA = Number(a.eq?.reqLevel ?? 0) || Infinity;
+    const levelB = Number(b.eq?.reqLevel ?? 0) || Infinity;
+    if (levelA !== levelB) return levelA - levelB;
+  }
+  // 同一個等級（沒有等級的分類就是整類）裡，拿得到的排前面，其餘維持原本順序
+  return Number(hasSource(b)) - Number(hasSource(a));
 }
 
 /** 分類下拉跟清單用同一個順序 */
@@ -133,21 +158,41 @@ export function sortCategories(categories: string[]): string[] {
 
 /**
  * 搜尋時額外比對的字：說明、種類（短刀）、需求職業（劍士、盜賊）。
- * 沒有職業限制的不放職業名，免得搜「劍士」被全職業裝備洗版（要看全部能用的，用「只看我能用的」篩選）。
+ * 沒有職業限制的不放職業名，免得搜「劍士」被全職業裝備洗版（要看全部能用的，用「只看我能用的」篩選）；
+ * 時裝也不放（「劍士一、二轉技能效果」這類不是玩家搜職業時要找的）。
  */
 export function itemKeywords(item: Item): string {
-  const reqJob = reqJobOf(item);
+  const reqJob = item.c === "裝備" ? reqJobOf(item) : undefined;
   // 認不得的值 equipStatValue 會照原數字寫，那個數字對搜尋沒意義，不放
   const jobs = typeof reqJob === "number" && reqJob !== 0 && isKnownReqJob(reqJob) ? equipStatValue("reqJob", reqJob) : "";
   return [item.d, item.s, jobs].filter(Boolean).join(" ");
 }
 
-/** 道具清單右邊的小字：種類（沒有種類寫分類）；武器加攻擊速度，比武器不用一件件點進去。認不得的攻擊速度不寫。 */
+/** 搜尋字是職業系或初心者的話，回它在需求職業裡的位元（初心者是 -1）；其他字回 null */
+const JOB_SEARCH_BITS: Record<string, number> = { 劍士: 1, 法師: 2, 弓箭手: 4, 盜賊: 8, 海盜: 16, 初心者: -1 };
+
+export function jobSearchBit(keyword: string): number | null {
+  return JOB_SEARCH_BITS[keyword.trim()] ?? null;
+}
+
+/**
+ * 搜職業名時排最前面的：「裝備」分類裡需求職業寫了這個職業系的（劍士＋盜賊的短刀，搜劍士、搜盜賊都算）；
+ * 初心者只算初心者專用的（-1）。沒有職業限制的、時裝不算，跟搜尋關鍵字同一套規則。
+ */
+export function fitsJobSearch(item: Item, bit: number): boolean {
+  if (item.c !== "裝備") return false;
+  const reqJob = reqJobOf(item);
+  if (typeof reqJob !== "number") return false;
+  if (bit === -1) return reqJob === -1;
+  return reqJob > 0 && isKnownReqJob(reqJob) && (reqJob & bit) !== 0;
+}
+
+/** 道具清單右邊的小字：需求等級（清單依等級排，放最前面）、種類（沒有種類寫分類）、武器的攻擊速度。認不得的攻擊速度不寫。 */
 export function itemNote(item: Item): string {
-  const kind = item.s || item.c;
+  const level = Number(item.eq?.reqLevel ?? 0);
   const speed = item.eq?.attackSpeed;
   const label = typeof speed === "number" ? attackSpeedLabel(speed) : null;
-  return label ? `${kind} · ${label}` : kind;
+  return [level > 0 ? `Lv.${level}` : null, item.s || item.c, label].filter(Boolean).join(" · ");
 }
 
 /** 種類下拉：這個分類裡有的種類，件數多的排前面 */
@@ -155,6 +200,32 @@ export function subcategoryOptions(items: Item[], category: string): string[] {
   const counts = new Map<string, number>();
   for (const item of items) if (item.c === category && item.s) counts.set(item.s, (counts.get(item.s) ?? 0) + 1);
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name);
+}
+
+/**
+ * 裝備的種類分組看道具編號前四碼（道具編號 ÷ 10000），不看種類名稱——種類的寫法之後可能改成遊戲用字。
+ * 武器 130–149（單手劍、短刀、槍、弓、指虎、火槍…）；防具：帽子 100、上衣 104、套服 105、褲裙 106、鞋子 107、
+ * 手套 108、盾牌 109、披風 110；飾品：臉飾 101、眼飾 102、耳環 103、戒指 111、墜飾 112、腰帶 113、勳章 114；其餘（騎寵等）歸其他。
+ */
+function equipGroupOf(id: number): string {
+  const kind = Math.floor(id / 10000);
+  if (kind >= 130 && kind < 150) return "武器";
+  if ([100, 104, 105, 106, 107, 108, 109, 110].includes(kind)) return "防具";
+  if ([101, 102, 103, 111, 112, 113, 114].includes(kind)) return "飾品";
+  return "其他";
+}
+
+const EQUIP_GROUPS = ["武器", "防具", "飾品", "其他"];
+
+/** 種類下拉分組：裝備分成武器、防具、飾品、其他（空的組不列，組裡照 subcategoryOptions 的順序）；其他分類不分組（label 是 null） */
+export function subcategoryGroups(items: Item[], category: string): Array<{ label: string | null; options: string[] }> {
+  const options = subcategoryOptions(items, category);
+  if (category !== "裝備") return options.length ? [{ label: null, options }] : [];
+  const groupOf = new Map<string, string>();
+  for (const item of items) if (item.c === category && item.s && !groupOf.has(item.s)) groupOf.set(item.s, equipGroupOf(item.id));
+  return EQUIP_GROUPS
+    .map(label => ({ label, options: options.filter(name => groupOf.get(name) === label) }))
+    .filter(group => group.options.length > 0);
 }
 
 /** later：這家店的地點 10/15 才開放（畫面標「10/15 開放」） */
