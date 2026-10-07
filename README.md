@@ -201,6 +201,10 @@ npm run data:all      # 以上全跑
   （以前認不得的寫法默默取首字母存，怪物卡又把認不得的代碼原樣印出來，才會寫出「冰 r」）：
   到 `pipeline/lib/elemental.mjs` 補對照、`src/lib/format.ts` 補字（新的抗性種類也看 `src/lib/job-rules.ts` 要不要算進去）再重建。
   上游整個屬性欄位不見、每隻怪的抗性被清空時，`verify.mjs` 的「怪物有屬性抗性資料」會紅
+- 上游圖檔只收四個目錄最上層的 `.png`（前端載的圖）跟 `.json`（上游附的 `summary.json`）；`.svg`、`.html` 這類網頁檔放上正式機網域，
+  有人點開就會用我們網站的身分跑上游寫的腳本，所以白名單以外的檔、子資料夾、捷徑（symlink）一律不收，網站裡原本混進來的也清掉
+  （`pipeline/lib/assets.mjs`）。上游把 `assets` 或其中一個目錄換成捷徑時「取得 Artale 資料」直接失敗、不開 PR。
+  前端要載新的圖檔格式就到 `ASSET_EXTENSIONS` 加（`pipeline/lib/assets.test.mjs` 會檢查前端用到的副檔名都在白名單裡）
 - 也可以手動觸發，勾 `force` 可略過版本比對
 
 Vercel 這端接的是 GitHub 整合（production branch = `main`），
