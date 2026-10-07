@@ -1,16 +1,18 @@
 /**
- * 真資料常駐檢查：直接讀 public/data/items.json，確認道具頁「裝備數值」對玩家寫的是中文，
- * 不會露出英文欄位名（reqJob）、欄位代碼（WpSi）或看不懂的數字（需求職業 1、攻擊速度 6）。
- * 上游資料多了新欄位、新的職業值或新的攻擊速度時這裡會先紅。
+ * 真資料常駐檢查：直接讀 public/data/items.json、monsters.json，確認道具頁「裝備數值」、怪物頁「屬性抗性」
+ * 對玩家寫的是中文，不會露出英文欄位名（reqJob）、欄位代碼（WpSi、冰 r）或看不懂的數字（需求職業 1、攻擊速度 6）。
+ * 上游資料多了新欄位、新的職業值或新的攻擊速度時這裡會先紅。抗性的新寫法在管線重建時就擋下（pipeline/lib/elemental.mjs），
+ * 這裡確認資料檔裡的每個抗性代碼，怪物卡都寫得出中文。
  */
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { equipStatLabel, equipStatValue } from "@/lib/format";
-import type { Item } from "@/lib/types";
+import { elementalNotes, equipStatLabel, equipStatValue } from "@/lib/format";
+import type { Item, Monster } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const items = JSON.parse(fs.readFileSync(`${DATA}items.json`, "utf8")) as Item[];
+const monsters = JSON.parse(fs.readFileSync(`${DATA}monsters.json`, "utf8")) as Monster[];
 
 describe("真資料：裝備數值", () => {
   it("佛羅利刃（1432011）的需求職業寫劍士", () => {
@@ -71,5 +73,22 @@ describe("真資料：裝備數值", () => {
     expect(shown).toContain("雙手，不能配盾");
     expect(shown).toContain("上衣＋褲裙（佔兩格）");
     expect([...shown].filter(text => text !== null && /[A-Za-z]/.test(text))).toEqual([]);
+  });
+});
+
+describe("真資料：怪物屬性抗性", () => {
+  it("白狼人（8140000）寫「火 弱點」「冰 抗性」", () => {
+    const whiteFang = monsters.find(m => m.id === 8140000);
+    expect(elementalNotes(whiteFang?.el).map(note => `${note.element} ${note.text}`)).toEqual(["火 弱點", "冰 抗性"]);
+  });
+
+  it("每隻怪的每一筆屬性抗性都寫成中文：不露出代碼（冰 r），也沒有因為認不得被藏起來", () => {
+    const withEl = monsters.filter(m => m.el);
+    expect(withEl.length).toBeGreaterThan(0);
+    const wrong = withEl.filter(m => {
+      const shown = elementalNotes(m.el).filter(note => /^[一-鿿]+$/.test(note.element) && /^[一-鿿]+$/.test(note.text));
+      return shown.length !== Object.keys(m.el!).length;
+    });
+    expect(wrong.map(m => `${m.id} ${m.n} ${JSON.stringify(m.el)}`)).toEqual([]);
   });
 });

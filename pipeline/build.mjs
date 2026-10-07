@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isClassicJob } from "./lib/classic-jobs.mjs";
+import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { officialName } from "./lib/map-names.mjs";
 import { shopRows } from "./lib/shops.mjs";
@@ -439,7 +440,7 @@ function buildMonsters(artale, spawns, maps, canonItem) {
       eva: stats.eva ?? 0,
       spd: stats.speed ?? 0,
       und: stats.undead ? 1 : undefined,
-      el: compactElemental(monster.elemental),
+      el: compactElemental(monster.elemental, `${id} ${monster.name || ""}`),
       maps: declaredMaps,
       sp: spawnRows.length ? spawnRows : undefined,
       drops: [...new Set((monster.drops || []).map(drop => canonItem(Number(drop.id))).filter(Number.isFinite))],
@@ -449,16 +450,6 @@ function buildMonsters(artale, spawns, maps, canonItem) {
   });
 
   return { list, withSpawnData, byId: new Map(list.map(monster => [monster.id, monster])) };
-}
-
-function compactElemental(elemental) {
-  if (!elemental?.values) return undefined;
-  const short = { immune: "i", strong: "s", weak: "w", normal: "n" };
-  const out = {};
-  for (const [element, value] of Object.entries(elemental.values)) {
-    if (value && value !== "normal") out[element[0]] = short[value] || value[0];
-  }
-  return Object.keys(out).length ? out : undefined;
 }
 
 /* ---------------------------------------------------------------- 道具 */
