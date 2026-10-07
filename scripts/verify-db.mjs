@@ -150,6 +150,8 @@ const H = `
   window.__search = () => document.querySelector("main input[aria-label^=搜尋]");
   window.__setSearch = v => { const el = window.__search(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); };
   window.__droppable = () => [...document.querySelectorAll("main label")].find(l => l.textContent.includes("只看打得到的"))?.querySelector("input");
+  // 搜尋框下面那行「N 筆」
+  window.__count = () => [...document.querySelectorAll("main p")].map(p => p.textContent.trim()).find(t => /^[0-9,]+ 筆$/.test(t)) ?? "";
   window.__select = (label, value) => { const el = document.querySelector("main select[aria-label='" + label + "']"); el.value = value; el.dispatchEvent(new Event("change", { bubbles: true })); };
   // 「再載」：看得到的按鈕就按（舊版），不然捲到清單底下讓它自己接上
   window.__moreBtn = () => [...document.querySelectorAll("main button")].find(b => b.textContent.trim().startsWith("再載"));
@@ -934,14 +936,15 @@ try {
   // N16 搜尋框有字時右邊一顆「×」：按了字清掉、清單回到原本、焦點留在搜尋框
   await section("N16", async () => {
     await fresh("/db/items");
-    const r = await ev(`const none = !__clearBtn(); const firstBefore = __rowId(0); const rowsBefore = __rows().length;
+    // 搜尋有沒有改到清單看「N 筆」，不看第一列：預設清單的第一列剛好是帽子（平凡的草帽），搜「帽」排第一的也是它
+    const r = await ev(`const none = !__clearBtn(); const firstBefore = __rowId(0); const rowsBefore = __rows().length; const countBefore = __count();
       __setSearch("帽"); await __sleep(500);
-      const btn = __clearBtn(); const shown = __shows(btn); const firstWhileSearching = __rowId(0);
+      const btn = __clearBtn(); const shown = __shows(btn); const countWhileSearching = __count();
       btn?.click(); await __sleep(600);
-      return { none, shown, firstBefore, firstWhileSearching, query: __search().value, focused: document.activeElement === __search(),
-        gone: !__clearBtn(), firstAfter: __rowId(0), rowsBefore, rowsAfter: __rows().length };`);
+      return { none, shown, firstBefore, countBefore, countWhileSearching, query: __search().value, focused: document.activeElement === __search(),
+        gone: !__clearBtn(), firstAfter: __rowId(0), countAfter: __count(), rowsBefore, rowsAfter: __rows().length };`);
     check("N16 搜尋框沒字時沒有「×」、有字時右邊出現「×」", r.none && r.shown, r);
-    check("N16 按「×」：字清掉、清單回到原本、焦點留在搜尋框、「×」不見", r.query === "" && r.focused && r.gone && r.firstWhileSearching !== r.firstBefore && r.firstAfter === r.firstBefore && r.rowsAfter === r.rowsBefore, r);
+    check("N16 按「×」：字清掉、清單回到原本、焦點留在搜尋框、「×」不見", r.query === "" && r.focused && r.gone && r.countWhileSearching !== r.countBefore && r.countAfter === r.countBefore && r.firstAfter === r.firstBefore && r.rowsAfter === r.rowsBefore, r);
   });
 
   // X1 打寶「自己找」的搜尋框也有「×」
