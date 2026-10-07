@@ -41,14 +41,16 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 #### `first-frame.mjs`：「10/15 開放」標示第一個畫面就要在（v0.37）
 
 ```bash
-node scripts/verify/first-frame.mjs <輸出> [網址] [段落，逗號分隔：nav,load,midnight,stale]
+node scripts/verify/first-frame.mjs <輸出> [網址] [段落，逗號分隔：nav,load,dawn,midnight,stale]
 ```
 
 - `nav`：站內換頁進查資料四頁跟首頁，清單／首頁畫出來的第一格就要有標示，第一次 commit 就要帶著。
 - `load`：直接打開首頁，伺服器給的 HTML 就有 10/15 橫幅，沒有 hydration 警告。
+- `dawn`：時鐘調到 10/14 23:59:40，頁面開著跨過 10/15 00:00，橫幅跟角色列的「10/15 開放」都還在（v0.48 起開機才收）。
 - `midnight`：瀏覽器時鐘調到開放前 30 秒，頁面開著跨過開放時刻，橫幅跟技能頁標示 1.5 秒內自己收掉。
-- `stale`：時鐘調到開放後 34 小時打開舊建置，不報 hydration、橫幅收掉、清單沒標示。
-- 開放時刻用環境變數 `OPEN_AT` 改，預設 `2026-10-15T00:00:00+08:00`。`DUMP_FRAMES=1` 會另存每一格 screencast。
+- `stale`：時鐘調到開放後 20 小時（10/16 10:00）打開舊建置，不報 hydration、橫幅收掉、清單沒標示。
+- 開放時刻用環境變數 `OPEN_AT` 改，預設 `2026-10-15T14:00:00+08:00`（`src/lib/release.ts` 的官方開機時刻；那邊改了這裡跟著改）。
+  `DUMP_FRAMES=1` 會另存每一格 screencast。
 - 輸出：`nav-<頁>-first-frame.png`（清單出現後的第一張 screencast）、`*-final.png`、`results.json`。
 - 寫死的資料：二轉 75 等狂戰士、搜尋「幼紅獨角獅」「佛羅利刃」「泰勒斯的介紹函」、技能職業 111。
   整支繞著「10/15 開放」標示，標示拆掉後只剩參考。

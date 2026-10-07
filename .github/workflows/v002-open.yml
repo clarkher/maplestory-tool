@@ -1,0 +1,61 @@
+name: V002 開機後重新部署
+
+# 2026-10-15 V002 官方開機前後才有作用（開機時刻＝main 的 src/lib/release.ts 的 V002_OPEN_DATE＋V002_OPEN_TIME）：
+#  1. 開機 5 分鐘後，正式機／測試機首頁還有開機前建置的「…開機後才能去」橫幅，就推一個不改任何檔案的 commit
+#     讓 Vercel 重建；重建後還在就再推（最多 3 次），開機 2 小時還在就開 issue；完成時開一則 issue 記錄再關掉。
+#  2. 開機前看官方維護公告：10/15 維護到幾點跟網站設定不同，就開一個只改那一行的 PR 到 main，等人確認後合併。
+# 判斷細節、演練方法在 scripts/v002-open.mjs 開頭與 README「10/15 開機後自動重新部署」。
+# 排程只在預設分支（main）上跑，所以這個檔要在 10/15 前進 main。過了 10/16 就不會再動作，可以跟 V002 標示一起拆掉。
+
+on:
+  schedule:
+    # 台灣時間 10/14 12:07 ～ 10/16 07:52，每小時的 07、22、37、52 分（cron 是 UTC）。
+    # 避開整點：GitHub 說整點的排程最容易延遲或被丟掉；14:00 開機的話第一次檢查在 14:07。
+    - cron: "7-59/15 4-23 14 10 *"
+    - cron: "7-59/15 * 15 10 *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "只印出會做什麼，不推 commit、不開 issue／PR"
+        type: boolean
+        default: false
+      now:
+        description: "演練：假裝現在是這個時間（例：2026-10-15T14:06:00+08:00）；有填就只能處理測試機或只看不做"
+        type: string
+        default: ""
+      only:
+        description: "處理哪一站"
+        type: choice
+        options: [all, main, dev]
+        default: all
+
+concurrency:
+  group: v002-open
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/v002-open.mjs
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 看公告、看首頁，需要就重新部署
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          PRETEND_NOW: ${{ inputs.now }}
+          ONLY: ${{ inputs.only }}
+        run: node scripts/v002-open.mjs
