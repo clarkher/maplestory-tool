@@ -4,19 +4,27 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
+import { FilterTag } from "@/components/FilterTag";
 import { GoButton } from "@/components/PlanShell";
 import {
   itemImage, loadItems, loadMaps, loadMonsters, mapName, monsterImage, peekItems, peekMaps, peekMonsters,
 } from "@/lib/data";
 import { elementalNotes, formatNumber } from "@/lib/format";
 import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
-import { FIRST_MAPS, monsterDrops, monsterMaps } from "@/lib/monster-view";
-import { inTrainingBand } from "@/lib/planner";
+import { FIRST_MAPS, monsterDrops, monsterMaps, monsterNote } from "@/lib/monster-view";
+import { trainingRange } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster } from "@/lib/types";
 import { isV002Map, isV002Monster } from "@/lib/v002";
+
+/** 練功範圍標籤開了哪一顆：""＝都沒開、"fit"＝適合我練的（同級到高 5 級）、"wide"＝包含低 5 級（低 5 級到高 5 級）。兩顆只能開一顆 */
+type Band = "" | "fit" | "wide";
+
+/** 範圍標籤開著時寫在標籤下面的小字：等級範圍，這個職業有特別規則就接在後面（用「；」隔開）。標籤本身只寫名稱，手機才放得進一行 */
+const bandHint = ([from, to]: [number, number], rule: string | null) =>
+  rule ? `Lv.${from}–${to}；${rule}` : `Lv.${from}–${to}`;
 
 export function MonsterDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -25,13 +33,20 @@ export function MonsterDb() {
   const [items, setItems] = useState<Item[] | null>(peekItems);
   const [error, setError] = useState<string | null>(null);
   const [showUnnamed, setShowUnnamed] = useRemembered("db:怪物:showUnnamed", false);
-  const [onlyBand, setOnlyBand] = useRemembered("db:怪物:onlyBand", false);
+  // 記的是開了哪一顆練功範圍標籤（舊的 db:怪物:onlyBand 不再讀）
+  const [band, setBand] = useRemembered<Band>("db:怪物:band", "");
   const notOpenYet = useBeforeV002();
-  // 角色列填了等級才出現「只看適合我練的」：練功帶＝同級到高 5 級，再套職業規則（跟練功推薦同一套）
+  // 角色列填了等級才出現「適合我練的」「包含低 5 級」：範圍跟練功推薦同一套（同級到高 5 級，包含低 5 級就從低 5 級開始），再套職業規則
   const { profile, loaded } = useStoredProfile();
   const level = loaded && profile.level > 0 ? profile.level : null;
-  const bandLevel = onlyBand ? level : null;
-  const rule = level === null ? null : trainingRuleNote(profile.job, level);
+  // 範圍標籤開著（而且角色有等級）：標籤下面寫等級範圍，這個職業有特別規則就接著寫
+  const bandNote = level === null || !band ? null : bandHint(trainingRange(level, band === "wide"), trainingRuleNote(profile.job, level));
+  // 資料裡真的有沒名字的怪（monster.un）才放「連沒有名字的怪一起列」那顆標籤跟它的說明字；現在的資料一隻都沒有，所以不出現。
+  // 資料載好才知道有沒有：接手的那一格（跟伺服器畫的頁面一樣，資料還沒到，見 data.ts 的 peek）一定沒有，記住的開關對不上伺服器的頁面也不要緊
+  const hasUnnamed = useMemo(() => (monsters ?? []).some(monster => monster.un), [monsters]);
+  const unnamedNote = hasUnnamed && showUnnamed;
+  // 兩顆範圍標籤只能開一顆，點開著的那顆就關（＝不限等級）
+  const pickBand = (mode: "fit" | "wide") => setBand(band === mode ? "" : mode);
 
   useEffect(() => {
     Promise.all([loadMonsters(), loadMaps(), loadItems()])
@@ -51,20 +66,24 @@ export function MonsterDb() {
 
   const entries = useMemo<DbEntry[]>(() => {
     if (!monsters || !maps) return [];
+    // 範圍標籤開著（而且角色填了等級）：只留等級在範圍裡、這個職業又打得動的。職業規則一律看玩家的等級，不是怪的等級、也不是範圍的下緣
+    const training = level !== null && band ? { level, range: trainingRange(level, band === "wide") } : null;
     return monsters
       .filter(monster => showUnnamed || !monster.un)
-      .filter(monster => bandLevel === null || (
-        monster.lv !== null && inTrainingBand(bandLevel, monster.lv) && monsterSuitsJob(profile.job, bandLevel, monster)
-      ))
+      .filter(monster => {
+        if (!training) return true;
+        const [from, to] = training.range;
+        return monster.lv !== null && monster.lv >= from && monster.lv <= to && monsterSuitsJob(profile.job, training.level, monster);
+      })
       .sort((a, b) => (a.lv ?? 0) - (b.lv ?? 0) || a.id - b.id)
       .map(monster => ({
         id: String(monster.id),
         name: monster.n,
-        note: monster.lv ? `Lv.${monster.lv}` : undefined,
+        note: monsterNote(monster),
         image: monsterImage(monster.id),
         badge: isV002Monster(monster, maps) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [monsters, maps, showUnnamed, bandLevel, profile.job, notOpenYet]);
+  }, [monsters, maps, showUnnamed, level, band, profile.job, notOpenYet]);
 
   return (
     <DbBrowser
@@ -73,32 +92,29 @@ export function MonsterDb() {
       entries={entries}
       loading={!monsters || !maps || !items}
       error={error}
+      // 一顆標籤都沒有（角色沒填等級、資料裡又沒有沒名字的怪）就不放這一塊：空的框會讓搜尋框跟「N 筆」中間多留一段空白
       filters={
-        <div className="space-y-2">
-          {level !== null ? (
-            <div className="space-y-1">
-              <label className="flex items-center gap-2 text-[13px] ink-soft">
-                <input
-                  type="checkbox"
-                  checked={onlyBand}
-                  onChange={event => setOnlyBand(event.target.checked)}
-                  className="size-4 accent-[color:var(--maple)]"
-                />
-                只看適合我練的（Lv.{level}–{level + 5}）
-              </label>
-              {onlyBand && rule ? <p className="pl-6 text-xs ink-faint">{rule}</p> : null}
+        level !== null || hasUnnamed ? (
+          <div className="space-y-2">
+            <div className="flex flex-wrap gap-1.5">
+              {level !== null ? (
+                <>
+                  <FilterTag on={band === "fit"} onClick={() => pickBand("fit")}>適合我練的</FilterTag>
+                  <FilterTag on={band === "wide"} onClick={() => pickBand("wide")}>包含低 5 級</FilterTag>
+                </>
+              ) : null}
+              {hasUnnamed ? (
+                <FilterTag on={showUnnamed} onClick={() => setShowUnnamed(!showUnnamed)}>連沒有名字的怪一起列</FilterTag>
+              ) : null}
             </div>
-          ) : null}
-          <label className="flex items-center gap-2 text-[13px] ink-soft">
-            <input
-              type="checkbox"
-              checked={showUnnamed}
-              onChange={event => setShowUnnamed(event.target.checked)}
-              className="size-4 accent-[color:var(--maple)]"
-            />
-            連沒有名字的怪一起列（通常是活動或未啟用的內容）
-          </label>
-        </div>
+            {bandNote || unnamedNote ? (
+              <div className="space-y-1 text-xs ink-faint">
+                {bandNote ? <p>{bandNote}</p> : null}
+                {unnamedNote ? <p>沒有名字的怪通常是活動或未啟用的內容</p> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : undefined
       }
       renderDetail={id => {
         const monster = monsterIndex.get(id);
