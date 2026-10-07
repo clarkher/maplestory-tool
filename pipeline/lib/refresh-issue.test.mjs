@@ -160,24 +160,43 @@ test("超過 maxLines 只留最後幾行", () => {
   ]);
 });
 
-test("首頁真資料檢查那種：中間有 ##[error] 標註、失敗摘要在後面，一樣抓到 Process completed 為止", () => {
+// 首頁真資料檢查用 --reporter=default 跑（vitest 5 在 GitHub Actions 上預設會在摘要「之後」再印一串
+// ::error 標註，失敗一多最後 30 行就只剩標註；10/07 本機用 GITHUB_ACTIONS=true 實測過）。
+// 輸出順序照實測：失敗的測試名、錯誤、程式碼位置，最後是摘要（裝飾用的框線符號拿掉）
+test("首頁真資料檢查（--reporter=default）：失敗的測試名、錯誤、摘要都在最後幾行", () => {
   const log = actionsLog([
-    "##[group]Run npx vitest run src/lib/__tests__/now-plan-realdata.test.ts",
-    `${ESC}[36;1mnpx vitest run src/lib/__tests__/now-plan-realdata.test.ts${ESC}[0m`,
+    "##[group]Run npx vitest run --reporter=default src/lib/__tests__/now-plan-realdata.test.ts",
+    `${ESC}[36;1mnpx vitest run --reporter=default src/lib/__tests__/now-plan-realdata.test.ts${ESC}[0m`,
     "shell: /usr/bin/bash -e {0}",
     "##[endgroup]",
+    " RUN  v5.0.3 /home/runner/work/maplestory-tool/maplestory-tool",
     " FAIL  src/lib/__tests__/now-plan-realdata.test.ts > 劍士 30 等主推都有",
-    "##[error]AssertionError: expected undefined to be truthy",
+    "AssertionError: expected undefined to be truthy",
+    "",
     " Test Files  1 failed (1)",
     "      Tests  1 failed | 40 passed (41)",
     "##[error]Process completed with exit code 1.",
   ]);
-  assert.deepEqual(errorTail(log), [
+  assert.deepEqual(errorTail(log).slice(-5), [
     " FAIL  src/lib/__tests__/now-plan-realdata.test.ts > 劍士 30 等主推都有",
     "AssertionError: expected undefined to be truthy",
+    "",
     " Test Files  1 failed (1)",
     "      Tests  1 failed | 40 passed (41)",
   ]);
+});
+
+test("收尾步驟（post）後來又印了錯誤或 Process completed，也不會搶走失敗點", () => {
+  const log = actionsLog([
+    "##[group]Run node pipeline/verify.mjs",
+    "##[endgroup]",
+    "  FAIL 怪物有屬性抗性資料 — 0 隻",
+    "##[error]Process completed with exit code 1.",
+    "Post job cleanup.",
+    "##[error]post 步驟自己的錯誤",
+    "##[error]Process completed with exit code 2.",
+  ]);
+  assert.deepEqual(errorTail(log), ["  FAIL 怪物有屬性抗性資料 — 0 隻"]);
 });
 
 test("action 步驟（checkout）失敗沒有 Process completed 那行：抓到這一步最後一個錯誤為止，不含後面的收尾", () => {
@@ -264,7 +283,21 @@ const TIMED_OUT_JOB = {
 };
 
 test("跑超過時間上限被中止：回當時在跑的那一步，並註明是被中止的", () => {
-  assert.equal(failedStepName(TIMED_OUT_JOB), "（測試）故意失敗（跑超過時間上限，被中止）");
+  assert.equal(failedStepName(TIMED_OUT_JOB), "（測試）故意失敗（被中止，多半是跑超過時間上限）");
+});
+
+// 主要步驟都跑完（資料可能已經合進去了），只有收尾步驟卡住被中止
+const ONLY_POST_STOPPED = {
+  ...TIMED_OUT_JOB,
+  steps: [
+    { number: 15, name: "開 PR 並自動合併", conclusion: "success" },
+    { number: 29, name: "Post Run actions/setup-node@v4", conclusion: "cancelled" },
+    { number: 31, name: "Complete job", conclusion: "success" },
+  ],
+};
+
+test("只有收尾步驟（Post Run …）被中止：不算資料更新失敗，回 null", () => {
+  assert.equal(failedStepName(ONLY_POST_STOPPED), null);
 });
 
 test("失敗：沒有開著的 issue 就開新的，有就在那張留言；成功：有開著的就關掉", () => {
@@ -301,7 +334,7 @@ const VERIFY_FAILED = {
 
 test("issue 內容：哪一步失敗、上游版本、網站目前的資料版本、執行紀錄連結、錯誤最後幾行包在程式碼區塊", () => {
   const body = failureBody(VERIFY_FAILED);
-  assert.ok(body.includes(`最後一次失敗：2026-10-07 13:56（台灣時間），連續第 1 次，[執行紀錄](${RUN_URL})`));
+  assert.ok(body.includes(`最後一次失敗：2026-10-07 13:56（台灣時間）卡在「確認產出沒有壞掉」，連續第 1 次，[執行紀錄](${RUN_URL})`));
   assert.match(body, /失敗的步驟：確認產出沒有壞掉/);
   assert.match(body, /上游版本：`2026-10-05T10:00:00\+08:00`/);
   assert.match(body, /網站目前的資料版本：`2026-09-24T11:25:10\+08:00`/);
@@ -323,13 +356,22 @@ test("內文藏著這次失敗的步驟、上游版本、次數（看不到的�
   assert.deepEqual(readFailureMark(body), { step: "確認產出沒有壞掉", upstream: "2026-10-05T10:00:00+08:00", count: 1 });
   assert.equal(readFailureMark("別人手動開的 issue"), null);
   assert.equal(readFailureMark("<!-- data-refresh-failure {壞掉的 -->"), null);
+  assert.equal(readFailureMark("<!-- data-refresh-failure %E0%A4%A -->"), null);
 });
 
-test("同樣的失敗：換掉「最後一次失敗」那行與藏著的次數，其他內容不動", () => {
+test("內文裡不小心有兩個藏著的註解：讀最後一個，更新時只留一個", () => {
+  const body = `${failureBody({ ...VERIFY_FAILED, stepName: "舊的" })}\n${failureBody(VERIFY_FAILED).split("\n").at(-1)}`;
+  assert.equal(readFailureMark(body).step, "確認產出沒有壞掉");
+  const after = markFailure(body, { stepName: "x", upstreamStamp: "", count: 5, at: "2026-10-08 08:21", runUrl: RUN_URL });
+  assert.equal(after.match(/<!-- data-refresh-failure /g).length, 1);
+  assert.equal(readFailureMark(after).count, 5);
+});
+
+test("同樣的失敗：換掉「最後一次失敗」那行（寫最新卡在哪一步）與藏著的次數，其他內容不動", () => {
   const before = failureBody(VERIFY_FAILED);
   const runUrl = "https://github.com/clarkher/maplestory-tool/actions/runs/456?$&";
   const after = markFailure(before, { stepName: "確認產出沒有壞掉", upstreamStamp: "2026-10-05T10:00:00+08:00", count: 3, at: "2026-10-08 08:21", runUrl });
-  assert.ok(after.includes(`最後一次失敗：2026-10-08 08:21（台灣時間），連續第 3 次，[執行紀錄](${runUrl})`));
+  assert.ok(after.includes(`最後一次失敗：2026-10-08 08:21（台灣時間）卡在「確認產出沒有壞掉」，連續第 3 次，[執行紀錄](${runUrl})`));
   assert.doesNotMatch(after, /2026-10-07 13:56/);
   assert.equal(readFailureMark(after).count, 3);
   const strip = text => text.replace(/^最後一次失敗：.*$/m, "").replace(/<!-- data-refresh-failure .* -->/, "");
@@ -338,15 +380,29 @@ test("同樣的失敗：換掉「最後一次失敗」那行與藏著的次數�
 
 test("沒有那一行、沒有藏註解的內文（別人改過）：補在最後", () => {
   const after = markFailure("手動寫的內容", { stepName: "取得 Artale 資料", upstreamStamp: "", count: 2, at: "2026-10-08 08:21", runUrl: RUN_URL });
-  assert.match(after, /^手動寫的內容\n\n最後一次失敗：2026-10-08 08:21（台灣時間），連續第 2 次/);
+  assert.match(after, /^手動寫的內容\n\n最後一次失敗：2026-10-08 08:21（台灣時間）卡在「取得 Artale 資料」，連續第 2 次/);
   assert.deepEqual(readFailureMark(after), { step: "取得 Artale 資料", upstream: "", count: 2 });
+});
+
+test("沒有步驟名時，「最後一次失敗」那行就不寫卡在哪", () => {
+  const after = markFailure("x", { stepName: null, upstreamStamp: "", count: 2, at: "2026-10-08 08:21", runUrl: RUN_URL });
+  assert.ok(after.includes(`最後一次失敗：2026-10-08 08:21（台灣時間），連續第 2 次，[執行紀錄](${RUN_URL})`));
 });
 
 test("步驟名裡有 --> 之類的字也不會把藏著的註解提早結束", () => {
   const stepName = "（讀不到：GET x → HTTP 500：<html>--></html>）";
   const after = markFailure("x", { stepName, upstreamStamp: "", count: 1, at: "2026-10-08 08:21", runUrl: RUN_URL });
   assert.equal(readFailureMark(after).step, stepName);
-  assert.equal(after.match(/-->/g).length, 1);
+  // 註解那一行裡沒有任何 < >，只有結尾那一個 -->
+  assert.match(after.split("\n").at(-1), /^<!-- data-refresh-failure [^<>]* -->$/);
+});
+
+test("步驟名裡有段落分隔字元（U+2028）也讀得回來，註解不會越疊越多", () => {
+  const stepName = `奇怪的步驟${String.fromCharCode(0x2028)}第二行`;
+  const once = markFailure("x", { stepName, upstreamStamp: "", count: 1, at: "2026-10-08 08:21", runUrl: RUN_URL });
+  const twice = markFailure(once, { stepName, upstreamStamp: "", count: 2, at: "2026-10-08 20:21", runUrl: RUN_URL });
+  assert.deepEqual(readFailureMark(twice), { step: stepName, upstream: "", count: 2 });
+  assert.equal(twice.match(/<!-- data-refresh-failure /g).length, 1);
 });
 
 test("時間用台灣時間，跨午夜也對", () => {
@@ -360,8 +416,10 @@ test("取上游那步就失敗、沒有上游版本：寫明沒取到，不留�
   assert.doesNotMatch(body, /上游版本：`/, "不該出現空的 code");
 });
 
-test("沒有哪一步標成失敗：寫可能是逾時或機器出問題", () => {
-  assert.match(failureBody({ ...VERIFY_FAILED, stepName: null }), /失敗的步驟：（.*逾時/);
+test("沒有哪一步標成失敗（逾時已經會寫出步驟名）：寫可能是執行的機器出問題", () => {
+  const body = failureBody({ ...VERIFY_FAILED, stepName: null });
+  assert.match(body, /失敗的步驟：（沒有哪一步標成失敗，可能是執行的機器出問題）/);
+  assert.doesNotMatch(body, /逾時/);
 });
 
 test("錯誤訊息抓不到：寫原因、請人點執行紀錄，不放空的程式碼區塊", () => {
@@ -436,7 +494,7 @@ test("失敗、沒有開著的：先確保 label 在，再開一張指派給擁�
   assert.match(issue.body, /失敗的步驟：取得 Artale 資料/);
   assert.match(issue.body, /Error: 上游 repo 沒有 drops\.json/);
   assert.match(issue.body, /上游版本：（沒取到/);
-  assert.match(issue.body, /最後一次失敗：2026-10-07 13:56（台灣時間），連續第 1 次/);
+  assert.match(issue.body, /最後一次失敗：2026-10-07 13:56（台灣時間）卡在「取得 Artale 資料」，連續第 1 次/);
   assert.deepEqual(readFailureMark(issue.body), { step: "取得 Artale 資料", upstream: "", count: 1 });
   assert.deepEqual(github.calls.find(([name]) => name === "jobLog"), ["jobLog", 111137077969]);
   // 執行紀錄直接連到失敗的那個 job，點了就是那段 log
@@ -456,8 +514,24 @@ test("失敗、已經有開著的、而且跟上次一樣（同一步、同一�
   assert.equal(outcome.issue.number, 5);
   const writes = github.writes();
   assert.deepEqual(writes.map(([name, number]) => [name, number]), [["updateIssue", 5]]);
-  assert.match(writes[0][2], /最後一次失敗：2026-10-07 13:56（台灣時間），連續第 2 次/);
+  assert.match(writes[0][2], /最後一次失敗：2026-10-07 13:56（台灣時間）卡在「取得 Artale 資料」，連續第 2 次/);
   assert.equal(readFailureMark(writes[0][2]).count, 2);
+});
+
+test("藏著的註解不見了、但那一行還寫著連續第 7 次：次數接著算（第 8 次）", async () => {
+  const body = "手動整理過的內容\n最後一次失敗：2026-10-07 01:56（台灣時間），連續第 7 次，[執行紀錄](x)";
+  const github = fakeGitHub({ open: { ...OPEN_ISSUE, body } });
+  await notifyRefresh(FAILED, github);
+  const [, , updated] = github.writes().find(([name]) => name === "updateIssue");
+  assert.match(updated, /連續第 8 次/);
+  assert.equal(readFailureMark(updated).count, 8);
+});
+
+test("失敗有變之後，內文那一行寫的是最新卡在哪一步（不會停在第一次的步驟）", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "（測試）故意失敗（被中止，多半是跑超過時間上限）", upstreamStamp: "" }) });
+  await notifyRefresh(FAILED, github);
+  const [, , updated] = github.writes().find(([name]) => name === "updateIssue");
+  assert.match(updated, /最後一次失敗：.*卡在「取得 Artale 資料」/);
 });
 
 test("失敗、已經有開著的、但失敗的步驟不一樣：先留言（會通知），再更新內文那一行", async () => {
@@ -514,15 +588,29 @@ test("被取消、但有一步被中止（跑超過時間上限）：當成失�
   const outcome = await notifyRefresh({ ...FAILED, result: "cancelled" }, github);
   assert.equal(outcome.action, "create");
   const [, issue] = github.writes()[1];
-  assert.match(issue.body, /失敗的步驟：（測試）故意失敗（跑超過時間上限，被中止）/);
+  assert.match(issue.body, /失敗的步驟：（測試）故意失敗（被中止，多半是跑超過時間上限）/);
   assert.match(issue.body, /The operation was canceled\./);
   assert.equal(github.calls.filter(([name]) => name === "refreshJob").length, 1, "步驟只讀一次");
 });
 
-test("被取消、讀不到 refresh 這個 job：不通知", async () => {
-  const github = fakeGitHub({ open: OPEN_ISSUE, jobError: new Error("HTTP 500") });
+test("被取消、只有收尾步驟被中止（主要步驟都跑完了）：不通知", async () => {
+  const github = fakeGitHub({ open: OPEN_ISSUE, job: ONLY_POST_STOPPED });
   assert.equal((await notifyRefresh({ ...FAILED, result: "cancelled" }, github)).action, "none");
   assert.deepEqual(github.writes(), []);
+});
+
+test("被取消、讀不到 refresh 這個 job：不通知，但把原因印出來", async () => {
+  const github = fakeGitHub({ open: OPEN_ISSUE, jobError: new Error("HTTP 500") });
+  const warnings = [];
+  const warn = console.warn;
+  console.warn = (...args) => warnings.push(args.join(" "));
+  try {
+    assert.equal((await notifyRefresh({ ...FAILED, result: "cancelled" }, github)).action, "none");
+  } finally {
+    console.warn = warn;
+  }
+  assert.deepEqual(github.writes(), []);
+  assert.ok(warnings.some(line => line.includes("HTTP 500")), "要印出讀不到的原因");
 });
 
 test("dry-run：查、建 label、開 issue 都用測試那一組，內容第一行標明是測試", async () => {
@@ -549,8 +637,17 @@ test("讀不到這次執行的步驟：issue 照開，寫讀不到與原因", as
   const github = fakeGitHub({ jobError: new Error("HTTP 500") });
   await notifyRefresh(FAILED, github);
   const [, issue] = github.writes()[1];
-  assert.match(issue.body, /失敗的步驟：（讀不到：HTTP 500）/);
+  assert.match(issue.body, /失敗的步驟：（讀不到這次執行的步驟）/);
+  assert.match(issue.body, /錯誤訊息：讀不到這次執行的步驟（HTTP 500）/);
   assert.equal(github.calls.filter(([name]) => name === "jobLog").length, 0);
+});
+
+test("API 壞著、每次都讀不到步驟：藏著的步驟名每次一樣，不會每 12 小時留言一次", async () => {
+  const first = fakeGitHub({ jobError: new Error("GET repos/x/actions/runs/111/jobs → HTTP 502") });
+  await notifyRefresh(FAILED, first);
+  const [, issue] = first.writes()[1];
+  const second = fakeGitHub({ open: { ...OPEN_ISSUE, body: issue.body }, jobError: new Error("GET repos/x/actions/runs/222/jobs → HTTP 502") });
+  assert.equal((await notifyRefresh(FAILED, second)).action, "update");
 });
 
 test("log 裡找不到錯誤：寫找不到，請人點執行紀錄", async () => {

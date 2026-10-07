@@ -18,20 +18,21 @@ const GIT_PROGRESS = /^([^:]+):\s+\d{1,3}% \(\d+\/\d+\)/;
  * 從 job 的整份 log（API 下載的純文字）抓出失敗那一步的輸出，回傳最後幾行。
  *
  * log 每行前面有時間戳，每一步以「##[group]Run 指令」開頭、接著一段顯示指令的 group。
- * 失敗那一步的結尾：run 步驟是最後一個「##[error]Process completed with exit code N.」（不含）；
+ * 失敗那一步的結尾（都只看收尾 Post job cleanup. 之前，收尾步驟自己的錯誤不算）：
+ * run 步驟是最後一個「##[error]Process completed with exit code N.」（不含）；
  * action 步驟（checkout 之類）失敗、或跑超過時間上限被中止（最後一行是 The operation was canceled.），
- * 則是收尾（Post job cleanup.）之前最後一個「##[error]」（含）。
- * 前面成功的步驟自己印的 ##[error] 標註不會被當成失敗點。
+ * 則是最後一個「##[error]」（含）。前面成功的步驟自己印的 ##[error] 標註不會被當成失敗點。
  * 回傳的行已去掉時間戳、顏色碼與 ##[...] 標記，git 進度條只留最後一行。log 裡沒有錯誤就回空陣列。
  */
 export function errorTail(log, { maxLines = 30, maxLineLength = 300 } = {}) {
   const text = log.startsWith(BOM) ? log.slice(1) : log;
   const lines = text.split(/\r?\n/).map(line => line.replace(TIMESTAMP, "").replace(ANSI, ""));
 
-  let end = lastIndexOf(lines, line => PROCESS_FAILED.test(line), lines.length);
+  const cleanup = lines.findIndex(line => AFTER_STEPS.includes(line));
+  const limit = cleanup === -1 ? lines.length : cleanup;
+  let end = lastIndexOf(lines, line => PROCESS_FAILED.test(line), limit);
   if (end === -1) {
-    const cleanup = lines.findIndex(line => AFTER_STEPS.includes(line));
-    const lastError = lastIndexOf(lines, line => line.startsWith("##[error]"), cleanup === -1 ? lines.length : cleanup);
+    const lastError = lastIndexOf(lines, line => line.startsWith("##[error]"), limit);
     if (lastError === -1) return [];
     end = lastError + 1;
   }
@@ -75,21 +76,25 @@ function trimBlank(lines) {
   return lines.slice(from, to);
 }
 
-/**
- * jobs API 回的 job → 失敗的步驟名（Actions 頁面上看到的那個）。
- * 跑超過時間上限被中止時沒有哪一步是 failure，當時在跑的那一步是 cancelled，回那一步並註明。都沒有就 null。
- */
-export function failedStepName(job) {
-  const steps = job?.steps ?? [];
-  const failed = steps.find(step => step.conclusion === "failure");
-  if (failed) return failed.name;
-  const stopped = steps.find(step => step.conclusion === "cancelled");
-  return stopped ? `${stopped.name}（跑超過時間上限，被中止）` : null;
+/** 主要步驟：不含收尾（Post Run …）與 Complete job——只有收尾卡住時，資料更新本身其實已經跑完了。 */
+function mainSteps(job) {
+  return (job?.steps ?? []).filter(step => !/^Post /.test(step.name ?? "") && step.name !== "Complete job");
 }
 
-/** job 被中止時有哪一步跑到一半（跑超過時間上限）；一步都沒跑（GitHub 沒派到機器）就不是。 */
+/**
+ * jobs API 回的 job → 失敗的步驟名（Actions 頁面上看到的那個）。
+ * 跑超過時間上限被中止時沒有哪一步是 failure，當時在跑的主要步驟是 cancelled，回那一步並註明。都沒有就 null。
+ */
+export function failedStepName(job) {
+  const failed = (job?.steps ?? []).find(step => step.conclusion === "failure");
+  if (failed) return failed.name;
+  const stopped = mainSteps(job).find(step => step.conclusion === "cancelled");
+  return stopped ? `${stopped.name}（被中止，多半是跑超過時間上限）` : null;
+}
+
+/** job 被中止時有哪一個主要步驟跑到一半（跑超過時間上限）；一步都沒跑（GitHub 沒派到機器）、或只有收尾被中止就不算。 */
 function wasStopped(job) {
-  return Boolean(job?.steps?.some(step => step.conclusion === "cancelled"));
+  return mainSteps(job).some(step => step.conclusion === "cancelled");
 }
 
 /**
@@ -121,11 +126,11 @@ export function failureBody({ stepName, upstreamStamp, siteStamp, runUrl, readme
   if (repeat) {
     lines.push(`又失敗了（連續第 ${count} 次），這次失敗的步驟或上游版本跟上次不同；網站資料還停在原本那一版。`);
   } else {
-    lines.push("資料自動更新沒有跑完，網站資料停在原本那一版。", statusLine({ count, at, runUrl }));
+    lines.push("資料自動更新沒有跑完，網站資料停在原本那一版。", statusLine({ stepName, count, at, runUrl }));
   }
   lines.push(
     "",
-    `- 失敗的步驟：${stepName ?? "（沒有哪一步標成失敗，可能是逾時或執行的機器出問題）"}`,
+    `- 失敗的步驟：${stepName ?? "（沒有哪一步標成失敗，可能是執行的機器出問題）"}`,
     `- 上游版本：${upstreamStamp ? `\`${upstreamStamp}\`` : "（沒取到：在讀到上游版本之前就失敗了）"}`,
     `- 網站目前的資料版本：${siteStamp ? `\`${siteStamp}\`` : "（沒取到）"}`,
     `- 執行紀錄：${runUrl}`,
@@ -184,7 +189,10 @@ export async function notifyRefresh(ctx, github) {
   if (result === "cancelled") {
     // 跑超過時間上限也是 cancelled（10/07 實測）：有哪一步被中止就當失敗；一步都沒跑是 GitHub 沒派到機器，下一輪會再跑。
     // 手動取消整個執行時 notify 根本不會跑（workflow 的 if: !cancelled()），不會走到這裡
-    job = await github.refreshJob().catch(() => null);
+    job = await github.refreshJob().catch(error => {
+      console.warn(`refresh 被取消，但讀不到它的步驟，當成不用通知：${error.message}`);
+      return null;
+    });
     if (!wasStopped(job)) return { action: "none" };
     result = "failure";
   }
@@ -209,7 +217,8 @@ export async function notifyRefresh(ctx, github) {
 
   const previous = readFailureMark(open.body);
   const same = previous !== null && previous.step === (failure.stepName ?? null) && previous.upstream === (failure.upstreamStamp || "");
-  const count = Number.isInteger(previous?.count) ? previous.count + 1 : 2;
+  // 藏著的註解被人改掉時，次數改從「最後一次失敗」那行接著算
+  const count = (Number.isInteger(previous?.count) ? previous.count : (countInStatus(open.body) ?? 1)) + 1;
   // 先留言再改內文：改內文失敗頂多下次再留一次，反過來會漏掉通知
   if (!same) await github.comment(open.number, failureBody({ ...failure, repeat: true, count }));
   await github.updateIssue(open.number, markFailure(open.body ?? "", { ...failure, count }));
@@ -225,7 +234,8 @@ async function failureDetails(github, job) {
     try {
       job = await github.refreshJob();
     } catch (error) {
-      return { stepName: `（讀不到：${error.message}）`, tail: [], tailNote: "讀不到這次執行的步驟" };
+      // 步驟名寫固定的字：錯誤訊息每次不一樣（網址帶執行編號），放進步驟名會讓 API 壞著的期間每次都被當成「失敗有變」而留言
+      return { stepName: "（讀不到這次執行的步驟）", tail: [], tailNote: `讀不到這次執行的步驟（${error.message}）` };
     }
   }
   const details = { stepName: failedStepName(job), ...(job.html_url ? { runUrl: job.html_url } : {}) };
@@ -238,42 +248,49 @@ async function failureDetails(github, job) {
 }
 
 const STATUS_LINE = /^最後一次失敗：.*$/m;
-const MARK = /<!-- data-refresh-failure (.*?) -->/;
+const MARKS = /<!-- data-refresh-failure (.*?) -->/g;
 
 /** 台灣時間「YYYY-MM-DD HH:mm」（runner 跑在 UTC）。 */
 export function taipeiTime(date) {
   return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16).replace("T", " ");
 }
 
-function statusLine({ count, at, runUrl }) {
-  return `最後一次失敗：${at}（台灣時間），連續第 ${count} 次，[執行紀錄](${runUrl})`;
+/** 「最後一次失敗」那行：寫最新一次的時間、卡在哪一步、連續第幾次（之後同樣的失敗只改這一行，不發通知）。 */
+function statusLine({ stepName, count, at, runUrl }) {
+  return `最後一次失敗：${at}（台灣時間）${stepName ? `卡在「${stepName}」` : ""}，連續第 ${count} 次，[執行紀錄](${runUrl})`;
 }
 
-/** 藏在 issue 內文裡（畫面上看不到）的這次失敗：步驟、上游版本、連續次數，下一次拿來比是不是同樣的失敗。 */
+/** 那一行寫的連續次數；沒有就 null。 */
+function countInStatus(body) {
+  const count = Number(body?.match(STATUS_LINE)?.[0].match(/連續第 (\d+) 次/)?.[1]);
+  return Number.isInteger(count) ? count : null;
+}
+
+/**
+ * 藏在 issue 內文最後（畫面上看不到）的這次失敗：步驟、上游版本、連續次數，下一次拿來比是不是同樣的失敗。
+ * 內容整段 encodeURIComponent：步驟名可能帶著錯誤訊息原文（-->、換行、U+2028…），編碼後註解不會被提早結束、也一定讀得回來。
+ */
 function failureMark({ stepName, upstreamStamp, count }) {
-  // 步驟名可能帶著錯誤訊息原文；< > 改用 JSON 跳脫，裡面的 --> 才不會把註解提早結束
-  const json = JSON.stringify({ step: stepName ?? null, upstream: upstreamStamp || "", count })
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e");
-  return `<!-- data-refresh-failure ${json} -->`;
+  const payload = encodeURIComponent(JSON.stringify({ step: stepName ?? null, upstream: upstreamStamp || "", count }));
+  return `<!-- data-refresh-failure ${payload} -->`;
 }
 
-/** 讀出 failureMark 藏的內容；沒有、或被改壞了就回 null。 */
+/** 讀出 failureMark 藏的內容（有好幾個就看最後一個）；沒有、或被改壞了就回 null。 */
 export function readFailureMark(body) {
-  const match = body?.match(MARK);
-  if (!match) return null;
+  const last = [...(body ?? "").matchAll(MARKS)].at(-1);
+  if (!last) return null;
   try {
-    const { step, upstream, count } = JSON.parse(match[1]);
+    const { step, upstream, count } = JSON.parse(decodeURIComponent(last[1]));
     return { step, upstream, count };
   } catch {
     return null;
   }
 }
 
-/** 同樣的失敗又發生：換掉內文的「最後一次失敗」那行與藏著的註解（沒有就補在最後），其他內容不動。 */
+/** 同樣的失敗又發生：換掉內文的「最後一次失敗」那行（沒有就補）、藏著的註解換成一個新的放最後，其他內容不動。 */
 export function markFailure(body, { stepName, upstreamStamp, count, at, runUrl }) {
-  const status = statusLine({ count, at, runUrl });
-  const mark = failureMark({ stepName, upstreamStamp, count });
-  const withStatus = STATUS_LINE.test(body) ? body.replace(STATUS_LINE, () => status) : body ? `${body}\n\n${status}` : status;
-  return MARK.test(withStatus) ? withStatus.replace(MARK, () => mark) : `${withStatus}\n${mark}`;
+  const status = statusLine({ stepName, count, at, runUrl });
+  const rest = body.replace(MARKS, "").replace(/\s+$/, "");
+  const withStatus = STATUS_LINE.test(rest) ? rest.replace(STATUS_LINE, () => status) : rest ? `${rest}\n\n${status}` : status;
+  return `${withStatus}\n${failureMark({ stepName, upstreamStamp, count })}`;
 }

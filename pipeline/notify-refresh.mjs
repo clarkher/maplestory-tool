@@ -3,18 +3,19 @@
  *
  * refresh 失敗：開一張 issue（label「資料更新失敗」、指派給 repo 擁有者）；已經有開著的就不另開——
  *   同樣的失敗（同一步、同一個上游版本）只更新內文「最後一次失敗」那行（不發通知），有變才在那張留言。
- * refresh 跑超過時間上限被中止（結果是 cancelled，但有一步跑到一半）也算失敗；一步都沒跑（GitHub 沒派到機器）不通知。
+ * refresh 跑超過時間上限被中止（結果是 cancelled，但有主要步驟跑到一半）也算失敗；
+ * 一步都沒跑（GitHub 沒派到機器）、或只有收尾步驟被中止，不通知。
  * refresh 成功：有開著的就留言「恢復了」並關掉。
- * 內容與判斷在 lib/refresh-issue.mjs；這支只負責打 GitHub API（5xx、連線失敗會重試）。
+ * 內容與判斷在 lib/refresh-issue.mjs；這支只負責打 GitHub API（讀取與改內文遇到 5xx、連線失敗會重試，開 issue、留言不重試）。
  *
  * 環境變數（workflow 給）：
  *   GH_TOKEN        要有 issues: write、actions: read
  *   REFRESH_RESULT  refresh job 的結果：success／failure／cancelled
  *   UPSTREAM_STAMP  上游版本（data/raw/artale.json 的 metadata.generatedAt），取上游那步就失敗時是空的
  *   SITE_STAMP      網站目前的資料版本（public/data/meta.json 的 dataGeneratedAt）
- *   DRY_RUN         "true" 就改用測試用的 label 與標題
+ *   DRY_RUN         "true" 就改用測試用的 label 與標題（workflow 開頭的 env：勾 dry_run、simulate_failure，或不是從 main 觸發）
  *   ASSIGNEE        issue 指派給誰
- *   以及 Actions 內建的 GITHUB_REPOSITORY、GITHUB_RUN_ID、GITHUB_REF_NAME、GITHUB_SERVER_URL、GITHUB_API_URL
+ *   以及 Actions 內建的 GITHUB_REPOSITORY、GITHUB_RUN_ID、GITHUB_SERVER_URL、GITHUB_API_URL
  *
  * 本機預覽某一次執行會發出什麼內容（只讀，不開 issue、不留言、不關）：
  *   GH_TOKEN=$(gh auth token) GITHUB_REPOSITORY=clarkher/maplestory-tool GITHUB_RUN_ID=<run id> \
@@ -43,8 +44,10 @@ function githubApi({ token, repo, runId, apiUrl }) {
     "user-agent": "maplestory-tool data-refresh notify",
   };
 
-  // GitHub 偶爾回 5xx 或連線斷掉，隔幾秒再試，免得那一輪的通知因此發不出去
+  // GitHub 偶爾回 5xx 或連線斷掉，讀取（GET）與改內文（PATCH）隔幾秒再試，免得那一輪的通知因此發不出去。
+  // 開 issue、留言（POST）不重試：GitHub 回 502 時可能其實已經寫進去了，重送會多開一張——成功後只會關掉一張
   async function request(method, path, body) {
+    const attempts = method === "POST" ? 1 : REQUEST_ATTEMPTS;
     for (let attempt = 1; ; attempt += 1) {
       try {
         const response = await fetch(`${apiUrl}/${path}`, {
@@ -53,9 +56,9 @@ function githubApi({ token, repo, runId, apiUrl }) {
           body: body ? JSON.stringify(body) : undefined,
           redirect: "manual",
         });
-        if (response.status < 500 || attempt === REQUEST_ATTEMPTS) return response;
+        if (response.status < 500 || attempt >= attempts) return response;
       } catch (error) {
-        if (attempt === REQUEST_ATTEMPTS) throw error;
+        if (attempt >= attempts) throw error;
       }
       await sleep(3000 * attempt);
     }
@@ -186,7 +189,8 @@ const outcome = await notifyRefresh(
     upstreamStamp: env.UPSTREAM_STAMP ?? "",
     siteStamp: env.SITE_STAMP ?? "",
     runUrl: `${server}/${repo}/actions/runs/${runId}`,
-    readmeUrl: `${server}/${repo}/blob/${env.GITHUB_REF_NAME || "main"}/README.md#${encodeURIComponent("自動更新")}`,
+    // blob/HEAD＝預設分支：從功能分支觸發的測試 issue，分支刪掉後連結也不會壞
+    readmeUrl: `${server}/${repo}/blob/HEAD/README.md#${encodeURIComponent("自動更新")}`,
     assignee: env.ASSIGNEE ?? "",
   },
   env.PRINT_ONLY === "true" ? printOnly(github) : github,

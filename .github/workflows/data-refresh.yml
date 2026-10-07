@@ -12,6 +12,7 @@ name: 資料自動更新
 # （label「資料更新失敗」，指派給 repo 擁有者）。已經有開著的就不另開：同樣的失敗只更新內文「最後一次失敗」那行、
 # 不發通知，失敗的步驟或上游版本變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
 # 要測通知本身，手動觸發勾 dry_run（不開 PR、不合併，寫到「資料更新失敗-測試」）；勾 simulate_failure 會故意失敗一次（也算 dry-run）。
+# 從 main 以外的分支手動觸發一律當 dry-run。
 
 on:
   schedule:
@@ -38,9 +39,15 @@ on:
       - "data/raw/artale.local.json"
       - "pipeline/**"
 
+env:
+  # dry-run：不開 PR、不合併、不推資料分支，通知寫到測試用的 issue。
+  # 只勾 simulate_failure 也算；不是從 main 觸發也算——開 PR 那步的資料分支是從當下 checkout 的分支切出來的，
+  # 在功能分支上手動跑忘了勾 dry_run，會把整條分支還沒審過的程式一起 --admin 合進正式機
+  DRY_RUN: ${{ inputs.dry_run || inputs.simulate_failure || github.ref != 'refs/heads/main' }}
+
 concurrency:
-  # dry-run 自己排一列：同一群組只留一個排隊中的，混在一起會把正式排程擠掉
-  group: data-refresh${{ (inputs.dry_run || inputs.simulate_failure) && '-dry-run' || '' }}
+  # dry-run 自己排一列：同一群組只留一個排隊中的，混在一起會把正式排程擠掉（concurrency 讀不到 env，條件照抄上面）
+  group: data-refresh${{ (inputs.dry_run || inputs.simulate_failure || github.ref != 'refs/heads/main') && '-dry-run' || '' }}
   cancel-in-progress: false
 
 jobs:
@@ -118,21 +125,23 @@ jobs:
 
       # 拿新資料把首頁每個職業 × 等級跑一次：主推都有、組隊任務在遊戲等級限制內、帶我去走得到、
       # 封頂提示不自相矛盾、多升一級主推圖不會掉超過 10 級、長線沒有做不動的任務、先解沒有同名兩行。壞了就不開 PR
+      # --reporter=default：vitest 在 GitHub Actions 上預設會在摘要之後再印一串標註，失敗一多，
+      # 通知 issue 裡「錯誤訊息最後 30 行」就只剩標註、看不到哪個組合壞了
       - name: 首頁每個組合跑一次真資料檢查
         if: steps.check.outputs.changed == 'true'
-        run: npx vitest run src/lib/__tests__/now-plan-realdata.test.ts
+        run: npx vitest run --reporter=default src/lib/__tests__/now-plan-realdata.test.ts
 
       - name: 建置一次確保網站編得過
         if: steps.check.outputs.changed == 'true'
         run: npm run build
 
       - name: 開 PR 並自動合併
-        if: steps.check.outputs.changed == 'true' && !(inputs.dry_run || inputs.simulate_failure)
+        if: steps.check.outputs.changed == 'true' && env.DRY_RUN != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：步驟條件之外再擋一次
-          if [ "${{ inputs.dry_run || inputs.simulate_failure }}" = "true" ]; then
+          if [ "$DRY_RUN" = "true" ]; then
             echo "dry-run：不開 PR、不合併"
             exit 0
           fi
@@ -172,12 +181,12 @@ jobs:
         with:
           node-version: "22"
 
+      # DRY_RUN 用 workflow 開頭 env 那一個（dry-run 寫到測試用的 issue）
       - name: 失敗開 issue、成功關 issue
         env:
           GH_TOKEN: ${{ github.token }}
           REFRESH_RESULT: ${{ needs.refresh.result }}
           UPSTREAM_STAMP: ${{ needs.refresh.outputs.stamp }}
           SITE_STAMP: ${{ needs.refresh.outputs.before }}
-          DRY_RUN: ${{ (inputs.dry_run || inputs.simulate_failure) == true }}
           ASSIGNEE: ${{ github.repository_owner }}
         run: node pipeline/notify-refresh.mjs
