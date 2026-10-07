@@ -59,12 +59,11 @@ describe("首頁要的遊戲資料", () => {
     });
   });
 
-  it("換頁回首頁再拿一次：「帶我去」走得到的圖直接用上次算好的那份，不重算", async () => {
+  it("換頁回首頁：「帶我去」走得到的圖直接用第一次載完時算好的那份，不重算", async () => {
     stubFetch(FILES);
-    await home.loadHomeData();
-    const first = home.peekHomeData();
-    const again = home.peekHomeData();
-    expect(again?.routable).toBe(first?.routable);
+    const first = await home.loadHomeData();
+    expect(home.peekHomeData()?.routable).toBe(first.routable);
+    expect(home.peekHomeData()?.routable).toBe(first.routable);
   });
 
   // meta 不在裡面：載任何一份遊戲資料都會先載 meta（版本號）

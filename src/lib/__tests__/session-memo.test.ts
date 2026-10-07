@@ -45,6 +45,18 @@ describe("記在這次瀏覽裡的推算", () => {
     expect(memo.sessionMemo("home:effective", [quests], () => new Map())).toBe(effective);
   });
 
+  it("連續換來換去（45 → 46 → 46 → 45）：記住的是最新那一組，回到 45 會重算出 45 的結果，不會拿到 46 的", () => {
+    const quests = [{ id: 1000 }];
+    const compute = vi.fn((level: number) => ({ level }));
+    const plan = (level: number) => memo.sessionMemo("home:plan", [quests, level, 110], () => compute(level));
+    plan(45);
+    const at46 = plan(46);
+    expect(plan(46)).toBe(at46);
+    expect(compute).toHaveBeenCalledTimes(2);
+    expect(plan(45)).toEqual({ level: 45 });
+    expect(compute).toHaveBeenCalledTimes(3);
+  });
+
   it("依賴的個數不一樣：當作變了，重算", () => {
     const compute = vi.fn(() => ({}));
     memo.sessionMemo("home:plan", [1, 2], compute);

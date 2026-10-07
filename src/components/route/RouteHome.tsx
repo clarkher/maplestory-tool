@@ -24,6 +24,13 @@ import { TodoList } from "./TodoList";
 
 export type GuideStatus = GuideState["status"];
 
+/**
+ * 硬重新整理時、React 接手之前就先跑（伺服器畫的版本裡的一小段 script，排在大標前面）：本機存過完整的角色（職業＋等級）
+ * 就在 <html> 標 data-profile="saved"，讓「你現在幾等、什麼職業？」看不見。<html> 本來就有 suppressHydrationWarning
+ * （深色模式也是這樣先標上去），不會跟 React 對不起來。站內換頁一開始就讀得到角色，不會畫這段。
+ */
+const SAVED_PROFILE_HINT = `try{var p=JSON.parse(localStorage.getItem("ms-profile")||"null");if(p&&p.level>0&&p.job>=0)document.documentElement.dataset.profile="saved"}catch(e){}`;
+
 export function RouteHome() {
   const showV002Banner = useBeforeV002();
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
@@ -83,9 +90,10 @@ export function RouteHome() {
   // 等級段只跟職業有關；固定同一個陣列，升級路線的標籤 memo 才不會每次重算
   const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 
-  // 推算記在這次瀏覽裡（session-memo）：換頁離開首頁再回來，資料跟角色沒變就直接拿上次算好的，慢手機換頁比較快
+  // 推算記在這次瀏覽裡（session-memo）：換頁離開首頁再回來，資料跟角色沒變就直接拿上次算好的，慢手機換頁比較快。
+  // 用到的函式本身也放進依賴：開發時改了 now-plan.ts，熱更新換成新函式就會重算，不會拿舊程式算的結果（正式版函式不會變）
   const effective = useMemo(
-    () => (data ? sessionMemo("home:effective", [data.quests, data.monsters, data.common], () => effectiveLevels(data.quests, data.monsters, data.common)) : null),
+    () => (data ? sessionMemo("home:effective", [effectiveLevels, data.quests, data.monsters, data.common], () => effectiveLevels(data.quests, data.monsters, data.common)) : null),
     [data],
   );
   // 先解展開任務細節時，「要先完成」寫前置任務的名字
@@ -106,7 +114,10 @@ export function RouteHome() {
   const plan = useMemo(() => {
     if (!data || !ready || !effective) return null;
     // 主推卡、先解、長線也記在這次瀏覽裡：資料、攻略、等級、職業都一樣就直接拿上次的
-    const deps = [data.quests, data.monsters, data.common, data.training, data.maps, data.graph, data.nearestTown, effective, stageGuide, profile.level, profile.job];
+    const deps = [
+      mainPick, nowQuests, longRunNow, pqJustClosed,
+      data.quests, data.monsters, data.common, data.training, data.maps, data.graph, data.nearestTown, effective, stageGuide, profile.level, profile.job,
+    ];
     return sessionMemo("home:plan", deps, () => {
       const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
       const pick = mainPick({
@@ -158,9 +169,11 @@ export function RouteHome() {
         </p>
       ) : null}
 
-      {/* 讀到角色之前（硬重新整理那一下）不問「你現在幾等」，存過角色的人才不會以為角色被清掉；讀到了、真的還沒選才問 */}
-      {loaded && !ready ? (
-        <header className="px-1 pt-2 text-center">
+      {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
+          存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
+      {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}
+      {!ready ? (
+        <header className={loaded ? "px-1 pt-2 text-center" : "px-1 pt-2 text-center [[data-profile=saved]_&]:invisible"}>
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed ink-soft">
             選好之後，直接告訴你現在去哪練、先解哪些任務、技能點哪個。

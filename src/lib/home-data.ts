@@ -24,8 +24,8 @@ export type HomeData = {
 };
 
 function withRoutable(parts: Omit<HomeData, "routable">): HomeData {
-  // 換頁回首頁不重算：同一份傳送門資料直接拿上次算好的（session-memo）
-  const routable = sessionMemo("home:routable", [parts.graph], () => {
+  // 換頁回首頁不重算：同一份傳送門資料直接拿上次算好的（session-memo）；withRoutable 本身也放進依賴，開發時改了這支檔會重算
+  const routable = sessionMemo("home:routable", [withRoutable, parts.graph], () => {
     const reachable = new Set<number>(Object.keys(parts.graph).map(Number));
     for (const edges of Object.values(parts.graph)) for (const [target] of edges) reachable.add(target);
     return reachable;
