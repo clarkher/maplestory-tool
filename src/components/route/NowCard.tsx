@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { RouteIcon } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
 import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
@@ -83,13 +83,14 @@ function mobLine(option: TrainOption, monsters: Map<number, Monster>): string {
 
 /**
  * 攻略理由（卡上寫「為什麼是這張」）：先顯示兩行，比兩行長才給「展開／收起」。
- * 長不長要等畫出來量（寬度不同斷行就不同），所以用 ResizeObserver 跟著版面重量。
+ * 長不長要等排版後才量得到（寬度不同斷行就不同），所以用 ResizeObserver 跟著版面重量；
+ * 第一次在畫面畫出來之前就量（useLayoutEffect），「展開」不會晚一格才冒出來、把下面往下推。
  */
 function GuideReason({ text }: { text: string }) {
   const ref = useRef<HTMLParagraphElement>(null);
   const [open, setOpen] = useState(false);
   const [long, setLong] = useState(false);
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = ref.current;
     if (!element || open) return;
     const measure = () => setLong(element.scrollHeight > element.clientHeight + 1);

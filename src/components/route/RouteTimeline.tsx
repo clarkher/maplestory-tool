@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
-import { itemImage, loadGear, mapName, monsterImage, skillImage } from "@/lib/data";
+import { itemImage, loadGear, mapName, monsterImage, peekGear, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { isMagicJob, type GearData } from "@/lib/gear";
 import { bandGear, craftMaterialsText, offenseText, sourceOpensLater, sourceText, type SourcePick } from "@/lib/gear-view";
@@ -437,7 +437,8 @@ function PqLink({ pqKey, common, text }: { pqKey: string; common: GuideCommon; t
  * 算法在 lib/gear-view.ts 的 bandGear；裝備資料跟首頁「能力值與裝備」卡共用（loadGear 只載一次）。載不到就不顯示這塊。
  */
 function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Record<string, MapRecord> }) {
-  const [gear, setGear] = useState<GearData | null>(null);
+  // 這次瀏覽載過就直接拿：換頁回首頁時展開的那一段不會晚一格才冒出裝備
+  const [gear, setGear] = useState<GearData | null>(peekGear);
   const beforeOpen = useBeforeV002();
   useEffect(() => {
     let cancelled = false;

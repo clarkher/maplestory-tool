@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronRight, RouteIcon } from "@/components/Icons";
-import { itemImage, loadGear, mapName } from "@/lib/data";
+import { itemImage, loadGear, mapName, peekGear } from "@/lib/data";
 import type { GearData, GearWeapon, StatKey } from "@/lib/gear";
 import {
   STAT_ORDER,
@@ -44,9 +44,9 @@ type Where = {
  * 自己載 gear.json（載不到只影響這張卡）；算法都在 lib/gear.ts，組裝跟用字在 lib/gear-view.ts。
  */
 export function GearCard({ job, level, maps, routable }: { job: number; level: number; maps: Record<string, MapRecord>; routable: Set<number> }) {
-  const [gear, setGear] = useState<GearData | null>(null);
+  // 這次瀏覽載過就直接拿：換頁回首頁不先畫骨架
+  const [gear, setGear] = useState<GearData | null>(peekGear);
   const [failed, setFailed] = useState(false);
-  // 放在外層：卡片內容掛上去之前就已經換成瀏覽器當下的日期，不會先算一次 10/15 後的版本又換掉
   const beforeOpen = useBeforeV002();
 
   useEffect(() => {
