@@ -3,8 +3,8 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  cardAtOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature, needsRescue, sameRowAction, scrollMotion,
-  searchEntries, withCardAt, type DetailSpot,
+  cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, keptFromHistory, listSignature, needsRescue, sameRowAction,
+  scrollMotion, searchEntries, withCard, type DetailSpot,
 } from "@/lib/db-browse";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
@@ -176,6 +176,8 @@ export function DbBrowser({
         if (action === "scroll") detailRef.current?.scrollIntoView({ behavior: glide(), block: "start" });
         // 卡片放在清單最上面（那一筆後來才載進清單）：搬到這一列下面，跟點開一筆一樣捲過去
         else if (action === "move") {
+          // 跟點開一筆一樣擋手指連點：第二下不要把剛搬下來的卡片收掉
+          lastPick.current = { id, at: performance.now() };
           const row = rowOf(id);
           tapped.current = row ? { id, top: row.getBoundingClientRect().top } : null;
           setKept({ id, spot: "inline" });
@@ -207,7 +209,8 @@ export function DbBrowser({
     selected,
     hasDetail,
     shown: selected !== null && shown.some(entry => entry.id === selected),
-    kept,
+    // 按返回、下一頁、重新整理回到開著卡片的那一筆：照這筆紀錄記的地方放，放在最上面的不會搬到清單中間
+    kept: kept?.id === selected ? kept : keptFromHistory(typeof window === "undefined" ? null : window.history.state, selected),
   });
   // 記下這次放的位置，下一次照著放（同一筆開著時卡片不搬家）
   const placed = selected !== null && spot !== null ? { id: selected, spot } : null;
@@ -221,13 +224,23 @@ export function DbBrowser({
     (id: string | null) => (!id ? null : spotNow.current === "top" ? topRef.current : spotNow.current === "inline" ? rowOf(id) : null),
     [],
   );
-  /** 把卡片在頁面上的位置記進這一筆紀錄：按返回回來時跟它比，就知道清單有沒有變 */
+  /**
+   * 把卡片記進這一筆紀錄（哪一筆、在頁面上的位置、放在哪裡）：按返回回來時照著放，再跟位置比就知道清單有沒有變
+   */
   const recordCardAt = useCallback(
     (id: string | null) => {
+      // 網址已經換成別筆、畫面還沒跟上：這次不記，免得把舊卡片記進新的那一筆
+      if (!id || openIdNow() !== id) return;
+      const spot = spotNow.current;
       const block = cardBlock(id);
-      if (!block) return;
-      const next = withCardAt(window.history.state, Math.round(block.getBoundingClientRect().top + window.scrollY));
-      if (next) window.history.replaceState(next, "");
+      if (!block || (spot !== "inline" && spot !== "top")) return;
+      const next = withCard(window.history.state, { id, at: Math.round(block.getBoundingClientRect().top + window.scrollY), spot });
+      if (!next) return;
+      try {
+        window.history.replaceState(next, "");
+      } catch {
+        // 瀏覽器限制短時間內改紀錄的次數（Safari 10 秒 100 次）：這次記不到，下次畫面更新再記
+      }
     },
     [cardBlock],
   );
@@ -272,8 +285,8 @@ export function DbBrowser({
     if (navHistory?.cameFromHistory()) {
       // 按上一頁／下一頁換的交給瀏覽器還原位置。記憶是整頁共用，中途在別處改過搜尋、篩選的話清單跟離開時不同，
       // 還原的位置會對不上：瀏覽器還原完的下一個畫面前比一次，清單變了、而且那一筆和卡片都不在畫面上，才直接跳過去
-      const leftAt = cardAtOf(window.history.state);
-      if (!hasDetail || isWide() || leftAt === undefined) return;
+      const left = cardOf(window.history.state);
+      if (!hasDetail || isWide() || left?.id !== selected) return;
       rescuing.current = true;
       const frame = requestAnimationFrame(() => {
         rescuing.current = false;
@@ -281,7 +294,7 @@ export function DbBrowser({
         if (!block) return;
         const { top, bottom } = block.getBoundingClientRect();
         const viewTop = siteHeader()?.getBoundingClientRect().bottom ?? 0;
-        if (needsRescue({ leftAt, nowAt: top + window.scrollY, top, bottom, viewTop, viewBottom: window.innerHeight })) {
+        if (needsRescue({ leftAt: left.at, nowAt: top + window.scrollY, top, bottom, viewTop, viewBottom: window.innerHeight })) {
           block.scrollIntoView({ block: "start", behavior: "instant" });
         }
         recordCardAt(selected);
@@ -292,8 +305,9 @@ export function DbBrowser({
       };
     }
     if (!hasDetail || isWide()) return;
+    // 卡片在哪就跳到哪（重新整理時照紀錄放在最上面的，那一列就算也在清單上，也跳到卡片）。
     // instant：全站開了平滑捲動，不指定會從頂端一路滑三千多 px 下來
-    (rowOf(selected) ?? topRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
+    (cardBlock(selected) ?? rowOf(selected) ?? topRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
   }, [loading, selected, hasDetail, cardBlock, recordCardAt]);
 
   // 每次畫完都記一次卡片的位置（沒變就不寫）：離開這一筆時，紀錄裡就是離開那一刻的位置
@@ -385,7 +399,8 @@ export function DbBrowser({
                           type="button"
                           onClick={() => select(entry.id)}
                           aria-current={selected === entry.id ? "true" : undefined}
-                          aria-expanded={wide ? undefined : open}
+                          // 細節開著就算展開——放在清單最上面的也算，讀螢幕軟體才不會念「已收合」
+                          aria-expanded={wide ? undefined : selected === entry.id && spot !== null}
                           // 展開著的那一列黏在導覽列下面：往下看長卡片時一直看得到是哪一筆，點它就收起
                           style={open ? { top: headerHeight } : undefined}
                           className={[

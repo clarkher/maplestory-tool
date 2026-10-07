@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  CARD_AT, FROM_DOC, FROM_LIST, cardAtOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature, needsRescue,
-  sameRowAction, scrollMotion, searchEntries, withCardAt,
+  CARD, FROM_DOC, FROM_LIST, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, keptFromHistory, listSignature, needsRescue,
+  sameRowAction, scrollMotion, searchEntries, withCard,
 } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
@@ -203,32 +203,63 @@ describe("點了開著的那一筆", () => {
   });
 });
 
-describe("每筆紀錄記下卡片在頁面上的位置", () => {
+describe("每筆紀錄記下這張卡片：哪一筆、在頁面上的位置、放在哪裡", () => {
   const nextEntry = { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 1 } };
+  const card = { id: "1302000", at: 2410, spot: "top" as const };
 
-  it("記下位置時，Next 的紀錄和「從清單點開」的記號都留著", () => {
-    expect(withCardAt({ ...nextEntry, [FROM_LIST]: "1302000", [FROM_DOC]: 7 }, 2410)).toEqual({
+  it("記下來時，Next 的紀錄和「從清單點開」的記號都留著", () => {
+    expect(withCard({ ...nextEntry, [FROM_LIST]: "1302000", [FROM_DOC]: 7 }, card)).toEqual({
       __NA: true,
       __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 1 },
       [FROM_LIST]: "1302000",
       [FROM_DOC]: 7,
-      [CARD_AT]: 2410,
+      [CARD]: { id: "1302000", at: 2410, spot: "top" },
     });
   });
 
-  it("位置沒變：不用再寫一次", () => {
-    expect(withCardAt({ ...nextEntry, [CARD_AT]: 2410 }, 2410)).toBeNull();
+  it("位置、放哪裡都沒變：不用再寫一次", () => {
+    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "top" } }, card)).toBeNull();
   });
 
-  it("紀錄是空的（例如按過「跳到主要內容」）：照樣記", () => {
-    expect(withCardAt(null, 380)).toEqual({ [CARD_AT]: 380 });
+  it("卡片搬了（最上面 → 那一列下面）或位置變了：要再寫", () => {
+    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "inline" } }, card)).toEqual({
+      ...nextEntry,
+      [CARD]: { id: "1302000", at: 2410, spot: "top" },
+    });
+    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 380, spot: "top" } }, card)).toEqual({
+      ...nextEntry,
+      [CARD]: { id: "1302000", at: 2410, spot: "top" },
+    });
   });
 
-  it("讀回來：沒記過、或記的不是數字，就當沒記", () => {
-    expect(cardAtOf({ ...nextEntry, [CARD_AT]: 2410 })).toBe(2410);
-    expect(cardAtOf(nextEntry)).toBeUndefined();
-    expect(cardAtOf(null)).toBeUndefined();
-    expect(cardAtOf({ [CARD_AT]: "2410" })).toBeUndefined();
+  it("不是 Next 管的紀錄（例如按過「跳到主要內容」，紀錄是空的）：不寫——寫了之後按返回、下一頁到這筆，Next 會整頁重載", () => {
+    expect(withCard(null, card)).toBeNull();
+    expect(withCard({}, card)).toBeNull();
+    expect(withCard({ [FROM_LIST]: "1302000" }, card)).toBeNull();
+  });
+
+  it("讀回來：沒記過、或記壞了，就當沒記", () => {
+    expect(cardOf({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "inline" } })).toEqual({ id: "1302000", at: 2410, spot: "inline" });
+    expect(cardOf(nextEntry)).toBeUndefined();
+    expect(cardOf(null)).toBeUndefined();
+    expect(cardOf({ [CARD]: { id: "1302000", at: "2410", spot: "top" } })).toBeUndefined();
+    expect(cardOf({ [CARD]: { id: 1302000, at: 2410, spot: "top" } })).toBeUndefined();
+    expect(cardOf({ [CARD]: { id: "1302000", at: 2410, spot: "side" } })).toBeUndefined();
+  });
+});
+
+describe("按返回、下一頁、重新整理回到開著卡片的那一筆：卡片照這筆紀錄放（不搬家）", () => {
+  const entry = (card: unknown) => ({ __NA: true, [CARD]: card });
+
+  it("紀錄記的就是這一筆：照記的放", () => {
+    expect(keptFromHistory(entry({ id: "1302000", at: 330, spot: "top" }), "1302000")).toEqual({ id: "1302000", spot: "top" });
+    expect(keptFromHistory(entry({ id: "1302000", at: 570, spot: "inline" }), "1302000")).toEqual({ id: "1302000", spot: "inline" });
+  });
+
+  it("紀錄記的是別筆、沒記過、或沒開著卡片：不照紀錄", () => {
+    expect(keptFromHistory(entry({ id: "1302001", at: 330, spot: "top" }), "1302000")).toBeNull();
+    expect(keptFromHistory({ __NA: true }, "1302000")).toBeNull();
+    expect(keptFromHistory(entry({ id: "1302000", at: 330, spot: "top" }), null)).toBeNull();
   });
 });
 
@@ -242,6 +273,17 @@ describe("按返回後位置對不上的補救：清單變了、而且那一筆�
 
   it("位置只差幾 px（字型載入之類）：不算變", () => {
     expect(needsRescue({ leftAt: 2410, nowAt: 2414, top: -1900, bottom: -1100, ...view })).toBe(false);
+  });
+
+  it("差 8px 還不算變，差 9px 就算", () => {
+    expect(needsRescue({ leftAt: 2410, nowAt: 2418, top: -1900, bottom: -1100, ...view })).toBe(false);
+    expect(needsRescue({ leftAt: 2410, nowAt: 2419, top: -1900, bottom: -1100, ...view })).toBe(true);
+    expect(needsRescue({ leftAt: 2410, nowAt: 2401, top: -1900, bottom: -1100, ...view })).toBe(true);
+  });
+
+  it("剛好貼著導覽列下緣、或剛好貼著畫面底：都還看不到，算不在畫面上", () => {
+    expect(needsRescue({ leftAt: 2410, nowAt: 380, top: -700, bottom: 66, ...view })).toBe(true);
+    expect(needsRescue({ leftAt: 380, nowAt: 2410, top: 812, bottom: 1600, ...view })).toBe(true);
   });
 
   it("清單變了、那一筆和卡片都在畫面上面：跳過去", () => {

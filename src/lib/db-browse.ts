@@ -102,21 +102,35 @@ export function collapseByBack(historyState: unknown, selected: string, doc: num
   return state?.[FROM_LIST] === selected && state?.[FROM_DOC] === doc;
 }
 
-/** 這筆紀錄離開時，卡片在頁面上的位置（離頁面頂端幾 px） */
-export const CARD_AT = "dbCardAt";
+/** 這筆紀錄離開時開著的卡片：哪一筆、在頁面上的位置（離頁面頂端幾 px）、放在哪裡 */
+export const CARD = "dbCard";
+export type CardRecord = { id: string; at: number; spot: "inline" | "top" };
 
 /**
- * 把卡片的位置記進這筆紀錄：Next 的紀錄、從清單點開的記號都留著。位置沒變回 null，不用再寫一次。
+ * 把卡片記進這筆紀錄：Next 的紀錄、從清單點開的記號都留著。跟記的一樣就回 null，不用再寫一次。
+ * 不是 Next 管的紀錄（例如按過「跳到主要內容」）不寫：寫了之後按返回、下一頁到這筆，Next 會整頁重載。
  */
-export function withCardAt(historyState: unknown, at: number): Record<string, unknown> | null {
+export function withCard(historyState: unknown, card: CardRecord): Record<string, unknown> | null {
   const state = asRecord(historyState);
-  if (state?.[CARD_AT] === at) return null;
-  return { ...state, [CARD_AT]: at };
+  if (state?.__NA !== true) return null;
+  const old = cardOf(state);
+  if (old?.id === card.id && old.at === card.at && old.spot === card.spot) return null;
+  return { ...state, [CARD]: { ...card } };
 }
 
-export function cardAtOf(historyState: unknown): number | undefined {
-  const at = asRecord(historyState)?.[CARD_AT];
-  return typeof at === "number" ? at : undefined;
+export function cardOf(historyState: unknown): CardRecord | undefined {
+  const card = asRecord(asRecord(historyState)?.[CARD]);
+  if (!card) return undefined;
+  const { id, at, spot } = card;
+  return typeof id === "string" && typeof at === "number" && (spot === "inline" || spot === "top") ? { id, at, spot } : undefined;
+}
+
+/**
+ * 按返回、下一頁、重新整理回到開著卡片的那一筆：卡片照這筆紀錄記的地方放——放在最上面的就還是最上面，不會搬到清單中間。
+ */
+export function keptFromHistory(historyState: unknown, selected: string | null): { id: string; spot: DetailSpot } | null {
+  const card = cardOf(historyState);
+  return selected !== null && card?.id === selected ? { id: selected, spot: card.spot } : null;
 }
 
 /** 卡片位置差這麼多以內（字型載入之類）不算清單變了 */

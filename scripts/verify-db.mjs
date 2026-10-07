@@ -1,23 +1,32 @@
 // 查資料四頁（道具、怪物、任務、技能）的瀏覽器驗收：無頭 Chrome 走 DevTools 協定，手機 375×812、桌機 1280×800。
 //
-// 用法（先起好網站，例如 npm run dev）：
+// 用法（先起好網站，例如 npm run dev；要 Node 22 以上）：
 //   npm run verify:db                              驗 http://localhost:3000
 //   npm run verify:db -- <網址>                    例如測試機 https://maplestory-tool-git-dev-clarkhers-projects.vercel.app
-//   npm run verify:db -- <網址> <輸出資料夾>        截圖和 results.json 放這裡（預設：系統暫存資料夾的 maplebook-verify-db）
+//   npm run verify:db -- <網址> <輸出資料夾>        截圖和 results.json 放這裡（預設：系統暫存資料夾的 maplebook-verify-db／這次的時間）
 // 環境變數 CHROME_PATH 可以指定 Chrome（或 Edge、Chromium）；沒指定就找常見的安裝位置。
+// 環境變數 VERIFY_ONLY=N10,N13 只跑段名開頭符合的那幾段（改一個地方時先跑相關的，最後再全部跑一次）。
 // 每一項印 PASS／FAIL，有一項沒過就 exit 1。
 //
 // 為什麼用無頭 Chrome：Claude 的瀏覽器窗格常是隱藏的，requestAnimationFrame 不跑、平滑捲動不播、按返回不還原位置，
 // 量不到真的畫面。無頭頁面算看得見，動畫照跑。取樣要在畫完之後（requestAnimationFrame 之後再 setTimeout），
 // 不然會量到沒畫出來的那一格。按返回／下一頁一律用 DevTools 的 Page.navigateToHistoryEntry（跟按瀏覽器的返回鍵一樣），
 // 不用頁面裡的 history.back()。
+// 寫死的資料：綠水靈 210100（卡片很長）、白狼人 8140000（怪物清單第 121 筆，不在前 60 筆）、道具 1302020（不在前 60 筆）、
+// 任務 6931 要先完成 6930。遊戲資料改版後對不上時，這幾項會 FAIL 並寫出原因，換成新的 id 就好。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+if (typeof WebSocket === "undefined") {
+  console.error("需要 Node 22 以上（用到內建的 WebSocket）");
+  process.exit(1);
+}
+
 const BASE = (process.argv[2] ?? "http://localhost:3000").replace(/\/$/, "");
-const OUT = path.resolve(process.argv[3] ?? path.join(os.tmpdir(), "maplebook-verify-db"));
+const STAMP = new Date().toISOString().replace(/[:.]/g, "-");
+const OUT = path.resolve(process.argv[3] ?? path.join(os.tmpdir(), "maplebook-verify-db", STAMP));
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -32,39 +41,32 @@ function findChrome() {
             path.join(dir, "Microsoft/Edge/Application/msedge.exe"),
           ])
       : process.platform === "darwin"
-        ? ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Chromium.app/Contents/MacOS/Chromium"]
-        : ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium", "/usr/bin/chromium-browser"];
+        ? [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+          ]
+        : [
+            "/usr/bin/google-chrome",
+            "/usr/bin/google-chrome-stable",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+            "/snap/bin/chromium",
+            "/usr/bin/microsoft-edge",
+            "/usr/bin/microsoft-edge-stable",
+          ];
   const found = candidates.find(file => fs.existsSync(file));
   if (!found) throw new Error("找不到 Chrome，請用環境變數 CHROME_PATH 指定");
   return found;
 }
 
-// 每次用乾淨的瀏覽器資料；埠交給 Chrome 自己挑（寫在 DevToolsActivePort），幾支一起跑不會撞
-const profile = fs.mkdtempSync(path.join(os.tmpdir(), "maplebook-verify-db-profile-"));
-const chrome = spawn(findChrome(), [
-  "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
-  "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--hide-scrollbars", "--window-size=1280,900", "about:blank",
-], { stdio: "ignore" });
-
-async function devtoolsPort() {
-  const file = path.join(profile, "DevToolsActivePort");
-  for (let i = 0; i < 150; i++) {
-    try {
-      const port = Number(fs.readFileSync(file, "utf8").split("\n")[0]);
-      if (port) return port;
-    } catch {
-      // Chrome 還沒寫好
-    }
-    await sleep(200);
-  }
-  throw new Error("Chrome 的 DevTools 沒起來");
-}
 async function getJSON(url) {
   for (let i = 0; i < 100; i++) {
     try { return await (await fetch(url)).json(); } catch { await sleep(200); }
   }
   throw new Error(`DevTools 沒回應：${url}`);
 }
+/** DevTools 協定的連線。每個指令最多等 timeout，Chrome 掛掉時不會整支卡住 */
 function connect(wsUrl) {
   const ws = new WebSocket(wsUrl);
   let id = 0;
@@ -78,65 +80,24 @@ function connect(wsUrl) {
       msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result);
     } else if (msg.method) for (const l of listeners) l(msg);
   });
-  const opened = new Promise(r => ws.addEventListener("open", r));
-  const send = (method, params = {}) => new Promise((resolve, reject) => {
-    const i = ++id;
-    pending.set(i, { resolve, reject });
-    ws.send(JSON.stringify({ id: i, method, params }));
+  const opened = new Promise((resolve, reject) => {
+    ws.addEventListener("open", resolve);
+    ws.addEventListener("error", () => reject(new Error(`連不上 DevTools：${wsUrl}`)));
   });
+  const send = (method, params = {}, timeout = 120000) =>
+    new Promise((resolve, reject) => {
+      const i = ++id;
+      const timer = setTimeout(() => {
+        pending.delete(i);
+        reject(new Error(`DevTools 沒回應（${method}）`));
+      }, timeout);
+      pending.set(i, {
+        resolve: value => { clearTimeout(timer); resolve(value); },
+        reject: error => { clearTimeout(timer); reject(error); },
+      });
+      ws.send(JSON.stringify({ id: i, method, params }));
+    });
   return { opened, send, listeners };
-}
-
-const PORT = await devtoolsPort();
-const version = await getJSON(`http://127.0.0.1:${PORT}/json/version`);
-const pageTarget = (await getJSON(`http://127.0.0.1:${PORT}/json/list`)).find(t => t.type === "page");
-const browser = connect(version.webSocketDebuggerUrl);
-const page = connect(pageTarget.webSocketDebuggerUrl);
-await Promise.all([browser.opened, page.opened]);
-await page.send("Page.enable");
-await page.send("Runtime.enable");
-
-async function evaluate(expression) {
-  const r = await page.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
-  if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails).slice(0, 600));
-  return r.result.value;
-}
-function loadEvent() {
-  return new Promise(res => {
-    const l = m => { if (m.method === "Page.loadEventFired") { page.listeners.delete(l); res(); } };
-    page.listeners.add(l);
-  });
-}
-async function navigate(url) {
-  const loaded = loadEvent();
-  await page.send("Page.navigate", { url });
-  await loaded;
-}
-async function reload() {
-  const loaded = loadEvent();
-  await page.send("Page.reload", {});
-  await loaded;
-}
-async function shot(file) {
-  const r = await page.send("Page.captureScreenshot", { format: "png" });
-  fs.writeFileSync(path.join(OUT, file), Buffer.from(r.data, "base64"));
-}
-const mobile = () => page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 2, mobile: true });
-const desktop = () => page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
-const reduceMotion = on =>
-  page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: on ? "reduce" : "no-preference" }] });
-/** 跟按瀏覽器的返回／下一頁一樣（不是頁面自己呼叫 history.back）：量按返回一律這樣按 */
-async function traverse(delta) {
-  const history = await page.send("Page.getNavigationHistory");
-  const entry = history.entries[history.currentIndex + delta];
-  if (!entry) throw new Error(`沒有第 ${history.currentIndex + delta} 筆歷史紀錄`);
-  await page.send("Page.navigateToHistoryEntry", { entryId: entry.id });
-}
-/** 按返回（或下一頁），同時逐格記 expr 的值；painted：畫完之後才取樣。回傳有變的那幾格 */
-async function traverseRecording(delta, ms, expr, painted = false) {
-  await evaluate(`(() => { ${H} window.__fp = window.${painted ? "__painted" : "__frames"}(${ms}, () => ${expr}); return 1; })()`);
-  await traverse(delta);
-  return evaluate(`window.__fp.then(list => list.filter((f, i) => i === 0 || f !== list[i - 1]))`);
 }
 
 // 頁面裡的小工具
@@ -196,25 +157,17 @@ const H = `
     return window.__rows().length;
   };
 `;
-const ev = body => evaluate(`(async () => { ${H} ${body} })()`);
-async function fresh(pathname) {
-  await navigate(BASE + pathname);
-  await ev(`await __ready(); await __sleep(600); return 1;`);
-}
 
 const results = [];
 const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail });
+const near = (a, b, tol = 3) => typeof a === "number" && Math.abs(a - b) <= tol;
 // console 的錯誤、警告、沒接住的例外全部記下來
 const consoleProblems = [];
-page.listeners.add(m => {
-  if (m.method === "Runtime.consoleAPICalled" && (m.params.type === "error" || m.params.type === "warning")) {
-    consoleProblems.push(`${m.params.type}: ${m.params.args.map(a => a.value ?? a.description ?? "").join(" ").slice(0, 200)}`);
-  }
-  if (m.method === "Runtime.exceptionThrown") consoleProblems.push(`exception: ${(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text).slice(0, 200)}`);
-});
-const near = (a, b, tol = 3) => typeof a === "number" && Math.abs(a - b) <= tol;
+// 只跑某幾段：VERIFY_ONLY=N10,N13（段名開頭符合就跑），沒給就全部跑
+const ONLY = process.env.VERIFY_ONLY?.split(",").map(name => name.trim()).filter(Boolean);
 // 一段檢查出錯（例如找不到按鈕）只記這一段失敗，後面照跑
 async function section(name, run) {
+  if (ONLY?.length && !ONLY.some(prefix => name.startsWith(prefix))) return;
   try {
     await run();
   } catch (error) {
@@ -222,259 +175,379 @@ async function section(name, run) {
   }
 }
 
+// 每次用乾淨的瀏覽器資料；埠交給 Chrome 自己挑（寫在 DevToolsActivePort），幾支一起跑不會撞
+const profile = fs.mkdtempSync(path.join(os.tmpdir(), "maplebook-verify-db-profile-"));
+let chrome = null;
+let browser = null;
+let page = null;
+
 try {
+  const chromePath = findChrome();
+  let chromeError = null;
+  chrome = spawn(chromePath, [
+    "--headless=new", "--remote-debugging-port=0", `--user-data-dir=${profile}`,
+    "--no-first-run", "--no-default-browser-check", "--disable-extensions", "--hide-scrollbars", "--window-size=1280,900", "about:blank",
+  ], { stdio: "ignore" });
+  chrome.on("error", error => { chromeError = error; });
+
+  let port = 0;
+  for (let i = 0; i < 150 && !port; i++) {
+    if (chromeError) throw new Error(`開不了 Chrome（${chromePath}）：${chromeError.message}`);
+    try {
+      port = Number(fs.readFileSync(path.join(profile, "DevToolsActivePort"), "utf8").split("\n")[0]);
+    } catch {
+      // Chrome 還沒寫好
+    }
+    if (!port) await sleep(200);
+  }
+  if (!port) throw new Error("Chrome 的 DevTools 沒起來");
+  const version = await getJSON(`http://127.0.0.1:${port}/json/version`);
+  const pageTarget = (await getJSON(`http://127.0.0.1:${port}/json/list`)).find(t => t.type === "page");
+  if (!pageTarget) throw new Error("Chrome 沒有可以操作的分頁");
+  browser = connect(version.webSocketDebuggerUrl);
+  page = connect(pageTarget.webSocketDebuggerUrl);
+  await Promise.all([browser.opened, page.opened]);
+  await page.send("Page.enable");
+  await page.send("Runtime.enable");
+  page.listeners.add(m => {
+    if (m.method === "Runtime.consoleAPICalled" && (m.params.type === "error" || m.params.type === "warning")) {
+      consoleProblems.push(`${m.params.type}: ${m.params.args.map(a => a.value ?? a.description ?? "").join(" ").slice(0, 200)}`);
+    }
+    if (m.method === "Runtime.exceptionThrown") consoleProblems.push(`exception: ${(m.params.exceptionDetails.exception?.description ?? m.params.exceptionDetails.text).slice(0, 200)}`);
+  });
+
+  const evaluate = async expression => {
+    const r = await page.send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
+    if (r.exceptionDetails) throw new Error(JSON.stringify(r.exceptionDetails).slice(0, 600));
+    return r.result.value;
+  };
+  const ev = body => evaluate(`(async () => { ${H} ${body} })()`);
+  const loadEvent = () =>
+    new Promise(res => {
+      const l = m => { if (m.method === "Page.loadEventFired") { page.listeners.delete(l); res(); } };
+      page.listeners.add(l);
+    });
+  const navigate = async url => {
+    const loaded = loadEvent();
+    const r = await page.send("Page.navigate", { url });
+    if (r.errorText) throw new Error(`打不開 ${url}（${r.errorText}）：網站有起來嗎？`);
+    await loaded;
+  };
+  const reload = async () => {
+    const loaded = loadEvent();
+    await page.send("Page.reload", {});
+    await loaded;
+  };
+  const shot = async file => {
+    const r = await page.send("Page.captureScreenshot", { format: "png" });
+    fs.writeFileSync(path.join(OUT, file), Buffer.from(r.data, "base64"));
+  };
+  const mobile = () => page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 2, mobile: true });
+  const desktop = () => page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+  const reduceMotion = on =>
+    page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: on ? "reduce" : "no-preference" }] });
+  /** 跟按瀏覽器的返回／下一頁一樣（不是頁面自己呼叫 history.back）：量按返回一律這樣按 */
+  const traverse = async delta => {
+    const history = await page.send("Page.getNavigationHistory");
+    const entry = history.entries[history.currentIndex + delta];
+    if (!entry) throw new Error(`沒有第 ${history.currentIndex + delta} 筆歷史紀錄`);
+    await page.send("Page.navigateToHistoryEntry", { entryId: entry.id });
+  };
+  /** 按返回（或下一頁），同時逐格記 expr 的值；painted：畫完之後才取樣。回傳有變的那幾格 */
+  const traverseRecording = async (delta, ms, expr, painted = false) => {
+    await evaluate(`(() => { ${H} window.__fp = window.${painted ? "__painted" : "__frames"}(${ms}, () => ${expr}); return 1; })()`);
+    await traverse(delta);
+    return evaluate(`window.__fp.then(list => list.filter((f, i) => i === 0 || f !== list[i - 1]))`);
+  };
+  /** 清掉記住的搜尋、篩選、已載入筆數（下一次整頁打開時才生效），每一段從預設的清單開始 */
+  const clearRemembered = () =>
+    evaluate(`Object.keys(sessionStorage).filter(k => k.startsWith("ms-db:")).forEach(k => sessionStorage.removeItem(k)); 1`);
+  const fresh = async pathname => {
+    await clearRemembered();
+    await navigate(BASE + pathname);
+    const shown = await ev(`const ok = await __ready(); await __sleep(600); return ok ? null : (document.body?.innerText ?? "").slice(0, 120);`);
+    // 清單沒出來（網站沒起來、部署被回收、程式掛了）：直接講畫面上是什麼，不要讓後面的檢查報看不懂的錯
+    if (shown !== null) throw new Error(`${BASE + pathname} 的清單沒出來，畫面上是：${shown.replace(/\s+/g, " ")}`);
+  };
+
   await mobile();
   await navigate(BASE + "/db");
   await evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: 45, job: 110 })); localStorage.setItem("ms-theme", "light"); "ok"`);
 
   // ── 手機：點一筆、換一筆、收起 ──
 
-  // M1 點第 3 筆：細節展開在那一列下面、那一列捲到導覽列下方、歷史紀錄留了「從清單點開」的記號
-  await fresh("/db/items");
-  let r = await ev(`const id = __rowId(2); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
-    __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
-    return { id, open: __open(), rowTop: __top(id), marker: history.state?.dbFromList ?? null, topCard: __topCard() };`);
-  check("M1 手機點一筆：細節展開在那一列下面", r.open.length === 1 && r.open[0] === r.id && !r.topCard, r);
-  check("M1 那一列捲到導覽列下方（約 80px）", near(r.rowTop, 80), r.rowTop);
-  check("M1 歷史紀錄有「從清單點開」記號", r.marker === r.id, r.marker);
-  await shot("m1-open.png");
+  await section("M1–M5", async () => {
+    // M1 點第 3 筆：細節展開在那一列下面、那一列捲到導覽列下方、歷史紀錄留了「從清單點開」的記號
+    await fresh("/db/items");
+    let r = await ev(`const id = __rowId(2); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
+      __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
+      return { id, open: __open(), rowTop: __top(id), marker: history.state?.dbFromList ?? null, topCard: __topCard() };`);
+    check("M1 手機點一筆：細節展開在那一列下面", r.open.length === 1 && r.open[0] === r.id && !r.topCard, r);
+    check("M1 那一列捲到導覽列下方（約 80px）", near(r.rowTop, 80), r.rowTop);
+    check("M1 歷史紀錄有「從清單點開」記號", r.marker === r.id, r.marker);
+    await shot("m1-open.png");
 
-  // M2 開著第 3 筆時點第 9 筆：第 9 筆那一列不會先往上跳（放回手指的位置），最後停在導覽列下方，只開一張
-  r = await ev(`const a = __id(); const b = __rowId(8);
-    __row(b).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
-    const before = __top(b); const aHeight = Math.round(__row(a).getBoundingClientRect().height);
-    const framesP = __frames(1500, () => __top(b)); __tap(b); const frames = await framesP;
-    return { a, b, before, aHeight, firstFrames: frames.slice(0, 5), end: __top(b), open: __open(), marker: history.state?.dbFromList ?? null };`);
-  const firstMove = r.firstFrames.find(v => v !== r.before) ?? r.before;
-  check("M2 換點另一筆：手指那一列第一格沒有往上跳一張卡的高度", firstMove > r.before - r.aHeight / 2, { before: r.before, firstFrames: r.firstFrames, cardAHeight: r.aHeight });
-  check("M2 最後停在導覽列下方、只開一張", near(r.end, 80) && r.open.length === 1 && r.open[0] === r.b, { end: r.end, open: r.open });
-  check("M2 開著別筆時點開的不留記號", r.marker === null, r.marker);
+    // M2 開著第 3 筆時點第 9 筆：第 9 筆那一列不會先往上跳（放回手指的位置），最後停在導覽列下方，只開一張
+    r = await ev(`const a = __id(); const b = __rowId(8);
+      __row(b).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      const before = __top(b); const aHeight = Math.round(__row(a).getBoundingClientRect().height);
+      const framesP = __frames(1500, () => __top(b)); __tap(b); const frames = await framesP;
+      return { a, b, before, aHeight, firstFrames: frames.slice(0, 5), end: __top(b), open: __open(), marker: history.state?.dbFromList ?? null };`);
+    const firstMove = r.firstFrames.find(v => v !== r.before) ?? r.before;
+    check("M2 換點另一筆：手指那一列第一格沒有往上跳一張卡的高度", firstMove > r.before - r.aHeight / 2, { before: r.before, firstFrames: r.firstFrames, cardAHeight: r.aHeight });
+    check("M2 最後停在導覽列下方、只開一張", near(r.end, 80) && r.open.length === 1 && r.open[0] === r.b, { end: r.end, open: r.open });
+    check("M2 開著別筆時點開的不留記號", r.marker === null, r.marker);
 
-  // M3 再點一次開著的那一筆：收起
-  r = await ev(`const b = __id(); __tap(b); await __waitFor(() => __id() === null, 3000); await __sleep(500);
-    return { b, id: __id(), open: __open(), rowTop: __top(b) };`);
-  check("M3 再點一次開著的那一筆：收起", r.id === null && r.open.length === 0, r);
-  check("M3 收起後那一列在導覽列下方", near(r.rowTop, 80), r.rowTop);
+    // M3 再點一次開著的那一筆：收起
+    r = await ev(`const b = __id(); __tap(b); await __waitFor(() => __id() === null, 3000); await __sleep(500);
+      return { b, id: __id(), open: __open(), rowTop: __top(b) };`);
+    check("M3 再點一次開著的那一筆：收起", r.id === null && r.open.length === 0, r);
+    check("M3 收起後那一列在導覽列下方", near(r.rowTop, 80), r.rowTop);
 
-  // M4 從清單點開（有記號）→ 按「收起，看下一筆」：網址回到沒有 id、上一頁不多一筆
-  r = await ev(`const id = __rowId(20); __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
-    const tapTop = __top(id); const len0 = history.length; __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
-    __collapseBtn().scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(200);
-    const framesP = __painted(900, () => __top(id));
-    __collapseBtn().click(); const frames = await framesP; await __waitFor(() => __id() === null, 3000); await __sleep(300);
-    const focused = document.activeElement === __rowBtn(id);
-    return { id, tapTop, idAfter: __id(), open: __open(), rowTop: __top(id), focused, lenDelta: history.length - len0, frames: __changes(frames) };`);
-  check("M4 收起（從清單點開的）：卡片收掉、網址沒有 id", r.idAfter === null && r.open.length === 0, r);
-  check("M4 收起後那一列在導覽列下方", near(r.rowTop, 80), { rowTop: r.rowTop, frames: r.frames });
-  check("M4 收起時沒有先閃到點之前的位置、也不滑（那一列逐格位置不超過 2 個）", r.frames.length <= 2 && !r.frames.slice(0, -1).some(v => near(v, r.tapTop, 6) && !near(r.tapTop, 80, 6)), { tapTop: r.tapTop, frames: r.frames });
-  check("M4 收起後焦點回到那一列", r.focused, r.focused);
-  await shot("m4-after-collapse.png");
+    // M4 從清單點開（有記號）→ 按「收起，看下一筆」：網址回到沒有 id、上一頁不多一筆
+    r = await ev(`const id = __rowId(20); __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      const tapTop = __top(id); const len0 = history.length; __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+      __collapseBtn().scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(200);
+      const framesP = __painted(900, () => __top(id));
+      __collapseBtn().click(); const frames = await framesP; await __waitFor(() => __id() === null, 3000); await __sleep(300);
+      const focused = document.activeElement === __rowBtn(id);
+      return { id, tapTop, idAfter: __id(), open: __open(), rowTop: __top(id), focused, lenDelta: history.length - len0, frames: __changes(frames) };`);
+    check("M4 收起（從清單點開的）：卡片收掉、網址沒有 id", r.idAfter === null && r.open.length === 0, r);
+    check("M4 收起後那一列在導覽列下方", near(r.rowTop, 80), { rowTop: r.rowTop, frames: r.frames });
+    check("M4 收起時沒有先閃到點之前的位置、也不滑（那一列逐格位置不超過 2 個）", r.frames.length <= 2 && !r.frames.slice(0, -1).some(v => near(v, r.tapTop, 6) && !near(r.tapTop, 80, 6)), { tapTop: r.tapTop, frames: r.frames });
+    check("M4 收起後焦點回到那一列", r.focused, r.focused);
+    await shot("m4-after-collapse.png");
 
-  // M5 開著 A 再點 B（沒有記號）→ 收起 B：直接收掉，不會跳回 A
-  r = await ev(`const a = __rowId(4), b = __rowId(6); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
-    __tap(a); await __waitFor(() => __id() === a); await __sleep(1200);
-    __tap(b); await __waitFor(() => __id() === b); await __sleep(1200);
-    __collapseBtn().click(); await __waitFor(() => __id() !== b, 3000); await __sleep(700);
-    return { a, b, idAfter: __id(), open: __open(), rowTop: __top(b) };`);
-  check("M5 收起（開著別筆時點開的）：直接收掉，不跳回上一筆", r.idAfter === null && r.open.length === 0, r);
-  check("M5 收起後那一列在導覽列下方", near(r.rowTop, 80), r.rowTop);
+    // M5 開著 A 再點 B（沒有記號）→ 收起 B：直接收掉，不會跳回 A
+    r = await ev(`const a = __rowId(4), b = __rowId(6); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
+      __tap(a); await __waitFor(() => __id() === a); await __sleep(1200);
+      __tap(b); await __waitFor(() => __id() === b); await __sleep(1200);
+      __collapseBtn().click(); await __waitFor(() => __id() !== b, 3000); await __sleep(700);
+      return { a, b, idAfter: __id(), open: __open(), rowTop: __top(b) };`);
+    check("M5 收起（開著別筆時點開的）：直接收掉，不跳回上一筆", r.idAfter === null && r.open.length === 0, r);
+    check("M5 收起後那一列在導覽列下方", near(r.rowTop, 80), r.rowTop);
+  });
 
   // M6 從網址打開：在清單上 → 展開在那一列下面並跳過去；不在清單上 → 放在清單最上面並跳過去
-  const nearId = await ev(`return __rowId(40);`);
-  await navigate(`${BASE}/db/items?id=${nearId}`);
-  r = await ev(`await __ready(); await __sleep(900); return { open: __open(), rowTop: __top(${JSON.stringify(nearId)}), topCard: __topCard() };`);
-  check("M6 網址打開（清單第 41 筆）：展開在那一列下面、跳到導覽列下方", r.open[0] === nearId && near(r.rowTop, 80) && !r.topCard, r);
-  await navigate(`${BASE}/db/items?id=1302020`);
-  r = await ev(`await __ready(); await __sleep(900); const card = __topWrap();
-    return { topCard: __topCard(), open: __open(), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null, inList: !!__row("1302020") };`);
-  check("M6 網址打開（不在前 60 筆）：放在清單最上面、跳到那張卡", r.topCard && r.open.length === 0 && !r.inList && near(r.cardTop, 80), r);
-  await shot("m6-top-card.png");
+  await section("M6", async () => {
+    await fresh("/db/items");
+    const nearId = await ev(`return __rowId(40);`);
+    await navigate(`${BASE}/db/items?id=${nearId}`);
+    let r = await ev(`await __ready(); await __sleep(900); return { open: __open(), rowTop: __top(${JSON.stringify(nearId)}), topCard: __topCard() };`);
+    check("M6 網址打開（清單第 41 筆）：展開在那一列下面、跳到導覽列下方", r.open[0] === nearId && near(r.rowTop, 80) && !r.topCard, r);
+    await navigate(`${BASE}/db/items?id=1302020`);
+    r = await ev(`await __ready(); await __sleep(900); const card = __topWrap();
+      return { topCard: __topCard(), open: __open(), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null, inList: !!__row("1302020") };`);
+    check("M6 網址打開（不在前 60 筆）：放在清單最上面、跳到那張卡", r.topCard && r.open.length === 0 && !r.inList && near(r.cardTop, 80), r);
+    await shot("m6-top-card.png");
+  });
 
   // M7 同一頁的連結（任務「要先完成」）：跳到新的那一筆
-  await navigate(`${BASE}/db/quests?id=6931`);
-  r = await ev(`await __ready(); await __sleep(900);
-    const link = [...document.querySelectorAll("main article a")].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
-    if (!link) return { skipped: "找不到要先完成的連結" };
-    link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
-    await __waitFor(() => __id() === "6930", 5000); await __sleep(900);
-    const card = __topWrap();
-    return { id: __id(), open: __open(), topCard: __topCard(), rowTop: __top("6930"), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null };`);
-  check("M7 同頁連結（要先完成）：跳到新的那一筆", !r.skipped && r.id === "6930" && ((r.open[0] === "6930" && near(r.rowTop, 80)) || (r.topCard && near(r.cardTop, 80))), r);
+  await section("M7", async () => {
+    await clearRemembered();
+    await navigate(`${BASE}/db/quests?id=6931`);
+    const r = await ev(`await __ready(); await __sleep(900);
+      const link = [...document.querySelectorAll("main article a")].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
+      if (!link) return { skipped: "找不到要先完成的連結" };
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+      await __waitFor(() => __id() === "6930", 5000); await __sleep(900);
+      const card = __topWrap();
+      return { id: __id(), open: __open(), topCard: __topCard(), rowTop: __top("6930"), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null };`);
+    check("M7 同頁連結（要先完成）：跳到新的那一筆", !r.skipped && r.id === "6930" && ((r.open[0] === "6930" && near(r.rowTop, 80)) || (r.topCard && near(r.cardTop, 80))), r);
+  });
 
   // ── 手機：按返回、離開再回來、記住搜尋篩選 ──
 
   // M8 頁內返回（v0.28）：A → B（開著 A 點 B）→ 返回：回到 A，位置是點 B 之前的位置
-  await fresh("/db/items");
-  let ctx = await ev(`const a = __rowId(3), b = __rowId(10); __tap(a); await __waitFor(() => __id() === a); await __sleep(1200);
-    __row(b).scrollIntoView({ block: "end", behavior: "instant" }); await __sleep(300);
-    const yBeforeB = Math.round(scrollY); __tap(b); await __waitFor(() => __id() === b); await __sleep(1200);
-    return { a, b, yBeforeB };`);
-  let frames = await traverseRecording(-1, 1000, "Math.round(scrollY)");
-  r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(ctx.a)}, 3000); await __sleep(300);
-    return { id: __id(), open: __open(), yAfterBack: Math.round(scrollY) };`);
-  r = { ...ctx, ...r, frames };
-  check("M8 頁內返回：回到上一筆", r.id === r.a && r.open[0] === r.a, r);
-  check("M8 頁內返回：回到點下一筆前的位置", near(r.yAfterBack, r.yBeforeB), { yBeforeB: r.yBeforeB, yAfterBack: r.yAfterBack });
-  check("M8 頁內返回：直接跳、不滑", r.frames.length <= 3, r.frames);
+  await section("M8", async () => {
+    await fresh("/db/items");
+    const ctx = await ev(`const a = __rowId(3), b = __rowId(10); __tap(a); await __waitFor(() => __id() === a); await __sleep(1200);
+      __row(b).scrollIntoView({ block: "end", behavior: "instant" }); await __sleep(300);
+      const yBeforeB = Math.round(scrollY); __tap(b); await __waitFor(() => __id() === b); await __sleep(1200);
+      return { a, b, yBeforeB };`);
+    const frames = await traverseRecording(-1, 1000, "Math.round(scrollY)");
+    let r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(ctx.a)}, 3000); await __sleep(300);
+      return { id: __id(), open: __open(), yAfterBack: Math.round(scrollY) };`);
+    r = { ...ctx, ...r, frames };
+    check("M8 頁內返回：回到上一筆", r.id === r.a && r.open[0] === r.a, r);
+    check("M8 頁內返回：回到點下一筆前的位置", near(r.yAfterBack, r.yBeforeB), { yBeforeB: r.yBeforeB, yAfterBack: r.yAfterBack });
+    check("M8 頁內返回：直接跳、不滑", r.frames.length <= 3, r.frames);
+  });
 
   // M9 離開再返回（沒開卡片）：第一個畫面就有清單（不閃載入中），捲回原位
-  await fresh("/db/items");
-  // 捲到底會自動多載一批：等它停下來再記離開的位置
-  ctx = await ev(`window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(800);
-    const leftY = Math.round(scrollY);
-    document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-    window.__first = { rows: -1, loading: null };
-    window.__mo = new MutationObserver(() => { if (location.pathname === "/db/items" && window.__first.rows < 0 && __search()) window.__first = { rows: __rows().length, loading: document.querySelector("main").textContent.includes("載入中") }; });
-    window.__mo.observe(document.documentElement, { childList: true, subtree: true });
-    return { leftY };`);
-  frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
-  r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300); window.__mo.disconnect();
-    return { firstRows: window.__first.rows, firstLoading: window.__first.loading, backY: Math.round(scrollY) };`);
-  r = { ...ctx, ...r, frames };
-  check("M9 離開再返回：第一個畫面就有清單（不閃載入中）", r.firstRows >= 60 && r.firstLoading === false, r);
-  check("M9 離開再返回：捲回原位", near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
-  check("M9 離開再返回：直接跳、不滑", r.frames.length <= 3, r.frames);
+  await section("M9", async () => {
+    await fresh("/db/items");
+    // 捲到底會自動多載一批：等它停下來再記離開的位置
+    const ctx = await ev(`window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(800);
+      const leftY = Math.round(scrollY);
+      document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
+      window.__first = { rows: -1, loading: null };
+      window.__mo = new MutationObserver(() => { if (location.pathname === "/db/items" && window.__first.rows < 0 && __search()) window.__first = { rows: __rows().length, loading: document.querySelector("main").textContent.includes("載入中") }; });
+      window.__mo.observe(document.documentElement, { childList: true, subtree: true });
+      return { leftY };`);
+    const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
+    let r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300); window.__mo.disconnect();
+      return { firstRows: window.__first.rows, firstLoading: window.__first.loading, backY: Math.round(scrollY) };`);
+    r = { ...ctx, ...r, frames };
+    check("M9 離開再返回：第一個畫面就有清單（不閃載入中）", r.firstRows >= 60 && r.firstLoading === false, r);
+    check("M9 離開再返回：捲回原位", near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
+    check("M9 離開再返回：直接跳、不滑", r.frames.length <= 3, r.frames);
+  });
 
-  // M10 有搜尋＋篩選＋多載過：離開再返回，清單一樣、捲回原位
-  await fresh("/db/items");
-  ctx = await ev(`__setSearch("帽"); await __sleep(400);
-    __droppable()?.click(); await __sleep(400);
-    const before = __rows().length; await __loadMore();
-    // 捲到靠近底部時可能又自動多載一批：等它停下來，離開前那一刻的筆數才準
-    window.scrollTo({ top: document.documentElement.scrollHeight - 1600, behavior: "instant" }); await __sleep(800);
-    const rows = __rows().length; const leftY = Math.round(scrollY);
-    document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-    return { rowsBeforeMore: before, rowsBefore: rows, leftY };`);
-  frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
-  r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300);
-    return { query: __search().value, droppable: __droppable()?.checked, rowsAfter: __rows().length, backY: Math.round(scrollY) };`);
-  r = { ...ctx, ...r, frames };
-  check("M10 搜尋、篩選、多載過的筆數都還在", r.query === "帽" && r.droppable === true && r.rowsBefore > r.rowsBeforeMore && r.rowsAfter === r.rowsBefore, r);
-  check("M10 捲回原位", near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
-  check("M10 直接跳、不滑", r.frames.length <= 3, r.frames);
+  await section("M10–M11", async () => {
+    // M10 有搜尋＋篩選＋多載過：離開再返回，清單一樣、捲回原位
+    await fresh("/db/items");
+    const ctx = await ev(`__setSearch("帽"); await __sleep(400);
+      __droppable()?.click(); await __sleep(400);
+      const before = __rows().length; await __loadMore();
+      // 捲到靠近底部時可能又自動多載一批：等它停下來，離開前那一刻的筆數才準
+      window.scrollTo({ top: document.documentElement.scrollHeight - 1600, behavior: "instant" }); await __sleep(800);
+      const rows = __rows().length; const leftY = Math.round(scrollY);
+      document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
+      return { rowsBeforeMore: before, rowsBefore: rows, leftY };`);
+    const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
+    let r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300);
+      return { query: __search().value, droppable: __droppable()?.checked, rowsAfter: __rows().length, backY: Math.round(scrollY) };`);
+    r = { ...ctx, ...r, frames };
+    check("M10 搜尋、篩選、多載過的筆數都還在", r.query === "帽" && r.droppable === true && r.rowsBefore > r.rowsBeforeMore && r.rowsAfter === r.rowsBefore, r);
+    check("M10 捲回原位", near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
+    check("M10 直接跳、不滑", r.frames.length <= 3, r.frames);
 
-  // M11 從選單再進來（站內點頁首「查資料」再點「道具」，不是返回）：記住的搜尋還在、第一個畫面就有清單、從頂端開始
-  r = await ev(`document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800); let firstRows = -1;
-    const mo = new MutationObserver(() => { if (location.pathname === "/db/items" && firstRows < 0 && __search()) firstRows = __rows().length; });
-    mo.observe(document.documentElement, { childList: true, subtree: true });
-    document.querySelector('main a[href="/db/items"]').click(); await __waitFor(() => location.pathname === "/db/items"); await __sleep(1200); mo.disconnect();
-    return { query: __search().value, firstRows, y: Math.round(scrollY) };`);
-  check("M11 從選單再進來：記住的搜尋還在、第一個畫面就有清單、從頂端開始", r.query === "帽" && r.firstRows > 0 && r.y === 0, r);
-  await ev(`__setSearch(""); await __sleep(300); if (__droppable()?.checked) __droppable().click(); await __sleep(400); return 1;`);
+    // M11 從選單再進來（站內點頁首「查資料」再點「道具」，不是返回）：記住的搜尋還在、第一個畫面就有清單、從頂端開始
+    r = await ev(`document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800); let firstRows = -1;
+      const mo = new MutationObserver(() => { if (location.pathname === "/db/items" && firstRows < 0 && __search()) firstRows = __rows().length; });
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+      document.querySelector('main a[href="/db/items"]').click(); await __waitFor(() => location.pathname === "/db/items"); await __sleep(1200); mo.disconnect();
+      return { query: __search().value, firstRows, y: Math.round(scrollY) };`);
+    check("M11 從選單再進來：記住的搜尋還在、第一個畫面就有清單、從頂端開始", r.query === "帽" && r.firstRows > 0 && r.y === 0, r);
+  });
 
   // M12 開著卡片離開（點卡片裡的怪物連結）再返回：卡片還開著、捲回原位
-  ctx = await ev(`await __ready(); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
-    let id = null, link = null;
-    for (let i = 0; i < 30 && !link; i++) {
-      id = __rowId(i); __tap(id); await __waitFor(() => __id() === id); await __sleep(700);
-      link = [...document.querySelectorAll("#db-row-" + id + " article a")].find(a => (a.getAttribute("href") || "").startsWith("/db/monsters"));
-      if (!link) { __tap(id); await __waitFor(() => __id() === null); await __sleep(300); }
+  await section("M12", async () => {
+    await fresh("/db/items");
+    const ctx = await ev(`window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
+      let id = null, link = null;
+      for (let i = 0; i < 30 && !link; i++) {
+        id = __rowId(i); __tap(id); await __waitFor(() => __id() === id); await __sleep(700);
+        link = [...document.querySelectorAll("#db-row-" + id + " article a")].find(a => (a.getAttribute("href") || "").startsWith("/db/monsters"));
+        if (!link) { __tap(id); await __waitFor(() => __id() === null); await __sleep(300); }
+      }
+      if (!link) return { skipped: "前 30 筆找不到有怪物連結的道具" };
+      link.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      const leftY = Math.round(scrollY);
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click(); await __waitFor(() => location.pathname === "/db/monsters"); await __sleep(1200);
+      return { id, leftY };`);
+    let r = ctx;
+    if (!ctx.skipped) {
+      const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
+      r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300); return { open: __open(), backY: Math.round(scrollY) };`);
+      r = { ...ctx, ...r, frames };
     }
-    if (!link) return { skipped: "前 30 筆找不到有怪物連結的道具" };
-    link.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
-    const leftY = Math.round(scrollY);
-    link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click(); await __waitFor(() => location.pathname === "/db/monsters"); await __sleep(1200);
-    return { id, leftY };`);
-  r = ctx;
-  if (!ctx.skipped) {
-    frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
-    r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300); return { open: __open(), backY: Math.round(scrollY) };`);
-    r = { ...ctx, ...r, frames };
-  }
-  check("M12 開著卡片離開再返回：卡片還開著", !r.skipped && r.open[0] === r.id, r);
-  check("M12 開著卡片離開再返回：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY, skipped: r.skipped });
-  check("M12 開著卡片離開再返回：直接跳、不滑", !r.skipped && r.frames.length <= 3, r.frames);
+    check("M12 開著卡片離開再返回：卡片還開著", !r.skipped && r.open[0] === r.id, r);
+    check("M12 開著卡片離開再返回：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY, skipped: r.skipped });
+    check("M12 開著卡片離開再返回：直接跳、不滑", !r.skipped && r.frames.length <= 3, r.frames);
+  });
 
   // M13 「誰能用」選〇〇能用的：離開再返回，篩選還在、清單一樣、捲回原位（角色要同步讀，第一個畫面就套上）
-  await fresh("/db/items");
-  ctx = await ev(`const mine = document.querySelector("main select[aria-label='誰能用']");
-    if (!mine || ![...mine.options].some(o => o.value === "usable")) return { skipped: "沒有「誰能用」下拉或「〇〇能用的」選項" };
-    __select("誰能用", "usable"); await __sleep(500);
-    const firstId = __rowId(0);
-    // 捲到靠近底部時可能又自動多載一批：等它停下來，離開前那一刻的筆數才準
-    window.scrollTo({ top: document.documentElement.scrollHeight - 1400, behavior: "instant" }); await __sleep(800);
-    const rows = __rows().length; const leftY = Math.round(scrollY);
-    document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-    window.__firstFirstId = null;
-    window.__mo = new MutationObserver(() => { if (location.pathname === "/db/items" && window.__firstFirstId === null && __rows().length) window.__firstFirstId = __rowId(0); });
-    window.__mo.observe(document.documentElement, { childList: true, subtree: true });
-    return { rowsBefore: rows, firstId, leftY };`);
-  r = ctx;
-  if (!ctx.skipped) {
-    await traverse(-1);
-    r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(1500); window.__mo.disconnect();
-      const mine2 = document.querySelector("main select[aria-label='誰能用']");
-      const out = { checked: mine2?.value === "usable", rowsAfter: __rows().length, firstFirstId: window.__firstFirstId, backY: Math.round(scrollY) };
-      if (mine2) { __select("誰能用", ""); await __sleep(300); }
-      return out;`);
-    r = { ...ctx, ...r };
-  }
-  check("M13 〇〇能用的：返回後第一個畫面就套上篩選、清單一樣", !r.skipped && r.checked && r.rowsAfter === r.rowsBefore && r.firstFirstId === r.firstId, r);
-  check("M13 〇〇能用的：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
+  await section("M13", async () => {
+    await fresh("/db/items");
+    const ctx = await ev(`const mine = document.querySelector("main select[aria-label='誰能用']");
+      if (!mine || ![...mine.options].some(o => o.value === "usable")) return { skipped: "沒有「誰能用」下拉或「〇〇能用的」選項" };
+      __select("誰能用", "usable"); await __sleep(500);
+      const firstId = __rowId(0);
+      // 捲到靠近底部時可能又自動多載一批：等它停下來，離開前那一刻的筆數才準
+      window.scrollTo({ top: document.documentElement.scrollHeight - 1400, behavior: "instant" }); await __sleep(800);
+      const rows = __rows().length; const leftY = Math.round(scrollY);
+      document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
+      window.__firstFirstId = null;
+      window.__mo = new MutationObserver(() => { if (location.pathname === "/db/items" && window.__firstFirstId === null && __rows().length) window.__firstFirstId = __rowId(0); });
+      window.__mo.observe(document.documentElement, { childList: true, subtree: true });
+      return { rowsBefore: rows, firstId, leftY };`);
+    let r = ctx;
+    if (!ctx.skipped) {
+      await traverse(-1);
+      r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(1500); window.__mo.disconnect();
+        const mine2 = document.querySelector("main select[aria-label='誰能用']");
+        return { checked: mine2?.value === "usable", rowsAfter: __rows().length, firstFirstId: window.__firstFirstId, backY: Math.round(scrollY) };`);
+      r = { ...ctx, ...r };
+    }
+    check("M13 〇〇能用的：返回後第一個畫面就套上篩選、清單一樣", !r.skipped && r.checked && r.rowsAfter === r.rowsBefore && r.firstFirstId === r.firstId, r);
+    check("M13 〇〇能用的：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
+  });
 
   // M14 技能頁：展開在那一筆下面、職業篩選離開再回來還在
-  await fresh("/db/skills");
-  r = await ev(`const select = document.querySelector("main select"); const option = [...select.options].find(o => o.value && o.textContent.includes("狂戰士")) ?? select.options[1];
-    select.value = option.value; select.dispatchEvent(new Event("change", { bubbles: true })); await __sleep(500);
-    const id = __rowId(2); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
-    const open = __open(); const rowTop = __top(id);
-    document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
-    document.querySelector('main a[href="/db/skills"]').click(); await __waitFor(() => location.pathname === "/db/skills"); await __sleep(1000);
-    const kept = document.querySelector("main select").value;
-    document.querySelector("main select").value = ""; document.querySelector("main select").dispatchEvent(new Event("change", { bubbles: true })); await __sleep(300);
-    return { id, open, rowTop, chosen: option.value, kept };`);
-  check("M14 技能頁：展開在那一筆下面、捲到導覽列下方", r.open[0] === r.id && near(r.rowTop, 80), r);
-  check("M14 技能頁：職業篩選離開再回來還在", r.kept === r.chosen, r);
+  await section("M14", async () => {
+    await fresh("/db/skills");
+    const r = await ev(`const select = document.querySelector("main select"); const option = [...select.options].find(o => o.value && o.textContent.includes("狂戰士")) ?? select.options[1];
+      select.value = option.value; select.dispatchEvent(new Event("change", { bubbles: true })); await __sleep(500);
+      const id = __rowId(2); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+      const open = __open(); const rowTop = __top(id);
+      document.querySelector("header nav a[href='/db']").click(); await __waitFor(() => location.pathname === "/db"); await __sleep(800);
+      document.querySelector('main a[href="/db/skills"]').click(); await __waitFor(() => location.pathname === "/db/skills"); await __sleep(1000);
+      const kept = document.querySelector("main select").value;
+      return { id, open, rowTop, chosen: option.value, kept };`);
+    check("M14 技能頁：展開在那一筆下面、捲到導覽列下方", r.open[0] === r.id && near(r.rowTop, 80), r);
+    check("M14 技能頁：職業篩選離開再回來還在", r.kept === r.chosen, r);
+  });
 
   // M15 從清單點開後，「收起」連點兩下：只收起，不會連退兩頁離開這一頁
-  await fresh("/db/items");
-  r = await ev(`const id = __rowId(5); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
-    const btn = __collapseBtn(); btn.click(); btn.click(); await __sleep(1500);
-    return { path: location.pathname, id: __id(), open: __open() };`);
-  check("M15 收起連點兩下：還在道具頁、只是收起", r.path === "/db/items" && r.id === null && r.open.length === 0, r);
+  await section("M15", async () => {
+    await fresh("/db/items");
+    const r = await ev(`const id = __rowId(5); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+      const btn = __collapseBtn(); btn.click(); btn.click(); await __sleep(1500);
+      return { path: location.pathname, id: __id(), open: __open() };`);
+    check("M15 收起連點兩下：還在道具頁、只是收起", r.path === "/db/items" && r.id === null && r.open.length === 0, r);
+  });
 
   // M16 同一列極快連點兩下（畫面還沒更新就點第二下）：只開一次、紀錄只多一筆，之後收起正常
-  await fresh("/db/items");
-  ctx = await ev(`const id = __rowId(7); __tap(id); __tap(id);
-    await __waitFor(() => __id() === id); await __sleep(1200);
-    return { id, openAfterTaps: __open() };`);
-  // 只多一筆紀錄的話，按一次返回就回到沒開卡片的清單；多兩筆的話還會停在同一筆
-  await traverse(-1);
-  const idAfterOneBack = await ev(`await __waitFor(() => __id() === null, 2000); await __sleep(400); return __id();`);
-  await traverse(+1);
-  r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(ctx.id)}, 2000); await __sleep(600);
-    __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(700);
-    return { idAfter: __id(), open: __open(), path: location.pathname };`);
-  r = { ...ctx, idAfterOneBack, ...r };
-  check("M16 連點同一列：只開一次、紀錄只多一筆（返回一次就回到清單）", r.openAfterTaps[0] === r.id && r.idAfterOneBack === null, r);
-  check("M16 連點同一列之後：收起正常、還在這頁", r.idAfter === null && r.open.length === 0 && r.path === "/db/items", r);
+  await section("M16", async () => {
+    await fresh("/db/items");
+    const ctx = await ev(`const id = __rowId(7); __tap(id); __tap(id);
+      await __waitFor(() => __id() === id); await __sleep(1200);
+      return { id, openAfterTaps: __open() };`);
+    // 只多一筆紀錄的話，按一次返回就回到沒開卡片的清單；多兩筆的話還會停在同一筆
+    await traverse(-1);
+    const idAfterOneBack = await ev(`await __waitFor(() => __id() === null, 2000); await __sleep(400); return __id();`);
+    await traverse(+1);
+    let r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(ctx.id)}, 2000); await __sleep(600);
+      __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(700);
+      return { idAfter: __id(), open: __open(), path: location.pathname };`);
+    r = { ...ctx, idAfterOneBack, ...r };
+    check("M16 連點同一列：只開一次、紀錄只多一筆（返回一次就回到清單）", r.openAfterTaps[0] === r.id && r.idAfterOneBack === null, r);
+    check("M16 連點同一列之後：收起正常、還在這頁", r.idAfter === null && r.open.length === 0 && r.path === "/db/items", r);
+  });
 
   // M17 點 X 後馬上點 Y（畫面還沒更新）：開的是 Y、Y 不帶記號，收起 Y 不會跳回 X
-  await fresh("/db/items");
-  r = await ev(`const x = __rowId(2), y = __rowId(9); __tap(x); __tap(y);
-    await __waitFor(() => __id() === y); await __sleep(1200);
-    const marker = history.state?.dbFromList ?? null; const open = __open();
-    __collapseBtn().click(); await __waitFor(() => __id() !== y, 3000); await __sleep(700);
-    return { x, y, open, marker, idAfter: __id(), openAfter: __open() };`);
-  check("M17 點 X 馬上點 Y：開的是 Y、Y 不帶記號", r.open.length === 1 && r.open[0] === r.y && r.marker === null, r);
-  check("M17 收起 Y：不會跳回 X", r.idAfter === null && r.openAfter.length === 0, r);
+  await section("M17", async () => {
+    await fresh("/db/items");
+    const r = await ev(`const x = __rowId(2), y = __rowId(9); __tap(x); __tap(y);
+      await __waitFor(() => __id() === y); await __sleep(1200);
+      const marker = history.state?.dbFromList ?? null; const open = __open();
+      __collapseBtn().click(); await __waitFor(() => __id() !== y, 3000); await __sleep(700);
+      return { x, y, open, marker, idAfter: __id(), openAfter: __open() };`);
+    check("M17 點 X 馬上點 Y：開的是 Y、Y 不帶記號", r.open.length === 1 && r.open[0] === r.y && r.marker === null, r);
+    check("M17 收起 Y：不會跳回 X", r.idAfter === null && r.openAfter.length === 0, r);
+  });
 
   // M18 從清單點開後重新整理，再按收起：不會整頁重載（同一份頁面），收起、那一列在導覽列下方
-  await fresh("/db/items");
-  const reloadId = await ev(`const id = __rowId(12); __tap(id); await __waitFor(() => __id() === id); await __sleep(900); return id;`);
-  await reload();
-  r = await ev(`await __ready(); await __sleep(1200); const origin = performance.timeOrigin; const marker = history.state?.dbFromList ?? null;
-    __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(800);
-    return { id: ${JSON.stringify(reloadId)}, markerSurvived: marker, sameDoc: performance.timeOrigin === origin, idAfter: __id(), open: __open(), rowTop: __top(${JSON.stringify(reloadId)}) };`);
-  check("M18 重新整理後收起：同一份頁面（沒有整頁重載）、收起、那一列在導覽列下方", r.sameDoc && r.idAfter === null && r.open.length === 0 && near(r.rowTop, 80), r);
+  await section("M18", async () => {
+    await fresh("/db/items");
+    const reloadId = await ev(`const id = __rowId(12); __tap(id); await __waitFor(() => __id() === id); await __sleep(900); return id;`);
+    await reload();
+    const r = await ev(`await __ready(); await __sleep(1200); const origin = performance.timeOrigin; const marker = history.state?.dbFromList ?? null;
+      __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(800);
+      return { id: ${JSON.stringify(reloadId)}, markerSurvived: marker, sameDoc: performance.timeOrigin === origin, idAfter: __id(), open: __open(), rowTop: __top(${JSON.stringify(reloadId)}) };`);
+    check("M18 重新整理後收起：同一份頁面（沒有整頁重載）、收起、那一列在導覽列下方", r.sameDoc && r.idAfter === null && r.open.length === 0 && near(r.rowTop, 80), r);
+  });
 
   // M19 搜尋、篩選重新整理後還在（記到關掉分頁為止）
-  await fresh("/db/items");
-  await ev(`__setSearch("帽"); await __sleep(300); __droppable()?.click(); await __sleep(400); return 1;`);
-  await reload();
-  r = await ev(`await __ready(); await __sleep(600); const out = { query: __search().value, droppable: __droppable()?.checked };
-    __setSearch(""); await __sleep(300); if (__droppable()?.checked) __droppable().click(); await __sleep(300); return out;`);
-  check("M19 重新整理後搜尋、篩選還在", r.query === "帽" && r.droppable === true, r);
+  await section("M19", async () => {
+    await fresh("/db/items");
+    await ev(`__setSearch("帽"); await __sleep(300); __droppable()?.click(); await __sleep(400); return 1;`);
+    await reload();
+    const r = await ev(`await __ready(); await __sleep(600); return { query: __search().value, droppable: __droppable()?.checked };`);
+    check("M19 重新整理後搜尋、篩選還在", r.query === "帽" && r.droppable === true, r);
+  });
 
   // ── 手機：v0.39 長卡片收起、卡片不搬家、按返回補救、捲到底自動載入、減少動態效果 ──
 
@@ -497,6 +570,7 @@ try {
 
   // N2 從連結打開、放在清單最上面的卡片（白狼人在第 121 筆）：上方一顆「收起」，往下看時黏在導覽列下面
   await section("N2", async () => {
+    await clearRemembered();
     await navigate(`${BASE}/db/monsters?id=8140000`);
     let r = await ev(`await __ready(); await __sleep(900); const btn = __topCollapse();
       window.scrollBy({ top: 900, behavior: "instant" }); await __sleep(400);
@@ -511,17 +585,19 @@ try {
 
   // N3 卡片不搬家：放在最上面的卡片，清單多載、把那一筆載進來，卡片還是在最上面；點清單上那一筆，卡片才搬到它下面
   await section("N3", async () => {
+    await clearRemembered();
     await navigate(`${BASE}/db/monsters?id=8140000`);
     let r = await ev(`await __ready(); await __sleep(900); const id = "8140000";
       const inListBefore = !!__row(id); const rows = await __loadMore();
       window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
-      return { inListBefore, rows, inList: !!__row(id), topCard: __topCard(), open: __open() };`);
+      return { inListBefore, rows, inList: !!__row(id), topCard: __topCard(), open: __open(), expanded: __rowBtn(id)?.getAttribute("aria-expanded") };`);
     check("N3 多載、那一筆載進清單了：卡片還是在最上面，沒有搬到清單中間", !r.inListBefore && r.inList && r.topCard && r.open.length === 0, r);
+    check("N3 卡片在最上面時，清單上那一列告訴讀螢幕軟體「已展開」", r.expanded === "true", r.expanded);
     r = await ev(`const id = "8140000"; if (!__row(id)) return { missing: true }; const len0 = history.length;
       __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
-      __tap(id); await __sleep(1500);
+      __tap(id); await __sleep(150); __tap(id); await __sleep(1500);
       return { id: __id(), open: __open(), topCard: __topCard(), rowTop: __top(id), pushed: history.length - len0 };`);
-    check("N3 點清單上那一筆：卡片搬到那一列下面、那一列捲到導覽列下方、不多一筆紀錄", !r.missing && r.id === "8140000" && r.open[0] === "8140000" && !r.topCard && near(r.rowTop, 80) && r.pushed === 0, r);
+    check("N3 點清單上那一筆（連點兩下）：卡片搬到那一列下面、沒有被第二下收掉、那一列捲到導覽列下方、不多一筆紀錄", !r.missing && r.id === "8140000" && r.open[0] === "8140000" && !r.topCard && near(r.rowTop, 80) && r.pushed === 0, r);
   });
 
   // N4 卡片展開在那一列下面，搜尋把那一列拿掉 → 移到最上面；清掉搜尋，那一列回來了，卡片還是在最上面；按上方的收起回到清單開頭
@@ -539,6 +615,49 @@ try {
       btn.click(); await __waitFor(() => __id() === null, 3000); await __sleep(600);
       return { idAfter: __id(), listTop: __listTop() };`);
     check("N4 收起最上面的卡片（那一筆也在清單上）：回到清單開頭，不是跳到那一列", !r.missing && r.idAfter === null && near(r.listTop, 80), r);
+  });
+
+  // N10 卡片在最上面（那一列也在清單上）→ 往下點別筆 → 按返回：卡片還在最上面、回到點別筆之前的位置（不被補救拉走）
+  await section("N10", async () => {
+    await fresh("/db/items");
+    const ctx = await ev(`const x = __rowId(5); __tap(x); await __waitFor(() => __id() === x); await __sleep(1200);
+      window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
+      __setSearch("沒有這種道具zz"); await __sleep(500); __setSearch(""); await __sleep(600);
+      const pinned = __topCard() && !!__row(x) && __open().length === 0;
+      const y = __rowId(30); __row(y).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
+      const yBefore = Math.round(scrollY);
+      __tap(y); await __waitFor(() => __id() === y); await __sleep(1300);
+      return { x, y, pinned, yBefore };`);
+    const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)", true);
+    let r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(ctx.x)}, 3000); await __sleep(400);
+      return { id: __id(), topCard: __topCard(), open: __open(), backY: Math.round(scrollY) };`);
+    r = { ...ctx, ...r, frames };
+    check("N10 卡片在最上面（那一列也在清單上）→ 點別筆 → 按返回：卡片還在最上面", r.pinned && r.id === r.x && r.topCard && r.open.length === 0, r);
+    check("N10 按返回回到點別筆之前的位置，不被拉走", near(r.backY, r.yBefore), { yBefore: r.yBefore, backY: r.backY, frames });
+  });
+
+  // N11 卡片在最上面（那一筆後來載進清單）→ 從卡片裡的連結離開 → 按返回：卡片還在最上面、捲回原位
+  await section("N11", async () => {
+    await clearRemembered();
+    await navigate(`${BASE}/db/monsters?id=8140000`);
+    const ctx = await ev(`await __ready(); await __sleep(900); const id = "8140000";
+      await __loadMore(); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
+      const pinned = __topCard() && !!__row(id);
+      const link = [...document.querySelectorAll("main .scroll-mt-20.pb-2 article a")].find(a => (a.getAttribute("href") || "").startsWith("/db/items"));
+      if (!link) return { skipped: "白狼人卡片裡找不到道具連結" };
+      link.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      const leftY = Math.round(scrollY);
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+      await __waitFor(() => location.pathname === "/db/items"); await __sleep(1000);
+      return { id, pinned, leftY };`);
+    let r = ctx;
+    if (!ctx.skipped) {
+      const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)", true);
+      r = await ev(`await __waitFor(() => location.pathname === "/db/monsters"); await __sleep(500);
+        return { topCard: __topCard(), open: __open(), backY: Math.round(scrollY) };`);
+      r = { ...ctx, ...r, frames };
+    }
+    check("N11 卡片在最上面（那一筆後來載進清單）→ 從卡片的連結離開 → 按返回：卡片還在最上面、捲回原位", !r.skipped && r.pinned && r.topCard && r.open.length === 0 && near(r.backY, r.leftY), r);
   });
 
   // N5 按返回後位置對不上：開著卡片離開，在別處改了篩選（記憶整頁共用），按返回回來 → 那一筆和卡片要看得到，而且直接跳
@@ -578,7 +697,6 @@ try {
     check("N5 按返回、中途在別處改了篩選：那一筆和卡片看得到（跳到導覽列下方）", !r.skipped && r.category === "消耗" && r.bottom > r.header && r.top < r.view && near(r.top, 80), r);
     check("N5 補救時直接跳、不滑", !r.skipped && r.frames.length <= 3, r.frames);
     await shot("n5-back-rescued.png");
-    await ev(`__select("道具分類", ""); await __sleep(500); return 1;`);
   });
 
   // N6 按返回不誤跳：開著卡片、自己捲去看清單別處（卡片不在畫面上）再離開，返回時照離開時的位置
@@ -593,6 +711,45 @@ try {
     let r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(800); return { backY: Math.round(scrollY), open: __open() };`);
     r = { ...ctx, ...r };
     check("N6 離開時卡片不在畫面上、清單沒變：返回照離開時的位置，不跳回卡片", r.cardBottom < 0 && r.open[0] === r.id && near(r.backY, r.leftY), r);
+  });
+
+  // N12 卡片開著時按過「跳到主要內容」（瀏覽器多一筆不是 Next 管的紀錄），之後打字、按返回、按下一頁：不會整頁重載
+  await section("N12", async () => {
+    await fresh("/db/items");
+    const ctx = await ev(`const id = __rowId(3); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+      const origin = performance.timeOrigin;
+      document.querySelector('a[href="#main"]').click(); await __sleep(300);
+      const skipped = location.hash === "#main" && history.state === null;
+      const name = __rowBtn(id).querySelector("span.truncate")?.textContent ?? "";
+      __setSearch(name); await __sleep(700);
+      return { id, origin, skipped, name };`);
+    await traverse(-1);
+    await ev(`await __sleep(800); return 1;`);
+    await traverse(+1);
+    let r = await ev(`await __sleep(1500); return { sameDoc: performance.timeOrigin === ${ctx.origin}, path: location.pathname, hash: location.hash };`);
+    r = { ...ctx, ...r };
+    check("N12 卡片開著時按過「跳到主要內容」：之後按返回、下一頁不會整頁重載", r.skipped && r.sameDoc && r.path === "/db/items", r);
+  });
+
+  // N13 同一頁裡按返回也會補救：開著 X → 點 Y → 在 Y 這筆改篩選（X 不在清單上了）→ 按返回回到 X：X 的卡片要看得到，而且直接跳
+  // （同一頁按返回時 Next 收到 popstate 就同步重畫，比 DbBrowser 自己的 popstate 監聽還早）
+  await section("N13", async () => {
+    await fresh("/db/items");
+    const ctx = await ev(`const x = __rowId(30); __row(x).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      __tap(x); await __waitFor(() => __id() === x); await __sleep(1200);
+      const y = __rowId(45); __row(y).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      __tap(y); await __waitFor(() => __id() === y); await __sleep(1200);
+      __select("道具分類", "消耗"); await __sleep(800);
+      return { x, y };`);
+    const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)", true);
+    let r = await ev(`const x = ${JSON.stringify(ctx.x)}; await __waitFor(() => __id() === x, 3000); await __sleep(400);
+      const block = __row(x)?.querySelector("article") ? __row(x) : __topWrap();
+      const rect = block ? block.getBoundingClientRect() : null;
+      return { id: __id(), category: document.querySelector("main select[aria-label='道具分類']").value,
+        top: rect && Math.round(rect.top), bottom: rect && Math.round(rect.bottom), header: __headerBottom(), view: innerHeight };`);
+    r = { ...ctx, ...r, frames };
+    check("N13 同一頁按返回、清單在別筆被改過：那一筆和卡片看得到（跳到導覽列下方）", r.id === r.x && r.category === "消耗" && r.bottom > r.header && r.top < r.view && near(r.top, 80), r);
+    check("N13 補救時直接跳、不滑", r.frames.length <= 3, r.frames);
   });
 
   // N7 捲到底自動載入：沒有看得到的「再載」按鈕，捲到清單底下就自動接上 120 筆，筆數記住
@@ -630,22 +787,25 @@ try {
   // ── 桌機 ──
 
   // 桌機：右邊那一欄、沒有收起按鈕；再點同一筆不收起；網址打開不捲
-  await desktop();
-  await fresh("/db/items");
-  r = await ev(`const id = __rowId(2); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
-    const side = document.querySelector("main .grid > div.min-w-0 article");
-    const anyCollapse = [...document.querySelectorAll("main button")].some(b => b.textContent.includes("收起"));
-    return { inline: __open(), side: !!side, collapse: anyCollapse };`);
-  check("D1 桌機點一筆：細節在右邊那一欄、沒有收起按鈕", r.side && r.inline.length === 0 && !r.collapse, r);
-  await shot("d1-desktop.png");
-  r = await ev(`const before = history.length; const id = __id(); __tap(id); await __sleep(600); return { id: __id(), side: !!document.querySelector("main .grid > div.min-w-0 article"), pushed: history.length - before };`);
-  check("D2 桌機再點同一筆：不收起、不多一筆紀錄", r.id !== null && r.side && r.pushed === 0, r);
-  await navigate(`${BASE}/db/items?id=1302020`);
-  r = await ev(`await __ready(); await __sleep(900); return { y: Math.round(scrollY), side: !!document.querySelector("main .grid > div.min-w-0 article") };`);
-  check("D3 桌機網址打開：細節在右邊、不捲", r.side && r.y === 0, r);
+  await section("D1–D3", async () => {
+    await desktop();
+    await fresh("/db/items");
+    let r = await ev(`const id = __rowId(2); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+      const side = document.querySelector("main .grid > div.min-w-0 article");
+      const anyCollapse = [...document.querySelectorAll("main button")].some(b => b.textContent.includes("收起"));
+      return { inline: __open(), side: !!side, collapse: anyCollapse };`);
+    check("D1 桌機點一筆：細節在右邊那一欄、沒有收起按鈕", r.side && r.inline.length === 0 && !r.collapse, r);
+    await shot("d1-desktop.png");
+    r = await ev(`const before = history.length; const id = __id(); __tap(id); await __sleep(600); return { id: __id(), side: !!document.querySelector("main .grid > div.min-w-0 article"), pushed: history.length - before };`);
+    check("D2 桌機再點同一筆：不收起、不多一筆紀錄", r.id !== null && r.side && r.pushed === 0, r);
+    await navigate(`${BASE}/db/items?id=1302020`);
+    r = await ev(`await __ready(); await __sleep(900); return { y: Math.round(scrollY), side: !!document.querySelector("main .grid > div.min-w-0 article") };`);
+    check("D3 桌機網址打開：細節在右邊、不捲", r.side && r.y === 0, r);
+  });
 
   // D4 桌機、減少動態效果：清單捲到下面點一筆，捲回右邊細節是直接跳；沒開就照舊平滑
   await section("D4", async () => {
+    await desktop();
     for (const reduce of [true, false]) {
       await reduceMotion(reduce);
       await fresh("/db/items");
@@ -661,9 +821,13 @@ try {
   results.push({ name: "ERROR", ok: false, detail: String(error?.stack ?? error).slice(0, 800) });
 } finally {
   // Browser.close 有時不回應（WebSocket 先斷）：最多等 2 秒，再把整個 Chrome 收掉
-  try { await Promise.race([browser.send("Browser.close"), sleep(2000)]); } catch {}
-  if (process.platform === "win32") spawnSync("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { stdio: "ignore" });
-  else chrome.kill("SIGKILL");
+  if (browser) {
+    try { await Promise.race([browser.send("Browser.close", {}, 2000), sleep(2000)]); } catch {}
+  }
+  if (chrome?.pid) {
+    if (process.platform === "win32") spawnSync("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { stdio: "ignore" });
+    else chrome.kill("SIGKILL");
+  }
   await sleep(500);
   try { fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }); } catch {}
 }
