@@ -1,10 +1,10 @@
 // 建置時間寫死進程式，伺服器跟瀏覽器拿到同一個數字：src/lib/release.ts 用它決定靜態頁上要不要先畫
 // 「10/15 開放」，hydration 才對得上。用 ??= 讓建置時另外開的工作程序沿用同一個時間。
-process.env.BUILD_TIME ??= String(Date.now());
+process.env.MAPLEBOOK_BUILD_TIME ??= String(Date.now());
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  env: { BUILD_TIME: process.env.BUILD_TIME },
+  env: { MAPLEBOOK_BUILD_TIME: process.env.MAPLEBOOK_BUILD_TIME },
   reactStrictMode: true,
   images: { unoptimized: true },
   async headers() {

@@ -30,8 +30,12 @@ export function beforeV002(now: number = Date.now()): boolean {
   return opensOn(V002_OPEN_DATE, now);
 }
 
-/** setTimeout 一次最多等 2^31-1 毫秒（約 24.8 天），再久會被當成 0 立刻觸發，所以要分段等 */
-const MAX_TIMER = 2 ** 31 - 1;
+/**
+ * 等開放的時候最多隔 5 分鐘醒來對一次時間：電腦睡著時計時器會跟著停，醒來時分頁不一定會觸發
+ * visibilitychange（分頁一直在前景），這樣醒來最晚 5 分鐘內收掉；也順便避開 setTimeout 一次最多只能等
+ * 約 24.8 天、再久會被當成 0 立刻觸發的上限。
+ */
+const RECHECK_MS = 5 * 60 * 1000;
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -44,7 +48,7 @@ function stop() {
 function waitForOpen() {
   clearTimeout(timer);
   if (beforeV002()) {
-    timer = setTimeout(waitForOpen, Math.min(openAt(V002_OPEN_DATE) - Date.now(), MAX_TIMER));
+    timer = setTimeout(waitForOpen, Math.min(openAt(V002_OPEN_DATE) - Date.now(), RECHECK_MS));
     return;
   }
   stop();
@@ -54,7 +58,8 @@ function waitForOpen() {
 /**
  * 頁面開著跨過 10/15 00:00 時通知（useBeforeV002 的訂閱）。全站共用一個計時器，清單、細節卡、首頁
  * 各處在同一次通知裡收到，React 同一格一起重畫，標示一起消失，不用重新整理。
- * 電腦睡著、背景分頁的計時器會停住，所以切回這個分頁時也再對一次時間。回傳取消訂閱。
+ * 電腦睡著、背景分頁的計時器會停住：切回這個分頁時馬上再對一次時間，分頁一直在前景的話醒來最晚
+ * 5 分鐘內（RECHECK_MS）。回傳取消訂閱。
  */
 export function onV002Open(listener: () => void): () => void {
   listeners.add(listener);
@@ -70,11 +75,11 @@ export function onV002Open(listener: () => void): () => void {
 
 /**
  * 建置當下算不算還沒開放：伺服器渲染（建置靜態頁）跟瀏覽器 hydration 都用它，兩邊一定一樣。
- * BUILD_TIME 是 next.config.mjs 建置時寫死進程式的時間；沒有（沒經過 next 建置）就當作已經開放，
+ * MAPLEBOOK_BUILD_TIME 是 next.config.mjs 建置時寫死進程式的時間；沒有（沒經過 next 建置）就當作已經開放，
  * 不拿「現在」算——伺服器的現在跟使用者瀏覽器的現在不是同一個時間，跨過 10/15 就會對不上。
  */
 function beforeV002AtBuild(): boolean {
-  const built = process.env.BUILD_TIME;
+  const built = process.env.MAPLEBOOK_BUILD_TIME;
   return built ? beforeV002(Number(built)) : false;
 }
 
