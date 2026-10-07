@@ -8,7 +8,8 @@ export const LINT_RULES = [
   { re: /\d{7,}/, label: "地圖／道具編號" },
   // 站內資料檔名、欄位名，以及研究檔自己的欄位名（「見 notWorth」是給整理的人看的指標）
   { re: /mapId|monsters\.json|quests\.json|items\.json|站內|notOpenYet|notWorth|mustDo|unresolved/, label: "站內資料的內部用語" },
-  { re: /\bel\s*[{=]?\s*[fiklph]\s*:/, label: "屬性代碼" },
+  // 怪物屬性的鍵（pipeline/lib/elemental.mjs 的 ELEMENT_KEY），多了新屬性這裡也要補
+  { re: /\bel\s*[{=]?\s*[fiklphd]\s*:/, label: "屬性代碼" },
   // 小寫字母開頭、帶 3 位以上數字的英數串，數字後面接字母、中間有大寫也算（gappyhay493、w851228w）；
   // Lv100、MP100、V001、AP295 是大寫開頭不算
   { re: /(?<![A-Za-z0-9_])[a-z][A-Za-z0-9_]*\d{3,}[A-Za-z0-9_]*/, label: "玩家 ID" },

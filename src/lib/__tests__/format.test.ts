@@ -146,7 +146,7 @@ describe("怪物的屬性抗性", () => {
   });
 
   it("認不得的抗性代碼或屬性不顯示，不把資料代碼寫給玩家看", () => {
-    expect(elementalNotes({ f: "absorb", physical: "w", h: "w" })).toEqual([{ element: "聖", text: "弱點", tone: "good" }]);
+    expect(elementalNotes({ f: "absorb", unknownElement: "w", h: "w" })).toEqual([{ element: "聖", text: "弱點", tone: "good" }]);
   });
 
   it("暗屬性（d）寫「暗」：遊戲用字是「黑暗屬性」，跟「神聖屬性」寫成「聖」一樣只寫一個字", () => {
