@@ -87,12 +87,17 @@ export function collapseByBack(historyState: unknown, selected: string, doc: num
  * 這次換頁是不是按上一頁／下一頁來的：是的話交給瀏覽器還原位置，自己不要再捲。
  * 之後只要使用者自己點了東西或按了鍵，接下來的換頁就是新的。
  * onTraverse／onFresh：按上一頁時、之後第一次自己操作時各通知一次。
+ * traversing：一開始就算剛按過上一頁（例如重新整理，瀏覽器一載入就在還原位置）。
  */
 export function createHistoryTracker(
   target: Pick<EventTarget, "addEventListener">,
-  { onTraverse, onFresh }: { onTraverse?: () => void; onFresh?: () => void } = {},
+  {
+    onTraverse,
+    onFresh,
+    traversing: initial = false,
+  }: { onTraverse?: () => void; onFresh?: () => void; traversing?: boolean } = {},
 ) {
-  let traversing = false;
+  let traversing = initial;
   const fresh = () => {
     if (!traversing) return;
     traversing = false;
