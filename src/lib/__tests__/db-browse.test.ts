@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, SIDE, cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal,
-  keptFromHistory, listSignature, moreRows, needsRescue, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide,
+  keptFromHistory, listSignature, moreRows, needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide,
 } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
@@ -431,5 +431,36 @@ describe("桌機右邊那一欄捲到哪裡，記在每一筆紀錄：重新整�
     expect(sideTopFor(null, "210100", "/db/monsters")).toBe(0);
     expect(sideTopFor({ [SIDE]: { ...side, top: "860" } }, "210100", "/db/monsters")).toBe(0);
     expect(sideTopFor({ [SIDE]: { ...side, top: -20 } }, "210100", "/db/monsters")).toBe(0);
+  });
+});
+
+describe("卡片裡連到同一頁另一筆的連結（例如任務的「要先完成」）：換網址，頁面不捲回最上面", () => {
+  const here = { origin: "https://maplebook.example", pathname: "/db/quests" };
+  const plain = { button: 0, metaKey: false, ctrlKey: false, shiftKey: false, altKey: false };
+  const link = (href: string, extra: Partial<{ target: string; download: boolean }> = {}) => ({ href, target: "", download: false, ...extra });
+
+  it("同一頁的另一筆：回網址的路徑（含 ?id=），自己換網址", () => {
+    expect(samePageTarget(link("https://maplebook.example/db/quests?id=1008"), plain, here)).toBe("/db/quests?id=1008");
+    expect(samePageTarget(link("https://maplebook.example/db/quests?id=1008", { target: "_self" }), plain, here)).toBe("/db/quests?id=1008");
+  });
+
+  it("連到別頁（道具、怪物）、別的網站：照原本的做法（換頁從頂端開始）", () => {
+    expect(samePageTarget(link("https://maplebook.example/db/monsters?id=100100"), plain, here)).toBeNull();
+    expect(samePageTarget(link("https://elsewhere.example/db/quests?id=1008"), plain, here)).toBeNull();
+  });
+
+  it("開新分頁、另存（中鍵、Ctrl／Cmd／Shift／Alt、target、download）：照瀏覽器原本的做法", () => {
+    const href = "https://maplebook.example/db/quests?id=1008";
+    expect(samePageTarget(link(href), { ...plain, button: 1 }, here)).toBeNull();
+    expect(samePageTarget(link(href), { ...plain, ctrlKey: true }, here)).toBeNull();
+    expect(samePageTarget(link(href), { ...plain, metaKey: true }, here)).toBeNull();
+    expect(samePageTarget(link(href), { ...plain, shiftKey: true }, here)).toBeNull();
+    expect(samePageTarget(link(href), { ...plain, altKey: true }, here)).toBeNull();
+    expect(samePageTarget(link(href, { target: "_blank" }), plain, here)).toBeNull();
+    expect(samePageTarget(link(href, { download: true }), plain, here)).toBeNull();
+  });
+
+  it("網址寫壞了：不管", () => {
+    expect(samePageTarget(link("http://[壞掉"), plain, here)).toBeNull();
   });
 });

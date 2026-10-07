@@ -143,6 +143,28 @@ export function cardOf(historyState: unknown): CardRecord | undefined {
     : undefined;
 }
 
+/**
+ * 卡片裡點的連結是不是連到同一頁的另一筆（例如任務的「要先完成」）：是的話回網址的路徑（含 ?id=），
+ * 由查資料頁自己換網址、頁面不捲回最上面（桌機右邊那一欄直接換，手機跳到那一筆）。
+ * 開新分頁、另存（中鍵、Ctrl／Cmd／Shift／Alt、target、download）、別的網站、別頁：回 null，照原本的做法
+ */
+export function samePageTarget(
+  link: { href: string; target: string; download: boolean },
+  click: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean },
+  here: { origin: string; pathname: string },
+): string | null {
+  if (click.button !== 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return null;
+  if ((link.target && link.target !== "_self") || link.download) return null;
+  let url: URL;
+  try {
+    url = new URL(link.href, here.origin);
+  } catch {
+    return null;
+  }
+  if (url.origin !== here.origin || url.pathname !== here.pathname) return null;
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
 /** 桌機右邊那一欄捲到哪裡（卡片比畫面長時在那一欄裡自己捲）：哪一頁、哪一筆、捲了幾 px */
 export const SIDE = "dbSide";
 export type SideRecord = { id: string; page: string; top: number };
