@@ -30,7 +30,7 @@
 ## 開工條件（排程照這個判斷）
 
 1. **已經開放**：現在時間 ≥ `src/lib/release.ts` 裡的開放時刻（最新 dev 上的版本；v0.48 會加 `V002_OPEN_TIME`＝官方開機時刻，沒有就用 `V002_OPEN_DATE` 的台灣時間 00:00）。還沒到 → 不動手，改期到開放時刻之後。
-2. **開機後重新部署那支 workflow 跑完了**（v0.48 加的 `.github/workflows/v002-open.yml`＋`scripts/v002-open.mjs`）：正式機 https://maplestory-tool-three.vercel.app 首頁 HTML 已經沒有「已經照 10/15 改版排好」那段。還沒 → 這支 workflow 先不刪，其餘照拆，PR 說明寫清楚、回報時提醒使用者。
+2. **開機後重新部署那支 workflow 跑完了**（v0.48 加的 `.github/workflows/v002-open.yml`＋`scripts/v002-open.mjs`）：正式機 https://maplestory-tool-three.vercel.app 首頁 HTML 已經沒有那條橫幅（「已經照 10/15 改版排好」或「開機後才能去」都沒有；v0.48 也可能用「GitHub issue「V002 開機後重新部署：完成」已關閉」表示跑完，見共用筆記 v002-open-time.md）。還沒 → 這支 workflow 先不刪，其餘照拆，PR 說明寫清楚、回報時提醒使用者。
 3. 使用者選的最早開工時間到了（排程的觸發時間）。
 
 ## 設計決定
@@ -39,6 +39,7 @@
 - **D2 pipeline 邏輯不動。** `pipeline/lib/gear.mjs` 的 `isV002Quest` 仍然決定任務來源帶不帶 `o`（D1 的排序要用），它原本「鏡射 `src/lib/v002.ts`」——前端那支拆掉後，它就是唯一的一份，註解改成這樣說。
 - **D3 開放前專用的推薦分支一起拆**（開放後 `beforeOpen` 永遠是 false）：`weaponPicks` 的 `beforeOpen` 過濾、`equipRequirement` 的 `beforeOpen`、`closestSource` 的「先找現在就開的店／合成／怪」那段、`familyPick`（開放後就是 `options[0]`）、`sourceOpensLater`、`shopGroups` 的 `opensLater` 與 `later`、`monsterMaps` 的 `isLater`（v0.50 加的，`src/lib/monster-view.ts`）。
   **例外**：如果開工時 dev 上的 `closestSource` 已經改成「開放後也先推舊地區」的永久規則（使用者另外決定的話會有一支 session 先做），那段就不是死程式，不拆，照它現在的樣子留。判斷方法：`closestSource` 還有沒有 `beforeOpen` 參數——有才拆。
+  背景（2026-10-07 試算，29 職 × 10～120 等每 5 級）：開放後裝備卡有 284 處武器推薦、466 處卷軸推薦跟開放前不一樣；其中 59 處（全在 50 等以下）是同一把武器改推「冰原雪域／天空之城的店」，例：劍士 35 等綠蛇刀「小幽靈會掉」→「冰原雪域的斯考特賣 200,000 楓幣」。這是 10/15 起正式機本來就會有的行為，不是拆標籤造成的；要不要改是另一個產品決定。
 - **D4 ItemDb 不再載 `maps.json`。** 道具頁載地圖只為了兩件事：V002 道具標籤、店家地點標「10/15 開放」。兩個都拆了就沒人用，連同載入一起拿掉（清單少等一個檔，最後畫面一樣）。
 - **D5 `DbBrowser` 的 `badge` 欄位拿掉。** 只有「10/15 開放」在用。
 - **D6 `scripts/verify/first-frame.mjs`**（v0.47 收進 repo 的話）整支都在驗「10/15 開放」第一格就在／跨午夜收掉／舊建置——標示拆了它就沒東西可驗，刪掉，README 跟著拿掉那段。
@@ -127,7 +128,7 @@ git grep -n -E "useBeforeV002|beforeV002|onV002Open|opensOn|V002_OPEN|@/lib/rele
 讀 `C:\Users\user1\AppData\Roaming\Claude\side-session-notes\local_02cc686d-6f5d-46a1-8346-47ff8bf56d33\v002-open-time.md`（v0.48 那支會寫：workflow 檔名、怎麼判斷跑完）。再自己驗一次：
 
 ```powershell
-(Invoke-WebRequest https://maplestory-tool-three.vercel.app/ -UseBasicParsing).Content -match "已經照 10/15 改版排好"
+(Invoke-WebRequest https://maplestory-tool-three.vercel.app/ -UseBasicParsing).Content -match "已經照 10/15 改版排好|開機後才能去"
 ```
 
 `False` ＝ 正式機已經在開機後重建過 → Task 7 刪 workflow。`True` → workflow 先留著（開工條件 2）。
@@ -887,7 +888,7 @@ git worktree add --detach .claude/worktrees/v002-before <BASE_SHA>
 
 ```js
 // compare-after-open.mjs：拆前／拆後同一組畫面逐一比對（v0.46 拆 V002 標籤）
-// 用法：node compare-after-open.mjs <輸出資料夾> <拆前網址> <拆後網址> <public/data 資料夾> [--at=2026-10-16T12:00:00+08:00]
+// 用法：node compare-after-open.mjs <輸出資料夾> <拆前網址> <拆後網址> <public/data 資料夾> [--at=2026-10-16T12:00:00+08:00] [--only=情境名,情境名]
 // 每個情境 × 手機／桌機：設好角色 → 打開 → 等畫面 1.5 秒沒變動 → 抓 body 文字＋截圖。
 // 兩邊文字要一字不差，而且都不能出現「10/15 開放」或橫幅。--at 把瀏覽器時鐘調到那個時間（在開放前測試時才需要）。
 import { spawn } from "node:child_process";
@@ -896,6 +897,7 @@ import path from "node:path";
 
 const [OUT, BEFORE, AFTER, DATA] = process.argv.slice(2, 6);
 const AT = process.argv.find(arg => arg.startsWith("--at="))?.slice(5);
+const ONLY = process.argv.find(arg => arg.startsWith("--only="))?.slice(7).split(",");
 const CHROME = "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const PORT = 9361;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -920,7 +922,7 @@ const P = {
 };
 const SCENES = [
   ...Object.entries(P).map(([name, profile]) => ({ name: `首頁-${name}`, url: "/", profile })),
-  { name: "帶我去-冰原雪域", url: "/go?to=211000000", profile: P.十字軍105 },
+  { name: "帶我去-天空之城到冰原雪域", url: "/go?from=200000000&to=211000000", profile: P.十字軍105 },
   { name: "道具-紅色藥水", url: "/db/items?id=2000000", profile: P.刺客35 },
   { name: "道具-狼牙", url: "/db/items?id=1472007", profile: P.刺客35 },
   { name: "道具-清單", url: "/db/items", profile: P.刺客35 },
@@ -997,14 +999,18 @@ const loaded = () => new Promise(resolve => {
   page.listeners.add(listener);
   setTimeout(() => { page.listeners.delete(listener); resolve(); }, 60000);
 });
-// 畫面 1.5 秒沒有任何變動才算穩定（最多等 45 秒：dev 模式第一次打開要編譯）
+// 畫面 1.5 秒沒有任何變動、而且看不到「讀取中」的字或 aria-busy 才算穩定（最多等 45 秒：dev 模式第一次打開要編譯）。
+// 讀取中的字照 src 裡的 LoadingBlock、DbBrowser、GearCard、NowCard、RouteTimeline；有新的讀取字樣就加進來。
 const QUIET = `new Promise(resolve => {
+  const loading = () => /載入中…|整理資料中…|載入地圖資料…|讀取[^\\n]{0,12}中…|讀取你的角色…/.test(document.body.innerText)
+    || !!document.querySelector('[aria-busy="true"]');
   let timer;
-  const done = () => { mo.disconnect(); resolve(); };
-  const mo = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(done, 1500); });
+  const finish = () => { mo.disconnect(); resolve(); };
+  const arm = () => { clearTimeout(timer); timer = setTimeout(() => (loading() ? arm() : finish()), 1500); };
+  const mo = new MutationObserver(arm);
   mo.observe(document.documentElement, { childList: true, subtree: true, characterData: true, attributes: true });
-  timer = setTimeout(done, 1500);
-  setTimeout(done, 45000);
+  arm();
+  setTimeout(finish, 45000);
 })`;
 // 每次整頁載入前：清掉記憶、設角色；有 --at 就把時鐘調過去（計時器照真實時間跑）
 const setup = profile => `(() => {
@@ -1038,12 +1044,12 @@ async function capture(base, side, scene, vpName, vp) {
 }
 
 const rows = [];
-for (const scene of SCENES) {
+for (const scene of SCENES.filter(s => !ONLY || ONLY.includes(s.name))) {
   for (const [vpName, vp] of Object.entries(VIEWPORTS)) {
     const before = await capture(BEFORE, "拆前", scene, vpName, vp);
     const after = await capture(AFTER, "拆後", scene, vpName, vp);
     const same = before.text === after.text;
-    const label = /10\/15 開放|已經照 10\/15 改版排好/.test(before.text + after.text);
+    const label = /10\/15 開放|已經照 10\/15 改版排好|開機後才能去/.test(before.text + after.text);
     rows.push({ scene: scene.name, viewport: vpName, same, label, before: before.file, after: after.file });
     if (!same) fs.writeFileSync(path.join(OUT, `${scene.name}-${vpName}-差異.txt`), `拆前：\n${before.text}\n\n拆後：\n${after.text}\n`);
     console.log(`${same && !label ? "OK " : "BAD"} ${scene.name} ${vpName}${same ? "" : "（文字不一樣）"}${label ? "（還看得到 10/15 標示）" : ""}`);
@@ -1062,7 +1068,7 @@ process.exit(bad.length ? 1 : 0);
 node <暫存>\compare-after-open.mjs <暫存>\control http://localhost:3061 http://localhost:3061 C:\Users\user1\MapleBook\.claude\worktrees\remove-v002-labels\public\data
 ```
 
-Expected: 全部 OK。有 BAD 的情境＝畫面本來就不穩定（時間、隨機、載入順序），記下來，Step 4 那幾個改看截圖比對。
+Expected: 全部 OK。有 BAD 先看 `*-差異.txt`：其中一邊還在讀取（「載入中…」「整理資料中…」這類字）＝等待條件不夠，把那個讀取字樣加進腳本 `QUIET` 的 `loading()`，用 `--only=<情境名>` 重跑到 OK（2026-10-07 試跑時「怪物-黑格里芬 桌機」就是這樣，已補）；真的本來就會變（時間、隨機）的才記下來，Step 4 那幾個改看截圖比對。
 
 - [ ] **Step 4: 正式比對（拆前對拆後）**
 
