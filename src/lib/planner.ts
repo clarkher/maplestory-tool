@@ -48,9 +48,12 @@ const EXPIRING_WINDOW = 8;
 /** 等級門檻在最近幾級內解鎖的，算「剛解鎖」。 */
 const FRESH_WINDOW = 10;
 
-/** 遊戲資料裡的開發測試任務（「開發測試用」，9999）：玩家接不到，哪裡都不列 */
+/**
+ * 遊戲資料裡的開發測試任務（「開發測試用」，9999）：玩家接不到，哪裡都不列。
+ * 只認整個名字剛好是「開發測試用」：以後有正常任務的名字剛好帶「測試用」，不會跟著被藏起來。
+ */
 export function isDevQuest(quest: Pick<Quest, "n">): boolean {
-  return /測試用/.test(quest.n);
+  return quest.n === "開發測試用";
 }
 
 /**
