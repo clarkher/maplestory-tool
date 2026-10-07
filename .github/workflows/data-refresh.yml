@@ -141,6 +141,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：步驟條件之外再擋一次
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry-run：不開 PR、不合併"
+            exit 0
+          fi
           git config user.name "maplestory-tool bot"
           git config user.email "actions@github.com"
           git add public/data public/assets
