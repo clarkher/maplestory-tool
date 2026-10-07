@@ -506,12 +506,14 @@ function easiest(drops: NonNullable<GearSource["drops"]>, quests: GearQuest[], l
  * 最好拿的來源：商店優先；否則掉落跟任務一起比誰最好拿（見 dropCost／questCost）——
  * 35 等刺客的手套攻擊卷軸推 40 等任務「珍的最後一個挑戰」，不推 55 等巨居蟹。
  *
- * beforeOpen＝true（10/15 前）時先只看沒有 o 的掉落跟任務；全部都是 V002 的（或都沒資料）才退回不分 o。
- * 不然像「弩攻擊卷軸」這種掉落怪剛好只掛在 V002 地圖、但任務現在就能接的道具，會被誤判成只能等 10/15。
+ * 舊地區拿得到的一律先推：先只看沒有 o 的店、合成、掉落跟任務；全部都是 V002 的（或都沒資料）才退回不分 o。
+ * 10/15 開放後也一樣（2026-10-07 使用者拍板）：不然低等的武器會改推冰原雪域、天空之城的店
+ * （狼牙不推後街吉姆合成、改推斯考特賣 60,000 楓幣），V002 的怪也會蓋過舊地區打得到的怪。
+ * 「弩攻擊卷軸」這種掉落怪剛好只掛在 V002 地圖、但舊地區任務接得到的，推任務。
  *
  * 給了 job：只看這個職業接得到、獎勵也發給這個職業的任務（questFits）。
  */
-export function closestSource(src: GearSource, level: number, beforeOpen = false, job?: number): SourcePick | null {
+export function closestSource(src: GearSource, level: number, job?: number): SourcePick | null {
   const shops = src.shops ?? [];
   const drops = src.drops ?? [];
   // 接不到的任務不算：職業不對、獎勵不發給這個職業、過了等級上限
@@ -519,15 +521,13 @@ export function closestSource(src: GearSource, level: number, beforeOpen = false
 
   // 合成：材料湊齊就一定做得出來，比要看運氣的掉落、任務可靠，排在商店後面
   const crafts = src.crafts ?? [];
-  if (beforeOpen) {
-    // 10/15 前先找現在就開的店、現在就去得了的合成 NPC，再找現在打得到的怪、接得到的任務
-    const openShop = shops.find(shop => !shop.o);
-    if (openShop) return { kind: "shop", shop: openShop };
-    const openCraft = crafts.find(craft => !craft.o);
-    if (openCraft) return { kind: "craft", craft: openCraft };
-    const open = easiest(drops.filter(drop => !drop.o), quests.filter(quest => !quest.o), level);
-    if (open) return open;
-  }
+  // 先找舊地區的店、合成 NPC，再找舊地區打得到的怪、接得到的任務
+  const openShop = shops.find(shop => !shop.o);
+  if (openShop) return { kind: "shop", shop: openShop };
+  const openCraft = crafts.find(craft => !craft.o);
+  if (openCraft) return { kind: "craft", craft: openCraft };
+  const open = easiest(drops.filter(drop => !drop.o), quests.filter(quest => !quest.o), level);
+  if (open) return open;
   if (shops.length) return { kind: "shop", shop: shops[0] };
   if (crafts.length) return { kind: "craft", craft: crafts[0] };
   return easiest(drops, quests, level);

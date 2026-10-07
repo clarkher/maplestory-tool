@@ -399,26 +399,25 @@ describe("closestSource", () => {
     expect(closestSource({}, 10)).toBeNull();
   });
 
-  it("beforeOpen 略過 V002 來源，整組都是 V002 才退回原本的", () => {
+  it("先推舊地區的怪，就算 V002 的怪等級更近；整組都是 V002 才退回原本的（10/15 開放後也一樣）", () => {
     const mixed: GearSource = {
       drops: [
         { m: 1, n: "怪A", lv: 10, map: 1, o: "2026-10-15" },
         { m: 2, n: "怪B", lv: 12, map: 1 },
       ],
     };
-    expect(closestSource(mixed, 10, true)).toEqual({ kind: "drop", drop: mixed.drops![1] });
+    expect(closestSource(mixed, 10)).toEqual({ kind: "drop", drop: mixed.drops![1] });
 
     const onlyV002: GearSource = { drops: [{ m: 1, n: "怪A", lv: 10, map: 1, o: "2026-10-15" }] };
-    expect(closestSource(onlyV002, 10, true)).toEqual({ kind: "drop", drop: onlyV002.drops![0] });
+    expect(closestSource(onlyV002, 10)).toEqual({ kind: "drop", drop: onlyV002.drops![0] });
   });
 
-  it("beforeOpen 要跨層看：non-V002 的任務贏過只有 V002 的掉落（弩攻擊卷軸實例）", () => {
+  it("要跨層看：舊地區的任務贏過只有 V002 的掉落（弩攻擊卷軸實例）", () => {
     const src: GearSource = {
       drops: [{ m: 1, n: "小雪球", lv: 31, map: 1, o: "2026-10-15" }],
       quests: [{ id: "2001", n: "酋長蓋房子", minLv: 40 }],
     };
-    expect(closestSource(src, 30, true)).toEqual({ kind: "quest", quest: src.quests![0] });
-    expect(closestSource(src, 30, false)).toEqual({ kind: "drop", drop: src.drops![0] });
+    expect(closestSource(src, 30)).toEqual({ kind: "quest", quest: src.quests![0] });
   });
 });
 
@@ -460,8 +459,8 @@ describe("任務來源的職業限制", () => {
 
   it("closestSource 給了職業：跳過接不到的任務", () => {
     const src = source({ quests: [archerReward, anyone] });
-    expect(closestSource(src, 30, false, 110)).toEqual({ kind: "quest", quest: anyone });
-    expect(closestSource(src, 30, false, 310)).toEqual({ kind: "quest", quest: archerReward });
+    expect(closestSource(src, 30, 110)).toEqual({ kind: "quest", quest: anyone });
+    expect(closestSource(src, 30, 310)).toEqual({ kind: "quest", quest: archerReward });
   });
 });
 
@@ -505,20 +504,20 @@ describe("alternatives：差太多的備選不列", () => {
 });
 
 describe("商店在哪、任務能不能接、點法指定武器種類", () => {
-  it("closestSource：10/15 前跳過 10/15 才開的城鎮的店，改推現在打得到的怪；之後才推那家店", () => {
+  it("closestSource：冰原雪域、天空之城的店排在舊地區打得到的怪後面（10/15 開放後也一樣）；只有那家店賣才推它", () => {
     const src = source({
       shops: [{ p: "冰原雪域", n: "斯考特", m: 211000000, pr: 250000, o: "2026-10-15" }],
       drops: [{ m: 1, n: "火石球", lv: 40, map: 1 }],
     });
-    expect(closestSource(src, 38, true)).toEqual({ kind: "drop", drop: src.drops![0] });
-    expect(closestSource(src, 38, false)).toEqual({ kind: "shop", shop: src.shops![0] });
+    expect(closestSource(src, 38)).toEqual({ kind: "drop", drop: src.drops![0] });
+    expect(closestSource(source({ shops: src.shops }), 38)).toEqual({ kind: "shop", shop: src.shops![0] });
   });
 
   it("questFits／closestSource：過了等級上限的任務接不了，不推", () => {
     const quest = { id: "2115", n: "有等級上限", minLv: 30, maxLv: 65 };
     expect(questFits(quest, 110, 60)).toBe(true);
     expect(questFits(quest, 110, 70)).toBe(false);
-    expect(closestSource(source({ quests: [quest] }), 70, false, 110)).toBeNull();
+    expect(closestSource(source({ quests: [quest] }), 70, 110)).toBeNull();
   });
 
   it("隨機給的任務多算 10 分：同樣好拿時，穩定的掉落優先", () => {
@@ -562,9 +561,14 @@ describe("合成來源", () => {
     expect(closestSource(source({ ...src, shops: [{ p: "店", pr: 1 }] }), 25)).toEqual({ kind: "shop", shop: { p: "店", pr: 1 } });
   });
 
-  it("10/15 前跳過只在 10/15 才開的城鎮的合成 NPC", () => {
+  it("跳過冰原雪域、天空之城的合成 NPC，先推舊地區打得到的怪（10/15 開放後也一樣）", () => {
     const later = { ...craft, n: "冰原雪域工匠", m: 211000000, o: "2026-10-15" };
     const src = source({ crafts: [later], drops: [{ m: 1, n: "怪", lv: 25, map: 1 }] });
-    expect(closestSource(src, 25, true)).toEqual({ kind: "drop", drop: src.drops![0] });
+    expect(closestSource(src, 25)).toEqual({ kind: "drop", drop: src.drops![0] });
+  });
+
+  it("舊地區的合成排在冰原雪域的店前面（狼牙：推墮落城市後街吉姆合成，不推斯考特賣 60,000 楓幣）", () => {
+    const src = source({ shops: [{ p: "冰原雪域", n: "斯考特", m: 211000000, pr: 60000, o: "2026-10-15" }], crafts: [craft] });
+    expect(closestSource(src, 25)).toEqual({ kind: "craft", craft });
   });
 });
