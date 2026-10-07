@@ -252,7 +252,8 @@ function otherRuleThatWears(
 /**
  * 卡片要的一切，照 gear-realdata.test.ts 的方式組：能力值目標 targetsAt 只有 equip 類型的點法才吃
  * equipRequirement，而且每個等級只算一次（weaponPicks 會拿很多個等級來問）。
- * beforeOpen（10/15 前）一路傳下去：能力值目標、武器、來源都只看現在拿得到的。初心者（0）回空的一包。
+ * beforeOpen（10/15 前）一路傳下去：能力值目標、武器只看現在拿得到的；來源不分開放前後都先推舊地區的（見 closestSource）。
+ * 初心者（0）回空的一包。
  */
 export function gearPlan(gear: GearData, job: number, level: number, beforeOpen: boolean): GearPlan {
   const magic = isMagicJob(job);
@@ -274,11 +275,11 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
   const targets = targetsAt ? targetsAt(level) : null;
 
   const picks = weaponPicks(gear.weapons, job, level, { targetsAt, beforeOpen, types: rule?.weapons });
-  const source = (weapon: GearWeapon) => closestSource(weapon.src, level, beforeOpen, job);
+  const source = (weapon: GearWeapon) => closestSource(weapon.src, level, job);
 
   const families = scrollPicks(gear.scrolls, job, picks.best?.s ?? null, rule?.main ?? null, level).map(family => {
     const pick = familyPick(family.options, beforeOpen);
-    return { ...family, pick, source: closestSource(pick.src, level, beforeOpen, job) };
+    return { ...family, pick, source: closestSource(pick.src, level, job) };
   });
 
   return {
@@ -345,14 +346,14 @@ export function bandGear(gear: GearData, job: number, from: number, to: number, 
       : undefined;
     const best = weaponPicks(gear.weapons, stage, level, { targetsAt, beforeOpen, types: rule?.weapons }).best;
     if (!best || weapons[weapons.length - 1]?.weapon.id === best.id) continue;
-    weapons.push({ level, weapon: best, source: closestSource(best.src, level, beforeOpen, stage) });
+    weapons.push({ level, weapon: best, source: closestSource(best.src, level, stage) });
     lastStage = stage;
   }
   const last = weapons[weapons.length - 1];
   // main 給 null：只要武器卷跟手套攻擊卷
   const families = scrollPicks(gear.scrolls, lastStage, last?.weapon.s ?? null, null, to).map(family => {
     const pick = familyPick(family.options, beforeOpen);
-    return { ...family, pick, source: closestSource(pick.src, from, beforeOpen, lastStage) };
+    return { ...family, pick, source: closestSource(pick.src, from, lastStage) };
   });
   return { weapons, families };
 }

@@ -378,14 +378,32 @@ describe("合成的寫法", () => {
 });
 
 describe("真資料：狼牙（台服靠後街吉姆合成）", () => {
-  it("一轉盜賊 25 等推狼牙，來源是合成", () => {
-    const plan = gearPlan(gear, 400, 25, true);
-    expect(plan.best?.n).toBe("狼牙");
-    expect(plan.bestSource?.kind).toBe("craft");
+  it("一轉盜賊 25 等推狼牙，墮落城市後街吉姆合成——10/15 開放後也一樣，不推冰原雪域斯考特的店", () => {
+    const before = gearPlan(gear, 400, 25, true);
+    const after = gearPlan(gear, 400, 25, false);
+    expect(before.best?.n).toBe("狼牙");
+    expect(after.best?.n).toBe("狼牙");
+    expect(before.bestSource).toMatchObject({ kind: "craft", craft: { n: "後街吉姆", m: 103000000 } });
+    expect(after.bestSource).toMatchObject({ kind: "craft", craft: { n: "後街吉姆", m: 103000000 } });
   });
 
-  it("俠盜的升級路線 21–29（一轉）在 25 等換狼牙", () => {
-    const band = bandGear(gear, 420, 21, 29, true);
-    expect(band.weapons.find(entry => entry.weapon.n === "狼牙")?.level).toBe(25);
+  it("俠盜的升級路線 21–29（一轉）在 25 等換狼牙，10/15 開放後也寫後街吉姆合成", () => {
+    const wolf = bandGear(gear, 420, 21, 29, false).weapons.find(entry => entry.weapon.n === "狼牙");
+    expect(wolf?.level).toBe(25);
+    expect(wolf?.source).toMatchObject({ kind: "craft", craft: { n: "後街吉姆", m: 103000000 } });
+  });
+});
+
+describe("真資料：10/15 開放後同一把武器還是先推舊地區拿得到的", () => {
+  it("劍士 35 等綠蛇刀：小幽靈（Lv.35）會掉，不推冰原雪域斯考特賣 200,000 楓幣", () => {
+    const plan = gearPlan(gear, 100, 35, false);
+    expect(plan.best?.n).toBe("綠蛇刀");
+    expect(plan.bestSource).toMatchObject({ kind: "drop", drop: { n: "小幽靈", lv: 35 } });
+  });
+
+  it("火毒巫師 45 等黃色雨傘：青螃蟹（Lv.48）會掉，不推天空之城雲彩公園的月光精靈", () => {
+    const plan = gearPlan(gear, 210, 45, false);
+    expect(plan.best?.n).toBe("黃色雨傘");
+    expect(plan.bestSource).toMatchObject({ kind: "drop", drop: { n: "青螃蟹", lv: 48 } });
   });
 });
