@@ -200,10 +200,16 @@ npm run data:all      # 以上全跑
 - 寫入權限只在最後開 PR 那一步：取上游、重建、檢查、`next build` 在 `refresh` job，只能讀 repo、checkout 不留 token
   （這裡跑 npm、讀第三方上游的資料，萬一哪個被動了手腳也拿不到寫入權限），重建好的 `public/data`、`public/assets` 存成 artifact（留一天）。
   開 PR、合併在 `publish` job（唯一有 `contents: write`、`pull-requests: write` 的），`refresh` 全過、真的重建了、不是 dry-run 才跑：
-  下載 artifact 換進 `public/`，commit、推資料分支、開 PR、`--admin` 合進 `main`。`publish` 不跑 npm、不跑 `pipeline/` 的程式；
-  artifact 只能有 `data`、`assets` 兩個資料夾、裡面只能是一般檔案（隱藏檔、連結一律不收），不對就失敗、不動 `public/`。
+  下載 artifact 換進 `public/`，commit、推資料分支、開 PR、`--admin` 合進 `main`。`publish` 不跑 npm、不跑 `pipeline/` 的程式，
+  artifact 只當資料收：只能有 `data`、`assets` 兩個資料夾，裡面只能是 png、json（跟 `pipeline/lib/assets.mjs` 的白名單一樣），
+  `meta.json` 只當文字讀（`require` 找不到檔時會改載 `meta.json.js`、資料夾裡的 `index.js`，等於執行 artifact 帶來的程式），不對就失敗、不動 `public/`。
+  隱藏檔、連結在正常上傳時就會被丟掉、換成檔案內容，`publish` 再擋一次是防 `refresh` 被動了手腳、自己做的 artifact——
+  所以 `public/data`、`public/assets` 裡不要放要進版控的隱藏檔（上傳時被丟掉，`publish` 會當成刪除）。
+  上一輪推了資料分支、卻在開 PR 或合併時失敗（或手動 Re-run）：推之前先刪掉同名的舊分支（它開著的 PR 會跟著關），不用人工清。
   `pipeline/lib/data-refresh-workflow.test.mjs` 鎖住：只有 `publish` 有寫入權限、每個 job 都寫明權限、`refresh` 的 checkout 不留 token、
-  會推分支或開／合 PR 的指令只能在 `publish`、`publish` 不跑 npm
+  會推分支或開／合 PR 的指令只能在 `publish`、`publish` 不跑 npm、不用 `require` 讀 artifact、白名單跟 `assets.mjs` 一樣；
+  `pipeline/lib/data-refresh-publish.test.mjs` 把開 PR 那段 bash 拿出來真的跑（本機 bare repo 當 origin、`gh` 換成假的），
+  確認壞掉的 artifact（`meta.json.js`、`.html`、多的資料夾、隱藏檔、連結）、太長的版本字串都在推之前擋下、不會被執行
 - 上游的怪物屬性抗性出現認不得的寫法時，重建直接失敗、不開 PR，錯誤訊息寫出是哪隻怪
   （以前認不得的寫法默默取首字母存，怪物卡又把認不得的代碼原樣印出來，才會寫出「冰 r」）：
   到 `pipeline/lib/elemental.mjs` 補對照、`src/lib/format.ts` 補字（新的抗性種類也看 `src/lib/job-rules.ts` 要不要算進去）再重建。
@@ -229,7 +235,7 @@ npm run data:all      # 以上全跑
   失敗那個 job 的執行紀錄連結、那一步錯誤訊息的最後 30 行（兩個 job 的結果怎麼併成一個：`pipeline/lib/refresh-issue.mjs` 的 `overallResult`）。
   已經有開著的就不另開：同樣的失敗（同一步、同一個上游版本）只更新那張內文的「最後一次失敗」那行（時間、卡在哪一步、連續第幾次；
   改內文不發通知，壞著沒修也不會每 12 小時吵一次），失敗的步驟或上游版本變了才在那張留言；之後成功一次就自動留言並關掉。
-  `refresh` 最多跑 30 分鐘、`publish` 最多 15 分鐘（`timeout-minutes`；平常連完整重建約 1 分鐘），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
+  `refresh` 最多跑 30 分鐘、`publish` 最多 15 分鐘（`timeout-minutes`；平常 `refresh` 連完整重建、存 artifact 1～2 分鐘，`publish` 約 20 秒），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
   （中止的結果是 cancelled，notify 看有沒有主要步驟跑到一半來分辨）；一步都沒跑（GitHub 沒派到機器）、或只有收尾步驟被中止不通知，
   下一輪會再跑；手動取消整個執行時 notify 不會跑。
   程式在 `pipeline/notify-refresh.mjs`（內容與判斷在 `pipeline/lib/refresh-issue.mjs`）；

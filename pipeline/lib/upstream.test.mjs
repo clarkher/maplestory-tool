@@ -180,6 +180,8 @@ test("assembleUpstream 的 gameVersion 不是「1.15.2」這種版本號就擋�
     ["quests-data.js", "v1.15.2"],
     ["maps-data.js", "1.15.2."],
     ["maps-data.js", "1"],
+    ["maps-data.js", "1.2.3.4.5"], // 超過 4 段
+    ["maps-data.js", "12345.1"], // 一段超過 4 位
     ["skills-data.js", 1.15], // 數字不是字串：上游換了寫法
   ];
   for (const [file, value] of rejected) assertRejected(file, "gameVersion", value);

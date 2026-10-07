@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { ASSET_EXTENSIONS } from "./assets.mjs";
 
 // 直接讀 workflow 原文檢查：dry-run 一路跑到底也不能動到正式機、寫入權限只在最後開 PR 合併的 publish，
 // notify 拿得到它要的值
@@ -127,6 +128,19 @@ test("publish 不跑 npm、不跑 pipeline 的程式、不還原快取：有寫�
   assert.doesNotMatch(withoutComments(PUBLISH), /\bnpm\b|\bnpx\b|\bpipeline\/|\bcache:|actions\/cache/);
 });
 
+test("publish 讀 artifact 的檔只當文字讀：不准 require／import 相對路徑（找不到 meta.json 時 require 會改載 meta.json.js、資料夾裡的 index.js）", () => {
+  const code = withoutComments(PUBLISH);
+  assert.doesNotMatch(code, /require\(\s*['"]\./);
+  assert.doesNotMatch(code, /\bimport\(/);
+  assert.doesNotMatch(code, /\bnode\s+(?:-p|--print)\b/);
+});
+
+test("publish 只收 png、json：跟 refresh 同步上游圖檔的白名單（pipeline/lib/assets.mjs 的 ASSET_EXTENSIONS）一樣", () => {
+  const block = stepBlock("開 PR 並自動合併");
+  const allowed = [...block.matchAll(/! -name '\*\.(\w+)'/g)].map(match => match[1]).sort();
+  assert.deepEqual(allowed, [...ASSET_EXTENSIONS].sort());
+});
+
 test("publish 拿得到 refresh 建好的資料檔：refresh 有重建就把 public/data、public/assets 存成 artifact，publish 下載同一個", () => {
   const upload = stepBlock("存下重建好的資料檔");
   assert.match(upload, /\n {8}uses: actions\/upload-artifact@v\d+\n/);
@@ -203,8 +217,8 @@ test("publish 先檢查下載的 artifact、版本字串，才動 public/、開�
 });
 
 test("每個 workflow 的 run 指令裡都不准直接寫 ${{ }}：上游的版本字串、手動觸發的輸入一律用 env 傳，指令裡寫 \"$變數\"", () => {
-  // ${{ }} 是在 bash 跑之前把字串原樣貼進指令：上游的 generatedAt 寫成 `"; 指令; echo "` 就會在帶寫入權限的 CI 裡執行，
-  // 這支最後一步還會 --admin 合進 main（正式機）。用 env 傳，字串只是變數的值，不會被當成程式碼
+  // ${{ }} 是在 bash 跑之前把字串原樣貼進指令：上游的 generatedAt 寫成 `"; 指令; echo "` 就會在 CI 裡被執行，
+  // 寫進開 PR 那步就是在有寫入權限、會 --admin 合進 main（正式機）的地方。用 env 傳，字串只是變數的值，不會被當成程式碼
   assert.ok(runScripts(WORKFLOW).length >= 10, `data-refresh.yml 只找到 ${runScripts(WORKFLOW).length} 個 run，檢查本身可能壞了`);
   const files = fs.readdirSync(WORKFLOWS_DIR).filter(file => /\.ya?ml$/.test(file));
   assert.ok(files.includes("data-refresh.yml"));
@@ -271,9 +285,10 @@ test("dry-run 自己排一列：同一群組只留一個排隊中的，不能把
 });
 
 test("refresh、publish 都有時間上限：卡住不會一直佔著到 6 小時，被中止也會通知", () => {
-  for (const [name, job] of [["refresh", REFRESH], ["publish", PUBLISH]]) {
+  // refresh 連完整重建約 1～2 分鐘，給足 20 分鐘以上才不會在上游 clone 慢的時候誤殺；publish 只下載、commit、開 PR
+  for (const [name, job, min, max] of [["refresh", REFRESH, 20, 60], ["publish", PUBLISH, 5, 30]]) {
     const minutes = Number(job.match(/^ {4}timeout-minutes: (\d+)/m)?.[1]);
-    assert.ok(minutes >= 5 && minutes <= 60, `${name} 的 timeout-minutes 是 ${minutes}`);
+    assert.ok(minutes >= min && minutes <= max, `${name} 的 timeout-minutes 是 ${minutes}，要在 ${min}～${max}`);
   }
 });
 

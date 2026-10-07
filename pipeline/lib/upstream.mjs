@@ -30,8 +30,8 @@ export const UPSTREAM_PARTS = [
 
 /**
  * 把 `window.名稱 = {JSON};` 解成物件。
- * 內容是純 JSON，直接解析就好——不要用 eval／vm 去執行別人 repo 裡的東西，
- * 這支會在帶著寫入權限的 CI 裡跑。
+ * 內容是純 JSON，直接解析就好——不要用 eval／vm 去執行別人 repo 裡的東西：
+ * 這支在 CI 裡跑，產出的資料會直接合進正式機。
  */
 export function parseUpstreamScript(text, globalName, file) {
   const prefix = new RegExp(`^\\s*window\\.${globalName}\\s*=\\s*`);
