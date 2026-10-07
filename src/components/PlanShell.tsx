@@ -59,10 +59,11 @@ export function GoButton({ to, label = "帶我去" }: { to: number; label?: stri
   );
 }
 
+/** 讀取中：讀螢幕軟體會唸出 label（role=status），轉圈本身不唸 */
 export function LoadingBlock({ label = "整理資料中…" }: { label?: string }) {
   return (
-    <div className="grid place-items-center gap-3 rounded-[var(--radius-card)] glass py-14">
-      <span className="relative grid size-9 place-items-center">
+    <div role="status" className="grid place-items-center gap-3 rounded-[var(--radius-card)] glass py-14">
+      <span aria-hidden="true" className="relative grid size-9 place-items-center">
         <span className="absolute inset-0 animate-spin rounded-full border-2 border-[color:var(--paper-edge)] border-t-[color:var(--maple)]" />
       </span>
       <p className="text-sm ink-soft">{label}</p>
