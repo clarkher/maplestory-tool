@@ -37,6 +37,8 @@ import {
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DATA = path.join(ROOT, "public", "data");
 const RESEARCH_FILE = path.join(ROOT, "data", "guides", "gear.json");
+/** 上游原始資料（每日更新流程會先抓下來；本機沒有就不收合成來源，不能失敗） */
+const RAW_FILE = path.join(ROOT, "data", "raw", "artale.json");
 const OUT_FILE = path.join(DATA, "gear.json");
 
 function main() {
@@ -54,7 +56,17 @@ function main() {
 
   const warnings = [];
   const warn = message => warnings.push(message);
-  const ctx = { monstersById, questsById, maps, openMap, v002Date, warn };
+
+  // 合成配方只在原始資料裡（items.json 沒收）：道具 id → 上游 item.sources.crafts
+  const raw = readJson(RAW_FILE, null);
+  const craftsById = new Map();
+  for (const entry of raw?.items ?? []) {
+    const crafts = entry?.sources?.crafts;
+    if (crafts?.length) craftsById.set(Number(entry.id ?? entry.itemId), crafts);
+  }
+  if (!raw) warn("沒有 data/raw/artale.json：這次不收合成來源（先跑 npm run data:artale）");
+
+  const ctx = { monstersById, questsById, maps, openMap, v002Date, craftsById, warn };
 
   // 研究檔不存在（另一個 Task 平行在做）或缺欄位都不能讓這支腳本失敗
   const research = readJson(RESEARCH_FILE, null);

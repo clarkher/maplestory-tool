@@ -9,6 +9,7 @@ import {
   STAT_ORDER,
   STAT_SHORT,
   STAT_WORD,
+  craftMaterialsText,
   dropLead,
   effectParts,
   gearPlan,
@@ -335,7 +336,7 @@ function OpenChip({ later, where, spaced = false }: { later: string | undefined;
 function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; where: Where; chip?: boolean }) {
   if (!pick) return null;
   // 掉落的怪在哪張圖、店開在哪張圖：走得到就給「帶我去」
-  const target = pick.kind === "drop" ? pick.drop.map : pick.kind === "shop" ? pick.shop.m : undefined;
+  const target = pick.kind === "drop" ? pick.drop.map : pick.kind === "shop" ? pick.shop.m : pick.kind === "craft" ? pick.craft.m : undefined;
   const go = target !== undefined && where.routable.has(target) ? target : null;
   const label = (id: number) => mapName(where.maps, id);
   // 地圖名、任務名整個一起換行（「海龜沙灘」不會切成「海龜沙／灘」）；真的長到一行放不下才在字中間斷，不凸出卡片
@@ -353,6 +354,12 @@ function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; whe
           <Link href={`/db/quests?id=${pick.quest.id}`} className="break-keep wrap-anywhere underline decoration-dotted underline-offset-2">
             {sourceText(pick, label)}
           </Link>
+        ) : pick.kind === "craft" ? (
+          <>
+            <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
+            {/* 合成要的材料另起一行：要先去打這些東西 */}
+            <span className="block break-keep wrap-anywhere ink-faint">材料：{craftMaterialsText(pick.craft)}</span>
+          </>
         ) : (
           <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
         )}

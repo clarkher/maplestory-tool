@@ -15,6 +15,11 @@ export type GearSource = {
    * o：店在 10/15 才開的城鎮（冰原雪域、天空之城）。現在就開的排前面、再比便宜，最多 3 家。
    */
   shops?: Array<{ p: string; n?: string; m?: number; pr: number; o?: string }>;
+  /**
+   * 城鎮 NPC 合成（墮落城市的後街吉姆做狼牙）：n NPC、m 地圖、mats 材料、fee 楓幣、rand 隨機給、o 10/15 才開的城鎮。
+   * 台服經典版很多武器是這樣拿的（狼牙的店都在還沒開的城鎮，2026-10-07 使用者確認墮落城市武器店沒賣）。
+   */
+  crafts?: Array<{ n: string; m?: number; mats: Array<{ id: number; n: string; c: number }>; fee?: number; rand?: 1; o?: string }>;
   /** 掉落怪：只收出現在已開放地圖的怪，依怪物等級由低到高，最多 8 隻；map 是牠出現的一張已開放地圖（優先不是 V002 的） */
   drops?: Array<{ m: number; n: string; lv: number; map: number; o?: string }>;
   /**
@@ -26,6 +31,7 @@ export type GearSource = {
 };
 
 type GearShop = NonNullable<GearSource["shops"]>[number];
+type GearCraft = NonNullable<GearSource["crafts"]>[number];
 type GearQuest = NonNullable<GearSource["quests"]>[number];
 
 /**
@@ -43,7 +49,7 @@ export function questFits(quest: GearQuest, job: number, level?: number): boolea
  * （給了 level 也看等級上限）。完全沒有來源資料的（只會出現在測試）不在這裡擋，交給 pipeline 保證每一筆都有來源。
  */
 export function obtainableBy(src: GearSource, job: number, level?: number): boolean {
-  if (src.shops?.length || src.drops?.length) return true;
+  if (src.shops?.length || src.crafts?.length || src.drops?.length) return true;
   const quests = src.quests ?? [];
   return !quests.length || quests.some(quest => questFits(quest, job, level));
 }
@@ -284,7 +290,14 @@ function rankWeapon(a: GearWeapon, b: GearWeapon, magic: boolean): number {
   if (speed) return speed;
   const level = b.lv - a.lv;
   if (level) return level;
-  return Number(Boolean(a.o)) - Number(Boolean(b.o));
+  const open = Number(Boolean(a.o)) - Number(Boolean(b.o));
+  if (open) return open;
+  // 數值一模一樣（青銅／銀／黑守護拳套）：拿法越多的越好拿（銀守護拳套能合成、兩隻怪會掉）
+  return sourceCount(b.src) - sourceCount(a.src);
+}
+
+function sourceCount(src: GearSource): number {
+  return (src.shops?.length ?? 0) + (src.crafts?.length ?? 0) + (src.drops?.length ?? 0) + (src.quests?.length ?? 0);
 }
 
 /** next 的排序：需求等級低的先（最近能換的）；同分非 V002 的先；再同分攻擊／魔力高的先；再同分攻速數字小的先。 */
@@ -449,6 +462,7 @@ export function scrollPicks(
 
 export type SourcePick =
   | { kind: "shop"; shop: GearShop }
+  | { kind: "craft"; craft: GearCraft }
   | { kind: "drop"; drop: NonNullable<GearSource["drops"]>[number] }
   | { kind: "quest"; quest: NonNullable<GearSource["quests"]>[number] };
 
@@ -503,13 +517,18 @@ export function closestSource(src: GearSource, level: number, beforeOpen = false
   // 接不到的任務不算：職業不對、獎勵不發給這個職業、過了等級上限
   const quests = (src.quests ?? []).filter(quest => job === undefined || questFits(quest, job, level));
 
+  // 合成：材料湊齊就一定做得出來，比要看運氣的掉落、任務可靠，排在商店後面
+  const crafts = src.crafts ?? [];
   if (beforeOpen) {
-    // 10/15 前先找現在就開的店，再找現在打得到的怪、接得到的任務
+    // 10/15 前先找現在就開的店、現在就去得了的合成 NPC，再找現在打得到的怪、接得到的任務
     const openShop = shops.find(shop => !shop.o);
     if (openShop) return { kind: "shop", shop: openShop };
+    const openCraft = crafts.find(craft => !craft.o);
+    if (openCraft) return { kind: "craft", craft: openCraft };
     const open = easiest(drops.filter(drop => !drop.o), quests.filter(quest => !quest.o), level);
     if (open) return open;
   }
   if (shops.length) return { kind: "shop", shop: shops[0] };
+  if (crafts.length) return { kind: "craft", craft: crafts[0] };
   return easiest(drops, quests, level);
 }

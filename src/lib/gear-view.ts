@@ -106,13 +106,25 @@ export function dropLead(drop: { n: string; lv: number }): string {
  */
 export function sourceText(pick: SourcePick, mapLabel: (id: number) => string): string {
   if (pick.kind === "shop") return `${pick.shop.p}${pick.shop.n ? `的${pick.shop.n}` : ""}賣 ${formatNumber(pick.shop.pr)} 楓幣`;
+  if (pick.kind === "craft") {
+    const place = pick.craft.m !== undefined ? `${mapLabel(pick.craft.m)}的` : "";
+    return `${place}${pick.craft.n}${pick.craft.rand ? "隨機合成" : "合成"}`;
+  }
   if (pick.kind === "drop") return `${dropLead(pick.drop)}・${mapLabel(pick.drop.map)}`;
   return `${pick.quest.minLv ? `Lv.${pick.quest.minLv} ` : ""}任務〈${pick.quest.n}〉${pick.quest.rand ? "隨機給" : "給"}`;
 }
 
-/** 這個來源是不是 V002 才開放（回開放日）：10/15 才開的城鎮的店、只在 V002 地圖出現的怪、V002 任務 */
+/** 合成要的材料：「拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣」（只要 1 個就不寫×1） */
+export function craftMaterialsText(craft: { mats: Array<{ n: string; c: number }>; fee?: number }): string {
+  const parts = craft.mats.map(mat => (mat.c > 1 ? `${mat.n}×${formatNumber(mat.c)}` : mat.n));
+  if (craft.fee) parts.push(`${formatNumber(craft.fee)} 楓幣`);
+  return parts.join("、");
+}
+
+/** 這個來源是不是 V002 才開放（回開放日）：10/15 才開的城鎮的店、合成 NPC、只在 V002 地圖出現的怪、V002 任務 */
 export function sourceOpensLater(pick: SourcePick): string | undefined {
   if (pick.kind === "shop") return pick.shop.o;
+  if (pick.kind === "craft") return pick.craft.o;
   if (pick.kind === "drop") return pick.drop.o;
   if (pick.kind === "quest") return pick.quest.o;
   return undefined;

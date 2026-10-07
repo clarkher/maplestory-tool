@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import type { GearData, GearNote, GearScroll, GearWeapon, StatRule } from "@/lib/gear";
 import {
   bandGear,
+  craftMaterialsText,
   dropLead,
   effectParts,
   effectText,
@@ -206,10 +207,10 @@ const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const gear = JSON.parse(fs.readFileSync(`${DATA}gear.json`, "utf8")) as GearData;
 
 describe("真資料：gearPlan 組出來的卡片內容", () => {
-  it("刺客 Lv35（10/15 前）：銀守護拳套，火肥肥會掉；下一把 40 等、現在就拿得到", () => {
+  it("刺客 Lv35（10/15 前）：銀守護拳套（同數值裡拿法最多），墮落城市後街吉姆合成；下一把 40 等、現在就拿得到", () => {
     const plan = gearPlan(gear, 410, 35, true);
     expect(plan.best?.n).toBe("銀守護拳套");
-    expect(plan.bestSource).toMatchObject({ kind: "drop", drop: { n: "火肥肥" } });
+    expect(plan.bestSource).toMatchObject({ kind: "craft", craft: { n: "後街吉姆" } });
     expect(plan.next?.lv).toBe(40);
     expect(plan.next?.o).toBeUndefined();
     expect(plan.bestShort).toEqual([]);
@@ -363,5 +364,28 @@ describe("bandGear：還沒轉到選的職業時，用那一轉實際用的武�
 
   it("槍手的一轉照「力量＝等級」那套列火槍（那一轉有對得上槍手武器的點法就用它）", () => {
     expect(bandGear(fixture, 520, 21, 29, true).weapons.map(entry => entry.weapon.s)).toEqual(["火槍"]);
+  });
+});
+
+describe("合成的寫法", () => {
+  const craft = { n: "後街吉姆", m: 103000000, mats: [{ id: 1472000, n: "拳套", c: 1 }, { id: 4011001, n: "鋼鐵", c: 3 }, { id: 4000021, n: "動物皮", c: 20 }, { id: 4003001, n: "木材", c: 30 }], fee: 5000 };
+
+  it("「墮落城市的後街吉姆合成」＋材料「拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣」", () => {
+    expect(sourceText({ kind: "craft", craft }, id => (id === 103000000 ? "墮落城市" : "?"))).toBe("墮落城市的後街吉姆合成");
+    expect(craftMaterialsText(craft)).toBe("拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣");
+    expect(sourceOpensLater({ kind: "craft", craft: { ...craft, o: "2026-10-15" } })).toBe("2026-10-15");
+  });
+});
+
+describe("真資料：狼牙（台服靠後街吉姆合成）", () => {
+  it("一轉盜賊 25 等推狼牙，來源是合成", () => {
+    const plan = gearPlan(gear, 400, 25, true);
+    expect(plan.best?.n).toBe("狼牙");
+    expect(plan.bestSource?.kind).toBe("craft");
+  });
+
+  it("俠盜的升級路線 21–29（一轉）在 25 等換狼牙", () => {
+    const band = bandGear(gear, 420, 21, 29, true);
+    expect(band.weapons.find(entry => entry.weapon.n === "狼牙")?.level).toBe(25);
   });
 });
