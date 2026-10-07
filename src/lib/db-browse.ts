@@ -91,6 +91,28 @@ export function searchEntries<T extends { id: string; name: string; keywords?: s
   return [...first, ...starts, ...contains];
 }
 
+/** 搜尋時排最前面的那一組：哪幾筆、那一組的小標、其他符合的小標（例：搜「劍士」→ 劍士能用的裝備／名字或說明提到劍士的） */
+export type Prefer = { ids: ReadonlySet<string>; title: string; rest: string };
+
+/**
+ * 每一筆屬於哪一組小標。有搜尋字時只有 preferFor 給了 Prefer 才分兩組，其他搜尋不分組
+ * （搜尋會照符合程度重排，每一筆自己帶的 group 會被打散）；沒有搜尋字時照每一筆自己的 group。
+ */
+export function groupLabeler(query: string, prefer: Prefer | null): (entry: { id: string; group?: string }) => string | undefined {
+  if (!query.trim()) return entry => entry.group;
+  if (!prefer) return () => undefined;
+  return entry => (prefer.ids.has(entry.id) ? prefer.title : prefer.rest);
+}
+
+/** 清單中間的小標：這一筆的分組跟上一筆不同才放（回每一筆上面要放的字，不放是 null）；沒有分組的不放 */
+export function groupHeads<T>(entries: readonly T[], groupOf: (entry: T) => string | undefined): Array<string | null> {
+  return entries.map((entry, index) => {
+    const group = groupOf(entry);
+    if (!group) return null;
+    return index > 0 && groupOf(entries[index - 1]) === group ? null : group;
+  });
+}
+
 /** 在沒開著別筆時從清單點開，會在那一筆的歷史紀錄留下這個記號 */
 export const FROM_LIST = "dbFromList";
 /** 記號是哪一份頁面留的：重新整理之後，上一筆紀錄屬於舊的頁面，返回會整頁重載 */

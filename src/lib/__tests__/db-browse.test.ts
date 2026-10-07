@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, SIDE, cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal,
-  keptFromHistory, listSignature, moreRows, needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide,
+  AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, SIDE, cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, groupHeads, groupLabeler,
+  isTraversal, keptFromHistory, listSignature, moreRows, needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide,
 } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
@@ -462,5 +462,29 @@ describe("卡片裡連到同一頁另一筆的連結（例如任務的「要先�
 
   it("網址寫壞了：不管", () => {
     expect(samePageTarget(link("http://[壞掉"), plain, here)).toBeNull();
+  });
+});
+
+describe("清單中間的分組小標", () => {
+  it("分組換了才放小標，同一組連著只放第一筆上面", () => {
+    const rows = ["快過期", "快過期", "剛解鎖", "隨時可以補", "隨時可以補"].map((group, index) => ({ id: String(index), group }));
+    expect(groupHeads(rows, row => row.group)).toEqual(["快過期", null, "剛解鎖", "隨時可以補", null]);
+  });
+
+  it("沒有分組的那一筆不放小標；中間斷開又回到同一組，再放一次", () => {
+    expect(groupHeads(["A", undefined, "A", "B", "A"], value => value)).toEqual(["A", null, "A", "B", "A"]);
+  });
+
+  it("沒有搜尋字：照每一筆自己的 group", () => {
+    const label = groupLabeler("  ", null);
+    expect(label({ id: "1", group: "剛解鎖" })).toBe("剛解鎖");
+    expect(label({ id: "2" })).toBeUndefined();
+  });
+
+  it("搜職業名：要排前面的那組寫 title，其他寫 rest；一般搜尋不分組", () => {
+    const prefer = { ids: new Set(["1"]), title: "劍士能用的裝備", rest: "名字或說明提到劍士的" };
+    expect(groupLabeler("劍士", prefer)({ id: "1", group: "剛解鎖" })).toBe("劍士能用的裝備");
+    expect(groupLabeler("劍士", prefer)({ id: "2" })).toBe("名字或說明提到劍士的");
+    expect(groupLabeler("帽", null)({ id: "1", group: "剛解鎖" })).toBeUndefined();
   });
 });

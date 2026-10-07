@@ -55,13 +55,14 @@ function hasSource(item: Item): boolean {
 }
 
 /**
- * 清單不列：分類、種類都寫「裝備」而且拿不到的。
- * 遊戲資料把認不得種類的裝備都歸成「裝備」，2026-10-07 查有 38 件、全都沒有來源：
- * 24 件影武者的刀、12 件龍魔導士的龍裝備（經典版沒有這兩個職業，資料卻寫盜賊、法師能用）、2 件虎爪。
- * 以後哪件有了來源就會自動列回來。網址直接打開照樣看得到細節。
+ * 清單不列：拿不到的（沒有怪掉、任務給、店賣），而且是下面兩種之一。網址直接打開照樣看得到細節，以後有了來源就自動列回來。
+ * - 分類、種類都寫「裝備」：遊戲資料把認不得種類的裝備都歸成「裝備」，2026-10-07 查有 38 件——
+ *   24 件影武者的刀、12 件龍魔導士的龍裝備（經典版沒有這兩個職業，資料卻寫盜賊、法師能用）、2 件虎爪。
+ * - 名字有「GM」：GM 專用的（沒看頭的GM制服、GM的火燭），玩家拿不到。
  */
 export function hiddenFromList(item: Item): boolean {
-  return item.c === "裝備" && item.s === "裝備" && !hasSource(item);
+  if (hasSource(item)) return false;
+  return (item.c === "裝備" && item.s === "裝備") || /GM/.test(item.n);
 }
 
 export type WearFit = { tone: "sky" | "gold" | "maple"; text: string };
