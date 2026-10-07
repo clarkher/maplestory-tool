@@ -48,6 +48,24 @@ function utilityBody(source: string, name: string) {
 
 const rules = rulesOf(css);
 
+/** 夜晚主題（`:root[data-theme="dark"]`）裡某個顏色變數的 #rrggbb */
+function darkColor(name: string) {
+  const dark = rules.find(rule => rule.selector === ':root[data-theme="dark"]');
+  return dark?.body.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1] ?? "";
+}
+
+/** 兩個 #rrggbb 的對比（WCAG 相對亮度比，1 是一樣、越大越分得出來） */
+function contrast(a: string, b: string) {
+  const luminance = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5]
+      .map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
 describe("全站規則不能蓋掉 Tailwind 的 class", () => {
   it("沒進 layer 的規則不設定邊框跟外框（border*、outline*）", () => {
     const offenders = rules
@@ -68,9 +86,19 @@ describe("全站規則不能蓋掉 Tailwind 的 class", () => {
 });
 
 describe("外框顏色（2026-10-07 使用者看過對照圖選的）", () => {
-  it("毛玻璃框（導覽列、地圖下拉選單、讀取框）的邊維持米色，不用白邊", () => {
+  it("毛玻璃框（地圖下拉選單、讀取框）的邊維持米色，不用白邊", () => {
     for (const name of ["glass", "glass-solid"]) {
       expect(utilityBody(css, name)).toMatch(/border:\s*1px solid var\(--paper-edge\)/);
     }
+  });
+
+  it("導覽列用的毛玻璃底（glass-fill）不畫框：上、左、右貼著螢幕邊不要線，只留導覽列自己寫的下緣", () => {
+    const fill = utilityBody(css, "glass-fill");
+    expect(fill).toMatch(/backdrop-filter/);
+    expect(fill).not.toMatch(/border/);
+  });
+
+  it("夜晚的邊框看得到：跟頁底的對比至少 2（使用者選 B #5b442e；原本 #33261a 只有 1.28，幾乎看不到）", () => {
+    expect(contrast(darkColor("paper-edge"), darkColor("paper"))).toBeGreaterThanOrEqual(2);
   });
 });
