@@ -249,6 +249,9 @@ Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScri
 npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 ```
 
+開 PR（進 `dev` 或 `main`）和合進 `dev` 之後，GitHub Actions 會自動跑 `npm test` 跟 `next build`（`.github/workflows/test.yml`），
+結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」，紅燈點進去看是哪一步。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
+
 ### 查資料頁驗收（改查資料四頁之後跑）
 
 `/db/items`、`/db/monsters`、`/db/quests`、`/db/skills` 的捲動、展開、收起、按返回、記住搜尋篩選、自動載入，

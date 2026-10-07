@@ -1,0 +1,60 @@
+name: 測試
+
+# PR（進 dev 或 main）跟合進 dev 之後自動跑，結果在 PR 頁面下面的檢查：
+#  - 單元測試：npm test（pipeline 的 node:test＋src 的 vitest）。裡面鎖著「資料自動更新 dry-run 絕不開 PR、合進正式機」、
+#    失敗通知的判斷這類防呆，以前只有有人手動跑才會執行，改壞了也不會被擋
+#  - 建置：next build（型別檢查、編得過）。Vercel 預覽也會建，但它的 log 要登入 Vercel 才看得到；這裡失敗用 gh run view 就看得到原因
+# 用 pull_request（不是 pull_request_target）、權限只有讀：PR 的程式碼拿不到寫入權限跟 secrets。
+# 資料自動更新、V002 重新部署用 github.token 開的 PR、推的 commit 不會觸發這裡（GitHub 不讓 workflow 用自己的 token 觸發別的 workflow），
+# 資料自動更新自己會跑 verify.mjs、首頁真資料檢查跟 next build。
+
+on:
+  pull_request:
+    branches: [dev, main]
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: 單元測試
+    runs-on: ubuntu-latest
+    # 2026-10-07 在乾淨的 checkout 實測：npm test 約 25 秒（node:test 164 個＋vitest 772 個），只用進版控的檔案
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 安裝相依套件
+        run: npm ci
+
+      - name: 跑測試
+        run: npm test
+
+  build:
+    name: 建置
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: 安裝相依套件
+        run: npm ci
+
+      - name: 建置
+        run: npm run build
