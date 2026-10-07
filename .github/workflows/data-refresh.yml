@@ -7,6 +7,12 @@ name: 資料自動更新
 # 刷怪點與回生秒數來自台服客戶端（上游 maps-data.js），跟遊戲資料一起在這裡更新。
 # v83 地圖資料（傳送門、回城點、世界地圖區域；台服客戶端沒有刷怪資料的圖才用它的刷怪點）
 # 是凍結版本，已進版控，不會在這裡重抓。
+#
+# 失敗通知（notify job，pipeline/notify-refresh.mjs）：refresh 任何一步失敗就開一張 issue
+# （label「資料更新失敗」，指派給 repo 擁有者）。已經有開著的就不另開：同樣的失敗只更新內文「最後一次失敗」那行、
+# 不發通知，失敗的步驟或上游版本變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
+# 要測通知本身，手動觸發勾 dry_run（不開 PR、不合併，寫到「資料更新失敗-測試」）；勾 simulate_failure 會故意失敗一次（也算 dry-run）。
+# 從 main 以外的分支手動觸發一律當 dry-run。
 
 on:
   schedule:
@@ -18,6 +24,14 @@ on:
         description: "即使版本沒變也強制重建"
         type: boolean
         default: false
+      dry_run:
+        description: "測試用：照跑但不開 PR、不合併，通知寫到「資料更新失敗-測試」那張 issue"
+        type: boolean
+        default: false
+      simulate_failure:
+        description: "測試用：比對版本之後故意失敗一次，測失敗通知（勾了就算 dry-run，不開 PR、不合併）"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -25,17 +39,30 @@ on:
       - "data/raw/artale.local.json"
       - "pipeline/**"
 
+env:
+  # dry-run：不開 PR、不合併、不推資料分支，通知寫到測試用的 issue。
+  # 只勾 simulate_failure 也算；不是從 main 觸發也算——開 PR 那步的資料分支是從當下 checkout 的分支切出來的，
+  # 在功能分支上手動跑忘了勾 dry_run，會把整條分支還沒審過的程式一起 --admin 合進正式機
+  DRY_RUN: ${{ inputs.dry_run || inputs.simulate_failure || github.ref != 'refs/heads/main' }}
+
 concurrency:
-  group: data-refresh
+  # dry-run 自己排一列：同一群組只留一個排隊中的，混在一起會把正式排程擠掉（concurrency 讀不到 env，條件照抄上面）
+  group: data-refresh${{ (inputs.dry_run || inputs.simulate_failure || github.ref != 'refs/heads/main') && '-dry-run' || '' }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
+  # notify 用 job 名稱 refresh 找這個 job 的步驟與 log，改名要一起改 pipeline/notify-refresh.mjs
   refresh:
     runs-on: ubuntu-latest
+    # 平常約 1 分鐘跑完（2026-10-07 實測，連 npm ci、next build 的完整重建也是）；卡住（例如 clone 上游斷線不動）最多佔 30 分鐘，被中止後 notify 會開 issue
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      # 給 notify 寫進 issue：網站目前的資料版本、上游版本（取上游那步就失敗時是空的）
+      before: ${{ steps.before.outputs.stamp }}
+      stamp: ${{ steps.check.outputs.stamp }}
     steps:
       - uses: actions/checkout@v4
 
@@ -56,18 +83,30 @@ jobs:
       - name: 取得 Artale 資料
         run: node pipeline/fetch-artale.mjs
 
+      # run 裡不要直接寫 ${{ }}：那是在 bash 跑之前把字串原樣貼進指令，上游的版本字串寫成 `"; 指令; echo "`
+      # 就會在這裡（有寫入權限）被執行。一律用 env 傳進去、指令裡寫 "$變數"（pipeline/lib/data-refresh-workflow.test.mjs 會擋）
       - name: 比對版本
         id: check
+        env:
+          BEFORE: ${{ steps.before.outputs.stamp }}
+          FORCE: ${{ inputs.force }}
         run: |
           AFTER=$(node -p "require('./data/raw/artale.json').metadata?.generatedAt ?? ''")
           echo "stamp=$AFTER" >> "$GITHUB_OUTPUT"
-          if [ "$AFTER" = "${{ steps.before.outputs.stamp }}" ] && [ "${{ inputs.force }}" != "true" ]; then
+          if [ "$AFTER" = "$BEFORE" ] && [ "$FORCE" != "true" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "上游版本沒變（$AFTER），跳過重建"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "版本從 ${{ steps.before.outputs.stamp }} 變成 $AFTER，重建"
+            echo "版本從 $BEFORE 變成 $AFTER，重建"
           fi
+
+      - name: （測試）故意失敗
+        if: inputs.simulate_failure
+        run: |
+          echo "dry-run 測試：勾了 simulate_failure，故意在這裡失敗，看失敗通知有沒有開出來"
+          echo "Error: 這是模擬的錯誤訊息，不是真的壞掉"
+          exit 1
 
       - name: 安裝相依套件
         if: steps.check.outputs.changed == 'true'
@@ -91,19 +130,27 @@ jobs:
 
       # 拿新資料把首頁每個職業 × 等級跑一次：主推都有、組隊任務在遊戲等級限制內、帶我去走得到、
       # 封頂提示不自相矛盾、多升一級主推圖不會掉超過 10 級、長線沒有做不動的任務、先解沒有同名兩行。壞了就不開 PR
+      # --reporter=default：vitest 在 GitHub Actions 上預設會在摘要之後再印一串標註，失敗一多，
+      # 通知 issue 裡「錯誤訊息最後 30 行」就只剩標註、看不到哪個組合壞了
       - name: 首頁每個組合跑一次真資料檢查
         if: steps.check.outputs.changed == 'true'
-        run: npx vitest run src/lib/__tests__/now-plan-realdata.test.ts
+        run: npx vitest run --reporter=default src/lib/__tests__/now-plan-realdata.test.ts
 
       - name: 建置一次確保網站編得過
         if: steps.check.outputs.changed == 'true'
         run: npm run build
 
       - name: 開 PR 並自動合併
-        if: steps.check.outputs.changed == 'true'
+        if: steps.check.outputs.changed == 'true' && env.DRY_RUN != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          STAMP: ${{ steps.check.outputs.stamp }}
         run: |
+          # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：步驟條件之外再擋一次
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry-run：不開 PR、不合併"
+            exit 0
+          fi
           git config user.name "maplestory-tool bot"
           git config user.email "actions@github.com"
           git add public/data public/assets
@@ -112,7 +159,6 @@ jobs:
             exit 0
           fi
           VERSION=$(node -p "require('./public/data/meta.json').gameVersion ?? '?'")
-          STAMP="${{ steps.check.outputs.stamp }}"
           BRANCH="data/refresh-$(echo "$STAMP" | tr -dc '0-9' | head -c 14)"
           git checkout -b "$BRANCH"
           git commit -m "data: 同步遊戲版本 ${VERSION}（${STAMP}）"
@@ -120,3 +166,32 @@ jobs:
           # verify.mjs 與首頁真資料檢查已在前面把關過才會走到這裡，PR 開了就直接合
           gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）"             --body "自動資料更新。verify.mjs 與首頁真資料檢查全數通過、next build 成功。合併後 Vercel 會自動部署。"             --base main --head "$BRANCH"
           gh pr merge "$BRANCH" --squash --delete-branch --admin
+
+  notify:
+    needs: refresh
+    # refresh 成功、失敗都要跑（失敗開／留言，成功關）；整個被取消就不跑
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # 拿 pipeline/notify-refresh.mjs
+      issues: write # 開 issue、留言、關閉、建 label
+      actions: read # 讀 refresh 是哪一步失敗、下載它的 log
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: pipeline
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # DRY_RUN 用 workflow 開頭 env 那一個（dry-run 寫到測試用的 issue）
+      - name: 失敗開 issue、成功關 issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REFRESH_RESULT: ${{ needs.refresh.result }}
+          UPSTREAM_STAMP: ${{ needs.refresh.outputs.stamp }}
+          SITE_STAMP: ${{ needs.refresh.outputs.before }}
+          ASSIGNEE: ${{ github.repository_owner }}
+        run: node pipeline/notify-refresh.mjs

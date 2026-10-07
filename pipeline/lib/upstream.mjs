@@ -46,6 +46,22 @@ export function parseUpstreamScript(text, globalName, file) {
 }
 
 /**
+ * 上游的產生時間只收 ISO 8601（上游一直是「2026-09-24T11:25:10+08:00」這種），原字串不動。
+ * 排程拿整份資料的版本比對、寫進 $GITHUB_OUTPUT、PR 標題與 commit 訊息，各檔版本也會印進執行紀錄；
+ * 只靠 Date.parse 擋不住——V8 把括號裡當註解，`Oct 5 2026 10:00 ("; echo X; echo ")` 也算合法日期。
+ * 有寫但不是這個格式就讓重建失敗（跟其他「格式可能改了」一樣），沒寫的檔照舊略過。
+ */
+const ISO_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+
+function checkedGeneratedAt(value, file) {
+  if (value == null || value === "") return null;
+  if (typeof value === "string" && ISO_STAMP.test(value) && Number.isFinite(Date.parse(value))) return value;
+  // 原字串可能帶換行或指令，印出來一律 JSON 跳脫、只留前 80 字
+  const shown = JSON.stringify(value);
+  throw new Error(`上游 ${file} 的 metadata.generatedAt 不是 ISO 時間格式（${shown.length > 80 ? `${shown.slice(0, 80)}…` : shown}），格式可能改了`);
+}
+
+/**
  * 六份併成一份，結構與舊的 drops.json 相同。
  *
  * 各檔的版本與產生時間不一定相同（2026-09-24 實測：data.js 是 1.15.1，items-data.js 是 1.15.2）。
@@ -75,8 +91,9 @@ export function assembleUpstream(parts) {
     Object.assign(filters, part.filters);
 
     const metadata = part.metadata || {};
-    partVersions[spec.file] = { gameVersion: metadata.gameVersion ?? null, generatedAt: metadata.generatedAt ?? null };
-    const stamp = Date.parse(metadata.generatedAt ?? "");
+    const generatedAt = checkedGeneratedAt(metadata.generatedAt, spec.file);
+    partVersions[spec.file] = { gameVersion: metadata.gameVersion ?? null, generatedAt };
+    const stamp = Date.parse(generatedAt ?? "");
     if (Number.isFinite(stamp) && (!newest || stamp > newest.stamp)) newest = { stamp, metadata };
   }
   if (!newest) throw new Error("上游每個檔都沒有 metadata.generatedAt，沒辦法判斷資料版本");

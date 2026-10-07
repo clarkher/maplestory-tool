@@ -201,11 +201,30 @@ npm run data:all      # 以上全跑
   （以前認不得的寫法默默取首字母存，怪物卡又把認不得的代碼原樣印出來，才會寫出「冰 r」）：
   到 `pipeline/lib/elemental.mjs` 補對照、`src/lib/format.ts` 補字（新的抗性種類也看 `src/lib/job-rules.ts` 要不要算進去）再重建。
   上游整個屬性欄位不見、每隻怪的抗性被清空時，`verify.mjs` 的「怪物有屬性抗性資料」會紅
+- 上游的 `generatedAt` 只收 ISO 時間格式（例如 `2026-09-24T11:25:10+08:00`，`Z`、1～9 位小數秒也行），有寫但格式不對就在「取得 Artale 資料」直接失敗、不開 PR，
+  錯誤訊息寫是上游哪個檔（例如 `items-data.js`）：這個字串會拿去比對版本、寫進 PR 標題，`Date.parse` 連 `Oct 5 2026 10:00 ("; echo X; echo ")` 都當成日期。
+  上游真的換了時間格式：到 `pipeline/lib/upstream.mjs` 放寬 `ISO_STAMP`（只加需要的寫法，引號、反引號、`$`、括號、分號、換行一律不收）再重建；
+  版本字串換了寫法，下一輪會當成上游更新、重建並自動合進正式機一次。
+  workflow 的 `run:` 裡也一律不直接寫 `${{ }}`（那是先把字串貼進指令再跑），上游來的字串、手動觸發的輸入都用 `env:` 傳，
+  `pipeline/lib/data-refresh-workflow.test.mjs` 會掃 `.github/workflows/` 每個檔來擋
 - 上游圖檔只收四個目錄最上層的 `.png`（前端載的圖）跟 `.json`（上游附的 `summary.json`）；`.svg`、`.html` 這類網頁檔放上正式機網域，
   有人點開就會用我們網站的身分跑上游寫的腳本，所以白名單以外的檔、子資料夾、捷徑（symlink）一律不收，網站裡原本混進來的也清掉
   （`pipeline/lib/assets.mjs`）。上游把 `assets` 或其中一個目錄換成捷徑時「取得 Artale 資料」直接失敗、不開 PR。
   前端要載新的圖檔格式就到 `ASSET_EXTENSIONS` 加（`pipeline/lib/assets.test.mjs` 會檢查前端用到的副檔名都在白名單裡）
-- 也可以手動觸發，勾 `force` 可略過版本比對
+- 任何一步失敗（取得上游、重建、`verify.mjs`、首頁真資料檢查、`next build`、開 PR 合併），接在後面的 `notify` job 會開一張 issue
+  （label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本、執行紀錄連結、那一步錯誤訊息的最後 30 行。
+  已經有開著的就不另開：同樣的失敗（同一步、同一個上游版本）只更新那張內文的「最後一次失敗」那行（時間、卡在哪一步、連續第幾次；
+  改內文不發通知，壞著沒修也不會每 12 小時吵一次），失敗的步驟或上游版本變了才在那張留言；之後成功一次就自動留言並關掉。
+  refresh 最多跑 30 分鐘（`timeout-minutes`；平常連完整重建約 1 分鐘），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
+  （中止的結果是 cancelled，notify 看有沒有主要步驟跑到一半來分辨）；一步都沒跑（GitHub 沒派到機器）、或只有收尾步驟被中止不通知，
+  下一輪會再跑；手動取消整個執行時 notify 不會跑。
+  程式在 `pipeline/notify-refresh.mjs`（內容與判斷在 `pipeline/lib/refresh-issue.mjs`）；
+  想先看某一次執行會發出什麼內容，用檔案開頭寫的 `PRINT_ONLY=true` 在本機預覽（只讀，不會開 issue）
+- 通知管不到的一種情況：公開 repo 60 天沒有任何活動，GitHub 會自動停用排程（notify 也就不會跑），要到 Actions 頁面重新啟用
+- 也可以手動觸發，勾 `force` 可略過版本比對。**只有從 `main` 觸發、`dry_run`、`simulate_failure` 都沒勾，才會跑到最後直接合進 `main`（正式機）**；
+  從其他分支觸發一律當 dry-run（開 PR 那步的資料分支是從觸發的分支切出來的，忘了勾 dry_run 會把整條分支沒審過的程式一起合進正式機）
+- 要測失敗通知本身：手動觸發勾 `dry_run`（照跑但不開 PR、不合併、不推資料分支，通知寫到 label `資料更新失敗-測試` 那張，碰不到正式那張）；
+  勾 `simulate_failure` 會在比對版本之後故意失敗一次（只勾它也算 dry-run）；測完再跑一次只勾 `dry_run` 的，成功就會把測試那張關掉
 
 Vercel 這端接的是 GitHub 整合（production branch = `main`），
 所以資料 commit 進 `main` 之後不需要另外下指令。
