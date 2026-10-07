@@ -212,3 +212,22 @@ Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScri
 ```bash
 npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 ```
+
+### 查資料頁驗收（改查資料四頁之後跑）
+
+`/db/items`、`/db/monsters`、`/db/quests`、`/db/skills` 的捲動、展開、收起、按返回、記住搜尋篩選、自動載入，
+單元測試測不到真的畫面，用 `scripts/verify-db.mjs` 開無頭 Chrome 實際點一遍（手機 375×812、桌機 1280×800），
+逐格量捲動位置，並開關「減少動態效果」各跑一次。
+
+```bash
+npm run dev                     # 另開一個終端機先把網站起起來
+npm run verify:db               # 驗 http://localhost:3000
+npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.app   # 驗測試機
+```
+
+- 每一項印 `PASS`／`FAIL`，有一項沒過就 exit 1；截圖和 `results.json` 預設寫到系統暫存資料夾的 `maplebook-verify-db`，
+  網址後面再給一個資料夾就改寫到那裡（別寫進 repo 裡）。
+- 要有 Chrome（或 Edge、Chromium）。找不到時用環境變數 `CHROME_PATH` 指定。
+- 每次用乾淨的瀏覽器資料，DevTools 的埠由 Chrome 自己挑，幾個一起跑不會撞。
+- 跑一次約 3～4 分鐘。本機 dev server 第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次。
+- 改了查資料頁的行為，要一起改或加這裡的檢查。

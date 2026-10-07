@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { FROM_DOC, FROM_LIST, collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature, searchEntries } from "@/lib/db-browse";
+import {
+  CARD_AT, FROM_DOC, FROM_LIST, cardAtOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, listSignature, needsRescue,
+  sameRowAction, scrollMotion, searchEntries, withCardAt,
+} from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
   it("桌機：右邊那一欄（沒選也是，那裡寫「左邊選一個看細節」）", () => {
@@ -137,5 +140,128 @@ describe("搜尋結果的順序", () => {
 
   it("指定的如果根本不符合搜尋字，不會被硬塞進結果", () => {
     expect(names(searchEntries(list, "劍士", new Set(["4"])))).toEqual(["劍士冒險家表揚狀", "劍士轉職證明書", "長槍", "木劍"]);
+  });
+});
+
+describe("捲動照系統的「減少動態效果」", () => {
+  const media = (...matching: string[]) => (query: string) => ({ matches: matching.includes(query) });
+
+  it("系統開了減少動態效果：直接跳", () => {
+    expect(scrollMotion(media("(prefers-reduced-motion: reduce)"))).toBe("instant");
+  });
+
+  it("沒開（或系統沒有這個設定）：照舊平滑捲過去", () => {
+    expect(scrollMotion(media())).toBe("smooth");
+    expect(scrollMotion(media("(prefers-reduced-motion: no-preference)"))).toBe("smooth");
+  });
+});
+
+describe("同一筆開著時，卡片留在原位", () => {
+  it("原本放在清單最上面：後來清單多載、把那一筆載進來了，還是放最上面", () => {
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: true, shown: true, kept: { id: "1302000", spot: "top" } })).toBe("top");
+  });
+
+  it("原本展開在那一列下面、那一列還在清單上：留在原處", () => {
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: true, shown: true, kept: { id: "1302000", spot: "inline" } })).toBe("inline");
+  });
+
+  it("原本展開在那一列下面、那一列被搜尋或篩選拿掉了（原本的位置畫不出來）：移到最上面", () => {
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: true, shown: false, kept: { id: "1302000", spot: "inline" } })).toBe("top");
+  });
+
+  it("換了一筆：重新決定", () => {
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: true, shown: true, kept: { id: "1302001", spot: "top" } })).toBe("inline");
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: true, shown: false, kept: { id: "1302001", spot: "inline" } })).toBe("top");
+  });
+
+  it("剛從桌機換成手機（原本在右邊那一欄）：重新決定", () => {
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: true, shown: true, kept: { id: "1302000", spot: "side" } })).toBe("inline");
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: true, shown: false, kept: { id: "1302000", spot: "side" } })).toBe("top");
+  });
+
+  it("桌機一律在右邊；找不到那一筆就不放", () => {
+    expect(detailSpot({ wide: true, selected: "1302000", hasDetail: true, shown: true, kept: { id: "1302000", spot: "top" } })).toBe("side");
+    expect(detailSpot({ wide: false, selected: "1302000", hasDetail: false, shown: false, kept: { id: "1302000", spot: "top" } })).toBeNull();
+  });
+});
+
+describe("點了開著的那一筆", () => {
+  it("桌機：細節在右邊，捲過去", () => {
+    expect(sameRowAction({ wide: true, spot: "side" })).toBe("scroll");
+  });
+
+  it("手機、卡片展開在那一列下面：收起", () => {
+    expect(sameRowAction({ wide: false, spot: "inline" })).toBe("collapse");
+  });
+
+  it("手機、卡片放在清單最上面（那一筆後來才載進清單）：卡片搬到那一列下面", () => {
+    expect(sameRowAction({ wide: false, spot: "top" })).toBe("move");
+  });
+
+  it("手機、網址的 id 找不到（沒有卡片）：收起，把網址的 id 拿掉", () => {
+    expect(sameRowAction({ wide: false, spot: null })).toBe("collapse");
+  });
+});
+
+describe("每筆紀錄記下卡片在頁面上的位置", () => {
+  const nextEntry = { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 1 } };
+
+  it("記下位置時，Next 的紀錄和「從清單點開」的記號都留著", () => {
+    expect(withCardAt({ ...nextEntry, [FROM_LIST]: "1302000", [FROM_DOC]: 7 }, 2410)).toEqual({
+      __NA: true,
+      __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 1 },
+      [FROM_LIST]: "1302000",
+      [FROM_DOC]: 7,
+      [CARD_AT]: 2410,
+    });
+  });
+
+  it("位置沒變：不用再寫一次", () => {
+    expect(withCardAt({ ...nextEntry, [CARD_AT]: 2410 }, 2410)).toBeNull();
+  });
+
+  it("紀錄是空的（例如按過「跳到主要內容」）：照樣記", () => {
+    expect(withCardAt(null, 380)).toEqual({ [CARD_AT]: 380 });
+  });
+
+  it("讀回來：沒記過、或記的不是數字，就當沒記", () => {
+    expect(cardAtOf({ ...nextEntry, [CARD_AT]: 2410 })).toBe(2410);
+    expect(cardAtOf(nextEntry)).toBeUndefined();
+    expect(cardAtOf(null)).toBeUndefined();
+    expect(cardAtOf({ [CARD_AT]: "2410" })).toBeUndefined();
+  });
+});
+
+describe("按返回後位置對不上的補救：清單變了、而且那一筆和卡片都不在畫面上，才跳過去", () => {
+  // 375×812 的手機，導覽列高 66
+  const view = { viewTop: 66, viewBottom: 812 };
+
+  it("清單沒變（卡片在頁面上的位置跟離開時一樣）：不動——就算卡片不在畫面上（離開前自己捲去看清單別處）", () => {
+    expect(needsRescue({ leftAt: 2410, nowAt: 2410, top: -1900, bottom: -1100, ...view })).toBe(false);
+  });
+
+  it("位置只差幾 px（字型載入之類）：不算變", () => {
+    expect(needsRescue({ leftAt: 2410, nowAt: 2414, top: -1900, bottom: -1100, ...view })).toBe(false);
+  });
+
+  it("清單變了、那一筆和卡片都在畫面上面：跳過去", () => {
+    expect(needsRescue({ leftAt: 2410, nowAt: 380, top: -1700, bottom: -900, ...view })).toBe(true);
+  });
+
+  it("清單變了、那一筆和卡片都在畫面下面：跳過去", () => {
+    expect(needsRescue({ leftAt: 380, nowAt: 2410, top: 1300, bottom: 2100, ...view })).toBe(true);
+  });
+
+  it("清單變了、整張卡片躲在導覽列後面：算不在畫面上", () => {
+    expect(needsRescue({ leftAt: 2410, nowAt: 380, top: -700, bottom: 60, ...view })).toBe(true);
+  });
+
+  it("清單變了、但卡片還看得到一部分（導覽列下面露出一截、或從畫面底部露出來）：不動", () => {
+    expect(needsRescue({ leftAt: 2410, nowAt: 380, top: -700, bottom: 120, ...view })).toBe(false);
+    expect(needsRescue({ leftAt: 380, nowAt: 2410, top: 700, bottom: 1500, ...view })).toBe(false);
+  });
+
+  it("這筆紀錄沒記過位置（例如更新前留下的）：交給瀏覽器，不動", () => {
+    expect(needsRescue({ leftAt: undefined, nowAt: 380, top: -1700, bottom: -900, ...view })).toBe(false);
   });
 });

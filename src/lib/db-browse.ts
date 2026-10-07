@@ -1,29 +1,48 @@
 /**
  * 查資料四頁（DbBrowser）的幾條規則，抽出來單獨測：
- * 細節卡放哪裡、清單有沒有換、收起怎麼收、這次換頁是不是按上一頁。
+ * 細節卡放哪裡、清單有沒有換、收起怎麼收、這次換頁是不是按上一頁、捲動要不要平滑、按返回後要不要補救。
  */
 
 export type DetailSpot = "side" | "inline" | "top";
 
+/** 平滑捲動要看系統設定：開了「減少動態效果」就直接跳 */
+export function scrollMotion(matchMedia: (query: string) => { matches: boolean }): ScrollBehavior {
+  return matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth";
+}
+
 /**
  * 桌機（64rem 以上）細節在右邊那一欄；手機、平板展開在被點的那一筆下面，
  * 那一筆不在目前的清單上（還沒載到、被搜尋篩掉）就放在清單最上面。
+ * kept 是同一筆上一次放的位置：同一筆開著時留在原位，清單多載、把那一筆載進來，卡片也不從最上面搬到清單中間；
+ * 只有原本展開在那一列下面、那一列卻不在清單上了（原本的位置畫不出來），才改放最上面。
  */
 export function detailSpot({
   wide,
   selected,
   hasDetail,
   shown,
+  kept,
 }: {
   wide: boolean;
   selected: string | null;
   hasDetail: boolean;
   /** 選的那一筆有沒有在目前顯示的清單上 */
   shown: boolean;
+  kept?: { id: string; spot: DetailSpot } | null;
 }): DetailSpot | null {
   if (wide) return "side";
   if (!selected || !hasDetail) return null;
+  if (kept?.id === selected && (kept.spot === "top" || (kept.spot === "inline" && shown))) return kept.spot;
   return shown ? "inline" : "top";
+}
+
+/**
+ * 點了開著的那一筆：桌機細節在右邊，捲過去；手機卡片放在清單最上面（那一筆後來才載進清單）時，
+ * 卡片搬到那一列下面；展開在那一列下面（或根本沒有卡片）就收起。
+ */
+export function sameRowAction({ wide, spot }: { wide: boolean; spot: DetailSpot | null }): "scroll" | "move" | "collapse" {
+  if (wide) return "scroll";
+  return spot === "top" ? "move" : "collapse";
 }
 
 /** 清單內容的簽名：內容一樣只是重算時不變，篩選、換順序後才會變 */
@@ -81,6 +100,52 @@ export function fromListMark(openId: string | null, historyState: unknown, id: s
 export function collapseByBack(historyState: unknown, selected: string, doc: number): boolean {
   const state = asRecord(historyState);
   return state?.[FROM_LIST] === selected && state?.[FROM_DOC] === doc;
+}
+
+/** 這筆紀錄離開時，卡片在頁面上的位置（離頁面頂端幾 px） */
+export const CARD_AT = "dbCardAt";
+
+/**
+ * 把卡片的位置記進這筆紀錄：Next 的紀錄、從清單點開的記號都留著。位置沒變回 null，不用再寫一次。
+ */
+export function withCardAt(historyState: unknown, at: number): Record<string, unknown> | null {
+  const state = asRecord(historyState);
+  if (state?.[CARD_AT] === at) return null;
+  return { ...state, [CARD_AT]: at };
+}
+
+export function cardAtOf(historyState: unknown): number | undefined {
+  const at = asRecord(historyState)?.[CARD_AT];
+  return typeof at === "number" ? at : undefined;
+}
+
+/** 卡片位置差這麼多以內（字型載入之類）不算清單變了 */
+const MOVED = 8;
+
+/**
+ * 按返回回到開著卡片的清單，瀏覽器已經照離開時的位置還原：
+ * 卡片在頁面上的位置跟離開時一樣（清單沒變）就不動——離開前自己捲去看清單別處的，回來也照舊；
+ * 位置變了（記憶是整頁共用，中途在別處改過搜尋、篩選），而且那一筆和卡片都不在畫面上，才跳過去。
+ * leftAt／nowAt：離開時／現在卡片離頁面頂端幾 px；top／bottom：那一筆加卡片現在在畫面上的上下緣；
+ * viewTop：導覽列下緣（被導覽列蓋住的不算看得到）；viewBottom：畫面高度。
+ */
+export function needsRescue({
+  leftAt,
+  nowAt,
+  top,
+  bottom,
+  viewTop,
+  viewBottom,
+}: {
+  leftAt: number | undefined;
+  nowAt: number;
+  top: number;
+  bottom: number;
+  viewTop: number;
+  viewBottom: number;
+}): boolean {
+  if (leftAt === undefined || Math.abs(nowAt - leftAt) <= MOVED) return false;
+  return bottom <= viewTop || top >= viewBottom;
 }
 
 /**
