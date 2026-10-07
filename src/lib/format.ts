@@ -74,6 +74,7 @@ const ELEMENT_LABEL: Record<string, string> = {
   l: "雷",
   p: "毒",
   h: "聖",
+  d: "暗", // 遊戲用字是「黑暗屬性」，跟「神聖屬性」寫成「聖」一樣只寫一個字
   s: "毒", // 遊戲客戶端的屬性代碼（elemAttr）毒是 S
 };
 

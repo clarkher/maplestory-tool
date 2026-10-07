@@ -146,7 +146,14 @@ describe("怪物的屬性抗性", () => {
   });
 
   it("認不得的抗性代碼或屬性不顯示，不把資料代碼寫給玩家看", () => {
-    expect(elementalNotes({ f: "absorb", dark: "w", h: "w" })).toEqual([{ element: "聖", text: "弱點", tone: "good" }]);
+    expect(elementalNotes({ f: "absorb", physical: "w", h: "w" })).toEqual([{ element: "聖", text: "弱點", tone: "good" }]);
+  });
+
+  it("暗屬性（d）寫「暗」：遊戲用字是「黑暗屬性」，跟「神聖屬性」寫成「聖」一樣只寫一個字", () => {
+    expect(elementalNotes({ h: "r", d: "w" })).toEqual([
+      { element: "聖", text: "抗性", tone: "bad" },
+      { element: "暗", text: "弱點", tone: "good" },
+    ]);
   });
 
   it("管線存得出來的每個屬性、每種抗性代碼，怪物卡都寫得出中文（不會再有管線存 r、卡片只認 s 這種對不上）", () => {

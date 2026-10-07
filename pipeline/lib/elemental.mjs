@@ -7,8 +7,11 @@
  * 改成明確對照，上游出現認不得的寫法就讓重建失敗——資料自動更新不會合併上線，不再默默存成玩家看不懂的代碼。
  */
 
-/** 上游的屬性名 → 資料檔的鍵 */
-export const ELEMENT_KEY = { fire: "f", ice: "i", lightning: "l", poison: "p", holy: "h" };
+/**
+ * 上游的屬性名 → 資料檔的鍵。dark 上游整理過的 values 目前還沒給（客戶端原始代碼裡有 4 隻混沌系怪帶暗屬性），
+ * 先對好，補進來時重建不會停下來（2026-10-07 使用者選的）
+ */
+export const ELEMENT_KEY = { fire: "f", ice: "i", lightning: "l", poison: "p", holy: "h", dark: "d" };
 
 /** 上游的抗性寫法 → 資料檔的值。strong 是管線原本對照表裡的寫法（實際資料沒出現過），跟 resist 同義 */
 export const RESIST_CODE = { immune: "i", resist: "r", strong: "r", weak: "w" };
