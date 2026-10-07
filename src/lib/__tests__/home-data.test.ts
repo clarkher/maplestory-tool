@@ -59,6 +59,13 @@ describe("首頁要的遊戲資料", () => {
     });
   });
 
+  it("換頁回首頁：「帶我去」走得到的圖直接用第一次載完時算好的那份，不重算", async () => {
+    stubFetch(FILES);
+    const first = await home.loadHomeData();
+    expect(home.peekHomeData()?.routable).toBe(first.routable);
+    expect(home.peekHomeData()?.routable).toBe(first.routable);
+  });
+
   // meta 不在裡面：載任何一份遊戲資料都會先載 meta（版本號）
   const LOADERS = ["loadMaps", "loadMonsters", "loadQuests", "loadTraining", "loadGuideCommon", "loadGraph", "loadNearestTown"] as const;
   it.each(LOADERS)("只差 %s 那一份沒載過：拿不到（首頁先顯示排路線中，等它載完）", async missing => {

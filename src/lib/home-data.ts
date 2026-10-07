@@ -6,6 +6,7 @@ import {
 } from "./data";
 import { JOB_LINES, jobLineOf } from "./jobs";
 import { jobLineage } from "./planner";
+import { sessionMemo } from "./session-memo";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "./types";
 
 /** 首頁（我的路線）要的遊戲資料 */
@@ -23,8 +24,12 @@ export type HomeData = {
 };
 
 function withRoutable(parts: Omit<HomeData, "routable">): HomeData {
-  const routable = new Set<number>(Object.keys(parts.graph).map(Number));
-  for (const edges of Object.values(parts.graph)) for (const [target] of edges) routable.add(target);
+  // 換頁回首頁不重算：同一份傳送門資料直接拿上次算好的（session-memo）；withRoutable 本身也放進依賴，開發時改了這支檔會重算
+  const routable = sessionMemo("home:routable", [withRoutable, parts.graph], () => {
+    const reachable = new Set<number>(Object.keys(parts.graph).map(Number));
+    for (const edges of Object.values(parts.graph)) for (const [target] of edges) reachable.add(target);
+    return reachable;
+  });
   return { ...parts, routable };
 }
 

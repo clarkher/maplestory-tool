@@ -11,6 +11,7 @@ import {
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
+import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import { CharacterBar } from "./CharacterBar";
@@ -22,6 +23,13 @@ import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
 
 export type GuideStatus = GuideState["status"];
+
+/**
+ * 硬重新整理時、React 接手之前就先跑（伺服器畫的版本裡的一小段 script，排在大標前面）：本機存過完整的角色（職業＋等級）
+ * 就在 <html> 標 data-profile="saved"，讓「你現在幾等、什麼職業？」看不見。<html> 本來就有 suppressHydrationWarning
+ * （深色模式也是這樣先標上去），不會跟 React 對不起來。站內換頁一開始就讀得到角色，不會畫這段。
+ */
+const SAVED_PROFILE_HINT = `try{var p=JSON.parse(localStorage.getItem("ms-profile")||"null");if(p&&p.level>0&&p.job>=0)document.documentElement.dataset.profile="saved"}catch(e){}`;
 
 export function RouteHome() {
   const showV002Banner = useBeforeV002();
@@ -82,7 +90,12 @@ export function RouteHome() {
   // 等級段只跟職業有關；固定同一個陣列，升級路線的標籤 memo 才不會每次重算
   const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 
-  const effective = useMemo(() => (data ? effectiveLevels(data.quests, data.monsters, data.common) : null), [data]);
+  // 推算記在這次瀏覽裡（session-memo）：換頁離開首頁再回來，資料跟角色沒變就直接拿上次算好的，慢手機換頁比較快。
+  // 用到的函式本身也放進依賴：開發時改了 now-plan.ts，熱更新換成新函式就會重算，不會拿舊程式算的結果（正式版函式不會變）
+  const effective = useMemo(
+    () => (data ? sessionMemo("home:effective", [effectiveLevels, data.quests, data.monsters, data.common], () => effectiveLevels(data.quests, data.monsters, data.common)) : null),
+    [data],
+  );
   // 先解展開任務細節時，「要先完成」寫前置任務的名字
   const questNames = useMemo(() => new Map((data?.quests ?? []).map(quest => [quest.id, quest.n])), [data]);
 
@@ -100,40 +113,47 @@ export function RouteHome() {
 
   const plan = useMemo(() => {
     if (!data || !ready || !effective) return null;
-    const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
-    const pick = mainPick({
-      level: profile.level,
-      job: profile.job,
-      guide: stageGuide,
-      common: data.common,
-      training: data.training,
-      monsters: data.monsters,
-      maps: data.maps,
-      graph: data.graph,
-      nearestTown: data.nearestTown,
+    // 主推卡、先解、長線也記在這次瀏覽裡：資料、攻略、等級、職業都一樣就直接拿上次的
+    const deps = [
+      mainPick, nowQuests, longRunNow, pqJustClosed,
+      data.quests, data.monsters, data.common, data.training, data.maps, data.graph, data.nearestTown, effective, stageGuide, profile.level, profile.job,
+    ];
+    return sessionMemo("home:plan", deps, () => {
+      const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
+      const pick = mainPick({
+        level: profile.level,
+        job: profile.job,
+        guide: stageGuide,
+        common: data.common,
+        training: data.training,
+        monsters: data.monsters,
+        maps: data.maps,
+        graph: data.graph,
+        nearestTown: data.nearestTown,
+      });
+      const todo = nowQuests({
+        level: profile.level,
+        job: profile.job,
+        quests: data.quests,
+        monsters: data.monsters,
+        common: data.common,
+        maps: data.maps,
+        effective,
+      });
+      // 長線跟先解同一批候選（實際等級、過期都套），規則在 now-plan 的 longRunNow
+      const longRun = longRunNow({
+        level: profile.level,
+        job: profile.job,
+        quests: data.quests,
+        monsters: data.monsters,
+        common: data.common,
+        maps: data.maps,
+        effective,
+      }).slice(0, 3);
+      // 組隊任務剛過遊戲上限（超綠 30 等）時，主推卡說一聲
+      const pqClosed = pqJustClosed(data.common, profile.job, profile.level, data.quests);
+      return { monsterIndex, pick, todo, longRun, pqClosed };
     });
-    const todo = nowQuests({
-      level: profile.level,
-      job: profile.job,
-      quests: data.quests,
-      monsters: data.monsters,
-      common: data.common,
-      maps: data.maps,
-      effective,
-    });
-    // 長線跟先解同一批候選（實際等級、過期都套），規則在 now-plan 的 longRunNow
-    const longRun = longRunNow({
-      level: profile.level,
-      job: profile.job,
-      quests: data.quests,
-      monsters: data.monsters,
-      common: data.common,
-      maps: data.maps,
-      effective,
-    }).slice(0, 3);
-    // 組隊任務剛過遊戲上限（超綠 30 等）時，主推卡說一聲
-    const pqClosed = pqJustClosed(data.common, profile.job, profile.level, data.quests);
-    return { monsterIndex, pick, todo, longRun, pqClosed };
   }, [data, ready, effective, profile, stageGuide]);
 
   if (error) {
@@ -149,8 +169,11 @@ export function RouteHome() {
         </p>
       ) : null}
 
+      {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
+          存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
+      {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}
       {!ready ? (
-        <header className="px-1 pt-2 text-center">
+        <header className={loaded ? "px-1 pt-2 text-center" : "px-1 pt-2 text-center [[data-profile=saved]_&]:invisible"}>
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed ink-soft">
             選好之後，直接告訴你現在去哪練、先解哪些任務、技能點哪個。

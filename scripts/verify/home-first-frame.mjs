@@ -5,7 +5,8 @@
 //   A 首頁 → 站內點「查資料」→ 點「我的路線」（這次瀏覽首頁資料已載過）：第一格就要有角色＋完整路線，高度之後不再變
 //   B 直接從查資料進站 → 點「我的路線」：第一格要有角色（路線可以還在排，第一次一定要下載）
 //   C 首頁按「等級加一」：角色列跟主推卡標題立刻換成新等級；站內換到練功頁，第一格的等級就是新的
-//   D 硬重新整理首頁：記第一格（允許「讀取你的角色…」），收 hydration 警告
+//   D 硬重新整理首頁：記第一格（允許「讀取你的角色…」，v0.54 起不准出現「你現在幾等、什麼職業？」），收 hydration 警告
+//   D2 沒存過角色的人硬重新整理：讀到之後才出現「你現在幾等、什麼職業？」跟選職業
 //   E 沒選職業：首頁 → 查資料 → 點「我的路線」，第一格是選職業畫面，不是讀取中
 //   F 存了不可能的組合（狂戰士 25 等）：首頁顯示劍士 25 等
 //   G 道具頁「只看狂戰士能用的裝備」照常出現
@@ -400,6 +401,23 @@ try {
     return {
       firstFrame: onHome[0] ? { ...onHome[0], wall: undefined } : null,
       paintedStates: states(rec.frames.filter(f => f.path === "/")).map(s => ({ t: s.t, h: s.h, loadingRole: s.loadingRole, character: s.character, picker: s.picker, planning: s.planning, now: s.now })),
+      // v0.54 起：存過角色的人，讀到角色之前不問「你現在幾等、什麼職業？」——每一格都不該出現
+      questionFrames: rec.frames.filter(f => f.path === "/" && f.picker).length,
+      domQuestion: rec.dom.filter(d => d.path === "/" && d.picker).length,
+    };
+  });
+
+  await scenario("D2 沒存過角色的人硬重新整理首頁", async () => {
+    await evaluate(`localStorage.removeItem("ms-profile"); "ok"`);
+    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `${TOOLS}; window.__rec = __record(6000);` });
+    await navigate(BASE + "/");
+    const rec = await evaluate("window.__rec");
+    await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+    await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(JSON.stringify(BERSERKER_45))}); "ok"`);
+    // 讀到角色（沒存過）之後才出現「你現在幾等、什麼職業？」跟選職業
+    return {
+      paintedStates: states(rec.frames.filter(f => f.path === "/")).map(s => ({ t: s.t, h: s.h, loadingRole: s.loadingRole, character: s.character, picker: s.picker })),
+      shot: await shot("D2-first-visit.png"),
     };
   });
 } catch (error) {
