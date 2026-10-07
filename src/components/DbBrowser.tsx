@@ -1,10 +1,10 @@
 "use client";
 
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, moreRows,
-  needsRescue, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot,
+  needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot,
 } from "@/lib/db-browse";
 import { reloadRestore } from "@/lib/reload-scroll";
 import { useRemembered } from "@/lib/remember";
@@ -115,6 +115,7 @@ export function DbBrowser({
   const selected = params.get("id");
   // 這是哪一頁：紀錄裡的卡片要是這一頁的才照著放（從怪物卡連到道具頁時，編號可能剛好一樣）
   const page = usePathname();
+  const router = useRouter();
   const wide = useSyncExternalStore(subscribeWide, isWide, narrowOnServer);
   // 記住的搜尋字第一個畫面就讀得到，伺服器畫的頁面卻沒有：「×」等瀏覽器接手後才放，兩邊才對得上
   const hydrated = useSyncExternalStore(noSubscribe, onClient, onServer);
@@ -358,6 +359,25 @@ export function DbBrowser({
   }, []);
   useEffect(() => () => window.clearTimeout(sideScrollTimer.current), []);
 
+  /**
+   * 卡片裡連到同一頁另一筆的連結（例如任務的「要先完成」）：換網址但頁面不捲回最上面——
+   * 桌機右邊那一欄直接換成那一筆、從卡片頂端開始；手機照「從連結來的」跳到那一筆（上面的 effect）。
+   * 在卡片外框先攔下來（Next 的 Link 看到已經攔下就不自己換頁）；開新分頁、連到別頁的照原本的做法
+   */
+  const stayOnPage = useCallback(
+    (event: React.MouseEvent) => {
+      const link = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(link instanceof HTMLAnchorElement) || event.defaultPrevented) return;
+      const to = samePageTarget({ href: link.href, target: link.target, download: link.hasAttribute("download") }, event, window.location);
+      if (!to) return;
+      event.preventDefault();
+      // 跟從清單點一筆一樣：右邊那一欄被頁尾往上推走時（清單到底），新的那一筆畫出來後頁面往上一點，讓卡片頂端出來
+      if (isWide()) sideRevealPending.current = true;
+      router.push(to, { scroll: false });
+    },
+    [router],
+  );
+
   // 網址的 id 是從連結來的——直接打開網址、細節裡連到同一頁的另一筆（例如任務的「要先完成」）——
   // 手機、平板跳到那一筆；桌機左右兩欄，細節本來就在畫面上，不捲。
   useEffect(() => {
@@ -485,7 +505,7 @@ export function DbBrowser({
           <div className="space-y-1.5">
             {/* 從連結打開、但那一筆不在目前的清單上：細節放在清單最上面 */}
             {spot === "top" ? (
-              <div ref={topRef} id="db-top" className="scroll-mt-header space-y-2 pb-2">
+              <div ref={topRef} id="db-top" onClickCapture={stayOnPage} className="scroll-mt-header space-y-2 pb-2">
                 {/* 上面沒有那一列可以黏：放一顆「收起」，往下看長卡片時黏在導覽列下面 */}
                 <button
                   type="button"
@@ -552,7 +572,7 @@ export function DbBrowser({
                           ) : null}
                         </button>
                         {open ? (
-                          <div className="mt-2 pb-2">
+                          <div onClickCapture={stayOnPage} className="mt-2 pb-2">
                             <DetailWithCollapse detail={detail} onCollapse={collapse} />
                           </div>
                         ) : null}
@@ -592,6 +612,7 @@ export function DbBrowser({
               ref={detailRef}
               id="db-side"
               onScroll={recordSideSoon}
+              onClickCapture={stayOnPage}
               className="min-w-0 lg:sticky lg:top-[calc(var(--header-offset)+0.25rem)] lg:-m-2 lg:max-h-[calc(100dvh-var(--header-offset)-0.5rem)] lg:self-start lg:overflow-y-auto lg:p-2 lg:transition-[top] lg:duration-200 lg:ease-out lg:[scrollbar-gutter:stable] lg:[scrollbar-width:thin]"
             >
               {selected ? (

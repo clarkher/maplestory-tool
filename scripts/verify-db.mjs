@@ -371,18 +371,20 @@ try {
     await shot("m6-top-card.png");
   });
 
-  // M7 同一頁的連結（任務「要先完成」）：跳到新的那一筆
+  // M7 同一頁的連結（任務「要先完成」）：跳到新的那一筆，中間不會先閃到頁面最上面
   await section("M7", async () => {
     await clearRemembered();
     await navigate(`${BASE}/db/quests?id=6931`);
     const r = await ev(`await __ready(); await __sleep(900);
       const link = [...document.querySelectorAll("main article a")].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
       if (!link) return { skipped: "找不到要先完成的連結" };
+      const before = Math.round(scrollY); const framesP = __painted(1200, () => Math.round(scrollY));
       link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
-      await __waitFor(() => __id() === "6930", 5000); await __sleep(900);
+      await __waitFor(() => __id() === "6930", 5000); const frames = __changes(await framesP); await __sleep(300);
       const card = __topWrap();
-      return { id: __id(), open: __open(), topCard: __topCard(), rowTop: __top("6930"), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null };`);
+      return { before, frames, id: __id(), open: __open(), topCard: __topCard(), rowTop: __top("6930"), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null };`);
     check("M7 同頁連結（要先完成）：跳到新的那一筆", !r.skipped && r.id === "6930" && ((r.open[0] === "6930" && near(r.rowTop, 80)) || (r.topCard && near(r.cardTop, 80))), r);
+    check("M7 同頁連結：跳過去時不會先閃到頁面最上面", !r.skipped && r.before > 10 && r.frames.every(y => y > 10), { before: r.before, frames: r.frames });
   });
 
   // ── 手機：按返回、離開再回來、記住搜尋篩選 ──
@@ -1127,10 +1129,13 @@ try {
       await ev(`window.scrollTo({ top: 1500, behavior: "instant" }); await __sleep(400); return 1;`);
       await swipe(300);
       const hiddenGuide = await ev(`return __headerBottom() <= 0;`);
+      // 本機 dev server 第一次開 /guide 要先編譯：多等一下，等不到就寫原因
       r = await ev(`window.next.router.push("/guide#pq-moon");
-        await __waitFor(() => location.pathname === "/guide" && !!document.getElementById("pq-moon"), 10000); await __sleep(1500);
-        return { header: __headerBottom(), sectionTop: Math.round(document.getElementById("pq-moon").getBoundingClientRect().top) };`);
-      check("H10 導覽列收著時點「看打法」換到組隊圖解：那一段放在導覽列下方、標題沒被蓋住", hiddenGuide && r.header >= 60 && near(r.sectionTop, 80), { hiddenGuide, ...r });
+        await __waitFor(() => location.pathname === "/guide" && !!document.getElementById("pq-moon"), 30000); await __sleep(1500);
+        const section = document.getElementById("pq-moon");
+        if (!section) return { skipped: "換到 /guide 後找不到 #pq-moon（" + location.pathname + "）" };
+        return { header: __headerBottom(), sectionTop: Math.round(section.getBoundingClientRect().top) };`);
+      check("H10 導覽列收著時點「看打法」換到組隊圖解：那一段放在導覽列下方、標題沒被蓋住", hiddenGuide && !r.skipped && r.header >= 60 && near(r.sectionTop, 80), { hiddenGuide, ...r });
     } finally {
       await touchMode(false);
     }
@@ -1270,6 +1275,49 @@ try {
     check("D8 桌機右邊那一欄捲到卡片中段，重新整理：回到原本讀到的地方", near(afterReload, 900, 8), { afterReload });
     check("D8 點卡片裡的連結離開再按返回：右邊那一欄回到原本讀到的地方", !left.skipped && near(afterBack, 900, 8), { ...left, afterBack });
     check("D8 同一頁點別筆（從卡片頂端開始）再按返回：回到原本讀到的地方", same.otherTop === 0 && near(afterSameBack, 700, 8), { ...same, afterSameBack });
+  });
+
+  // D9 桌機點卡片裡連到同一頁另一筆的連結（任務「要先完成」）：頁面不跳回最上面，右邊換成那一筆、從卡片頂端開始
+  await section("D9", async () => {
+    await desktop();
+    await clearRemembered();
+    await navigate(`${BASE}/db/quests?id=6931`);
+    const r = await ev(`await __ready(); await __sleep(900);
+      window.scrollTo({ top: 1500, behavior: "instant" }); await __sleep(500); const y = Math.round(scrollY);
+      const link = [...(__side()?.querySelectorAll("article a") ?? [])].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
+      if (!link) return { skipped: "6931 的卡片裡找不到 6930 的連結" };
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+      await __waitFor(() => __id() === "6930", 5000); await __sleep(1000);
+      return { y, yAfter: Math.round(scrollY), id: __id(), title: __side().querySelector("article h2")?.textContent ?? "", sideScroll: Math.round(__side().scrollTop) };`);
+    check("D9 桌機點卡片裡的「要先完成」（同一頁的另一筆）：頁面不跳回最上面、右邊換成那一筆從頂端開始",
+      !r.skipped && r.y > 1000 && Math.abs(r.yAfter - r.y) <= 2 && r.id === "6930" && r.sideScroll === 0, r);
+  });
+
+  // D10 桌機清單整個列完、捲到最底（右邊那一欄被頁尾往上推走）再點卡片裡的「要先完成」：頁面往上一點，新卡片的標題出來
+  await section("D10", async () => {
+    // 跟 D7 一樣用很矮的桌機畫面，卡片一定放不下、一定被推走
+    await page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 450, deviceScaleFactor: 1, mobile: false });
+    await clearRemembered();
+    await navigate(`${BASE}/db/quests?id=6931`);
+    const r = await ev(`await __ready(); await __sleep(900);
+      for (let i = 0; i < 20; i++) {
+        const before = __rows().length; const btn = __moreBtn();
+        if (__shows(btn)) btn.click(); else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+        await __waitFor(() => __rows().length > before, 1500); await __sleep(300);
+        if (__rows().length === before) break;
+      }
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(500);
+      const side = __side(); const pushedBy = Math.round(parseFloat(getComputedStyle(side).top) - side.getBoundingClientRect().top);
+      const link = [...side.querySelectorAll("article a")].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
+      if (!link) return { skipped: "6931 的卡片裡找不到 6930 的連結" };
+      const yBefore = Math.round(scrollY);
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+      await __waitFor(() => __id() === "6930", 5000); await __sleep(1300);
+      const title = side.querySelector("article h2")?.getBoundingClientRect();
+      return { pushedBy, yBefore, yAfter: Math.round(scrollY), id: __id(), header: __headerBottom(), sideTop: Math.round(side.getBoundingClientRect().top),
+        titleTop: title ? Math.round(title.top) : null };`);
+    check("D10 清單到底、右邊那一欄被往上推走時點卡片裡的「要先完成」：頁面往上一點、新卡片的標題出來",
+      !r.skipped && r.pushedBy > 20 && r.id === "6930" && r.yAfter < r.yBefore && r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.titleTop > r.header, r);
   });
 
   // H11 桌機用滑鼠滾輪往下捲：導覽列不收（只有手指滑才收）
