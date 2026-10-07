@@ -1,10 +1,12 @@
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { V002_OPEN_DATE, beforeV002, onV002Open, opensOn, useBeforeV002 } from "@/lib/release";
+import { V002_OPEN_DATE, V002_OPEN_TIME, beforeV002, onV002Open, opensOn, useBeforeV002 } from "@/lib/release";
 
-const BEFORE = Date.parse("2026-10-14T23:59:00+08:00");
-const AFTER = Date.parse("2026-10-15T00:00:00+08:00");
+/** 官方開機時刻：10/15 台灣時間 14:00（例行維護結束；官方公告還沒出來前先用這個） */
+const OPEN = Date.parse("2026-10-15T14:00:00+08:00");
+const BEFORE = OPEN - 60 * 1000;
+const AFTER = OPEN;
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
@@ -14,12 +16,12 @@ function Label() {
   return createElement("span", null, useBeforeV002() ? "10/15 開放" : "已開放");
 }
 
-describe("opensOn：某個開放日，現在算不算還沒到", () => {
-  it("還沒到那天台灣時間 00:00：還沒開放", () => {
+describe("opensOn：某個開放日，現在算不算還沒到那天的開機時刻", () => {
+  it("還沒到那天開機：還沒開放", () => {
     expect(opensOn(V002_OPEN_DATE, BEFORE)).toBe(true);
   });
 
-  it("到了那天台灣時間 00:00：已經開放（不再標）", () => {
+  it("到了那天開機時刻：已經開放（不再標）", () => {
     expect(opensOn(V002_OPEN_DATE, AFTER)).toBe(false);
   });
 
@@ -29,16 +31,19 @@ describe("opensOn：某個開放日，現在算不算還沒到", () => {
 });
 
 describe("beforeV002：V002 新內容（三轉、Lv.120、天空之城／冰原雪域／廢礦區）現在算不算還沒開放", () => {
-  it("V002_OPEN_DATE 就是 2026-10-15", () => {
+  it("開放日還是 2026-10-15，當天官方開機時刻先用 14:00（例行維護結束）", () => {
     expect(V002_OPEN_DATE).toBe("2026-10-15");
+    expect(V002_OPEN_TIME).toBe("14:00");
   });
 
-  it("10/14 23:59（台灣時間）：還沒開放", () => {
-    expect(beforeV002(BEFORE)).toBe(true);
+  it("10/15 00:00 過了還沒開放：凌晨遊戲還是舊版、早上 8 點起維護，維護完開機才真的能玩", () => {
+    expect(beforeV002(Date.parse("2026-10-15T00:00:00+08:00"))).toBe(true);
+    expect(beforeV002(Date.parse("2026-10-15T08:00:00+08:00"))).toBe(true);
   });
 
-  it("10/15 00:00（台灣時間）：已經開放，畫面上的「10/15 開放」標示要自動消失", () => {
-    expect(beforeV002(AFTER)).toBe(false);
+  it("開機前一毫秒還在，14:00 整就收：畫面上的「10/15 開放」標示自動消失", () => {
+    expect(beforeV002(OPEN - 1)).toBe(true);
+    expect(beforeV002(OPEN)).toBe(false);
   });
 });
 
@@ -48,13 +53,13 @@ describe("useBeforeV002 的伺服器畫面：建置靜態頁跟瀏覽器 hydrati
     vi.useRealTimers();
   });
 
-  it("10/15 前建置：靜態頁就先畫好標示；就算打開時已經過了 10/15 也照建置時畫（hydration 完再收掉）", () => {
-    vi.stubEnv("MAPLEBOOK_BUILD_TIME", String(BEFORE));
+  it("開機前建置（10/15 早上維護中也算）：靜態頁先畫好標示；就算打開時已經開機也照建置時畫（hydration 完再收掉）", () => {
+    vi.stubEnv("MAPLEBOOK_BUILD_TIME", String(Date.parse("2026-10-15T10:00:00+08:00")));
     vi.useFakeTimers({ now: AFTER });
     expect(renderToString(createElement(Label))).toBe("<span>10/15 開放</span>");
   });
 
-  it("10/15 後建置：靜態頁不畫標示，就算使用者手機時間還停在 10/14", () => {
+  it("開機後建置：靜態頁不畫標示，就算使用者手機時間還停在開機前", () => {
     vi.stubEnv("MAPLEBOOK_BUILD_TIME", String(AFTER));
     vi.useFakeTimers({ now: BEFORE });
     expect(renderToString(createElement(Label))).toBe("<span>已開放</span>");
@@ -67,7 +72,7 @@ describe("useBeforeV002 的伺服器畫面：建置靜態頁跟瀏覽器 hydrati
   });
 });
 
-describe("onV002Open：頁面開著跨過 10/15 00:00，所有「10/15 開放」同一刻收掉，不用重新整理", () => {
+describe("onV002Open：頁面開著跨過開機時刻，所有「10/15 開放」同一刻收掉，不用重新整理", () => {
   const offs: Array<() => void> = [];
   const watch = (listener: () => void) => offs.push(onV002Open(listener));
   afterEach(() => {
@@ -76,7 +81,7 @@ describe("onV002Open：頁面開著跨過 10/15 00:00，所有「10/15 開放」
     vi.useRealTimers();
   });
 
-  it("剛好在 10/15 台灣時間 00:00 通知，早一毫秒都不會", () => {
+  it("剛好在 10/15 開機時刻（14:00）通知，早一毫秒都不會", () => {
     vi.useFakeTimers({ now: BEFORE });
     const listener = vi.fn();
     watch(listener);
@@ -84,6 +89,16 @@ describe("onV002Open：頁面開著跨過 10/15 00:00，所有「10/15 開放」
     expect(listener).not.toHaveBeenCalled();
     vi.advanceTimersByTime(1);
     expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it("10/15 凌晨就開著的頁面：跨過 00:00 不收，一路等到開機才通知", () => {
+    vi.useFakeTimers({ now: Date.parse("2026-10-14T23:59:00+08:00") });
+    const notifiedAt: number[] = [];
+    watch(() => notifiedAt.push(Date.now()));
+    vi.advanceTimersByTime(2 * MINUTE);
+    expect(notifiedAt).toEqual([]);
+    for (let step = 0; step < 1_000 && notifiedAt.length === 0; step++) vi.advanceTimersToNextTimer();
+    expect(notifiedAt).toEqual([OPEN]);
   });
 
   it("清單、細節卡好幾個地方同時在等：在 React 重畫前全部通知到，標示同一格一起消失", async () => {
@@ -113,7 +128,7 @@ describe("onV002Open：頁面開著跨過 10/15 00:00，所有「10/15 開放」
     expect(stays).toHaveBeenCalledTimes(1);
   });
 
-  it("離開放還超過 24.8 天（setTimeout 一次最多等這麼久，超過會立刻觸發）：一路等到 10/15 00:00 才通知", () => {
+  it("離開機還超過 24.8 天（setTimeout 一次最多等這麼久，超過會立刻觸發）：一路等到開機才通知", () => {
     vi.useFakeTimers({ now: AFTER - 30 * DAY });
     const notifiedAt: number[] = [];
     watch(() => notifiedAt.push(Date.now()));
@@ -132,19 +147,19 @@ describe("onV002Open：頁面開著跨過 10/15 00:00，所有「10/15 開放」
     expect(gap).toBeLessThanOrEqual(5 * MINUTE);
   });
 
-  it("電腦睡著跨過 10/15 00:00（計時器停住沒跑）：一切回這個分頁就通知", () => {
+  it("電腦睡著跨過開機時刻（計時器停住沒跑）：一切回這個分頁就通知", () => {
     vi.useFakeTimers({ now: BEFORE });
     const page = new EventTarget();
     vi.stubGlobal("document", page);
     const listener = vi.fn();
     watch(listener);
-    vi.setSystemTime(AFTER + 8 * 60 * 60 * 1000); // 睡到早上 8 點：時鐘往前跳，計時器一格都沒跑
+    vi.setSystemTime(AFTER + 6 * HOUR); // 睡到晚上 8 點：時鐘往前跳，計時器一格都沒跑
     expect(listener).not.toHaveBeenCalled();
     page.dispatchEvent(new Event("visibilitychange"));
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it("10/14 晚上闔上筆電、10/15 早上打開，分頁一直在前景（沒有切分頁）：醒來 5 分鐘內收掉", () => {
+  it("開機前闔上筆電、開機後打開，分頁一直在前景（沒有切分頁）：醒來 5 分鐘內收掉", () => {
     vi.useFakeTimers({ now: AFTER - 4 * HOUR });
     const listener = vi.fn();
     watch(listener);
@@ -164,7 +179,7 @@ describe("onV002Open：頁面開著跨過 10/15 00:00，所有「10/15 開放」
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("10/15 之後才打開頁面：沒有要等的，不通知，也不留計時器在背景跑", () => {
+  it("開機之後才打開頁面：沒有要等的，不通知，也不留計時器在背景跑", () => {
     vi.useFakeTimers({ now: AFTER });
     const listener = vi.fn();
     watch(listener);

@@ -1,10 +1,12 @@
 // 「10/15 開放」要在第一個畫面就出現（v0.33）——無頭 Chrome 驗收
-// 用法：node first-frame.mjs <輸出資料夾> [base] [段落，逗號分隔：nav,load,midnight,stale]
+// 用法：node first-frame.mjs <輸出資料夾> [base] [段落，逗號分隔：nav,load,dawn,midnight,stale]
 //   nav      站內換頁進查資料四頁、首頁：記下每一次畫面更新（React commit），清單／首頁第一次出現時標示就要在
 //   load     直接打開首頁：靜態 HTML 就有 10/15 橫幅
-//   midnight 瀏覽器時鐘調到開放前 30 秒（10/14 23:59:30），頁面開著跨過開放時刻，標示自己消失（不重新整理）
-//   stale    瀏覽器時鐘調到開放後 34 小時（10/16 10:00，舊建置的頁面在開放後被打開）：hydration 不報錯、橫幅收掉、清單沒標示
-// 開放時刻用環境變數 OPEN_AT 改（預設 2026-10-15T00:00:00+08:00）；檢查名稱裡的「00:00」「10/16」指的就是這兩個時間點。
+//   dawn     瀏覽器時鐘調到 10/14 23:59:40，頁面開著跨過 10/15 00:00：標示還在（v0.48 起開機才收，凌晨還是舊版）
+//   midnight 瀏覽器時鐘調到開放前 30 秒（10/15 13:59:30），頁面開著跨過開放時刻，標示自己消失（不重新整理）
+//   stale    瀏覽器時鐘調到開放後 20 小時（10/16 10:00，舊建置的頁面在開放後被打開）：hydration 不報錯、橫幅收掉、清單沒標示
+// 開放時刻用環境變數 OPEN_AT 改（預設 2026-10-15T14:00:00+08:00，跟 src/lib/release.ts 的官方開機時刻一樣）；
+// 檢查名稱裡的「開機」「10/16」指的就是這兩個時間點。
 // 每一段都另存 screencast 第一格（使用者真的看到的那一格）跟結束時的截圖；console 的 hydration 警告整份記下來。
 import { spawn } from "node:child_process";
 import fs from "node:fs";
@@ -13,10 +15,12 @@ import { CHROME, chromePort, outDir } from "./config.mjs";
 
 const OUT = outDir(process.argv[2], "first-frame");
 const BASE = process.argv[3] ?? "http://localhost:3033";
-const ONLY = new Set((process.argv[4] ?? "nav,load,midnight,stale").split(","));
+const ONLY = new Set((process.argv[4] ?? "nav,load,dawn,midnight,stale").split(","));
 const PORT = chromePort(9343);
-const OPEN_AT = Date.parse(process.env.OPEN_AT || "2026-10-15T00:00:00+08:00");
-if (Number.isNaN(OPEN_AT)) throw new Error(`OPEN_AT 看不懂：${process.env.OPEN_AT}（例如 2026-10-15T00:00:00+08:00）`);
+const OPEN_AT = Date.parse(process.env.OPEN_AT || "2026-10-15T14:00:00+08:00");
+if (Number.isNaN(OPEN_AT)) throw new Error(`OPEN_AT 看不懂：${process.env.OPEN_AT}（例如 2026-10-15T14:00:00+08:00）`);
+/** 10/15 00:00（台灣時間）：v0.48 以前標示在這一刻收，現在要撐到開機 */
+const DAWN = Date.parse("2026-10-15T00:00:00+08:00");
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -265,6 +269,23 @@ try {
     await shot("load-home-final.png");
   }
 
+  // OPEN_AT 設成 00:00 以前（舊行為）時這段跟自己矛盾，跳過
+  if (ONLY.has("dawn") && OPEN_AT > DAWN + 60 * 1000) {
+    await withClock(DAWN - 20 * 1000, async () => {
+      await navigate(BASE + "/");
+      const start = await ev(`await __waitFor(() => __bar() !== null, 10000); return { now: Date.now(), banner: __banner(), bar: __bar(), origin: performance.timeOrigin };`);
+      check("10/15 00:00 之前（10/14 23:59:4x）：首頁有橫幅、角色列寫 10/15 開放", start.banner && start.bar === "10/15 開放" && start.now < DAWN, start);
+      // 等到 00:00 過 3 秒（__waitFor 只在畫面變動時重看條件，等時間要用 sleep）
+      const end = await ev(`await __sleep(Math.max(0, ${DAWN} + 3000 - Date.now())); return { now: Date.now(), banner: __banner(), bar: __bar(), origin: performance.timeOrigin };`);
+      check(
+        "頁面開著跨過 10/15 00:00：橫幅跟「10/15 開放」都還在（凌晨還是舊版，開機才收），同一份頁面",
+        end.banner && end.bar === "10/15 開放" && end.origin === start.origin && end.now >= DAWN,
+        { ...end, 過了午夜幾毫秒: end.now - DAWN },
+      );
+      await shot("dawn-home-after-midnight.png");
+    });
+  }
+
   if (ONLY.has("midnight")) {
     const MIDNIGHT = OPEN_AT;
     const target = MIDNIGHT - 30 * 1000; // dev 模式整頁載入＋載資料要 10 秒上下，留足時間
@@ -272,28 +293,28 @@ try {
       // 首頁：橫幅、角色列
       await navigate(BASE + "/");
       const start = await ev(`await __waitFor(() => __bar() !== null, 10000); return { now: Date.now(), banner: __banner(), bar: __bar(), origin: performance.timeOrigin };`);
-      check("跨過 00:00 之前（10/14 23:59:3x）：首頁有橫幅、角色列寫 10/15 開放", start.banner && start.bar === "10/15 開放" && start.now < MIDNIGHT, start);
+      check("開機之前（10/15 13:59:3x）：首頁有橫幅、角色列寫 10/15 開放", start.banner && start.bar === "10/15 開放" && start.now < MIDNIGHT, start);
       await shot("midnight-home-before.png");
       const end = await ev(`await __waitFor(() => !__banner() && __bar() === "照舊版", 60000); return { now: Date.now(), banner: __banner(), bar: __bar(), origin: performance.timeOrigin };`);
       check(
-        "頁面開著跨過 10/15 00:00：橫幅收掉、角色列改寫，不用重新整理（同一份頁面）",
+        "頁面開著跨過開機時刻（10/15 14:00）：橫幅收掉、角色列改寫，不用重新整理（同一份頁面）",
         !end.banner && end.bar === "照舊版" && end.origin === start.origin,
-        { ...end, 過了午夜幾毫秒: end.now - MIDNIGHT },
+        { ...end, 過了開機幾毫秒: end.now - MIDNIGHT },
       );
-      check("收掉的時間就在 00:00（晚不到 1.5 秒）", end.now >= MIDNIGHT && end.now - MIDNIGHT < 1500, end.now - MIDNIGHT);
+      check("收掉的時間就在開機那一刻（晚不到 1.5 秒）", end.now >= MIDNIGHT && end.now - MIDNIGHT < 1500, end.now - MIDNIGHT);
       await shot("midnight-home-after.png");
 
       // 技能頁：十字軍之路整排都是三轉，每一筆都有標示
       await evaluate(`sessionStorage.setItem("ms-db:db:技能:jobFilter", JSON.stringify("111")); "ok"`);
       await navigate(BASE + "/db/skills");
       const s0 = await ev(`await __waitFor(() => __chips() > 0, 10000); return { now: Date.now(), chips: __chips(), origin: performance.timeOrigin };`);
-      check("跨過 00:00 之前：技能頁三轉那幾筆有標示", s0.chips > 0 && s0.now < MIDNIGHT, s0);
+      check("開機之前：技能頁三轉那幾筆有標示", s0.chips > 0 && s0.now < MIDNIGHT, s0);
       await shot("midnight-skills-before.png");
       const s1 = await ev(`await __waitFor(() => __chips() === 0, 60000); return { now: Date.now(), chips: __chips(), rows: __rows(), origin: performance.timeOrigin };`);
       check(
-        "頁面開著跨過 10/15 00:00：技能頁標示全部收掉、清單還在，不用重新整理",
+        "頁面開著跨過開機時刻：技能頁標示全部收掉、清單還在，不用重新整理",
         s1.chips === 0 && s1.rows > 0 && s1.origin === s0.origin && s1.now >= MIDNIGHT && s1.now - MIDNIGHT < 1500,
-        { ...s1, 過了午夜幾毫秒: s1.now - MIDNIGHT },
+        { ...s1, 過了開機幾毫秒: s1.now - MIDNIGHT },
       );
       await shot("midnight-skills-after.png");
       await evaluate(`sessionStorage.removeItem("ms-db:db:技能:jobFilter"); "ok"`);
@@ -301,11 +322,11 @@ try {
   }
 
   if (ONLY.has("stale")) {
-    await withClock(OPEN_AT + 34 * 3600 * 1000, async () => {
+    await withClock(OPEN_AT + 20 * 3600 * 1000, async () => {
       const before = consoleProblems.length;
       await navigate(BASE + "/");
       const r = await ev(`await __waitFor(() => __bar() !== null, 10000); await __sleep(800); return { now: new Date().toISOString(), banner: __banner(), bar: __bar() };`);
-      check("10/16 打開 10/15 前建置的首頁：程式載完橫幅收掉、角色列照舊版", !r.banner && r.bar === "照舊版", r);
+      check("10/16 打開開機前建置的首頁：程式載完橫幅收掉、角色列照舊版", !r.banner && r.bar === "照舊版", r);
       const hydration = consoleProblems.slice(before).filter(p => HYDRATION.test(p));
       check("10/16 打開舊建置：console 沒有 hydration 警告", hydration.length === 0, hydration);
       await shot("stale-home.png");

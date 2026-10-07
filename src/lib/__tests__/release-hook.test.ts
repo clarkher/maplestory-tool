@@ -9,8 +9,9 @@ vi.mock("react", async importOriginal => ({
 }));
 
 type Store = { subscribe: unknown; getSnapshot: () => boolean; getServerSnapshot: () => boolean };
-const BEFORE = Date.parse("2026-10-14T23:59:00+08:00");
-const AFTER = Date.parse("2026-10-15T00:00:00+08:00");
+/** 10/15 早上維護中（還沒開機）、14:00 官方開機 */
+const BEFORE = Date.parse("2026-10-15T10:00:00+08:00");
+const AFTER = Date.parse("2026-10-15T14:00:00+08:00");
 
 describe("useBeforeV002 交給 React 的三個函式", () => {
   afterEach(() => {
@@ -18,7 +19,7 @@ describe("useBeforeV002 交給 React 的三個函式", () => {
     vi.useRealTimers();
   });
 
-  it("10/15 前建置、使用者 10/15 後才站內換頁：瀏覽器端用當下時間（已開放），只有伺服器跟 hydration 照建置時（還沒開放）", () => {
+  it("開機前建置、使用者開機後才站內換頁：瀏覽器端用當下時間（已開放），只有伺服器跟 hydration 照建置時（還沒開放）", () => {
     vi.stubEnv("MAPLEBOOK_BUILD_TIME", String(BEFORE));
     vi.useFakeTimers({ now: AFTER });
     const store = useBeforeV002() as unknown as Store;
@@ -26,7 +27,7 @@ describe("useBeforeV002 交給 React 的三個函式", () => {
     expect(store.getServerSnapshot()).toBe(true);
   });
 
-  it("訂閱的是 onV002Open：頁面開著跨過 10/15 00:00 才會收到通知", () => {
+  it("訂閱的是 onV002Open：頁面開著跨過開機時刻才會收到通知", () => {
     const store = useBeforeV002() as unknown as Store;
     expect(store.subscribe).toBe(onV002Open);
   });
