@@ -42,6 +42,11 @@ function loadVersion(): Promise<string> {
 /**
  * 已經載好的資料，同步拿得到。Promise 就算早就完成，也要等下一輪才拿到值，
  * 頁面會先畫一次「載入中」；再進同一頁時直接從這裡拿，第一個畫面就是完整清單。
+ *
+ * 頁面用 useState(peekX) 當初始值不會跟伺服器畫的對不起來，前提是：伺服器上這裡永遠是空的（effect 不在伺服器跑），
+ * 整頁載入 hydrate 時也還是空的——頁面跟外框（SiteHeader、SiteFooter）同一輪 hydrate，effect 都還沒跑。
+ * 加 loading.tsx 或在頁面外包 Suspense 會讓頁面比外框晚 hydrate（外框的 effect 可能先載好資料），到時要改用
+ * useSyncExternalStore(…, peekX, () => null) 拿初始值。
  */
 const ready = new Map<string, unknown>();
 

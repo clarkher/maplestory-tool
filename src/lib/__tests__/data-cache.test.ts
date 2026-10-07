@@ -3,7 +3,7 @@
  * 不會先閃「載入中」（按返回時瀏覽器也才捲得回原處）。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { stubFetch } from "./fake-server";
+import { requestsTo, stubFetch } from "./fake-server";
 
 type DataModule = typeof import("@/lib/data");
 
@@ -58,6 +58,21 @@ describe("首頁的攻略跟裝備卡也一樣（換頁回首頁不先放骨架�
     stubFetch({ "/data/guides/common.json": { builtAt: "g1" }, "/data/guides/110.json": { job: 110, builds: [] } });
     await expect(data.loadGuide(110)).resolves.toEqual({ job: 110, builds: [] });
     expect(data.peekGuide(110)).toEqual({ job: 110, builds: [] });
+  });
+
+  it("職業攻略同時載兩次只發一個請求，載好了之後再載也不會重抓", async () => {
+    const fake = stubFetch({ "/data/guides/common.json": { builtAt: "g1" }, "/data/guides/110.json": { job: 110, builds: [] } });
+    await Promise.all([data.loadGuide(110), data.loadGuide(110)]);
+    await data.loadGuide(110);
+    expect(requestsTo(fake, "/data/guides/110.json")).toBe(1);
+    expect(requestsTo(fake, "/data/guides/common.json")).toBe(1);
+  });
+
+  it("職業攻略載失敗後，下一次只重抓一次（不會每次都抓）", async () => {
+    const fake = stubFetch({ "/data/guides/common.json": { builtAt: "g1" } });
+    await expect(data.loadGuide(110)).rejects.toThrow("載入攻略失敗（404）");
+    await expect(Promise.all([data.loadGuide(110), data.loadGuide(110)])).rejects.toThrow("載入攻略失敗（404）");
+    expect(requestsTo(fake, "/data/guides/110.json")).toBe(2);
   });
 
   it("攻略總表這次載失敗，下次再載會重新抓，職業攻略也跟著載得到", async () => {

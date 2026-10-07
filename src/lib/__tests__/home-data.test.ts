@@ -97,6 +97,41 @@ describe("首頁要的攻略", () => {
     });
   });
 
+  describe("攻略其實都載好了，畫面卻還停在讀取中或讀取失敗", () => {
+    const GUIDES = {
+      "/data/guides/common.json": { builtAt: "g1" },
+      "/data/guides/110.json": { job: 110 },
+      "/data/guides/100.json": { job: 100 },
+    };
+
+    it("畫面還在讀取中（攻略剛好在這次渲染之後才載好）：換成載好的", async () => {
+      stubFetch(GUIDES);
+      const stuck = { job: 110, guides: new Map(), status: "loading" as const };
+      await Promise.all([data.loadGuide(110), data.loadGuide(100)]);
+      const next = home.settleGuides(stuck, 110);
+      expect(next.status).toBe("ready");
+      expect([...next.guides.keys()].sort()).toEqual([100, 110]);
+    });
+
+    it("之前讀取失敗、後來被預載重抓成功：「讀取失敗」換成載好的", async () => {
+      stubFetch(GUIDES);
+      const failed = { job: 110, guides: new Map(), status: "failed" as const };
+      await Promise.all([data.loadGuide(110), data.loadGuide(100)]);
+      expect(home.settleGuides(failed, 110).status).toBe("ready");
+    });
+
+    it("已經是載好的、職業對不上、或還有沒載好的：不動（同一份，不重畫）", async () => {
+      stubFetch(GUIDES);
+      await data.loadGuide(110);
+      const loading = { job: 110, guides: new Map(), status: "loading" as const };
+      expect(home.settleGuides(loading, 110)).toBe(loading);
+      expect(home.settleGuides(loading, 120)).toBe(loading);
+      await data.loadGuide(100);
+      const ready = home.settleGuides(loading, 110);
+      expect(home.settleGuides(ready, 110)).toBe(ready);
+    });
+  });
+
   describe("換到某個職業那一次渲染的攻略狀態", () => {
     const GUIDES = {
       "/data/guides/common.json": { builtAt: "g1" },

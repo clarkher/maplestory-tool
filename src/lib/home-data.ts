@@ -89,3 +89,16 @@ export function guidesFor(job: number, shown: Map<number, GuideJob>): { guides: 
   const guides = fresh.length ? new Map([...shown, ...fresh]) : shown;
   return { guides, status: wanted.length > 0 && cached.size === wanted.length ? "ready" : "loading" };
 }
+
+/** 首頁攻略的狀態：跟著哪個職業、畫面上有哪些攻略、載好了沒 */
+export type GuideState = { job: number; guides: Map<number, GuideJob>; status: "loading" | "ready" | "failed" };
+
+/**
+ * 攻略其實都載好了，畫面卻還停在讀取中或讀取失敗（剛好在這次渲染之後才載好，或失敗後被打開選單時的預載重抓成功）：
+ * 換成載好的。其他情況（已經載好、職業對不上、還有沒載好的）回傳同一份，不重畫。
+ */
+export function settleGuides(state: GuideState, job: number): GuideState {
+  if (state.job !== job || state.status === "ready") return state;
+  const next = guidesFor(job, state.guides);
+  return next.status === "ready" ? { job, ...next } : state;
+}

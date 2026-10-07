@@ -255,6 +255,12 @@ export type FarmPick = {
   score: number;
 };
 
+/** 打寶頁網址的 want：「這個去哪打」帶過來的道具（逗號分隔）。重複的只算一次，亂打的不算 */
+export function wantedItems(want: string | null): number[] {
+  if (!want) return [];
+  return [...new Set(want.split(",").map(Number).filter(id => Number.isInteger(id) && id > 0))];
+}
+
 /**
  * 「一趟收最多」。
  * 官方沒有公開掉落率，所以這裡不算機率，只回答一個可查證的問題：

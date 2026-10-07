@@ -10,15 +10,9 @@ import {
   peekFarming, peekItems, peekMaps, peekMonsters, peekQuests,
 } from "@/lib/data";
 import { MARKET_NOTES, MARKET_SOURCES, MARKET_UPDATED_AT } from "@/lib/market-data";
-import { planFarming, searchItems, suggestFarming } from "@/lib/planner";
+import { planFarming, searchItems, suggestFarming, wantedItems } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import type { FarmingRow, Item, MapRecord, Monster, Quest } from "@/lib/types";
-
-/** 網址的 want：「這個去哪打」帶過來的道具，逗號分隔 */
-function wantedItems(want: string | null): number[] {
-  if (!want) return [];
-  return want.split(",").map(Number).filter(id => Number.isFinite(id) && id > 0);
-}
 
 export function FarmPlanner() {
   const params = useSearchParams();
@@ -52,7 +46,11 @@ export function FarmPlanner() {
   // 已經在這頁、又從別處點「這個去哪打」換了網址：新的也勾上（已經勾了就不動）
   useEffect(() => {
     const wanted = wantedItems(params.get("want"));
-    if (wanted.length) setTargets(previous => (wanted.every(id => previous.includes(id)) ? previous : [...new Set([...previous, ...wanted])]));
+    if (!wanted.length) return;
+    setTargets(previous => {
+      if (wanted.every(id => previous.includes(id))) return previous;
+      return [...new Set([...previous, ...wanted])];
+    });
   }, [params]);
 
   const itemIndex = useMemo(() => new Map((items ?? []).map(item => [item.id, item])), [items]);
