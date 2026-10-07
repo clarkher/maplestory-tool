@@ -25,7 +25,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
-  first-frame 會印 PASS／FAIL，但一律 exit 0。
+  first-frame 會印 PASS／FAIL，但一律 exit 0。check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
 - 測試機實測時間（2026-10-07）：first-frame 的 nav 段 25 秒、scroll-proof 45 秒、crossdoc（plain）75 秒、
   after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
   gear-source-shot 三個角色 13 秒。
@@ -38,6 +38,20 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 ## 每支在做什麼
 
 ### 換頁第一格
+
+#### `check-first-frame.mjs`：自動檢查換頁第一格，沒過 exit 1（v0.68，GitHub Actions「測試 / 第一格」）
+
+```bash
+node scripts/verify/check-first-frame.mjs [輸出] [網址，預設 http://localhost:3000]
+```
+
+- 六項，只看結構、不看時間（GitHub 的機器快慢不穩，時間門檻會偶發紅燈）：
+  1 首頁 → 查資料 → 我的路線，DOM 只有一個狀態、就是完整路線；2 硬重新整理、存過角色，不出現「你現在幾等、什麼職業？」；
+  3 硬重新整理、沒存過角色，第一格就看得到那句問題；4 首頁「帶我去」→ /go 第一格就是路線；5 查資料 → 練功地圖排行第一格就是結果；
+  6 沒有 hydration 警告、沒接住的錯誤。
+- 本機跑：先 `next build` 再 `next start`（或直接給測試機網址），約 25 秒。`CI` 環境變數有設時 Chrome 會加 `--no-sandbox`。
+- 驗過抓得到：故意把首頁、/go、練功排行改回「先畫載入中」、大標改成都看不見，1／3／4／5 紅；對還沒有 v0.54 的正式機跑，2 紅。
+- 輸出：`results.json`（每項的細節、console）、`1-home.png`；CI 沒過時整個資料夾上傳成 artifact「first-frame」。
 
 #### `first-frame.mjs`：「10/15 開放」標示第一個畫面就要在（v0.37）
 
