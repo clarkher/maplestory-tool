@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import { itemImage, loadGuide, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
@@ -14,10 +15,12 @@ import { useProfile } from "@/lib/profile";
 import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
+import type { Monster } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 import { CharacterBar } from "./CharacterBar";
 import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
-import { Panel, SourceTag, Sprite } from "./bits";
+import { SourceTag, Sprite } from "./bits";
 import { RouteTimeline } from "./RouteTimeline";
 import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
@@ -226,25 +229,9 @@ export function RouteHome() {
           <GearCard job={stage} level={profile.level} maps={data.maps} routable={data.routable} />
 
           {plan.longRun.length ? (
-            <Panel title="長線，有空再刷" aside={<SourceTag kind="data" />}>
-              <ul className="space-y-2">
-                {plan.longRun.map(entry => {
-                  const dropper = entry.droppers.map(id => plan.monsterIndex.get(id)).find(Boolean);
-                  return (
-                    <li key={`${entry.kind}:${entry.id}`} className="flex items-center gap-2.5 text-[13px]">
-                      {dropper ? <Sprite src={monsterImage(dropper.id)} size={34} /> : <Sprite src={itemImage(entry.id)} size={28} />}
-                      <span className="min-w-0 flex-1 leading-snug">
-                        <b>{entry.kind === "kill" ? `打${entry.n}` : entry.n}</b> 累計 {formatNumber(entry.c)} {entry.kind === "kill" ? "隻" : "個"}
-                        <span className="block text-[12px] ink-soft">
-                          {entry.quests.length} 個任務共 {formatNumber(entry.exp)} 經驗
-                          {entry.kind === "item" && dropper ? ` · ${dropper.n} 會掉` : ""}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Panel>
+            // 換職業或等級時重新掛載：展開狀態不帶到別的角色（跟先解同一招）。key 加前綴：跟同一層的先解（TodoList）撞 key 的話，
+            // 換等級時 React 會把先解重複畫一份
+            <LongRun key={`longrun:${profile.job}:${profile.level}`} job={profile.job} level={profile.level} entries={plan.longRun} monsterIndex={plan.monsterIndex} />
           ) : null}
 
           <section aria-label="升級路線" className="space-y-2.5 pt-2">
@@ -281,5 +268,48 @@ export function RouteHome() {
         </>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 長線，有空再刷：預設收起，只列標題跟幾項，點開才列出來——首頁短一點、手機少捲幾下。
+ * 展開記在這一筆瀏覽紀錄上（visit-state）：重新整理、按返回照舊；換職業或等級由上一層換一個新元件，重新收起。
+ */
+function LongRun({ job, level, entries, monsterIndex }: {
+  job: number; level: number; entries: ReturnType<typeof longRunNow>; monsterIndex: Map<number, Monster>;
+}) {
+  const [open, setOpen] = useVisitState(`home:longrun:${job}:${level}`, false);
+  return (
+    <section aria-label="長線，有空再刷" className="rounded-[var(--radius-card)] glass wood-frame p-3.5 sm:p-4">
+      <h2 className="text-[15px] font-black">
+        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="flex w-full items-center gap-2 text-left">
+          <span className="min-w-0 flex-1">
+            長線，有空再刷
+            <span className="ml-1.5 text-[12px] font-bold ink-faint">{entries.length} 項</span>
+          </span>
+          <SourceTag kind="data" />
+          <ChevronDown size={16} className={`shrink-0 ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </h2>
+      {open ? (
+        <ul className="mt-2.5 space-y-2">
+          {entries.map(entry => {
+            const dropper = entry.droppers.map(id => monsterIndex.get(id)).find(Boolean);
+            return (
+              <li key={`${entry.kind}:${entry.id}`} className="flex items-center gap-2.5 text-[13px]">
+                {dropper ? <Sprite src={monsterImage(dropper.id)} size={34} /> : <Sprite src={itemImage(entry.id)} size={28} />}
+                <span className="min-w-0 flex-1 leading-snug">
+                  <b>{entry.kind === "kill" ? `打${entry.n}` : entry.n}</b> 累計 {formatNumber(entry.c)} {entry.kind === "kill" ? "隻" : "個"}
+                  <span className="block text-[12px] ink-soft">
+                    {entry.quests.length} 個任務共 {formatNumber(entry.exp)} 經驗
+                    {entry.kind === "item" && dropper ? ` · ${dropper.n} 會掉` : ""}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </section>
   );
 }

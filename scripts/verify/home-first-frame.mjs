@@ -318,6 +318,8 @@ try {
       return await p;
     })()`);
     const stored = await evaluate(`localStorage.getItem("ms-profile")`);
+    // 換等級後每一塊只能有一份（v0.63 撞過：長線跟先解用同一個 React key，先解被重複畫一份）
+    const sectionCounts = await evaluate(`(() => { const c = {}; for (const s of document.querySelectorAll("main section[aria-label], main article[aria-label]")) { const k = s.getAttribute("aria-label"); c[k] = (c[k] || 0) + 1; } return c; })()`);
     const afterShot = await shot("C-after-plus.png");
     // 站內換到練功頁（查資料 → 練功地圖排行）：等級框第一格就是新的等級（共用同一份角色）
     await evaluate(`[...document.querySelectorAll("header nav a")].find(a => a.textContent.trim() === "查資料").click(); "ok"`);
@@ -346,6 +348,8 @@ try {
       before: { who: before.who, nowLabel: before.nowLabel },
       paintedStates: states(rec.frames).map(s => ({ t: s.t, who: s.who, nowLabel: s.nowLabel, h: s.h, nowSkeleton: s.nowSkeleton, planning: s.planning })),
       stored,
+      sectionCounts,
+      duplicated: Object.entries(sectionCounts).filter(([, n]) => n > 1).map(([k]) => k),
       afterShot,
       plan,
       planShot,
@@ -371,7 +375,12 @@ try {
     await sleep(300);
     const after = await evaluate(`(() => { const s = ${section}; if (!s) return { missing: true }; const b = s.querySelector("button[aria-expanded]"); return { expanded: b ? b.getAttribute("aria-expanded") : null, items: s.querySelectorAll("li").length, h: Math.round(s.getBoundingClientRect().height) }; })()`);
     const homeHeight = await evaluate(`document.documentElement.scrollHeight`);
-    return { before, after, homeHeightAfterExpand: homeHeight };
+    // 展開記在這一筆瀏覽紀錄上：整頁重新整理後還是展開的
+    await navigate(BASE + "/");
+    await waitFor(`() => document.querySelector('section[aria-label="長線，有空再刷"] button[aria-expanded]')`);
+    await sleep(800);
+    const afterReload = await evaluate(`(() => { const b = ${section}?.querySelector("button[aria-expanded]"); return b ? b.getAttribute("aria-expanded") : null; })()`);
+    return { before, after, homeHeightAfterExpand: homeHeight, afterReload, shot: await shot("L-longrun.png") };
   });
 
   await scenario("N 換頁時頁首只有一顆是橘的", async () => {
