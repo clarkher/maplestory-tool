@@ -27,8 +27,16 @@ test("全部一般、或沒有屬性資料的怪不存 el", () => {
   assert.equal(compactElemental({ raw: "" }), undefined);
 });
 
-test("上游出現認不得的抗性寫法就讓重建失敗，不再取首字母存成玩家看不懂的代碼", () => {
-  assert.throws(() => compactElemental({ values: { fire: "absorb", ice: "normal" } }), /absorb/);
+test("上游出現認不得的抗性寫法就讓重建失敗，不再取首字母存成玩家看不懂的代碼；訊息寫出是哪隻怪", () => {
+  assert.throws(
+    () => compactElemental({ values: { fire: "absorb", ice: "normal" } }, "8140000 白狼人"),
+    error => error.message.includes("8140000 白狼人") && error.message.includes("fire: absorb"),
+  );
+});
+
+test("剛好跟物件內建屬性同名的寫法（constructor、toString）也算認不得", () => {
+  assert.throws(() => compactElemental({ values: { fire: "constructor" } }), /constructor/);
+  assert.throws(() => compactElemental({ values: { toString: "weak" } }), /toString/);
 });
 
 test("上游多了認不得的屬性：有抗性或弱點就讓重建失敗，全是一般就不影響", () => {

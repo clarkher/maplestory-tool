@@ -8,22 +8,25 @@
  */
 
 /** 上游的屬性名 → 資料檔的鍵 */
-const ELEMENT_KEY = { fire: "f", ice: "i", lightning: "l", poison: "p", holy: "h" };
+export const ELEMENT_KEY = { fire: "f", ice: "i", lightning: "l", poison: "p", holy: "h" };
 
 /** 上游的抗性寫法 → 資料檔的值。strong 是管線原本對照表裡的寫法（實際資料沒出現過），跟 resist 同義 */
-const RESIST_CODE = { immune: "i", resist: "r", strong: "r", weak: "w" };
+export const RESIST_CODE = { immune: "i", resist: "r", strong: "r", weak: "w" };
 
-export function compactElemental(elemental) {
+/** monster 是錯誤訊息裡的怪物（「8140000 白狼人」），方便回頭查上游 */
+export function compactElemental(elemental, monster = "") {
   if (!elemental?.values) return undefined;
   const out = {};
   for (const [element, value] of Object.entries(elemental.values)) {
     if (!value || value === "normal") continue;
-    const key = ELEMENT_KEY[element];
-    const code = RESIST_CODE[value];
-    if (!key || !code) {
-      throw new Error(`上游怪物屬性出現認不得的寫法「${element}: ${value}」，格式可能改了——在 pipeline/lib/elemental.mjs 補對照、src/lib/format.ts 補字，再重建`);
+    // 用 hasOwn 查表：constructor、toString 這類物件內建的名字也要算認不得
+    if (!Object.hasOwn(ELEMENT_KEY, element) || !Object.hasOwn(RESIST_CODE, value)) {
+      throw new Error(
+        `上游怪物 ${monster || "（未標示）"} 的屬性出現認不得的寫法「${element}: ${value}」，格式可能改了——` +
+          "在 pipeline/lib/elemental.mjs 補對照、src/lib/format.ts 補字（新的抗性種類也看 src/lib/job-rules.ts 要不要算進去），再重建",
+      );
     }
-    out[key] = code;
+    out[ELEMENT_KEY[element]] = RESIST_CODE[value];
   }
   return Object.keys(out).length ? out : undefined;
 }

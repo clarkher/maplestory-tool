@@ -440,7 +440,7 @@ function buildMonsters(artale, spawns, maps, canonItem) {
       eva: stats.eva ?? 0,
       spd: stats.speed ?? 0,
       und: stats.undead ? 1 : undefined,
-      el: compactElemental(monster.elemental),
+      el: compactElemental(monster.elemental, `${id} ${monster.name || ""}`),
       maps: declaredMaps,
       sp: spawnRows.length ? spawnRows : undefined,
       drops: [...new Set((monster.drops || []).map(drop => canonItem(Number(drop.id))).filter(Number.isFinite))],

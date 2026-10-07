@@ -1,7 +1,8 @@
 /**
  * 真資料常駐檢查：直接讀 public/data/items.json、monsters.json，確認道具頁「裝備數值」、怪物頁「屬性抗性」
  * 對玩家寫的是中文，不會露出英文欄位名（reqJob）、欄位代碼（WpSi、冰 r）或看不懂的數字（需求職業 1、攻擊速度 6）。
- * 上游資料多了新欄位、新的職業值、新的攻擊速度或新的抗性寫法時這裡會先紅。
+ * 上游資料多了新欄位、新的職業值或新的攻擊速度時這裡會先紅。抗性的新寫法在管線重建時就擋下（pipeline/lib/elemental.mjs），
+ * 這裡確認資料檔裡的每個抗性代碼，怪物卡都寫得出中文。
  */
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
