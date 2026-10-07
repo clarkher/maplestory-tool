@@ -4,19 +4,27 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
+import { FilterTag } from "@/components/FilterTag";
 import { GoButton } from "@/components/PlanShell";
 import {
   itemImage, loadItems, loadMaps, loadMonsters, mapName, monsterImage, peekItems, peekMaps, peekMonsters,
 } from "@/lib/data";
 import { elementalNotes, formatNumber } from "@/lib/format";
+import { useHydrated } from "@/lib/hydrated";
 import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
-import { FIRST_MAPS, monsterDrops, monsterMaps } from "@/lib/monster-view";
-import { inTrainingBand } from "@/lib/planner";
+import { FIRST_MAPS, monsterDrops, monsterMaps, monsterNote } from "@/lib/monster-view";
+import { trainingRange } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster } from "@/lib/types";
 import { isV002Map, isV002Monster } from "@/lib/v002";
+
+/** 練功範圍標籤開了哪一顆：""＝都沒開、"fit"＝適合我練的（同級到高 5 級）、"wide"＝包含低 5 級（低 5 級到高 5 級）。兩顆只能開一顆 */
+type Band = "" | "fit" | "wide";
+
+/** 標籤上的字：名稱＋這一顆管到幾級到幾級 */
+const bandLabel = (name: string, [from, to]: [number, number]) => `${name}（Lv.${from}–${to}）`;
 
 export function MonsterDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -25,13 +33,19 @@ export function MonsterDb() {
   const [items, setItems] = useState<Item[] | null>(peekItems);
   const [error, setError] = useState<string | null>(null);
   const [showUnnamed, setShowUnnamed] = useRemembered("db:怪物:showUnnamed", false);
-  const [onlyBand, setOnlyBand] = useRemembered("db:怪物:onlyBand", false);
+  // 記的是開了哪一顆練功範圍標籤（舊的 db:怪物:onlyBand 不再讀）
+  const [band, setBand] = useRemembered<Band>("db:怪物:band", "");
+  const hydrated = useHydrated();
   const notOpenYet = useBeforeV002();
-  // 角色列填了等級才出現「只看適合我練的」：練功帶＝同級到高 5 級，再套職業規則（跟練功推薦同一套）
+  // 角色列填了等級才出現「適合我練的」「包含低 5 級」：範圍跟練功推薦同一套（同級到高 5 級，包含低 5 級就從低 5 級開始），再套職業規則
   const { profile, loaded } = useStoredProfile();
   const level = loaded && profile.level > 0 ? profile.level : null;
-  const bandLevel = onlyBand ? level : null;
-  const rule = level === null ? null : trainingRuleNote(profile.job, level);
+  // 範圍標籤開著時才寫職業規則
+  const rule = level === null || !band ? null : trainingRuleNote(profile.job, level);
+  // 記住的篩選第一格就讀得到、伺服器畫的頁面沒有：說明字等瀏覽器接手之後再放（理由見 FilterTag）
+  const unnamedNote = hydrated && showUnnamed;
+  // 兩顆範圍標籤只能開一顆，點開著的那顆就關（＝不限等級）
+  const pickBand = (mode: "fit" | "wide") => setBand(band === mode ? "" : mode);
 
   useEffect(() => {
     Promise.all([loadMonsters(), loadMaps(), loadItems()])
@@ -51,20 +65,24 @@ export function MonsterDb() {
 
   const entries = useMemo<DbEntry[]>(() => {
     if (!monsters || !maps) return [];
+    // 範圍標籤開著（而且角色填了等級）：只留等級在範圍裡、這個職業又打得動的。職業規則一律看玩家的等級，不是怪的等級、也不是範圍的下緣
+    const training = level !== null && band ? { level, range: trainingRange(level, band === "wide") } : null;
     return monsters
       .filter(monster => showUnnamed || !monster.un)
-      .filter(monster => bandLevel === null || (
-        monster.lv !== null && inTrainingBand(bandLevel, monster.lv) && monsterSuitsJob(profile.job, bandLevel, monster)
-      ))
+      .filter(monster => {
+        if (!training) return true;
+        const [from, to] = training.range;
+        return monster.lv !== null && monster.lv >= from && monster.lv <= to && monsterSuitsJob(profile.job, training.level, monster);
+      })
       .sort((a, b) => (a.lv ?? 0) - (b.lv ?? 0) || a.id - b.id)
       .map(monster => ({
         id: String(monster.id),
         name: monster.n,
-        note: monster.lv ? `Lv.${monster.lv}` : undefined,
+        note: monsterNote(monster),
         image: monsterImage(monster.id),
         badge: isV002Monster(monster, maps) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [monsters, maps, showUnnamed, bandLevel, profile.job, notOpenYet]);
+  }, [monsters, maps, showUnnamed, level, band, profile.job, notOpenYet]);
 
   return (
     <DbBrowser
@@ -75,29 +93,25 @@ export function MonsterDb() {
       error={error}
       filters={
         <div className="space-y-2">
-          {level !== null ? (
-            <div className="space-y-1">
-              <label className="flex items-center gap-2 text-[13px] ink-soft">
-                <input
-                  type="checkbox"
-                  checked={onlyBand}
-                  onChange={event => setOnlyBand(event.target.checked)}
-                  className="size-4 accent-[color:var(--maple)]"
-                />
-                只看適合我練的（Lv.{level}–{level + 5}）
-              </label>
-              {onlyBand && rule ? <p className="pl-6 text-xs ink-faint">{rule}</p> : null}
+          <div className="flex flex-wrap gap-1.5">
+            {level !== null ? (
+              <>
+                <FilterTag on={band === "fit"} onClick={() => pickBand("fit")}>
+                  {bandLabel("適合我練的", trainingRange(level, false))}
+                </FilterTag>
+                <FilterTag on={band === "wide"} onClick={() => pickBand("wide")}>
+                  {bandLabel("包含低 5 級", trainingRange(level, true))}
+                </FilterTag>
+              </>
+            ) : null}
+            <FilterTag on={showUnnamed} onClick={() => setShowUnnamed(!showUnnamed)}>連沒有名字的怪一起列</FilterTag>
+          </div>
+          {rule || unnamedNote ? (
+            <div className="space-y-1 text-xs ink-faint">
+              {rule ? <p>{rule}</p> : null}
+              {unnamedNote ? <p>沒有名字的怪通常是活動或未啟用的內容</p> : null}
             </div>
           ) : null}
-          <label className="flex items-center gap-2 text-[13px] ink-soft">
-            <input
-              type="checkbox"
-              checked={showUnnamed}
-              onChange={event => setShowUnnamed(event.target.checked)}
-              className="size-4 accent-[color:var(--maple)]"
-            />
-            連沒有名字的怪一起列（通常是活動或未啟用的內容）
-          </label>
         </div>
       }
       renderDetail={id => {

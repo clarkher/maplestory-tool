@@ -22,6 +22,7 @@
 // 重新整理後還在、桌機的小字不再寫「要先做」），清單不列「開發測試用」。位置也量（逐格，±1px）：開著卡片打勾、取消打勾，卡片裡的按鈕跟清單順序都不動（寫死任務 2323）；
 // 清單很下面（第 70 列以後）的任務打勾，卡片留在那一列下面、那一列跟按鈕不動、載出來的筆數不被收回 60 筆，收起後原本的下一列放到導覽列下方，
 // 最後一列收起就看前一列（不跳回清單開頭）；怪物資料載不到（擋掉 monsters.json）時清單照列、沒有建議等級（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
+// G3＝v0.60 的怪物頁：「適合我練的」「包含低 5 級」兩顆標籤只能開一顆、點開著的就關，清單的等級範圍、順序、筆數、小字（Lv.35 · 經驗 405）照怪物資料另外算，整頁重新整理後標籤還開著，僧侶照玩家的 35 級算職業規則（寫死：角色 Lv.35 槍騎兵、僧侶，跑完換回前面存的狂戰士 Lv.45）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -1649,6 +1650,125 @@ try {
       check("G2 怪物資料載不到：任務清單照列（沒有建議等級，沒寫需求等級的小字寫分類、排最後），不是整頁寫「資料載入失敗」",
         !noSuggest.error && noSuggest.failed === false && noSuggest.rows > 0 && noSuggest.rows === noSuggest.total && noSuggest.total === sorted.total
           && noSuggest.suggested === 0 && noSuggest.levels > 0 && noSuggest.categories > 0 && noSuggest.levelsFirst === true, noSuggest);
+    } finally {
+      await setMine(45, 110);
+    }
+  });
+
+  // G3 怪物頁（v0.60）。篩選列是標籤：角色 Lv.35 槍騎兵時有「適合我練的（Lv.35–40）」「包含低 5 級（Lv.30–40）」「連沒有名字的怪一起列」三顆，
+  // 前兩顆只能開一顆、點開著的那顆就關；開了清單每一列的等級都在範圍裡（含邊界），順序、筆數、小字都跟網站自己的怪物資料（monsters.json）另外算的一樣；
+  // 包含低 5 級比適合我練的多；清單小字寫「Lv.35 · 經驗 405」；開「連沒有名字的怪一起列」標籤下面出一行說明；整頁重新整理後標籤還開著、清單還是篩過的、console 沒有新的錯誤。
+  // 角色沒填等級只有最後一顆；角色換成 Lv.35 僧侶、開包含低 5 級（Lv.30–40）：小字寫職業規則、清單只列不死系（規則看玩家的 35 級，不是範圍下緣的 30 級）。跑完角色換回最前面存的狂戰士 Lv.45
+  await section("G3", async () => {
+    const FIT = "適合我練的（Lv.35–40）";
+    const WIDE = "包含低 5 級（Lv.30–40）";
+    const UNNAMED = "連沒有名字的怪一起列";
+    const UNNAMED_HINT = "沒有名字的怪通常是活動或未啟用的內容";
+    const setMine = (level, job) => evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: ${level}, job: ${job} })); "ok"`);
+    // 頁面裡的小工具：expected 用網站載清單的同一份怪物資料另外算「清單該是哪幾隻、小字該寫什麼」；view 把畫面現在的樣子（整份清單載出來）跟它比
+    const G3_JS = `
+      const FIT = ${JSON.stringify(FIT)}, WIDE = ${JSON.stringify(WIDE)}, UNNAMED = ${JSON.stringify(UNNAMED)};
+      window.__monsterData = window.__monsterData ?? fetch(performance.getEntriesByType("resource").map(e => e.name).find(u => u.includes("/data/monsters.json")) ?? "/data/monsters.json").then(res => res.json());
+      // from～to 級（null＝不限）、連不連沒有名字的、這個職業打得動的怪：等級由低到高、同級照 id；小字「Lv.35 · 經驗 405」，沒有經驗只寫「Lv.35」
+      const expected = async (from, to, unnamed, suits = () => true) => (await window.__monsterData)
+        .filter(m => (unnamed || !m.un) && (from === null || (m.lv !== null && m.lv >= from && m.lv <= to)) && suits(m))
+        .sort((a, b) => (a.lv ?? 0) - (b.lv ?? 0) || a.id - b.id)
+        .map(m => ({ id: String(m.id), note: m.lv ? (m.exp ? "Lv." + m.lv + " · 經驗 " + m.exp.toLocaleString("zh-TW") : "Lv." + m.lv) : "" }));
+      const view = async (from, to, unnamed, suits) => {
+        const total = Number(__count().replace(/[^0-9]/g, ""));
+        for (let i = 0; i < 12 && __rows().length < total; i++) await __loadMore();
+        window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
+        const rows = __rows().map(li => ({ id: li.id.replace("db-row-", ""), note: li.querySelector(":scope > button .tabular-nums")?.textContent.trim() ?? "" }));
+        const want = await expected(from, to, unnamed, suits);
+        // 小字照每一隻怪自己的資料比（跟清單列了哪幾隻無關）
+        const noteOf = new Map((await expected(null, null, true)).map(w => [w.id, w.note]));
+        const levels = rows.map(row => Number(/^Lv\\.([0-9]+)/.exec(row.note)?.[1]));
+        return {
+          fit: __pressed(__tag(FIT)), wide: __pressed(__tag(WIDE)), unnamed: __pressed(__tag(UNNAMED)),
+          // 標籤那一排下面緊接著的說明字（職業規則、沒有名字的怪）
+          hints: [...(__tag(UNNAMED)?.parentElement?.nextElementSibling?.querySelectorAll("p") ?? [])].map(p => p.textContent.trim()),
+          count: total, rows: rows.length, want: want.length,
+          sameList: rows.length === want.length && rows.every((row, i) => row.id === want[i].id),
+          sameNotes: rows.length > 0 && rows.every(row => row.note === noteOf.get(row.id)),
+          missing: want.filter(w => !rows.some(r => r.id === w.id)).map(w => w.id).slice(0, 5),
+          extra: rows.filter(r => !want.some(w => w.id === r.id)).map(r => r.id).slice(0, 5),
+          firstNotes: rows.slice(0, 3).map(row => row.note),
+          minLevel: Math.min(...levels), maxLevel: Math.max(...levels),
+        };
+      };`;
+    await mobile();
+    try {
+      // 角色還沒填等級：只有「連沒有名字的怪一起列」
+      await setMine(0, -1);
+      await fresh("/db/monsters");
+      const bare = await ev(`return { names: [...document.querySelectorAll("main button[aria-pressed]")].map(b => b.textContent.trim()) };`);
+      check("G3 角色還沒填等級：只有「連沒有名字的怪一起列」一顆標籤，沒有練功範圍的標籤", bare.names.length === 1 && bare.names[0] === UNNAMED, bare);
+
+      // 角色 Lv.35 槍騎兵（沒有職業規則）：一開始三顆標籤都沒按、舊的勾選框不見了，清單是全部有名字的怪
+      await setMine(35, 130);
+      await fresh("/db/monsters");
+      const start = await ev(`${G3_JS}
+        return { names: [...document.querySelectorAll("main button[aria-pressed]")].map(b => b.textContent.trim()), checkboxes: document.querySelectorAll("main input[type=checkbox]").length,
+          ...(await view(null, null, false)) };`);
+      check("G3 角色 Lv.35 槍騎兵：怪物頁有「適合我練的（Lv.35–40）」「包含低 5 級（Lv.30–40）」「連沒有名字的怪一起列」三顆標籤、一開始都沒按，沒有勾選框，清單是全部有名字的怪",
+        start.names.length === 3 && start.names[0] === FIT && start.names[1] === WIDE && start.names[2] === UNNAMED
+          && start.fit === false && start.wide === false && start.unnamed === false && start.checkboxes === 0 && start.hints.length === 0 && start.want > 0 && start.sameList === true && start.sameNotes === true,
+        { names: start.names, checkboxes: start.checkboxes, pressed: [start.fit, start.wide, start.unnamed], hints: start.hints, rows: start.rows, want: start.want, sameList: start.sameList, sameNotes: start.sameNotes, missing: start.missing, extra: start.extra, firstNotes: start.firstNotes });
+
+      // 按「適合我練的」：同級到高 5 級
+      const fit = await ev(`${G3_JS} __tag(FIT).click(); await __sleep(800); return await view(35, 40, false);`);
+      check("G3 按「適合我練的」：只有它亮，每一列等級都在 35–40（含邊界）、清單跟怪物資料算出來的一樣，槍騎兵沒有職業規則的說明字",
+        fit.fit === true && fit.wide === false && fit.unnamed === false && fit.want > 0 && fit.sameList === true && fit.minLevel >= 35 && fit.maxLevel <= 40 && fit.hints.length === 0
+          && fit.count === fit.rows, fit);
+
+      // 再按「包含低 5 級」：兩顆只能開一顆，「適合我練的」自動關掉
+      const wide = await ev(`${G3_JS} __tag(WIDE).click(); await __sleep(800); return await view(30, 40, false);`);
+      await shot("g3-monster-tags.png");
+      check("G3 再按「包含低 5 級」：「適合我練的」自動關掉、只有它亮；每一列等級都在 30–40（含邊界）、有低於 35 級的，筆數比「適合我練的」多、跟怪物資料算出來的一樣",
+        wide.wide === true && wide.fit === false && wide.unnamed === false && wide.want > fit.want && wide.sameList === true && wide.minLevel >= 30 && wide.minLevel < 35 && wide.maxLevel <= 40
+          && wide.rows > fit.rows && wide.hints.length === 0, { wide, fitRows: fit.rows });
+      // 清單小字：等級＋經驗（經驗上千的有千分位、沒有經驗的只寫等級，都照怪物資料算）
+      check("G3 清單小字寫等級跟經驗（例：Lv.35 · 經驗 405），每一列跟怪物資料算出來的一樣",
+        wide.sameNotes === true && wide.rows > 0 && wide.firstNotes.some(note => /^Lv\.[0-9]+ · 經驗 [0-9,]+$/.test(note)), { sameNotes: wide.sameNotes, firstNotes: wide.firstNotes });
+
+      // 再按一次「包含低 5 級」：關掉，清單回到全部有名字的怪（整份：千分位、沒有經驗只寫等級的小字也一起比）
+      const closed = await ev(`${G3_JS} __tag(WIDE).click(); await __sleep(800); return await view(null, null, false);`);
+      check("G3 再按一次開著的「包含低 5 級」：關掉、兩顆範圍標籤都不亮，清單回到全部有名字的怪（小字都對）",
+        closed.wide === false && closed.fit === false && closed.sameList === true && closed.sameNotes === true && closed.rows > wide.rows, { closed, wideRows: wide.rows });
+
+      // 「連沒有名字的怪一起列」：亮起來、標籤下面出一行說明、清單照「有名字＋沒有名字」的怪算；再按一次說明字拿掉
+      // （現在的怪物資料裡沒有沒名字的怪，所以兩邊筆數一樣；清單照資料算，哪天資料有了也會對）。每一段從重新打開的頁面開始，前面哪一步壞了不會連累這一段
+      await fresh("/db/monsters");
+      const unnamedOn = await ev(`${G3_JS} __tag(UNNAMED).click(); await __sleep(800); return await view(null, null, true);`);
+      const unnamedOff = await ev(`${G3_JS} __tag(UNNAMED).click(); await __sleep(800); return await view(null, null, false);`);
+      check("G3 按「連沒有名字的怪一起列」：亮起來、標籤下面寫「沒有名字的怪通常是活動或未啟用的內容」、清單照資料算；再按一次：說明字拿掉、標籤不亮",
+        unnamedOn.unnamed === true && unnamedOn.hints.length === 1 && unnamedOn.hints[0] === UNNAMED_HINT && unnamedOn.sameList === true && unnamedOn.rows >= unnamedOff.rows
+          && unnamedOff.unnamed === false && unnamedOff.hints.length === 0 && unnamedOff.sameList === true && unnamedOff.rows > 0,
+        { on: { unnamed: unnamedOn.unnamed, hints: unnamedOn.hints, sameList: unnamedOn.sameList, rows: unnamedOn.rows }, off: { unnamed: unnamedOff.unnamed, hints: unnamedOff.hints, sameList: unnamedOff.sameList, rows: unnamedOff.rows } });
+
+      // 整頁重新整理（不是站內換頁）：開著的「包含低 5 級」「連沒有名字的怪一起列」還開著、說明字還在、清單還是篩過的；第一格照記住的畫，不能跟伺服器的頁面對不上（console 不能出現新的錯誤）
+      await fresh("/db/monsters");
+      await ev(`${G3_JS} __tag(WIDE).click(); await __sleep(400); __tag(UNNAMED).click(); await __sleep(800); return 1;`);
+      const problemsBefore = consoleProblems.length;
+      await reload();
+      const reloaded = await ev(`${G3_JS} await __ready(); await __sleep(900); return await view(30, 40, true);`);
+      await shot("g3-monster-reload.png");
+      const reloadProblems = consoleProblems.slice(problemsBefore);
+      check("G3 整頁重新整理：開著的「包含低 5 級」「連沒有名字的怪一起列」還開著、說明字還在、清單還是篩過的，console 沒有新的錯誤",
+        reloaded.wide === true && reloaded.unnamed === true && reloaded.fit === false && reloaded.hints.length === 1 && reloaded.hints[0] === UNNAMED_HINT && reloaded.want > 0 && reloaded.sameList === true
+          && reloadProblems.length === 0, { wide: reloaded.wide, unnamed: reloaded.unnamed, fit: reloaded.fit, hints: reloaded.hints, rows: reloaded.rows, want: reloaded.want, sameList: reloaded.sameList, problems: reloadProblems.slice(0, 3) });
+
+      // 角色 Lv.35 僧侶（31～70 級只打不死系）：包含低 5 級（Lv.30–40）也照 35 級算規則——範圍下緣的 30 級不適用這條，用錯就會多列一堆不是不死系的怪
+      await setMine(35, 230);
+      await fresh("/db/monsters");
+      const cleric = await ev(`${G3_JS}
+        __tag(WIDE).click(); await __sleep(800);
+        const plain = (await expected(30, 40, false)).length;
+        return { ...(await view(30, 40, false, m => !!m.und)), plain };`);
+      await shot("g3-monster-cleric.png");
+      check("G3 角色 Lv.35 僧侶開「包含低 5 級」：標籤下面寫「只列不死系：群體治癒補得到」、清單只列不死系的怪（職業規則看玩家的 35 級，不是範圍下緣的 30 級）",
+        cleric.wide === true && cleric.hints.length === 1 && cleric.hints[0] === "只列不死系：群體治癒補得到" && cleric.want > 0 && cleric.want < cleric.plain && cleric.sameList === true,
+        { wide: cleric.wide, hints: cleric.hints, rows: cleric.rows, want: cleric.want, plain: cleric.plain, sameList: cleric.sameList, missing: cleric.missing, extra: cleric.extra });
     } finally {
       await setMine(45, 110);
     }
