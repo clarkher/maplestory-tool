@@ -1,10 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { minimapScale } from "@/lib/minimap";
 
 type Measured = { width: number; height: number; pixelated: boolean };
+
+/**
+ * 這次瀏覽載過的小地圖原始大小。展開的卡片站內按返回時會重新掛上去：要是先畫 80px 的佔位、圖片載完才長高，
+ * 瀏覽器已經照短的版面還原了位置，圖片一長高、捲動錨定再把畫面推走，就對到別段（練功頁實測差 179px）。
+ * 載過的直接用記下的大小，畫面出來前就是載好的高度。
+ */
+const naturalSizes = new Map<string, { w: number; h: number }>();
 
 /**
  * 遊戲內小地圖的原始圖都很小（中位數 91×71px），直接拉滿卡片寬度會整張糊掉
@@ -45,10 +52,12 @@ export function PixelMinimap({
     });
   };
 
-  // 換了另一張圖（src 變了）就重新量，不要沿用上一張算出來的尺寸
-  useEffect(() => {
-    naturalRef.current = null;
-    setMeasured(null);
+  // 換了另一張圖（src 變了）就重新量，不要沿用上一張算出來的尺寸；這次瀏覽載過這張圖就直接用記下的大小（畫面出來前）
+  useLayoutEffect(() => {
+    naturalRef.current = naturalSizes.get(src) ?? null;
+    if (naturalRef.current) recompute();
+    else setMeasured(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   // 視窗寬度變了（例如轉橫向、手動縮放視窗）重新量一次容器寬度
@@ -70,6 +79,7 @@ export function PixelMinimap({
         onLoad={event => {
           const img = event.currentTarget;
           naturalRef.current = { w: img.naturalWidth, h: img.naturalHeight };
+          naturalSizes.set(src, naturalRef.current);
           recompute();
         }}
         className={`object-contain ${measured ? (measured.pixelated ? "[image-rendering:pixelated]" : "") : "opacity-0"}`}

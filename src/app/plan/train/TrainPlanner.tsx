@@ -13,6 +13,7 @@ import { respawnText } from "@/lib/format";
 import { useProfile } from "@/lib/profile";
 import { planTraining, relativeIndex, requiredAccuracy } from "@/lib/planner";
 import type { MapRecord, Meta, Monster, TrainingRow } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 
 export function TrainPlanner() {
   const { profile, setProfile, loaded } = useProfile();
@@ -132,7 +133,8 @@ function TrainCard({
   monsterIndex: Map<number, Monster>;
   playerLevel: number;
 }) {
-  const [open, setOpen] = useState(false);
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時卡片一樣長，才捲得回同一段
+  const [open, setOpen] = useVisitState(`train:card:${row.m}`, false);
   const record = maps[String(row.m)];
   const name = mapName(maps, row.m);
 

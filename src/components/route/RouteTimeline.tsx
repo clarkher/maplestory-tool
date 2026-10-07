@@ -17,6 +17,7 @@ import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-plann
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 import type { GuideStatus } from "./RouteHome";
 import { Chip, SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 import { QuestLine } from "./QuestLine";
@@ -53,16 +54,9 @@ export function RouteTimeline(context: Context) {
     [job, level, bands, guides, monsterIndex, spawns, maps, training, common.pq, pick, canGo],
   );
   const { activeIndex } = timeline;
-  const [open, setOpen] = useState<Set<number>>(() => new Set([activeIndex]));
-
-  function toggle(index: number) {
-    setOpen(previous => {
-      const next = new Set(previous);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
-      return next;
-    });
-  }
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時路線一樣長，才捲得回同一段。
+  // 跟首頁換掉這張卡的條件一樣（RouteHome 的 key）：換職業、升到別段就照新的一段重新來，展開不帶過去
+  const scope = `home:band:${job}:${bands[activeIndex]?.from}`;
 
   return (
     <div className="relative">
@@ -74,8 +68,7 @@ export function RouteTimeline(context: Context) {
             plan={timeline.plans[index]}
             next={bands[index + 1]}
             state={index < activeIndex ? "done" : index === activeIndex ? "current" : "future"}
-            open={open.has(index)}
-            onToggle={() => toggle(index)}
+            memoryKey={`${scope}:${band.from}`}
             context={context}
             label={timeline.labels[index]}
           />
@@ -89,20 +82,22 @@ function BandItem({
   plan,
   next,
   state,
-  open,
-  onToggle,
+  memoryKey,
   context,
   label,
 }: {
   plan: BandPlan;
   next?: Band;
   state: "done" | "current" | "future";
-  open: boolean;
-  onToggle: () => void;
+  /** 這一段的展開記在哪（lib/visit-state 的 key）；段裡的「為什麼」接在後面 */
+  memoryKey: string;
   context: Context;
   label?: string;
 }) {
   const { band } = plan;
+  // 你在的那段一開始就展開，其他段點開看
+  const [open, setOpen] = useVisitState(memoryKey, state === "current");
+  const onToggle = () => setOpen(value => !value);
   // 之前最後一段固定到 100，這裡硬寫死「–100」；100～120 那段的 to 是 120，照 band 本身的值顯示才對
   const range = `Lv.${band.from}–${band.to}`;
 
@@ -130,13 +125,13 @@ function BandItem({
           <span className="ml-auto line-clamp-2 min-w-0 flex-1 text-right text-[13px] leading-snug ink-soft">{label ?? "還沒有玩家攻略"}</span>
           <ChevronDown size={16} className={`shrink-0 ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
-        {open ? <BandDetail plan={plan} next={next} context={context} active={state === "current"} /> : null}
+        {open ? <BandDetail plan={plan} next={next} context={context} active={state === "current"} memoryKey={memoryKey} /> : null}
       </div>
     </li>
   );
 }
 
-function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Band; context: Context; active: boolean }) {
+function BandDetail({ plan, next, context, active, memoryKey }: { plan: BandPlan; next?: Band; context: Context; active: boolean; memoryKey: string }) {
   const { band, stage, guide } = plan;
   const { job, level, quests, monsters, monsterIndex, maps, common, prefer, guideStatus, effective } = context;
   const beforeOpen = useBeforeV002();
@@ -213,7 +208,7 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
         {plan.rows.length ? (
           <ul className="space-y-2.5">
             {plan.rows.map(row => (
-              <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} maps={maps} tagData={!noGuide || plan.blocked} />
+              <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} maps={maps} tagData={!noGuide || plan.blocked} memoryKey={`${memoryKey}:train:${row.key}`} />
             ))}
           </ul>
         ) : null}
@@ -224,7 +219,7 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
             {plan.fallback.length ? (
               <ul className="space-y-2.5">
                 {plan.fallback.map(row => (
-                  <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} maps={maps} />
+                  <TrainRowItem key={row.key} row={row} monsterIndex={monsterIndex} maps={maps} memoryKey={`${memoryKey}:data:${row.key}`} />
                 ))}
               </ul>
             ) : null}
@@ -261,7 +256,7 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
         <Block label="必解任務" tag={<SourceTag kind="data" />}>
           <ul className="space-y-2">
             {detail.mustDo.map(item => (
-              <MustDoRow key={item.key} item={item} />
+              <MustDoRow key={item.key} item={item} memoryKey={`${memoryKey}:must:${item.key}`} />
             ))}
           </ul>
         </Block>
@@ -305,13 +300,16 @@ function TrainRowItem({
   monsterIndex,
   maps,
   tagData = false,
+  memoryKey,
 }: {
   row: TrainRow;
   monsterIndex: Map<number, Monster>;
   maps: Record<string, MapRecord>;
   tagData?: boolean;
+  /** 「為什麼」展開記在哪（lib/visit-state 的 key） */
+  memoryKey: string;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useVisitState(memoryKey, false);
   const lead = row.mobs.find(id => monsterIndex.has(id));
   const leadMonster = lead !== undefined ? monsterIndex.get(lead) : undefined;
   const names = row.mobs.map(id => monsterIndex.get(id)?.n).filter(Boolean).slice(0, 3).join("、");
@@ -376,8 +374,8 @@ function TrainRowItem({
   );
 }
 
-function MustDoRow({ item }: { item: BandQuest }) {
-  const [open, setOpen] = useState(false);
+function MustDoRow({ item, memoryKey }: { item: BandQuest; memoryKey: string }) {
+  const [open, setOpen] = useVisitState(memoryKey, false);
   return (
     <li className="space-y-1">
       <QuestLine as="div" showPrerequisite={false} title={item.title} quests={item.quests} exp={item.exp} extra={levelText(item.fraction)} parts={partsText(item)} />

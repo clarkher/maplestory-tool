@@ -18,6 +18,7 @@ import {
   type StartChoice,
 } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 
 /** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
 const START_KEY = "ms-go-start";
@@ -269,7 +270,8 @@ function RouteCard({
   graph: Record<string, PortalEdge[]>;
   previous?: number;
 }) {
-  const [open, setOpen] = useState(false);
+  // 小地圖展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時路線一樣長，才捲得回同一段（跟 React key 同一組）
+  const [open, setOpen] = useVisitState(`go:map:${step.map}-${index}`, false);
   const notOpenYet = useBeforeV002();
   const record = maps[String(step.map)];
   const name = mapName(maps, step.map);
