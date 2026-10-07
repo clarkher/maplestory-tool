@@ -78,6 +78,34 @@ describe("每一筆瀏覽紀錄各記各的", () => {
   });
 });
 
+describe("從連結帶 # 進來自動展開（懶人包 #pq-moon）：這一筆紀錄只做一次", () => {
+  it("第一次到要展開；同一筆紀錄重新整理、按返回再來不再自動展開（使用者可能已經收起來）", () => {
+    const t = tab();
+    expect(t.load().claim("guide:hash:pq-moon")).toBe(true);
+    expect(t.load().claim("guide:hash:pq-moon")).toBe(false);
+  });
+
+  it("從連結重新點進來（新的一筆紀錄）：又會自動展開", () => {
+    const t = tab();
+    t.load().claim("guide:hash:pq-moon");
+    t.at.entry = "entry-2";
+    expect(t.load().claim("guide:hash:pq-moon")).toBe(true);
+  });
+});
+
+describe("同一個分頁裡的另一份頁面", () => {
+  it("舊的那份（離站前的頁面從返回快取回來）寫的時候，不會蓋掉後來那份記下的紀錄", () => {
+    const storage = fakeSessionStorage();
+    const older = visitMemory({ storage, entry: () => "entry-1" });
+    // 舊的那份先讀過一次：記憶留在那份頁面裡
+    older.recall("quest:card:101", false);
+    visitMemory({ storage, entry: () => "entry-2" }).remember("train:card:1000", true, false);
+    older.remember("quest:card:101", true, false);
+    expect(visitMemory({ storage, entry: () => "entry-2" }).recall("train:card:1000", false)).toBe(true);
+    expect(visitMemory({ storage, entry: () => "entry-1" }).recall("quest:card:101", false)).toBe(true);
+  });
+});
+
 describe("最多記 50 筆紀錄，最久沒動的先丟", () => {
   it("第 51 筆有展開的紀錄進來：最早那筆丟掉，其他都還在", () => {
     const t = tab();
@@ -167,7 +195,7 @@ describe("讀不到、寫不進去也不能出錯", () => {
 });
 
 describe("哪一筆瀏覽紀錄：跟記捲動位置（reload-scroll）同一把 key", () => {
-  const location = { pathname: "/plan/quest", search: "?x=1" };
+  const location = { pathname: "/plan/quest", search: "?x=1", hash: "#main" };
 
   it("瀏覽器有 Navigation API：用紀錄的 key（同一個網址點進來兩次也分得開）", () => {
     expect(entryKeyOf({ navigation: { currentEntry: { key: "k-123" } }, location })).toBe("k-123");

@@ -9,7 +9,7 @@ import { monsterImage } from "@/lib/data";
 import {
   COMMON_ROUTE, GUIDE_SOURCES, GUIDE_UPDATED_AT, JOB_GUIDES, type GuideStep, type JobGuide,
 } from "@/lib/guide-data";
-import { useVisitState } from "@/lib/visit-state";
+import { claimVisit, useVisitState } from "@/lib/visit-state";
 import {
   KpqAnswerTable, KpqBarrelDiagram, MoonBunnySeedDiagram, PqEntryBanner, PqStageList,
 } from "./PqVisuals";
@@ -216,11 +216,12 @@ function StepCard({
   const [open, setOpen] = useVisitState(`guide:step:${index}`, index === 0);
   // 法師 8 等轉職，出島那步對法師顯示不同重點；其他步驟共通
   void jobKey;
-  // 組隊任務的段落有固定的 id（#pq-moon、#pq-kerning），首頁的「看打法」跳過來時直接展開
+  // 組隊任務的段落有固定的 id（#pq-moon、#pq-kerning），首頁的「看打法」跳過來時直接展開。
+  // 網址的 # 一直留在這一筆紀錄上：只有第一次到才自動展開，重新整理、按返回時照記下的（可能已經收起來）
   const anchor = step.pq ? `pq-${step.pq}` : undefined;
   useEffect(() => {
-    if (anchor && window.location.hash === `#${anchor}`) setOpen(true);
-  }, [anchor]);
+    if (anchor && window.location.hash === `#${anchor}` && claimVisit(`guide:hash:${anchor}`)) setOpen(true);
+  }, [anchor, setOpen]);
 
   return (
     <li id={anchor} className="scroll-mt-20 overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
