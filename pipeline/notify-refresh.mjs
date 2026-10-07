@@ -3,8 +3,9 @@
  *
  * refresh 失敗：開一張 issue（label「資料更新失敗」、指派給 repo 擁有者）；已經有開著的就不另開——
  *   同樣的失敗（同一步、同一個上游版本）只更新內文「最後一次失敗」那行（不發通知），有變才在那張留言。
- * refresh 成功：有開著的就留言「恢復了」並關掉。被取消（含 GitHub 沒派到機器）不通知。
- * 內容與判斷在 lib/refresh-issue.mjs；這支只負責打 GitHub API。
+ * refresh 跑超過時間上限被中止（結果是 cancelled，但有一步跑到一半）也算失敗；一步都沒跑（GitHub 沒派到機器）不通知。
+ * refresh 成功：有開著的就留言「恢復了」並關掉。
+ * 內容與判斷在 lib/refresh-issue.mjs；這支只負責打 GitHub API（5xx、連線失敗會重試）。
  *
  * 環境變數（workflow 給）：
  *   GH_TOKEN        要有 issues: write、actions: read
@@ -13,7 +14,7 @@
  *   SITE_STAMP      網站目前的資料版本（public/data/meta.json 的 dataGeneratedAt）
  *   DRY_RUN         "true" 就改用測試用的 label 與標題
  *   ASSIGNEE        issue 指派給誰
- *   以及 Actions 內建的 GITHUB_REPOSITORY、GITHUB_RUN_ID、GITHUB_RUN_ATTEMPT、GITHUB_SERVER_URL、GITHUB_API_URL
+ *   以及 Actions 內建的 GITHUB_REPOSITORY、GITHUB_RUN_ID、GITHUB_REF_NAME、GITHUB_SERVER_URL、GITHUB_API_URL
  *
  * 本機預覽某一次執行會發出什麼內容（只讀，不開 issue、不留言、不關）：
  *   GH_TOKEN=$(gh auth token) GITHUB_REPOSITORY=clarkher/maplestory-tool GITHUB_RUN_ID=<run id> \
@@ -25,13 +26,16 @@ const env = process.env;
 const LABEL_COLOR = "d73a4a";
 const LABEL_DESCRIPTION = "資料自動更新（data-refresh.yml）失敗時自動開的，之後成功一次會自動關";
 const LOG_ATTEMPTS = 4;
+const REQUEST_ATTEMPTS = 3;
 
 function required(name) {
   if (!env[name]) throw new Error(`缺環境變數 ${name}`);
   return env[name];
 }
 
-function githubApi({ token, repo, runId, runAttempt, apiUrl }) {
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+function githubApi({ token, repo, runId, apiUrl }) {
   const headers = {
     authorization: `Bearer ${token}`,
     accept: "application/vnd.github+json",
@@ -39,13 +43,22 @@ function githubApi({ token, repo, runId, runAttempt, apiUrl }) {
     "user-agent": "maplestory-tool data-refresh notify",
   };
 
-  function request(method, path, body) {
-    return fetch(`${apiUrl}/${path}`, {
-      method,
-      headers: body ? { ...headers, "content-type": "application/json" } : headers,
-      body: body ? JSON.stringify(body) : undefined,
-      redirect: "manual",
-    });
+  // GitHub 偶爾回 5xx 或連線斷掉，隔幾秒再試，免得那一輪的通知因此發不出去
+  async function request(method, path, body) {
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        const response = await fetch(`${apiUrl}/${path}`, {
+          method,
+          headers: body ? { ...headers, "content-type": "application/json" } : headers,
+          body: body ? JSON.stringify(body) : undefined,
+          redirect: "manual",
+        });
+        if (response.status < 500 || attempt === REQUEST_ATTEMPTS) return response;
+      } catch (error) {
+        if (attempt === REQUEST_ATTEMPTS) throw error;
+      }
+      await sleep(3000 * attempt);
+    }
   }
 
   async function json(method, path, body) {
@@ -65,7 +78,8 @@ function githubApi({ token, repo, runId, runAttempt, apiUrl }) {
     },
 
     async refreshJob() {
-      const { jobs } = await json("GET", `repos/${repo}/actions/runs/${runId}/attempts/${runAttempt}/jobs?per_page=100`);
+      // filter=latest：每個 job 拿最新那次（只重跑 notify 時也找得到 refresh）
+      const { jobs } = await json("GET", `repos/${repo}/actions/runs/${runId}/jobs?filter=latest&per_page=100`);
       const job = jobs.find(candidate => candidate.name === "refresh");
       if (!job) throw new Error("這次執行裡找不到 refresh 這個 job");
       return job;
@@ -87,16 +101,20 @@ function githubApi({ token, repo, runId, runAttempt, apiUrl }) {
         } else {
           lastStatus = response.status;
         }
-        if (attempt < LOG_ATTEMPTS) await new Promise(resolve => setTimeout(resolve, 5000));
+        if (attempt < LOG_ATTEMPTS) await sleep(5000);
       }
       throw new Error(`HTTP ${lastStatus}`);
     },
 
     async ensureLabel(label) {
-      const response = await request("POST", `repos/${repo}/labels`, { name: label, color: LABEL_COLOR, description: LABEL_DESCRIPTION });
-      // 422 = 已經有這個 label
-      if (!response.ok && response.status !== 422) {
-        throw new Error(`建 label「${label}」→ HTTP ${response.status}：${(await response.text()).slice(0, 300)}`);
+      // 422 = 已經有這個 label。其他錯誤只警告：label 建不起來也要把 issue 開出來
+      try {
+        const response = await request("POST", `repos/${repo}/labels`, { name: label, color: LABEL_COLOR, description: LABEL_DESCRIPTION });
+        if (!response.ok && response.status !== 422) {
+          console.warn(`建 label「${label}」失敗（HTTP ${response.status}）：${(await response.text()).slice(0, 300)}`);
+        }
+      } catch (error) {
+        console.warn(`建 label「${label}」失敗：${error.message}`);
       }
     },
 
@@ -158,7 +176,6 @@ const github = githubApi({
   token: env.GH_TOKEN || required("GITHUB_TOKEN"),
   repo,
   runId,
-  runAttempt: env.GITHUB_RUN_ATTEMPT || "1",
   apiUrl: env.GITHUB_API_URL || "https://api.github.com",
 });
 
@@ -182,5 +199,5 @@ const DONE = {
   close: "留言並關掉 issue",
   none: "不用通知",
 };
-const done = `${env.PRINT_ONLY === "true" ? "（預覽）會" : ""}${DONE[outcome.action]}`;
+const done = `${env.PRINT_ONLY === "true" && outcome.action !== "none" ? "（預覽）會" : ""}${DONE[outcome.action]}`;
 console.log(`refresh 結果 ${env.REFRESH_RESULT} → ${done}${outcome.issue?.number ? `：${outcome.issue.html_url}` : ""}`);

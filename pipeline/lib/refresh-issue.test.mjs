@@ -6,13 +6,14 @@ import {
 } from "./refresh-issue.mjs";
 
 const ESC = "\x1b";
+const BOM = String.fromCharCode(0xfeff);
 
 /**
  * 組出 GitHub Actions 下載回來的 job log 的樣子：開頭有 BOM、每行前面有時間戳、CRLF 換行、
  * 步驟標頭的指令有顏色碼。
  */
 function actionsLog(lines) {
-  return "﻿" + lines.map((line, i) => `2026-10-03T05:27:${String(i % 60).padStart(2, "0")}.1234567Z ${line}`).join("\r\n");
+  return BOM + lines.map((line, i) => `2026-10-03T05:27:${String(i % 60).padStart(2, "0")}.1234567Z ${line}`).join("\r\n");
 }
 
 // 2026-10-03 排程失敗那次（run 37099846007）的真實 log，掐頭去尾：取得 Artale 資料那一步丟錯
@@ -67,19 +68,16 @@ test("不含時間戳、顏色碼、步驟標頭、Process completed 那行，�
   assert.ok(tail.includes("Error: 上游 repo 沒有 drops.json"), "要抓到錯誤本身");
   assert.doesNotMatch(tail, /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/);
   assert.ok(!tail.includes(ESC));
-  assert.ok(!tail.includes("﻿"));
+  assert.ok(!tail.includes(BOM));
   assert.ok(!tail.includes("\r"));
   for (const noise of ["shell: /usr/bin/bash", "##[", "Process completed", "Post job cleanup", "git version", "Node.js 20 is deprecated", "Syncing repository"]) {
     assert.ok(!tail.includes(noise), `不該有「${noise}」`);
   }
 });
 
-test("進度條（Updating files: 82%…100%）只留最後一行；數字不同但不是進度的訊息照樣全留", () => {
+test("git 的進度條（Updating files: 82%…100%, done.）只留最後一行；數字不同但不是進度的訊息照樣全留", () => {
   const tail = errorTail(FETCH_FAILURE);
-  assert.deepEqual(
-    tail.filter(line => line.startsWith("Updating files:")),
-    ["Updating files: 100% (16277/16277)", "Updating files: 100% (16277/16277), done."],
-  );
+  assert.deepEqual(tail.filter(line => line.startsWith("Updating files:")), ["Updating files: 100% (16277/16277), done."]);
 
   const log = actionsLog([
     "##[group]Run node pipeline/verify.mjs",
@@ -90,6 +88,68 @@ test("進度條（Updating files: 82%…100%）只留最後一行；數字不同
     "##[error]Process completed with exit code 1.",
   ]);
   assert.deepEqual(errorTail(log), ["  FAIL 怪物數量合理（僅已開放） — 96 隻", "  FAIL 道具數量合理 — 9821 個"]);
+});
+
+test("只合併 git 格式的進度條：一般訊息就算帶百分比、連著兩行也全留", () => {
+  const log = actionsLog([
+    "##[group]Run node pipeline/verify.mjs",
+    "##[endgroup]",
+    "FAIL 職業 1 覆蓋率 80%",
+    "FAIL 職業 2 覆蓋率 75%",
+    "Receiving objects:  45% (100/222)",
+    "Receiving objects: 100% (222/222), 1.20 MiB | 3.00 MiB/s, done.",
+    "##[error]Process completed with exit code 1.",
+  ]);
+  assert.deepEqual(errorTail(log), [
+    "FAIL 職業 1 覆蓋率 80%",
+    "FAIL 職業 2 覆蓋率 75%",
+    "Receiving objects: 100% (222/222), 1.20 MiB | 3.00 MiB/s, done.",
+  ]);
+});
+
+test("前面成功的步驟自己印過 ##[error] 標註也不會抓錯：抓的是最後真正失敗的那一步", () => {
+  const log = actionsLog([
+    "##[group]Run node pipeline/build.mjs",
+    "##[endgroup]",
+    "##[error]某個成功的步驟自己印的錯誤標註",
+    "重建完成",
+    "##[group]Run node pipeline/verify.mjs",
+    "##[endgroup]",
+    "  FAIL 怪物有屬性抗性資料 — 0 隻",
+    "1 項檢查未通過，資料不要上線。",
+    "##[error]Process completed with exit code 1.",
+    "Post job cleanup.",
+  ]);
+  assert.deepEqual(errorTail(log), ["  FAIL 怪物有屬性抗性資料 — 0 隻", "1 項檢查未通過，資料不要上線。"]);
+});
+
+// 2026-10-07 實測（run 37581142501，job 上限臨時設 2 分鐘）：跑超過時間上限被 GitHub 中止，
+// 沒有 Process completed，只有一行 The operation was canceled.，接著就是收尾
+const TIMED_OUT_LOG = actionsLog([
+  "##[group]Run node pipeline/fetch-artale.mjs",
+  "shell: /usr/bin/bash -e {0}",
+  "##[endgroup]",
+  "[artale] 使用上游資料：遊戲版本 1.15.2，2026-09-24 11:25:10 GMT+8",
+  '##[group]Run echo "dry-run 測試：勾了 simulate_failure，故意在這裡失敗，看失敗通知有沒有開出來"',
+  `${ESC}[36;1mecho "臨時：睡 5 分鐘讓 job 逾時"${ESC}[0m`,
+  `${ESC}[36;1msleep 300${ESC}[0m`,
+  "shell: /usr/bin/bash -e {0}",
+  "##[endgroup]",
+  "dry-run 測試：勾了 simulate_failure，故意在這裡失敗，看失敗通知有沒有開出來",
+  "臨時：睡 5 分鐘讓 job 逾時",
+  "##[error]The operation was canceled.",
+  "Post job cleanup.",
+  "[command]/usr/bin/git version",
+  "git version 2.55.0",
+  "Cleaning up orphan processes",
+]);
+
+test("跑太久被中止（10/07 實測）：抓到被中止那一步的輸出，最後一行是 The operation was canceled.", () => {
+  assert.deepEqual(errorTail(TIMED_OUT_LOG), [
+    "dry-run 測試：勾了 simulate_failure，故意在這裡失敗，看失敗通知有沒有開出來",
+    "臨時：睡 5 分鐘讓 job 逾時",
+    "The operation was canceled.",
+  ]);
 });
 
 test("超過 maxLines 只留最後幾行", () => {
@@ -165,6 +225,7 @@ const FAILED_JOB = {
   id: 111137077969,
   name: "refresh",
   conclusion: "failure",
+  html_url: "https://github.com/clarkher/maplestory-tool/actions/runs/37099846007/job/111137077969",
   steps: [
     { number: 1, name: "Set up job", conclusion: "success" },
     { number: 2, name: "Run actions/checkout@v4", conclusion: "success" },
@@ -180,10 +241,30 @@ test("失敗的步驟名照 Actions 頁面上的名字", () => {
   assert.equal(failedStepName(FAILED_JOB), "取得 Artale 資料");
 });
 
-test("沒有哪一步標成失敗（逾時、機器出問題）就回 null", () => {
+test("沒有哪一步標成失敗或被中止就回 null", () => {
   assert.equal(failedStepName({ steps: [{ name: "Set up job", conclusion: "success" }] }), null);
   assert.equal(failedStepName({}), null);
   assert.equal(failedStepName(undefined), null);
+});
+
+// jobs API 回的 refresh job（2026-10-07 run 37581142501）：跑超過時間上限被中止，job 跟當時在跑的那一步都是 cancelled
+const TIMED_OUT_JOB = {
+  id: 112660848558,
+  name: "refresh",
+  conclusion: "cancelled",
+  html_url: "https://github.com/clarkher/maplestory-tool/actions/runs/37581142501/job/112660848558",
+  steps: [
+    { number: 1, name: "Set up job", conclusion: "success" },
+    { number: 6, name: "比對版本", conclusion: "success" },
+    { number: 7, name: "（測試）故意失敗", conclusion: "cancelled" },
+    { number: 8, name: "安裝相依套件", conclusion: "skipped" },
+    { number: 30, name: "Post Run actions/checkout@v4", conclusion: "success" },
+    { number: 31, name: "Complete job", conclusion: "success" },
+  ],
+};
+
+test("跑超過時間上限被中止：回當時在跑的那一步，並註明是被中止的", () => {
+  assert.equal(failedStepName(TIMED_OUT_JOB), "（測試）故意失敗（跑超過時間上限，被中止）");
 });
 
 test("失敗：沒有開著的 issue 就開新的，有就在那張留言；成功：有開著的就關掉", () => {
@@ -358,6 +439,9 @@ test("失敗、沒有開著的：先確保 label 在，再開一張指派給擁�
   assert.match(issue.body, /最後一次失敗：2026-10-07 13:56（台灣時間），連續第 1 次/);
   assert.deepEqual(readFailureMark(issue.body), { step: "取得 Artale 資料", upstream: "", count: 1 });
   assert.deepEqual(github.calls.find(([name]) => name === "jobLog"), ["jobLog", 111137077969]);
+  // 執行紀錄直接連到失敗的那個 job，點了就是那段 log
+  assert.ok(issue.body.includes(`執行紀錄：${FAILED_JOB.html_url}`));
+  assert.ok(issue.body.includes(`連續第 1 次，[執行紀錄](${FAILED_JOB.html_url})`));
 });
 
 /** 上一次通知開出來的那張（取得 Artale 資料失敗、沒有上游版本）。 */
@@ -419,10 +503,26 @@ test("成功、沒有開著的：只查一下，什麼都不寫", async () => {
   assert.deepEqual(github.calls, [["findOpenIssue", "資料更新失敗"]]);
 });
 
-test("被取消：連查都不查", async () => {
-  const github = fakeGitHub({ open: OPEN_ISSUE });
+test("被取消、一步都沒跑（GitHub 沒派到機器，10/05 那次）：不通知，也不查 issue", async () => {
+  const github = fakeGitHub({ open: OPEN_ISSUE, job: { id: 111966673830, name: "refresh", conclusion: "cancelled", steps: [] } });
   assert.equal((await notifyRefresh({ ...FAILED, result: "cancelled" }, github)).action, "none");
-  assert.deepEqual(github.calls, []);
+  assert.deepEqual(github.calls, [["refreshJob"]]);
+});
+
+test("被取消、但有一步被中止（跑超過時間上限）：當成失敗開 issue，寫哪一步被中止與中止前的輸出", async () => {
+  const github = fakeGitHub({ job: TIMED_OUT_JOB, log: TIMED_OUT_LOG });
+  const outcome = await notifyRefresh({ ...FAILED, result: "cancelled" }, github);
+  assert.equal(outcome.action, "create");
+  const [, issue] = github.writes()[1];
+  assert.match(issue.body, /失敗的步驟：（測試）故意失敗（跑超過時間上限，被中止）/);
+  assert.match(issue.body, /The operation was canceled\./);
+  assert.equal(github.calls.filter(([name]) => name === "refreshJob").length, 1, "步驟只讀一次");
+});
+
+test("被取消、讀不到 refresh 這個 job：不通知", async () => {
+  const github = fakeGitHub({ open: OPEN_ISSUE, jobError: new Error("HTTP 500") });
+  assert.equal((await notifyRefresh({ ...FAILED, result: "cancelled" }, github)).action, "none");
+  assert.deepEqual(github.writes(), []);
 });
 
 test("dry-run：查、建 label、開 issue 都用測試那一組，內容第一行標明是測試", async () => {

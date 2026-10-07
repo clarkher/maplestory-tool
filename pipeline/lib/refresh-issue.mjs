@@ -3,6 +3,7 @@
  * 這裡只有不碰網路的部分；打 GitHub API 的在 pipeline/notify-refresh.mjs。
  */
 
+const BOM = String.fromCharCode(0xfeff);
 const TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z ?/;
 const ANSI = /\x1b\[[0-?]*[ -/]*[@-~]/g;
 const MARKER = /^##\[[a-z]+\]/;
@@ -10,49 +11,46 @@ const STEP_START = "##[group]Run ";
 const PROCESS_FAILED = /^##\[error\]Process completed with exit code \d+/;
 // 失敗那一步之後的收尾：post 步驟、清理程序
 const AFTER_STEPS = ["Post job cleanup.", "Cleaning up orphan processes"];
+// git 的進度條「Updating files:  82% (13354/16277)」，括號前的名稱一樣的連續幾行只留最後一行
+const GIT_PROGRESS = /^([^:]+):\s+\d{1,3}% \(\d+\/\d+\)/;
 
 /**
  * 從 job 的整份 log（API 下載的純文字）抓出失敗那一步的輸出，回傳最後幾行。
  *
- * log 每行前面有時間戳，每一步以「##[group]Run 指令」開頭、接著一段顯示指令的 group，
- * run 步驟失敗時最後一行是「##[error]Process completed with exit code N.」；
- * action 步驟（checkout 之類）失敗則只有「##[error]訊息」。
- * 回傳的行已去掉時間戳、顏色碼與 ##[...] 標記，進度條（同一行只差百分比）只留最後一行。
- * log 裡沒有錯誤就回空陣列。
+ * log 每行前面有時間戳，每一步以「##[group]Run 指令」開頭、接著一段顯示指令的 group。
+ * 失敗那一步的結尾：run 步驟是最後一個「##[error]Process completed with exit code N.」（不含）；
+ * action 步驟（checkout 之類）失敗、或跑超過時間上限被中止（最後一行是 The operation was canceled.），
+ * 則是收尾（Post job cleanup.）之前最後一個「##[error]」（含）。
+ * 前面成功的步驟自己印的 ##[error] 標註不會被當成失敗點。
+ * 回傳的行已去掉時間戳、顏色碼與 ##[...] 標記，git 進度條只留最後一行。log 裡沒有錯誤就回空陣列。
  */
 export function errorTail(log, { maxLines = 30, maxLineLength = 300 } = {}) {
-  const lines = log.replace(/^﻿/, "").split(/\r?\n/).map(line => line.replace(TIMESTAMP, "").replace(ANSI, ""));
+  const text = log.startsWith(BOM) ? log.slice(1) : log;
+  const lines = text.split(/\r?\n/).map(line => line.replace(TIMESTAMP, "").replace(ANSI, ""));
 
-  const firstError = lines.findIndex(line => line.startsWith("##[error]"));
-  if (firstError === -1) return [];
+  let end = lastIndexOf(lines, line => PROCESS_FAILED.test(line), lines.length);
+  if (end === -1) {
+    const cleanup = lines.findIndex(line => AFTER_STEPS.includes(line));
+    const lastError = lastIndexOf(lines, line => line.startsWith("##[error]"), cleanup === -1 ? lines.length : cleanup);
+    if (lastError === -1) return [];
+    end = lastError + 1;
+  }
 
   // 往回找這一步的開頭，跳過顯示指令的那段 group
-  let start = lastIndexOf(lines, line => line.startsWith(STEP_START), firstError);
+  let start = lastIndexOf(lines, line => line.startsWith(STEP_START), end);
   if (start === -1) {
     start = 0;
   } else {
     const headerEnd = lines.indexOf("##[endgroup]", start);
-    start = headerEnd !== -1 && headerEnd < firstError ? headerEnd + 1 : start + 1;
-  }
-
-  // 往後找這一步的結尾：run 步驟到 Process completed 那行（不含），action 步驟到最後一個錯誤（含）
-  let end = firstError + 1;
-  for (let i = firstError; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (i > firstError && (line.startsWith(STEP_START) || AFTER_STEPS.includes(line))) break;
-    if (PROCESS_FAILED.test(line)) {
-      end = i;
-      break;
-    }
-    if (line.startsWith("##[error]")) end = i + 1;
+    start = headerEnd !== -1 && headerEnd < end ? headerEnd + 1 : start + 1;
   }
 
   const body = [];
   for (const raw of lines.slice(start, end)) {
     if (raw === "##[endgroup]") continue;
     const line = raw.replace(MARKER, "");
-    const previous = body.at(-1);
-    if (previous !== undefined && isProgress(previous) && isProgress(line) && progressKey(previous) === progressKey(line)) {
+    const progress = line.match(GIT_PROGRESS)?.[1];
+    if (progress !== undefined && body.at(-1)?.match(GIT_PROGRESS)?.[1] === progress) {
       body[body.length - 1] = line;
     } else {
       body.push(line);
@@ -69,14 +67,6 @@ function lastIndexOf(lines, predicate, before) {
   return -1;
 }
 
-function isProgress(line) {
-  return /\d+%/.test(line);
-}
-
-function progressKey(line) {
-  return line.replace(/\d+/g, "#").replace(/\s+/g, " ").trim();
-}
-
 function trimBlank(lines) {
   let from = 0;
   let to = lines.length;
@@ -85,14 +75,26 @@ function trimBlank(lines) {
   return lines.slice(from, to);
 }
 
-/** jobs API 回的 job → 第一個失敗的步驟名（Actions 頁面上看到的那個）；沒有就 null。 */
+/**
+ * jobs API 回的 job → 失敗的步驟名（Actions 頁面上看到的那個）。
+ * 跑超過時間上限被中止時沒有哪一步是 failure，當時在跑的那一步是 cancelled，回那一步並註明。都沒有就 null。
+ */
 export function failedStepName(job) {
-  return job?.steps?.find(step => step.conclusion === "failure")?.name ?? null;
+  const steps = job?.steps ?? [];
+  const failed = steps.find(step => step.conclusion === "failure");
+  if (failed) return failed.name;
+  const stopped = steps.find(step => step.conclusion === "cancelled");
+  return stopped ? `${stopped.name}（跑超過時間上限，被中止）` : null;
+}
+
+/** job 被中止時有哪一步跑到一半（跑超過時間上限）；一步都沒跑（GitHub 沒派到機器）就不是。 */
+function wasStopped(job) {
+  return Boolean(job?.steps?.some(step => step.conclusion === "cancelled"));
 }
 
 /**
  * refresh job 的結果＋有沒有開著的 issue → 要做什麼。
- * 只有 failure 才通知；cancelled（手動取消、GitHub 沒派到機器）下一輪自己會再跑，不吵人。
+ * cancelled 一律不動；跑超過時間上限的那種 cancelled，notifyRefresh 會先看步驟、改成 failure 再問。
  */
 export function planAction(result, hasOpenIssue) {
   if (result === "failure") return hasOpenIssue ? "comment" : "create";
@@ -177,10 +179,19 @@ function fenceFor(lines) {
  * 回傳 { action: "create" | "comment" | "update" | "close" | "none", issue? }
  */
 export async function notifyRefresh(ctx, github) {
-  if (ctx.result !== "failure" && ctx.result !== "success") return { action: "none" };
+  let result = ctx.result;
+  let job;
+  if (result === "cancelled") {
+    // 跑超過時間上限也是 cancelled（10/07 實測）：有哪一步被中止就當失敗；一步都沒跑是 GitHub 沒派到機器，下一輪會再跑。
+    // 手動取消整個執行時 notify 根本不會跑（workflow 的 if: !cancelled()），不會走到這裡
+    job = await github.refreshJob().catch(() => null);
+    if (!wasStopped(job)) return { action: "none" };
+    result = "failure";
+  }
+  if (result !== "failure" && result !== "success") return { action: "none" };
   const { label, title } = issueKeys(ctx.dryRun);
   const open = await github.findOpenIssue(label);
-  const action = planAction(ctx.result, Boolean(open));
+  const action = planAction(result, Boolean(open));
 
   if (action === "close") {
     await github.comment(open.number, recoveredBody(ctx));
@@ -189,7 +200,7 @@ export async function notifyRefresh(ctx, github) {
   }
   if (action === "none") return { action };
 
-  const failure = { ...ctx, ...(await failureDetails(github)), at: taipeiTime(ctx.now ?? new Date()) };
+  const failure = { ...ctx, ...(await failureDetails(github, job)), at: taipeiTime(ctx.now ?? new Date()) };
   if (action === "create") {
     await github.ensureLabel(label);
     const issue = await github.createIssue({ title, body: failureBody(failure), label, assignee: ctx.assignee });
@@ -205,20 +216,24 @@ export async function notifyRefresh(ctx, github) {
   return { action: same ? "update" : "comment", issue: open };
 }
 
-/** 失敗的步驟名＋錯誤最後幾行；API 讀不到也照樣回內容，通知本身不能因此開不出來。 */
-async function failureDetails(github) {
-  let job;
-  try {
-    job = await github.refreshJob();
-  } catch (error) {
-    return { stepName: `（讀不到：${error.message}）`, tail: [], tailNote: "讀不到這次執行的步驟" };
+/**
+ * 失敗的步驟名＋錯誤最後幾行＋失敗那個 job 的網址（點了直接看到那段 log）；
+ * job 已經讀過就不再讀。API 讀不到也照樣回內容，通知本身不能因此開不出來。
+ */
+async function failureDetails(github, job) {
+  if (!job) {
+    try {
+      job = await github.refreshJob();
+    } catch (error) {
+      return { stepName: `（讀不到：${error.message}）`, tail: [], tailNote: "讀不到這次執行的步驟" };
+    }
   }
-  const stepName = failedStepName(job);
+  const details = { stepName: failedStepName(job), ...(job.html_url ? { runUrl: job.html_url } : {}) };
   try {
     const tail = errorTail(await github.jobLog(job.id));
-    return { stepName, tail, tailNote: tail.length > 0 ? undefined : "log 裡找不到錯誤訊息" };
+    return { ...details, tail, tailNote: tail.length > 0 ? undefined : "log 裡找不到錯誤訊息" };
   } catch (error) {
-    return { stepName, tail: [], tailNote: `抓不到 log（${error.message}）` };
+    return { ...details, tail: [], tailNote: `抓不到 log（${error.message}）` };
   }
 }
 

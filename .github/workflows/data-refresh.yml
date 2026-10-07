@@ -10,8 +10,8 @@ name: 資料自動更新
 #
 # 失敗通知（notify job，pipeline/notify-refresh.mjs）：refresh 任何一步失敗就開一張 issue
 # （label「資料更新失敗」，指派給 repo 擁有者）。已經有開著的就不另開：同樣的失敗只更新內文「最後一次失敗」那行、
-# 不發通知，失敗的步驟或上游版本變了才留言；之後成功一次就留言並關掉。
-# 要測通知本身，手動觸發勾 dry_run（不開 PR、不合併，寫到「資料更新失敗-測試」），再勾 simulate_failure 會故意失敗一次。
+# 不發通知，失敗的步驟或上游版本變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
+# 要測通知本身，手動觸發勾 dry_run（不開 PR、不合併，寫到「資料更新失敗-測試」）；勾 simulate_failure 會故意失敗一次（也算 dry-run）。
 
 on:
   schedule:
@@ -28,7 +28,7 @@ on:
         type: boolean
         default: false
       simulate_failure:
-        description: "測試用（要同時勾 dry_run）：比對版本之後故意失敗一次，測失敗通知"
+        description: "測試用：比對版本之後故意失敗一次，測失敗通知（勾了就算 dry-run，不開 PR、不合併）"
         type: boolean
         default: false
   push:
@@ -40,13 +40,15 @@ on:
 
 concurrency:
   # dry-run 自己排一列：同一群組只留一個排隊中的，混在一起會把正式排程擠掉
-  group: data-refresh${{ inputs.dry_run && '-dry-run' || '' }}
+  group: data-refresh${{ (inputs.dry_run || inputs.simulate_failure) && '-dry-run' || '' }}
   cancel-in-progress: false
 
 jobs:
   # notify 用 job 名稱 refresh 找這個 job 的步驟與 log，改名要一起改 pipeline/notify-refresh.mjs
   refresh:
     runs-on: ubuntu-latest
+    # 上游版本沒變約 1 分鐘跑完；卡住（例如 clone 上游斷線不動）最多佔 45 分鐘，被中止後 notify 會開 issue
+    timeout-minutes: 45
     permissions:
       contents: write
       pull-requests: write
@@ -88,10 +90,10 @@ jobs:
           fi
 
       - name: （測試）故意失敗
-        if: inputs.dry_run && inputs.simulate_failure
+        if: inputs.simulate_failure
         run: |
           echo "dry-run 測試：勾了 simulate_failure，故意在這裡失敗，看失敗通知有沒有開出來"
-          echo "Error: 這是模擬的錯誤訊息，不是真的壞掉" >&2
+          echo "Error: 這是模擬的錯誤訊息，不是真的壞掉"
           exit 1
 
       - name: 安裝相依套件
@@ -125,12 +127,12 @@ jobs:
         run: npm run build
 
       - name: 開 PR 並自動合併
-        if: steps.check.outputs.changed == 'true' && !inputs.dry_run
+        if: steps.check.outputs.changed == 'true' && !(inputs.dry_run || inputs.simulate_failure)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：步驟條件之外再擋一次
-          if [ "${{ inputs.dry_run }}" = "true" ]; then
+          if [ "${{ inputs.dry_run || inputs.simulate_failure }}" = "true" ]; then
             echo "dry-run：不開 PR、不合併"
             exit 0
           fi
@@ -176,6 +178,6 @@ jobs:
           REFRESH_RESULT: ${{ needs.refresh.result }}
           UPSTREAM_STAMP: ${{ needs.refresh.outputs.stamp }}
           SITE_STAMP: ${{ needs.refresh.outputs.before }}
-          DRY_RUN: ${{ inputs.dry_run == true }}
+          DRY_RUN: ${{ (inputs.dry_run || inputs.simulate_failure) == true }}
           ASSIGNEE: ${{ github.repository_owner }}
         run: node pipeline/notify-refresh.mjs
