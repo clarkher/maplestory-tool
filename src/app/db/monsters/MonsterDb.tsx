@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { GoButton } from "@/components/PlanShell";
@@ -123,8 +123,17 @@ function MonsterDetail({
   const elements = elementalNotes(monster.el);
   // 出沒地圖只列開放的圖：現在就能去、刷怪點多的在前，10/15 才開的排後面；先列幾張，按「看全部」才全部列
   const { rows: mapRows, hidden: hiddenMaps } = monsterMaps(monster, maps, map => notOpenYet && isV002Map(map));
-  const [allMapsShown, setAllMapsShown] = useState(false);
+  // 展開記到關掉分頁為止：點地圖、掉落物離開再按返回，卡片還是一樣長，瀏覽器才捲得回原位
+  const [allMapsShown, setAllMapsShown] = useRemembered(`db:怪物:allMaps:${monster.id}`, false);
   const visibleMaps = allMapsShown ? mapRows : mapRows.slice(0, FIRST_MAPS);
+  // 按「看全部」後按鈕不見了：焦點放到新列出來的第一列，用鍵盤、讀螢幕的人才不會被丟回頁首
+  const firstNewMap = useRef<HTMLLIElement>(null);
+  const justExpanded = useRef(false);
+  useEffect(() => {
+    if (!allMapsShown || !justExpanded.current) return;
+    justExpanded.current = false;
+    firstNewMap.current?.querySelector("a")?.focus({ preventScroll: true });
+  }, [allMapsShown]);
   // 掉落物不列沒有名字的道具（道具清單本來就不列）
   const { shown: drops, hidden: hiddenDrops } = monsterDrops(monster.drops, itemIndex);
 
@@ -181,9 +190,10 @@ function MonsterDetail({
         <Section title="出沒地圖" extra={mapRows.length ? `${mapRows.length} 張` : undefined}>
           {mapRows.length ? (
             <ul className="space-y-1.5">
-              {visibleMaps.map(row => (
+              {visibleMaps.map((row, index) => (
                 <li
                   key={row.id}
+                  ref={index === FIRST_MAPS ? firstNewMap : undefined}
                   className="flex items-center justify-between gap-2 rounded-xl bg-[color:var(--paper-deep)] px-3 py-2"
                 >
                   <span className="min-w-0">
@@ -204,7 +214,10 @@ function MonsterDetail({
           {visibleMaps.length < mapRows.length ? (
             <button
               type="button"
-              onClick={() => setAllMapsShown(true)}
+              onClick={() => {
+                justExpanded.current = true;
+                setAllMapsShown(true);
+              }}
               className="tap-safe w-full rounded-xl border border-[color:var(--paper-edge)] py-2.5 text-sm font-bold ink-soft hover:text-[color:var(--maple)]"
             >
               看全部 {mapRows.length} 張
@@ -232,7 +245,7 @@ function MonsterDetail({
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={itemImage(itemId)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />
-                      <span className="text-[13px] font-bold">{item?.n ?? `#${itemId}`}</span>
+                      <span className="text-[13px] font-bold">{item?.n}</span>
                     </Link>
                   </li>
                 );

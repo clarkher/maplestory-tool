@@ -12,7 +12,7 @@
 // 量不到真的畫面。無頭頁面算看得見，動畫照跑。取樣要在畫完之後（requestAnimationFrame 之後再 setTimeout），
 // 不然會量到沒畫出來的那一格。按返回／下一頁一律用 DevTools 的 Page.navigateToHistoryEntry（跟按瀏覽器的返回鍵一樣），
 // 不用頁面裡的 history.back()。
-// 寫死的資料：綠水靈 210100（卡片很長）、白狼人 8140000（怪物清單第 121 筆，不在前 60 筆）、道具 1302020（不在前 60 筆）、
+// 寫死的資料：綠水靈 210100（出沒地圖展開後卡片很長）、白狼人 8140000（怪物清單第 121 筆，不在前 60 筆）、幼黑格里芬 6230401（掉落全都沒名字）、道具 1302020（不在前 60 筆）、
 // 任務 6931 要先完成 6930。遊戲資料改版後對不上時，這幾項會 FAIL 並寫出原因，換成新的 id 就好。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -759,42 +759,85 @@ try {
   });
 
   // N14 怪物卡：出沒地圖不列還沒開放的圖、先列 5 張（現在就能去、刷怪點多的在前）＋「看全部 N 張」；
-  // 掉落物不列沒有名字的道具；卡片下面那顆按鈕寫「收起」。張數、樣數拿網站自己的資料檔對
+  // 掉落物不列沒有名字的道具；卡片下面那顆按鈕寫「收起」。答案拿網站自己的資料檔（怪物、地圖、道具）另外算
+  const N14_DATA = `
+    const urlOf = name => performance.getEntriesByType("resource").map(e => e.name).find(u => u.includes("/data/" + name + ".json")) ?? "/data/" + name + ".json";
+    const [monsterData, mapData, itemData] = await Promise.all(["monsters", "maps", "items"].map(name => fetch(urlOf(name)).then(res => res.json())));
+    const byId = new Map(itemData.map(item => [item.id, item]));
+    const expect = id => {
+      const m = monsterData.find(x => x.id === id);
+      const mapIds = [...new Set([...(m.sp ?? []).map(x => x[0]), ...m.maps])];
+      const openMaps = mapIds.filter(mapId => mapData[String(mapId)]?.zh).length;
+      const namedDrops = m.drops.filter(itemId => byId.get(itemId) && !byId.get(itemId).un).length;
+      return { openMaps, hiddenMaps: mapIds.length - openMaps, namedDrops, hiddenDrops: m.drops.length - namedDrops };
+    };
+    const sectionOf = (card, title) => [...card.querySelectorAll("section")].find(s => s.querySelector("h3")?.textContent.startsWith(title));
+    const noteOf = section => [...(section?.querySelectorAll("p") ?? [])].map(p => p.textContent.trim()).find(t => t.startsWith("另有") || t.includes("都還沒")) ?? null;
+  `;
   await section("N14", async () => {
     await fresh("/db/monsters");
-    let r = await ev(`const id = "210100"; __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+    let r = await ev(`${N14_DATA}
+      const id = "210100"; __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+      const want = expect(210100);
       const card = __row(id).querySelector("article");
-      const maps = [...card.querySelectorAll("section")].find(s => s.querySelector("h3")?.textContent.startsWith("出沒地圖"));
+      const maps = sectionOf(card, "出沒地圖");
       const rows = () => [...maps.querySelectorAll("ul > li")];
       const spawnsOf = li => { const m = li.textContent.match(/(\\d+) 個刷怪點/); return m ? Number(m[1]) : -1; };
       const header = Number(maps.querySelector("h3").textContent.match(/(\\d+) 張/)?.[1]);
       const before = rows().length;
       const more = [...maps.querySelectorAll("button")].find(b => b.textContent.includes("看全部"));
       const moreText = more ? more.textContent.trim() : null;
-      more?.click(); await __sleep(400);
+      // 用鍵盤按（先把焦點放上去再按）：按鈕按完會不見，焦點要落在新列出來的第一列
+      more?.focus(); more?.click(); await __sleep(500);
+      const sixth = rows()[before];
+      const focusInSixth = !!sixth && sixth.contains(document.activeElement);
       const after = rows().map(li => ({ spawns: spawnsOf(li), later: li.textContent.includes("10/15 開放") }));
-      const note = [...maps.querySelectorAll("p")].map(p => p.textContent.trim()).find(t => t.startsWith("另有")) ?? null;
-      const data = await (await fetch("/data/monsters.json")).json();
-      const m = data.find(x => x.id === 210100);
-      const total = new Set([...(m.sp ?? []).map(x => x[0]), ...m.maps]).size;
-      return { header, before, moreText, after, note, total, unopened: card.textContent.includes("未開放地圖"), bottom: card.nextElementSibling?.textContent.trim() ?? null };`);
+      return { want, header, before, moreText, focusInSixth, active: document.activeElement?.textContent?.trim().slice(0, 20) ?? null, after, note: noteOf(maps),
+        unopened: card.textContent.includes("未開放地圖"), bottom: card.nextElementSibling?.textContent.trim() ?? null };`);
     const sorted = r.after.every((row, i, all) => i === 0 || (all[i - 1].later === row.later ? all[i - 1].spawns >= row.spawns : !all[i - 1].later && row.later));
-    check("N14 出沒地圖先列 5 張，下面一顆「看全部 N 張」", r.before === Math.min(5, r.header) && r.moreText === `看全部 ${r.header} 張`, { header: r.header, before: r.before, moreText: r.moreText });
-    check("N14 按「看全部」：全部列出來，現在就能去、刷怪點多的在前", r.after.length === r.header && sorted, { count: r.after.length, rows: r.after.slice(0, 8) });
-    check("N14 還沒開放的圖不列，最後寫另有幾張", !r.unopened && r.total > r.header && r.note === `另有 ${r.total - r.header} 張還沒開放的地圖沒列出來`, { note: r.note, total: r.total, header: r.header, unopened: r.unopened });
+    check("N14 出沒地圖只列開放的圖，先列 5 張，下面一顆「看全部 N 張」", r.header === r.want.openMaps && r.before === Math.min(5, r.header) && r.moreText === `看全部 ${r.want.openMaps} 張`, { want: r.want, header: r.header, before: r.before, moreText: r.moreText });
+    check("N14 按「看全部」：全部列出來，現在就能去、刷怪點多的在前", r.after.length === r.want.openMaps && sorted, { count: r.after.length, rows: r.after.slice(0, 8) });
+    check("N14 按「看全部」後焦點落在新列出來的第一列（用鍵盤、讀螢幕的人不會被丟回頁首）", r.focusInSixth, r.active);
+    check("N14 還沒開放的圖不列，最後寫另有幾張", !r.unopened && r.note === `另有 ${r.want.hiddenMaps} 張還沒開放的地圖沒列出來`, { note: r.note, want: r.want, unopened: r.unopened });
     check("N14 卡片下面那顆按鈕寫「收起」", r.bottom === "收起", r.bottom);
+
+    // 展開後點掉落物離開，再按返回：還是展開的，剛剛點的那一樣回到原本的位置
+    const ctx = await ev(`const id = "210100"; const card = __row(id).querySelector("article");
+      const link = [...card.querySelectorAll("a[href^='/db/items']")][0];
+      link.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      const href = link.getAttribute("href"); const topBefore = Math.round(link.getBoundingClientRect().top);
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+      await __waitFor(() => location.pathname === "/db/items"); await __sleep(1000);
+      return { href, topBefore };`);
+    await traverse(-1);
+    r = await ev(`await __waitFor(() => location.pathname === "/db/monsters" && __id() === "210100"); await __sleep(600);
+      const card = __row("210100")?.querySelector("article") ?? document.querySelector("main .scroll-mt-20.pb-2 article");
+      const maps = [...card.querySelectorAll("section")].find(s => s.querySelector("h3")?.textContent.startsWith("出沒地圖"));
+      const link = card.querySelector("a[href='" + ${JSON.stringify(ctx.href)} + "']");
+      return { rows: maps.querySelectorAll("ul > li").length, more: [...maps.querySelectorAll("button")].some(b => b.textContent.includes("看全部")),
+        topAfter: link ? Math.round(link.getBoundingClientRect().top) : null };`);
+    check("N14 展開後離開再按返回：還是展開的，剛點的那一樣回到原本的位置", !r.more && r.rows > 5 && near(r.topAfter, ctx.topBefore, 8), { ...ctx, ...r });
+
+    // 白狼人：掉落物只列有名字的，最後寫另有幾樣
     await clearRemembered();
     await navigate(`${BASE}/db/monsters?id=8140000`);
-    r = await ev(`await __ready(); await __sleep(900); const card = document.querySelector("main .scroll-mt-20.pb-2 article");
-      const drops = [...card.querySelectorAll("section")].find(s => s.querySelector("h3")?.textContent.startsWith("掉落物"));
+    r = await ev(`await __ready(); await __sleep(900); ${N14_DATA}
+      const want = expect(8140000); const card = document.querySelector("main .scroll-mt-20.pb-2 article");
+      const drops = sectionOf(card, "掉落物");
       const header = Number(drops.querySelector("h3").textContent.match(/(\\d+) 樣/)?.[1]);
       const chips = [...drops.querySelectorAll("ul > li")].map(li => li.textContent.trim());
-      const note = [...drops.querySelectorAll("p")].map(p => p.textContent.trim()).find(t => t.startsWith("另有")) ?? null;
-      const data = await (await fetch("/data/monsters.json")).json();
-      const total = data.find(x => x.id === 8140000).drops.length;
-      return { header, chips: chips.length, unnamed: chips.filter(t => t.startsWith("未命名")).length, note, total };`);
-    check("N14 掉落物不列沒有名字的道具，最後寫另有幾樣", r.chips === r.header && r.unnamed === 0 && r.total > r.header && r.note === `另有 ${r.total - r.header} 樣還沒有名字的道具沒列出來`, r);
+      return { want, header, chips: chips.length, unnamed: chips.filter(t => t.startsWith("未命名")).length, note: noteOf(drops) };`);
+    check("N14 掉落物不列沒有名字的道具，最後寫另有幾樣", r.header === r.want.namedDrops && r.chips === r.header && r.unnamed === 0 && r.note === `另有 ${r.want.hiddenDrops} 樣還沒有名字的道具沒列出來`, r);
     await shot("n14-monster-card.png");
+
+    // 幼黑格里芬：掉的全都沒有名字——標題不寫樣數，寫「掉的 N 樣道具都還沒有名字，沒列出來」
+    await navigate(`${BASE}/db/monsters?id=6230401`);
+    r = await ev(`await __ready(); await __sleep(900); ${N14_DATA}
+      const want = expect(6230401);
+      const card = __row("6230401")?.querySelector("article") ?? document.querySelector("main .scroll-mt-20.pb-2 article");
+      const drops = sectionOf(card, "掉落物");
+      return { want, title: drops?.querySelector("h3")?.textContent.trim() ?? null, chips: drops?.querySelectorAll("ul > li").length ?? null, note: noteOf(drops) };`);
+    check("N14 掉的全都沒有名字：不列、寫「掉的 N 樣道具都還沒有名字，沒列出來」", r.want.namedDrops === 0 && r.title === "掉落物" && r.chips === 0 && r.note === `掉的 ${r.want.hiddenDrops} 樣道具都還沒有名字，沒列出來`, r);
   });
 
   // N7 捲到底自動載入：沒有看得到的「再載」按鈕，捲到清單底下就自動接上 120 筆，筆數記住

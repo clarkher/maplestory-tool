@@ -22,15 +22,23 @@ describe("怪物卡的出沒地圖", () => {
     expect(result.hidden).toBe(2);
   });
 
-  it("刷怪點多的排前面；刷怪點一樣照原本的順序；沒有刷怪點資料的排最後", () => {
-    const result = monsterMaps({ sp: [[1, 12, 0], [2, 53, 0], [5, 12, 0]], maps: [5, 2, 1, 4] }, maps, now);
+  it("刷怪點多的排前面；刷怪點一樣照原本的順序（不是照編號）；沒有刷怪點資料的排最後", () => {
+    const result = monsterMaps({ sp: [[5, 12, 0], [2, 53, 0], [1, 12, 0]], maps: [1, 2, 5, 4] }, maps, now);
     expect(result.rows).toEqual([
       { id: 2, spawns: 53, later: false },
-      { id: 1, spawns: 12, later: false },
       { id: 5, spawns: 12, later: false },
+      { id: 1, spawns: 12, later: false },
       { id: 4, spawns: null, later: false },
     ]);
     expect(result.hidden).toBe(0);
+  });
+
+  it("現在就能去、只是沒有刷怪點資料的圖，也排在 10/15 才開的圖前面", () => {
+    const result = monsterMaps({ sp: [[4, 30, 0]], maps: [5] }, maps, later);
+    expect(result.rows).toEqual([
+      { id: 5, spawns: null, later: false },
+      { id: 4, spawns: 30, later: true },
+    ]);
   });
 
   it("10/15 才開的圖排在現在就能去的後面，就算刷怪點比較多", () => {
