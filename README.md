@@ -229,5 +229,5 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
   網址後面再給一個資料夾就改寫到那裡（別寫進 repo 裡）。
 - 要有 Chrome（或 Edge、Chromium）。找不到時用環境變數 `CHROME_PATH` 指定。
 - 每次用乾淨的瀏覽器資料，DevTools 的埠由 Chrome 自己挑，幾個一起跑不會撞。
-- 跑一次約 3～4 分鐘。本機 dev server 第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次。
+- 跑一次約 6 分鐘。本機 dev server 第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次。
 - 改了查資料頁的行為，要一起改或加這裡的檢查。
