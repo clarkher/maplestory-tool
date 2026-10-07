@@ -14,6 +14,7 @@ import {
   statShortfall,
   statTargets,
   weaponPicks,
+  weaponTypesFor,
   type GearData,
   type GearNote,
   type GearScroll,
@@ -21,7 +22,7 @@ import {
   type StatKey,
   type StatRule,
 } from "./gear";
-import { jobTier, previousJob } from "./jobs";
+import { jobTier, previousJob, stageJob } from "./jobs";
 
 /** 能力值四格的順序跟格子上的字 */
 export const STAT_ORDER: StatKey[] = ["STR", "DEX", "INT", "LUK"];
@@ -281,3 +282,61 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
     notes: notesFor(gear.notes, job),
   };
 }
+
+/* ------------------------------------------------------------------ 升級路線每一段 */
+
+export type BandWeapon = { level: number; weapon: GearWeapon; source: SourcePick | null };
+export type BandGear = { weapons: BandWeapon[]; families: GearFamily[] };
+
+/**
+ * 這一級用哪套點法：已經是選的職業就用它的主流；還沒轉到（俠盜 25 等還是一轉盜賊）用那一轉的點法——
+ * 那一轉有好幾套時，挑武器種類跟選的職業對得上的那套（槍手一轉照「力量＝等級」用火槍、弩弓手照「一轉先拿弩」），
+ * 都對不上就用那一轉的主流（一轉盜賊不管之後走刺客還是俠盜都是丟標，2026-10-07 使用者）。
+ */
+function ruleAt(rules: StatRule[], job: number, stage: number): StatRule | null {
+  if (stage === job) return rulesFor(rules, job).main;
+  const wanted = weaponTypesFor(job);
+  const matching = rules.find(rule => rule.jobs.includes(stage) && rule.weapons?.some(type => wanted.includes(type)));
+  return matching ?? rulesFor(rules, stage).main;
+}
+
+/**
+ * 升級路線一段（from 到 to，兩頭都算）裡該拿的武器：每一級算一次照點法穿得上、現在拿得到的最強那把，
+ * 只列換武器的那一級（30 等拿 A、35 等換 B）；卷只列武器卷跟手套攻擊卷（部位的主屬性卷不隨等級變，留在首頁卡片）。
+ * 還沒轉到選的職業的那幾級，用那一轉實際用的武器（見 ruleAt）。初心者回空的。
+ */
+export function bandGear(gear: GearData, job: number, from: number, to: number, beforeOpen: boolean): BandGear {
+  if (job <= 0) return { weapons: [], families: [] };
+  const cache = new Map<string, Record<StatKey, number>>();
+  const weapons: BandWeapon[] = [];
+  let lastStage = job;
+  for (let level = Math.max(1, from); level <= to; level++) {
+    const stage = stageJob(job, level);
+    if (stage <= 0) continue;
+    const rule = ruleAt(gear.rules, job, stage);
+    const targetsAt = rule
+      ? (lv: number) => {
+          const key = `${stage}|${rule.label}|${lv}`;
+          let targets = cache.get(key);
+          if (!targets) {
+            const equipReq = rule.secondary?.type === "equip" ? equipRequirement(gear.weapons, stage, lv, rule, beforeOpen) : undefined;
+            targets = statTargets(rule, lv, equipReq);
+            cache.set(key, targets);
+          }
+          return targets;
+        }
+      : undefined;
+    const best = weaponPicks(gear.weapons, stage, level, { targetsAt, beforeOpen, types: rule?.weapons }).best;
+    if (!best || weapons[weapons.length - 1]?.weapon.id === best.id) continue;
+    weapons.push({ level, weapon: best, source: closestSource(best.src, level, beforeOpen, stage) });
+    lastStage = stage;
+  }
+  const last = weapons[weapons.length - 1];
+  // main 給 null：只要武器卷跟手套攻擊卷
+  const families = scrollPicks(gear.scrolls, lastStage, last?.weapon.s ?? null, null, to).map(family => {
+    const pick = familyPick(family.options, beforeOpen);
+    return { ...family, pick, source: closestSource(pick.src, from, beforeOpen, lastStage) };
+  });
+  return { weapons, families };
+}
+
