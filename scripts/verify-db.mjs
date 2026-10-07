@@ -558,14 +558,26 @@ try {
     check("M17 收起 Y：不會跳回 X", r.idAfter === null && r.openAfter.length === 0, r);
   });
 
-  // M18 從清單點開後重新整理，再按收起：不會整頁重載（同一份頁面），收起、那一列在導覽列下方
+  // M18 從清單點開、往下讀到卡片中段後重新整理（v0.62）：停在原本讀到的地方，不跳回卡片頂端，卡片還開在那一列下面；
+  // 再按收起：不會整頁重載（同一份頁面），收起、那一列在導覽列下方
   await section("M18", async () => {
-    await fresh("/db/items");
-    const reloadId = await ev(`const id = __rowId(12); __tap(id); await __waitFor(() => __id() === id); await __sleep(900); return id;`);
+    await fresh("/db/monsters");
+    const ctx = await ev(`const id = "210100"; window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
+      __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
+      // 出沒地圖按「看全部」把卡片撐長（記在這次瀏覽裡，重新整理後一樣長），再往下讀到卡片中段
+      [...__row(id).querySelectorAll("article button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400);
+      const rowAt = __top(id) + Math.round(scrollY); const cardHeight = Math.round(__row(id).getBoundingClientRect().height);
+      window.scrollTo({ top: rowAt + Math.min(1200, Math.round(cardHeight / 2)), behavior: "instant" }); await __sleep(600);
+      return { id, rowAt, cardHeight, leftY: Math.round(scrollY) };`);
     await reload();
-    const r = await ev(`await __ready(); await __sleep(1200); const origin = performance.timeOrigin; const marker = history.state?.dbFromList ?? null;
+    const after = await ev(`await __ready(); await __sleep(1500); const id = ${JSON.stringify(ctx.id)}; const y = Math.round(scrollY);
+      return { y, open: __open(), rowAt: __row(id) ? __top(id) + y : null };`);
+    check("M18 讀到卡片中段重新整理：停在原本讀到的地方（不跳回卡片頂端）、卡片還開在那一列下面",
+      ctx.cardHeight > 1500 && after.open[0] === ctx.id && near(after.y, ctx.leftY), { ...ctx, ...after });
+    await shot("m18-after-reload.png");
+    const r = await ev(`const origin = performance.timeOrigin; const marker = history.state?.dbFromList ?? null;
       __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(800);
-      return { id: ${JSON.stringify(reloadId)}, markerSurvived: marker, sameDoc: performance.timeOrigin === origin, idAfter: __id(), open: __open(), rowTop: __top(${JSON.stringify(reloadId)}) };`);
+      return { id: ${JSON.stringify(ctx.id)}, markerSurvived: marker, sameDoc: performance.timeOrigin === origin, idAfter: __id(), open: __open(), rowTop: __top(${JSON.stringify(ctx.id)}) };`);
     check("M18 重新整理後收起：同一份頁面（沒有整頁重載）、收起、那一列在導覽列下方", r.sameDoc && r.idAfter === null && r.open.length === 0 && near(r.rowTop, 80), r);
   });
 
@@ -576,6 +588,30 @@ try {
     await reload();
     const r = await ev(`await __ready(); await __sleep(600); return { query: __search().value, droppable: __droppable()?.checked };`);
     check("M19 重新整理後搜尋、篩選還在", r.query === "帽" && r.droppable === true, r);
+  });
+
+  // M20 卡片搬家（v0.62）：開在清單第 121 筆的白狼人讀到卡片中段後重新整理——重新整理後清單只剩前 60 筆、卡片搬到清單最上面，
+  // 一樣停在卡片裡讀到的那一段（離卡片那一塊頂端一樣遠），不是卡片頂端
+  await section("M20", async () => {
+    await fresh("/db/monsters");
+    const ctx = await ev(`const id = "8140000";
+      for (let i = 0; i < 4 && !__row(id); i++) await __loadMore();
+      if (!__row(id)) return { skipped: "多載四次還是沒有白狼人" };
+      __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+      __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
+      const blockAt = __top(id) + Math.round(scrollY); const cardHeight = Math.round(__row(id).getBoundingClientRect().height);
+      window.scrollTo({ top: blockAt + Math.min(500, Math.round(cardHeight / 2)), behavior: "instant" }); await __sleep(600);
+      return { id, blockAt, cardHeight, leftY: Math.round(scrollY), offset: Math.round(scrollY) - blockAt };`);
+    let r = ctx;
+    if (!ctx.skipped) {
+      await reload();
+      const after = await ev(`await __ready(); await __sleep(1500); const wrap = __topWrap(); const y = Math.round(scrollY);
+        return { y, topCard: __topCard(), inList: !!__row("8140000"), blockAtAfter: wrap ? Math.round(wrap.getBoundingClientRect().top) + y : null };`);
+      r = { ...ctx, ...after, offsetAfter: after.blockAtAfter === null ? null : after.y - after.blockAtAfter };
+      await shot("m20-moved-card.png");
+    }
+    check("M20 卡片搬家（重新整理後清單只剩 60 筆、卡片搬到最上面）：停在卡片裡讀到的那一段，不是卡片頂端",
+      !r.skipped && r.topCard && !r.inList && r.offset > 100 && near(r.offsetAfter, r.offset), r);
   });
 
   // ── 手機：v0.39 長卡片收起、卡片不搬家、按返回補救、捲到底自動載入、減少動態效果 ──

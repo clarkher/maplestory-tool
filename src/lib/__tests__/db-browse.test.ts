@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, SIDE, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory,
-  listSignature, moreRows, needsRescue, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide,
+  AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, SIDE, cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal,
+  keptFromHistory, listSignature, moreRows, needsRescue, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide,
 } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
@@ -321,6 +321,26 @@ describe("按返回後位置對不上的補救：清單變了、而且那一筆�
 
   it("這筆紀錄沒記過位置（例如更新前留下的）：交給瀏覽器，不動", () => {
     expect(needsRescue({ leftAt: undefined, nowAt: 380, top: -1700, bottom: -900, ...view })).toBe(false);
+  });
+});
+
+describe("重新整理回到開著卡片的那一筆：卡片搬了多少，要跳回去的位置就挪多少", () => {
+  it("卡片在原地（清單跟離開時一樣）：不挪", () => {
+    expect(cardShift(6000, 6000)).toBe(0);
+  });
+
+  it("只差幾 px（字型載入之類）：不算搬家；差 9px 就算", () => {
+    expect(cardShift(6000, 6008)).toBe(0);
+    expect(cardShift(6000, 5992)).toBe(0);
+    expect(cardShift(6000, 6009)).toBe(9);
+  });
+
+  it("重新整理後清單只剩前 60 筆，卡片從第 121 筆（6000）搬到最上面（357）：往上挪 5643", () => {
+    expect(cardShift(6000, 357)).toBe(-5643);
+  });
+
+  it("卡片往下搬：往下挪", () => {
+    expect(cardShift(357, 2410)).toBe(2053);
   });
 });
 

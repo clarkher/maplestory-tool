@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，back-all 和 card-shot 都是 9347，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，back-all 和 card-shot 都是 9347，reload-all 是 9367，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -146,6 +146,19 @@ node scripts/verify/reload-open.mjs <輸出> <網址> [埠=9363] [情境，逗�
 - 已知會沒過的一種（2026-10-07，跟展開無關、改前就這樣）：懶人包 #pq-moon 的站內按返回會停在月妙那步的錨點（1281），
   不是離開的位置（1425）：網址帶 # 的那一筆紀錄，按返回時畫面被捲到錨點，不是瀏覽器記的位置。另外處理。
 - 測試機實測時間（2026-10-07）：全跑約 9 分鐘。
+
+#### `reload-all.mjs`：全站重新整理、離站再返回回不回得到原位（v0.44；v0.62 收進來）
+
+```bash
+node scripts/verify/reload-all.mjs <輸出> <網址> [埠=9367] [頁面,頁面…]
+```
+
+- 預設 10 頁：懶人包、關於、首頁、規劃四頁、怪物清單、道具清單、開著卡片的 `/db/monsters?id=100100`。
+  每頁捲到 60% 高度，各量「重新整理」跟「離站再返回」（一律關返回快取，返回一定整頁重載）。
+- v0.62 起開著卡片的網址也要回到離開時的位置（之前會跳回卡片頂端：離開 4001 → 停 357）。
+- 手機 375 寬。重新整理、返回後等 4 秒再看（環境變數 `WAIT` 改毫秒數）。
+- 輸出：每格一張截圖、`results.json`；console 每格一行（離開 → 停在哪、對不對、一載入的逐格位置），最後一行是幾格對。
+- 幾支 Chrome 同時跑會互相拖慢，資料還沒到就量，數字會歪：最後一輪一支一支跑。
 
 #### `after-back.mjs`：按完返回後，頁內平滑捲動還在不在（v0.40）
 

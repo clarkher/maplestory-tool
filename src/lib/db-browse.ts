@@ -219,6 +219,14 @@ export function needsRescue({
 }
 
 /**
+ * 重新整理、離站再返回回到開著卡片的那一筆：卡片離頁面頂端的位置比離開時搬了多少（leftAt → nowAt），
+ * 要放回去的位置就跟著挪多少，一樣停在卡片裡讀到的那一段。只差幾 px（字型載入之類）不算搬家，回 0。
+ */
+export function cardShift(leftAt: number, nowAt: number): number {
+  return Math.abs(nowAt - leftAt) <= MOVED ? 0 : nowAt - leftAt;
+}
+
+/**
  * 這次換頁是不是按上一頁／下一頁來的：是的話交給瀏覽器還原位置，自己不要再捲。
  * 之後只要使用者自己點了東西或按了鍵，接下來的換頁就是新的。
  * onTraverse／onFresh：按上一頁時、之後第一次自己操作時各通知一次。
