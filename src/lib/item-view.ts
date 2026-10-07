@@ -159,7 +159,7 @@ export function sortCategories(categories: string[]): string[] {
 
 /**
  * 搜尋時額外比對的字：說明、種類（短刀）、需求職業（劍士、盜賊）。
- * 沒有職業限制的不放職業名，免得搜「劍士」被全職業裝備洗版（要看全部能用的，用「只看我能用的」篩選）；
+ * 沒有職業限制的不放職業名，免得搜「劍士」被全職業裝備洗版（要看全部能用的，按「〇〇能用」標籤）；
  * 時裝也不放（「劍士一、二轉技能效果」這類不是玩家搜職業時要找的）。
  */
 export function itemKeywords(item: Item): string {

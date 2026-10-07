@@ -534,8 +534,12 @@ export function DbBrowser({
                     return (
                       <Fragment key={entry.id}>
                         {heads[index] ? (
-                          // 小標不是清單的一筆：沒有 db-row- 的 id，不算進筆數、不影響展開與還原位置
-                          <li className="px-2.5 pb-0.5 pt-3 text-[12px] font-bold ink-faint first:pt-1">{heads[index]}</li>
+                          // 小標不是清單的一筆：沒有 db-row- 的 id，不算進筆數、不影響展開與還原位置。
+                          // 字寫成 h2，讀螢幕軟體才能用標題一組一組跳；間距跟 first:pt-1 留在 li 上
+                          // （first: 放在 h2 上，它永遠是 li 的第一個子元素，每個小標都會吃到，第二組上面就擠了）
+                          <li className="px-2.5 pb-0.5 pt-3 first:pt-1">
+                            <h2 className="text-[12px] font-bold ink-faint">{heads[index]}</h2>
+                          </li>
                         ) : null}
                         {/* scroll-mt：捲過來時讓出頂端固定的導覽列，那一列和展開的細節不會被蓋住 */}
                         <li id={`db-row-${entry.id}`} className="scroll-mt-header">
