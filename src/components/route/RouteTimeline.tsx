@@ -110,12 +110,9 @@ function BandItem({
     <li className="relative">
       <span
         aria-hidden
-        className={`absolute -left-8 top-3 grid size-[27px] place-items-center rounded-full border-[3px] ${
-          state === "current"
-            ? "border-[color:var(--maple)] bg-[color:var(--maple)]"
-            : state === "done"
-              ? "border-[color:var(--leaf)] bg-[color:var(--leaf)]"
-              : "border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
+        // 三種圓點都套米色外圈，接上後面那條米色直線（2026-10-07 使用者看過實心版，選維持外圈）
+        className={`absolute -left-8 top-3 grid size-[27px] place-items-center rounded-full border-[3px] border-[color:var(--paper-edge)] ${
+          state === "current" ? "bg-[color:var(--maple)]" : state === "done" ? "bg-[color:var(--leaf)]" : "bg-[color:var(--paper)]"
         }`}
       >
         {state === "done" ? (
