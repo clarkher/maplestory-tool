@@ -202,7 +202,7 @@ npm run data:all      # 以上全跑
   （label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本、執行紀錄連結、那一步錯誤訊息的最後 30 行。
   已經有開著的就不另開：同樣的失敗（同一步、同一個上游版本）只更新那張內文的「最後一次失敗」那行（改內文不發通知，
   壞著沒修也不會每 12 小時吵一次），失敗的步驟或上游版本變了才在那張留言；之後成功一次就自動留言並關掉。
-  refresh 最多跑 45 分鐘（`timeout-minutes`，平常約 1 分鐘），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
+  refresh 最多跑 30 分鐘（`timeout-minutes`；平常連完整重建約 1 分鐘），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
   （中止的結果是 cancelled，notify 看有沒有哪一步跑到一半來分辨）；一步都沒跑（GitHub 沒派到機器）不通知，下一輪會再跑；
   手動取消整個執行時 notify 不會跑。
   程式在 `pipeline/notify-refresh.mjs`（內容與判斷在 `pipeline/lib/refresh-issue.mjs`）；

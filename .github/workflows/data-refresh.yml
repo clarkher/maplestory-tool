@@ -47,8 +47,8 @@ jobs:
   # notify 用 job 名稱 refresh 找這個 job 的步驟與 log，改名要一起改 pipeline/notify-refresh.mjs
   refresh:
     runs-on: ubuntu-latest
-    # 上游版本沒變約 1 分鐘跑完；卡住（例如 clone 上游斷線不動）最多佔 45 分鐘，被中止後 notify 會開 issue
-    timeout-minutes: 45
+    # 平常約 1 分鐘跑完（2026-10-07 實測，連 npm ci、next build 的完整重建也是）；卡住（例如 clone 上游斷線不動）最多佔 30 分鐘，被中止後 notify 會開 issue
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
