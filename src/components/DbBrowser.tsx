@@ -43,6 +43,12 @@ function subscribeWide(onChange: () => void) {
  */
 const navHistory = typeof window === "undefined" ? null : createHistoryTracker(window);
 
+/**
+ * 這次換的網址是不是按上一頁／下一頁來的。同一頁裡按返回時，Next 收到 popstate 就在緊接著的 microtask 重畫、跑完 effect，
+ * 比 navHistory 自己的 popstate 監聽還早（DbBrowser 比 Next 晚載入，監聽排在後面）；這時候看正在發的事件才認得出來。
+ */
+const cameFromHistory = () => navHistory?.cameFromHistory() || window.event?.type === "popstate";
+
 /** 清單每一列的 DOM id：展開、收起、從連結跳過來時用來找那一列 */
 const rowOf = (id: string) => document.getElementById(`db-row-${id}`);
 
@@ -282,7 +288,7 @@ export function DbBrowser({
       pickedFromList.current = false;
       return;
     }
-    if (navHistory?.cameFromHistory()) {
+    if (cameFromHistory()) {
       // 按上一頁／下一頁換的交給瀏覽器還原位置。記憶是整頁共用，中途在別處改過搜尋、篩選的話清單跟離開時不同，
       // 還原的位置會對不上：瀏覽器還原完的下一個畫面前比一次，清單變了、而且那一筆和卡片都不在畫面上，才直接跳過去
       const left = cardOf(window.history.state);
