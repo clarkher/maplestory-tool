@@ -4,21 +4,34 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
-import { itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage } from "@/lib/data";
-import { equipStatLabel, equipStatValue } from "@/lib/format";
+import {
+  itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage, peekItems, peekMaps, peekMonsters, peekQuests,
+} from "@/lib/data";
+import {
+  compareItems, equipGroups, itemKeywords, itemNote, jobLabel, shopGroups, sortCategories, subcategoryOptions, usableBy, wearFit, type WearFit,
+} from "@/lib/item-view";
+import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
+import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
-import { isV002Item, v002MonsterIds, v002QuestIds } from "@/lib/v002";
+import { isV002Item, isV002Map, v002MonsterIds, v002QuestIds } from "@/lib/v002";
 
 export function ItemDb() {
-  const [items, setItems] = useState<Item[] | null>(null);
-  const [monsters, setMonsters] = useState<Monster[] | null>(null);
-  const [quests, setQuests] = useState<Quest[] | null>(null);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
+  // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
+  const [items, setItems] = useState<Item[] | null>(peekItems);
+  const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
+  const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState("");
-  const [onlyDroppable, setOnlyDroppable] = useState(false);
+  const [category, setCategory] = useRemembered("db:道具:category", "");
+  const [subcategory, setSubcategory] = useRemembered("db:道具:subcategory", "");
+  const [onlyDroppable, setOnlyDroppable] = useRemembered("db:道具:onlyDroppable", false);
+  const [onlyMine, setOnlyMine] = useRemembered("db:道具:onlyMine", false);
   const notOpenYet = useBeforeV002();
+  // 同步讀角色：按返回時第一個畫面就套上「只看〇〇能用的」，清單才跟離開時一樣
+  const { profile, loaded, isComplete } = useStoredProfile();
+  /** 角色列選了職業就出現「只看〇〇能用的裝備」，不用填等級（這個篩選本來就不看等級） */
+  const mineName = loaded && profile.job >= 0 ? jobLabel(profile.job) : null;
 
   useEffect(() => {
     Promise.all([loadItems(), loadMonsters(), loadQuests(), loadMaps()])
@@ -51,24 +64,45 @@ export function ItemDb() {
   const categories = useMemo(() => {
     const set = new Set<string>();
     for (const item of items ?? []) if (item.c) set.add(item.c);
-    return [...set].sort();
+    return sortCategories([...set]);
   }, [items]);
 
+  /** 清單預設順序：裝備在前、依需求等級由低到高（原本依名稱，一打開是一整排勳章） */
+  const sortedItems = useMemo(() => (items ?? []).filter(item => !item.un).sort(compareItems), [items]);
+
+  /** 搜尋關鍵字只跟道具本身有關，載完算一次，切篩選不用重算一萬多筆 */
+  const keywordsById = useMemo(() => new Map(sortedItems.map(item => [item.id, itemKeywords(item)])), [sortedItems]);
+
+  const mineOnly = onlyMine && mineName !== null;
+  /** 種類下拉只列篩選後還有東西的種類：劍士勾了「只看能用的」不會看到拳套，勾了「只看打得到的」不會看到沒人掉的種類 */
+  const subcategories = useMemo(() => {
+    if (!category) return [];
+    const pool = sortedItems.filter(item => (!onlyDroppable || item.dm?.length) && (!mineOnly || usableBy(item, profile.job)));
+    return subcategoryOptions(pool, category);
+  }, [sortedItems, category, onlyDroppable, mineOnly, profile.job]);
+
+  /** 選的種類在新的篩選下沒東西了，畫面當場回到全部種類（不等 effect，不會先閃一次空清單） */
+  const activeSubcategory = subcategories.includes(subcategory) ? subcategory : "";
+  // 狀態也一起清掉，之後取消勾選才不會突然跳回先前選的種類
+  useEffect(() => {
+    if (subcategory !== activeSubcategory) setSubcategory(activeSubcategory);
+  }, [subcategory, activeSubcategory]);
+
   const entries = useMemo<DbEntry[]>(() => {
-    if (!items) return [];
-    return items
-      .filter(item => !item.un)
+    return sortedItems
       .filter(item => !category || item.c === category)
+      .filter(item => !activeSubcategory || item.s === activeSubcategory)
       .filter(item => !onlyDroppable || item.dm?.length)
+      .filter(item => !mineOnly || usableBy(item, profile.job))
       .map(item => ({
         id: String(item.id),
         name: item.n,
-        note: item.s || item.c,
+        note: itemNote(item),
         image: itemImage(item.id),
-        keywords: item.d,
+        keywords: keywordsById.get(item.id),
         badge: isV002Item(item, v002Monsters, v002Quests) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [items, category, onlyDroppable, v002Monsters, v002Quests, notOpenYet]);
+  }, [sortedItems, keywordsById, category, activeSubcategory, onlyDroppable, mineOnly, profile.job, v002Monsters, v002Quests, notOpenYet]);
 
   return (
     <DbBrowser
@@ -81,7 +115,12 @@ export function ItemDb() {
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={category}
-            onChange={event => setCategory(event.target.value)}
+            onChange={event => {
+              setCategory(event.target.value);
+              setSubcategory("");
+              // 「只看〇〇能用的裝備」只看裝備分類，換到別的分類就一起取消
+              if (event.target.value !== "裝備") setOnlyMine(false);
+            }}
             className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
             aria-label="道具分類"
           >
@@ -90,6 +129,19 @@ export function ItemDb() {
               <option key={name} value={name}>{name}</option>
             ))}
           </select>
+          {subcategories.length ? (
+            <select
+              value={activeSubcategory}
+              onChange={event => setSubcategory(event.target.value)}
+              className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm"
+              aria-label="道具種類"
+            >
+              <option value="">全部種類</option>
+              {subcategories.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          ) : null}
           <label className="flex items-center gap-2 text-[13px] ink-soft">
             <input
               type="checkbox"
@@ -99,6 +151,23 @@ export function ItemDb() {
             />
             只看打得到的
           </label>
+          {mineName ? (
+            <label className="flex items-center gap-2 text-[13px] ink-soft">
+              <input
+                type="checkbox"
+                checked={onlyMine}
+                onChange={event => {
+                  setOnlyMine(event.target.checked);
+                  if (event.target.checked && category !== "裝備") {
+                    setCategory("裝備");
+                    setSubcategory("");
+                  }
+                }}
+                className="size-4 accent-[color:var(--maple)]"
+              />
+              只看{mineName}能用的裝備
+            </label>
+          ) : null}
         </div>
       }
       renderDetail={id => {
@@ -109,7 +178,9 @@ export function ItemDb() {
             item={item}
             monsterIndex={monsterIndex}
             questIndex={questIndex}
+            maps={maps ?? {}}
             isV002={isV002Item(item, v002Monsters, v002Quests)}
+            fit={isComplete ? wearFit(item, profile) : null}
           />
         );
       }}
@@ -121,17 +192,23 @@ function ItemDetail({
   item,
   monsterIndex,
   questIndex,
+  maps,
   isV002,
+  fit,
 }: {
   item: Item;
   monsterIndex: Map<number, Monster>;
   questIndex: Map<string, Quest>;
+  /** 店家地點要看是不是 10/15 才開放 */
+  maps: Record<string, MapRecord>;
   isV002: boolean;
+  /** 穿戴條件旁的小標籤；角色列沒選職業或沒填等級時是 null */
+  fit: WearFit | null;
 }) {
   const notOpenYet = useBeforeV002();
-  const equipRows = item.eq
-    ? Object.entries(item.eq).map(([key, value]) => [equipStatLabel(key), equipStatValue(key, value)] as [string, string])
-    : [];
+  const { requirements, stats } = equipGroups(item);
+  // 店的地點 10/15 才開放、而且現在還沒到：標「10/15 開放」並排在最後
+  const shops = shopGroups(item, mapId => notOpenYet && isV002Map(maps[String(mapId)]));
 
   return (
     <DetailCard>
@@ -153,9 +230,15 @@ function ItemDetail({
 
       {item.d ? <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{item.d}</p> : null}
 
-      {equipRows.length ? (
+      {requirements.length ? (
+        <Section title="穿戴條件" extra={fit ? <Chip tone={fit.tone}>{fit.text}</Chip> : undefined}>
+          <StatGrid rows={requirements} />
+        </Section>
+      ) : null}
+
+      {stats.length ? (
         <Section title="裝備數值">
-          <StatGrid rows={equipRows} />
+          <StatGrid rows={stats} />
         </Section>
       ) : null}
 
@@ -205,6 +288,30 @@ function ItemDetail({
         </Section>
       ) : null}
 
+      {shops.groups.length ? (
+        <Section title="哪裡買得到" extra={shops.fromOldData ? "參考舊版資料，可能有出入" : undefined}>
+          <div className="space-y-2">
+            {shops.groups.map(group => (
+              <div key={group.price} className="space-y-1">
+                <p className="text-[13px] font-black tabular-nums">{group.price}</p>
+                <ul className="flex flex-wrap gap-1.5">
+                  {group.places.map((place, index) => (
+                    <li
+                      key={`${index}-${place.place}`}
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] px-2.5 py-1"
+                    >
+                      <span className="text-[13px] font-bold">{place.place}</span>
+                      {place.npc ? <span className="text-[11px] ink-faint">{place.npc}</span> : null}
+                      {place.later ? <Chip tone="gold">10/15 開放</Chip> : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </Section>
+      ) : null}
+
       {item.qq?.length ? (
         <Section title="哪些任務要用到">
           <ul className="space-y-1">
@@ -224,8 +331,7 @@ function ItemDetail({
 
       {!item.dm?.length && !item.qr?.length && !item.qq?.length ? (
         <p className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2.5 text-sm ink-soft">
-          客戶端資料裡沒有記錄這個道具的來源。
-          {item.sh ? `商店有販售（${item.sh} 個販賣點）。` : ""}
+          目前查不到哪隻怪會掉、哪個任務給。
         </p>
       ) : null}
     </DetailCard>

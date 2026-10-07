@@ -6,17 +6,19 @@ import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
 import { GoButton } from "@/components/PlanShell";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
-import { loadMaps, loadQuests, mapName, npcImage } from "@/lib/data";
+import { loadMaps, loadQuests, mapName, npcImage, peekMaps, peekQuests } from "@/lib/data";
 import { rewardSummary } from "@/lib/format";
 import { useBeforeV002 } from "@/lib/release";
+import { useRemembered } from "@/lib/remember";
 import type { MapRecord, Quest } from "@/lib/types";
 import { isV002Map, isV002Quest } from "@/lib/v002";
 
 export function QuestDb() {
-  const [quests, setQuests] = useState<Quest[] | null>(null);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
+  // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
+  const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useRemembered("db:任務:category", "");
   const notOpenYet = useBeforeV002();
 
   useEffect(() => {

@@ -8,12 +8,12 @@ export type JobOption = {
   name: string;
   /** 所屬系別（一轉職業名） */
   line: string;
-  /** 轉職教官，頭像用他的遊戲圖 */
+  /** 轉職教官（首頁提醒去轉職時用他的遊戲圖；角色頭像改用 jobAvatar） */
   npcId: number;
   npcName: string;
 };
 
-type JobLine = {
+export type JobLine = {
   base: number;
   line: string;
   npcId: number;
@@ -36,14 +36,26 @@ export const JOB_OPTIONS: JobOption[] = JOB_LINES.flatMap(line => [
   ...[...line.branches, ...line.thirds].map(([id, name]) => ({ id, name, line: line.line, npcId: line.npcId, npcName: line.npcName })),
 ]);
 
-/** 角色列的職業選單分三排 */
-export const JOB_TIERS: Array<{ label: "一轉" | "二轉" | "三轉"; jobs: Array<[number, string]> }> = [
-  { label: "一轉", jobs: JOB_LINES.map(line => [line.base, line.line] as [number, string]) },
-  { label: "二轉", jobs: JOB_LINES.flatMap(line => line.branches) },
-  { label: "三轉", jobs: JOB_LINES.flatMap(line => line.thirds) },
-];
+/**
+ * 一個系別的二轉跟它接的三轉，一組一組列（刺客 → 暗殺者、俠盜 → 神偷）。
+ * 選單照這個順序排，才看得出三轉是從哪個二轉來的（2026-10-06 使用者：「不曉得是從哪個職業二轉的」）。
+ */
+export function branchPairs(line: JobLine): Array<{ second: [number, string]; third: [number, string] }> {
+  return line.branches.map((second, index) => ({ second, third: line.thirds[index] }));
+}
 
-/** 查資料頁的職業篩選選單：每個系別一組（optgroup），一轉用系名當選項、三轉標「（三轉）」。 */
+/** 這個職業屬於哪個系別（一轉、二轉、三轉都算）；初心者、還沒選回 undefined */
+export function jobLineOf(job: number): JobLine | undefined {
+  if (job <= 0) return undefined;
+  return JOB_LINES.find(line => line.base === baseJob(job));
+}
+
+/** 下拉選單裡三轉的名稱：名字本身有括號就併進去（魔導士（火毒）→ 魔導士（火毒・三轉）），其他加（三轉） */
+export function thirdJobLabel(name: string): string {
+  return name.endsWith("）") ? `${name.slice(0, -1)}・三轉）` : `${name}（三轉）`;
+}
+
+/** 查資料頁的職業篩選選單：每個系別一組（optgroup），一轉用系名當選項，每個二轉後面緊接它的三轉。 */
 export type SkillJobGroup = { label: string; options: Array<{ id: number; name: string }> };
 
 export function skillJobGroups(): SkillJobGroup[] {
@@ -51,8 +63,10 @@ export function skillJobGroups(): SkillJobGroup[] {
     label: `${line.line}系`,
     options: [
       { id: line.base, name: line.line },
-      ...line.branches.map(([id, name]) => ({ id, name })),
-      ...line.thirds.map(([id, name]) => ({ id, name: `${name}（三轉）` })),
+      ...branchPairs(line).flatMap(({ second, third }) => [
+        { id: second[0], name: second[1] },
+        { id: third[0], name: thirdJobLabel(third[1]) },
+      ]),
     ],
   }));
 }
@@ -122,6 +136,14 @@ export function stageJob(job: number, level: number): number {
   if (tier === 3 && level < THIRD_JOB_LEVEL) return stageJob(previousJob(job), level);
   if (tier === 2 && level < SECOND_JOB_LEVEL) return baseJob(job);
   return job;
+}
+
+/**
+ * 職業頭像：木框圓章裡放該職業的代表武器，跟網站 logo 同一套手繪風格（AI 生圖，public/jobs/）。
+ * 初心者跟不認得的代碼沒有頭像，畫面上用網站 logo。
+ */
+export function jobAvatar(job: number): string | undefined {
+  return BY_ID.has(job) ? `/jobs/${job}.webp` : undefined;
 }
 
 export function jobOption(job: number): JobOption | undefined {

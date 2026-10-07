@@ -4,6 +4,7 @@ import type {
   FarmingRow, GuideCommon, GuideJob, Item, Job, MapRecord, Meta, Monster, PortalEdge, Quest, Region, SearchRow, Skill,
   TrainingRow,
 } from "./types";
+import type { GearData } from "./gear";
 
 /**
  * 資料檔全部是編譯期產生的靜態 JSON，第一次用到才抓、抓過就留著。
@@ -37,6 +38,12 @@ function loadVersion(): Promise<string> {
   return versionPromise;
 }
 
+/**
+ * 已經載好的資料，同步拿得到。Promise 就算早就完成，也要等下一輪才拿到值，
+ * 頁面會先畫一次「載入中」；再進同一頁時直接從這裡拿，第一個畫面就是完整清單。
+ */
+const ready = new Map<string, unknown>();
+
 function load<T>(name: string): Promise<T> {
   let pending = cache.get(name) as Promise<T> | undefined;
   if (!pending) {
@@ -45,11 +52,26 @@ function load<T>(name: string): Promise<T> {
       .then(response => {
         if (!response.ok) throw new Error(`載入 ${name} 失敗（${response.status}）`);
         return response.json() as Promise<T>;
+      })
+      .then(data => {
+        ready.set(name, data);
+        return data;
       });
     cache.set(name, pending as Promise<unknown>);
   }
   return pending;
 }
+
+function peek<T>(name: string): T | null {
+  return (ready.get(name) as T | undefined) ?? null;
+}
+
+/** 查資料四頁用：載過就同步拿到，沒載過是 null */
+export const peekMaps = () => peek<Record<string, MapRecord>>("maps");
+export const peekMonsters = () => peek<Monster[]>("monsters");
+export const peekItems = () => peek<Item[]>("items");
+export const peekQuests = () => peek<Quest[]>("quests");
+export const peekSkills = () => peek<Skill[]>("skills");
 
 export const loadMeta = (): Promise<Meta> => {
   const cached = cache.get("meta") as Promise<Meta> | undefined;
@@ -68,6 +90,24 @@ export const loadTraining = () => load<TrainingRow[]>("training");
 export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
+/**
+ * 裝備卡的資料：一半是玩家攻略（研究檔），研究改了但遊戲資料沒變時 meta 的版本號不會動，
+ * 跟 guides/common.json 一樣每次回伺服器確認（next.config 對 /data/gear.json 設 must-revalidate），沒變就 304。
+ */
+let gearPromise: Promise<GearData> | null = null;
+export function loadGear(): Promise<GearData> {
+  if (!gearPromise) {
+    gearPromise = fetch("/data/gear.json", { cache: "no-cache" }).then(response => {
+      if (!response.ok) throw new Error(`載入裝備資料失敗（${response.status}）`);
+      return response.json() as Promise<GearData>;
+    });
+    // 載失敗不要記住，下次再試
+    gearPromise.catch(() => {
+      gearPromise = null;
+    });
+  }
+  return gearPromise;
+}
 /**
  * 玩家攻略跟遊戲資料是兩條獨立的更新線，不能共用 meta 的版本號——
  * 攻略改了但遊戲資料沒變時，瀏覽器會一直拿快取的舊攻略。

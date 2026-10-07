@@ -17,6 +17,7 @@ import path from "node:path";
 import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { officialName } from "./lib/map-names.mjs";
+import { shopRows } from "./lib/shops.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -100,7 +101,7 @@ function main() {
   const twTable = twSpawns(artale.maps);
   const spawnTable = mergeSpawns(twTable, v83.maps);
   const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
-  const items = buildItems(artale, monsters);
+  const items = buildItems(artale, monsters, maps);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
   const training = buildTraining(maps, spawnTable.spawns, monsters);
@@ -481,7 +482,7 @@ function itemAliases(artale) {
   return id => alias.get(id) ?? id;
 }
 
-function buildItems(artale, monsters) {
+function buildItems(artale, monsters, maps) {
   const list = (artale.items || []).map(item => {
     const sources = item.sources || {};
     const record = {
@@ -497,6 +498,8 @@ function buildItems(artale, monsters) {
       qr: pluckStrings(sources.questRewards, "questId"),
       qq: pluckStrings(sources.questRequirements, "questId"),
       sh: sources.shops?.length || undefined,
+      // 哪裡買得到：只列經典版已經開放的地方；NPC 商店大多是舊版資料，前端會標出來（見 lib/shops.mjs）
+      sp: shopRows(sources.shops, { openRegions: RELEASE.mapRegions, mapRecords: maps.records }),
       cf: pluckIds(sources.crafts, "recipeId"),
       // 商店最高售價，拿來估「撿了值不值得」。這是 NPC 店家的標價，不是玩家間的行情。
       price: shopPrice(sources.shops),

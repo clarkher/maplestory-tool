@@ -81,6 +81,10 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/build-guides.mjs
 
+      - name: 重編能力值＋裝備＋衝卷資料
+        if: steps.check.outputs.changed == 'true'
+        run: node pipeline/build-gear.mjs
+
       - name: 確認產出沒有壞掉
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/verify.mjs

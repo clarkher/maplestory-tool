@@ -3,17 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
-import { loadSkills } from "@/lib/data";
+import { loadSkills, peekSkills } from "@/lib/data";
 import { skillJobGroups } from "@/lib/jobs";
 import { useBeforeV002 } from "@/lib/release";
+import { useRemembered } from "@/lib/remember";
 import type { Skill } from "@/lib/types";
 import { isV002Skill } from "@/lib/v002";
 
 export function SkillDb() {
-  const [skills, setSkills] = useState<Skill[] | null>(null);
+  // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
+  const [skills, setSkills] = useState<Skill[] | null>(peekSkills);
   const [error, setError] = useState<string | null>(null);
   // "" 是全部職業，其餘存職業代碼的字串（跟 <select> value 同型，比對時不用再轉數字）
-  const [jobFilter, setJobFilter] = useState("");
+  const [jobFilter, setJobFilter] = useRemembered("db:技能:jobFilter", "");
   const notOpenYet = useBeforeV002();
 
   useEffect(() => {
