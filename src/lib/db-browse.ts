@@ -37,7 +37,7 @@ export function detailSpot({
 }
 
 /**
- * 點了開著的那一筆：桌機細節在右邊，捲過去；手機卡片放在清單最上面（那一筆後來才載進清單）時，
+ * 點了開著的那一筆：桌機細節在右邊，那一欄捲回卡片頂端；手機卡片放在清單最上面（那一筆後來才載進清單）時，
  * 卡片搬到那一列下面；展開在那一列下面（或根本沒有卡片）就收起。
  */
 export function sameRowAction({ wide, spot }: { wide: boolean; spot: DetailSpot | null }): "scroll" | "move" | "collapse" {
@@ -48,6 +48,22 @@ export function sameRowAction({ wide, spot }: { wide: boolean; spot: DetailSpot 
 /** 清單內容的簽名：內容一樣只是重算時不變，篩選、換順序後才會變 */
 export function listSignature(entries: ReadonlyArray<{ id: string }>): string {
   return entries.map(entry => entry.id).join(",");
+}
+
+/** 清單一次多載幾筆 */
+export const MORE_STEP = 120;
+/** 捲到底自動接到這麼多筆就停：道具清單有好幾千筆，一直自動接下去，頁尾永遠滑不到 */
+export const AUTO_MORE_MAX = 600;
+
+/**
+ * 清單下面怎麼多載：還沒到 600 筆，捲到底自動接（接到剛好 600 就停）；到了就換成看得到的「再載」按鈕，一次 120 筆。
+ * count 是這次會多幾筆（按鈕上寫的數字）；全部列完回 null。
+ */
+export function moreRows(visible: number, total: number): { mode: "auto" | "button"; next: number; count: number } | null {
+  if (visible >= total) return null;
+  const auto = visible < AUTO_MORE_MAX;
+  const next = auto ? Math.min(visible + MORE_STEP, AUTO_MORE_MAX) : visible + MORE_STEP;
+  return { mode: auto ? "auto" : "button", next, count: Math.min(next, total) - visible };
 }
 
 /**

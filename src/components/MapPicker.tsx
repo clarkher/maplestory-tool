@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CloseIcon, SearchIcon } from "./Icons";
+import { SearchClear, X_BUTTON } from "./SearchClear";
 import { loadSearch } from "@/lib/data";
 import type { MapRecord, SearchRow } from "@/lib/types";
 
@@ -87,13 +88,11 @@ export function MapPicker({
             className="tap-safe w-full bg-transparent py-2.5 outline-none"
             aria-label={label}
           />
-          {value !== null ? (
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="shrink-0 text-[color:var(--ink-faint)] hover:text-[color:var(--ink)]"
-              aria-label="取消更改"
-            >
+          {/* 有字時「×」清掉字；沒字、又是在更改已選的地圖時，「×」是取消更改（同一個位置只放一顆） */}
+          {query ? (
+            <SearchClear onClear={() => setQuery("")} />
+          ) : value !== null ? (
+            <button type="button" onClick={() => setOpen(false)} className={X_BUTTON} aria-label="取消更改">
               <CloseIcon size={16} />
             </button>
           ) : null}

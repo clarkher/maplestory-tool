@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  CARD, FROM_DOC, FROM_LIST, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature,
-  needsRescue, sameRowAction, scrollMotion, searchEntries, withCard,
+  AUTO_MORE_MAX, CARD, FROM_DOC, FROM_LIST, MORE_STEP, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory,
+  listSignature, moreRows, needsRescue, sameRowAction, scrollMotion, searchEntries, withCard,
 } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
@@ -339,5 +339,39 @@ describe("這次換的網址是不是按上一頁／下一頁來的", () => {
     expect(isTraversal(tracker(false), undefined)).toBe(false);
     expect(isTraversal(tracker(false), new Event("click"))).toBe(false);
     expect(isTraversal(null, undefined)).toBe(false);
+  });
+});
+
+describe("清單下面怎麼多載：自動接到 600 筆就停，換成看得到的按鈕（頁尾才滑得到）", () => {
+  it("一次多 120 筆，自動接到剛好 600 筆", () => {
+    expect(MORE_STEP).toBe(120);
+    expect(AUTO_MORE_MAX).toBe(600);
+  });
+
+  it("還沒到 600 筆：捲到底自動接 120 筆", () => {
+    expect(moreRows(60, 5000)).toEqual({ mode: "auto", next: 180, count: 120 });
+  });
+
+  it("差一點到 600 筆：自動接到剛好 600 就停", () => {
+    expect(moreRows(540, 5000)).toEqual({ mode: "auto", next: 600, count: 60 });
+  });
+
+  it("到了 600 筆：換成按鈕，按一次多 120 筆", () => {
+    expect(moreRows(600, 5000)).toEqual({ mode: "button", next: 720, count: 120 });
+    expect(moreRows(720, 5000)).toEqual({ mode: "button", next: 840, count: 120 });
+  });
+
+  it("以前自動接過頭（記住的筆數超過 600、又不是 120 的倍數）：一樣是按鈕", () => {
+    expect(moreRows(660, 5000)).toEqual({ mode: "button", next: 780, count: 120 });
+  });
+
+  it("剩下不到 120 筆：按鈕寫實際剩幾筆", () => {
+    expect(moreRows(600, 650)).toEqual({ mode: "button", next: 720, count: 50 });
+    expect(moreRows(60, 100)).toEqual({ mode: "auto", next: 180, count: 40 });
+  });
+
+  it("全部列完了：不用再載", () => {
+    expect(moreRows(180, 180)).toBeNull();
+    expect(moreRows(720, 650)).toBeNull();
   });
 });

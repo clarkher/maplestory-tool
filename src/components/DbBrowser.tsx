@@ -3,12 +3,13 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, needsRescue,
+  cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, moreRows, needsRescue,
   sameRowAction, scrollMotion, searchEntries, withCard, type DetailSpot,
 } from "@/lib/db-browse";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
+import { SearchClear } from "./SearchClear";
 import Link from "next/link";
 import { statSpans, type StatSpan } from "@/lib/stat-layout";
 
@@ -66,27 +67,15 @@ function urlWith(id: string | null) {
 /** 捲過去要不要平滑：照系統設定，開了「減少動態效果」就直接跳 */
 const glide = () => scrollMotion(query => window.matchMedia(query));
 
-/** 頁首的導覽列（固定在畫面頂端） */
+/** 頁首的導覽列（固定在畫面頂端；手指往下滑時收起來，收起來時下緣在畫面頂端） */
 const siteHeader = () => document.querySelector("body > header");
 
-/** 導覽列的高度：開著的那一列、最上面那顆「收起」黏在它下面 */
-function useHeaderHeight() {
-  const [height, setHeight] = useState(64);
-  useEffect(() => {
-    const header = siteHeader();
-    if (!header) return;
-    const measure = () => setHeight(Math.round(header.getBoundingClientRect().height));
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(header);
-    return () => observer.disconnect();
-  }, []);
-  return height;
-}
-
-/** 黏在導覽列下面的那一列、那顆「收起」：底下的卡片會從後面捲過去，底色不能透明 */
+/**
+ * 黏在導覽列下面的那一列、那顆「收起」：底下的卡片會從後面捲過去，底色不能透明。
+ * 導覽列收起來時 --header-offset 變 0，跟著導覽列一起移到最上面（同樣 0.2 秒）
+ */
 const STUCK =
-  "sticky z-10 bg-[color:color-mix(in_srgb,var(--maple)_12%,var(--paper))] ring-1 ring-[color:var(--maple)] shadow-[0_8px_14px_-10px_rgb(60_30_10/0.45)]";
+  "sticky top-[var(--header-offset)] z-10 transition-[top] duration-200 ease-out bg-[color:color-mix(in_srgb,var(--maple)_12%,var(--paper))] ring-1 ring-[color:var(--maple)] shadow-[0_8px_14px_-10px_rgb(60_30_10/0.45)]";
 
 /**
  * 四個資料頁共用的骨架：桌機左邊清單、右邊細節；手機、平板點了哪一筆，細節就展開在那一筆下面。
@@ -122,7 +111,6 @@ export function DbBrowser({
   // 這是哪一頁：紀錄裡的卡片要是這一頁的才照著放（從怪物卡連到道具頁時，編號可能剛好一樣）
   const page = usePathname();
   const wide = useSyncExternalStore(subscribeWide, isWide, narrowOnServer);
-  const headerHeight = useHeaderHeight();
 
   const [query, setQuery] = useRemembered(`db:${title}:query`, "");
   const [visible, setVisible] = useRemembered(`db:${title}:visible`, PAGE_SIZE);
@@ -160,6 +148,22 @@ export function DbBrowser({
   const pageNow = useRef(page);
   // 按返回回來、等瀏覽器還原完再比對的這段時間，先不要把這筆紀錄記的卡片位置蓋掉
   const rescuing = useRef(false);
+  // 桌機從清單點了一筆：畫出來後看右邊那一欄有沒有被往上推走
+  const sideRevealPending = useRef(false);
+  // 按了「再載」：從第幾筆開始是新載的（按鈕載完全部後不見了，焦點移到新載的第一筆）
+  const loadedFrom = useRef<number | null>(null);
+
+  /**
+   * 桌機右邊那一欄平常黏著，頁面不用動；只有清單到底、頁尾出來了，那一欄被往上推走一截時，
+   * 頁面往上捲一點讓卡片頂端出來
+   */
+  const revealSide = useCallback(() => {
+    const side = detailRef.current;
+    if (!side) return;
+    const stuckAt = parseFloat(getComputedStyle(side).top);
+    const top = side.getBoundingClientRect().top;
+    if (Number.isFinite(stuckAt) && top < stuckAt - 1) window.scrollBy({ top: top - stuckAt, behavior: glide() });
+  }, []);
 
   const collapse = useCallback(() => {
     const openId = openIdNow();
@@ -181,8 +185,11 @@ export function DbBrowser({
         // 剛點開不到半秒又點同一筆，多半是手指連點，當作同一下
         if (lastPick.current?.id === id && performance.now() - lastPick.current.at < 500) return;
         const action = sameRowAction({ wide: isWide(), spot: spotNow.current });
-        // 桌機細節在右邊，捲過去就好
-        if (action === "scroll") detailRef.current?.scrollIntoView({ behavior: glide(), block: "start" });
+        // 桌機細節在右邊：那一欄捲回卡片頂端
+        if (action === "scroll") {
+          detailRef.current?.scrollTo({ top: 0, behavior: glide() });
+          revealSide();
+        }
         // 卡片放在清單最上面（那一筆後來才載進清單）：搬到這一列下面，跟點開一筆一樣捲過去
         else if (action === "move") {
           // 跟點開一筆一樣擋手指連點：第二下不要把剛搬下來的卡片收掉
@@ -204,7 +211,8 @@ export function DbBrowser({
       // push 不用 replace：看完一筆按返回，要回到上一筆，不是直接離開這一頁。
       // 沒開著別筆時留記號，收起時才知道可以用返回回到點之前的清單
       window.history.pushState(fromListMark(openId, window.history.state, id, performance.timeOrigin), "", urlWith(id));
-      if (isWide()) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: glide(), block: "start" }));
+      // 桌機：右邊那一欄黏著，頁面不跳回上面；新的那一筆畫出來後再看那一欄有沒有被推走（下面的 effect）
+      if (isWide()) sideRevealPending.current = true;
     },
     [collapse],
   );
@@ -285,6 +293,16 @@ export function DbBrowser({
     else place();
   }, [selected]);
 
+  // 桌機右邊換了一筆：那一欄從卡片頂端開始看（從清單點、從卡片裡的連結、按返回都一樣）。
+  // 從清單點的，那一欄被往上推走一截時（清單到底）再讓卡片頂端出來
+  useLayoutEffect(() => {
+    if (spot !== "side") return;
+    detailRef.current?.scrollTo({ top: 0, behavior: "instant" });
+    if (!sideRevealPending.current) return;
+    sideRevealPending.current = false;
+    revealSide();
+  }, [selected, spot, revealSide]);
+
   // 網址的 id 是從連結來的——直接打開網址、細節裡連到同一頁的另一筆（例如任務的「要先完成」）——
   // 手機、平板跳到那一筆；桌機左右兩欄，細節本來就在畫面上，不捲。
   useEffect(() => {
@@ -326,19 +344,39 @@ export function DbBrowser({
     if (!rescuing.current) recordCardAt(selected);
   });
 
-  // 捲到離清單底部約一個畫面，就自動接下一批。多載完重新看一次：畫面很高、接上之後還在範圍內就再接
+  // 捲到離清單底部約一個畫面，就自動接下一批（接到 600 筆就停，之後按「再載」）。
+  // 多載完重新看一次：畫面很高、接上之後還在範圍內就再接
+  const total = matches.length;
   useEffect(() => {
     const sentinel = moreRef.current;
     if (!sentinel) return;
     const observer = new IntersectionObserver(
       entries => {
-        if (entries.some(entry => entry.isIntersecting)) setVisible(value => value + PAGE_SIZE * 2);
+        if (!entries.some(entry => entry.isIntersecting)) return;
+        setVisible(value => {
+          const batch = moreRows(value, total);
+          return batch?.mode === "auto" ? batch.next : value;
+        });
       },
       { rootMargin: "0px 0px 100% 0px" },
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [visible, matches.length, loading, setVisible]);
+  }, [visible, total, loading, setVisible]);
+
+  const more = moreRows(visible, total);
+  const loadMore = () => {
+    loadedFrom.current = visible;
+    setVisible(value => moreRows(value, total)?.next ?? value);
+  };
+  // 按「再載」把剩下的全載完、按鈕不見了：焦點移到新載的第一筆，用鍵盤、讀螢幕的人才不會被丟回頁首
+  useEffect(() => {
+    const from = loadedFrom.current;
+    if (from === null) return;
+    loadedFrom.current = null;
+    if (more) return;
+    listRef.current?.querySelectorAll<HTMLButtonElement>(":scope > li > button")[from]?.focus({ preventScroll: true });
+  });
 
   return (
     <div className="space-y-4 py-3 sm:py-6">
@@ -366,6 +404,14 @@ export function DbBrowser({
             className="tap-safe w-full bg-transparent py-2.5 outline-none"
             aria-label={`搜尋${title}`}
           />
+          {query ? (
+            <SearchClear
+              onClear={() => {
+                setQuery("");
+                setVisible(PAGE_SIZE);
+              }}
+            />
+          ) : null}
         </div>
         {filters}
         <p className="text-[13px] ink-faint">
@@ -382,14 +428,13 @@ export function DbBrowser({
           <div className="space-y-1.5">
             {/* 從連結打開、但那一筆不在目前的清單上：細節放在清單最上面 */}
             {spot === "top" ? (
-              <div ref={topRef} className="scroll-mt-20 space-y-2 pb-2">
+              <div ref={topRef} id="db-top" className="scroll-mt-header space-y-2 pb-2">
                 {/* 上面沒有那一列可以黏：放一顆「收起」，往下看長卡片時黏在導覽列下面 */}
                 <button
                   type="button"
                   onClick={collapse}
                   aria-expanded="true"
                   aria-controls="db-top-detail"
-                  style={{ top: headerHeight }}
                   className={`tap-safe flex w-full items-center justify-center gap-0.5 rounded-xl text-sm font-bold text-[color:var(--maple)] ${STUCK}`}
                 >
                   收起
@@ -402,27 +447,26 @@ export function DbBrowser({
               <EmptyBlock title="沒有符合的結果" />
             ) : (
               <>
-                <ul ref={listRef} className="scroll-mt-20 space-y-1">
+                <ul ref={listRef} className="scroll-mt-header space-y-1">
                   {shown.map(entry => {
                     const open = spot === "inline" && selected === entry.id;
                     return (
                       // scroll-mt：捲過來時讓出頂端固定的導覽列，那一列和展開的細節不會被蓋住
-                      <li key={entry.id} id={`db-row-${entry.id}`} className="scroll-mt-20">
+                      <li key={entry.id} id={`db-row-${entry.id}`} className="scroll-mt-header">
                         <button
                           type="button"
                           onClick={() => select(entry.id)}
                           aria-current={selected === entry.id ? "true" : undefined}
                           // 細節開著就算展開——放在清單最上面的也算，讀螢幕軟體才不會念「已收合」
                           aria-expanded={wide ? undefined : selected === entry.id && spot !== null}
-                          // 展開著的那一列黏在導覽列下面：往下看長卡片時一直看得到是哪一筆，點它就收起
-                          style={open ? { top: headerHeight } : undefined}
                           className={[
-                            "tap-safe flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors",
+                            "tap-safe flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left",
+                            // 展開著的那一列黏在導覽列下面：往下看長卡片時一直看得到是哪一筆，點它就收起
                             open
                               ? STUCK
                               : selected === entry.id
-                                ? "bg-[color:var(--maple-wash)] ring-1 ring-[color:var(--maple)]"
-                                : "hover:bg-[color:var(--paper-deep)]",
+                                ? "bg-[color:var(--maple-wash)] ring-1 ring-[color:var(--maple)] transition-colors"
+                                : "transition-colors hover:bg-[color:var(--paper-deep)]",
                           ].join(" ")}
                         >
                           {entry.image ? (
@@ -459,17 +503,24 @@ export function DbBrowser({
                     );
                   })}
                 </ul>
-                {visible < matches.length ? (
+                {more ? (
                   <>
-                    {/* 捲到這附近就自動接下一批（上面的 effect 看著它） */}
-                    <div ref={moreRef} aria-hidden="true" className="h-px" />
-                    {/* 讀螢幕軟體不會捲動，留一顆平常看不到的「再載」；用鍵盤移到這裡才出現 */}
+                    {/* 捲到這附近就自動接下一批（上面的 effect 看著它）；接到 600 筆就拿掉，改按下面那顆 */}
+                    {more.mode === "auto" ? <div ref={moreRef} aria-hidden="true" className="h-px" /> : null}
+                    {/*
+                      自動接的時候：讀螢幕軟體不會捲動，留一顆平常看不到的「再載」，用鍵盤移到這裡才出現。
+                      接到 600 筆以後：看得到的「再載」，按了才多載，頁尾才滑得到。兩種是同一顆按鈕，換的時候焦點不會掉
+                    */}
                     <button
                       type="button"
-                      onClick={() => setVisible(value => value + PAGE_SIZE * 2)}
-                      className="sr-only rounded-xl bg-[color:var(--paper-deep)] text-sm font-bold ink-soft focus-visible:not-sr-only focus-visible:tap-safe focus-visible:w-full focus-visible:py-2.5"
+                      onClick={loadMore}
+                      className={
+                        more.mode === "auto"
+                          ? "sr-only rounded-xl bg-[color:var(--paper-deep)] text-sm font-bold ink-soft focus-visible:not-sr-only focus-visible:tap-safe focus-visible:w-full focus-visible:py-2.5"
+                          : "tap-safe w-full rounded-xl bg-[color:var(--paper-deep)] py-2.5 text-sm font-bold ink-soft hover:text-[color:var(--maple)]"
+                      }
                     >
-                      再載 {Math.min(PAGE_SIZE * 2, matches.length - visible)} 筆
+                      再載 {more.count} 筆
                     </button>
                   </>
                 ) : null}
@@ -478,8 +529,13 @@ export function DbBrowser({
           </div>
 
           {spot === "side" ? (
-            // scroll-mt：捲過來時讓出頂端固定的導覽列，細節卡的標題不會被蓋住
-            <div ref={detailRef} className="min-w-0 scroll-mt-20">
+            // 桌機右邊那一欄黏在導覽列下面；卡片比畫面長時在這一欄裡自己捲——清單捲到很下面再點一筆，頁面不用跳回上面。
+            // -m-2 p-2：捲動的框往外多留一點，卡片的陰影不會被切掉；捲軸的位置先留著，卡片長短換來換去寬度不會跳
+            <div
+              ref={detailRef}
+              id="db-side"
+              className="min-w-0 lg:sticky lg:top-[calc(var(--header-offset)+0.25rem)] lg:-m-2 lg:max-h-[calc(100dvh-var(--header-offset)-0.5rem)] lg:self-start lg:overflow-y-auto lg:p-2 lg:transition-[top] lg:duration-200 lg:ease-out lg:[scrollbar-gutter:stable] lg:[scrollbar-width:thin]"
+            >
               {selected ? (
                 detail
               ) : (

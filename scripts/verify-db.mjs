@@ -14,6 +14,8 @@
 // 不用頁面裡的 history.back()。
 // 寫死的資料：綠水靈 210100（出沒地圖展開後卡片很長）、白狼人 8140000（怪物清單第 121 筆，不在前 60 筆）、幼黑格里芬 6230401（掉落全都沒名字）、道具 1302020（不在前 60 筆）、
 // 任務 6931 要先完成 6930。遊戲資料改版後對不上時，這幾項會 FAIL 並寫出原因，換成新的 id 就好。
+// 也順便驗全站的兩件事（v0.53）：H 開頭＝手指往下滑時導覽列收起來（用 Input.dispatchTouchEvent 模擬手指；
+// Input.synthesizeScrollGesture 在無頭 Chrome 只送出按下、放開，畫面不會捲，不能用）；X 開頭＝打寶「自己找」、帶我去選地圖的搜尋框「×」。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -119,13 +121,17 @@ const H = `
   window.__tap = id => window.__rowBtn(id).click();
   window.__open = () => window.__rows().filter(li => li.querySelector("article")).map(li => li.id.replace("db-row-", ""));
   // 放在清單最上面的那張卡（從連結打開、那一筆不在清單上）
-  window.__topWrap = () => document.querySelector("main .scroll-mt-20.pb-2");
-  window.__topCard = () => !!document.querySelector("main .scroll-mt-20.pb-2 article");
+  window.__topWrap = () => document.getElementById("db-top") ?? document.querySelector("main .scroll-mt-20.pb-2");
+  window.__topCard = () => !!window.__topWrap()?.querySelector("article");
   // 卡片下面那顆收起（緊接在卡片後面的按鈕）
   window.__collapseBtn = () => document.querySelector("main article + button");
   // 放在最上面的卡片，上方那顆黏著的「收起」
   window.__topCollapse = () => window.__topWrap()?.querySelector(":scope > button") ?? null;
   window.__headerBottom = () => Math.round(document.querySelector("body > header").getBoundingClientRect().bottom);
+  // 桌機右邊那一欄（細節）
+  window.__side = () => document.getElementById("db-side") ?? document.querySelector("main .grid > div.min-w-0");
+  // 搜尋框有字時右邊的「×」
+  window.__clearBtn = (root = document.querySelector("main")) => root.querySelector("button[aria-label='清除搜尋']");
   window.__listTop = () => Math.round(document.querySelector("main ul").getBoundingClientRect().top);
   window.__id = () => new URLSearchParams(location.search).get("id");
   window.__frames = (ms, f) => new Promise(res => {
@@ -247,6 +253,28 @@ try {
   const desktop = () => page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
   const reduceMotion = on =>
     page.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: on ? "reduce" : "no-preference" }] });
+  // 手指：開了觸控模擬才送得出 touch 事件（只在 H 開頭那幾段開，跑完關掉）
+  const touchMode = on => page.send("Emulation.setTouchEmulationEnabled", on ? { enabled: true, maxTouchPoints: 5 } : { enabled: false });
+  const touchAt = (type, x, y) =>
+    page.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y, id: 1, radiusX: 4, radiusY: 4, force: 1 }] });
+  /** 手指在畫面上往上推 dy px（頁面往下捲）；負的是往下拉（頁面往上捲）。放開後等慣性停、導覽列動畫跑完 */
+  const swipe = async (dy, x = 190) => {
+    const from = dy > 0 ? 640 : 220;
+    const steps = Math.max(6, Math.round(Math.abs(dy) / 30));
+    await touchAt("touchStart", x, from);
+    for (let i = 1; i <= steps; i++) {
+      await touchAt("touchMove", x, from - (dy * i) / steps);
+      await sleep(16);
+    }
+    await touchAt("touchEnd", x, from - dy);
+    await sleep(800);
+  };
+  /** 手指點一下（不移動） */
+  const fingerTap = async (x, y) => {
+    await touchAt("touchStart", x, y);
+    await sleep(40);
+    await touchAt("touchEnd", x, y);
+  };
   /** 跟按瀏覽器的返回／下一頁一樣（不是頁面自己呼叫 history.back）：量按返回一律這樣按 */
   const traverse = async delta => {
     const history = await page.send("Page.getNavigationHistory");
@@ -649,7 +677,7 @@ try {
     const ctx = await ev(`await __ready(); await __sleep(900); const id = "8140000";
       await __loadMore(); window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
       const pinned = __topCard() && !!__row(id);
-      const link = [...document.querySelectorAll("main .scroll-mt-20.pb-2 article a")].find(a => (a.getAttribute("href") || "").startsWith("/db/items"));
+      const link = [...(__topWrap()?.querySelectorAll("article a") ?? [])].find(a => (a.getAttribute("href") || "").startsWith("/db/items"));
       if (!link) return { skipped: "白狼人卡片裡找不到道具連結" };
       link.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
       const leftY = Math.round(scrollY);
@@ -811,7 +839,7 @@ try {
       return { href, topBefore };`);
     await traverse(-1);
     r = await ev(`await __waitFor(() => location.pathname === "/db/monsters" && __id() === "210100"); await __sleep(600);
-      const card = __row("210100")?.querySelector("article") ?? document.querySelector("main .scroll-mt-20.pb-2 article");
+      const card = __row("210100")?.querySelector("article") ?? __topWrap()?.querySelector("article");
       const maps = [...card.querySelectorAll("section")].find(s => s.querySelector("h3")?.textContent.startsWith("出沒地圖"));
       const link = card.querySelector("a[href='" + ${JSON.stringify(ctx.href)} + "']");
       return { rows: maps.querySelectorAll("ul > li").length, more: [...maps.querySelectorAll("button")].some(b => b.textContent.includes("看全部")),
@@ -822,7 +850,7 @@ try {
     await clearRemembered();
     await navigate(`${BASE}/db/monsters?id=8140000`);
     r = await ev(`await __ready(); await __sleep(900); ${N14_DATA}
-      const want = expect(8140000); const card = document.querySelector("main .scroll-mt-20.pb-2 article");
+      const want = expect(8140000); const card = __topWrap()?.querySelector("article");
       const drops = sectionOf(card, "掉落物");
       const header = Number(drops.querySelector("h3").textContent.match(/(\\d+) 樣/)?.[1]);
       const chips = [...drops.querySelectorAll("ul > li")].map(li => li.textContent.trim());
@@ -834,10 +862,90 @@ try {
     await navigate(`${BASE}/db/monsters?id=6230401`);
     r = await ev(`await __ready(); await __sleep(900); ${N14_DATA}
       const want = expect(6230401);
-      const card = __row("6230401")?.querySelector("article") ?? document.querySelector("main .scroll-mt-20.pb-2 article");
+      const card = __row("6230401")?.querySelector("article") ?? __topWrap()?.querySelector("article");
       const drops = sectionOf(card, "掉落物");
       return { want, title: drops?.querySelector("h3")?.textContent.trim() ?? null, chips: drops?.querySelectorAll("ul > li").length ?? null, note: noteOf(drops) };`);
     check("N14 掉的全都沒有名字：不列、寫「掉的 N 樣道具都還沒有名字，沒列出來」", r.want.namedDrops === 0 && r.title === "掉落物" && r.chips === 0 && r.note === `掉的 ${r.want.hiddenDrops} 樣道具都還沒有名字，沒列出來`, r);
+  });
+
+  // N15 自動載入接到 600 筆就停，換成看得到的「再載 120 筆」（道具清單有好幾千筆，不停的話頁尾永遠滑不到）
+  await section("N15", async () => {
+    await fresh("/db/items");
+    // 一直捲到底：每次自動接一批，接到不再變多為止（最多 8 次）
+    let r = await ev(`const counts = [__rows().length];
+      for (let i = 0; i < 8; i++) {
+        const before = __rows().length;
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+        await __waitFor(() => __rows().length > before, 1500); await __sleep(500);
+        counts.push(__rows().length);
+        if (__rows().length === before) break;
+      }
+      const btn = __moreBtn(); const footer = document.querySelector("body > footer")?.getBoundingClientRect();
+      return { counts, btnShown: __shows(btn), btnText: btn?.textContent.trim() ?? null,
+        footerInView: !!footer && footer.top < innerHeight && footer.bottom <= innerHeight + 1,
+        remembered: JSON.parse(sessionStorage.getItem("ms-db:db:道具:visible") ?? "null") };`);
+    check("N15 捲到底自動接到剛好 600 筆就停（再捲到底也不再接）", JSON.stringify(r.counts) === JSON.stringify([60, 180, 300, 420, 540, 600, 600]) && r.remembered === 600, r);
+    check("N15 到 600 筆：清單下面一顆看得到的「再載 120 筆」，頁尾滑得到", r.btnShown && r.btnText === "再載 120 筆" && r.footerInView, r);
+    await shot("n15-more-button.png");
+    r = await ev(`const btn = __moreBtn(); btn.focus(); btn.click(); await __waitFor(() => __rows().length > 600, 3000); await __sleep(400);
+      return { rows: __rows().length, remembered: JSON.parse(sessionStorage.getItem("ms-db:db:道具:visible") ?? "null"),
+        btnStill: __shows(__moreBtn()), focusOnBtn: !!__moreBtn() && document.activeElement === __moreBtn() };`);
+    check("N15 按「再載 120 筆」：多 120 筆、記住筆數；按鈕還在、焦點留在按鈕上（可以一直按）", r.rows === 720 && r.remembered === 720 && r.btnStill && r.focusOnBtn, r);
+  });
+
+  // N16 搜尋框有字時右邊一顆「×」：按了字清掉、清單回到原本、焦點留在搜尋框
+  await section("N16", async () => {
+    await fresh("/db/items");
+    const r = await ev(`const none = !__clearBtn(); const firstBefore = __rowId(0); const rowsBefore = __rows().length;
+      __setSearch("帽"); await __sleep(500);
+      const btn = __clearBtn(); const shown = __shows(btn); const firstWhileSearching = __rowId(0);
+      btn?.click(); await __sleep(600);
+      return { none, shown, firstBefore, firstWhileSearching, query: __search().value, focused: document.activeElement === __search(),
+        gone: !__clearBtn(), firstAfter: __rowId(0), rowsBefore, rowsAfter: __rows().length };`);
+    check("N16 搜尋框沒字時沒有「×」、有字時右邊出現「×」", r.none && r.shown, r);
+    check("N16 按「×」：字清掉、清單回到原本、焦點留在搜尋框、「×」不見", r.query === "" && r.focused && r.gone && r.firstWhileSearching !== r.firstBefore && r.firstAfter === r.firstBefore && r.rowsAfter === r.rowsBefore, r);
+  });
+
+  // X1 打寶「自己找」的搜尋框也有「×」
+  await section("X1", async () => {
+    await navigate(`${BASE}/plan/farm`);
+    const r = await ev(`await __waitFor(() => !!document.querySelector("main input[aria-label='搜尋道具']"));
+      const input = document.querySelector("main input[aria-label='搜尋道具']"); const box = input.parentElement;
+      const none = !__clearBtn(box);
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "楓葉"); input.dispatchEvent(new Event("input", { bubbles: true }));
+      await __sleep(400); const btn = __clearBtn(box); const shown = __shows(btn);
+      btn?.click(); await __sleep(400);
+      return { none, shown, value: input.value, focused: document.activeElement === input, gone: !__clearBtn(box) };`);
+    check("X1 打寶「自己找」：有字時出現「×」，按了字清掉、焦點留在搜尋框", r.none && r.shown && r.value === "" && r.focused && r.gone, r);
+  });
+
+  // X2 帶我去選地圖：有字時「×」清掉字；已經選了地圖、按「更改」後還沒打字時，那顆「×」照舊是「取消更改」
+  await section("X2", async () => {
+    await navigate(`${BASE}/go`);
+    const r = await ev(`const picker = () => [...document.querySelectorAll("main div.relative")].find(d => d.firstElementChild?.textContent === "要去哪裡");
+      const inputOf = () => picker()?.querySelector("input");
+      await __waitFor(() => !!inputOf());
+      const setValue = v => { const el = inputOf(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); };
+      const box = () => inputOf()?.parentElement ?? null;
+      const none = !__clearBtn(box());
+      setValue("弓箭手"); await __sleep(500);
+      const shown = __shows(__clearBtn(box()));
+      __clearBtn(box())?.click(); await __sleep(400);
+      const cleared = { value: inputOf().value, focused: document.activeElement === inputOf(), gone: !__clearBtn(box()) };
+      // 選一張圖，再按「更改」
+      setValue("弓箭手村"); await __waitFor(() => !!picker()?.querySelector("ul button"), 5000);
+      picker().querySelector("ul button").click(); await __sleep(600);
+      const change = picker()?.querySelector("button");
+      const changed = !!change && change.textContent.includes("更改");
+      change?.click(); await __sleep(400);
+      const cancelBefore = !!box()?.querySelector("button[aria-label='取消更改']") && !__clearBtn(box());
+      setValue("天空"); await __sleep(400);
+      const typing = { clear: !!__clearBtn(box()), cancel: !!box()?.querySelector("button[aria-label='取消更改']") };
+      __clearBtn(box())?.click(); await __sleep(400);
+      const cancelAfter = !!box()?.querySelector("button[aria-label='取消更改']") && inputOf()?.value === "";
+      return { none, shown, cleared, changed, cancelBefore, typing, cancelAfter };`);
+    check("X2 帶我去選地圖：有字時出現「×」，按了字清掉、焦點留在搜尋框", r.none && r.shown && r.cleared.value === "" && r.cleared.focused && r.cleared.gone, r);
+    check("X2 已選地圖按「更改」：沒字時是「取消更改」，打字後換成清掉字的「×」（只會有一顆），清掉後又變回「取消更改」", r.changed && r.cancelBefore && r.typing.clear && !r.typing.cancel && r.cancelAfter, r);
   });
 
   // N7 捲到底自動載入：沒有看得到的「再載」按鈕，捲到清單底下就自動接上 120 筆，筆數記住
@@ -872,6 +980,72 @@ try {
   });
   await reduceMotion(false);
 
+  // ── 手機：手指往下滑時導覽列收起來，往上滑一點就出來；網站自己捲不收（v0.53，全站） ──
+
+  await section("H1–H7", async () => {
+    await mobile();
+    await touchMode(true);
+    try {
+      await fresh("/db/items");
+      const y0 = await ev(`return Math.round(scrollY);`);
+      await swipe(500);
+      // 陰影拿掉後 Tailwind 會留幾層全透明、0px 的陰影：扣掉這些還剩東西才算看得到
+      let r = await ev(`const shadow = getComputedStyle(document.querySelector("body > header")).boxShadow;
+        return { y: Math.round(scrollY), header: __headerBottom(), shadow, shadowShown: shadow !== "none" && shadow.replace(/rgba\\(0, 0, 0, 0\\) 0px 0px 0px 0px/g, "").replace(/[ ,]/g, "") !== "" };`);
+      check("H1 手指往下滑：導覽列收起來（下緣的陰影也拿掉，畫面頂端不留一條影子）", r.y > y0 + 300 && r.header <= 0 && !r.shadowShown, { y0, ...r });
+      await shot("h1-header-hidden.png");
+      const yHidden = r.y;
+      await swipe(-40);
+      r = await ev(`const shadow = getComputedStyle(document.querySelector("body > header")).boxShadow;
+        return { y: Math.round(scrollY), header: __headerBottom(), shadowShown: shadow !== "none" && shadow.replace(/rgba\\(0, 0, 0, 0\\) 0px 0px 0px 0px/g, "").replace(/[ ,]/g, "") !== "" };`);
+      check("H2 往上滑一點：導覽列出來（陰影也回來）", r.y < yHidden && r.y > 200 && r.header >= 60 && r.shadowShown, { yHidden, ...r });
+
+      // H3 導覽列收著時點一筆（手指點，不移動）：網站自己捲，導覽列不跑出來；那一列放到畫面最上面附近（不留導覽列的空位）
+      await swipe(300);
+      const pos = await ev(`const id = __rowId(30); const b = __rowBtn(id); b.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
+        const rc = b.getBoundingClientRect(); return { id, x: Math.round(rc.left + rc.width / 2), y: Math.round(rc.top + rc.height / 2), header: __headerBottom() };`);
+      await fingerTap(pos.x, pos.y);
+      r = await ev(`await __waitFor(() => __id() === ${JSON.stringify(pos.id)}, 3000); await __sleep(1400);
+        return { id: __id(), header: __headerBottom(), rowTop: __top(${JSON.stringify(pos.id)}) };`);
+      check("H3 導覽列收著時點一筆：網站自己捲，導覽列不跑出來；那一列放到畫面最上面", pos.header <= 0 && r.id === pos.id && r.header <= 0 && near(r.rowTop, 15), { pos, ...r });
+
+      // H4 長卡片開著（綠水靈展開）：導覽列收起來，黏住的那一列貼到最上面；往上滑一點導覽列出來，那一列跟著回到導覽列下面
+      await fresh("/db/monsters");
+      await ev(`const id = "210100"; __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
+        [...__row(id).querySelectorAll("article button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400); return 1;`);
+      await swipe(700);
+      r = await ev(`return { header: __headerBottom(), stuck: Math.round(__rowBtn("210100").getBoundingClientRect().top) };`);
+      check("H4 導覽列收起來：黏住的那一列跟著貼到最上面", r.header <= 0 && near(r.stuck, 0, 2), r);
+      await shot("h4-sticky-row-top.png");
+      await swipe(-40);
+      r = await ev(`return { header: __headerBottom(), stuck: Math.round(__rowBtn("210100").getBoundingClientRect().top) };`);
+      check("H4 往上滑一點、導覽列出來：那一列跟著回到導覽列下面", r.header >= 60 && near(r.stuck, r.header, 2), r);
+
+      // H5 網站自己捲（點清單上的一筆、按返回還原位置）：導覽列出來的不收
+      await fresh("/db/items");
+      r = await ev(`const id = __rowId(25); __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
+        return { id, y: Math.round(scrollY), header: __headerBottom() };`);
+      await traverse(-1);
+      const back = await ev(`await __waitFor(() => __id() === null, 3000); await __sleep(800); return { y: Math.round(scrollY), header: __headerBottom() };`);
+      check("H5 網站自己捲（點一筆往下捲、按返回還原位置）：導覽列不收", r.y > 500 && r.header >= 60 && back.header >= 60, { ...r, back });
+
+      // H6 收著的時候用鍵盤移到導覽列上：導覽列出來（不然焦點在看不到的地方）
+      await swipe(500);
+      r = await ev(`const hiddenBefore = __headerBottom() <= 0; document.querySelector("body > header a").focus(); await __sleep(500);
+        return { hiddenBefore, header: __headerBottom() };`);
+      check("H6 收著的時候用鍵盤移到導覽列：導覽列出來", r.hiddenBefore && r.header >= 60, r);
+
+      // H7 收著的時候往回滑到頁面最上面：導覽列出來，不會留一塊空白
+      await swipe(250);
+      const hiddenBefore = await ev(`return __headerBottom() <= 0;`);
+      for (let i = 0; i < 6; i++) await swipe(-600);
+      r = await ev(`return { y: Math.round(scrollY), header: __headerBottom() };`);
+      check("H7 往回滑到頁面最上面：導覽列出來", hiddenBefore && r.y === 0 && r.header >= 60, { hiddenBefore, ...r });
+    } finally {
+      await touchMode(false);
+    }
+  });
+
   // ── 桌機 ──
 
   // 桌機：右邊那一欄、沒有收起按鈕；再點同一筆不收起；網址打開不捲
@@ -891,20 +1065,93 @@ try {
     check("D3 桌機網址打開：細節在右邊、不捲", r.side && r.y === 0, r);
   });
 
-  // D4 桌機、減少動態效果：清單捲到下面點一筆，捲回右邊細節是直接跳；沒開就照舊平滑
+  // D4 桌機、減少動態效果：右邊那一欄自己捲到下面，再點同一筆，那一欄捲回卡片頂端——開了直接跳，沒開照舊平滑；頁面都不動
   await section("D4", async () => {
     await desktop();
     for (const reduce of [true, false]) {
       await reduceMotion(reduce);
-      await fresh("/db/items");
-      const r = await ev(`const id = __rowId(30); __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
-        const before = Math.round(scrollY); const framesP = __painted(1200, () => Math.round(scrollY)); __tap(id); const frames = await framesP;
-        return { before, end: Math.round(scrollY), frames: __changes(frames) };`);
-      if (reduce) check("D4 減少動態效果（桌機）：捲到右邊細節直接跳、不滑", r.before > 300 && r.end < r.before && r.frames.length <= 2, r);
-      else check("D4 沒開減少動態效果（桌機）：照舊平滑捲過去", r.before > 300 && r.end < r.before && r.frames.length >= 4, r);
+      await fresh("/db/monsters");
+      const r = await ev(`const id = "210100"; __tap(id); await __waitFor(() => __id() === id); await __sleep(1000);
+        const side = __side(); [...side.querySelectorAll("button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400);
+        side.scrollTo({ top: 900, behavior: "instant" }); await __sleep(300);
+        const before = Math.round(side.scrollTop); const y = Math.round(scrollY);
+        const framesP = __painted(1200, () => Math.round(side.scrollTop)); __tap(id); const frames = await framesP;
+        return { before, end: Math.round(side.scrollTop), frames: __changes(frames), pageMoved: Math.round(scrollY) - y };`);
+      if (reduce) check("D4 減少動態效果（桌機）：再點同一筆，右邊那一欄直接跳回卡片頂端、不滑", r.before > 300 && r.end === 0 && r.frames.length <= 2 && r.pageMoved === 0, r);
+      else check("D4 沒開減少動態效果（桌機）：再點同一筆，右邊那一欄平滑捲回卡片頂端", r.before > 300 && r.end === 0 && r.frames.length >= 4 && r.pageMoved === 0, r);
     }
   });
   await reduceMotion(false);
+
+  // D5 桌機：右邊那一欄黏在導覽列下面；清單捲到很下面再點一筆，頁面不跳回上面，右邊直接換成那一筆、從頭顯示
+  await section("D5", async () => {
+    await desktop();
+    await fresh("/db/items");
+    const r = await ev(`const a = __rowId(2); __tap(a); await __waitFor(() => __id() === a); await __sleep(800);
+      const side = __side(); side.scrollTo({ top: 200, behavior: "instant" });
+      const b = __rowId(40); __row(b).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
+      const y = Math.round(scrollY); const header = __headerBottom();
+      __tap(b); await __waitFor(() => __id() === b); await __sleep(1200);
+      const rect = side.getBoundingClientRect();
+      return { y, yAfter: Math.round(scrollY), header, sideTop: Math.round(rect.top), sideBottom: Math.round(rect.bottom), view: innerHeight,
+        scrollTop: Math.round(side.scrollTop), name: __rowBtn(b).querySelector("span.truncate")?.textContent ?? "", title: side.querySelector("article h2")?.textContent ?? "" };`);
+    check("D5 桌機清單捲到下面點一筆：頁面不跳回上面", r.y > 1000 && Math.abs(r.yAfter - r.y) <= 2, r);
+    check("D5 右邊那一欄黏在導覽列下面、整欄在畫面裡", r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.sideBottom <= r.view, r);
+    check("D5 右邊換成新點的那一筆、從頭顯示", r.scrollTop === 0 && r.name !== "" && r.title.includes(r.name), r);
+    await shot("d5-desktop-sticky.png");
+  });
+
+  // D6 桌機長卡片（綠水靈展開）：整張放不下時在右邊那一欄裡自己捲，滾輪捲的是那一欄、頁面不動
+  await section("D6", async () => {
+    await desktop();
+    await fresh("/db/monsters");
+    const ctx = await ev(`const id = "210100"; __tap(id); await __waitFor(() => __id() === id); await __sleep(1000);
+      const side = __side(); [...side.querySelectorAll("button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400);
+      // 頁面往下捲一點，那一欄黏住了再量（在頁面最上面時那一欄還在原本的位置，下緣本來就在畫面外）
+      window.scrollTo({ top: 600, behavior: "instant" }); await __sleep(400);
+      const rect = side.getBoundingClientRect();
+      return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + rect.height / 2), overflow: side.scrollHeight - side.clientHeight,
+        bottom: Math.round(rect.bottom), view: innerHeight, pageY: Math.round(scrollY) };`);
+    await page.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: ctx.x, y: ctx.y, deltaX: 0, deltaY: 400 });
+    const r = await ev(`await __sleep(900); return { scrollTop: Math.round(__side().scrollTop), pageY: Math.round(scrollY) };`);
+    check("D6 桌機長卡片：在右邊那一欄裡自己捲（滾輪捲的是那一欄，頁面不動）", ctx.overflow > 200 && ctx.bottom <= ctx.view && r.scrollTop > 100 && r.pageY === ctx.pageY, { ...ctx, ...r });
+  });
+
+  // D7 桌機清單整個列完、捲到最底（頁尾出來了，右邊那一欄被往上推走一截）再點最後一筆：頁面往上一點，卡片頂端出來
+  await section("D7", async () => {
+    // 很矮的桌機畫面（1280×450）：頁尾出來時上面只剩約 50px，哪一張卡片都放不下、一定被推走
+    await page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 450, deviceScaleFactor: 1, mobile: false });
+    await fresh("/db/items");
+    // 先開一筆（右邊那一欄有一張卡，捲到最底時才會被頁尾往上推）
+    const r = await ev(`__setSearch("帽"); await __sleep(600);
+      const first = __rowId(0); __tap(first); await __waitFor(() => __id() === first); await __sleep(800);
+      for (let i = 0; i < 12; i++) {
+        const before = __rows().length; const btn = __moreBtn();
+        if (__shows(btn)) btn.click(); else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+        await __waitFor(() => __rows().length > before, 1500); await __sleep(300);
+        if (__rows().length === before) break;
+      }
+      const count = [...document.querySelectorAll("main p")].map(p => p.textContent.trim()).find(t => /^[0-9,]+ 筆$/.test(t)) ?? "";
+      const total = Number(count.replace(/[^0-9]/g, "") || 0);
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(500);
+      const side = __side(); const pushedBy = Math.round(parseFloat(getComputedStyle(side).top) - side.getBoundingClientRect().top);
+      const yBefore = Math.round(scrollY);
+      const id = __rowId(__rows().length - 1); __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
+      const rect = side.getBoundingClientRect(); const row = __row(id).getBoundingClientRect();
+      return { rows: __rows().length, total, pushedBy, yBefore, yAfter: Math.round(scrollY), header: __headerBottom(), sideTop: Math.round(rect.top),
+        rowTop: Math.round(row.top), rowBottom: Math.round(row.bottom), view: innerHeight };`);
+    check("D7 清單到底、右邊那一欄被往上推走時點最後一筆：頁面往上一點、卡片頂端出來、點的那一筆還在畫面上",
+      r.rows === r.total && r.pushedBy > 20 && r.yAfter < r.yBefore && r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.rowTop >= r.header && r.rowBottom <= r.view, r);
+  });
+
+  // H8 桌機用滑鼠滾輪往下捲：導覽列不收（只有手指滑才收）
+  await section("H8", async () => {
+    await desktop();
+    await fresh("/db/items");
+    await page.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: 200, y: 400, deltaX: 0, deltaY: 1500 });
+    const r = await ev(`await __sleep(1200); return { y: Math.round(scrollY), header: __headerBottom() };`);
+    check("H8 桌機滑鼠滾輪往下捲：導覽列不收", r.y > 800 && r.header >= 60, r);
+  });
 } catch (error) {
   results.push({ name: "ERROR", ok: false, detail: String(error?.stack ?? error).slice(0, 800) });
 } finally {
