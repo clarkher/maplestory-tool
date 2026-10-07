@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { itemImage, loadGuide, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { cachedGuides, guideJobs, loadHomeData, peekHomeData, type HomeData } from "@/lib/home-data";
+import { cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, type HomeData } from "@/lib/home-data";
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
@@ -22,18 +22,25 @@ import { TodoList } from "./TodoList";
 
 export type GuideStatus = "loading" | "ready" | "failed";
 
+type GuideState = { job: number; guides: Map<number, GuideJob>; status: GuideStatus };
+
 export function RouteHome() {
   const showV002Banner = useBeforeV002();
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
   const [data, setData] = useState<HomeData | null>(peekHomeData);
-  const [guides, setGuides] = useState<Map<number, GuideJob>>(() => cachedGuides(guideJobs(profile.job)));
-  const [guideStatus, setGuideStatus] = useState<GuideStatus>(() => {
-    const wanted = guideJobs(profile.job);
-    return wanted.length > 0 && wanted.every(job => guides.has(job)) ? "ready" : "loading";
-  });
+  const [guideState, setGuideState] = useState<GuideState>(() => ({ job: profile.job, ...guidesFor(profile.job, new Map()) }));
   const [error, setError] = useState<string | null>(null);
+
+  // 換職業的那一次渲染就把攻略換好（React「props 變了就在渲染時調整 state」的寫法）：載過的直接用、沒載過的先放骨架，
+  // 不會先拿上一個職業的攻略狀態畫一張不對的主推卡
+  let shownGuides = guideState;
+  if (shownGuides.job !== profile.job) {
+    shownGuides = { job: profile.job, ...guidesFor(profile.job, guideState.guides) };
+    setGuideState(shownGuides);
+  }
+  const { guides, status: guideStatus } = shownGuides;
 
   useEffect(() => {
     // 一開始就拿到了（這次瀏覽載過）就不用再載
@@ -43,23 +50,20 @@ export function RouteHome() {
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  // 要同時載整條職業線的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）
+  // 載整條職業線的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）；都載過的上面已經直接用了。
   // 快速切換職業時，晚回來的舊請求不能蓋掉新的；攻略載不到也不擋遊戲資料那部分。
   useEffect(() => {
-    if (profile.job <= 0) return;
+    const job = profile.job;
+    const wanted = guideJobs(job);
+    if (cachedGuides(wanted).size === wanted.length) return;
     let cancelled = false;
-    const wanted = guideJobs(profile.job);
-    // 整條線都載過（換頁回來、換回剛看過的職業）就不設回讀取中，已經畫好的技能點法跟路線不會閃一下
-    if (cachedGuides(wanted).size < wanted.length) setGuideStatus("loading");
-    Promise.all(wanted.map(job => loadGuide(job).then(guide => [job, guide] as const)))
+    Promise.all(wanted.map(code => loadGuide(code).then(guide => [code, guide] as const)))
       .then(entries => {
         if (cancelled) return;
-        // 拿到的都已經在畫面上就不換一份新的，整條路線不用重算
-        setGuides(previous => (entries.every(([job, guide]) => previous.get(job) === guide) ? previous : new Map([...previous, ...entries])));
-        setGuideStatus("ready");
+        setGuideState(previous => (previous.job === job ? { job, guides: new Map([...previous.guides, ...entries]), status: "ready" } : previous));
       })
       .catch(() => {
-        if (!cancelled) setGuideStatus("failed");
+        if (!cancelled) setGuideState(previous => (previous.job === job ? { ...previous, status: "failed" } : previous));
       });
     return () => {
       cancelled = true;

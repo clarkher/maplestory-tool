@@ -119,6 +119,32 @@ describe("所有頁共用同一份角色", () => {
     expect(store.readProfile()).toEqual({ level: 60, job: 120 });
   });
 
+  it("這個分頁存不進去之後，別的分頁改了角色：讀到別的分頁存的，不會一直卡在這個分頁沒存進去的那份", async () => {
+    const storage = fakeStorage();
+    const realSet = storage.setItem;
+    let failures = 1;
+    storage.setItem = (key: string, value: string) => {
+      if (failures-- > 0) throw new DOMException("空間不夠", "QuotaExceededError");
+      realSet(key, value);
+    };
+    await setup(storage);
+
+    store.saveProfile({ level: 45, job: 110 });
+    storage.setItem("ms-profile", '{"level":60,"job":120}');
+    win.dispatchEvent(Object.assign(new Event("storage"), { key: "ms-profile" }));
+
+    expect(store.readProfile()).toEqual({ level: 60, job: 120 });
+  });
+
+  it("別的分頁改的是其他設定（例如深色模式）：這個分頁沒存進去的角色照樣留著", async () => {
+    await setup(fakeStorage("full"));
+    store.saveProfile({ level: 45, job: 110 });
+
+    win.dispatchEvent(Object.assign(new Event("storage"), { key: "ms-theme" }));
+
+    expect(store.readProfile()).toEqual({ level: 45, job: 110 });
+  });
+
   it("本機儲存整個讀不到：當作還沒選職業，頁面不會掛掉", async () => {
     await setup(fakeStorage("broken"));
     expect(store.readProfile()).toEqual({ level: 0, job: -1 });

@@ -65,3 +65,16 @@ export function cachedGuides(jobs: number[]): Map<number, GuideJob> {
   }
   return found;
 }
+
+/**
+ * 首頁掛上、換職業的那一次渲染就決定好攻略：整條線這次瀏覽都載過就直接用（ready），
+ * 不然先放骨架（loading），不會拿上一個職業的狀態先畫一張不對的主推卡。
+ * 要的都已經在畫面上（shown）就沿用同一份 Map，整條路線不用重算。初心者、還沒選職業不用攻略，狀態照舊是 loading。
+ */
+export function guidesFor(job: number, shown: Map<number, GuideJob>): { guides: Map<number, GuideJob>; status: "ready" | "loading" } {
+  const wanted = guideJobs(job);
+  const cached = cachedGuides(wanted);
+  const fresh = [...cached].filter(([code, guide]) => shown.get(code) !== guide);
+  const guides = fresh.length ? new Map([...shown, ...fresh]) : shown;
+  return { guides, status: wanted.length > 0 && cached.size === wanted.length ? "ready" : "loading" };
+}

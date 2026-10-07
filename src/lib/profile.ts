@@ -32,18 +32,27 @@ export function parseStoredProfile(raw: string): Profile {
  * 同一個分頁寫 localStorage 不會觸發 storage 事件，所以存的時候自己通知；別的分頁改了才靠 storage 事件。
  */
 const listeners = new Set<() => void>();
-/** 瀏覽器不讓存（空間滿了、隱私模式）時先記在這個分頁：畫面照樣換，只是重新整理後不會記得 */
-let unsaved: string | null = null;
+/**
+ * 瀏覽器不讓存（空間滿了、隱私模式）時先記在這個分頁：畫面照樣換，只是重新整理後不會記得。
+ * over 是當時本機存的那份；之後別的分頁改掉了本機存的，就以那份為準。
+ */
+let unsaved: { raw: string; over: string } | null = null;
 let lastRaw: string | null = null;
 let lastProfile: Profile = EMPTY;
 
-function readRaw(): string {
-  if (unsaved !== null) return unsaved;
+function storedRaw(): string {
   try {
     return localStorage.getItem(STORAGE_KEY) ?? "";
   } catch {
     return "";
   }
+}
+
+function readRaw(): string {
+  const stored = storedRaw();
+  if (unsaved && unsaved.over === stored) return unsaved.raw;
+  unsaved = null;
+  return stored;
 }
 
 /** 現在的角色（不可能的組合已經修正）。存的字沒變就回傳同一份，React 才不會一直重畫 */
@@ -65,13 +74,19 @@ export function subscribeProfile(onChange: () => void) {
   };
 }
 
+/**
+ * 存角色並通知這個分頁所有用到角色的地方。讀回來一律經過 parseStoredProfile，
+ * 不可能的組合會被修正（狂戰士 25 等讀出來是劍士），所以存進去的跟讀到的不一定一樣——
+ * 角色列、表單送出的都已經是合法組合，不要送「先選職業、等級還沒調」這種中間狀態進來。
+ */
 export function saveProfile(next: Profile) {
   const raw = JSON.stringify(next);
+  const over = storedRaw();
   try {
     localStorage.setItem(STORAGE_KEY, raw);
     unsaved = null;
   } catch {
-    unsaved = raw;
+    unsaved = { raw, over };
   }
   for (const listener of [...listeners]) listener();
 }

@@ -47,7 +47,6 @@ export function GearCard({ job, level, maps, routable }: { job: number; level: n
   // 這次瀏覽載過就直接拿：換頁回首頁不先畫骨架
   const [gear, setGear] = useState<GearData | null>(peekGear);
   const [failed, setFailed] = useState(false);
-  // 放在外層：卡片內容掛上去之前就已經換成瀏覽器當下的日期，不會先算一次 10/15 後的版本又換掉
   const beforeOpen = useBeforeV002();
 
   useEffect(() => {

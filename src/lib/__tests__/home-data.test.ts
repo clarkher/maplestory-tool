@@ -82,6 +82,52 @@ describe("首頁要的攻略", () => {
     expect(home.guideJobs(-1)).toEqual([]);
   });
 
+  describe("換到某個職業那一次渲染的攻略狀態", () => {
+    const GUIDES = {
+      "/data/guides/common.json": { builtAt: "g1" },
+      "/data/guides/110.json": { job: 110 },
+      "/data/guides/100.json": { job: 100 },
+    };
+
+    it("整條線這次瀏覽都載過：直接用，不先放骨架", async () => {
+      stubFetch(GUIDES);
+      await Promise.all([data.loadGuide(110), data.loadGuide(100)]);
+      const { guides, status } = home.guidesFor(110, new Map());
+      expect(status).toBe("ready");
+      expect([...guides.keys()].sort()).toEqual([100, 110]);
+    });
+
+    it("還有一份沒載過：先放骨架，不拿上一個職業的狀態畫一張不對的主推卡", async () => {
+      stubFetch(GUIDES);
+      await data.loadGuide(110);
+      const { guides, status } = home.guidesFor(110, new Map());
+      expect(status).toBe("loading");
+      expect([...guides.keys()]).toEqual([110]);
+    });
+
+    it("要的都已經在畫面上：沿用同一份，整條路線不用重算", async () => {
+      stubFetch(GUIDES);
+      await Promise.all([data.loadGuide(110), data.loadGuide(100)]);
+      const shown = home.guidesFor(110, new Map()).guides;
+      expect(home.guidesFor(110, shown).guides).toBe(shown);
+    });
+
+    it("換到還沒載過的職業：先放骨架，已經在畫面上的照樣留著", async () => {
+      stubFetch(GUIDES);
+      await Promise.all([data.loadGuide(110), data.loadGuide(100)]);
+      const shown = home.guidesFor(110, new Map()).guides;
+      const next = home.guidesFor(210, shown);
+      expect(next.status).toBe("loading");
+      expect(next.guides).toBe(shown);
+    });
+
+    it("初心者、還沒選職業：不用攻略，畫面上的不動", () => {
+      const shown = new Map();
+      expect(home.guidesFor(0, shown)).toEqual({ guides: shown, status: "loading" });
+      expect(home.guidesFor(-1, shown).guides).toBe(shown);
+    });
+  });
+
   it("載過的才拿得到：狂戰士整條線載完才是兩份都有", async () => {
     stubFetch({
       "/data/guides/common.json": { builtAt: "g1" },
