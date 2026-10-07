@@ -4,7 +4,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 // 直接讀 workflow 原文檢查：dry-run 一路跑到底也不能動到正式機，notify 拿得到它要的值
-const WORKFLOW = fs.readFileSync(path.join(import.meta.dirname, "../../.github/workflows/data-refresh.yml"), "utf8").replace(/\r\n/g, "\n");
+const WORKFLOWS_DIR = path.join(import.meta.dirname, "../../.github/workflows");
+const readWorkflow = file => fs.readFileSync(path.join(WORKFLOWS_DIR, file), "utf8").replace(/\r\n/g, "\n");
+const WORKFLOW = readWorkflow("data-refresh.yml");
 const REFRESH = WORKFLOW.slice(WORKFLOW.indexOf("\n  refresh:\n"), WORKFLOW.indexOf("\n  notify:\n"));
 const NOTIFY = WORKFLOW.slice(WORKFLOW.indexOf("\n  notify:\n"));
 
@@ -29,6 +31,27 @@ function stepBlock(name) {
 /** refresh job 每一步的整段。 */
 function refreshSteps() {
   return REFRESH.split(/\n(?= {6}- )/).filter(block => /^ {6}- /.test(block));
+}
+
+/** 每個 run 的指令：同一行的 `run: 指令`，或 `run: |` 底下比 run 縮排深的每一行。 */
+function runScripts(text) {
+  const lines = text.split("\n");
+  const scripts = [];
+  lines.forEach((line, i) => {
+    const match = line.match(/^( *)(-\s+)?run:(.*)$/);
+    if (!match) return;
+    // 值是空的、下一行又是「鍵: 值」：那是名字叫 run 的 job（v002-open.yml 就是），不是步驟的 run
+    const nextLine = lines.slice(i + 1).find(text => text.trim()) ?? "";
+    if (!match[3].trim() && /^\s*[\w-]+:(\s|$)/.test(nextLine)) return;
+    const indent = match[1].length + (match[2]?.length ?? 0);
+    const body = [match[3]];
+    for (const next of lines.slice(i + 1)) {
+      if (next.trim() && next.search(/\S/) <= indent) break;
+      body.push(next);
+    }
+    scripts.push(body.join("\n"));
+  });
+  return scripts;
 }
 
 test("dry-run 的定義寫在 workflow 開頭的 env，只寫一次", () => {
@@ -62,6 +85,61 @@ test("步驟條件的檢查本身會抓到寫錯的條件（|| 沒包括號、�
   assert.match("        if: (a == 'x' || b == 'y') && env.DRY_RUN != 'true'", SKIP_IF_DRY_RUN);
   assert.ok(WRITES.test("gh api repos/x/issues -X POST -f title=t"));
   assert.ok(!WRITES.test("gh api repos/x/issues"));
+});
+
+test("每個 workflow 的 run 指令裡都不准直接寫 ${{ }}：上游的版本字串、手動觸發的輸入一律用 env 傳，指令裡寫 \"$變數\"", () => {
+  // ${{ }} 是在 bash 跑之前把字串原樣貼進指令：上游的 generatedAt 寫成 `"; 指令; echo "` 就會在帶寫入權限的 CI 裡執行，
+  // 這支最後一步還會 --admin 合進 main（正式機）。用 env 傳，字串只是變數的值，不會被當成程式碼
+  assert.ok(runScripts(WORKFLOW).length >= 10, `data-refresh.yml 只找到 ${runScripts(WORKFLOW).length} 個 run，檢查本身可能壞了`);
+  const files = fs.readdirSync(WORKFLOWS_DIR).filter(file => /\.ya?ml$/.test(file));
+  assert.ok(files.includes("data-refresh.yml"));
+  for (const file of files) {
+    for (const script of runScripts(readWorkflow(file))) {
+      const line = script.split("\n").find(text => text.includes("${{"));
+      assert.equal(line, undefined, `${file} 的 run 裡有 \${{ }}：${line?.trim()}`);
+    }
+  }
+});
+
+test("run 指令的檢查本身抓得到 ${{ }}（多行、中間有空行、單行、> 摺疊、- run 都算），env 裡的不算", () => {
+  const sample = [
+    "      - name: a",
+    "        env:",
+    "          STAMP: ${{ steps.check.outputs.stamp }}",
+    "        run: |",
+    '          echo "$STAMP"',
+    "      - name: b",
+    "        run: |",
+    "          set -e",
+    "",
+    '          STAMP="${{ steps.check.outputs.stamp }}"',
+    "        timeout-minutes: 1",
+    "      - name: c",
+    '        run: echo "${{ inputs.force }}"',
+    "      - name: d",
+    "        run: >-",
+    '          echo "${{ github.ref }}"',
+    '      -   run: echo "${{ github.ref }}"',
+    "          name: e",
+  ].join("\n");
+  assert.deepEqual(runScripts(sample).map(script => script.includes("${{")), [false, true, true, true, true]);
+
+  // 名字叫 run 的 job 不是步驟的 run，底下 env 的 ${{ }} 不算；run: 後面換行才寫指令的照樣抓
+  const job = ["jobs:", "  run:", "    runs-on: ubuntu-latest", "    steps:", "      - env:", "          TOKEN: ${{ github.token }}", "        run: node x.mjs"];
+  assert.deepEqual(runScripts(job.join("\n")).map(script => script.includes("${{")), [false]);
+  const plain = ["      - name: f", "        run:", '          echo "${{ github.ref }}"'];
+  assert.deepEqual(runScripts(plain.join("\n")).map(script => script.includes("${{")), [true]);
+});
+
+test("上游版本字串改從 env 傳進要用的步驟：比對版本拿得到網站目前的版本與 force，開 PR 那步拿得到上游版本（漏接會變空字串）", () => {
+  const check = stepBlock("比對版本");
+  assert.match(check, /\n {10}BEFORE: \$\{\{ steps\.before\.outputs\.stamp \}\}\n/);
+  assert.match(check, /\n {10}FORCE: \$\{\{ inputs\.force \}\}\n/);
+  assert.match(check, /"\$BEFORE"/);
+  assert.match(check, /"\$FORCE"/);
+  const merge = stepBlock("開 PR 並自動合併");
+  assert.match(merge, /\n {10}STAMP: \$\{\{ steps\.check\.outputs\.stamp \}\}\n/);
+  assert.match(merge, /"\$STAMP"/);
 });
 
 test("故意失敗那一步只在勾了 simulate_failure 時跑，放在比對版本之後（issue 才有上游版本），兩行輸出照順序", () => {

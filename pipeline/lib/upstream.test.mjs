@@ -104,6 +104,55 @@ test("assembleUpstream 的版本取最新產生的那個檔，各檔版本另外
   assert.deepEqual(metadata.parts["items-data.js"], { gameVersion: "1.15.2", generatedAt: "2026-09-24T11:25:10+08:00" });
 });
 
+test("assembleUpstream 的 generatedAt 不是 ISO 時間格式就擋下來，並說是哪個檔：排程會拿它當版本比對、寫進 PR 標題", () => {
+  // Date.parse 把括號裡當註解（沒關的括號一路算到字串尾），這些都算合法日期；原字串照存，指令或換行就跟著進了 CI
+  const rejected = [
+    ["items-data.js", 'Oct 5 2026 10:00 ("; echo INJECTED; echo ")'], // 最新的那個檔：會變成整份資料的版本
+    ["items-data.js", "Oct 5 2026 10:00 (\nchanged=false)"], // 換行：多寫一行 $GITHUB_OUTPUT
+    ["data.js", 'Sep 1 2026 ("; echo INJECTED; echo ")'], // 不是最新的檔也擋：各檔版本會留進 meta.json、印進執行紀錄
+    ["quests-data.js", "2026-13-45T99:99:99+08:00"], // 長得像 ISO 但月份、時間超出範圍
+    // 結尾或某一行是合法 ISO 也不行：格式檢查要從整個字串開頭比到結尾
+    ["items-data.js", 'Oct 5 2026 ("; echo INJECTED; echo "2026-09-24T11:25:10+08:00'],
+    ["items-data.js", "Oct 5 2026 (\nchanged=false\n2026-09-24T11:25:10+08:00"],
+    ["items-data.js", "2026-09-24T11:25:10+08:00\nchanged=false"],
+    // 小數秒不限長度，幾萬字也算合法：PR 標題超過 256 字開不出來（分支已經推上去了），通知 issue 也會超過長度上限
+    ["items-data.js", `2026-09-24T11:25:10.${"1".repeat(1000)}+08:00`],
+  ];
+  for (const [file, generatedAt] of rejected) {
+    const parts = fixtureParts();
+    parts[file].metadata.generatedAt = generatedAt;
+    assert.throws(
+      () => assembleUpstream(parts),
+      error => {
+        assert.match(error.message, new RegExp(`上游 ${file.replace(".", "\\.")} .*generatedAt`));
+        // 錯誤訊息會印進執行紀錄、貼進通知 issue：原字串的換行不能帶出去（新的一行開頭寫 ::指令:: 會被 Actions 當成指令），也不能整串照貼
+        assert.ok(!error.message.includes("\n"), "錯誤訊息裡有換行");
+        assert.ok(error.message.length < 200, `錯誤訊息 ${error.message.length} 字`);
+        return true;
+      },
+      JSON.stringify(generatedAt).slice(0, 80),
+    );
+  }
+});
+
+test("assembleUpstream 某個檔沒寫 generatedAt（undefined、null、空字串）照舊略過，版本取其他檔最新的", () => {
+  for (const missing of [undefined, null, ""]) {
+    const parts = fixtureParts();
+    parts["items-data.js"].metadata.generatedAt = missing;
+    const { metadata } = assembleUpstream(parts);
+    assert.equal(metadata.parts["items-data.js"].generatedAt, null);
+    assert.equal(metadata.generatedAt, "2026-09-21T11:41:01+08:00");
+  }
+});
+
+test("assembleUpstream 的 generatedAt 是 ISO 8601 就照收、原字串不動（Z、小數秒都算）", () => {
+  const parts = fixtureParts();
+  parts["maps-data.js"].metadata.generatedAt = "2026-09-25T01:00:00.000Z";
+  const { metadata } = assembleUpstream(parts);
+  assert.equal(metadata.generatedAt, "2026-09-25T01:00:00.000Z");
+  assert.equal(metadata.parts["items-data.js"].generatedAt, "2026-09-24T11:25:10+08:00");
+});
+
 test("assembleUpstream 缺了管線用得到的資料就擋下來，並說是哪個檔的哪個欄位", () => {
   const parts = fixtureParts();
   delete parts["items-data.js"];

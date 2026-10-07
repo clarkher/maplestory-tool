@@ -83,17 +83,22 @@ jobs:
       - name: 取得 Artale 資料
         run: node pipeline/fetch-artale.mjs
 
+      # run 裡不要直接寫 ${{ }}：那是在 bash 跑之前把字串原樣貼進指令，上游的版本字串寫成 `"; 指令; echo "`
+      # 就會在這裡（有寫入權限）被執行。一律用 env 傳進去、指令裡寫 "$變數"（pipeline/lib/data-refresh-workflow.test.mjs 會擋）
       - name: 比對版本
         id: check
+        env:
+          BEFORE: ${{ steps.before.outputs.stamp }}
+          FORCE: ${{ inputs.force }}
         run: |
           AFTER=$(node -p "require('./data/raw/artale.json').metadata?.generatedAt ?? ''")
           echo "stamp=$AFTER" >> "$GITHUB_OUTPUT"
-          if [ "$AFTER" = "${{ steps.before.outputs.stamp }}" ] && [ "${{ inputs.force }}" != "true" ]; then
+          if [ "$AFTER" = "$BEFORE" ] && [ "$FORCE" != "true" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             echo "上游版本沒變（$AFTER），跳過重建"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "版本從 ${{ steps.before.outputs.stamp }} 變成 $AFTER，重建"
+            echo "版本從 $BEFORE 變成 $AFTER，重建"
           fi
 
       - name: （測試）故意失敗
@@ -139,6 +144,7 @@ jobs:
         if: steps.check.outputs.changed == 'true' && env.DRY_RUN != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
+          STAMP: ${{ steps.check.outputs.stamp }}
         run: |
           # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：步驟條件之外再擋一次
           if [ "$DRY_RUN" = "true" ]; then
@@ -153,7 +159,6 @@ jobs:
             exit 0
           fi
           VERSION=$(node -p "require('./public/data/meta.json').gameVersion ?? '?'")
-          STAMP="${{ steps.check.outputs.stamp }}"
           BRANCH="data/refresh-$(echo "$STAMP" | tr -dc '0-9' | head -c 14)"
           git checkout -b "$BRANCH"
           git commit -m "data: 同步遊戲版本 ${VERSION}（${STAMP}）"
