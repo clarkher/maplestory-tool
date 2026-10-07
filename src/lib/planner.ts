@@ -44,9 +44,9 @@ export type QuestPlan = {
 };
 
 /** 再過幾級就超過等級上限，就算「快過期」。 */
-export const EXPIRING_WINDOW = 8;
+const EXPIRING_WINDOW = 8;
 /** 等級門檻在最近幾級內解鎖的，算「剛解鎖」。 */
-export const FRESH_WINDOW = 10;
+const FRESH_WINDOW = 10;
 
 /** 遊戲資料裡的開發測試任務（「開發測試用」，9999）：玩家接不到，哪裡都不列 */
 export function isDevQuest(quest: Pick<Quest, "n">): boolean {
