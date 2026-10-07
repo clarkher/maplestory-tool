@@ -8,7 +8,14 @@ name: 資料自動更新
 # v83 地圖資料（傳送門、回城點、世界地圖區域；台服客戶端沒有刷怪資料的圖才用它的刷怪點）
 # 是凍結版本，已進版控，不會在這裡重抓。
 #
-# 失敗通知（notify job，pipeline/notify-refresh.mjs）：refresh 任何一步失敗就開一張 issue
+# 三個 job，寫入權限只在最後開 PR 那一個：
+#  - refresh：取上游、重建、檢查、next build，只能讀 repo（checkout 也不留 token）——這裡跑 npm、讀第三方上游的資料，
+#    萬一哪個被動了手腳也拿不到寫入權限。重建好的 public/data、public/assets 存成 artifact
+#  - publish：refresh 全過、真的重建了、不是 dry-run 才跑。下載 artifact 換進 public/，開 PR、--admin 直接合進 main（正式機）。
+#    不跑 npm、不跑 pipeline 的程式，artifact 只當資料收
+#  - notify：失敗通知（下面）
+#
+# 失敗通知（notify job，pipeline/notify-refresh.mjs）：refresh 或 publish 任何一步失敗就開一張 issue
 # （label「資料更新失敗」，指派給 repo 擁有者）。已經有開著的就不另開：同樣的失敗只更新內文「最後一次失敗」那行、
 # 不發通知，失敗的步驟或上游版本變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
 # 要測通知本身，手動觸發勾 dry_run（不開 PR、不合併，寫到「資料更新失敗-測試」）；勾 simulate_failure 會故意失敗一次（也算 dry-run）。
@@ -51,20 +58,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # notify 用 job 名稱 refresh 找這個 job 的步驟與 log，改名要一起改 pipeline/notify-refresh.mjs
+  # notify 用 job 名稱 refresh、publish 找失敗的步驟與 log，改名要一起改 pipeline/lib/refresh-issue.mjs 的 overallResult
   refresh:
     runs-on: ubuntu-latest
     # 平常約 1 分鐘跑完（2026-10-07 實測，連 npm ci、next build 的完整重建也是）；卡住（例如 clone 上游斷線不動）最多佔 30 分鐘，被中止後 notify 會開 issue
     timeout-minutes: 30
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     outputs:
       # 給 notify 寫進 issue：網站目前的資料版本、上游版本（取上游那步就失敗時是空的）
       before: ${{ steps.before.outputs.stamp }}
       stamp: ${{ steps.check.outputs.stamp }}
+      # 給 publish：上游版本有變（或勾了 force），有重建、有存 artifact
+      changed: ${{ steps.check.outputs.changed }}
     steps:
+      # 不把 token 留在 .git/config：這個 job 用不到，留著就是給後面跑的程式拿
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -84,7 +95,7 @@ jobs:
         run: node pipeline/fetch-artale.mjs
 
       # run 裡不要直接寫 ${{ }}：那是在 bash 跑之前把字串原樣貼進指令，上游的版本字串寫成 `"; 指令; echo "`
-      # 就會在這裡（有寫入權限）被執行。一律用 env 傳進去、指令裡寫 "$變數"（pipeline/lib/data-refresh-workflow.test.mjs 會擋）
+      # 就會在這裡被執行。一律用 env 傳進去、指令裡寫 "$變數"（pipeline/lib/data-refresh-workflow.test.mjs 會擋）
       - name: 比對版本
         id: check
         env:
@@ -140,17 +151,62 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: npm run build
 
+      # publish 拿這份開 PR：只放重建的產出這兩個資料夾，留一天就好。dry-run 也存（publish 不會跑），存不存得起來照樣驗得到
+      - name: 存下重建好的資料檔
+        if: steps.check.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: refresh-data
+          path: |
+            public/data
+            public/assets
+          if-no-files-found: error
+          retention-days: 1
+
+  # 寫入權限只在這個 job：把 refresh 建好、檢查過的資料檔換進 public/，開 PR、--admin 直接合進 main（正式機）。
+  # 不跑 npm、不跑 pipeline 的程式、不還原快取：artifact 是 refresh 產的（那邊跑過 npm、讀過上游），這裡只當資料收
+  publish:
+    needs: refresh
+    # dry-run 整個 job 不跑；job 的 if 讀不到 env，dry-run 的條件照抄開頭那個（測試會比對）。
+    # 沒寫 always() 這類條件：refresh 有任何一步失敗（檢查沒過）就不跑
+    if: needs.refresh.outputs.changed == 'true' && !(inputs.dry_run || inputs.simulate_failure || github.ref != 'refs/heads/main')
+    runs-on: ubuntu-latest
+    # 下載 artifact、commit、開 PR 合併，平常幾十秒
+    timeout-minutes: 15
+    permissions:
+      contents: write # 推資料分支、合併
+      pull-requests: write # 開 PR
+    steps:
+      # 這裡要留 token：後面 git push 用
+      - uses: actions/checkout@v4
+
+      - name: 下載重建好的資料檔
+        uses: actions/download-artifact@v4
+        with:
+          name: refresh-data
+          path: ${{ runner.temp }}/refresh-data
+
       - name: 開 PR 並自動合併
-        if: steps.check.outputs.changed == 'true' && env.DRY_RUN != 'true'
+        if: needs.refresh.outputs.changed == 'true' && env.DRY_RUN != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          STAMP: ${{ steps.check.outputs.stamp }}
+          STAMP: ${{ needs.refresh.outputs.stamp }}
         run: |
-          # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：步驟條件之外再擋一次
+          # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：job 條件、步驟條件之外再擋一次
           if [ "$DRY_RUN" = "true" ]; then
             echo "dry-run：不開 PR、不合併"
             exit 0
           fi
+          # artifact 只能有 data、assets 兩個資料夾，裡面只能是一般檔案：隱藏檔（例如 .git）、連結一律不收
+          DATA="$RUNNER_TEMP/refresh-data"
+          BAD=$(find "$DATA" -mindepth 1 \( -name '.*' -o ! -type f ! -type d \) -print -quit)
+          if [ "$(ls -A "$DATA" | tr '\n' ' ')" != "assets data " ] || [ ! -d "$DATA/data" ] || [ ! -d "$DATA/assets" ] || [ -n "$BAD" ]; then
+            echo "下載的資料檔不對：只能有 data、assets 兩個資料夾，裡面只能是一般檔案（不能有隱藏檔、連結）"
+            exit 1
+          fi
+          rm -rf public/data public/assets
+          mv "$DATA/data" public/data
+          mv "$DATA/assets" public/assets
           git config user.name "maplestory-tool bot"
           git config user.email "actions@github.com"
           git add public/data public/assets
@@ -159,24 +215,32 @@ jobs:
             exit 0
           fi
           VERSION=$(node -p "require('./public/data/meta.json').gameVersion ?? '?'")
+          # 要寫進分支名、commit 訊息、PR 標題的字串，開分支前再擋一次（上游來的 upstream.mjs 擋過格式，本機抽檔不經過那裡）：
+          # 太長開 PR 會被 GitHub 拒（標題上限 256 字），那時資料分支已經推上去了
+          if ! [[ "$VERSION" =~ ^[0-9A-Za-z.+-]{1,32}$ ]] || ! [[ "$STAMP" =~ ^[0-9A-Za-z.:+-]{1,40}$ ]]; then
+            echo "遊戲版本或上游版本的字串不對（長度 ${#VERSION}、${#STAMP}），不開 PR"
+            exit 1
+          fi
           BRANCH="data/refresh-$(echo "$STAMP" | tr -dc '0-9' | head -c 14)"
           git checkout -b "$BRANCH"
           git commit -m "data: 同步遊戲版本 ${VERSION}（${STAMP}）"
           git push -u origin "$BRANCH"
-          # verify.mjs 與首頁真資料檢查已在前面把關過才會走到這裡，PR 開了就直接合
-          gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）"             --body "自動資料更新。verify.mjs 與首頁真資料檢查全數通過、next build 成功。合併後 Vercel 會自動部署。"             --base main --head "$BRANCH"
+          # refresh 的 verify.mjs、首頁真資料檢查、next build 全過才會走到這裡，PR 開了就直接合
+          gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）" \
+            --body "自動資料更新。verify.mjs 與首頁真資料檢查全數通過、next build 成功。合併後 Vercel 會自動部署。" \
+            --base main --head "$BRANCH"
           gh pr merge "$BRANCH" --squash --delete-branch --admin
 
   notify:
-    needs: refresh
-    # refresh 成功、失敗都要跑（失敗開／留言，成功關）；整個被取消就不跑
+    needs: [refresh, publish]
+    # refresh、publish 成功失敗都要跑（失敗開／留言，成功關）；publish 沒跑（dry-run、版本沒變）也跑；整個被取消就不跑
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read # 拿 pipeline/notify-refresh.mjs
       issues: write # 開 issue、留言、關閉、建 label
-      actions: read # 讀 refresh 是哪一步失敗、下載它的 log
+      actions: read # 讀 refresh、publish 是哪一步失敗、下載它的 log
     steps:
       - uses: actions/checkout@v4
         with:
@@ -191,6 +255,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REFRESH_RESULT: ${{ needs.refresh.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
           UPSTREAM_STAMP: ${{ needs.refresh.outputs.stamp }}
           SITE_STAMP: ${{ needs.refresh.outputs.before }}
           ASSIGNEE: ${{ github.repository_owner }}
