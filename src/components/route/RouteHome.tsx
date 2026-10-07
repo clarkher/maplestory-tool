@@ -159,7 +159,13 @@ export function RouteHome() {
 
       {loaded ? <CharacterBar profile={profile} onChange={setProfile} /> : <LoadingBlock label="讀取你的角色…" />}
 
-      {ready && !data ? <LoadingBlock label="幫你排路線…" /> : null}
+      {/* 至少佔一個螢幕高：從捲到底的長頁換過來時，首頁頂端被推出畫面，Next 才會捲回頂端。只比螢幕高一點的話，
+          位置被截在頁底、頁尾也在畫面裡，路線長出來時瀏覽器的捲動錨定會把畫面一路推到頁底 */}
+      {ready && !data ? (
+        <div className="min-h-dvh">
+          <LoadingBlock label="幫你排路線…" />
+        </div>
+      ) : null}
 
       {ready && data && plan ? (
         <>
