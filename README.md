@@ -198,7 +198,14 @@ npm run data:all      # 以上全跑
   （以前認不得的寫法默默取首字母存，怪物卡又把認不得的代碼原樣印出來，才會寫出「冰 r」）：
   到 `pipeline/lib/elemental.mjs` 補對照、`src/lib/format.ts` 補字（新的抗性種類也看 `src/lib/job-rules.ts` 要不要算進去）再重建。
   上游整個屬性欄位不見、每隻怪的抗性被清空時，`verify.mjs` 的「怪物有屬性抗性資料」會紅
-- 也可以手動觸發，勾 `force` 可略過版本比對
+- 任何一步失敗（取得上游、重建、`verify.mjs`、首頁真資料檢查、`next build`、開 PR 合併），接在後面的 `notify` job 會開一張 issue
+  （label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本、執行紀錄連結、那一步錯誤訊息的最後 30 行。
+  已經有開著的就在那張底下留言，不會每天開新的；之後成功一次就自動留言並關掉。被取消的（含 GitHub 沒派到機器）不通知，下一輪會再跑。
+  程式在 `pipeline/notify-refresh.mjs`（內容與判斷在 `pipeline/lib/refresh-issue.mjs`）；
+  想先看某一次執行會發出什麼內容，用檔案開頭寫的 `PRINT_ONLY=true` 在本機預覽（只讀，不會開 issue）
+- 也可以手動觸發，勾 `force` 可略過版本比對。**沒勾 `dry_run` 的手動觸發，跑到最後會直接合進 `main`（正式機）**
+- 要測失敗通知本身：手動觸發勾 `dry_run`（照跑但不開 PR、不合併，通知寫到 label `資料更新失敗-測試` 那張，碰不到正式那張），
+  再勾 `simulate_failure` 會在比對版本之後故意失敗一次；測完再跑一次只勾 `dry_run` 的，成功就會把測試那張關掉
 
 Vercel 這端接的是 GitHub 整合（production branch = `main`），
 所以資料 commit 進 `main` 之後不需要另外下指令。
