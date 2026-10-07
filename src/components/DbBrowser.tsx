@@ -98,6 +98,7 @@ export function DbBrowser({
   renderDetail,
   searchPlaceholder = "輸入名稱或 ID",
   preferFor,
+  resetKey,
 }: {
   title: string;
   lead: string;
@@ -112,6 +113,11 @@ export function DbBrowser({
    * 清單中間分「劍士能用的裝備」「名字或說明提到劍士的」兩組）；回 null 照一般排法、不分組。要用 useCallback 包，不然每次重算
    */
   preferFor?: (keyword: string) => Prefer | null;
+  /**
+   * 換了清單才從頭顯示 60 筆的依據。沒給就看每一筆的 id 跟順序（listSignature）；給了就只看它：
+   * 任務頁打勾後清單會少一列、重排，那不算換了清單，已經載出來的筆數不能被收回去
+   */
+  resetKey?: string;
 }) {
   const params = useSearchParams();
   const selected = params.get("id");
@@ -135,7 +141,7 @@ export function DbBrowser({
   const matches = useMemo(() => searchEntries(entries, query, prefer?.ids), [entries, query, prefer]);
 
   // 篩選換了清單才從頭顯示 60 筆；內容一樣只是重算（角色讀好、標籤冒出來）不算，多載過的不會被收回去
-  const signature = useMemo(() => listSignature(entries), [entries]);
+  const signature = useMemo(() => resetKey ?? listSignature(entries), [resetKey, entries]);
   const shownSignature = useRef(signature);
   useEffect(() => {
     if (shownSignature.current === signature) return;
@@ -148,7 +154,7 @@ export function DbBrowser({
   // 手機點一筆時，那一列在畫面上的位置：展開後先放回原處，再捲到導覽列下方
   const tapped = useRef<{ id: string; top: number } | null>(null);
   // 收起的是哪一筆、是不是用返回收的、什麼時候按的、卡片原本放在哪裡
-  const collapsed = useRef<{ id: string; byBack: boolean; at: number; spot: DetailSpot | null } | null>(null);
+  const collapsed = useRef<{ id: string; byBack: boolean; at: number; spot: DetailSpot | null; y: number | null } | null>(null);
   // 最近一次從清單點開的是哪一筆、什麼時候點的：擋手指連點
   const lastPick = useRef<{ id: string; at: number } | null>(null);
   // 卡片現在放在哪裡：點、收起的時候要知道，不用等下一次畫面
@@ -183,7 +189,14 @@ export function DbBrowser({
     const pending = collapsed.current;
     if (pending?.id === openId && performance.now() - pending.at < 1000) return;
     const byBack = collapseByBack(window.history.state, openId, performance.timeOrigin);
-    collapsed.current = { id: openId, byBack, at: performance.now(), spot: spotNow.current };
+    const openRow = rowOf(openId);
+    collapsed.current = {
+      id: openId,
+      byBack,
+      at: performance.now(),
+      spot: spotNow.current,
+      y: openRow ? Math.round(openRow.getBoundingClientRect().top + window.scrollY) : null,
+    };
     // 從清單點開的那一筆用返回收起：上一頁就是點之前的清單，不會多留一筆紀錄
     if (byBack) window.history.back();
     else window.history.replaceState(null, "", urlWith(null));
@@ -321,7 +334,13 @@ export function DbBrowser({
     collapsed.current = null;
     const place = () => {
       // 卡片原本放在最上面：回到清單開頭——那一筆後來載進清單了也一樣，不跳到清單中間
-      const row = done.spot === "top" ? null : rowOf(done.id);
+      let row = done.spot === "top" ? null : rowOf(done.id);
+      // 展開在那一列下面、收起後那一列不在清單上了（例如任務打了勾就不列）：原本那一列的位置現在是下一列，放那一列
+      if (!row && done.spot === "inline" && done.y !== null) {
+        const y = done.y;
+        row = [...(listRef.current?.querySelectorAll<HTMLElement>(":scope > li[id^='db-row-']") ?? [])]
+          .find(li => li.getBoundingClientRect().top + window.scrollY >= y - 1) ?? null;
+      }
       (row ?? listRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
       // 收起按鈕不見了，焦點放回那一列（回到清單開頭的話放第一列），用鍵盤、讀螢幕的人才不會迷路
       (row ?? listRef.current)?.querySelector("button")?.focus({ preventScroll: true });

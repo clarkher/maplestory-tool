@@ -121,6 +121,7 @@ export function QuestDb() {
       lead="每個任務的等級與職業條件、去找誰、要交什麼、完成拿多少。"
       entries={entries}
       loading={!quests || !maps || !monsters || !common}
+      resetKey={`${quests && maps && monsters && common ? "loaded" : "loading"}|${category}|${eligibleOn}|${profile.level}|${profile.job}`}
       error={error}
       filters={
         <div className="space-y-2">

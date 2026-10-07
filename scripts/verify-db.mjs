@@ -1508,6 +1508,34 @@ try {
       await shot("g2-general-done.png");
       check("G2 關掉標籤看一般清單：做完的那一筆還在、標「做完了」", general2.pressed === false && general2.listed === true && general2.badge === true, general2);
 
+      // 清單很下面（第 70 列以後）、而且有別列要先做它的任務：按「我做完了」→ 卡片還在那一列下面（不被擠到清單最上面）、載出來的筆數不被收回 60 筆；
+      // 收起後那一列不見，接在後面的那一列放到導覽列下方（不跳回清單開頭）
+      await fresh("/db/quests");
+      await ev(`__tag("只看我現在接得到的").click(); await __sleep(900); return 1;`);
+      const deep = await ev(`
+        const total = Number(__count().replace(/[^0-9]/g, ""));
+        for (let i = 0; i < 12 && __rows().length < total; i++) await __loadMore();
+        const rows = __rows();
+        const nameOf = li => li.querySelector(":scope > button span.truncate").textContent.trim();
+        const noteOf = li => li.querySelector(":scope > button .tabular-nums")?.textContent.trim() ?? "";
+        const preNames = new Set(rows.map(noteOf).filter(note => note.startsWith("要先做：")).map(note => note.slice(4).replace(/ 等 [0-9]+ 個$/, "")));
+        const at = rows.findIndex((li, i) => i >= 70 && preNames.has(nameOf(li)));
+        if (at < 0) return { skipped: "第 70 列以後找不到有別列要先做它的任務" };
+        const id = rows[at].id.replace("db-row-", "");
+        __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
+        __tap(id); await __waitFor(() => __id() === id); await __sleep(1500);
+        const btn = [...document.querySelectorAll("#db-row-" + id + " article button[aria-pressed]")].find(b => b.textContent.trim().endsWith("做完了"));
+        btn.click(); await __sleep(900);
+        const ticked = { rows: __rows().length, open: __open(), topCard: __topCard() };
+        const nextId = __rows()[__rows().findIndex(li => li.id === "db-row-" + id) + 1]?.id.replace("db-row-", "") ?? null;
+        (__collapseBtn() ?? __topCollapse())?.click(); await __waitFor(() => __id() === null, 3000); await __sleep(900);
+        const next = nextId ? __row(nextId) : null;
+        return { id, nextId, at, total, ticked, collapsed: { rows: __rows().length, row: !!__row(id), nextTop: next ? Math.round(next.getBoundingClientRect().top) : null } };`);
+      check("G2 清單很下面（第 70 列以後）的任務按「我做完了」：卡片還在那一列下面、載出來的筆數沒被收回 60 筆",
+        !deep.skipped && deep.ticked.open[0] === deep.id && deep.ticked.topCard === false && deep.ticked.rows === deep.total, deep);
+      check("G2 收起後：那一列不見、載出來的筆數沒被收回 60 筆、接在後面的那一列在導覽列下方",
+        !deep.skipped && deep.collapsed.row === false && deep.collapsed.rows === deep.total - 1 && near(deep.collapsed.nextTop, 80, 3), deep);
+
       // 桌機：挑一列小字寫「要先做：〇〇」的、一列寫「再 N 級接不到 · 要先做前置」的，各按一次「我做完了」再按一次取消
       await desktop();
       await fresh("/db/quests");
