@@ -201,6 +201,12 @@ npm run data:all      # 以上全跑
   （以前認不得的寫法默默取首字母存，怪物卡又把認不得的代碼原樣印出來，才會寫出「冰 r」）：
   到 `pipeline/lib/elemental.mjs` 補對照、`src/lib/format.ts` 補字（新的抗性種類也看 `src/lib/job-rules.ts` 要不要算進去）再重建。
   上游整個屬性欄位不見、每隻怪的抗性被清空時，`verify.mjs` 的「怪物有屬性抗性資料」會紅
+- 上游的 `generatedAt` 只收 ISO 時間格式（例如 `2026-09-24T11:25:10+08:00`，`Z`、1～9 位小數秒也行），有寫但格式不對就在「取得 Artale 資料」直接失敗、不開 PR，
+  錯誤訊息寫是上游哪個檔（例如 `items-data.js`）：這個字串會拿去比對版本、寫進 PR 標題，`Date.parse` 連 `Oct 5 2026 10:00 ("; echo X; echo ")` 都當成日期。
+  上游真的換了時間格式：到 `pipeline/lib/upstream.mjs` 放寬 `ISO_STAMP`（只加需要的寫法，引號、反引號、`$`、括號、分號、換行一律不收）再重建；
+  版本字串換了寫法，下一輪會當成上游更新、重建並自動合進正式機一次。
+  workflow 的 `run:` 裡也一律不直接寫 `${{ }}`（那是先把字串貼進指令再跑），上游來的字串、手動觸發的輸入都用 `env:` 傳，
+  `pipeline/lib/data-refresh-workflow.test.mjs` 會掃 `.github/workflows/` 每個檔來擋
 - 上游圖檔只收四個目錄最上層的 `.png`（前端載的圖）跟 `.json`（上游附的 `summary.json`）；`.svg`、`.html` 這類網頁檔放上正式機網域，
   有人點開就會用我們網站的身分跑上游寫的腳本，所以白名單以外的檔、子資料夾、捷徑（symlink）一律不收，網站裡原本混進來的也清掉
   （`pipeline/lib/assets.mjs`）。上游把 `assets` 或其中一個目錄換成捷徑時「取得 Artale 資料」直接失敗、不開 PR。
