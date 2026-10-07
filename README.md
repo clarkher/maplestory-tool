@@ -207,6 +207,10 @@ npm run data:all      # 以上全跑
   版本字串換了寫法，下一輪會當成上游更新、重建並自動合進正式機一次。
   workflow 的 `run:` 裡也一律不直接寫 `${{ }}`（那是先把字串貼進指令再跑），上游來的字串、手動觸發的輸入都用 `env:` 傳，
   `pipeline/lib/data-refresh-workflow.test.mjs` 會掃 `.github/workflows/` 每個檔來擋
+- 上游圖檔只收四個目錄最上層的 `.png`（前端載的圖）跟 `.json`（上游附的 `summary.json`）；`.svg`、`.html` 這類網頁檔放上正式機網域，
+  有人點開就會用我們網站的身分跑上游寫的腳本，所以白名單以外的檔、子資料夾、捷徑（symlink）一律不收，網站裡原本混進來的也清掉
+  （`pipeline/lib/assets.mjs`）。上游把 `assets` 或其中一個目錄換成捷徑時「取得 Artale 資料」直接失敗、不開 PR。
+  前端要載新的圖檔格式就到 `ASSET_EXTENSIONS` 加（`pipeline/lib/assets.test.mjs` 會檢查前端用到的副檔名都在白名單裡）
 - 任何一步失敗（取得上游、重建、`verify.mjs`、首頁真資料檢查、`next build`、開 PR 合併），接在後面的 `notify` job 會開一張 issue
   （label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本、執行紀錄連結、那一步錯誤訊息的最後 30 行。
   已經有開著的就不另開：同樣的失敗（同一步、同一個上游版本）只更新那張內文的「最後一次失敗」那行（時間、卡在哪一步、連續第幾次；
