@@ -212,3 +212,26 @@ Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScri
 ```bash
 npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 ```
+
+### 查資料頁驗收（改查資料四頁之後跑）
+
+`/db/items`、`/db/monsters`、`/db/quests`、`/db/skills` 的捲動、展開、收起、按返回、記住搜尋篩選、自動載入，
+單元測試測不到真的畫面，用 `scripts/verify-db.mjs` 開無頭 Chrome 實際點一遍（手機 375×812、桌機 1280×800），
+逐格量捲動位置，並開關「減少動態效果」各跑一次。
+
+```bash
+npm run dev                     # 另開一個終端機先把網站起起來
+npm run verify:db               # 驗 http://localhost:3000
+npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.app   # 驗測試機
+```
+
+- 每一項印 `PASS`／`FAIL`，有一項沒過就 exit 1；截圖和 `results.json` 預設寫到系統暫存資料夾的
+  `maplebook-verify-db/<這次的時間>`，網址後面再給一個資料夾就改寫到那裡（別寫進 repo 裡）。
+- 要 Node 22 以上（用到內建的 WebSocket），還要有 Chrome（或 Edge、Chromium），找不到時用環境變數 `CHROME_PATH` 指定。
+- 每次用乾淨的瀏覽器資料、DevTools 的埠由 Chrome 自己挑、輸出資料夾每次分開，幾個一起跑不會撞。
+- 按返回、下一頁用 DevTools 按瀏覽器的返回鍵（`Page.navigateToHistoryEntry`），不是頁面自己呼叫 `history.back()`。
+- 一段出錯（例如找不到按鈕）只記那一段失敗，後面照跑；每一段從乾淨的搜尋、篩選開始。
+- 只跑某幾段：`VERIFY_ONLY=N10,N13 npm run verify:db -- <網址>`（寫段名，一組的像「M1–M5」寫 M1 也行）。
+- 裡面寫死了幾筆資料（綠水靈、白狼人、道具 1302020、任務 6931／6930），遊戲資料改版後對不上會 FAIL 並寫原因，換 id 就好。
+- 跑一次約 6 分鐘。本機 dev server 第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次。
+- 改了查資料頁的行為，要一起改或加這裡的檢查。
