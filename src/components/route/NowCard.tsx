@@ -12,6 +12,7 @@ import { advanceTitle, altPrefix, canGo, ceilingText, pqClosedText, type MainPic
 import { LEVEL_CAP } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import type { GuidePq, MapRecord, Monster } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 import { Chip, SourceTag, Sprite } from "./bits";
 
 type Common = {
@@ -86,9 +87,10 @@ function mobLine(option: TrainOption, monsters: Map<number, Monster>): string {
  * 長不長要等排版後才量得到（寬度不同斷行就不同），所以用 ResizeObserver 跟著版面重量；
  * 第一次在畫面畫出來之前就量（useLayoutEffect），「展開」不會晚一格才冒出來、把下面往下推。
  */
-function GuideReason({ text }: { text: string }) {
+function GuideReason({ map, text }: { map: number; text: string }) {
   const ref = useRef<HTMLParagraphElement>(null);
-  const [open, setOpen] = useState(false);
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時首頁一樣長，才捲得回同一段
+  const [open, setOpen] = useVisitState(`home:reason:${map}`, false);
   const [long, setLong] = useState(false);
   useLayoutEffect(() => {
     const element = ref.current;
@@ -135,7 +137,7 @@ function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { 
             {record?.o && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
           </h2>
           <p className="text-[13px] ink-soft">{[record?.st, mobLine(option, monsters)].filter(Boolean).join("・")}</p>
-          {option.source === "guide" && option.guide?.why ? <GuideReason key={option.map} text={option.guide.why} /> : null}
+          {option.source === "guide" && option.guide?.why ? <GuideReason key={option.map} map={option.map} text={option.guide.why} /> : null}
         </div>
         <div className="flex flex-wrap gap-1.5">
           {option.fit.note ? <Chip tone="maple">{jobName}專屬：{option.fit.note}</Chip> : null}

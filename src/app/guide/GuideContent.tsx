@@ -9,6 +9,7 @@ import { monsterImage } from "@/lib/data";
 import {
   COMMON_ROUTE, GUIDE_SOURCES, GUIDE_UPDATED_AT, JOB_GUIDES, type GuideStep, type JobGuide,
 } from "@/lib/guide-data";
+import { useVisitState } from "@/lib/visit-state";
 import {
   KpqAnswerTable, KpqBarrelDiagram, MoonBunnySeedDiagram, PqEntryBanner, PqStageList,
 } from "./PqVisuals";
@@ -210,7 +211,9 @@ function StepCard({
   total: number;
   jobKey: string;
 }) {
-  const [open, setOpen] = useState(index === 0);
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時頁面一樣長，才捲得回同一段。
+  // 這頁伺服器先畫好，接手時照預設（第一步展開），接手完馬上換成記下的
+  const [open, setOpen] = useVisitState(`guide:step:${index}`, index === 0);
   // 法師 8 等轉職，出島那步對法師顯示不同重點；其他步驟共通
   void jobKey;
   // 組隊任務的段落有固定的 id（#pq-moon、#pq-kerning），首頁的「看打法」跳過來時直接展開
