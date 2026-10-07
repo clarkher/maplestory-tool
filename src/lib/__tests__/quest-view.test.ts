@@ -69,6 +69,18 @@ describe("「只看我現在接得到的」：分段、做完的不列、前置�
     expect(mine.find(row => row.quest.id === "x")!.missingPre.map(pre => pre.id)).toEqual(["p"]);
   });
 
+  it("前置的 id 不在資料裡：不擋，也不會出錯", () => {
+    const rows = questBoard([q("x", { minLv: 32, pre: ["nope"] })], profile, new Set());
+    expect(rows.find(row => row.quest.id === "x")!.missingPre).toEqual([]);
+  });
+
+  it("前置的等級還沒到、也沒打勾：照算要先做（升級之後還是得先做它）", () => {
+    // 角色 Lv.35，前置 p 要 Lv.40 所以現在不會列；x 沒寫等級，列得出來
+    const rows = questBoard([q("p", { minLv: 40 }), q("x", { pre: ["p"] })], profile, new Set());
+    expect(rows.map(row => row.quest.id)).toEqual(["x"]);
+    expect(rows[0].missingPre.map(pre => pre.id)).toEqual(["p"]);
+  });
+
   it("開發測試任務不列", () => {
     expect(questBoard([q("9999", { n: "開發測試用" })], profile, new Set())).toEqual([]);
   });
@@ -81,6 +93,10 @@ describe("「接得到的」小字", () => {
   });
   it("快過期：再 N 級接不到（上限 40、現在 35 → 升到 41 接不到 → 再 6 級）", () => {
     expect(boardNote({ quest: q("x", { maxLv: 40 }), bucket: "expiring", levelsLeft: 5, missingPre: [] })).toBe("再 6 級接不到");
+  });
+  it("快過期、前置也還沒做：兩件都寫，前置的名字卡片裡有、這裡不寫", () => {
+    expect(boardNote({ quest: q("x", { maxLv: 40 }), bucket: "expiring", levelsLeft: 5, missingPre: [q("p", { n: "瑞恩的測驗1" })] })).toBe("再 6 級接不到 · 要先做前置");
+    expect(boardNote({ quest: q("x", { maxLv: 40 }), bucket: "expiring", levelsLeft: 5, missingPre: [q("p", { n: "甲" }), q("r", { n: "乙" })] })).toBe("再 6 級接不到 · 要先做前置");
   });
   it("其他回 null（畫面改寫等級）", () => {
     expect(boardNote({ quest: q("x"), bucket: "backlog", missingPre: [] })).toBeNull();

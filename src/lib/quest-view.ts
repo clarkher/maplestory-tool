@@ -62,10 +62,19 @@ export function questBoard(quests: Quest[], profile: Profile, done: ReadonlySet<
       || (b.quest.exp ?? 0) - (a.quest.exp ?? 0));
 }
 
-/** 「接得到的」小字：前置還沒做寫「要先做：〇〇」，快過期寫「再 N 級接不到」（升 N 級後超過等級上限）；都不是回 null */
+/**
+ * 「接得到的」小字，三種寫法，都不是回 null：
+ * - 快過期、前置也還沒做：「再 N 級接不到 · 要先做前置」兩件都寫（升 N 級後超過等級上限；前置的名字卡片裡有，手機一列放不下）
+ * - 只有前置還沒做：「要先做：〇〇」，兩個以上加「等 N 個」
+ * - 只有快過期：「再 N 級接不到」
+ */
 export function boardNote(row: BoardRow): string | null {
   const [first, ...others] = row.missingPre;
+  const { bucket, levelsLeft } = row;
+  if (bucket === "expiring" && levelsLeft !== undefined) {
+    const expiring = `再 ${levelsLeft + 1} 級接不到`;
+    return first ? `${expiring} · 要先做前置` : expiring;
+  }
   if (first) return others.length ? `要先做：${first.n} 等 ${others.length + 1} 個` : `要先做：${first.n}`;
-  if (row.bucket === "expiring" && row.levelsLeft !== undefined) return `再 ${row.levelsLeft + 1} 級接不到`;
   return null;
 }
