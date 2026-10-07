@@ -32,6 +32,7 @@ function loadVersion(): Promise<string> {
       })
       .then(meta => {
         cache.set("meta", Promise.resolve(meta));
+        ready.set("meta", meta);
         return meta.builtAt || "0";
       });
   }
@@ -66,12 +67,19 @@ function peek<T>(name: string): T | null {
   return (ready.get(name) as T | undefined) ?? null;
 }
 
-/** 查資料四頁用：載過就同步拿到，沒載過是 null */
+/** 查資料四頁、首頁用：載過就同步拿到，沒載過是 null */
 export const peekMaps = () => peek<Record<string, MapRecord>>("maps");
 export const peekMonsters = () => peek<Monster[]>("monsters");
 export const peekItems = () => peek<Item[]>("items");
 export const peekQuests = () => peek<Quest[]>("quests");
 export const peekSkills = () => peek<Skill[]>("skills");
+export const peekMeta = () => peek<Meta>("meta");
+export const peekTraining = () => peek<TrainingRow[]>("training");
+export const peekGraph = () => peek<Record<string, PortalEdge[]>>("graph");
+export const peekNearestTown = () => peek<Record<string, [number, number]>>("nearest-town");
+export const peekGear = () => peek<GearData>("gear");
+export const peekGuideCommon = () => peek<GuideCommon>("guides/common");
+export const peekGuide = (job: number) => peek<GuideJob>(`guides/${job}`);
 
 export const loadMeta = (): Promise<Meta> => {
   const cached = cache.get("meta") as Promise<Meta> | undefined;
@@ -97,10 +105,15 @@ export const loadSearch = () => load<SearchRow[]>("search");
 let gearPromise: Promise<GearData> | null = null;
 export function loadGear(): Promise<GearData> {
   if (!gearPromise) {
-    gearPromise = fetch("/data/gear.json", { cache: "no-cache" }).then(response => {
-      if (!response.ok) throw new Error(`載入裝備資料失敗（${response.status}）`);
-      return response.json() as Promise<GearData>;
-    });
+    gearPromise = fetch("/data/gear.json", { cache: "no-cache" })
+      .then(response => {
+        if (!response.ok) throw new Error(`載入裝備資料失敗（${response.status}）`);
+        return response.json() as Promise<GearData>;
+      })
+      .then(gear => {
+        ready.set("gear", gear);
+        return gear;
+      });
     // 載失敗不要記住，下次再試
     gearPromise.catch(() => {
       gearPromise = null;
@@ -117,10 +130,15 @@ let guideCommon: Promise<GuideCommon> | null = null;
 
 export function loadGuideCommon(): Promise<GuideCommon> {
   if (!guideCommon) {
-    guideCommon = fetch("/data/guides/common.json", { cache: "no-cache" }).then(response => {
-      if (!response.ok) throw new Error(`載入攻略失敗（${response.status}）`);
-      return response.json() as Promise<GuideCommon>;
-    });
+    guideCommon = fetch("/data/guides/common.json", { cache: "no-cache" })
+      .then(response => {
+        if (!response.ok) throw new Error(`載入攻略失敗（${response.status}）`);
+        return response.json() as Promise<GuideCommon>;
+      })
+      .then(common => {
+        ready.set("guides/common", common);
+        return common;
+      });
   }
   return guideCommon;
 }
@@ -135,6 +153,10 @@ export function loadGuide(job: number): Promise<GuideJob> {
       .then(response => {
         if (!response.ok) throw new Error(`載入攻略失敗（${response.status}）`);
         return response.json() as Promise<GuideJob>;
+      })
+      .then(guide => {
+        ready.set(name, guide);
+        return guide;
       });
     cache.set(name, pending);
   }

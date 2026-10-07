@@ -3,17 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
-import {
-  itemImage, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining, monsterImage,
-} from "@/lib/data";
+import { itemImage, loadGuide, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
+import { cachedGuides, guideJobs, loadHomeData, peekHomeData, type HomeData } from "@/lib/home-data";
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
-import { jobLineage } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
-import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
+import type { GuideJob } from "@/lib/types";
 import { CharacterBar } from "./CharacterBar";
 import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
@@ -22,37 +20,26 @@ import { RouteTimeline } from "./RouteTimeline";
 import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
 
-type GameData = {
-  maps: Record<string, MapRecord>;
-  monsters: Monster[];
-  quests: Quest[];
-  training: TrainingRow[];
-  common: GuideCommon;
-  meta: Meta;
-  /** 傳送門資料走得到的地圖；組隊任務內部的圖不在裡面，不給「帶我去」 */
-  routable: Set<number>;
-  graph: Record<string, PortalEdge[]>;
-  nearestTown: Record<string, [number, number]>;
-};
-
 export type GuideStatus = "loading" | "ready" | "failed";
 
 export function RouteHome() {
   const showV002Banner = useBeforeV002();
+  // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
-  const [data, setData] = useState<GameData | null>(null);
-  const [guides, setGuides] = useState<Map<number, GuideJob>>(new Map());
-  const [guideStatus, setGuideStatus] = useState<GuideStatus>("loading");
+  const [data, setData] = useState<HomeData | null>(peekHomeData);
+  const [guides, setGuides] = useState<Map<number, GuideJob>>(() => cachedGuides(guideJobs(profile.job)));
+  const [guideStatus, setGuideStatus] = useState<GuideStatus>(() => {
+    const wanted = guideJobs(profile.job);
+    return wanted.length > 0 && wanted.every(job => guides.has(job)) ? "ready" : "loading";
+  });
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([loadMaps(), loadMonsters(), loadQuests(), loadTraining(), loadGuideCommon(), loadMeta(), loadGraph(), loadNearestTown()])
-      .then(([maps, monsters, quests, training, common, meta, graph, nearestTown]) => {
-        const routable = new Set<number>(Object.keys(graph).map(Number));
-        for (const edges of Object.values(graph)) for (const [target] of edges) routable.add(target);
-        setData({ maps, monsters, quests, training, common, meta, routable, graph, nearestTown });
-      })
+    // 一開始就拿到了（這次瀏覽載過）就不用再載
+    if (data) return;
+    loadHomeData()
+      .then(setData)
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
@@ -61,12 +48,14 @@ export function RouteHome() {
   useEffect(() => {
     if (profile.job <= 0) return;
     let cancelled = false;
-    const wanted = jobLineage(profile.job).filter(code => code > 0);
-    setGuideStatus("loading");
+    const wanted = guideJobs(profile.job);
+    // 整條線都載過（換頁回來、換回剛看過的職業）就不設回讀取中，已經畫好的技能點法跟路線不會閃一下
+    if (cachedGuides(wanted).size < wanted.length) setGuideStatus("loading");
     Promise.all(wanted.map(job => loadGuide(job).then(guide => [job, guide] as const)))
       .then(entries => {
         if (cancelled) return;
-        setGuides(previous => new Map([...previous, ...entries]));
+        // 拿到的都已經在畫面上就不換一份新的，整條路線不用重算
+        setGuides(previous => (entries.every(([job, guide]) => previous.get(job) === guide) ? previous : new Map([...previous, ...entries])));
         setGuideStatus("ready");
       })
       .catch(() => {
