@@ -371,6 +371,8 @@ export function DbBrowser({
       const to = samePageTarget({ href: link.href, target: link.target, download: link.hasAttribute("download") }, event, window.location);
       if (!to) return;
       event.preventDefault();
+      // 跟從清單點一筆一樣：右邊那一欄被頁尾往上推走時（清單到底），新的那一筆畫出來後頁面往上一點，讓卡片頂端出來
+      if (isWide()) sideRevealPending.current = true;
       router.push(to, { scroll: false });
     },
     [router],

@@ -1293,6 +1293,33 @@ try {
       !r.skipped && r.y > 1000 && Math.abs(r.yAfter - r.y) <= 2 && r.id === "6930" && r.sideScroll === 0, r);
   });
 
+  // D10 桌機清單整個列完、捲到最底（右邊那一欄被頁尾往上推走）再點卡片裡的「要先完成」：頁面往上一點，新卡片的標題出來
+  await section("D10", async () => {
+    // 跟 D7 一樣用很矮的桌機畫面，卡片一定放不下、一定被推走
+    await page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 450, deviceScaleFactor: 1, mobile: false });
+    await clearRemembered();
+    await navigate(`${BASE}/db/quests?id=6931`);
+    const r = await ev(`await __ready(); await __sleep(900);
+      for (let i = 0; i < 20; i++) {
+        const before = __rows().length; const btn = __moreBtn();
+        if (__shows(btn)) btn.click(); else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" });
+        await __waitFor(() => __rows().length > before, 1500); await __sleep(300);
+        if (__rows().length === before) break;
+      }
+      window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(500);
+      const side = __side(); const pushedBy = Math.round(parseFloat(getComputedStyle(side).top) - side.getBoundingClientRect().top);
+      const link = [...side.querySelectorAll("article a")].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
+      if (!link) return { skipped: "6931 的卡片裡找不到 6930 的連結" };
+      const yBefore = Math.round(scrollY);
+      link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
+      await __waitFor(() => __id() === "6930", 5000); await __sleep(1300);
+      const title = side.querySelector("article h2")?.getBoundingClientRect();
+      return { pushedBy, yBefore, yAfter: Math.round(scrollY), id: __id(), header: __headerBottom(), sideTop: Math.round(side.getBoundingClientRect().top),
+        titleTop: title ? Math.round(title.top) : null };`);
+    check("D10 清單到底、右邊那一欄被往上推走時點卡片裡的「要先完成」：頁面往上一點、新卡片的標題出來",
+      !r.skipped && r.pushedBy > 20 && r.id === "6930" && r.yAfter < r.yBefore && r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.titleTop > r.header, r);
+  });
+
   // H11 桌機用滑鼠滾輪往下捲：導覽列不收（只有手指滑才收）
   await section("H11", async () => {
     await desktop();
