@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  loadGraph, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining,
+  loadGear, loadGraph, loadGuide, loadGuideCommon, loadMaps, loadMeta, loadMonsters, loadNearestTown, loadQuests, loadTraining,
   peekGraph, peekGuide, peekGuideCommon, peekMaps, peekMeta, peekMonsters, peekNearestTown, peekQuests, peekTraining,
 } from "./data";
 import { JOB_LINES, jobLineOf } from "./jobs";
@@ -55,6 +55,23 @@ export function peekHomeData(): HomeData | null {
   const nearestTown = peekNearestTown();
   if (!maps || !monsters || !quests || !training || !common || !meta || !graph || !nearestTown) return null;
   return withRoutable({ maps, monsters, quests, training, common, meta, graph, nearestTown });
+}
+
+/** 網路狀況（navigator.connection，只有部分瀏覽器有） */
+export type ConnectionHint = { saveData?: boolean; effectiveType?: string };
+
+/** 人在查資料、規劃頁（/db、/plan）才先在背景載首頁要的；開了省流量模式、2G 網路不載 */
+export function shouldPrefetchHome(pathname: string, connection: ConnectionHint): boolean {
+  if (connection.saveData || connection.effectiveType === "2g" || connection.effectiveType === "slow-2g") return false;
+  return /^\/(db|plan)(\/|$)/.test(pathname);
+}
+
+/**
+ * 背景先載首頁要的：首頁資料、裝備卡、自己職業整條線的攻略（還沒選職業就不載攻略）。之後點「我的路線」第一格就是完整路線。
+ * 載過的不會重抓；載不到不丟錯（只是先載），真的進首頁時再照常顯示錯誤。
+ */
+export async function prefetchHome(job: number): Promise<void> {
+  await Promise.allSettled([loadHomeData(), loadGear(), ...guideJobs(job).map(code => loadGuide(code))]);
 }
 
 /** 這個職業整條線要用的攻略：路線前面幾段用的是上一轉的內容（三轉 111 → 111、110、100）；初心者、還沒選職業不用 */
