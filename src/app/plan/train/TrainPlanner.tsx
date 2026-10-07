@@ -6,7 +6,9 @@ import { useEffect, useMemo, useState } from "react";
 import { AlertIcon, ChevronDown } from "@/components/Icons";
 import { PixelMinimap } from "@/components/PixelMinimap";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
-import { loadMaps, loadMeta, loadMonsters, loadTraining, mapName, minimapImage, monsterImage } from "@/lib/data";
+import {
+  loadMaps, loadMeta, loadMonsters, loadTraining, mapName, minimapImage, monsterImage, peekMaps, peekMeta, peekMonsters, peekTraining,
+} from "@/lib/data";
 import { respawnText } from "@/lib/format";
 import { useProfile } from "@/lib/profile";
 import { planTraining, relativeIndex, requiredAccuracy } from "@/lib/planner";
@@ -14,13 +16,15 @@ import type { MapRecord, Meta, Monster, TrainingRow } from "@/lib/types";
 
 export function TrainPlanner() {
   const { profile, setProfile, loaded } = useProfile();
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
-  const [monsters, setMonsters] = useState<Monster[] | null>(null);
-  const [training, setTraining] = useState<TrainingRow[] | null>(null);
-  const [meta, setMeta] = useState<Meta | null>(null);
+  // 這次瀏覽載過的資料直接拿：站內換頁進來第一個畫面就是排行，不先畫「整理資料中…」
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
+  const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
+  const [training, setTraining] = useState<TrainingRow[] | null>(peekTraining);
+  const [meta, setMeta] = useState<Meta | null>(peekMeta);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (maps && monsters && training && meta) return;
     Promise.all([loadMaps(), loadMonsters(), loadTraining(), loadMeta()])
       .then(([mapData, monsterData, trainingData, metaData]) => {
         setMaps(mapData);

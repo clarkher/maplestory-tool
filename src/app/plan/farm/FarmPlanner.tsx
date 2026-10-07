@@ -7,27 +7,37 @@ import { CloseIcon, SearchIcon } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
 import {
   itemImage, loadFarming, loadItems, loadMaps, loadMonsters, loadQuests, mapName, monsterImage,
+  peekFarming, peekItems, peekMaps, peekMonsters, peekQuests,
 } from "@/lib/data";
 import { MARKET_NOTES, MARKET_SOURCES, MARKET_UPDATED_AT } from "@/lib/market-data";
 import { planFarming, searchItems, suggestFarming } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import type { FarmingRow, Item, MapRecord, Monster, Quest } from "@/lib/types";
 
+/** 網址的 want：「這個去哪打」帶過來的道具，逗號分隔 */
+function wantedItems(want: string | null): number[] {
+  if (!want) return [];
+  return want.split(",").map(Number).filter(id => Number.isFinite(id) && id > 0);
+}
+
 export function FarmPlanner() {
   const params = useSearchParams();
   const { profile, setProfile, loaded } = useProfile();
 
-  const [items, setItems] = useState<Item[] | null>(null);
-  const [farming, setFarming] = useState<Record<string, FarmingRow[]> | null>(null);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(null);
-  const [monsters, setMonsters] = useState<Monster[] | null>(null);
-  const [quests, setQuests] = useState<Quest[] | null>(null);
+  // 這次瀏覽載過的資料直接拿：站內換頁進來第一個畫面就是結果，不先畫「載入道具資料…」
+  const [items, setItems] = useState<Item[] | null>(peekItems);
+  const [farming, setFarming] = useState<Record<string, FarmingRow[]> | null>(peekFarming);
+  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
+  const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
+  const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
   const [error, setError] = useState<string | null>(null);
 
   const [query, setQuery] = useState("");
-  const [targets, setTargets] = useState<number[]>([]);
+  // 從任務或道具頁點「這個去哪打」進來時，第一個畫面就勾好（這頁用了網址參數，只在瀏覽器上畫）
+  const [targets, setTargets] = useState<number[]>(() => wantedItems(params.get("want")));
 
   useEffect(() => {
+    if (items && farming && maps && monsters && quests) return;
     Promise.all([loadItems(), loadFarming(), loadMaps(), loadMonsters(), loadQuests()])
       .then(([itemData, farmData, mapData, monsterData, questData]) => {
         setItems(itemData);
@@ -39,12 +49,10 @@ export function FarmPlanner() {
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
-  // 從任務或道具頁點「這個去哪打」進來時，先幫他勾好
+  // 已經在這頁、又從別處點「這個去哪打」換了網址：新的也勾上（已經勾了就不動）
   useEffect(() => {
-    const want = params.get("want");
-    if (!want) return;
-    const wanted = want.split(",").map(Number).filter(Number.isFinite);
-    if (wanted.length) setTargets(previous => [...new Set([...previous, ...wanted])]);
+    const wanted = wantedItems(params.get("want"));
+    if (wanted.length) setTargets(previous => (wanted.every(id => previous.includes(id)) ? previous : [...new Set([...previous, ...wanted])]));
   }, [params]);
 
   const itemIndex = useMemo(() => new Map((items ?? []).map(item => [item.id, item])), [items]);
