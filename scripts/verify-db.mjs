@@ -552,12 +552,14 @@ try {
 
   // ── 手機：v0.39 長卡片收起、卡片不搬家、按返回補救、捲到底自動載入、減少動態效果 ──
 
-  // N1 長卡片（綠水靈：出沒地圖＋十幾樣掉落）：開著的那一列寫「收起」，往下看時黏在導覽列下面，點它收起
+  // N1 長卡片（綠水靈：出沒地圖全部展開＋十幾樣掉落）：開著的那一列寫「收起」，往下看時黏在導覽列下面，點它收起
   await section("N1", async () => {
     await fresh("/db/monsters");
     let r = await ev(`const id = "210100"; window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
       __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
       const label = __rowBtn(id).textContent; const otherLabel = __rowBtn(__rowId(0)).textContent;
+      // 出沒地圖先只列 5 張（v0.51），按「看全部」把卡片撐長再往下看
+      [...__row(id).querySelectorAll("article button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400);
       window.scrollBy({ top: 1500, behavior: "instant" }); await __sleep(400);
       const header = __headerBottom(); const stuck = Math.round(__rowBtn(id).getBoundingClientRect().top);
       return { id, label, otherLabel, header, stuck, cardHeight: Math.round(__row(id).getBoundingClientRect().height) };`);
