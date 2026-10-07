@@ -7,7 +7,7 @@ import { GoButton } from "@/components/PlanShell";
 import { itemImage, loadGear, mapName, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { isMagicJob, type GearData } from "@/lib/gear";
-import { bandGear, offenseText, sourceOpensLater, sourceText } from "@/lib/gear-view";
+import { bandGear, craftMaterialsText, offenseText, sourceOpensLater, sourceText, type SourcePick } from "@/lib/gear-view";
 import { LEVEL_CAP } from "@/lib/profile";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
@@ -481,12 +481,7 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
                 {entry.weapon.n}
               </Link>
               <span className="whitespace-nowrap ink-soft">（{offenseText(entry.weapon, magic)}）</span>
-              {entry.source ? (
-                <span className="block text-[12px] ink-soft">
-                  {sourceText(entry.source, label)}
-                  {chip(sourceOpensLater(entry.source))}
-                </span>
-              ) : null}
+              {entry.source ? <BandSource pick={entry.source} label={label} chip={chip} /> : null}
             </span>
           </li>
         ))}
@@ -497,12 +492,7 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
             <li key={`${family.slot}:${family.stat}`} className="text-[13px] leading-snug">
               <span className="font-bold">{family.options[0].n}</span>{" "}
               <span className="whitespace-nowrap tabular-nums ink-soft">{family.options.map(option => `${option.rate}%`).join("／")}</span>
-              {family.source ? (
-                <span className="block text-[12px] ink-soft">
-                  {sourceText(family.source, label)}
-                  {chip(sourceOpensLater(family.source))}
-                </span>
-              ) : null}
+              {family.source ? <BandSource pick={family.source} label={label} chip={chip} /> : null}
             </li>
           ))}
         </ul>
@@ -511,3 +501,13 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
   );
 }
 
+/** 一段裡「怎麼拿」那一行；合成另外一行寫材料 */
+function BandSource({ pick, label, chip }: { pick: SourcePick; label: (id: number) => string; chip: (later: string | undefined) => React.ReactNode }) {
+  return (
+    <span className="block text-[12px] ink-soft">
+      {sourceText(pick, label)}
+      {chip(sourceOpensLater(pick))}
+      {pick.kind === "craft" ? <span className="block ink-faint">材料：{craftMaterialsText(pick.craft)}</span> : null}
+    </span>
+  );
+}

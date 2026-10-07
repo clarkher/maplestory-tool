@@ -8,6 +8,7 @@ import {
   convertBefore,
   convertNotes,
   convertStatRules,
+  craftSources,
   dropSources,
   hasAnySource,
   isV002Quest,
@@ -355,4 +356,45 @@ test("convertStatRules：研究檔寫了這套點法的武器種類（weapons）
     { jobs: [400, 410], label: "幸運為主", main: "LUK", secondary: { stat: "DEX", type: "equip", floor: 25 }, weapons: ["拳套"], text: "t", sources: ["s"], verified: "tw", mainstream: true },
   ]);
   assert.deepEqual(rule.weapons, ["拳套"]);
+});
+
+/* ------------------------------------------------------------ craftSources（NPC 合成） */
+
+const craftMaps = { 103000000: { zh: "墮落城市" }, 211000000: { zh: "冰原雪域", o: "2026-10-15" }, 220000000: {} };
+const recipe = (over = {}) => ({
+  sourceKind: "npcDialog",
+  groupLabel: "墮落城市：盜賊裝備與材料製作",
+  npcs: [{ id: 1052002, name: "後街吉姆", maps: [{ id: 103000000 }] }],
+  materials: [
+    { id: 1472000, name: "拳套", count: 1 },
+    { id: 4011001, name: "鋼鐵", count: 3 },
+  ],
+  meso: 5000,
+  randomReward: false,
+  ...over,
+});
+
+test("craftSources：NPC 合成（npcDialog）＋NPC 在開放的城鎮 → 一筆，帶材料跟楓幣", () => {
+  const rows = craftSources([recipe()], craftMaps, "2026-10-15");
+  assert.deepEqual(rows, [{ n: "後街吉姆", m: 103000000, mats: [{ id: 1472000, n: "拳套", c: 1 }, { id: 4011001, n: "鋼鐵", c: 3 }], fee: 5000 }]);
+});
+
+test("craftSources：0 轉技能「強化合成」（itemMake）不算——經典版沒有這個技能", () => {
+  assert.deepEqual(craftSources([recipe({ sourceKind: "itemMake", npcs: [] })], craftMaps, "2026-10-15"), []);
+});
+
+test("craftSources：NPC 只在還沒開放的城鎮 → 不算；只在 10/15 才開的城鎮 → 帶 o", () => {
+  assert.deepEqual(craftSources([recipe({ npcs: [{ id: 1, name: "玩具城工匠", maps: [{ id: 220000000 }] }] })], craftMaps, "2026-10-15"), []);
+  const [row] = craftSources([recipe({ npcs: [{ id: 2, name: "冰原雪域工匠", maps: [{ id: 211000000 }] }] })], craftMaps, "2026-10-15");
+  assert.equal(row.o, "2026-10-15");
+});
+
+test("buildSource：有合成配方就帶 crafts；只有合成也算拿得到", () => {
+  const src = buildSource(
+    { id: 1472007 },
+    { monstersById: new Map(), questsById: new Map(), maps: craftMaps, openMap, v002Date: "2026-10-15", craftsById: new Map([[1472007, [recipe()]]]) },
+  );
+  assert.equal(src.crafts.length, 1);
+  assert.equal(hasAnySource(src), true);
+  assert.equal(allSourcesV002(src), false);
 });

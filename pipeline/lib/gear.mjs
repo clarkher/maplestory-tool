@@ -201,6 +201,41 @@ export function shopSources(item, maps, v002Date) {
   return sortShops(rows);
 }
 
+/** NPC 對話裡的合成（城鎮的工匠），0 轉技能「強化合成」（itemMake）是後期版本才有的，經典版沒有，不收 */
+const CRAFT_KINDS = new Set(["npcDialog", "manualNpcDialog"]);
+
+/**
+ * 道具的合成來源（data/raw/artale.json 的 item.sources.crafts）：城鎮 NPC 合成，例如墮落城市的後街吉姆做狼牙
+ * （台服經典版玩家拿狼牙就是靠合成，店都在還沒開的城鎮；2026-10-07 查證）。
+ * NPC 站在開放地圖（有中文名）才算；只在 10/15 才開的地圖帶 o；還沒開放的城鎮不算。最多 2 筆，現在就開的排前面。
+ */
+export function craftSources(recipes, maps, v002Date) {
+  const rows = [];
+  const seen = new Set();
+  for (const recipe of recipes ?? []) {
+    if (!CRAFT_KINDS.has(recipe.sourceKind)) continue;
+    let place = null;
+    for (const npc of recipe.npcs ?? []) {
+      for (const where of npc.maps ?? []) {
+        const record = maps[String(where.id)];
+        if (!record?.zh) continue;
+        const candidate = { n: npc.name, m: where.id, later: Boolean(record.o) };
+        if (!place || (place.later && !candidate.later)) place = candidate;
+      }
+    }
+    if (!place) continue;
+    const row = { n: place.n, m: place.m, mats: (recipe.materials ?? []).map(mat => ({ id: mat.id, n: mat.name, c: mat.count ?? 1 })) };
+    if (recipe.meso) row.fee = recipe.meso;
+    if (recipe.randomReward) row.rand = 1;
+    if (v002Date && place.later) row.o = v002Date;
+    const key = JSON.stringify([row.n, row.m, row.mats, row.fee]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push(row);
+  }
+  return rows.sort((a, b) => Number(Boolean(a.o)) - Number(Boolean(b.o))).slice(0, 2);
+}
+
 /** 現在就開的店排前面、再比便宜，最多 3 家 */
 function sortShops(rows) {
   return rows.sort((a, b) => Number(Boolean(a.o)) - Number(Boolean(b.o)) || a.pr - b.pr).slice(0, 3);
@@ -208,24 +243,24 @@ function sortShops(rows) {
 
 /** 這個 GearSource 有沒有任何一種拿法（商店／掉落／任務）。沒有就是現在完全拿不到，不該收進清單。 */
 export function hasAnySource(src) {
-  return Boolean(src.shops?.length || src.drops?.length || src.quests?.length);
+  return Boolean(src.shops?.length || src.crafts?.length || src.drops?.length || src.quests?.length);
 }
 
 /** 這個 GearSource 是不是「所有來源都要等 V002」：商店、掉落、任務全部帶 o（10/15 才開的城鎮的店也算） */
 export function allSourcesV002(src) {
-  const shops = src.shops ?? [];
-  const drops = src.drops ?? [];
-  const quests = src.quests ?? [];
-  if (!shops.length && !drops.length && !quests.length) return false;
-  return shops.every(shop => shop.o) && drops.every(drop => drop.o) && quests.every(quest => quest.o);
+  const lists = [src.shops ?? [], src.crafts ?? [], src.drops ?? [], src.quests ?? []];
+  if (lists.every(list => !list.length)) return false;
+  return lists.every(list => list.every(entry => entry.o));
 }
 
 /** 組一個道具的 GearSource：哪幾家店賣、掉落怪、任務，沒有的欄位不給。 */
 export function buildSource(item, ctx) {
-  const { monstersById, questsById, maps, openMap, v002Date, warn = () => {} } = ctx;
+  const { monstersById, questsById, maps, openMap, v002Date, craftsById, warn = () => {} } = ctx;
   const src = {};
   const shops = shopSources(item, maps, v002Date);
   if (shops.length) src.shops = shops;
+  const crafts = craftSources(craftsById?.get(item.id), maps, v002Date);
+  if (crafts.length) src.crafts = crafts;
   const drops = dropSources(item, monstersById, openMap);
   if (drops.length) src.drops = drops;
   const quests = questSources(item, questsById, maps, v002Date, warn);
@@ -244,6 +279,15 @@ export function mergeSources(list) {
     }
   }
   if (shopByKey.size) src.shops = sortShops([...shopByKey.values()]);
+
+  const craftByKey = new Map();
+  for (const entry of list) {
+    for (const craft of entry.crafts ?? []) {
+      const key = JSON.stringify([craft.n, craft.m, craft.mats, craft.fee]);
+      if (!craftByKey.has(key)) craftByKey.set(key, craft);
+    }
+  }
+  if (craftByKey.size) src.crafts = [...craftByKey.values()].slice(0, 2);
 
   const dropByMonster = new Map();
   for (const entry of list) for (const drop of entry.drops ?? []) if (!dropByMonster.has(drop.m)) dropByMonster.set(drop.m, drop);
