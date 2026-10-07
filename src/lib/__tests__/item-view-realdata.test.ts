@@ -72,12 +72,19 @@ describe("真資料：找道具", () => {
 });
 
 describe("真資料：清單不列拿不到又用不到的", () => {
-  it("不列的每一件都是「裝備」分類、種類也寫「裝備」而且沒有任何來源；影武者的地天刀在裡面", () => {
+  it("不列的每一件都拿不到，而且是種類寫「裝備」的或名字有 GM 的；影武者的地天刀、沒看頭的GM制服在裡面", () => {
     const hidden = items.filter(item => !item.un && hiddenFromList(item));
     expect(hidden.length).toBeGreaterThan(0);
-    const wrong = hidden.filter(item => item.c !== "裝備" || item.s !== "裝備" || item.dm?.length || item.qr?.length || item.sp?.length);
+    const wrong = hidden.filter(item =>
+      item.dm?.length || item.qr?.length || item.sp?.length || !((item.c === "裝備" && item.s === "裝備") || /GM/.test(item.n)));
     expect(wrong.map(item => item.id)).toEqual([]);
     expect(hidden.some(item => item.id === 1342001)).toBe(true);
+    expect(hidden.some(item => item.id === 1052173)).toBe(true);
+  });
+
+  it("名字有 GM 的道具，拿不到的全都不列", () => {
+    const listed = items.filter(item => !item.un && /GM/.test(item.n) && !hiddenFromList(item));
+    expect(listed.filter(item => !(item.dm?.length || item.qr?.length || item.sp?.length)).map(item => item.id)).toEqual([]);
   });
 });
 

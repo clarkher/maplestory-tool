@@ -16,6 +16,9 @@
 // 任務 6931 要先完成 6930。遊戲資料改版後對不上時，這幾項會 FAIL 並寫出原因，換成新的 id 就好。
 // 也順便驗全站的兩件事（v0.53）：H 開頭＝手指往下滑時導覽列收起來（用 Input.dispatchTouchEvent 模擬手指；
 // Input.synthesizeScrollGesture 在無頭 Chrome 只送出按下、放開，畫面不會捲，不能用）；X 開頭＝打寶「自己找」、帶我去選地圖的搜尋框「×」。
+// G 開頭＝v0.55 起的道具頁篩選：搜職業名（法師）時清單分兩組小標、選了種類整頁重新整理後種類還在、「〇〇能用」「現在就能穿」兩顆標籤的規則
+// （寫死：小標那段搜「法師」、種類「單手劍」；標籤那段用狂戰士 Lv.45、分類「消耗」）。
+// 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -149,7 +152,16 @@ const H = `
   window.__changes = list => list.filter((f, i) => i === 0 || f !== list[i - 1]);
   window.__search = () => document.querySelector("main input[aria-label^=搜尋]");
   window.__setSearch = v => { const el = window.__search(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); };
-  window.__droppable = () => [...document.querySelectorAll("main label")].find(l => l.textContent.includes("只看打得到的"))?.querySelector("input");
+  // 篩選的標籤按鈕（FilterTag：button[aria-pressed]）：__tag 用文字找、__pressed 看開著沒
+  window.__pressed = el => el?.getAttribute("aria-pressed") === "true";
+  window.__tag = text => [...document.querySelectorAll("main button[aria-pressed]")].find(b => b.textContent.trim() === text);
+  window.__droppable = () => window.__tag("只看打得到的");
+  // 「〇〇能用」那顆（文字跟著角色的職業走，所以用結尾找）
+  window.__mine = () => [...document.querySelectorAll("main button[aria-pressed]")].find(b => b.textContent.trim().endsWith("能用"));
+  // 清單中間的小標：清單那個 ul 底下沒有 db-row- 的 id 的那幾列（不看卡片裡的 ul）
+  window.__heads = () => [...(window.__rows()[0]?.parentElement?.children ?? [])].filter(li => !li.id).map(li => li.textContent.trim());
+  // 搜尋框下面那行「N 筆」
+  window.__count = () => [...document.querySelectorAll("main p")].map(p => p.textContent.trim()).find(t => /^[0-9,]+ 筆$/.test(t)) ?? "";
   window.__select = (label, value) => { const el = document.querySelector("main select[aria-label='" + label + "']"); el.value = value; el.dispatchEvent(new Event("change", { bubbles: true })); };
   // 「再載」：看得到的按鈕就按（舊版），不然捲到清單底下讓它自己接上
   window.__moreBtn = () => [...document.querySelectorAll("main button")].find(b => b.textContent.trim().startsWith("再載"));
@@ -438,7 +450,7 @@ try {
       return { rowsBeforeMore: before, rowsBefore: rows, leftY };`);
     const frames = await traverseRecording(-1, 1200, "Math.round(scrollY)");
     let r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(300);
-      return { query: __search().value, droppable: __droppable()?.checked, rowsAfter: __rows().length, backY: Math.round(scrollY) };`);
+      return { query: __search().value, droppable: __pressed(__droppable()), rowsAfter: __rows().length, backY: Math.round(scrollY) };`);
     r = { ...ctx, ...r, frames };
     check("M10 搜尋、篩選、多載過的筆數都還在", r.query === "帽" && r.droppable === true && r.rowsBefore > r.rowsBeforeMore && r.rowsAfter === r.rowsBefore, r);
     check("M10 捲回原位", near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
@@ -479,12 +491,12 @@ try {
     check("M12 開著卡片離開再返回：直接跳、不滑", !r.skipped && r.frames.length <= 3, r.frames);
   });
 
-  // M13 「誰能用」選〇〇能用的：離開再返回，篩選還在、清單一樣、捲回原位（角色要同步讀，第一個畫面就套上）
+  // M13 按「〇〇能用」標籤：離開再返回，篩選還在、清單一樣、捲回原位（角色要同步讀，第一個畫面就套上）
   await section("M13", async () => {
     await fresh("/db/items");
-    const ctx = await ev(`const mine = document.querySelector("main select[aria-label='誰能用']");
-      if (!mine || ![...mine.options].some(o => o.value === "usable")) return { skipped: "沒有「誰能用」下拉或「〇〇能用的」選項" };
-      __select("誰能用", "usable"); await __sleep(500);
+    const ctx = await ev(`const mine = __mine();
+      if (!mine) return { skipped: "沒有「〇〇能用」標籤" };
+      mine.click(); await __sleep(500);
       const firstId = __rowId(0);
       // 捲到靠近底部時可能又自動多載一批：等它停下來，離開前那一刻的筆數才準
       window.scrollTo({ top: document.documentElement.scrollHeight - 1400, behavior: "instant" }); await __sleep(800);
@@ -498,12 +510,11 @@ try {
     if (!ctx.skipped) {
       await traverse(-1);
       r = await ev(`await __waitFor(() => location.pathname === "/db/items"); await __sleep(1500); window.__mo.disconnect();
-        const mine2 = document.querySelector("main select[aria-label='誰能用']");
-        return { checked: mine2?.value === "usable", rowsAfter: __rows().length, firstFirstId: window.__firstFirstId, backY: Math.round(scrollY) };`);
+        return { checked: __pressed(__mine()), rowsAfter: __rows().length, firstFirstId: window.__firstFirstId, backY: Math.round(scrollY) };`);
       r = { ...ctx, ...r };
     }
-    check("M13 〇〇能用的：返回後第一個畫面就套上篩選、清單一樣", !r.skipped && r.checked && r.rowsAfter === r.rowsBefore && r.firstFirstId === r.firstId, r);
-    check("M13 〇〇能用的：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
+    check("M13 〇〇能用：返回後第一個畫面就套上篩選、清單一樣", !r.skipped && r.checked && r.rowsAfter === r.rowsBefore && r.firstFirstId === r.firstId, r);
+    check("M13 〇〇能用：捲回原位", !r.skipped && near(r.backY, r.leftY), { leftY: r.leftY, backY: r.backY });
   });
 
   // M14 技能頁：展開在那一筆下面、職業篩選離開再回來還在
@@ -588,7 +599,7 @@ try {
     await fresh("/db/items");
     await ev(`__setSearch("帽"); await __sleep(300); __droppable()?.click(); await __sleep(400); return 1;`);
     await reload();
-    const r = await ev(`await __ready(); await __sleep(600); return { query: __search().value, droppable: __droppable()?.checked };`);
+    const r = await ev(`await __ready(); await __sleep(600); return { query: __search().value, droppable: __pressed(__droppable()) };`);
     check("M19 重新整理後搜尋、篩選還在", r.query === "帽" && r.droppable === true, r);
   });
 
@@ -934,14 +945,15 @@ try {
   // N16 搜尋框有字時右邊一顆「×」：按了字清掉、清單回到原本、焦點留在搜尋框
   await section("N16", async () => {
     await fresh("/db/items");
-    const r = await ev(`const none = !__clearBtn(); const firstBefore = __rowId(0); const rowsBefore = __rows().length;
+    // 搜尋有沒有改到清單看「N 筆」，不看第一列：預設清單的第一列剛好是帽子（平凡的草帽），搜「帽」排第一的也是它
+    const r = await ev(`const none = !__clearBtn(); const firstBefore = __rowId(0); const rowsBefore = __rows().length; const countBefore = __count();
       __setSearch("帽"); await __sleep(500);
-      const btn = __clearBtn(); const shown = __shows(btn); const firstWhileSearching = __rowId(0);
+      const btn = __clearBtn(); const shown = __shows(btn); const countWhileSearching = __count();
       btn?.click(); await __sleep(600);
-      return { none, shown, firstBefore, firstWhileSearching, query: __search().value, focused: document.activeElement === __search(),
-        gone: !__clearBtn(), firstAfter: __rowId(0), rowsBefore, rowsAfter: __rows().length };`);
+      return { none, shown, firstBefore, countBefore, countWhileSearching, query: __search().value, focused: document.activeElement === __search(),
+        gone: !__clearBtn(), firstAfter: __rowId(0), countAfter: __count(), rowsBefore, rowsAfter: __rows().length };`);
     check("N16 搜尋框沒字時沒有「×」、有字時右邊出現「×」", r.none && r.shown, r);
-    check("N16 按「×」：字清掉、清單回到原本、焦點留在搜尋框、「×」不見", r.query === "" && r.focused && r.gone && r.firstWhileSearching !== r.firstBefore && r.firstAfter === r.firstBefore && r.rowsAfter === r.rowsBefore, r);
+    check("N16 按「×」：字清掉、清單回到原本、焦點留在搜尋框、「×」不見", r.query === "" && r.focused && r.gone && r.countWhileSearching !== r.countBefore && r.countAfter === r.countBefore && r.firstAfter === r.firstBefore && r.rowsAfter === r.rowsBefore, r);
   });
 
   // X1 打寶「自己找」的搜尋框也有「×」
@@ -1327,6 +1339,124 @@ try {
     await page.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: 200, y: 400, deltaX: 0, deltaY: 1500 });
     const r = await ev(`await __sleep(1200); return { y: Math.round(scrollY), header: __headerBottom() };`);
     check("H11 桌機滑鼠滾輪往下捲：導覽列不收", r.y > 800 && r.header >= 60, r);
+  });
+
+  // ── v0.55：道具頁篩選換成標籤、搜職業名分兩組小標、整頁重新整理後種類還在 ──
+
+  // G1 道具頁搜職業名：清單中間先「法師能用的裝備」再「名字或說明提到法師的」；每一組底下的道具對得上（答案拿網站自己的道具資料另外算：
+  // 需求職業 reqJob 的位元 2＝法師）；搜一般的字、清空搜尋都沒有小標；搜初心者第一組寫「初心者專用的裝備」
+  await section("G1", async () => {
+    await mobile();
+    await fresh("/db/items");
+    const r = await ev(`
+      const urlOf = name => performance.getEntriesByType("resource").map(e => e.name).find(u => u.includes("/data/" + name + ".json")) ?? "/data/" + name + ".json";
+      const itemData = await fetch(urlOf("items")).then(res => res.json());
+      const byId = new Map(itemData.map(item => [String(item.id), item]));
+      // 「裝備」分類、需求職業是 1～31 的職業組合而且有法師（位元 2）；0 是不限職業，不算
+      const usable = id => { const item = byId.get(id); const job = item?.c === "裝備" ? item.eq?.reqJob : undefined; return typeof job === "number" && job > 0 && job < 32 && (job & 2) !== 0; };
+      __setSearch("法師"); await __sleep(700);
+      // 法師能用的有三百多件，要多載幾批才看得到第二個小標
+      for (let i = 0; i < 8 && __heads().length < 2; i++) await __loadMore();
+      window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
+      const groups = []; const stray = [];
+      let current = null;
+      for (const li of __rows()[0].parentElement.children) {
+        if (!li.id) { current = { head: li.textContent.trim(), ids: [] }; groups.push(current); }
+        else if (current) current.ids.push(li.id.replace("db-row-", ""));
+        else stray.push(li.id);
+      }
+      const searched = { heads: groups.map(g => g.head), sizes: groups.map(g => g.ids.length), stray: stray.length,
+        firstRow: groups[0]?.ids[0] ?? null, firstRowUsable: groups[0]?.ids[0] ? usable(groups[0].ids[0]) : null,
+        upperAllUsable: groups[0]?.ids.every(usable) ?? null, lowerNoneUsable: groups[1]?.ids.every(id => !usable(id)) ?? null };
+      return searched;`);
+    await shot("g1-search-job-heads.png");
+    check("G1 搜「法師」：清單中間兩個小標，先「法師能用的裝備」再「名字或說明提到法師的」", r.heads.length === 2 && r.heads[0] === "法師能用的裝備" && r.heads[1] === "名字或說明提到法師的", r);
+    check("G1 搜「法師」：第一個小標後面第一列的道具法師能用", r.firstRowUsable === true, { firstRow: r.firstRow, firstRowUsable: r.firstRowUsable });
+    check("G1 搜「法師」：上面那組每一件法師都能用、下面那組都不是，小標前面沒有零散的列",
+      r.upperAllUsable === true && r.lowerNoneUsable === true && r.stray === 0 && r.sizes.every(size => size > 0), { sizes: r.sizes, stray: r.stray, upperAllUsable: r.upperAllUsable, lowerNoneUsable: r.lowerNoneUsable });
+
+    const others = await ev(`
+      __setSearch("初心者"); await __sleep(700);
+      const novice = __heads();
+      __setSearch("帽"); await __sleep(700);
+      const plain = __heads(); const plainRows = __rows().length;
+      __setSearch("法師"); await __sleep(700);
+      const before = __heads().length;
+      __setSearch(""); await __sleep(700);
+      return { novice, plain, plainRows, before, cleared: __heads(), rows: __rows().length };`);
+    check("G1 搜「初心者」：第一組寫「初心者專用的裝備」", others.novice[0] === "初心者專用的裝備", others.novice);
+    // 清單是空的也「沒有小標」，所以要同時有列（搜帽有東西）才算數
+    check("G1 搜一般的字（帽）：不分組、沒有小標", others.plain.length === 0 && others.plainRows > 0, { plain: others.plain, plainRows: others.plainRows });
+    check("G1 清空搜尋：小標都不見、清單照常", others.before > 0 && others.cleared.length === 0 && others.rows > 0, others);
+  });
+
+  // G4 道具頁選了分類、種類之後整頁重新整理（不是站內換頁）：種類還在、清單還是只有那個種類。
+  // 資料載入中種類清單是空的，曾經因此把記住的種類清成「全部種類」
+  await section("G4", async () => {
+    await mobile();
+    await fresh("/db/items");
+    const picked = await ev(`
+      __select("道具分類", "裝備"); await __sleep(500);
+      const sub = document.querySelector("main select[aria-label='道具種類']");
+      if (!sub || ![...sub.options].some(o => o.value === "單手劍")) return { skipped: "選了裝備之後沒有「單手劍」這個種類" };
+      __select("道具種類", "單手劍"); await __sleep(700);
+      const rows = __rows();
+      return { count: __count(), rows: rows.length, onlySword: rows.every(li => li.querySelector("button").textContent.includes("單手劍")) };`);
+    let r = picked;
+    if (!picked.skipped) {
+      await reload();
+      r = await ev(`await __ready(); await __sleep(900);
+        const sub = document.querySelector("main select[aria-label='道具種類']");
+        const rows = __rows();
+        return { category: document.querySelector("main select[aria-label='道具分類']")?.value ?? null, subcategory: sub?.value ?? null, count: __count(), rows: rows.length,
+          onlySword: rows.every(li => li.querySelector("button").textContent.includes("單手劍")) };`);
+      r = { before: picked, after: r };
+      await shot("g4-reload-subcategory.png");
+    }
+    check("G4 選了「裝備」「單手劍」之後整頁重新整理：兩個下拉都還在", !picked.skipped && r.after.category === "裝備" && r.after.subcategory === "單手劍", r);
+    check("G4 整頁重新整理後：清單還是只有單手劍、筆數跟重新整理前一樣", !picked.skipped && r.before.onlySword === true && r.after.onlySword === true && r.after.rows > 0 && r.after.count === r.before.count, r);
+  });
+
+  // G5 道具頁「誰能用」兩顆標籤的規則（規格第 9 條）：開了就切到「裝備」分類、種類清掉；只能開一顆；點開著的那顆就關；換到別的分類就關掉。
+  // 角色用最前面存好的狂戰士 Lv.45（有職業又有等級，「〇〇能用」「現在就能穿」兩顆都會出現）；用的分類「消耗」跟它底下的種類是寫死的
+  await section("G5", async () => {
+    await mobile();
+    await fresh("/db/items");
+    // 每一步之後量一次：兩顆標籤亮不亮、兩個下拉選了什麼、筆數
+    const SNAP = `const snap = () => ({ mine: __pressed(__mine()), now: __pressed(__tag("現在就能穿")),
+      category: document.querySelector("main select[aria-label='道具分類']")?.value ?? null,
+      subcategory: document.querySelector("main select[aria-label='道具種類']")?.value ?? null,
+      count: __count(), rows: __rows().length });`;
+    // 1. 先選「消耗」再挑它底下的一個種類，再按「〇〇能用」
+    const a = await ev(`${SNAP}
+      if (!__mine() || !__tag("現在就能穿")) return { skipped: "角色是狂戰士 Lv.45，卻缺「〇〇能用」或「現在就能穿」標籤" };
+      if (![...document.querySelector("main select[aria-label='道具分類']").options].some(o => o.value === "消耗")) return { skipped: "沒有「消耗」這個分類" };
+      __select("道具分類", "消耗"); await __sleep(500);
+      const catOnly = snap();
+      const subName = [...(document.querySelector("main select[aria-label='道具種類']")?.options ?? [])].map(o => o.value).find(Boolean);
+      if (!subName) return { skipped: "「消耗」底下沒有種類可選" };
+      __select("道具種類", subName); await __sleep(500);
+      const before = snap();
+      __mine().click(); await __sleep(600);
+      return { subName, catOnly, before, after: snap() };`);
+    // 2. 再按「現在就能穿」　3. 再按一次「現在就能穿」
+    const b = a.skipped ? a : await ev(`${SNAP} __tag("現在就能穿").click(); await __sleep(600); return snap();`);
+    await shot("g5-now-tag.png");
+    const c = a.skipped ? a : await ev(`${SNAP} __tag("現在就能穿").click(); await __sleep(600); return snap();`);
+    // 4. 重新打開「〇〇能用」，再把分類換到「消耗」
+    const d = a.skipped ? a : await ev(`${SNAP}
+      __mine().click(); await __sleep(600);
+      const reopened = snap();
+      __select("道具分類", "消耗"); await __sleep(600);
+      return { reopened, after: snap() };`);
+    check("G5 選了「消耗」和一個種類再按「〇〇能用」：標籤亮起來、分類換成「裝備」、種類清掉、清單有東西",
+      !a.skipped && a.before.category === "消耗" && a.before.subcategory === a.subName && a.after.mine === true && a.after.now === false
+      && a.after.category === "裝備" && a.after.subcategory === "" && a.after.rows > 0, a);
+    check("G5 再按「現在就能穿」：只有它亮、「〇〇能用」自動關掉", !b.skipped && b.now === true && b.mine === false && b.category === "裝備", b);
+    check("G5 再按一次「現在就能穿」：兩顆都不亮（不限職業）、分類還在「裝備」", !c.skipped && c.now === false && c.mine === false && c.category === "裝備", c);
+    check("G5 開著「〇〇能用」時換到別的分類：標籤關掉、分類是新選的、筆數跟沒開標籤時一樣",
+      !d.skipped && d.reopened.mine === true && d.after.mine === false && d.after.now === false && d.after.category === "消耗"
+      && /^[0-9,]+ 筆$/.test(d.after.count) && d.after.count === a.catOnly.count, d.skipped ? d : { reopened: d.reopened, after: d.after, catOnlyCount: a.catOnly.count });
   });
 } catch (error) {
   results.push({ name: "ERROR", ok: false, detail: String(error?.stack ?? error).slice(0, 800) });
