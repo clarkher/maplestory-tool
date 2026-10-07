@@ -130,7 +130,7 @@ describe("sourceText／sourceOpensLater：怎麼拿", () => {
   });
 
   it("商店、掉落、任務三種寫法", () => {
-    expect(sourceText({ kind: "shop", shop: { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 8000 } }, mapLabel)).toBe("墮落城市武器店的曼斯塔賣 8,000 楓幣");
+    expect(sourceText({ kind: "shop", shop: { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 8000 } }, mapLabel)).toBe("墮落城市武器店的曼斯塔賣 8,000 楓幣");
     expect(sourceText({ kind: "quest", quest: { id: "2013", n: "珍的最後一個挑戰", minLv: 40, rand: 1 } }, mapLabel)).toBe("Lv.40 任務〈珍的最後一個挑戰〉隨機給");
     expect(sourceText({ kind: "drop", drop: { m: 3210100, n: "火肥肥", lv: 32, map: 106000000 } }, mapLabel)).toBe("火肥肥（Lv.32）會掉・螞蟻洞");
     expect(sourceText({ kind: "quest", quest: { id: "9414", n: "散發烈焰氣息的劍" } }, mapLabel)).toBe("任務〈散發烈焰氣息的劍〉給");
@@ -370,9 +370,9 @@ describe("bandGear：還沒轉到選的職業時，用那一轉實際用的武�
 describe("合成的寫法", () => {
   const craft = { n: "後街吉姆", m: 103000000, mats: [{ id: 1472000, n: "拳套", c: 1 }, { id: 4011001, n: "鋼鐵", c: 3 }, { id: 4000021, n: "動物皮", c: 20 }, { id: 4003001, n: "木材", c: 30 }], fee: 5000 };
 
-  it("「墮落城市的後街吉姆合成」＋材料「拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣」", () => {
+  it("「墮落城市的後街吉姆合成」＋材料「拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣」", () => {
     expect(sourceText({ kind: "craft", craft }, id => (id === 103000000 ? "墮落城市" : "?"))).toBe("墮落城市的後街吉姆合成");
-    expect(craftMaterialsText(craft)).toBe("拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣");
+    expect(craftMaterialsText(craft)).toBe("拳套、鋼鐵×3、動物皮×20、木材×30、5,000 楓幣");
     expect(sourceOpensLater({ kind: "craft", craft: { ...craft, o: "2026-10-15" } })).toBe("2026-10-15");
   });
 });
