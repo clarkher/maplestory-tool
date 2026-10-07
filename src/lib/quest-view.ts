@@ -38,20 +38,24 @@ function stillOpen(quest: Quest, profile: Profile, lineage: ReadonlySet<number>)
 }
 
 /**
- * 「只看我現在接得到的」：接得到的（questEligible）、沒打勾做完的（keepId＝卡片開著的那一筆，打勾了也先留著），
+ * 「只看我現在接得到的」：接得到的（questEligible）、沒打勾做完的，
  * 分快過期／剛解鎖／隨時可以補；同一段裡能直接接的在前、前置還沒打勾的在後，
  * 再來快過期的照剩幾級、新解鎖的（需求等級高的）在前、經驗多的在前。
  * 前置還沒打勾、而且這個角色還接得到那個前置，才算「要先做」；接不到了的前置不擋（多半早就做過，網站不知道）。
+ *
+ * keepId＝卡片開著的那一筆：照沒打勾算——留在清單裡，別列的「要先做」也照舊。
+ * 在卡片上打勾、取消打勾，清單的順序都不動（免得一按，原本要先做它的那些列跳到它前面、把它連卡片往下擠），收起後才照打勾重排。
  */
 export function questBoard(quests: Quest[], profile: Profile, done: ReadonlySet<string>, keepId: string | null = null): BoardRow[] {
   const lineage = new Set(jobLineage(profile.job));
   const byId = new Map(quests.map(quest => [quest.id, quest]));
+  const boardDone = keepId && done.has(keepId) ? new Set([...done].filter(id => id !== keepId)) : done;
   return quests
-    .filter(quest => questEligible(quest, profile, lineage) && (!done.has(quest.id) || quest.id === keepId))
+    .filter(quest => questEligible(quest, profile, lineage) && !boardDone.has(quest.id))
     .map(quest => {
       const missingPre = (quest.pre ?? [])
         .map(id => byId.get(id))
-        .filter((pre): pre is Quest => Boolean(pre) && !done.has(pre!.id) && stillOpen(pre!, profile, lineage));
+        .filter((pre): pre is Quest => Boolean(pre) && !boardDone.has(pre!.id) && stillOpen(pre!, profile, lineage));
       return { quest, ...questBucket(quest, profile), missingPre };
     })
     .sort((a, b) =>

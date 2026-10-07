@@ -57,6 +57,12 @@ const cameFromHistory = () => isTraversal(navHistory, window.event);
 /** 清單每一列的 DOM id：展開、收起、從連結跳過來時用來找那一列 */
 const rowOf = (id: string) => document.getElementById(`db-row-${id}`);
 
+/** 清單裡緊接在這一列前面、後面的那一列的 id（中間的小標不算）；沒有就是 null */
+const neighborRowId = (row: Element | null, side: "previousElementSibling" | "nextElementSibling") => {
+  for (let li = row?.[side] ?? null; li; li = li[side]) if (li.id.startsWith("db-row-")) return li.id.slice("db-row-".length);
+  return null;
+};
+
 /** 網址上現在開著哪一筆。pushState 之後畫面要等一下才更新，連點時要看網址，不能看畫面上的 selected */
 const openIdNow = () => new URLSearchParams(window.location.search).get("id");
 
@@ -153,8 +159,16 @@ export function DbBrowser({
   const pickedFromList = useRef(false);
   // 手機點一筆時，那一列在畫面上的位置：展開後先放回原處，再捲到導覽列下方
   const tapped = useRef<{ id: string; top: number } | null>(null);
-  // 收起的是哪一筆、是不是用返回收的、什麼時候按的、卡片原本放在哪裡
-  const collapsed = useRef<{ id: string; byBack: boolean; at: number; spot: DetailSpot | null; y: number | null } | null>(null);
+  // 收起的是哪一筆、是不是用返回收的、什麼時候按的、卡片原本放在哪裡（y）、那一列原本前後是哪兩列（收起後那一列可能不在清單上，清單也可能重排）
+  const collapsed = useRef<{
+    id: string;
+    byBack: boolean;
+    at: number;
+    spot: DetailSpot | null;
+    y: number | null;
+    nextId: string | null;
+    prevId: string | null;
+  } | null>(null);
   // 最近一次從清單點開的是哪一筆、什麼時候點的：擋手指連點
   const lastPick = useRef<{ id: string; at: number } | null>(null);
   // 卡片現在放在哪裡：點、收起的時候要知道，不用等下一次畫面
@@ -196,6 +210,8 @@ export function DbBrowser({
       at: performance.now(),
       spot: spotNow.current,
       y: openRow ? Math.round(openRow.getBoundingClientRect().top + window.scrollY) : null,
+      nextId: neighborRowId(openRow, "nextElementSibling"),
+      prevId: neighborRowId(openRow, "previousElementSibling"),
     };
     // 從清單點開的那一筆用返回收起：上一頁就是點之前的清單，不會多留一筆紀錄
     if (byBack) window.history.back();
@@ -335,11 +351,17 @@ export function DbBrowser({
     const place = () => {
       // 卡片原本放在最上面：回到清單開頭——那一筆後來載進清單了也一樣，不跳到清單中間
       let row = done.spot === "top" ? null : rowOf(done.id);
-      // 展開在那一列下面、收起後那一列不在清單上了（例如任務打了勾就不列）：原本那一列的位置現在是下一列，放那一列
-      if (!row && done.spot === "inline" && done.y !== null) {
-        const y = done.y;
-        row = [...(listRef.current?.querySelectorAll<HTMLElement>(":scope > li[id^='db-row-']") ?? [])]
-          .find(li => li.getBoundingClientRect().top + window.scrollY >= y - 1) ?? null;
+      // 展開在那一列下面、收起後那一列不在清單上了（例如任務打了勾就不列）：接著看原本緊接在後面的那一列。
+      // 清單這時才重排（例如原本要先做它的列跳到前面），原位置現在可能是別的列，所以先認那一列的 id，認不到才看原位置現在是哪一列；
+      // 收起的是最後一列、後面沒有列了，就看前一列，不跳回清單開頭
+      if (!row && done.spot === "inline") {
+        row = done.nextId ? rowOf(done.nextId) : null;
+        if (!row && done.y !== null) {
+          const y = done.y;
+          row = [...(listRef.current?.querySelectorAll<HTMLElement>(":scope > li[id^='db-row-']") ?? [])]
+            .find(li => li.getBoundingClientRect().top + window.scrollY >= y - 1) ?? null;
+        }
+        if (!row && done.prevId) row = rowOf(done.prevId);
       }
       (row ?? listRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
       // 收起按鈕不見了，焦點放回那一列（回到清單開頭的話放第一列），用鍵盤、讀螢幕的人才不會迷路

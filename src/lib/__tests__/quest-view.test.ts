@@ -46,6 +46,23 @@ describe("「只看我現在接得到的」：分段、做完的不列、前置�
     expect(questBoard(quests, profile, new Set(["a"]), "a").map(row => row.quest.id).sort()).toEqual(["a", "b"]);
   });
 
+  it("卡片開著的那一筆照沒打勾算：打勾、取消打勾，清單的順序都不動；收起（不再保留）才重排", () => {
+    // 三個都是剛解鎖：y（Lv.31）、p（Lv.30）能直接接，x 要先做 p 排最後。p 打勾後 x 就能直接接、需求等級最高，本來會跳到最前面、把 p 往下擠
+    const quests = [q("p", { minLv: 30 }), q("x", { minLv: 32, pre: ["p"] }), q("y", { minLv: 31 })];
+    const ids = (done: string[], keepId: string | null) => questBoard(quests, profile, new Set(done), keepId).map(row => row.quest.id);
+    expect(ids([], "p")).toEqual(["y", "p", "x"]);
+    expect(ids(["p"], "p")).toEqual(["y", "p", "x"]);
+    expect(ids(["p"], null)).toEqual(["x", "y"]);
+  });
+
+  it("卡片開著的那一筆打勾了：別列的「要先做」也照舊，收起後才拿掉", () => {
+    const quests = [q("p", { minLv: 30 }), q("x", { minLv: 32, pre: ["p"] })];
+    const missing = (keepId: string | null) =>
+      questBoard(quests, profile, new Set(["p"]), keepId).find(row => row.quest.id === "x")!.missingPre.map(pre => pre.id);
+    expect(missing("p")).toEqual(["p"]);
+    expect(missing(null)).toEqual([]);
+  });
+
   it("前置沒打勾、角色還接得到那個前置：照列，排在同一段能直接接的後面", () => {
     // 三個都是剛解鎖：能直接接的 y（Lv.31）、p（Lv.30）照需求等級新的在前，x 要先做 p 排最後
     const quests = [q("p", { minLv: 30 }), q("x", { minLv: 32, pre: ["p"] }), q("y", { minLv: 31 })];
