@@ -44,9 +44,14 @@ export type QuestPlan = {
 };
 
 /** 再過幾級就超過等級上限，就算「快過期」。 */
-const EXPIRING_WINDOW = 8;
+export const EXPIRING_WINDOW = 8;
 /** 等級門檻在最近幾級內解鎖的，算「剛解鎖」。 */
-const FRESH_WINDOW = 10;
+export const FRESH_WINDOW = 10;
+
+/** 遊戲資料裡的開發測試任務（「開發測試用」，9999）：玩家接不到，哪裡都不列 */
+export function isDevQuest(quest: Pick<Quest, "n">): boolean {
+  return /測試用/.test(quest.n);
+}
 
 /**
  * 篩出「這個等級、這個職業，現在真的接得到」的任務。
@@ -57,12 +62,22 @@ const FRESH_WINDOW = 10;
  */
 /** 這個等級、這個職業現在接得到嗎（不管前置任務做了沒）。 */
 export function questEligible(quest: Quest, profile: Profile, lineage = new Set(jobLineage(profile.job))): boolean {
+  if (isDevQuest(quest)) return false;
   if (quest.minLv !== undefined && profile.level < quest.minLv) return false;
   if (quest.maxLv !== undefined && profile.level > quest.maxLv) return false;
   if (quest.jobs?.length && !quest.jobs.some(job => lineage.has(job))) return false;
   // 楓之島離島之後就回不去了，已轉職的角色不用再看那邊的任務
   if (quest.island && profile.job !== 0) return false;
   return true;
+}
+
+/** 快過期／剛解鎖／隨時可以補：首頁「現在能接的任務」跟任務頁「接得到的」同一套分法 */
+export function questBucket(quest: Quest, profile: Profile): { bucket: QuestBucket; levelsLeft?: number } {
+  const levelsLeft = quest.maxLv !== undefined ? quest.maxLv - profile.level : undefined;
+  const justUnlocked = quest.minLv !== undefined && profile.level - quest.minLv <= FRESH_WINDOW;
+  const bucket: QuestBucket =
+    levelsLeft !== undefined && levelsLeft <= EXPIRING_WINDOW ? "expiring" : justUnlocked ? "fresh" : "backlog";
+  return { bucket, levelsLeft };
 }
 
 export function planQuests(profile: Profile, quests: Quest[]): QuestPlan[] {
@@ -75,12 +90,7 @@ export function planQuests(profile: Profile, quests: Quest[]): QuestPlan[] {
 
   return eligible
     .map(quest => {
-      const levelsLeft = quest.maxLv !== undefined ? quest.maxLv - profile.level : undefined;
-      const justUnlocked = quest.minLv !== undefined && profile.level - quest.minLv <= FRESH_WINDOW;
-      const bucket: QuestBucket =
-        levelsLeft !== undefined && levelsLeft <= EXPIRING_WINDOW ? "expiring"
-          : justUnlocked ? "fresh"
-            : "backlog";
+      const { bucket, levelsLeft } = questBucket(quest, profile);
 
       return {
         quest,
