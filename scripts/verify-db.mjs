@@ -19,7 +19,9 @@
 // G 開頭＝v0.55 起的道具頁篩選：搜職業名（法師）時清單分兩組小標、選了種類整頁重新整理後種類還在、「〇〇能用」「現在就能穿」兩顆標籤的規則
 // （寫死：小標那段搜「法師」、種類「單手劍」；標籤那段用狂戰士 Lv.45、分類「消耗」）。
 // G2＝v0.58 的任務頁：「只看我現在接得到的」清單中間的小標照快過期、剛解鎖、隨時可以補的順序，任務卡的「我做完了」（打勾、收起後那一列不見、
-// 重新整理後還在、桌機的小字不再寫「要先做」），清單不列「開發測試用」（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
+// 重新整理後還在、桌機的小字不再寫「要先做」），清單不列「開發測試用」。位置也量（逐格，±1px）：開著卡片打勾、取消打勾，卡片裡的按鈕跟清單順序都不動（寫死任務 2323）；
+// 清單很下面（第 70 列以後）的任務打勾，卡片留在那一列下面、那一列跟按鈕不動、載出來的筆數不被收回 60 筆，收起後原本的下一列放到導覽列下方，
+// 最後一列收起就看前一列（不跳回清單開頭）；怪物資料載不到（擋掉 monsters.json）時清單照列、沒有建議等級（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -1394,7 +1396,8 @@ try {
 
   // G2 任務頁（v0.58）。手機：按「只看我現在接得到的」→ 清單中間的小標只會是「快過期，先做這些」「剛解鎖」「隨時可以補」、照這個順序（有的才出現）；
   // 第一列打開、按卡片裡的「我做完了」→ 卡片還在、那一列標「做完了」，收起後那一列不見、整頁重新整理後也不再列；清單裡沒有「開發測試用」。
-  // 桌機：前置還沒做的那一列，按了「我做完了」小字不再寫「要先做」（寫等級），再按一次取消就寫回來。
+  // 開著卡片打勾、取消打勾（任務 2323，有別的任務要先做它）：按鈕在畫面上不動、清單順序不動；第 70 列以後的任務、最後一列也各打勾、收起一次，量那一列跟接著看的那一列放在哪。
+  // 桌機：前置還沒做的那一列，按了「我做完了」小字不再寫「要先做」（寫等級），再按一次取消就寫回來。最後擋掉 monsters.json，清單要照列。
   // 角色用 Lv.35 槍騎兵（寫死：三段都有）；打勾的任務記在 localStorage 的 ms-done-quests，跑完清掉、角色換回最前面存的狂戰士 Lv.45
   await section("G2", async () => {
     const HEADS = ["快過期，先做這些", "剛解鎖", "隨時可以補"];
@@ -1467,6 +1470,34 @@ try {
       check("G2 分類選「楓之島」：「找回的玉璽」的前置在別的分類，小字還是寫「要先做前置」，清單只剩那個分類、換回全部分類筆數回來",
         crossCategory.listed === true && crossCategory.note?.includes("要先做前置") === true && digits(crossCategory.count) < board.total && digits(crossCategory.countAll) === board.total, { crossCategory, total: board.total });
 
+      // 卡片開著時按「我做完了」、再按一次取消：卡片裡那顆按鈕在畫面上的位置不動（±1px），清單的順序也不動。
+      // 寫死任務 2323「跨越城牆（３）」：Lv.35 槍騎兵的清單上有別的任務要先做它，它一打勾那些任務就不再「要先做」、原本會跳到它前面把它往下擠（手機上卡片被推走 240px）
+      const still = await ev(`
+        const id = "2323";
+        if (!__row(id)) return { skipped: "「接得到的」清單上找不到任務 2323" };
+        const name = __row(id).querySelector(":scope > button span.truncate").textContent.trim();
+        // 清單上有幾列的任務把它列在前置（有的話這項才有意義：它一打勾，那些列就從「要先做」變成能直接接）
+        const dependents = (await (await fetch("/data/quests.json")).json()).filter(quest => (quest.pre ?? []).includes(id) && __row(quest.id)).length;
+        window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
+        __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+        __tap(id); await __waitFor(() => __id() === id); await __sleep(1500);
+        const btn = () => [...document.querySelectorAll("#db-row-" + id + " article button[aria-pressed]")].find(b => b.textContent.trim().endsWith("做完了"));
+        const y = () => Math.round(btn()?.getBoundingClientRect().top ?? NaN);
+        const order = () => __rows().map(li => li.id).join(",");
+        const start = { y: y(), order: order() };
+        btn().click();
+        const tickFrames = await __painted(900, y);
+        const ticked = { y: y(), pressed: __pressed(btn()), sameOrder: order() === start.order };
+        btn().click();
+        const untickFrames = await __painted(900, y);
+        const unticked = { y: y(), pressed: __pressed(btn()), sameOrder: order() === start.order };
+        __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(600);
+        window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
+        return { name, dependents, start: start.y, ticked, unticked, tickFrames: __changes(tickFrames), untickFrames: __changes(untickFrames), left: JSON.parse(localStorage.getItem("ms-done-quests") ?? "[]") };`);
+      check("G2 手機：開著卡片按「我做完了」、再按一次取消：卡片裡那顆按鈕在畫面上的位置不動（±1px）、清單順序也不動（任務 2323，有別的任務要先做它）",
+        !still.skipped && still.dependents > 0 && still.ticked.pressed === true && still.unticked.pressed === false && still.ticked.sameOrder === true && still.unticked.sameOrder === true
+          && still.tickFrames.concat(still.untickFrames).every(v => near(v, still.start, 1)) && still.left.length === 0, still);
+
       // 第一列打開：卡片裡的「我做完了」（沒按、高 36px）→ 按下去變「做完了」、卡片還在、那一列標「做完了」、筆數沒變、記進本機
       const ticked = await ev(`
         const id = __rowId(0);
@@ -1508,8 +1539,9 @@ try {
       await shot("g2-general-done.png");
       check("G2 關掉標籤看一般清單：做完的那一筆還在、標「做完了」", general2.pressed === false && general2.listed === true && general2.badge === true, general2);
 
-      // 清單很下面（第 70 列以後）、而且有別列要先做它的任務：按「我做完了」→ 卡片還在那一列下面（不被擠到清單最上面）、載出來的筆數不被收回 60 筆；
-      // 收起後那一列不見，接在後面的那一列放到導覽列下方（不跳回清單開頭）
+      // 清單很下面（第 70 列以後）、而且有別列要先做它的任務：按「我做完了」→ 卡片還在那一列下面（不被擠到清單最上面）、載出來的筆數不被收回 60 筆、
+      // 那一列跟卡片裡的按鈕在畫面上的位置不動（±1px，逐格量）；收起後那一列不見，原本接在後面的那一列放到導覽列下方（不跳回清單開頭，
+      // 這時清單才重排，原位置現在是別的列，所以要認那一列的 id，不是認位置）
       await fresh("/db/quests");
       await ev(`__tag("只看我現在接得到的").click(); await __sleep(900); return 1;`);
       const deep = await ev(`
@@ -1524,17 +1556,41 @@ try {
         const id = rows[at].id.replace("db-row-", "");
         __row(id).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
         __tap(id); await __waitFor(() => __id() === id); await __sleep(1500);
-        const btn = [...document.querySelectorAll("#db-row-" + id + " article button[aria-pressed]")].find(b => b.textContent.trim().endsWith("做完了"));
-        btn.click(); await __sleep(900);
-        const ticked = { rows: __rows().length, open: __open(), topCard: __topCard() };
-        const nextId = __rows()[__rows().findIndex(li => li.id === "db-row-" + id) + 1]?.id.replace("db-row-", "") ?? null;
+        const btn = () => [...document.querySelectorAll("#db-row-" + id + " article button[aria-pressed]")].find(b => b.textContent.trim().endsWith("做完了"));
+        const spot = () => ({ row: __top(id), btn: Math.round(btn()?.getBoundingClientRect().top ?? NaN) });
+        const at0 = spot(); let moved = 0;
+        btn().click();
+        await __painted(900, () => {
+          const s = spot();
+          moved = Math.max(moved, s.row === null || Number.isNaN(s.btn) ? 9999 : Math.max(Math.abs(s.row - at0.row), Math.abs(s.btn - at0.btn)));
+          return s.row;
+        });
+        const ticked = { rows: __rows().length, open: __open(), topCard: __topCard(), moved, at: at0 };
+        const rowIds = () => __rows().map(li => li.id.replace("db-row-", ""));
+        const nextId = rowIds()[rowIds().indexOf(id) + 1] ?? null;
+        const nextAt = rowIds().indexOf(nextId);
         (__collapseBtn() ?? __topCollapse())?.click(); await __waitFor(() => __id() === null, 3000); await __sleep(900);
         const next = nextId ? __row(nextId) : null;
-        return { id, nextId, at, total, ticked, collapsed: { rows: __rows().length, row: !!__row(id), nextTop: next ? Math.round(next.getBoundingClientRect().top) : null } };`);
-      check("G2 清單很下面（第 70 列以後）的任務按「我做完了」：卡片還在那一列下面、載出來的筆數沒被收回 60 筆",
-        !deep.skipped && deep.ticked.open[0] === deep.id && deep.ticked.topCard === false && deep.ticked.rows === deep.total, deep);
-      check("G2 收起後：那一列不見、載出來的筆數沒被收回 60 筆、接在後面的那一列在導覽列下方",
+        return { id, nextId, at, total, ticked, collapsed: { rows: __rows().length, row: !!__row(id), nextTop: next ? Math.round(next.getBoundingClientRect().top) : null, nextAt: [nextAt, rowIds().indexOf(nextId)] } };`);
+      check("G2 清單很下面（第 70 列以後）的任務按「我做完了」：卡片還在那一列下面、載出來的筆數沒被收回 60 筆、那一列跟卡片裡的按鈕在畫面上的位置不動（±1px）",
+        !deep.skipped && deep.ticked.open[0] === deep.id && deep.ticked.topCard === false && deep.ticked.rows === deep.total && deep.ticked.moved <= 1, deep);
+      check("G2 收起後：那一列不見、載出來的筆數沒被收回 60 筆、原本接在後面的那一列在導覽列下方",
         !deep.skipped && deep.collapsed.row === false && deep.collapsed.rows === deep.total - 1 && near(deep.collapsed.nextTop, 80, 3), deep);
+
+      // 清單最後一列、按「我做完了」再收起：那一列不見，後面已經沒有列可以接著看，就看前一列（不跳回清單開頭）
+      const last = await ev(`
+        const rows = __rows();
+        const lastId = rows[rows.length - 1].id.replace("db-row-", "");
+        const prevId = rows[rows.length - 2].id.replace("db-row-", "");
+        __row(lastId).scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(400);
+        __tap(lastId); await __waitFor(() => __id() === lastId); await __sleep(1500);
+        const btn = [...document.querySelectorAll("#db-row-" + lastId + " article button[aria-pressed]")].find(b => b.textContent.trim().endsWith("做完了"));
+        btn.click(); await __sleep(900);
+        (__collapseBtn() ?? __topCollapse())?.click(); await __waitFor(() => __id() === null, 3000); await __sleep(900);
+        const box = __row(prevId)?.getBoundingClientRect();
+        return { lastId, prevId, rows: __rows().length, gone: !__row(lastId), prevTop: box ? Math.round(box.top) : null, prevBottom: box ? Math.round(box.bottom) : null, scrollY: Math.round(scrollY), viewport: innerHeight };`);
+      check("G2 清單最後一列按「我做完了」再收起：那一列不見、前一列在畫面上（後面沒有列可以接著看，也不跳回清單開頭）",
+        last.gone === true && last.prevTop !== null && last.prevTop >= 0 && last.prevBottom <= last.viewport, last);
 
       // 桌機：挑一列小字寫「要先做：〇〇」的、一列寫「再 N 級接不到 · 要先做前置」的，各按一次「我做完了」再按一次取消
       await desktop();
@@ -1568,6 +1624,31 @@ try {
       const latePre = await probe("late", "g2-desktop-done-late.png");
       check("G2 桌機：寫「再 N 級接不到 · 要先做前置」的那一列也一樣（做完後不再寫快接不到、要先做）",
         probeOk(latePre, note => note.includes("接不到") && note.includes("要先做前置")), latePre);
+
+      // 建議等級用的資料（怪物）載不到：清單照列，只是沒有建議等級——沒寫需求等級的小字寫分類、排最後；不是整頁寫「資料載入失敗」
+      await page.send("Network.enable");
+      await page.send("Network.setBlockedURLs", { urls: ["*monsters.json*"] });
+      let noSuggest;
+      try {
+        await fresh("/db/quests");
+        noSuggest = await ev(`
+          const total = Number(__count().replace(/[^0-9]/g, ""));
+          for (let i = 0; i < 12 && __rows().length < total; i++) await __loadMore();
+          const notes = __rows().map(li => li.querySelector(":scope > button .tabular-nums")?.textContent.trim() ?? "");
+          const isLevel = note => /^Lv\\.[0-9]+$/.test(note);
+          const firstOther = notes.findIndex(note => !isLevel(note));
+          return { failed: document.body.innerText.includes("資料載入失敗"), total, rows: notes.length, suggested: notes.filter(note => note.startsWith("建議 Lv.")).length,
+            levels: notes.filter(isLevel).length, categories: notes.filter(note => note && !isLevel(note)).length,
+            levelsFirst: firstOther < 0 || notes.slice(firstOther).every(note => !isLevel(note)) };`);
+      } catch (error) {
+        noSuggest = { error: String(error?.message ?? error).slice(0, 200) };
+      } finally {
+        await page.send("Network.setBlockedURLs", { urls: [] });
+        await page.send("Network.disable");
+      }
+      check("G2 怪物資料載不到：任務清單照列（沒有建議等級，沒寫需求等級的小字寫分類、排最後），不是整頁寫「資料載入失敗」",
+        !noSuggest.error && noSuggest.failed === false && noSuggest.rows > 0 && noSuggest.rows === noSuggest.total && noSuggest.total === sorted.total
+          && noSuggest.suggested === 0 && noSuggest.levels > 0 && noSuggest.categories > 0 && noSuggest.levelsFirst === true, noSuggest);
     } finally {
       await setMine(45, 110);
     }
