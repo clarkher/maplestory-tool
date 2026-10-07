@@ -5,7 +5,7 @@
 //   npm run verify:db -- <網址>                    例如測試機 https://maplestory-tool-git-dev-clarkhers-projects.vercel.app
 //   npm run verify:db -- <網址> <輸出資料夾>        截圖和 results.json 放這裡（預設：系統暫存資料夾的 maplebook-verify-db／這次的時間）
 // 環境變數 CHROME_PATH 可以指定 Chrome（或 Edge、Chromium）；沒指定就找常見的安裝位置。
-// 環境變數 VERIFY_ONLY=N10,N13 只跑段名開頭符合的那幾段（改一個地方時先跑相關的，最後再全部跑一次）。
+// 環境變數 VERIFY_ONLY=N10,N13 只跑那幾段（改一個地方時先跑相關的，最後再全部跑一次）。
 // 每一項印 PASS／FAIL，有一項沒過就 exit 1。
 //
 // 為什麼用無頭 Chrome：Claude 的瀏覽器窗格常是隱藏的，requestAnimationFrame 不跑、平滑捲動不播、按返回不還原位置，
@@ -163,11 +163,11 @@ const check = (name, ok, detail) => results.push({ name, ok: !!ok, detail });
 const near = (a, b, tol = 3) => typeof a === "number" && Math.abs(a - b) <= tol;
 // console 的錯誤、警告、沒接住的例外全部記下來
 const consoleProblems = [];
-// 只跑某幾段：VERIFY_ONLY=N10,N13（段名開頭符合就跑），沒給就全部跑
+// 只跑某幾段：VERIFY_ONLY=N10,N13（寫段名；「M1–M5」這種一組的，寫 M1 也行），沒給就全部跑
 const ONLY = process.env.VERIFY_ONLY?.split(",").map(name => name.trim()).filter(Boolean);
 // 一段檢查出錯（例如找不到按鈕）只記這一段失敗，後面照跑
 async function section(name, run) {
-  if (ONLY?.length && !ONLY.some(prefix => name.startsWith(prefix))) return;
+  if (ONLY?.length && !ONLY.some(want => name === want || name.split("–")[0] === want)) return;
   try {
     await run();
   } catch (error) {
@@ -573,9 +573,12 @@ try {
     await clearRemembered();
     await navigate(`${BASE}/db/monsters?id=8140000`);
     let r = await ev(`await __ready(); await __sleep(900); const btn = __topCollapse();
+      const controls = btn ? document.getElementById(btn.getAttribute("aria-controls") ?? "") : null;
+      const a11y = { expanded: btn?.getAttribute("aria-expanded"), controlsCard: !!controls?.querySelector("article") };
       window.scrollBy({ top: 900, behavior: "instant" }); await __sleep(400);
-      return { topCard: __topCard(), hasBtn: !!btn, header: __headerBottom(), stuck: btn ? Math.round(btn.getBoundingClientRect().top) : null };`);
+      return { topCard: __topCard(), hasBtn: !!btn, a11y, header: __headerBottom(), stuck: btn ? Math.round(btn.getBoundingClientRect().top) : null };`);
     check("N2 最上面的卡片：上方有「收起」，往下看時黏在導覽列下面", r.topCard && r.hasBtn && near(r.stuck, r.header, 2), r);
+    check("N2 最上面那顆「收起」告訴讀螢幕軟體：已展開、管的是下面那張卡", r.a11y.expanded === "true" && r.a11y.controlsCard, r.a11y);
     await shot("n2-sticky-top.png");
     r = await ev(`const btn = __topCollapse(); if (!btn) return { missing: true };
       btn.click(); await __waitFor(() => __id() === null, 3000); await __sleep(600);

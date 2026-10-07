@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  CARD, FROM_DOC, FROM_LIST, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, keptFromHistory, listSignature, needsRescue,
-  sameRowAction, scrollMotion, searchEntries, withCard,
+  CARD, FROM_DOC, FROM_LIST, cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature,
+  needsRescue, sameRowAction, scrollMotion, searchEntries, withCard,
 } from "@/lib/db-browse";
 
 describe("細節卡放哪裡", () => {
@@ -203,9 +203,9 @@ describe("點了開著的那一筆", () => {
   });
 });
 
-describe("每筆紀錄記下這張卡片：哪一筆、在頁面上的位置、放在哪裡", () => {
+describe("每筆紀錄記下這張卡片：哪一頁、哪一筆、在頁面上的位置、放在哪裡", () => {
   const nextEntry = { __NA: true, __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 1 } };
-  const card = { id: "1302000", at: 2410, spot: "top" as const };
+  const card = { id: "1302000", at: 2410, spot: "top" as const, page: "/db/items" };
 
   it("記下來時，Next 的紀錄和「從清單點開」的記號都留著", () => {
     expect(withCard({ ...nextEntry, [FROM_LIST]: "1302000", [FROM_DOC]: 7 }, card)).toEqual({
@@ -213,22 +213,22 @@ describe("每筆紀錄記下這張卡片：哪一筆、在頁面上的位置、�
       __PRIVATE_NEXTJS_INTERNALS_TREE: { tree: 1 },
       [FROM_LIST]: "1302000",
       [FROM_DOC]: 7,
-      [CARD]: { id: "1302000", at: 2410, spot: "top" },
+      [CARD]: { id: "1302000", at: 2410, spot: "top", page: "/db/items" },
     });
   });
 
   it("位置、放哪裡都沒變：不用再寫一次", () => {
-    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "top" } }, card)).toBeNull();
+    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "top", page: "/db/items" } }, card)).toBeNull();
   });
 
   it("卡片搬了（最上面 → 那一列下面）或位置變了：要再寫", () => {
-    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "inline" } }, card)).toEqual({
+    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "inline", page: "/db/items" } }, card)).toEqual({
       ...nextEntry,
-      [CARD]: { id: "1302000", at: 2410, spot: "top" },
+      [CARD]: { id: "1302000", at: 2410, spot: "top", page: "/db/items" },
     });
-    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 380, spot: "top" } }, card)).toEqual({
+    expect(withCard({ ...nextEntry, [CARD]: { id: "1302000", at: 380, spot: "top", page: "/db/items" } }, card)).toEqual({
       ...nextEntry,
-      [CARD]: { id: "1302000", at: 2410, spot: "top" },
+      [CARD]: { id: "1302000", at: 2410, spot: "top", page: "/db/items" },
     });
   });
 
@@ -239,27 +239,43 @@ describe("每筆紀錄記下這張卡片：哪一筆、在頁面上的位置、�
   });
 
   it("讀回來：沒記過、或記壞了，就當沒記", () => {
-    expect(cardOf({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "inline" } })).toEqual({ id: "1302000", at: 2410, spot: "inline" });
+    expect(cardOf({ ...nextEntry, [CARD]: { id: "1302000", at: 2410, spot: "inline", page: "/db/items" } })).toEqual({
+      id: "1302000",
+      at: 2410,
+      spot: "inline",
+      page: "/db/items",
+    });
     expect(cardOf(nextEntry)).toBeUndefined();
     expect(cardOf(null)).toBeUndefined();
-    expect(cardOf({ [CARD]: { id: "1302000", at: "2410", spot: "top" } })).toBeUndefined();
-    expect(cardOf({ [CARD]: { id: 1302000, at: 2410, spot: "top" } })).toBeUndefined();
-    expect(cardOf({ [CARD]: { id: "1302000", at: 2410, spot: "side" } })).toBeUndefined();
+    expect(cardOf({ [CARD]: { id: "1302000", at: "2410", spot: "top", page: "/db/items" } })).toBeUndefined();
+    expect(cardOf({ [CARD]: { id: 1302000, at: 2410, spot: "top", page: "/db/items" } })).toBeUndefined();
+    expect(cardOf({ [CARD]: { id: "1302000", at: 2410, spot: "side", page: "/db/items" } })).toBeUndefined();
+    expect(cardOf({ [CARD]: { id: "1302000", at: 2410, spot: "top" } })).toBeUndefined();
   });
 });
 
 describe("按返回、下一頁、重新整理回到開著卡片的那一筆：卡片照這筆紀錄放（不搬家）", () => {
   const entry = (card: unknown) => ({ __NA: true, [CARD]: card });
 
-  it("紀錄記的就是這一筆：照記的放", () => {
-    expect(keptFromHistory(entry({ id: "1302000", at: 330, spot: "top" }), "1302000")).toEqual({ id: "1302000", spot: "top" });
-    expect(keptFromHistory(entry({ id: "1302000", at: 570, spot: "inline" }), "1302000")).toEqual({ id: "1302000", spot: "inline" });
+  it("紀錄記的就是這一頁的這一筆：照記的放", () => {
+    expect(keptFromHistory(entry({ id: "1302000", at: 330, spot: "top", page: "/db/items" }), "1302000", "/db/items")).toEqual({
+      id: "1302000",
+      spot: "top",
+    });
+    expect(keptFromHistory(entry({ id: "1302000", at: 570, spot: "inline", page: "/db/items" }), "1302000", "/db/items")).toEqual({
+      id: "1302000",
+      spot: "inline",
+    });
   });
 
   it("紀錄記的是別筆、沒記過、或沒開著卡片：不照紀錄", () => {
-    expect(keptFromHistory(entry({ id: "1302001", at: 330, spot: "top" }), "1302000")).toBeNull();
-    expect(keptFromHistory({ __NA: true }, "1302000")).toBeNull();
-    expect(keptFromHistory(entry({ id: "1302000", at: 330, spot: "top" }), null)).toBeNull();
+    expect(keptFromHistory(entry({ id: "1302001", at: 330, spot: "top", page: "/db/items" }), "1302000", "/db/items")).toBeNull();
+    expect(keptFromHistory({ __NA: true }, "1302000", "/db/items")).toBeNull();
+    expect(keptFromHistory(entry({ id: "1302000", at: 330, spot: "top", page: "/db/items" }), null, "/db/items")).toBeNull();
+  });
+
+  it("別頁剛好同一個編號（從怪物卡連到道具頁，換頁那一下還讀到上一頁的紀錄）：不照紀錄", () => {
+    expect(keptFromHistory(entry({ id: "1002000", at: 330, spot: "top", page: "/db/monsters" }), "1002000", "/db/items")).toBeNull();
   });
 });
 
@@ -305,5 +321,23 @@ describe("按返回後位置對不上的補救：清單變了、而且那一筆�
 
   it("這筆紀錄沒記過位置（例如更新前留下的）：交給瀏覽器，不動", () => {
     expect(needsRescue({ leftAt: undefined, nowAt: 380, top: -1700, bottom: -900, ...view })).toBe(false);
+  });
+});
+
+describe("這次換的網址是不是按上一頁／下一頁來的", () => {
+  const tracker = (traversing: boolean) => ({ cameFromHistory: () => traversing });
+
+  it("popstate 正在發（同一頁按返回，Next 在 popstate 之後馬上重畫，那時候自己的監聽還沒跑到）：是", () => {
+    expect(isTraversal(tracker(false), new Event("popstate"))).toBe(true);
+  });
+
+  it("自己的監聽已經收到 popstate（重畫晚一點才跑）：是", () => {
+    expect(isTraversal(tracker(true), undefined)).toBe(true);
+  });
+
+  it("都不是（點清單、點連結、重新整理）：不是", () => {
+    expect(isTraversal(tracker(false), undefined)).toBe(false);
+    expect(isTraversal(tracker(false), new Event("click"))).toBe(false);
+    expect(isTraversal(null, undefined)).toBe(false);
   });
 });

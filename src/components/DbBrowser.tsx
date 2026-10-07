@@ -1,10 +1,10 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, keptFromHistory, listSignature, needsRescue, sameRowAction,
-  scrollMotion, searchEntries, withCard, type DetailSpot,
+  cardOf, collapseByBack, createHistoryTracker, detailSpot, fromListMark, isTraversal, keptFromHistory, listSignature, needsRescue,
+  sameRowAction, scrollMotion, searchEntries, withCard, type DetailSpot,
 } from "@/lib/db-browse";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
@@ -47,7 +47,7 @@ const navHistory = typeof window === "undefined" ? null : createHistoryTracker(w
  * 這次換的網址是不是按上一頁／下一頁來的。同一頁裡按返回時，Next 收到 popstate 就在緊接著的 microtask 重畫、跑完 effect，
  * 比 navHistory 自己的 popstate 監聽還早（DbBrowser 比 Next 晚載入，監聽排在後面）；這時候看正在發的事件才認得出來。
  */
-const cameFromHistory = () => navHistory?.cameFromHistory() || window.event?.type === "popstate";
+const cameFromHistory = () => isTraversal(navHistory, window.event);
 
 /** 清單每一列的 DOM id：展開、收起、從連結跳過來時用來找那一列 */
 const rowOf = (id: string) => document.getElementById(`db-row-${id}`);
@@ -119,6 +119,8 @@ export function DbBrowser({
 }) {
   const params = useSearchParams();
   const selected = params.get("id");
+  // 這是哪一頁：紀錄裡的卡片要是這一頁的才照著放（從怪物卡連到道具頁時，編號可能剛好一樣）
+  const page = usePathname();
   const wide = useSyncExternalStore(subscribeWide, isWide, narrowOnServer);
   const headerHeight = useHeaderHeight();
 
@@ -155,6 +157,7 @@ export function DbBrowser({
   const lastPick = useRef<{ id: string; at: number } | null>(null);
   // 卡片現在放在哪裡：點、收起的時候要知道，不用等下一次畫面
   const spotNow = useRef<DetailSpot | null>(null);
+  const pageNow = useRef(page);
   // 按返回回來、等瀏覽器還原完再比對的這段時間，先不要把這筆紀錄記的卡片位置蓋掉
   const rescuing = useRef(false);
 
@@ -216,13 +219,14 @@ export function DbBrowser({
     hasDetail,
     shown: selected !== null && shown.some(entry => entry.id === selected),
     // 按返回、下一頁、重新整理回到開著卡片的那一筆：照這筆紀錄記的地方放，放在最上面的不會搬到清單中間
-    kept: kept?.id === selected ? kept : keptFromHistory(typeof window === "undefined" ? null : window.history.state, selected),
+    kept: kept?.id === selected ? kept : keptFromHistory(typeof window === "undefined" ? null : window.history.state, selected, page),
   });
   // 記下這次放的位置，下一次照著放（同一筆開著時卡片不搬家）
   const placed = selected !== null && spot !== null ? { id: selected, spot } : null;
   if (placed?.id !== kept?.id || placed?.spot !== kept?.spot) setKept(placed);
   useLayoutEffect(() => {
     spotNow.current = spot;
+    pageNow.current = page;
   });
 
   /** 卡片（加上它那一列）現在在畫面上的那一塊：展開在那一列下面就是那一列，放在最上面就是最上面那一塊 */
@@ -240,7 +244,8 @@ export function DbBrowser({
       const spot = spotNow.current;
       const block = cardBlock(id);
       if (!block || (spot !== "inline" && spot !== "top")) return;
-      const next = withCard(window.history.state, { id, at: Math.round(block.getBoundingClientRect().top + window.scrollY), spot });
+      const at = Math.round(block.getBoundingClientRect().top + window.scrollY);
+      const next = withCard(window.history.state, { id, at, spot, page: pageNow.current });
       if (!next) return;
       try {
         window.history.replaceState(next, "");
@@ -292,7 +297,7 @@ export function DbBrowser({
       // 按上一頁／下一頁換的交給瀏覽器還原位置。記憶是整頁共用，中途在別處改過搜尋、篩選的話清單跟離開時不同，
       // 還原的位置會對不上：瀏覽器還原完的下一個畫面前比一次，清單變了、而且那一筆和卡片都不在畫面上，才直接跳過去
       const left = cardOf(window.history.state);
-      if (!hasDetail || isWide() || left?.id !== selected) return;
+      if (!hasDetail || isWide() || left?.id !== selected || left.page !== page) return;
       rescuing.current = true;
       const frame = requestAnimationFrame(() => {
         rescuing.current = false;
@@ -314,7 +319,7 @@ export function DbBrowser({
     // 卡片在哪就跳到哪（重新整理時照紀錄放在最上面的，那一列就算也在清單上，也跳到卡片）。
     // instant：全站開了平滑捲動，不指定會從頂端一路滑三千多 px 下來
     (cardBlock(selected) ?? rowOf(selected) ?? topRef.current)?.scrollIntoView({ block: "start", behavior: "instant" });
-  }, [loading, selected, hasDetail, cardBlock, recordCardAt]);
+  }, [loading, selected, hasDetail, page, cardBlock, recordCardAt]);
 
   // 每次畫完都記一次卡片的位置（沒變就不寫）：離開這一筆時，紀錄裡就是離開那一刻的位置
   useEffect(() => {
@@ -382,13 +387,15 @@ export function DbBrowser({
                 <button
                   type="button"
                   onClick={collapse}
+                  aria-expanded="true"
+                  aria-controls="db-top-detail"
                   style={{ top: headerHeight }}
                   className={`tap-safe flex w-full items-center justify-center gap-0.5 rounded-xl text-sm font-bold text-[color:var(--maple)] ${STUCK}`}
                 >
                   收起
                   <ChevronDown size={16} className="rotate-180" />
                 </button>
-                <DetailWithCollapse detail={detail} onCollapse={collapse} />
+                <DetailWithCollapse id="db-top-detail" detail={detail} onCollapse={collapse} />
               </div>
             ) : null}
             {matches.length === 0 ? (
@@ -487,9 +494,9 @@ export function DbBrowser({
 }
 
 /** 手機、平板的細節：卡片下面一顆「收起，看下一筆」，看完長長的一張不用自己滑回去 */
-function DetailWithCollapse({ detail, onCollapse }: { detail: React.ReactNode; onCollapse: () => void }) {
+function DetailWithCollapse({ id, detail, onCollapse }: { id?: string; detail: React.ReactNode; onCollapse: () => void }) {
   return (
-    <div className="space-y-2">
+    <div id={id} className="space-y-2">
       {detail}
       <button
         type="button"

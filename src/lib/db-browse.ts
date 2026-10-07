@@ -102,9 +102,9 @@ export function collapseByBack(historyState: unknown, selected: string, doc: num
   return state?.[FROM_LIST] === selected && state?.[FROM_DOC] === doc;
 }
 
-/** 這筆紀錄離開時開著的卡片：哪一筆、在頁面上的位置（離頁面頂端幾 px）、放在哪裡 */
+/** 這筆紀錄離開時開著的卡片：哪一頁、哪一筆、在頁面上的位置（離頁面頂端幾 px）、放在哪裡 */
 export const CARD = "dbCard";
-export type CardRecord = { id: string; at: number; spot: "inline" | "top" };
+export type CardRecord = { id: string; at: number; spot: "inline" | "top"; page: string };
 
 /**
  * 把卡片記進這筆紀錄：Next 的紀錄、從清單點開的記號都留著。跟記的一樣就回 null，不用再寫一次。
@@ -114,23 +114,34 @@ export function withCard(historyState: unknown, card: CardRecord): Record<string
   const state = asRecord(historyState);
   if (state?.__NA !== true) return null;
   const old = cardOf(state);
-  if (old?.id === card.id && old.at === card.at && old.spot === card.spot) return null;
+  if (old?.id === card.id && old.at === card.at && old.spot === card.spot && old.page === card.page) return null;
   return { ...state, [CARD]: { ...card } };
 }
 
 export function cardOf(historyState: unknown): CardRecord | undefined {
   const card = asRecord(asRecord(historyState)?.[CARD]);
   if (!card) return undefined;
-  const { id, at, spot } = card;
-  return typeof id === "string" && typeof at === "number" && (spot === "inline" || spot === "top") ? { id, at, spot } : undefined;
+  const { id, at, spot, page } = card;
+  return typeof id === "string" && typeof at === "number" && (spot === "inline" || spot === "top") && typeof page === "string"
+    ? { id, at, spot, page }
+    : undefined;
 }
 
 /**
  * 按返回、下一頁、重新整理回到開著卡片的那一筆：卡片照這筆紀錄記的地方放——放在最上面的就還是最上面，不會搬到清單中間。
+ * 一定要同一頁：從怪物卡連到道具頁、換頁那一下還讀到上一頁的紀錄，編號剛好一樣也不能照著放。
  */
-export function keptFromHistory(historyState: unknown, selected: string | null): { id: string; spot: DetailSpot } | null {
+export function keptFromHistory(historyState: unknown, selected: string | null, page: string): { id: string; spot: DetailSpot } | null {
   const card = cardOf(historyState);
-  return selected !== null && card?.id === selected ? { id: selected, spot: card.spot } : null;
+  return selected !== null && card?.id === selected && card.page === page ? { id: selected, spot: card.spot } : null;
+}
+
+/**
+ * 這次換的網址是不是按上一頁／下一頁來的。同一頁裡按返回時，Next 收到 popstate 就在緊接著的 microtask 重畫、跑完 effect，
+ * 比晚一步註冊的 popstate 監聽（tracker）還早；這時候看正在發的事件（window.event）才認得出來。
+ */
+export function isTraversal(tracker: { cameFromHistory(): boolean } | null, event: Event | undefined): boolean {
+  return Boolean(tracker?.cameFromHistory()) || event?.type === "popstate";
 }
 
 /** 卡片位置差這麼多以內（字型載入之類）不算清單變了 */
