@@ -14,7 +14,7 @@ const monster = (extra: Partial<Monster> = {}): Monster =>
 const quest = (extra: Partial<Quest> = {}): Quest =>
   ({ id: "1", n: "任務", cat: "主線", ...extra }) as Quest;
 
-describe("怪物頁「只看適合我練的」：練功帶", () => {
+describe("練功帶（練功推薦的甜蜜區，怪物頁「適合我練的」的範圍是同一段）", () => {
   it("從你的等級到高你 5 級（Lv.35 → 35～40），跟練功推薦的甜蜜區同一條", () => {
     expect(inTrainingBand(35, 35)).toBe(true);
     expect(inTrainingBand(35, 40)).toBe(true);
@@ -31,7 +31,7 @@ describe("怪物頁的練功範圍", () => {
   });
 });
 
-describe("怪物頁「只看適合我練的」：職業規則（跟練功推薦同一套）", () => {
+describe("怪物頁「適合我練的」「包含低 5 級」：職業規則（跟練功推薦同一套）", () => {
   it("僧侶、祭司 31～70 等只列不死系；30 以下、71 以上不限", () => {
     expect(monsterSuitsJob(230, 40, monster({ und: 1 }))).toBe(true);
     expect(monsterSuitsJob(230, 40, monster())).toBe(false);
@@ -53,7 +53,7 @@ describe("怪物頁「只看適合我練的」：職業規則（跟練功推薦�
     expect(monsterSuitsJob(-1, 45, monster())).toBe(true);
   });
 
-  it("有規則的寫原因（篩選旁邊顯示），沒有的回 null", () => {
+  it("有規則的寫原因（標籤下面小字、接在等級範圍後面），沒有的回 null", () => {
     expect(trainingRuleNote(230, 40)).toBe("只列不死系：群體治癒補得到");
     expect(trainingRuleNote(210, 40)).toBe("不列抗火的怪：火焰箭傷害打折");
     expect(trainingRuleNote(221, 80)).toBe("不列抗冰的怪：冰雷傷害打折");

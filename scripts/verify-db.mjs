@@ -22,7 +22,7 @@
 // 重新整理後還在、桌機的小字不再寫「要先做」），清單不列「開發測試用」。位置也量（逐格，±1px）：開著卡片打勾、取消打勾，卡片裡的按鈕跟清單順序都不動（寫死任務 2323）；
 // 清單很下面（第 70 列以後）的任務打勾，卡片留在那一列下面、那一列跟按鈕不動、載出來的筆數不被收回 60 筆，收起後原本的下一列放到導覽列下方，
 // 最後一列收起就看前一列（不跳回清單開頭）；怪物資料載不到（擋掉 monsters.json）時清單照列、沒有建議等級（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
-// G3＝v0.60 的怪物頁：「適合我練的」「包含低 5 級」兩顆標籤只能開一顆、點開著的就關，清單的等級範圍、順序、筆數、小字（Lv.35 · 經驗 405）照怪物資料另外算，整頁重新整理後標籤還開著，僧侶照玩家的 35 級算職業規則（寫死：角色 Lv.35 槍騎兵、僧侶，跑完換回前面存的狂戰士 Lv.45）。
+// G3＝v0.60 的怪物頁：「適合我練的」「包含低 5 級」兩顆標籤手機 375、360 寬都在同一排、只能開一顆、點開著的就關，開了標籤下面小字寫等級範圍（Lv.30–40；僧侶再接職業規則），清單的等級範圍、順序、筆數、小字（Lv.35 · 經驗 405）照怪物資料另外算，整頁重新整理後標籤還開著，僧侶照玩家的 35 級算職業規則；「連沒有名字的怪一起列」只在資料真的有沒名字的怪時才出現（寫死：角色 Lv.35 槍騎兵、僧侶，跑完換回前面存的狂戰士 Lv.45）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -1655,25 +1655,41 @@ try {
     }
   });
 
-  // G3 怪物頁（v0.60）。篩選列是標籤：角色 Lv.35 槍騎兵時有「適合我練的（Lv.35–40）」「包含低 5 級（Lv.30–40）」「連沒有名字的怪一起列」三顆，
-  // 前兩顆只能開一顆、點開著的那顆就關；開了清單每一列的等級都在範圍裡（含邊界），順序、筆數、小字都跟網站自己的怪物資料（monsters.json）另外算的一樣；
-  // 包含低 5 級比適合我練的多；清單小字寫「Lv.35 · 經驗 405」；開「連沒有名字的怪一起列」標籤下面出一行說明；整頁重新整理後標籤還開著、清單還是篩過的、console 沒有新的錯誤。
-  // 角色沒填等級只有最後一顆；角色換成 Lv.35 僧侶、開包含低 5 級（Lv.30–40）：小字寫職業規則、清單只列不死系（規則看玩家的 35 級，不是範圍下緣的 30 級）。跑完角色換回最前面存的狂戰士 Lv.45
+  // G3 怪物頁（v0.60）。篩選列是標籤：角色 Lv.35 槍騎兵時有「適合我練的」「包含低 5 級」兩顆，手機 375、360 寬都放在同一排；兩顆只能開一顆、點開著的那顆就關；
+  // 開了，標籤下面小字寫等級範圍（Lv.35–40／Lv.30–40，職業有規則就接在後面、用「；」隔開），清單每一列的等級都在範圍裡（含邊界），
+  // 順序、筆數、小字都跟網站自己的怪物資料（monsters.json）另外算的一樣；包含低 5 級比適合我練的多；清單小字寫「Lv.35 · 經驗 405」。
+  // 「連沒有名字的怪一起列」只在資料裡真的有沒名字的怪（un）時才出現——現在一隻都沒有，所以不出現、這個分頁記著它開著也不寫說明字；資料有了就照有標籤的流程驗。
+  // 整頁重新整理後標籤還開著、清單還是篩過的、console 沒有新的錯誤；角色沒填等級就沒有範圍標籤、標籤那一塊不留空白；
+  // 角色換成 Lv.35 僧侶、開包含低 5 級：小字「Lv.30–40；只列不死系…」、清單只列不死系（規則看玩家的 35 級，不是範圍下緣的 30 級）。跑完角色換回最前面存的狂戰士 Lv.45
   await section("G3", async () => {
-    const FIT = "適合我練的（Lv.35–40）";
-    const WIDE = "包含低 5 級（Lv.30–40）";
+    const FIT = "適合我練的";
+    const WIDE = "包含低 5 級";
     const UNNAMED = "連沒有名字的怪一起列";
     const UNNAMED_HINT = "沒有名字的怪通常是活動或未啟用的內容";
+    const FIT_HINT = "Lv.35–40";
+    const WIDE_HINT = "Lv.30–40";
+    const CLERIC_HINT = "Lv.30–40；只列不死系：群體治癒補得到";
     const setMine = (level, job) => evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: ${level}, job: ${job} })); "ok"`);
     // 頁面裡的小工具：expected 用網站載清單的同一份怪物資料另外算「清單該是哪幾隻、小字該寫什麼」；view 把畫面現在的樣子（整份清單載出來）跟它比
     const G3_JS = `
       const FIT = ${JSON.stringify(FIT)}, WIDE = ${JSON.stringify(WIDE)}, UNNAMED = ${JSON.stringify(UNNAMED)};
       window.__monsterData = window.__monsterData ?? fetch(performance.getEntriesByType("resource").map(e => e.name).find(u => u.includes("/data/monsters.json")) ?? "/data/monsters.json").then(res => res.json());
+      // 資料裡有沒有沒名字的怪（un）：有，才會有「連沒有名字的怪一起列」那顆標籤
+      const anyUnnamed = async () => (await window.__monsterData).some(m => m.un);
       // from～to 級（null＝不限）、連不連沒有名字的、這個職業打得動的怪：等級由低到高、同級照 id；小字「Lv.35 · 經驗 405」，沒有經驗只寫「Lv.35」
       const expected = async (from, to, unnamed, suits = () => true) => (await window.__monsterData)
         .filter(m => (unnamed || !m.un) && (from === null || (m.lv !== null && m.lv >= from && m.lv <= to)) && suits(m))
         .sort((a, b) => (a.lv ?? 0) - (b.lv ?? 0) || a.id - b.id)
         .map(m => ({ id: String(m.id), note: m.lv ? (m.exp ? "Lv." + m.lv + " · 經驗 " + m.exp.toLocaleString("zh-TW") : "Lv." + m.lv) : "" }));
+      // 所有標籤放在同一個容器裡（標籤那一排）；一顆標籤都沒有就是 null
+      const tagRow = () => document.querySelector("main button[aria-pressed]")?.parentElement ?? null;
+      // 兩顆範圍標籤的位置跟大小（量一行放不放得下）
+      const shape = () => {
+        const a = __tag(FIT)?.getBoundingClientRect(), b = __tag(WIDE)?.getBoundingClientRect(), row = tagRow()?.getBoundingClientRect();
+        if (!a || !b || !row) return null;
+        const r = n => Math.round(n * 10) / 10;
+        return { viewport: innerWidth, fitTop: r(a.top), wideTop: r(b.top), fitWidth: r(a.width), wideWidth: r(b.width), height: r(a.height), gap: r(b.left - a.right), wideRight: r(b.right), rowRight: r(row.right) };
+      };
       const view = async (from, to, unnamed, suits) => {
         const total = Number(__count().replace(/[^0-9]/g, ""));
         for (let i = 0; i < 12 && __rows().length < total; i++) await __loadMore();
@@ -1684,9 +1700,10 @@ try {
         const noteOf = new Map((await expected(null, null, true)).map(w => [w.id, w.note]));
         const levels = rows.map(row => Number(/^Lv\\.([0-9]+)/.exec(row.note)?.[1]));
         return {
+          names: [...document.querySelectorAll("main button[aria-pressed]")].map(b => b.textContent.trim()),
           fit: __pressed(__tag(FIT)), wide: __pressed(__tag(WIDE)), unnamed: __pressed(__tag(UNNAMED)),
-          // 標籤那一排下面緊接著的說明字（職業規則、沒有名字的怪）
-          hints: [...(__tag(UNNAMED)?.parentElement?.nextElementSibling?.querySelectorAll("p") ?? [])].map(p => p.textContent.trim()),
+          // 標籤那一排下面緊接著的小字（等級範圍＋職業規則、沒有名字的怪的說明）
+          hints: [...(tagRow()?.nextElementSibling?.querySelectorAll("p") ?? [])].map(p => p.textContent.trim()),
           count: total, rows: rows.length, want: want.length,
           sameList: rows.length === want.length && rows.every((row, i) => row.id === want[i].id),
           sameNotes: rows.length > 0 && rows.every(row => row.note === noteOf.get(row.id)),
@@ -1698,65 +1715,96 @@ try {
       };`;
     await mobile();
     try {
-      // 角色還沒填等級：只有「連沒有名字的怪一起列」
+      // 角色還沒填等級：沒有範圍標籤；資料裡沒有沒名字的怪就一顆標籤都沒有，標籤那一塊整個不放（搜尋框到「N 筆」中間不多留空白）
       await setMine(0, -1);
       await fresh("/db/monsters");
-      const bare = await ev(`return { names: [...document.querySelectorAll("main button[aria-pressed]")].map(b => b.textContent.trim()) };`);
-      check("G3 角色還沒填等級：只有「連沒有名字的怪一起列」一顆標籤，沒有練功範圍的標籤", bare.names.length === 1 && bare.names[0] === UNNAMED, bare);
+      const bare = await ev(`${G3_JS}
+        const box = __search()?.parentElement;
+        const count = [...document.querySelectorAll("main p")].find(p => /^([0-9,]+ 筆|載入中…)$/.test(p.textContent.trim()));
+        return { names: [...document.querySelectorAll("main button[aria-pressed]")].map(b => b.textContent.trim()), unnamedInData: await anyUnnamed(),
+          gap: box && count ? Math.round((count.getBoundingClientRect().top - box.getBoundingClientRect().bottom) * 10) / 10 : null };`);
+      check("G3 角色還沒填等級：沒有「適合我練的」「包含低 5 級」（資料裡有沒名字的怪才有「連沒有名字的怪一起列」，現在沒有就一顆標籤都沒有），標籤那一塊不留空白（搜尋框到「N 筆」只隔一段間距）",
+        bare.unnamedInData
+          ? bare.names.length === 1 && bare.names[0] === UNNAMED
+          : bare.names.length === 0 && bare.gap !== null && bare.gap > 0 && bare.gap < 15, bare);
 
-      // 角色 Lv.35 槍騎兵（沒有職業規則）：一開始三顆標籤都沒按、舊的勾選框不見了，清單是全部有名字的怪
+      // 角色 Lv.35 槍騎兵（沒有職業規則）：一開始標籤都沒按、舊的勾選框不見了、沒有小字，清單是全部有名字的怪
       await setMine(35, 130);
       await fresh("/db/monsters");
       const start = await ev(`${G3_JS}
-        return { names: [...document.querySelectorAll("main button[aria-pressed]")].map(b => b.textContent.trim()), checkboxes: document.querySelectorAll("main input[type=checkbox]").length,
-          ...(await view(null, null, false)) };`);
-      check("G3 角色 Lv.35 槍騎兵：怪物頁有「適合我練的（Lv.35–40）」「包含低 5 級（Lv.30–40）」「連沒有名字的怪一起列」三顆標籤、一開始都沒按，沒有勾選框，清單是全部有名字的怪",
-        start.names.length === 3 && start.names[0] === FIT && start.names[1] === WIDE && start.names[2] === UNNAMED
+        return { unnamedInData: await anyUnnamed(), checkboxes: document.querySelectorAll("main input[type=checkbox]").length, ...(await view(null, null, false)) };`);
+      const wantNames = start.unnamedInData ? [FIT, WIDE, UNNAMED] : [FIT, WIDE];
+      check("G3 角色 Lv.35 槍騎兵：怪物頁有「適合我練的」「包含低 5 級」兩顆標籤（標籤上只寫名稱、不寫等級；資料裡有沒名字的怪才多一顆「連沒有名字的怪一起列」，現在沒有）、一開始都沒按，沒有勾選框、沒有小字，清單是全部有名字的怪",
+        start.names.length === wantNames.length && wantNames.every((name, i) => start.names[i] === name)
           && start.fit === false && start.wide === false && start.unnamed === false && start.checkboxes === 0 && start.hints.length === 0 && start.want > 0 && start.sameList === true && start.sameNotes === true,
-        { names: start.names, checkboxes: start.checkboxes, pressed: [start.fit, start.wide, start.unnamed], hints: start.hints, rows: start.rows, want: start.want, sameList: start.sameList, sameNotes: start.sameNotes, missing: start.missing, extra: start.extra, firstNotes: start.firstNotes });
+        { names: start.names, unnamedInData: start.unnamedInData, checkboxes: start.checkboxes, pressed: [start.fit, start.wide, start.unnamed], hints: start.hints, rows: start.rows, want: start.want, sameList: start.sameList, sameNotes: start.sameNotes, missing: start.missing, extra: start.extra, firstNotes: start.firstNotes });
 
-      // 按「適合我練的」：同級到高 5 級
+      // 手機 375、360 寬：兩顆範圍標籤在同一排（一行放得下），沒有擠出標籤那一排
+      const shape375 = await ev(`${G3_JS} return shape();`);
+      await page.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 800, deviceScaleFactor: 2, mobile: true });
+      await sleep(500);
+      const shape360 = await ev(`${G3_JS} return shape();`);
+      await mobile();
+      await sleep(300);
+      const oneRow = s => !!s && Math.abs(s.fitTop - s.wideTop) < 1 && s.gap > 0 && s.wideRight <= s.rowRight + 0.5;
+      check("G3 手機 375、360 寬：「適合我練的」「包含低 5 級」在同一排（一行放得下），沒有擠出標籤那一排",
+        oneRow(shape375) && oneRow(shape360) && shape375.viewport === 375 && shape360.viewport === 360, { at375: shape375, at360: shape360 });
+
+      // 按「適合我練的」：同級到高 5 級，小字寫「Lv.35–40」
       const fit = await ev(`${G3_JS} __tag(FIT).click(); await __sleep(800); return await view(35, 40, false);`);
-      check("G3 按「適合我練的」：只有它亮，每一列等級都在 35–40（含邊界）、清單跟怪物資料算出來的一樣，槍騎兵沒有職業規則的說明字",
-        fit.fit === true && fit.wide === false && fit.unnamed === false && fit.want > 0 && fit.sameList === true && fit.minLevel >= 35 && fit.maxLevel <= 40 && fit.hints.length === 0
-          && fit.count === fit.rows, fit);
+      check("G3 按「適合我練的」：只有它亮，標籤下面小字寫「Lv.35–40」（槍騎兵沒有職業規則），每一列等級都在 35–40（含邊界）、清單跟怪物資料算出來的一樣",
+        fit.fit === true && fit.wide === false && fit.unnamed === false && fit.hints.length === 1 && fit.hints[0] === FIT_HINT && fit.want > 0 && fit.sameList === true
+          && fit.minLevel >= 35 && fit.maxLevel <= 40 && fit.count === fit.rows, fit);
 
-      // 再按「包含低 5 級」：兩顆只能開一顆，「適合我練的」自動關掉
+      // 再按「包含低 5 級」：兩顆只能開一顆，「適合我練的」自動關掉，小字換成「Lv.30–40」
       const wide = await ev(`${G3_JS} __tag(WIDE).click(); await __sleep(800); return await view(30, 40, false);`);
       await shot("g3-monster-tags.png");
-      check("G3 再按「包含低 5 級」：「適合我練的」自動關掉、只有它亮；每一列等級都在 30–40（含邊界）、有低於 35 級的，筆數比「適合我練的」多、跟怪物資料算出來的一樣",
-        wide.wide === true && wide.fit === false && wide.unnamed === false && wide.want > fit.want && wide.sameList === true && wide.minLevel >= 30 && wide.minLevel < 35 && wide.maxLevel <= 40
-          && wide.rows > fit.rows && wide.hints.length === 0, { wide, fitRows: fit.rows });
+      check("G3 再按「包含低 5 級」：「適合我練的」自動關掉、只有它亮；小字換成「Lv.30–40」；每一列等級都在 30–40（含邊界）、有低於 35 級的，筆數比「適合我練的」多、跟怪物資料算出來的一樣",
+        wide.wide === true && wide.fit === false && wide.unnamed === false && wide.hints.length === 1 && wide.hints[0] === WIDE_HINT && wide.want > fit.want && wide.sameList === true
+          && wide.minLevel >= 30 && wide.minLevel < 35 && wide.maxLevel <= 40 && wide.rows > fit.rows, { wide, fitRows: fit.rows });
       // 清單小字：等級＋經驗（經驗上千的有千分位、沒有經驗的只寫等級，都照怪物資料算）
       check("G3 清單小字寫等級跟經驗（例：Lv.35 · 經驗 405），每一列跟怪物資料算出來的一樣",
         wide.sameNotes === true && wide.rows > 0 && wide.firstNotes.some(note => /^Lv\.[0-9]+ · 經驗 [0-9,]+$/.test(note)), { sameNotes: wide.sameNotes, firstNotes: wide.firstNotes });
 
-      // 再按一次「包含低 5 級」：關掉，清單回到全部有名字的怪（整份：千分位、沒有經驗只寫等級的小字也一起比）
+      // 再按一次「包含低 5 級」：關掉、小字拿掉，清單回到全部有名字的怪（整份：千分位、沒有經驗只寫等級的小字也一起比）
       const closed = await ev(`${G3_JS} __tag(WIDE).click(); await __sleep(800); return await view(null, null, false);`);
-      check("G3 再按一次開著的「包含低 5 級」：關掉、兩顆範圍標籤都不亮，清單回到全部有名字的怪（小字都對）",
-        closed.wide === false && closed.fit === false && closed.sameList === true && closed.sameNotes === true && closed.rows > wide.rows, { closed, wideRows: wide.rows });
+      check("G3 再按一次開著的「包含低 5 級」：關掉、兩顆範圍標籤都不亮、小字拿掉，清單回到全部有名字的怪（小字都對）",
+        closed.wide === false && closed.fit === false && closed.hints.length === 0 && closed.sameList === true && closed.sameNotes === true && closed.rows > wide.rows, { closed, wideRows: wide.rows });
 
-      // 「連沒有名字的怪一起列」：亮起來、標籤下面出一行說明、清單照「有名字＋沒有名字」的怪算；再按一次說明字拿掉
-      // （現在的怪物資料裡沒有沒名字的怪，所以兩邊筆數一樣；清單照資料算，哪天資料有了也會對）。每一段從重新打開的頁面開始，前面哪一步壞了不會連累這一段
+      // 「連沒有名字的怪一起列」。每一段從重新打開的頁面開始，前面哪一步壞了不會連累這一段
       await fresh("/db/monsters");
-      const unnamedOn = await ev(`${G3_JS} __tag(UNNAMED).click(); await __sleep(800); return await view(null, null, true);`);
-      const unnamedOff = await ev(`${G3_JS} __tag(UNNAMED).click(); await __sleep(800); return await view(null, null, false);`);
-      check("G3 按「連沒有名字的怪一起列」：亮起來、標籤下面寫「沒有名字的怪通常是活動或未啟用的內容」、清單照資料算；再按一次：說明字拿掉、標籤不亮",
-        unnamedOn.unnamed === true && unnamedOn.hints.length === 1 && unnamedOn.hints[0] === UNNAMED_HINT && unnamedOn.sameList === true && unnamedOn.rows >= unnamedOff.rows
-          && unnamedOff.unnamed === false && unnamedOff.hints.length === 0 && unnamedOff.sameList === true && unnamedOff.rows > 0,
-        { on: { unnamed: unnamedOn.unnamed, hints: unnamedOn.hints, sameList: unnamedOn.sameList, rows: unnamedOn.rows }, off: { unnamed: unnamedOff.unnamed, hints: unnamedOff.hints, sameList: unnamedOff.sameList, rows: unnamedOff.rows } });
+      if (start.unnamedInData) {
+        // 資料裡有沒名字的怪：標籤在，按了亮起來、標籤下面出一行說明、清單多出沒有名字的怪（照資料算）；再按一次說明字拿掉
+        const unnamedOn = await ev(`${G3_JS} __tag(UNNAMED).click(); await __sleep(800); return await view(null, null, true);`);
+        const unnamedOff = await ev(`${G3_JS} __tag(UNNAMED).click(); await __sleep(800); return await view(null, null, false);`);
+        check("G3 按「連沒有名字的怪一起列」：亮起來、標籤下面寫「沒有名字的怪通常是活動或未啟用的內容」、清單多出沒有名字的怪（照資料算）；再按一次：說明字拿掉、標籤不亮",
+          unnamedOn.unnamed === true && unnamedOn.hints.length === 1 && unnamedOn.hints[0] === UNNAMED_HINT && unnamedOn.sameList === true && unnamedOn.rows > unnamedOff.rows
+            && unnamedOff.unnamed === false && unnamedOff.hints.length === 0 && unnamedOff.sameList === true,
+          { on: { unnamed: unnamedOn.unnamed, hints: unnamedOn.hints, sameList: unnamedOn.sameList, rows: unnamedOn.rows }, off: { unnamed: unnamedOff.unnamed, hints: unnamedOff.hints, sameList: unnamedOff.sameList, rows: unnamedOff.rows } });
+      } else {
+        // 資料裡沒有沒名字的怪：沒有那顆標籤。這個分頁記著它開著（舊版的勾選框留下的）也不寫說明字、清單照常
+        await evaluate(`sessionStorage.setItem("ms-db:db:怪物:showUnnamed", "true"); 1`);
+        await reload();
+        const stored = await ev(`${G3_JS} await __ready(); await __sleep(900); return await view(null, null, true);`);
+        check("G3 資料裡沒有沒名字的怪：就算這個分頁記著「連沒有名字的怪一起列」開著，也沒有那顆標籤、沒有說明字，清單照常（跟怪物資料算出來的一樣）",
+          !stored.names.includes(UNNAMED) && stored.unnamed === false && stored.hints.length === 0 && stored.rows > 0 && stored.sameList === true && stored.sameNotes === true,
+          { names: stored.names, hints: stored.hints, rows: stored.rows, want: stored.want, sameList: stored.sameList, sameNotes: stored.sameNotes });
+      }
 
-      // 整頁重新整理（不是站內換頁）：開著的「包含低 5 級」「連沒有名字的怪一起列」還開著、說明字還在、清單還是篩過的；第一格照記住的畫，不能跟伺服器的頁面對不上（console 不能出現新的錯誤）
+      // 整頁重新整理（不是站內換頁）：開著的「包含低 5 級」（資料裡有沒名字的怪就連「連沒有名字的怪一起列」）還開著、小字還在、清單還是篩過的；
+      // 第一格照記住的畫，不能跟伺服器的頁面對不上（console 不能出現新的錯誤）
       await fresh("/db/monsters");
-      await ev(`${G3_JS} __tag(WIDE).click(); await __sleep(400); __tag(UNNAMED).click(); await __sleep(800); return 1;`);
+      await ev(`${G3_JS} __tag(WIDE).click(); await __sleep(400); ${start.unnamedInData ? "__tag(UNNAMED).click();" : ""} await __sleep(800); return 1;`);
       const problemsBefore = consoleProblems.length;
       await reload();
-      const reloaded = await ev(`${G3_JS} await __ready(); await __sleep(900); return await view(30, 40, true);`);
+      const reloaded = await ev(`${G3_JS} await __ready(); await __sleep(900); return await view(30, 40, ${start.unnamedInData});`);
       await shot("g3-monster-reload.png");
       const reloadProblems = consoleProblems.slice(problemsBefore);
-      check("G3 整頁重新整理：開著的「包含低 5 級」「連沒有名字的怪一起列」還開著、說明字還在、清單還是篩過的，console 沒有新的錯誤",
-        reloaded.wide === true && reloaded.unnamed === true && reloaded.fit === false && reloaded.hints.length === 1 && reloaded.hints[0] === UNNAMED_HINT && reloaded.want > 0 && reloaded.sameList === true
-          && reloadProblems.length === 0, { wide: reloaded.wide, unnamed: reloaded.unnamed, fit: reloaded.fit, hints: reloaded.hints, rows: reloaded.rows, want: reloaded.want, sameList: reloaded.sameList, problems: reloadProblems.slice(0, 3) });
+      const wantHints = start.unnamedInData ? [WIDE_HINT, UNNAMED_HINT] : [WIDE_HINT];
+      check("G3 整頁重新整理：開著的「包含低 5 級」還開著、標籤下面的小字還在、清單還是篩過的，console 沒有新的錯誤",
+        reloaded.wide === true && reloaded.fit === false && reloaded.unnamed === start.unnamedInData && reloaded.hints.length === wantHints.length && wantHints.every((text, i) => reloaded.hints[i] === text)
+          && reloaded.want > 0 && reloaded.sameList === true && reloadProblems.length === 0,
+        { wide: reloaded.wide, fit: reloaded.fit, unnamed: reloaded.unnamed, hints: reloaded.hints, rows: reloaded.rows, want: reloaded.want, sameList: reloaded.sameList, problems: reloadProblems.slice(0, 3) });
 
       // 角色 Lv.35 僧侶（31～70 級只打不死系）：包含低 5 級（Lv.30–40）也照 35 級算規則——範圍下緣的 30 級不適用這條，用錯就會多列一堆不是不死系的怪
       await setMine(35, 230);
@@ -1766,8 +1814,8 @@ try {
         const plain = (await expected(30, 40, false)).length;
         return { ...(await view(30, 40, false, m => !!m.und)), plain };`);
       await shot("g3-monster-cleric.png");
-      check("G3 角色 Lv.35 僧侶開「包含低 5 級」：標籤下面寫「只列不死系：群體治癒補得到」、清單只列不死系的怪（職業規則看玩家的 35 級，不是範圍下緣的 30 級）",
-        cleric.wide === true && cleric.hints.length === 1 && cleric.hints[0] === "只列不死系：群體治癒補得到" && cleric.want > 0 && cleric.want < cleric.plain && cleric.sameList === true,
+      check("G3 角色 Lv.35 僧侶開「包含低 5 級」：標籤下面小字寫「Lv.30–40；只列不死系：群體治癒補得到」、清單只列不死系的怪（職業規則看玩家的 35 級，不是範圍下緣的 30 級）",
+        cleric.wide === true && cleric.hints.length === 1 && cleric.hints[0] === CLERIC_HINT && cleric.want > 0 && cleric.want < cleric.plain && cleric.sameList === true,
         { wide: cleric.wide, hints: cleric.hints, rows: cleric.rows, want: cleric.want, plain: cleric.plain, sameList: cleric.sameList, missing: cleric.missing, extra: cleric.extra });
     } finally {
       await setMine(45, 110);

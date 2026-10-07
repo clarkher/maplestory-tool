@@ -159,7 +159,7 @@ export function requiredAccuracy(playerLevel: number, monster: Pick<Monster, "lv
 }
 
 /**
- * 練功帶：跟你同級到高你 5 級（levelFit 的甜蜜區）。怪物頁「只看適合我練的」也用這一條，兩邊說法才一致。
+ * 練功帶：跟你同級到高你 5 級（levelFit 的甜蜜區）。怪物頁「適合我練的」的範圍（trainingRange）是同一段，兩邊說法才一致。
  */
 export function inTrainingBand(playerLevel: number, monsterLevel: number): boolean {
   const diff = monsterLevel - playerLevel;
