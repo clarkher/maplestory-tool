@@ -88,4 +88,45 @@ describe("做完的任務記在瀏覽器", () => {
     store.setQuestDone("1045", true);
     expect(store.readDoneQuests().has("1045")).toBe(true);
   });
+
+  it("先存不進去、之後又存得進去：打勾不會遺失", async () => {
+    const storage = fakeStorage();
+    const realSet = storage.setItem;
+    let failures = 1;
+    storage.setItem = (key: string, value: string) => {
+      if (failures-- > 0) throw new DOMException("空間不夠", "QuotaExceededError");
+      realSet(key, value);
+    };
+    await setup(storage);
+
+    store.setQuestDone("1045", true);
+    store.setQuestDone("2078", true);
+    expect(storage.getItem("ms-done-quests")).toBe('["1045","2078"]');
+  });
+
+  it("這個分頁存不進去之後，別的分頁改了做完的任務：讀到別的分頁存的，不會卡在這個分頁沒存進去的那份", async () => {
+    const storage = fakeStorage();
+    const realSet = storage.setItem;
+    let failures = 1;
+    storage.setItem = (key: string, value: string) => {
+      if (failures-- > 0) throw new DOMException("空間不夠", "QuotaExceededError");
+      realSet(key, value);
+    };
+    await setup(storage);
+
+    store.setQuestDone("1045", true);
+    storage.setItem("ms-done-quests", '["2078"]');
+    win.dispatchEvent(Object.assign(new Event("storage"), { key: "ms-done-quests" }));
+
+    expect([...store.readDoneQuests()]).toEqual(["2078"]);
+  });
+
+  it("別的分頁改的是其他設定（例如深色模式）：這個分頁沒存進去的打勾照樣留著", async () => {
+    await setup(fakeStorage("full"));
+    store.setQuestDone("1045", true);
+
+    win.dispatchEvent(Object.assign(new Event("storage"), { key: "ms-theme" }));
+
+    expect(store.readDoneQuests().has("1045")).toBe(true);
+  });
 });
