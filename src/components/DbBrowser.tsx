@@ -6,6 +6,7 @@ import {
   cardOf, cardShift, collapseByBack, createHistoryTracker, detailSpot, fromListMark, groupHeads, groupLabeler, isTraversal, keptFromHistory,
   listSignature, moreRows, needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot, type Prefer,
 } from "@/lib/db-browse";
+import { useHydrated } from "@/lib/hydrated";
 import { reloadRestore } from "@/lib/reload-scroll";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
@@ -35,10 +36,6 @@ const PAGE_SIZE = 60;
 const WIDE = "(min-width: 64rem)";
 const isWide = () => window.matchMedia(WIDE).matches;
 const narrowOnServer = () => false;
-/** 瀏覽器接手畫面了沒（伺服器上一律還沒） */
-const noSubscribe = () => () => {};
-const onClient = () => true;
-const onServer = () => false;
 function subscribeWide(onChange: () => void) {
   const query = window.matchMedia(WIDE);
   query.addEventListener("change", onChange);
@@ -123,7 +120,7 @@ export function DbBrowser({
   const router = useRouter();
   const wide = useSyncExternalStore(subscribeWide, isWide, narrowOnServer);
   // 記住的搜尋字第一個畫面就讀得到，伺服器畫的頁面卻沒有：「×」等瀏覽器接手後才放，兩邊才對得上
-  const hydrated = useSyncExternalStore(noSubscribe, onClient, onServer);
+  const hydrated = useHydrated();
 
   const [query, setQuery] = useRemembered(`db:${title}:query`, "");
   const [visible, setVisible] = useRemembered(`db:${title}:visible`, PAGE_SIZE);
