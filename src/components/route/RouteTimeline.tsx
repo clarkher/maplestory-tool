@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
-import { itemImage, monsterImage, skillImage } from "@/lib/data";
+import { itemImage, loadGear, mapName, monsterImage, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
+import { isMagicJob, type GearData } from "@/lib/gear";
+import { bandGear, offenseText, sourceOpensLater, sourceText } from "@/lib/gear-view";
+import { LEVEL_CAP } from "@/lib/profile";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
@@ -255,6 +258,8 @@ function BandDetail({ plan, next, context, active }: { plan: BandPlan; next?: Ba
         </Block>
       ) : null}
 
+      {!island && job > 0 ? <BandGearBlock job={job} band={band} maps={maps} /> : null}
+
       {detail.mustDo.length ? (
         <Block label="必解任務" tag={<SourceTag kind="data" />}>
           <ul className="space-y-2">
@@ -429,3 +434,80 @@ function PqLink({ pqKey, common, text }: { pqKey: string; common: GuideCommon; t
     </Link>
   );
 }
+
+/**
+ * 這一段該拿的武器（幾等換哪把、去哪拿）跟武器卷、手套攻擊卷（2026-10-07 使用者：「升級路線每一段也列裝備跟卷」）。
+ * 算法在 lib/gear-view.ts 的 bandGear；裝備資料跟首頁「能力值與裝備」卡共用（loadGear 只載一次）。載不到就不顯示這塊。
+ */
+function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Record<string, MapRecord> }) {
+  const [gear, setGear] = useState<GearData | null>(null);
+  const beforeOpen = useBeforeV002();
+  useEffect(() => {
+    let cancelled = false;
+    loadGear()
+      .then(data => {
+        if (!cancelled) setGear(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // 一段是 from 到 to 前一級（下一段從 to 開始）；最後一段（100–120）含上限那一級
+  const last = band.to >= LEVEL_CAP ? band.to : band.to - 1;
+  const plan = useMemo(() => (gear ? bandGear(gear, job, band.from, last, beforeOpen) : null), [gear, job, band.from, last, beforeOpen]);
+  if (!plan || (!plan.weapons.length && !plan.families.length)) return null;
+  const magic = isMagicJob(job);
+  const label = (id: number) => mapName(maps, id);
+  const chip = (later: string | undefined) =>
+    later && beforeOpen ? (
+      <span className="ml-1 inline-block align-middle">
+        <Chip tone="gold">10/15 開放</Chip>
+      </span>
+    ) : null;
+
+  return (
+    <Block label="裝備" tag={<SourceTag kind="data" />}>
+      <ul className="space-y-2">
+        {plan.weapons.map((entry, index) => (
+          <li key={entry.weapon.id} className="flex gap-2">
+            <Sprite src={itemImage(entry.weapon.id)} size={28} />
+            <span className="min-w-0 text-[13px] leading-snug">
+              <span className="whitespace-nowrap font-bold">
+                Lv.{entry.level}
+                {index > 0 ? " 換" : ""}
+              </span>{" "}
+              <Link href={`/db/items?id=${entry.weapon.id}`} className="font-bold text-[color:var(--sky)]">
+                {entry.weapon.n}
+              </Link>
+              <span className="whitespace-nowrap ink-soft">（{offenseText(entry.weapon, magic)}）</span>
+              {entry.source ? (
+                <span className="block text-[12px] ink-soft">
+                  {sourceText(entry.source, label)}
+                  {chip(sourceOpensLater(entry.source))}
+                </span>
+              ) : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {plan.families.length ? (
+        <ul className="space-y-1.5 border-t border-[color:var(--paper-edge)] pt-2">
+          {plan.families.map(family => (
+            <li key={`${family.slot}:${family.stat}`} className="text-[13px] leading-snug">
+              <span className="font-bold">{family.options[0].n}</span>{" "}
+              <span className="whitespace-nowrap tabular-nums ink-soft">{family.options.map(option => `${option.rate}%`).join("／")}</span>
+              {family.source ? (
+                <span className="block text-[12px] ink-soft">
+                  {sourceText(family.source, label)}
+                  {chip(sourceOpensLater(family.source))}
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </Block>
+  );
+}
+
