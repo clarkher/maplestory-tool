@@ -9,6 +9,9 @@ import {
   itemImage, loadItems, loadMaps, loadMonsters, mapName, monsterImage, peekItems, peekMaps, peekMonsters,
 } from "@/lib/data";
 import { elementalNotes, formatNumber } from "@/lib/format";
+import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
+import { inTrainingBand } from "@/lib/planner";
+import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster } from "@/lib/types";
@@ -21,7 +24,13 @@ export function MonsterDb() {
   const [items, setItems] = useState<Item[] | null>(peekItems);
   const [error, setError] = useState<string | null>(null);
   const [showUnnamed, setShowUnnamed] = useRemembered("db:怪物:showUnnamed", false);
+  const [onlyBand, setOnlyBand] = useRemembered("db:怪物:onlyBand", false);
   const notOpenYet = useBeforeV002();
+  // 角色列填了等級才出現「只看適合我練的」：練功帶＝同級到高 5 級，再套職業規則（跟練功推薦同一套）
+  const { profile, loaded } = useStoredProfile();
+  const level = loaded && profile.level > 0 ? profile.level : null;
+  const bandLevel = onlyBand ? level : null;
+  const rule = level === null ? null : trainingRuleNote(profile.job, level);
 
   useEffect(() => {
     Promise.all([loadMonsters(), loadMaps(), loadItems()])
@@ -43,6 +52,9 @@ export function MonsterDb() {
     if (!monsters || !maps) return [];
     return monsters
       .filter(monster => showUnnamed || !monster.un)
+      .filter(monster => bandLevel === null || (
+        monster.lv !== null && inTrainingBand(bandLevel, monster.lv) && monsterSuitsJob(profile.job, bandLevel, monster)
+      ))
       .sort((a, b) => (a.lv ?? 0) - (b.lv ?? 0) || a.id - b.id)
       .map(monster => ({
         id: String(monster.id),
@@ -51,7 +63,7 @@ export function MonsterDb() {
         image: monsterImage(monster.id),
         badge: isV002Monster(monster, maps) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [monsters, maps, showUnnamed, notOpenYet]);
+  }, [monsters, maps, showUnnamed, bandLevel, profile.job, notOpenYet]);
 
   return (
     <DbBrowser
@@ -61,15 +73,31 @@ export function MonsterDb() {
       loading={!monsters || !maps || !items}
       error={error}
       filters={
-        <label className="flex items-center gap-2 text-[13px] ink-soft">
-          <input
-            type="checkbox"
-            checked={showUnnamed}
-            onChange={event => setShowUnnamed(event.target.checked)}
-            className="size-4 accent-[color:var(--maple)]"
-          />
-          連沒有名字的怪一起列（通常是活動或未啟用的內容）
-        </label>
+        <div className="space-y-2">
+          {level !== null ? (
+            <div className="space-y-1">
+              <label className="flex items-center gap-2 text-[13px] ink-soft">
+                <input
+                  type="checkbox"
+                  checked={onlyBand}
+                  onChange={event => setOnlyBand(event.target.checked)}
+                  className="size-4 accent-[color:var(--maple)]"
+                />
+                只看適合我練的（Lv.{level}–{level + 5}）
+              </label>
+              {onlyBand && rule ? <p className="pl-6 text-xs ink-faint">{rule}</p> : null}
+            </div>
+          ) : null}
+          <label className="flex items-center gap-2 text-[13px] ink-soft">
+            <input
+              type="checkbox"
+              checked={showUnnamed}
+              onChange={event => setShowUnnamed(event.target.checked)}
+              className="size-4 accent-[color:var(--maple)]"
+            />
+            連沒有名字的怪一起列（通常是活動或未啟用的內容）
+          </label>
+        </div>
       }
       renderDetail={id => {
         const monster = monsterIndex.get(id);
