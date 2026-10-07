@@ -1,6 +1,7 @@
 /**
  * 怪物卡（查資料・怪物）上的出沒地圖、掉落物怎麼列，抽出來單獨測。
  */
+import { formatNumber } from "./format";
 import type { Item, MapRecord, Monster } from "./types";
 
 /** 出沒地圖一開始先列幾張，其他按「看全部」才展開 */
@@ -49,4 +50,10 @@ export function monsterDrops(drops: number[], itemIndex: Map<number, Pick<Item, 
     return item !== undefined && !item.un;
   });
   return { shown, hidden: drops.length - shown.length };
+}
+
+/** 怪物清單右邊的小字：等級＋經驗（比練功效率用）；經驗 0 只寫等級，沒等級不寫 */
+export function monsterNote(monster: Pick<Monster, "lv" | "exp">): string | undefined {
+  if (!monster.lv) return undefined;
+  return monster.exp ? `Lv.${monster.lv} · 經驗 ${formatNumber(monster.exp)}` : `Lv.${monster.lv}`;
 }

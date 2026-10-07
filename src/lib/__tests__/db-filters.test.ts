@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
-import { inTrainingBand, isDevQuest, questBucket, questEligible } from "@/lib/planner";
+import { inTrainingBand, isDevQuest, questBucket, questEligible, trainingRange } from "@/lib/planner";
 import type { Monster, Quest } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
@@ -20,6 +20,14 @@ describe("怪物頁「只看適合我練的」：練功帶", () => {
     expect(inTrainingBand(35, 40)).toBe(true);
     expect(inTrainingBand(35, 41)).toBe(false);
     expect(inTrainingBand(35, 34)).toBe(false);
+  });
+});
+
+describe("怪物頁的練功範圍", () => {
+  it("適合我練的：同級到高 5 級；包含低 5 級：低 5 級到高 5 級，最低 1 級", () => {
+    expect(trainingRange(35, false)).toEqual([35, 40]);
+    expect(trainingRange(35, true)).toEqual([30, 40]);
+    expect(trainingRange(3, true)).toEqual([1, 8]);
   });
 });
 

@@ -1,0 +1,12 @@
+﻿
+ RUN  v5.0.3 C:/Users/user1/MapleBook/.claude/worktrees/strange-saha-340c45
+
+
+ Test Files  41 passed (41)
+      Tests  830 passed (830)
+   Start at  16:34:42
+   Duration  23.54s (tests 87%, import 6%, transform 6%, worker 1%)
+
+    Isolate  41 workers spawned · ~213ms startup each (spawn + environment, per file)
+             at least ~2.70s faster with isolate: false — reuses workers across files instead of one per file
+

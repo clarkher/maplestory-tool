@@ -166,6 +166,11 @@ export function inTrainingBand(playerLevel: number, monsterLevel: number): boole
   return diff >= 0 && diff <= 5;
 }
 
+/** 怪物頁「適合我練的」範圍：同級到高 5 級（跟練功推薦的甜蜜區同一條）；包含低 5 級就從低 5 級開始，最低 1 級 */
+export function trainingRange(level: number, withLower: boolean): [number, number] {
+  return [withLower ? Math.max(1, level - 5) : level, level + 5];
+}
+
 /**
  * 等級適配度。
  *
