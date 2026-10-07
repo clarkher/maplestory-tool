@@ -16,7 +16,8 @@
 // 任務 6931 要先完成 6930。遊戲資料改版後對不上時，這幾項會 FAIL 並寫出原因，換成新的 id 就好。
 // 也順便驗全站的兩件事（v0.53）：H 開頭＝手指往下滑時導覽列收起來（用 Input.dispatchTouchEvent 模擬手指；
 // Input.synthesizeScrollGesture 在無頭 Chrome 只送出按下、放開，畫面不會捲，不能用）；X 開頭＝打寶「自己找」、帶我去選地圖的搜尋框「×」。
-// G 開頭＝v0.55 起的道具頁篩選：搜職業名（法師）時清單分兩組小標、選了種類整頁重新整理後種類還在（寫死：職業「法師」、種類「單手劍」）。
+// G 開頭＝v0.55 起的道具頁篩選：搜職業名（法師）時清單分兩組小標、選了種類整頁重新整理後種類還在、「〇〇能用」「現在就能穿」兩顆標籤的規則
+// （寫死：小標那段搜「法師」、種類「單手劍」；標籤那段用狂戰士 Lv.45、分類「消耗」）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -1378,13 +1379,14 @@ try {
       __setSearch("初心者"); await __sleep(700);
       const novice = __heads();
       __setSearch("帽"); await __sleep(700);
-      const plain = __heads();
+      const plain = __heads(); const plainRows = __rows().length;
       __setSearch("法師"); await __sleep(700);
       const before = __heads().length;
       __setSearch(""); await __sleep(700);
-      return { novice, plain, before, cleared: __heads(), rows: __rows().length };`);
+      return { novice, plain, plainRows, before, cleared: __heads(), rows: __rows().length };`);
     check("G1 搜「初心者」：第一組寫「初心者專用的裝備」", others.novice[0] === "初心者專用的裝備", others.novice);
-    check("G1 搜一般的字（帽）：不分組、沒有小標", others.plain.length === 0, others.plain);
+    // 清單是空的也「沒有小標」，所以要同時有列（搜帽有東西）才算數
+    check("G1 搜一般的字（帽）：不分組、沒有小標", others.plain.length === 0 && others.plainRows > 0, { plain: others.plain, plainRows: others.plainRows });
     check("G1 清空搜尋：小標都不見、清單照常", others.before > 0 && others.cleared.length === 0 && others.rows > 0, others);
   });
 
@@ -1413,6 +1415,48 @@ try {
     }
     check("G4 選了「裝備」「單手劍」之後整頁重新整理：兩個下拉都還在", !picked.skipped && r.after.category === "裝備" && r.after.subcategory === "單手劍", r);
     check("G4 整頁重新整理後：清單還是只有單手劍、筆數跟重新整理前一樣", !picked.skipped && r.before.onlySword === true && r.after.onlySword === true && r.after.rows > 0 && r.after.count === r.before.count, r);
+  });
+
+  // G5 道具頁「誰能用」兩顆標籤的規則（規格第 9 條）：開了就切到「裝備」分類、種類清掉；只能開一顆；點開著的那顆就關；換到別的分類就關掉。
+  // 角色用最前面存好的狂戰士 Lv.45（有職業又有等級，「〇〇能用」「現在就能穿」兩顆都會出現）；用的分類「消耗」跟它底下的種類是寫死的
+  await section("G5", async () => {
+    await mobile();
+    await fresh("/db/items");
+    // 每一步之後量一次：兩顆標籤亮不亮、兩個下拉選了什麼、筆數
+    const SNAP = `const snap = () => ({ mine: __pressed(__mine()), now: __pressed(__tag("現在就能穿")),
+      category: document.querySelector("main select[aria-label='道具分類']")?.value ?? null,
+      subcategory: document.querySelector("main select[aria-label='道具種類']")?.value ?? null,
+      count: __count(), rows: __rows().length });`;
+    // 1. 先選「消耗」再挑它底下的一個種類，再按「〇〇能用」
+    const a = await ev(`${SNAP}
+      if (!__mine() || !__tag("現在就能穿")) return { skipped: "角色是狂戰士 Lv.45，卻缺「〇〇能用」或「現在就能穿」標籤" };
+      if (![...document.querySelector("main select[aria-label='道具分類']").options].some(o => o.value === "消耗")) return { skipped: "沒有「消耗」這個分類" };
+      __select("道具分類", "消耗"); await __sleep(500);
+      const catOnly = snap();
+      const subName = [...(document.querySelector("main select[aria-label='道具種類']")?.options ?? [])].map(o => o.value).find(Boolean);
+      if (!subName) return { skipped: "「消耗」底下沒有種類可選" };
+      __select("道具種類", subName); await __sleep(500);
+      const before = snap();
+      __mine().click(); await __sleep(600);
+      return { subName, catOnly, before, after: snap() };`);
+    // 2. 再按「現在就能穿」　3. 再按一次「現在就能穿」
+    const b = a.skipped ? a : await ev(`${SNAP} __tag("現在就能穿").click(); await __sleep(600); return snap();`);
+    await shot("g5-now-tag.png");
+    const c = a.skipped ? a : await ev(`${SNAP} __tag("現在就能穿").click(); await __sleep(600); return snap();`);
+    // 4. 重新打開「〇〇能用」，再把分類換到「消耗」
+    const d = a.skipped ? a : await ev(`${SNAP}
+      __mine().click(); await __sleep(600);
+      const reopened = snap();
+      __select("道具分類", "消耗"); await __sleep(600);
+      return { reopened, after: snap() };`);
+    check("G5 選了「消耗」和一個種類再按「〇〇能用」：標籤亮起來、分類換成「裝備」、種類清掉、清單有東西",
+      !a.skipped && a.before.category === "消耗" && a.before.subcategory === a.subName && a.after.mine === true && a.after.now === false
+      && a.after.category === "裝備" && a.after.subcategory === "" && a.after.rows > 0, a);
+    check("G5 再按「現在就能穿」：只有它亮、「〇〇能用」自動關掉", !b.skipped && b.now === true && b.mine === false && b.category === "裝備", b);
+    check("G5 再按一次「現在就能穿」：兩顆都不亮（不限職業）、分類還在「裝備」", !c.skipped && c.now === false && c.mine === false && c.category === "裝備", c);
+    check("G5 開著「〇〇能用」時換到別的分類：標籤關掉、分類是新選的、筆數跟沒開標籤時一樣",
+      !d.skipped && d.reopened.mine === true && d.after.mine === false && d.after.now === false && d.after.category === "消耗"
+      && /^[0-9,]+ 筆$/.test(d.after.count) && d.after.count === a.catOnly.count, d.skipped ? d : { reopened: d.reopened, after: d.after, catOnlyCount: a.catOnly.count });
   });
 } catch (error) {
   results.push({ name: "ERROR", ok: false, detail: String(error?.stack ?? error).slice(0, 800) });
