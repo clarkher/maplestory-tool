@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statSpansTwo } from "@/lib/stat-layout";
+import { statSpans, statSpansTwo } from "@/lib/stat-layout";
 
 describe("數值格子太長就佔兩欄", () => {
   it("三個職業、上衣＋褲裙（佔兩格）、五個職業全列在一欄裡會斷行，佔兩欄", () => {
@@ -23,5 +23,26 @@ describe("數值格子太長就佔兩欄", () => {
     expect(statSpansTwo(1234567)).toBe(false);
     expect(statSpansTwo("1,234,567")).toBe(false);
     expect(statSpansTwo("1,234,567,890,123")).toBe(true);
+  });
+});
+
+describe("手機兩欄：格子加起來是奇數時，最後一個單格拉滿整排", () => {
+  it("三格（需求等級、需求職業、需求力量）：最後一格拉滿，不會空一格", () => {
+    expect(statSpans(["90", "劍士", "280"])).toEqual(["one", "one", "fill"]);
+  });
+
+  it("剛好排滿就不動：兩格、四格", () => {
+    expect(statSpans(["90", "劍士"])).toEqual(["one", "one"]);
+    expect(statSpans(["1", "2", "3", "4"])).toEqual(["one", "one", "one", "one"]);
+  });
+
+  it("有佔兩欄的長值時照格子總數算，拉滿的是最後一個單格", () => {
+    expect(statSpans(["劍士、弓箭手、盜賊", "90"])).toEqual(["two", "fill"]);
+    expect(statSpans(["90", "劍士、弓箭手、盜賊", "280"])).toEqual(["one", "two", "one"]);
+    expect(statSpans(["90", "劍士、弓箭手、盜賊", "上衣＋褲裙（佔兩格）"])).toEqual(["fill", "two", "two"]);
+  });
+
+  it("沒有格子就是空的", () => {
+    expect(statSpans([])).toEqual([]);
   });
 });

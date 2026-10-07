@@ -7,7 +7,7 @@ import { useRemembered } from "@/lib/remember";
 import { ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
 import Link from "next/link";
-import { statSpansTwo } from "@/lib/stat-layout";
+import { statSpans, type StatSpan } from "@/lib/stat-layout";
 
 export type DbEntry = {
   id: string;
@@ -364,17 +364,22 @@ export function DetailCard({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** 每一格佔幾欄對應的 class：fill 只在手機兩欄時拉滿整排，寬螢幕四欄照樣一欄 */
+const SPAN_CLASS: Record<StatSpan, string> = { one: "", two: " col-span-2", fill: " col-span-2 sm:col-span-1" };
+
 /**
- * 數值格子：手機兩欄、寬螢幕四欄。值太長（statSpansTwo）就佔兩欄，不在格子裡斷行；
- * grid-flow-row-dense 讓後面短的格子回頭補空位，不會留一個洞。
+ * 數值格子：手機兩欄、寬螢幕四欄。值太長就佔兩欄，不在格子裡斷行；
+ * grid-flow-row-dense 讓後面短的格子回頭補空位，不會留一個洞；
+ * 手機上格子加起來是奇數時，最後一個單格拉滿整排，不空一格（statSpans）。
  */
 export function StatGrid({ rows }: { rows: Array<[string, string | number]> }) {
+  const spans = statSpans(rows.map(([, value]) => value));
   return (
     <dl className="grid grid-flow-row-dense grid-cols-2 gap-2 sm:grid-cols-4">
-      {rows.map(([label, value]) => (
+      {rows.map(([label, value], index) => (
         <div
           key={label}
-          className={`rounded-xl bg-[color:var(--paper-deep)] px-3 py-2${statSpansTwo(value) ? " col-span-2" : ""}`}
+          className={`rounded-xl bg-[color:var(--paper-deep)] px-3 py-2${SPAN_CLASS[spans[index]]}`}
         >
           <dt className="text-[12px] ink-faint">{label}</dt>
           {/* break-keep：擠不下時只在「、」換行，「劍士、弓箭手、盜賊」不會把盜賊切成兩行 */}

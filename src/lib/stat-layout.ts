@@ -16,3 +16,17 @@ export function statSpansTwo(value: string | number): boolean {
   for (const char of String(value)) width += (char.codePointAt(0) ?? 0) > 0xff ? 1 : HALF_WIDTH;
   return width > MAX_ONE_COLUMN_WIDTH;
 }
+
+export type StatSpan = "one" | "two" | "fill";
+
+/**
+ * 每一格在手機兩欄時佔幾欄：太長的佔兩欄（statSpansTwo）；格子加起來是奇數時最後一排會空一格，
+ * 把最後一個單格拉滿整排（fill）。StatGrid 用 grid-flow-row-dense，空位一定落在最後，所以只看總數就夠。
+ * 桌機四欄不拉（fill 在 sm 以上照樣一欄）。
+ */
+export function statSpans(values: ReadonlyArray<string | number>): StatSpan[] {
+  const spans: StatSpan[] = values.map(value => (statSpansTwo(value) ? "two" : "one"));
+  const units = spans.reduce((sum, span) => sum + (span === "two" ? 2 : 1), 0);
+  if (units % 2 === 1) spans[spans.lastIndexOf("one")] = "fill";
+  return spans;
+}
