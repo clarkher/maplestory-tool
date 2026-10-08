@@ -5,10 +5,11 @@
 //   A 首頁 → 站內點「查資料」→ 點「我的路線」（這次瀏覽首頁資料已載過）：第一格就要有角色＋完整路線，高度之後不再變
 //   B 直接從查資料進站 → 點「我的路線」：第一格要有角色（路線可以還在排，第一次一定要下載）
 //   C 首頁按「等級加一」：角色列跟主推卡標題立刻換成新等級；站內換到練功頁，第一格的等級就是新的
-//   D 硬重新整理首頁：記第一格（允許「讀取你的角色…」），收 hydration 警告
+//   D 硬重新整理首頁：記第一格（允許「讀取你的角色…」，v0.54 起不准出現「你現在幾等、什麼職業？」），收 hydration 警告
+//   D2 沒存過角色的人硬重新整理：讀到之後才出現「你現在幾等、什麼職業？」跟選職業
 //   E 沒選職業：首頁 → 查資料 → 點「我的路線」，第一格是選職業畫面，不是讀取中
 //   F 存了不可能的組合（狂戰士 25 等）：首頁顯示劍士 25 等
-//   G 道具頁「只看狂戰士能用的裝備」照常出現
+//   G 道具頁的「狂戰士能用」標籤照常出現（v0.55 起是標籤按鈕，之前是「誰能用」下拉）
 //
 // 每一格（requestAnimationFrame，畫出來之前）記高度跟有哪些區塊；另外用 screencast 存真的畫出來的畫面。
 import { spawn } from "node:child_process";
@@ -317,6 +318,8 @@ try {
       return await p;
     })()`);
     const stored = await evaluate(`localStorage.getItem("ms-profile")`);
+    // 換等級後每一塊只能有一份（v0.63 撞過：長線跟先解用同一個 React key，先解被重複畫一份）
+    const sectionCounts = await evaluate(`(() => { const c = {}; for (const s of document.querySelectorAll("main section[aria-label], main article[aria-label]")) { const k = s.getAttribute("aria-label"); c[k] = (c[k] || 0) + 1; } return c; })()`);
     const afterShot = await shot("C-after-plus.png");
     // 站內換到練功頁（查資料 → 練功地圖排行）：等級框第一格就是新的等級（共用同一份角色）
     await evaluate(`[...document.querySelectorAll("header nav a")].find(a => a.textContent.trim() === "查資料").click(); "ok"`);
@@ -345,19 +348,74 @@ try {
       before: { who: before.who, nowLabel: before.nowLabel },
       paintedStates: states(rec.frames).map(s => ({ t: s.t, who: s.who, nowLabel: s.nowLabel, h: s.h, nowSkeleton: s.nowSkeleton, planning: s.planning })),
       stored,
+      sectionCounts,
+      duplicated: Object.entries(sectionCounts).filter(([, n]) => n > 1).map(([k]) => k),
       afterShot,
       plan,
       planShot,
     };
   });
 
+  // v0.63：主推卡大圖不延遲、優先抓；長線預設收起；換頁時頁首只有一顆是橘的
+  await scenario("I 主推卡大圖不延遲載入", async () => {
+    await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(JSON.stringify(BERSERKER_45))}); "ok"`);
+    await navigate(BASE + "/");
+    await waitFor(homeReady);
+    return evaluate(`(() => {
+      const img = document.querySelector('main article[aria-label="現在去這裡"] img');
+      return img ? { loading: img.loading, fetchpriority: img.getAttribute("fetchpriority"), loaded: img.complete && img.naturalWidth > 0 } : { missing: true };
+    })()`);
+  });
+
+  await scenario("L 長線預設收起", async () => {
+    // 接在 I 後面：現在就在首頁
+    const section = `document.querySelector('section[aria-label="長線，有空再刷"]')`;
+    const before = await evaluate(`(() => { const s = ${section}; if (!s) return { missing: true }; const b = s.querySelector("button[aria-expanded]"); return { expanded: b ? b.getAttribute("aria-expanded") : null, items: s.querySelectorAll("li").length, h: Math.round(s.getBoundingClientRect().height) }; })()`);
+    await evaluate(`(() => { const b = ${section}?.querySelector("button[aria-expanded]"); if (b) b.click(); return "ok"; })()`);
+    await sleep(300);
+    const after = await evaluate(`(() => { const s = ${section}; if (!s) return { missing: true }; const b = s.querySelector("button[aria-expanded]"); return { expanded: b ? b.getAttribute("aria-expanded") : null, items: s.querySelectorAll("li").length, h: Math.round(s.getBoundingClientRect().height) }; })()`);
+    const homeHeight = await evaluate(`document.documentElement.scrollHeight`);
+    // 展開記在這一筆瀏覽紀錄上：整頁重新整理後還是展開的
+    await navigate(BASE + "/");
+    await waitFor(`() => document.querySelector('section[aria-label="長線，有空再刷"] button[aria-expanded]')`);
+    await sleep(800);
+    const afterReload = await evaluate(`(() => { const b = ${section}?.querySelector("button[aria-expanded]"); return b ? b.getAttribute("aria-expanded") : null; })()`);
+    return { before, after, homeHeightAfterExpand: homeHeight, afterReload, shot: await shot("L-longrun.png") };
+  });
+
+  await scenario("N 換頁時頁首只有一顆是橘的", async () => {
+    await navigate(BASE + "/db");
+    await waitFor(`() => document.querySelector("main h1")`);
+    await sleep(500);
+    // 每一格看三顆導覽鈕的底色：有底色（不透明度 > 0.05）的超過一顆，就是兩顆同時偏橘
+    const frames = await evaluate(`(async () => {
+      const alpha = color => { const m = color.match(/rgba?\\(([^)]+)\\)/); if (!m) return 0; const p = m[1].split(",").map(Number); return p.length > 3 ? p[3] : 1; };
+      const out = [];
+      const t0 = performance.now();
+      await new Promise(resolve => {
+        const tick = () => {
+          const pills = [...document.querySelectorAll("header nav a")].map(a => ({ label: a.textContent.trim(), a: alpha(getComputedStyle(a).backgroundColor) }));
+          out.push({ t: Math.round(performance.now() - t0), path: location.pathname, colored: pills.filter(p => p.a > 0.05).map(p => p.label) });
+          if (performance.now() - t0 < 1200) requestAnimationFrame(tick); else resolve();
+        };
+        requestAnimationFrame(tick);
+        [...document.querySelectorAll("header nav a")].find(a => a.textContent.trim() === "我的路線").click();
+      });
+      return out;
+    })()`);
+    const both = frames.filter(f => f.colored.length > 1);
+    return { framesWithTwoColored: both.length, sample: both.slice(0, 3), last: frames.at(-1) };
+  });
+
   await scenario("G 道具頁只看狂戰士能用", async () => {
     await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(JSON.stringify(BERSERKER_45))}); "ok"`);
     await navigate(BASE + "/db/items");
-    const ok = await waitFor(`() => document.querySelector('main select[aria-label="誰能用"]')`, 30000);
-    const options = await evaluate(`[...(document.querySelector('main select[aria-label="誰能用"]')?.options ?? [])].map(o => o.textContent.trim())`);
+    // v0.55 起「誰能用」下拉換成標籤按鈕：找 main 裡文字以「能用」結尾的那顆（角色列選了職業就有），預期寫「狂戰士能用」、一打開沒按（aria-pressed="false"）
+    const mine = `[...document.querySelectorAll("main button[aria-pressed]")].find(b => b.textContent.trim().endsWith("能用"))`;
+    const ok = await waitFor(`() => ${mine}`, 30000);
+    const tag = await evaluate(`(() => { const b = ${mine}; return b ? { text: b.textContent.trim(), pressed: b.getAttribute("aria-pressed") } : null; })()`);
     const file = await shot("G-items.png");
-    return { select: ok, options, file };
+    return { tag: ok, text: tag?.text ?? null, textOk: tag?.text === "狂戰士能用", pressed: tag?.pressed ?? null, pressedOk: tag?.pressed === "false", file };
   });
 
   await scenario("B 從查資料進站→我的路線", async () => {
@@ -400,6 +458,23 @@ try {
     return {
       firstFrame: onHome[0] ? { ...onHome[0], wall: undefined } : null,
       paintedStates: states(rec.frames.filter(f => f.path === "/")).map(s => ({ t: s.t, h: s.h, loadingRole: s.loadingRole, character: s.character, picker: s.picker, planning: s.planning, now: s.now })),
+      // v0.54 起：存過角色的人，讀到角色之前不問「你現在幾等、什麼職業？」——每一格都不該出現
+      questionFrames: rec.frames.filter(f => f.path === "/" && f.picker).length,
+      domQuestion: rec.dom.filter(d => d.path === "/" && d.picker).length,
+    };
+  });
+
+  await scenario("D2 沒存過角色的人硬重新整理首頁", async () => {
+    await evaluate(`localStorage.removeItem("ms-profile"); "ok"`);
+    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `${TOOLS}; window.__rec = __record(6000);` });
+    await navigate(BASE + "/");
+    const rec = await evaluate("window.__rec");
+    await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+    await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(JSON.stringify(BERSERKER_45))}); "ok"`);
+    // 讀到角色（沒存過）之後才出現「你現在幾等、什麼職業？」跟選職業
+    return {
+      paintedStates: states(rec.frames.filter(f => f.path === "/")).map(s => ({ t: s.t, h: s.h, loadingRole: s.loadingRole, character: s.character, picker: s.picker })),
+      shot: await shot("D2-first-visit.png"),
     };
   });
 } catch (error) {

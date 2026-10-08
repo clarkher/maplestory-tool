@@ -26,6 +26,7 @@ import {
 import { jobOption } from "@/lib/jobs";
 import { useBeforeV002 } from "@/lib/release";
 import type { MapRecord, Verified } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 import { Chip, SourceLinks, SourceTag, Sprite } from "./bits";
 
 /** 收合時衝卷列幾組（武器卷＋手套攻擊卷，法師是兩種智力卷），其餘按「看全部」；三組時卡片收合也要 800px 高，太長 */
@@ -129,7 +130,8 @@ function GuideSources({ urls, verified }: { urls: string[]; verified: Verified }
 
 function GearContent({ gear, job, level, title, where }: { gear: GearData; job: number; level: number; title: string; where: Where }) {
   const plan = useMemo(() => gearPlan(gear, job, level, where.beforeOpen), [gear, job, level, where.beforeOpen]);
-  const [open, setOpen] = useState(false);
+  // 「看全部」記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時首頁一樣長，才捲得回同一段；換職業、等級不帶過去
+  const [open, setOpen] = useVisitState(`home:gear:${job}:${level}`, false);
   const families = open ? plan.families : plan.families.slice(0, FIRST_FAMILIES);
   // 「看全部」裡真的有東西才給按鈕
   const hasMore = Boolean(plan.rule) || plan.alternatives.length > 0 || plan.families.length > FIRST_FAMILIES || plan.notes.length > 0;

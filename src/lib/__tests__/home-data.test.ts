@@ -59,6 +59,13 @@ describe("首頁要的遊戲資料", () => {
     });
   });
 
+  it("換頁回首頁：「帶我去」走得到的圖直接用第一次載完時算好的那份，不重算", async () => {
+    stubFetch(FILES);
+    const first = await home.loadHomeData();
+    expect(home.peekHomeData()?.routable).toBe(first.routable);
+    expect(home.peekHomeData()?.routable).toBe(first.routable);
+  });
+
   // meta 不在裡面：載任何一份遊戲資料都會先載 meta（版本號）
   const LOADERS = ["loadMaps", "loadMonsters", "loadQuests", "loadTraining", "loadGuideCommon", "loadGraph", "loadNearestTown"] as const;
   it.each(LOADERS)("只差 %s 那一份沒載過：拿不到（首頁先顯示排路線中，等它載完）", async missing => {
@@ -72,6 +79,47 @@ describe("首頁要的遊戲資料", () => {
     stubFetch(withoutGraph);
     await expect(home.loadHomeData()).rejects.toThrow("載入 graph 失敗（404）");
     expect(home.peekHomeData()).toBeNull();
+  });
+});
+
+describe("人在查資料、規劃頁時先在背景載首頁要的", () => {
+  it("查資料、規劃各頁要先載；首頁、帶我去、關於、懶人包不用", () => {
+    for (const path of ["/db", "/db/items", "/db/quests", "/plan/train", "/plan/farm"]) expect(home.shouldPrefetchHome(path, {})).toBe(true);
+    for (const path of ["/", "/go", "/about", "/guide", "/dbx", "/planner"]) expect(home.shouldPrefetchHome(path, {})).toBe(false);
+  });
+
+  it("開了省流量模式、或是 2G 網路：不先載", () => {
+    expect(home.shouldPrefetchHome("/db/items", { saveData: true })).toBe(false);
+    expect(home.shouldPrefetchHome("/db/items", { effectiveType: "2g" })).toBe(false);
+    expect(home.shouldPrefetchHome("/db/items", { effectiveType: "slow-2g" })).toBe(false);
+    expect(home.shouldPrefetchHome("/db/items", { effectiveType: "4g" })).toBe(true);
+  });
+
+  it("先載完：首頁資料、裝備卡、自己職業整條線的攻略都直接拿得到（換到首頁第一格就完整）", async () => {
+    stubFetch({
+      ...FILES,
+      "/data/gear.json": { builtAt: "e1", weapons: [], scrolls: [], rules: [], notes: [] },
+      "/data/guides/110.json": { job: 110 },
+      "/data/guides/100.json": { job: 100 },
+    });
+    await home.prefetchHome(110);
+    expect(home.peekHomeData()).not.toBeNull();
+    expect(data.peekGear()).not.toBeNull();
+    expect(data.peekGuide(110)).toEqual({ job: 110 });
+    expect(data.peekGuide(100)).toEqual({ job: 100 });
+  });
+
+  it("有檔案載不到：不會丟錯（背景先載而已），之後真的進首頁再顯示錯誤", async () => {
+    stubFetch({});
+    await expect(home.prefetchHome(110)).resolves.toBeUndefined();
+    expect(home.peekHomeData()).toBeNull();
+  });
+
+  it("還沒選職業：只載首頁資料跟裝備卡，不載攻略", async () => {
+    const fake = stubFetch({ ...FILES, "/data/gear.json": { builtAt: "e1", weapons: [], scrolls: [], rules: [], notes: [] } });
+    await home.prefetchHome(-1);
+    expect(home.peekHomeData()).not.toBeNull();
+    expect(fake.mock.calls.some(([input]) => /\/data\/guides\/\d+\.json/.test(String(input)))).toBe(false);
   });
 });
 

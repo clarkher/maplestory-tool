@@ -37,7 +37,7 @@ export function detailSpot({
 }
 
 /**
- * 點了開著的那一筆：桌機細節在右邊，捲過去；手機卡片放在清單最上面（那一筆後來才載進清單）時，
+ * 點了開著的那一筆：桌機細節在右邊，那一欄捲回卡片頂端；手機卡片放在清單最上面（那一筆後來才載進清單）時，
  * 卡片搬到那一列下面；展開在那一列下面（或根本沒有卡片）就收起。
  */
 export function sameRowAction({ wide, spot }: { wide: boolean; spot: DetailSpot | null }): "scroll" | "move" | "collapse" {
@@ -48,6 +48,22 @@ export function sameRowAction({ wide, spot }: { wide: boolean; spot: DetailSpot 
 /** 清單內容的簽名：內容一樣只是重算時不變，篩選、換順序後才會變 */
 export function listSignature(entries: ReadonlyArray<{ id: string }>): string {
   return entries.map(entry => entry.id).join(",");
+}
+
+/** 清單一次多載幾筆 */
+export const MORE_STEP = 120;
+/** 捲到底自動接到這麼多筆就停：道具清單有好幾千筆，一直自動接下去，頁尾永遠滑不到 */
+export const AUTO_MORE_MAX = 600;
+
+/**
+ * 清單下面怎麼多載：還沒到 600 筆，捲到底自動接（接到剛好 600 就停）；到了就換成看得到的「再載」按鈕，一次 120 筆。
+ * count 是這次會多幾筆（按鈕上寫的數字）；全部列完回 null。
+ */
+export function moreRows(visible: number, total: number): { mode: "auto" | "button"; next: number; count: number } | null {
+  if (visible >= total) return null;
+  const auto = visible < AUTO_MORE_MAX;
+  const next = auto ? Math.min(visible + MORE_STEP, AUTO_MORE_MAX) : visible + MORE_STEP;
+  return { mode: auto ? "auto" : "button", next, count: Math.min(next, total) - visible };
 }
 
 /**
@@ -73,6 +89,28 @@ export function searchEntries<T extends { id: string; name: string; keywords?: s
     else contains.push(entry);
   }
   return [...first, ...starts, ...contains];
+}
+
+/** 搜尋時排最前面的那一組：哪幾筆、那一組的小標、其他符合的小標（例：搜「劍士」→ 劍士能用的裝備／名字或說明提到劍士的） */
+export type Prefer = { ids: ReadonlySet<string>; title: string; rest: string };
+
+/**
+ * 每一筆屬於哪一組小標。有搜尋字時只有 preferFor 給了 Prefer 才分兩組，其他搜尋不分組
+ * （搜尋會照符合程度重排，每一筆自己帶的 group 會被打散）；沒有搜尋字時照每一筆自己的 group。
+ */
+export function groupLabeler(query: string, prefer: Prefer | null): (entry: { id: string; group?: string }) => string | undefined {
+  if (!query.trim()) return entry => entry.group;
+  if (!prefer) return () => undefined;
+  return entry => (prefer.ids.has(entry.id) ? prefer.title : prefer.rest);
+}
+
+/** 清單中間的小標：這一筆的分組跟上一筆不同才放（回每一筆上面要放的字，不放是 null）；沒有分組的不放 */
+export function groupHeads<T>(entries: readonly T[], groupOf: (entry: T) => string | undefined): Array<string | null> {
+  return entries.map((entry, index) => {
+    const group = groupOf(entry);
+    if (!group) return null;
+    return index > 0 && groupOf(entries[index - 1]) === group ? null : group;
+  });
 }
 
 /** 在沒開著別筆時從清單點開，會在那一筆的歷史紀錄留下這個記號 */
@@ -128,6 +166,57 @@ export function cardOf(historyState: unknown): CardRecord | undefined {
 }
 
 /**
+ * 卡片裡點的連結是不是連到同一頁的另一筆（例如任務的「要先完成」）：是的話回網址的路徑（含 ?id=），
+ * 由查資料頁自己換網址、頁面不捲回最上面（桌機右邊那一欄直接換，手機跳到那一筆）。
+ * 開新分頁、另存（中鍵、Ctrl／Cmd／Shift／Alt、target、download）、別的網站、別頁：回 null，照原本的做法
+ */
+export function samePageTarget(
+  link: { href: string; target: string; download: boolean },
+  click: { button: number; metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean },
+  here: { origin: string; pathname: string },
+): string | null {
+  if (click.button !== 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return null;
+  if ((link.target && link.target !== "_self") || link.download) return null;
+  let url: URL;
+  try {
+    url = new URL(link.href, here.origin);
+  } catch {
+    return null;
+  }
+  if (url.origin !== here.origin || url.pathname !== here.pathname) return null;
+  return `${url.pathname}${url.search}${url.hash}`;
+}
+
+/** 桌機右邊那一欄捲到哪裡（卡片比畫面長時在那一欄裡自己捲）：哪一頁、哪一筆、捲了幾 px */
+export const SIDE = "dbSide";
+export type SideRecord = { id: string; page: string; top: number };
+
+/** 把右邊那一欄捲到哪裡記進這筆紀錄：其他記號都留著，跟記的一樣就回 null。不是 Next 管的紀錄不寫（理由同 withCard） */
+export function withSide(historyState: unknown, side: SideRecord): Record<string, unknown> | null {
+  const state = asRecord(historyState);
+  if (state?.__NA !== true) return null;
+  const old = sideOf(state);
+  if (old?.id === side.id && old.page === side.page && old.top === side.top) return null;
+  return { ...state, [SIDE]: { ...side } };
+}
+
+function sideOf(historyState: unknown): SideRecord | undefined {
+  const side = asRecord(asRecord(historyState)?.[SIDE]);
+  if (!side) return undefined;
+  const { id, page, top } = side;
+  return typeof id === "string" && typeof page === "string" && typeof top === "number" && top >= 0 ? { id, page, top } : undefined;
+}
+
+/**
+ * 右邊那一欄從哪裡開始看：這筆紀錄記的就是這一頁的這一筆（重新整理、按返回、下一頁回來），捲回原本讀到的地方；
+ * 其他（新點的一筆、從連結來的）從卡片頂端開始
+ */
+export function sideTopFor(historyState: unknown, selected: string | null, page: string): number {
+  const side = sideOf(historyState);
+  return selected !== null && side?.id === selected && side.page === page ? side.top : 0;
+}
+
+/**
  * 按返回、下一頁、重新整理回到開著卡片的那一筆：卡片照這筆紀錄記的地方放——放在最上面的就還是最上面，不會搬到清單中間。
  * 一定要同一頁：從怪物卡連到道具頁、換頁那一下還讀到上一頁的紀錄，編號剛好一樣也不能照著放。
  */
@@ -171,6 +260,14 @@ export function needsRescue({
 }): boolean {
   if (leftAt === undefined || Math.abs(nowAt - leftAt) <= MOVED) return false;
   return bottom <= viewTop || top >= viewBottom;
+}
+
+/**
+ * 重新整理、離站再返回回到開著卡片的那一筆：卡片離頁面頂端的位置比離開時搬了多少（leftAt → nowAt），
+ * 要放回去的位置就跟著挪多少，一樣停在卡片裡讀到的那一段。只差幾 px（字型載入之類）不算搬家，回 0。
+ */
+export function cardShift(leftAt: number, nowAt: number): number {
+  return Math.abs(nowAt - leftAt) <= MOVED ? 0 : nowAt - leftAt;
 }
 
 /**

@@ -153,6 +153,75 @@ test("assembleUpstream 的 generatedAt 是 ISO 8601 就照收、原字串不動�
   assert.equal(metadata.parts["items-data.js"].generatedAt, "2026-09-24T11:25:10+08:00");
 });
 
+/** 改一個檔的 metadata 欄位，預期 assembleUpstream 失敗、錯誤訊息寫得出是哪個檔的哪個欄位，而且不帶原字串的換行、不整串照貼。 */
+function assertRejected(file, field, value) {
+  const parts = fixtureParts();
+  parts[file].metadata[field] = value;
+  assert.throws(
+    () => assembleUpstream(parts),
+    error => {
+      assert.match(error.message, new RegExp(`上游 ${file.replace(".", "\\.")} 的 metadata\\.${field}[^A-Za-z]`));
+      // 錯誤訊息會印進執行紀錄、貼進通知 issue：新的一行開頭寫 ::指令:: 會被 Actions 當成指令
+      assert.ok(!/[\n\r]/.test(error.message), "錯誤訊息裡有換行");
+      assert.ok(error.message.length < 200, `錯誤訊息 ${error.message.length} 字`);
+      return true;
+    },
+    `${file} 的 ${field} = ${JSON.stringify(value)?.slice(0, 80)}`,
+  );
+}
+
+test("assembleUpstream 的 gameVersion 不是「1.15.2」這種版本號就擋下來，並說是哪個檔：會寫進 PR 標題、commit 訊息，印進執行紀錄", () => {
+  const rejected = [
+    ["items-data.js", "1.15.2\n::warning::x"], // 換行：新的一行開頭的 ::指令:: 會被 Actions 當成指令
+    ["items-data.js", '1.15.2"; echo INJECTED; echo "'],
+    ["items-data.js", `1.15.2${"0".repeat(300)}`], // 太長：PR 標題超過 256 字開不出來，那時資料分支已經推上去了
+    ["items-data.js", `${"1.".repeat(150)}2`],
+    ["data.js", "1.15.1 (hotfix)"], // 不是最新的檔也擋：各檔版本會留進 meta.json、印進執行紀錄
+    ["quests-data.js", "v1.15.2"],
+    ["maps-data.js", "1.15.2."],
+    ["maps-data.js", "1"],
+    ["maps-data.js", "1.2.3.4.5"], // 超過 4 段
+    ["maps-data.js", "12345.1"], // 一段超過 4 位
+    ["skills-data.js", 1.15], // 數字不是字串：上游換了寫法
+  ];
+  for (const [file, value] of rejected) assertRejected(file, "gameVersion", value);
+});
+
+test("assembleUpstream 的 gameVersion 是 2～4 段數字就照收，原字串不動；沒寫的檔照舊略過", () => {
+  for (const version of ["1.16", "1.15.2", "10.0.12", "1.15.2.1"]) {
+    const parts = fixtureParts();
+    parts["items-data.js"].metadata.gameVersion = version;
+    const { metadata } = assembleUpstream(parts);
+    assert.equal(metadata.gameVersion, version);
+    assert.equal(metadata.parts["items-data.js"].gameVersion, version);
+  }
+  for (const missing of [undefined, null, ""]) {
+    const parts = fixtureParts();
+    parts["data.js"].metadata.gameVersion = missing;
+    assert.equal(assembleUpstream(parts).metadata.parts["data.js"].gameVersion, null);
+  }
+});
+
+test("assembleUpstream 的 generatedAtText 有換行、控制字元或超過 64 字就擋下來，並說是哪個檔：會印進執行紀錄、寫進網站的 meta.json", () => {
+  const rejected = [
+    ["items-data.js", "2026-09-24 11:25:10 GMT+8\n::warning::x"],
+    ["items-data.js", "2026-09-24 11:25:10 GMT+8\r::warning::x"],
+    ["items-data.js", `2026-09-24 11:25:10 GMT+8${String.fromCharCode(0x2028)}x`],
+    ["items-data.js", `2026-09-24 11:25:10 GMT+8${String.fromCharCode(0x1b)}[2K`], // 終端機控制碼
+    ["data.js", "x".repeat(65)], // 不是最新的檔也擋
+    ["quests-data.js", 20260924],
+  ];
+  for (const [file, value] of rejected) assertRejected(file, "generatedAtText", value);
+});
+
+test("assembleUpstream 的 generatedAtText 64 字以內、沒有換行就照收（不限格式）；沒寫的檔照舊略過", () => {
+  const parts = fixtureParts();
+  parts["items-data.js"].metadata.generatedAtText = "2026年9月24日 上午11:25（台北）";
+  parts["data.js"].metadata.generatedAtText = "x".repeat(64);
+  parts["quests-data.js"].metadata.generatedAtText = undefined;
+  assert.equal(assembleUpstream(parts).metadata.generatedAtText, "2026年9月24日 上午11:25（台北）");
+});
+
 test("assembleUpstream 缺了管線用得到的資料就擋下來，並說是哪個檔的哪個欄位", () => {
   const parts = fixtureParts();
   delete parts["items-data.js"];

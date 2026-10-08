@@ -37,9 +37,9 @@
 
 - **D1 `o` 欄位留著。** 它不只給標籤用：pipeline 挑「掉落怪要顯示哪張地圖」時優先挑不是 V002 的（`pipeline/lib/gear.mjs` 的 `dropSources`），只有 V002 拿得到的武器／卷軸帶 `o`，兩把武器數值完全一樣時先推不是只有 V002 才拿得到的（`src/lib/gear.ts` 的 `rankWeapon`／`rankNext`）。拿掉 `o` 會改到推薦結果，違反「畫面一樣」。所以 `o` 跟這兩個排序都不動，只改提到 `release.ts`／`v002.ts` 的註解。
 - **D2 pipeline 邏輯不動。** `pipeline/lib/gear.mjs` 的 `isV002Quest` 仍然決定任務來源帶不帶 `o`（D1 的排序要用），它原本「鏡射 `src/lib/v002.ts`」——前端那支拆掉後，它就是唯一的一份，註解改成這樣說。
-- **D3 開放前專用的推薦分支一起拆**（開放後 `beforeOpen` 永遠是 false）：`weaponPicks` 的 `beforeOpen` 過濾、`equipRequirement` 的 `beforeOpen`、`closestSource` 的「先找現在就開的店／合成／怪」那段、`familyPick`（開放後就是 `options[0]`）、`sourceOpensLater`、`shopGroups` 的 `opensLater` 與 `later`、`monsterMaps` 的 `isLater`（v0.50 加的，`src/lib/monster-view.ts`）。
-  **例外**：如果開工時 dev 上的 `closestSource` 已經改成「開放後也先推舊地區」的永久規則（使用者另外決定的話會有一支 session 先做），那段就不是死程式，不拆，照它現在的樣子留。判斷方法：`closestSource` 還有沒有 `beforeOpen` 參數——有才拆。
-  背景（2026-10-07 試算，29 職 × 10～120 等每 5 級）：開放後裝備卡有 284 處武器推薦、466 處卷軸推薦跟開放前不一樣；其中 59 處（全在 50 等以下）是同一把武器改推「冰原雪域／天空之城的店」，例：劍士 35 等綠蛇刀「小幽靈會掉」→「冰原雪域的斯考特賣 200,000 楓幣」。這是 10/15 起正式機本來就會有的行為，不是拆標籤造成的；要不要改是另一個產品決定。
+- **D3 開放前專用的推薦分支一起拆**（開放後 `beforeOpen` 永遠是 false）：`weaponPicks` 的 `beforeOpen` 過濾、`equipRequirement` 的 `beforeOpen`、`familyPick`（開放後就是 `options[0]`）、`sourceOpensLater`、`shopGroups` 的 `opensLater` 與 `later`、`monsterMaps` 的 `isLater`（v0.50 加的，`src/lib/monster-view.ts`）。
+  **例外（已成立）：`closestSource` 不拆。** 2026-10-07 使用者拍板「開放後也先推舊地區」，v0.61 把它改成永久規則：先推沒有 `o` 的來源（店 → 合成 → 怪／任務比誰好拿），全部都是 V002 才退回原本的順序；開放後照樣在用，不是死程式。簽名已經是 `closestSource(src, level, job?)`（沒有 `beforeOpen`），`gearPlan`／`bandGear` 呼叫它也已經不傳 `beforeOpen`。**它的測試一個都不改、不刪**：`gear.test.ts` 的 `describe("closestSource")`、「任務來源的職業限制」「商店在哪…」「合成來源」裡呼叫 `closestSource` 的那幾個，`gear-view.test.ts` 的「真資料：狼牙」「真資料：10/15 開放後同一把武器還是先推舊地區拿得到的」。下面 Task 1、Task 2 講到 `closestSource` 的地方都照這條。確認方法：`closestSource` 沒有 `beforeOpen` 參數；如果又有了（v0.61 被還原），先問使用者，不要自己決定拆。
+  背景（2026-10-07 試算，29 職 × 10～120 等每 5 級＋升級路線每 10 級一段，只算同一把武器／卷軸）：v0.61 之前，開放後有 352 處「去哪拿」跟開放前不一樣——123 處改推冰原雪域／天空之城的店（全在 45 等以下，例：劍士 35 等綠蛇刀「小幽靈會掉」→「冰原雪域的斯考特賣 200,000 楓幣」、一轉盜賊 25 等狼牙「後街吉姆合成」→「斯考特賣 60,000 楓幣」），229 處改推 V002 地圖的怪（例：45 等法師黃色雨傘「青螃蟹」→「雲彩公園的月光精靈」）。v0.61 之後同一套試算 0 處不同。
 - **D4 ItemDb 不再載 `maps.json`。** 道具頁載地圖只為了兩件事：V002 道具標籤、店家地點標「10/15 開放」。兩個都拆了就沒人用，連同載入一起拿掉（清單少等一個檔，最後畫面一樣）。
 - **D5 `DbBrowser` 的 `badge` 欄位拿掉。** 只有「10/15 開放」在用。
 - **D6 `scripts/verify/first-frame.mjs`**（v0.47 收進 repo 的話）整支都在驗「10/15 開放」第一格就在／跨午夜收掉／舊建置——標示拆了它就沒東西可驗，刪掉，README 跟著拿掉那段。
@@ -54,7 +54,7 @@
 - `scripts/verify/first-frame.mjs`（v0.47；D6）
 
 修改（lib）：
-- `src/lib/gear.ts`：`weaponPicks`、`equipRequirement`、`closestSource` 拿掉 `beforeOpen`；`GearSource` 註解
+- `src/lib/gear.ts`：`weaponPicks`、`equipRequirement` 拿掉 `beforeOpen`（`closestSource` v0.61 已經拿掉，不動，見 D3 例外）；`GearSource` 註解
 - `src/lib/gear-view.ts`：刪 `sourceOpensLater`、`familyPick`；`otherRuleThatWears`、`gearPlan`、`bandGear` 拿掉 `beforeOpen`
 - `src/lib/item-view.ts`：`shopGroups` 拿掉 `opensLater`、`ShopPlace.later`
 - `src/lib/monster-view.ts`（v0.50）：`monsterMaps` 拿掉 `isLater`
@@ -143,7 +143,7 @@ git grep -n -E "useBeforeV002|beforeV002|onV002Open|opensOn|V002_OPEN|@/lib/rele
 - Modify: `src/lib/__tests__/gear.test.ts`、`gear-view.test.ts`、`gear-realdata.test.ts`、`item-view.test.ts`、`item-view-realdata.test.ts`
 
 **Interfaces:**
-- Consumes: 現有的 `weaponPicks(weapons, job, level, { beforeOpen? })`、`equipRequirement(weapons, job, level, rule, beforeOpen?)`、`closestSource(src, level, beforeOpen?, job?)`、`gearPlan(gear, job, level, beforeOpen)`、`bandGear(gear, job, from, to, beforeOpen)`
+- Consumes: 現有的 `weaponPicks(weapons, job, level, { beforeOpen? })`、`equipRequirement(weapons, job, level, rule, beforeOpen?)`、`closestSource(src, level, job?)`（v0.61 起，不動）、`gearPlan(gear, job, level, beforeOpen)`、`bandGear(gear, job, from, to, beforeOpen)`
 - Produces: 只測開放後行為的測試（Task 2 再把 `false` 拿掉）
 
 - [ ] **Step 1: `gear.test.ts`**
@@ -158,35 +158,10 @@ git grep -n -E "useBeforeV002|beforeV002|onV002Open|opensOn|V002_OPEN|@/lib/rele
   });
 ```
 
-2. 整個刪掉：「`beforeOpen：best／stronger 都不會選到只有 V002 來源的武器`」、「`beforeOpen 略過 V002 來源，整組都是 V002 才退回原本的`」、「`10/15 前跳過只在 10/15 才開的城鎮的合成 NPC`」。
+2. 整個刪掉：「`beforeOpen：best／stronger 都不會選到只有 V002 來源的武器`」。
 3. 「`下一把同分時優先選沒有 o 的`」**留著**（D1）。
-4. 「`beforeOpen 要跨層看：non-V002 的任務贏過只有 V002 的掉落（弩攻擊卷軸實例）`」改成：
-
-```ts
-  it("掉落跟任務比誰好拿：30 等時 31 等的小雪球比 40 等的任務近（弩攻擊卷軸實例）", () => {
-    const src: GearSource = {
-      drops: [{ m: 1, n: "小雪球", lv: 31, map: 1, o: "2026-10-15" }],
-      quests: [{ id: "2001", n: "酋長蓋房子", minLv: 40 }],
-    };
-    expect(closestSource(src, 30, false)).toEqual({ kind: "drop", drop: src.drops![0] });
-  });
-```
-
-5. 「`closestSource：10/15 前跳過 10/15 才開的城鎮的店，改推現在打得到的怪；之後才推那家店`」改成：
-
-```ts
-  it("closestSource：有店就推店（冰原雪域的店也一樣）", () => {
-    const src = source({
-      shops: [{ p: "冰原雪域", n: "斯考特", m: 211000000, pr: 250000, o: "2026-10-15" }],
-      drops: [{ m: 1, n: "火石球", lv: 40, map: 1 }],
-    });
-    expect(closestSource(src, 38, false)).toEqual({ kind: "shop", shop: src.shops![0] });
-  });
-```
-
-（D3 的例外成立時——`closestSource` 已經沒有 `beforeOpen`——4、5 照 dev 上現有的測試，不改。）
-
-6. 檢查：`grep -n -E "beforeOpen: true|, true\)" src/lib/__tests__/gear.test.ts` 不應再有 `weaponPicks`／`equipRequirement`／`closestSource` 傳 `true` 的呼叫。
+4. `closestSource` 的測試**全部不動**（D3 例外：v0.61 起是開放後也照用的永久規則）。這份計畫原本在這裡要刪「略過 V002 來源」「跳過 V002 的合成 NPC」、把「跨層看（弩攻擊卷軸）」「冰原雪域的店」兩個測試改成「有店就推店」——v0.61 之後都不適用，測試名稱也已經改掉，**不要**照舊的意思去找相近的測試來刪或改。
+5. 檢查：`grep -n -E "beforeOpen: true|, true\)" src/lib/__tests__/gear.test.ts` 不應再有 `weaponPicks`／`equipRequirement` 傳 `true` 的呼叫。
 
 - [ ] **Step 2: `gear-view.test.ts`**
 
@@ -222,30 +197,15 @@ sed -i -E 's/(gearPlan\([^)]*), true\)/\1, false)/; s/(bandGear\([^)]*), true\)/
 
 6. 「`刺客 30–39：從 30 等起、依等級排、10/15 前來源都現在拿得到`」改名「`刺客 30–39：從 30 等起、依等級排`」，刪掉 `for (const entry of band.weapons) expect(sourceOpensLater(entry.source!)).toBeUndefined();` 那行。
 7. 「合成的寫法」那個測試刪掉 `expect(sourceOpensLater({ kind: "craft", craft: { ...craft, o: "2026-10-15" } })).toBe("2026-10-15");` 那行。
-8. 測試名稱拿掉「（10/15 前）」「現在就拿得到」這類字（例：「`刺客 Lv35（10/15 前）：…；下一把 40 等、現在就拿得到`」→「`刺客 Lv35：銀守護拳套（同數值裡拿法最多），墮落城市後街吉姆合成；下一把 40 等`」）。
+8. 測試名稱拿掉「（10/15 前）」「現在就拿得到」這類字（例：「`刺客 Lv35（10/15 前）：…；下一把 40 等、現在就拿得到`」→「`刺客 Lv35：銀守護拳套（同數值裡拿法最多），墮落城市後街吉姆合成；下一把 40 等`」）。v0.61 那幾個測試名稱裡的「10/15 開放後也一樣」「10/15 開放後也寫後街吉姆合成」講的是永久規則，**留著**。
 9. import 拿掉 `familyPick`、`sourceOpensLater`。
+10. 「`真資料：狼牙（台服靠後街吉姆合成）`」第一個測試（v0.61）同時算 `true`／`false` 兩份，sed 完 `before`、`after` 都是 `false`，合成一個 `plan` 就好；期望值不改（狼牙、`{ kind: "craft", craft: { n: "後街吉姆", m: 103000000 } }`）。
 
 - [ ] **Step 3: 跑 `gear-view.test.ts`，把開放後才會變的期望值照實改**
 
 Run: `node ..\..\..\node_modules\vitest\vitest.mjs run src/lib/__tests__/gear-view.test.ts`
 
-2026-10-07 用當時的資料試過，只有一個會紅：
-
-```
-FAIL 真資料：狼牙（台服靠後街吉姆合成） > 一轉盜賊 25 等推狼牙，來源是合成
-AssertionError: expected 'shop' to be 'craft'
-```
-
-原因：狼牙的店在冰原雪域（斯考特 60,000 楓幣），開放後 `closestSource`「有店就推店」。這是**開放後本來就會這樣**（10/15 起正式機就是這個推薦），不是拆壞。照實改期望值，describe 名稱跟著改：
-
-```ts
-describe("真資料：狼牙", () => {
-  it("一轉盜賊 25 等推狼牙，開放後冰原雪域的店有賣就推店", () => {
-    const plan = gearPlan(gear, 400, 25, false);
-    expect(plan.best?.n).toBe("狼牙");
-    expect(plan.bestSource).toMatchObject({ kind: "shop", shop: { p: "冰原雪域" } });
-  });
-```
+2026-10-07 寫這份計畫時試過，只有「真資料：狼牙」會紅（開放後改推冰原雪域斯考特的店）。**v0.61 之後（D3 例外）開放後一樣推後街吉姆合成，這個測試不會紅，不准把它改成推店。**預期這一步全綠；有紅的照下面的規則處理。
 
 規則：**這一步的程式還沒改，`false` 跑出來的值就是開放後的真相**，期望值照它改；每一個改了期望值的測試，名稱、舊值、新值都寫進 PR 說明。如果開工時這個測試本來就過（例如 D3 的例外成立、或資料變了），不用改。紅的不只這一個也照同一條規則處理。
 
@@ -287,14 +247,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Produces（之後的 task 跟畫面都照這個用）：
   - `weaponPicks(weapons, job, level, opts: { targetsAt?; types? } = {})`
   - `equipRequirement(weapons, job, level, rule)`
-  - `closestSource(src: GearSource, level: number, job?: number): SourcePick | null`
+  - `closestSource(src: GearSource, level: number, job?: number): SourcePick | null`（v0.61 起就是這樣，不動）
   - `gearPlan(gear: GearData, job: number, level: number): GearPlan`
   - `bandGear(gear: GearData, job: number, from: number, to: number): BandGear`
   - 刪掉：`familyPick`、`sourceOpensLater`
 
 - [ ] **Step 1: 測試改成新的呼叫方式（RED）**
 
-`gear.test.ts`：`closestSource(x, n, false)` → `closestSource(x, n)`；`closestSource(x, n, false, job)` → `closestSource(x, n, job)`（例：`closestSource(source({ quests: [quest] }), 70, false, 110)` → `closestSource(source({ quests: [quest] }), 70, 110)`）。
+`gear.test.ts`：`closestSource` 的呼叫 v0.61 起已經是新的寫法（`closestSource(x, n)`、`closestSource(x, n, job)`），不用改；這個檔只剩 Task 1 改過的 `weaponPicks`／`equipRequirement` 呼叫（`beforeOpen: false` 拿掉）。
 `gear-view.test.ts`：
 
 ```bash
@@ -306,7 +266,7 @@ grep -n -E "closestSource\([^)]*(true|false)" src/lib/__tests__/*.ts   # 應該�
 - [ ] **Step 2: 確認會紅**
 
 Run: tsc（指令備忘）
-Expected: FAIL，類似 `Expected 4 arguments, but got 3.`（gearPlan）、`Expected 5 arguments, but got 4.`（bandGear）、`Argument of type 'number' is not assignable to parameter of type 'boolean'.`（closestSource 的 job）。
+Expected: FAIL，類似 `Expected 4 arguments, but got 3.`（gearPlan）、`Expected 5 arguments, but got 4.`（bandGear）。（`closestSource` 不會報錯：v0.61 已經是新簽名。）
 
 - [ ] **Step 3: 改 `src/lib/gear.ts`**
 
@@ -331,30 +291,7 @@ Expected: FAIL，類似 `Expected 4 arguments, but got 3.`（gearPlan）、`Expe
     const req = weaponPicks(candidates, job, l, { types: rule.weapons }).best?.req;
 ```
 
-`closestSource`：
-
-```ts
-/**
- * 最好拿的來源：商店優先；否則掉落跟任務一起比誰最好拿（見 dropCost／questCost）——
- * 35 等刺客的手套攻擊卷軸推 40 等任務「珍的最後一個挑戰」，不推 55 等巨居蟹。
- *
- * 給了 job：只看這個職業接得到、獎勵也發給這個職業的任務（questFits）。
- */
-export function closestSource(src: GearSource, level: number, job?: number): SourcePick | null {
-  const shops = src.shops ?? [];
-  const drops = src.drops ?? [];
-  // 接不到的任務不算：職業不對、獎勵不發給這個職業、過了等級上限
-  const quests = (src.quests ?? []).filter(quest => job === undefined || questFits(quest, job, level));
-
-  // 合成：材料湊齊就一定做得出來，比要看運氣的掉落、任務可靠，排在商店後面
-  const crafts = src.crafts ?? [];
-  if (shops.length) return { kind: "shop", shop: shops[0] };
-  if (crafts.length) return { kind: "craft", craft: crafts[0] };
-  return easiest(drops, quests, level);
-}
-```
-
-（`if (beforeOpen) { … }` 整段刪掉。D3 例外成立就不動 `closestSource`。）
+`closestSource`：**不動**（D3 例外已成立）。v0.61 起它就是「先推舊地區的來源」的永久規則、沒有 `beforeOpen`；這份計畫原本在這裡要拆掉 `if (beforeOpen) { … }`、只留「有店就推店」，**不准照做**——那會讓開放後 352 處改推冰原雪域／天空之城的店跟 V002 的怪（見 D3 背景）。
 
 `GearSource` 註解：shops 的「`o：店在 10/15 才開的城鎮（冰原雪域、天空之城）。`」→「`o：店在 V002 才放行的城鎮（冰原雪域、天空之城）。`」；crafts 的「`o 10/15 才開的城鎮`」→「`o V002 才放行的城鎮`」；quests 的「`o：V002 任務（同 src/lib/v002.ts 的規則）`」→「`o：V002 任務（規則見 pipeline/lib/gear.mjs 的 isV002Quest）`」。
 

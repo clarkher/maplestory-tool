@@ -7,6 +7,7 @@ import { loadSkills, peekSkills } from "@/lib/data";
 import { skillJobGroups } from "@/lib/jobs";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
+import { skillLevels } from "@/lib/skill-view";
 import type { Skill } from "@/lib/types";
 import { isV002Skill } from "@/lib/v002";
 
@@ -77,11 +78,7 @@ export function SkillDb() {
 
 function SkillDetail({ skill }: { skill: Skill }) {
   const notOpenYet = useBeforeV002();
-  const fields = useMemo(() => {
-    const keys = new Set<string>();
-    for (const level of skill.levels) for (const key of Object.keys(level)) keys.add(key);
-    return [...keys];
-  }, [skill]);
+  const levels = useMemo(() => skillLevels(skill), [skill]);
 
   return (
     <DetailCard>
@@ -112,32 +109,38 @@ function SkillDetail({ skill }: { skill: Skill }) {
         </p>
       ) : null}
 
-      {skill.levels.length && fields.length ? (
-        <Section title="各等級數值" extra={`${skill.levels.length} 級`}>
+      {levels.kind === "table" ? (
+        <Section title="各等級數值" extra={`${levels.rows.length} 級`}>
           <div className="scroll-x rounded-xl border border-[color:var(--paper-edge)]">
             <table className="w-full min-w-max text-sm">
               <thead className="bg-[color:var(--paper-deep)]">
                 <tr>
                   <th scope="col" className="px-3 py-2 text-left font-bold">等級</th>
-                  {fields.map(field => (
-                    <th key={field} scope="col" className="px-3 py-2 text-left font-bold">
-                      {skill.labels?.[field] ?? field}
+                  {levels.fields.map(field => (
+                    <th key={field.key} scope="col" className="px-3 py-2 text-left font-bold">
+                      {field.label}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {skill.levels.map((level, index) => (
+                {levels.rows.map((row, index) => (
                   <tr key={index} className="border-t border-[color:var(--paper-edge)]">
                     <th scope="row" className="px-3 py-1.5 text-left font-bold tabular-nums">{index + 1}</th>
-                    {fields.map(field => (
-                      <td key={field} className="px-3 py-1.5 tabular-nums">{level[field] ?? "—"}</td>
+                    {row.map((value, column) => (
+                      <td key={levels.fields[column].key} className="px-3 py-1.5 tabular-nums">{value ?? "—"}</td>
                     ))}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        </Section>
+      ) : levels.kind === "noLevels" ? (
+        <Section title="各等級數值">
+          <p className="text-xs ink-faint">
+            遊戲資料沒有這個技能每一級的數值{skill.desc ? "，效果以上面的說明為準" : ""}。
+          </p>
         </Section>
       ) : null}
     </DetailCard>

@@ -3,6 +3,7 @@
 // 用法：node scripts/verify/pages-first-frame.mjs <輸出資料夾> <網址>    （ONLY=P1,P7 只跑某幾個情境）
 //
 // 情境（角色狂戰士 45、375×812）：
+//   P0 直接從道具頁進站（這次瀏覽沒開過首頁）→ 等背景先載 → 點「我的路線」：第一格就是完整路線（v0.64）
 //   P1 首頁主推卡「帶我去」→ /go：第一格就有路線，不先畫「載入地圖資料…」
 //   P2 查資料 → 練功地圖排行：第一格就有排行
 //   P3 查資料 → 現在能接的任務：第一格就有任務
@@ -69,6 +70,12 @@ await page.send("Log.enable");
 await page.send("Network.enable");
 // 攻略檔什麼時候被請求（P7：打開「換其他職業」後在背景先載了哪些）
 const guideRequests = [];
+const dataRequests = [];
+page.listeners.add(m => {
+  if (m.method === "Network.requestWillBeSent" && m.params.request.url.includes("/data/")) {
+    dataRequests.push({ at: Date.now(), file: m.params.request.url.split("/data/")[1].split("?")[0] });
+  }
+});
 page.listeners.add(m => {
   if (m.method === "Network.requestWillBeSent" && m.params.request.url.includes("/data/guides/")) {
     guideRequests.push({ at: Date.now(), file: m.params.request.url.split("/data/guides/")[1].split("?")[0] });
@@ -216,6 +223,16 @@ try {
   await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 2, mobile: true });
   await navigate(BASE + "/db");
   await evaluate(`localStorage.setItem("ms-theme", "light"); localStorage.setItem("ms-profile", JSON.stringify({ level: 45, job: 110 })); localStorage.removeItem("ms-go-start"); "ok"`);
+
+  await scenario("P0 直接從道具頁進站→等背景先載→我的路線", async () => {
+    await navigate(BASE + "/db/items");
+    const landedAt = Date.now();
+    await waitFor(`() => document.querySelectorAll("main ul li button").length > 0`);
+    await sleep(5000);
+    const prefetched = [...new Set(dataRequests.filter(r => r.at >= landedAt).map(r => r.file))];
+    const r = await measure({ action: clickNav("我的路線"), to: "/", ms: 3000, keys: ["loading", "nowSkeleton", "nowTitle", "h"] });
+    return { prefetched, ...r, shot: await shot("P0-home-after-prefetch.png") };
+  });
 
   await scenario("P1 首頁「帶我去」→ /go", async () => {
     await navigate(BASE + "/");

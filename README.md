@@ -197,6 +197,19 @@ npm run data:all      # 以上全跑
   同一段不會同時在先解跟你在的那段必解、你在的那段只接在先解那串的下一段、先解每一列從那條線的第一段開始、寫了關鍵獎勵的列有列到給它的那一段、
   冒險家的戒指在先解是整條線、每一段必解的每一列從第一段開始或接在先解那列後面、同一個任務不會同時算在先解跟長線、
   先存著的材料不會只來自這頁已經列的任務），都通過才開 PR、自動合併；合併進 `main` 觸發 Vercel 部署
+- 寫入權限只在最後開 PR 那一步：取上游、重建、檢查、`next build` 在 `refresh` job，只能讀 repo、checkout 不留 token
+  （這裡跑 npm、讀第三方上游的資料，萬一哪個被動了手腳也拿不到寫入權限），重建好的 `public/data`、`public/assets` 存成 artifact（留一天）。
+  開 PR、合併在 `publish` job（唯一有 `contents: write`、`pull-requests: write` 的），`refresh` 全過、真的重建了、不是 dry-run 才跑：
+  下載 artifact 換進 `public/`，commit、推資料分支、開 PR、`--admin` 合進 `main`。`publish` 不跑 npm、不跑 `pipeline/` 的程式，
+  artifact 只當資料收：只能有 `data`、`assets` 兩個資料夾，裡面只能是 png、json（跟 `pipeline/lib/assets.mjs` 的白名單一樣），
+  `meta.json` 只當文字讀（`require` 找不到檔時會改載 `meta.json.js`、資料夾裡的 `index.js`，等於執行 artifact 帶來的程式），不對就失敗、不動 `public/`。
+  隱藏檔、連結在正常上傳時就會被丟掉、換成檔案內容，`publish` 再擋一次是防 `refresh` 被動了手腳、自己做的 artifact——
+  所以 `public/data`、`public/assets` 裡不要放要進版控的隱藏檔（上傳時被丟掉，`publish` 會當成刪除）。
+  上一輪推了資料分支、卻在開 PR 或合併時失敗（或手動 Re-run）：推之前先刪掉同名的舊分支（它開著的 PR 會跟著關），不用人工清。
+  `pipeline/lib/data-refresh-workflow.test.mjs` 鎖住：只有 `publish` 有寫入權限、每個 job 都寫明權限、`refresh` 的 checkout 不留 token、
+  會推分支或開／合 PR 的指令只能在 `publish`、`publish` 不跑 npm、不用 `require` 讀 artifact、白名單跟 `assets.mjs` 一樣；
+  `pipeline/lib/data-refresh-publish.test.mjs` 把開 PR 那段 bash 拿出來真的跑（本機 bare repo 當 origin、`gh` 換成假的），
+  確認壞掉的 artifact（`meta.json.js`、`.html`、多的資料夾、隱藏檔、連結）、太長的版本字串都在推之前擋下、不會被執行
 - 上游的怪物屬性抗性出現認不得的寫法時，重建直接失敗、不開 PR，錯誤訊息寫出是哪隻怪
   （以前認不得的寫法默默取首字母存，怪物卡又把認不得的代碼原樣印出來，才會寫出「冰 r」）：
   到 `pipeline/lib/elemental.mjs` 補對照、`src/lib/format.ts` 補字（新的抗性種類也看 `src/lib/job-rules.ts` 要不要算進去）再重建。
@@ -207,15 +220,22 @@ npm run data:all      # 以上全跑
   版本字串換了寫法，下一輪會當成上游更新、重建並自動合進正式機一次。
   workflow 的 `run:` 裡也一律不直接寫 `${{ }}`（那是先把字串貼進指令再跑），上游來的字串、手動觸發的輸入都用 `env:` 傳，
   `pipeline/lib/data-refresh-workflow.test.mjs` 會掃 `.github/workflows/` 每個檔來擋
+- 上游的 `gameVersion` 只收 `1.15.2` 這種 2～4 段數字（每段最多 4 位；上游 1.13.1～1.15.2 一直是三段），
+  `generatedAtText`（例如 `2026-09-24 11:25:10 GMT+8`）不限格式，但最多 64 字、不能有換行與控制字元；六個檔都檢查，
+  有寫但不合格就在「取得 Artale 資料」直接失敗、不開 PR，錯誤訊息寫是上游哪個檔。版本會寫進 PR 標題（GitHub 上限 256 字，
+  太長開不出 PR，那時資料分支已經推上去了）與 commit 訊息，兩個都會印進執行紀錄（換行後面寫 `::指令::` 會被 Actions 當成指令）。
+  上游真的換了版本號寫法：到 `pipeline/lib/upstream.mjs` 放寬 `GAME_VERSION` 再重建。
+  `publish` 開分支前會再擋一次（遊戲版本只收英數與 `.+-`、32 字內，上游版本只收英數與 `.:+-`、40 字內）：本機抽檔不經過 `upstream.mjs`
 - 上游圖檔只收四個目錄最上層的 `.png`（前端載的圖）跟 `.json`（上游附的 `summary.json`）；`.svg`、`.html` 這類網頁檔放上正式機網域，
   有人點開就會用我們網站的身分跑上游寫的腳本，所以白名單以外的檔、子資料夾、捷徑（symlink）一律不收，網站裡原本混進來的也清掉
   （`pipeline/lib/assets.mjs`）。上游把 `assets` 或其中一個目錄換成捷徑時「取得 Artale 資料」直接失敗、不開 PR。
   前端要載新的圖檔格式就到 `ASSET_EXTENSIONS` 加（`pipeline/lib/assets.test.mjs` 會檢查前端用到的副檔名都在白名單裡）
-- 任何一步失敗（取得上游、重建、`verify.mjs`、首頁真資料檢查、`next build`、開 PR 合併），接在後面的 `notify` job 會開一張 issue
-  （label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本、執行紀錄連結、那一步錯誤訊息的最後 30 行。
+- 任何一步失敗（`refresh` 的取得上游、重建、`verify.mjs`、首頁真資料檢查、`next build`，`publish` 的下載 artifact、開 PR 合併），
+  接在後面的 `notify` job 會開一張 issue（label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本、
+  失敗那個 job 的執行紀錄連結、那一步錯誤訊息的最後 30 行（兩個 job 的結果怎麼併成一個：`pipeline/lib/refresh-issue.mjs` 的 `overallResult`）。
   已經有開著的就不另開：同樣的失敗（同一步、同一個上游版本）只更新那張內文的「最後一次失敗」那行（時間、卡在哪一步、連續第幾次；
   改內文不發通知，壞著沒修也不會每 12 小時吵一次），失敗的步驟或上游版本變了才在那張留言；之後成功一次就自動留言並關掉。
-  refresh 最多跑 30 分鐘（`timeout-minutes`；平常連完整重建約 1 分鐘），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
+  `refresh` 最多跑 30 分鐘、`publish` 最多 15 分鐘（`timeout-minutes`；平常 `refresh` 連完整重建、存 artifact 1～2 分鐘，`publish` 約 20 秒），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
   （中止的結果是 cancelled，notify 看有沒有主要步驟跑到一半來分辨）；一步都沒跑（GitHub 沒派到機器）、或只有收尾步驟被中止不通知，
   下一輪會再跑；手動取消整個執行時 notify 不會跑。
   程式在 `pipeline/notify-refresh.mjs`（內容與判斷在 `pipeline/lib/refresh-issue.mjs`）；
@@ -223,6 +243,8 @@ npm run data:all      # 以上全跑
 - 通知管不到的一種情況：公開 repo 60 天沒有任何活動，GitHub 會自動停用排程（notify 也就不會跑），要到 Actions 頁面重新啟用
 - 也可以手動觸發，勾 `force` 可略過版本比對。**只有從 `main` 觸發、`dry_run`、`simulate_failure` 都沒勾，才會跑到最後直接合進 `main`（正式機）**；
   從其他分支觸發一律當 dry-run（開 PR 那步的資料分支是從觸發的分支切出來的，忘了勾 dry_run 會把整條分支沒審過的程式一起合進正式機）
+- dry-run 擋三道：`publish` 整個 job 不跑（job 的 `if` 讀不到 `env`，條件照抄開頭的 `DRY_RUN`，測試會比對兩邊一樣）、
+  開 PR 那步的步驟條件、步驟裡在開分支與推之前再擋一次。`refresh` 照跑、照存 artifact，所以 dry-run 驗得到建置與存檔，驗不到 `publish`
 - 要測失敗通知本身：手動觸發勾 `dry_run`（照跑但不開 PR、不合併、不推資料分支，通知寫到 label `資料更新失敗-測試` 那張，碰不到正式那張）；
   勾 `simulate_failure` 會在比對版本之後故意失敗一次（只勾它也算 dry-run）；測完再跑一次只勾 `dry_run` 的，成功就會把測試那張關掉
 
@@ -260,11 +282,32 @@ Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScri
 npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 ```
 
+開 PR（進 `dev` 或 `main`）和合進 `dev` 之後，GitHub Actions 會自動跑 `npm test`、`next build`，再在同一台機器上開站、
+用無頭 Chrome 量換頁第一格（`scripts/verify/check-first-frame.mjs`，`.github/workflows/test.yml`），
+結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」「測試 / 第一格」，紅燈點進去看是哪一步；第一格沒過時截圖跟紀錄在
+那次執行的 artifact。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
+
 ### 查資料頁驗收（改查資料四頁之後跑）
 
-`/db/items`、`/db/monsters`、`/db/quests`、`/db/skills` 的捲動、展開、收起、按返回、記住搜尋篩選、自動載入，
-單元測試測不到真的畫面，用 `scripts/verify-db.mjs` 開無頭 Chrome 實際點一遍（手機 375×812、桌機 1280×800），
+`/db/items`、`/db/monsters`、`/db/quests`、`/db/skills` 的捲動、展開、收起、按返回、記住搜尋篩選、自動載入（接到 600 筆換成按鈕）、
+搜尋框的「×」、桌機右邊那一欄黏住、卡片裡連到同一頁另一筆（任務「要先完成」）不跳回頁面頂端、卡片裡的「路線」讀螢幕軟體念出地圖名（任務卡念 NPC 名字），單元測試測不到真的畫面，用 `scripts/verify-db.mjs` 開無頭 Chrome 實際點一遍（手機 375×812、桌機 1280×800），
 逐格量捲動位置，並開關「減少動態效果」各跑一次。
+順便驗全站的兩件事：`H` 開頭的段＝手指往下滑時導覽列收起來、網站自己捲時不收，回到頂端、換頁（新頁面的標題不被蓋住）、
+鍵盤移到導覽列、手指收起後用觸控板或滾輪往上捲都會出來，桌機滾輪不收；`X` 開頭＝搜尋框的「×」、手機按 Enter 收起鍵盤（電腦按 Enter 不動），以及打寶「自己找」提示字舉的例子都搜得到。
+道具頁的篩選（v0.55 起）：`G` 開頭的段＝搜職業名（法師）時清單分兩組小標、選了種類後整頁重新整理種類還在、
+「〇〇能用」「現在就能穿」兩顆標籤的規則（只能開一顆、點開著的那顆就關、開了切到「裝備」、換分類就關）。
+任務頁（v0.58 起）：`G2`＝「只看我現在接得到的」清單中間的小標照快過期、剛解鎖、隨時可以補的順序，任務卡的「我做完了」
+（按了卡片還在、收起後那一列不見、整頁重新整理後還是不列、桌機的小字不再寫「要先做」），清單不列「開發測試用」。
+位置也逐格量（±1px）：開著卡片打勾、取消打勾，卡片裡的按鈕跟清單順序都不動（任務 2323，有別的任務要先做它，打勾後它們會想跳到它前面）；
+清單很下面（第 70 列以後）的任務打勾，卡片留在那一列下面、那一列跟按鈕不動、載出來的筆數不被收回 60 筆，
+收起後（這時清單才重排）原本接在後面的那一列放到導覽列下方，最後一列收起就看前一列、不跳回清單開頭；
+怪物資料載不到（驗收時擋掉 `monsters.json`）時，清單照列、沒有建議等級，不是整頁寫載入失敗。
+怪物頁（v0.60 起）：`G3`＝「適合我練的」「包含低 5 級」兩顆標籤手機 375、360 寬都在同一排、只能開一顆、點開著的就關，開了標籤下面小字寫等級範圍（`Lv.30–40`，僧侶再接職業規則），
+清單的等級範圍、順序、筆數、小字（`Lv.35 · 經驗 405`）照 `monsters.json` 另外算，整頁重新整理後標籤還開著，僧侶開包含低 5 級照玩家的 35 級算職業規則（不是範圍下緣的 30 級）；
+「連沒有名字的怪一起列」只在資料真的有沒名字的怪（`un`）時才出現（現在一隻都沒有，所以不出現）。
+技能頁（v0.71 起）：`S1`＝遊戲資料沒有分等級數值的技能（`skills.json` 沒有 `levels`：神匠之魂、怪物騎乘、宇宙衝鋒、宇宙光束、肥肥／木妖／綠水靈的弱點攻擊）點開不會整頁掛掉——
+從清單點神匠之魂 1003、直接打開 `?id=9000`（肥肥的弱點攻擊），卡片照列說明、寫「遊戲資料沒有這個技能每一級的數值」、沒有數值表。
+卡片要列什麼在 `src/lib/skill-view.ts`，`skill-view.test.ts` 拿 `skills.json` 每個技能都算一次。
 
 ```bash
 npm run dev                     # 另開一個終端機先把網站起起來
@@ -277,11 +320,17 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
 - 要 Node 22 以上（用到內建的 WebSocket），還要有 Chrome（或 Edge、Chromium），找不到時用環境變數 `CHROME_PATH` 指定。
 - 每次用乾淨的瀏覽器資料、DevTools 的埠由 Chrome 自己挑、輸出資料夾每次分開，幾個一起跑不會撞。
 - 按返回、下一頁用 DevTools 按瀏覽器的返回鍵（`Page.navigateToHistoryEntry`），不是頁面自己呼叫 `history.back()`。
+- 手指用 DevTools 的 `Input.dispatchTouchEvent` 一格一格送（按下、移動、放開），畫面會真的捲；
+  `Input.synthesizeScrollGesture` 在無頭 Chrome 只送出按下、放開，畫面不會捲，別用。頁面裡的 `element.click()` 不算手指。
 - 一段出錯（例如找不到按鈕）只記那一段失敗，後面照跑；每一段從乾淨的搜尋、篩選開始。
 - 只跑某幾段：`VERIFY_ONLY=N10,N13 npm run verify:db -- <網址>`（寫段名，一組的像「M1–M5」寫 M1 也行）。
-- 裡面寫死了幾筆資料（綠水靈、白狼人、幼黑格里芬 6230401、道具 1302020、任務 6931／6930），遊戲資料改版後對不上會 FAIL 並寫原因，換 id 就好。
-- 跑一次約 6 分鐘。本機 dev server 第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次。
+- 裡面寫死了幾筆資料（綠水靈、白狼人、幼黑格里芬 6230401、道具 1302020、任務 6931／6930、任務 2342、任務 2323、技能 1003／9000，G2、G3 的角色是 Lv.35 槍騎兵，G3 另外用 Lv.35 僧侶），遊戲資料改版後對不上會 FAIL 並寫原因，換 id 就好。
+- 驗測試機（正式建置）約 4 分鐘；本機 dev server 約 10 分鐘，第一次開某一頁要先編譯，可以先在瀏覽器把四頁各開一次（還有 `/plan/farm`、`/go`、`/guide`）。
+  跑的時候別改程式：dev server 熱更新會重新載入頁面，檢查會亂掉。
 - 改了查資料頁的行為，要一起改或加這裡的檢查。
+- 重新整理、離站再返回回到原位，是全站的 `src/lib/reload-scroll.ts` 在放。v0.62 起開著卡片也一樣，不再跳回卡片頂端；
+  卡片搬家（重新整理後清單只剩前 60 筆）時，DbBrowser 叫它跟著挪。M18、M20 在驗這段。
+  離站再返回要關返回快取才量得到，用 `scripts/verify/reload-all.mjs`。
 
 ### 其他畫面驗收腳本（`scripts/verify/`）
 

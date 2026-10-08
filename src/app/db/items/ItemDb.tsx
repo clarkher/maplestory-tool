@@ -4,9 +4,11 @@ import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
+import { FilterTag } from "@/components/FilterTag";
 import {
   itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage, peekItems, peekMaps, peekMonsters, peekQuests,
 } from "@/lib/data";
+import type { Prefer } from "@/lib/db-browse";
 import {
   compareItems, equipGroups, fitsJobSearch, hiddenFromList, itemKeywords, itemNote, jobLabel, jobSearchBit, shopGroups, sortCategories,
   subcategoryGroups, usableBy, wearableNow, wearFit, type WearFit,
@@ -27,12 +29,12 @@ export function ItemDb() {
   const [category, setCategory] = useRemembered("db:道具:category", "");
   const [subcategory, setSubcategory] = useRemembered("db:道具:subcategory", "");
   const [onlyDroppable, setOnlyDroppable] = useRemembered("db:道具:onlyDroppable", false);
-  /** 誰能用：""＝全部裝備、"usable"＝〇〇能用的、"now"＝〇〇現在就能穿的（職業＋等級） */
+  /** 誰能用：""＝不限職業、"usable"＝〇〇能用、"now"＝現在就能穿（職業＋等級） */
   const [mineMode, setMineMode] = useRemembered("db:道具:mine", "");
   const notOpenYet = useBeforeV002();
-  // 同步讀角色：按返回時第一個畫面就套上「〇〇能用的」，清單才跟離開時一樣
+  // 同步讀角色：按返回時第一個畫面就套上「〇〇能用」，清單才跟離開時一樣
   const { profile, loaded, isComplete } = useStoredProfile();
-  /** 角色列選了職業就出現「〇〇能用的」，不用填等級；「現在就能穿的」要有等級才出現 */
+  /** 角色列選了職業就出現「〇〇能用」標籤，不用填等級；「現在就能穿」要有等級才出現 */
   const mineName = loaded && profile.job >= 0 ? jobLabel(profile.job) : null;
   const mine = !mineName ? "" : mineMode === "now" && !isComplete ? "usable" : mineMode;
 
@@ -72,7 +74,7 @@ export function ItemDb() {
 
   /**
    * 清單預設順序：裝備在前、依需求等級由低到高，同一級拿得到的在前（原本依名稱，一打開是一整排勳章）。
-   * 種類寫「裝備」又拿不到的（影武者的刀、龍魔導士的龍裝備）不列，見 hiddenFromList。
+   * 拿不到、而且種類寫「裝備」（影武者的刀、龍魔導士的龍裝備）或名字有「GM」（GM 專用）的不列，見 hiddenFromList。
    */
   const sortedItems = useMemo(
     () => (items ?? []).filter(item => !item.un && !hiddenFromList(item)).sort(compareItems),
@@ -82,20 +84,27 @@ export function ItemDb() {
   /** 搜尋關鍵字只跟道具本身有關，載完算一次，切篩選不用重算一萬多筆 */
   const keywordsById = useMemo(() => new Map(sortedItems.map(item => [item.id, itemKeywords(item)])), [sortedItems]);
 
-  /** 搜職業名（劍士、法師…、初心者）時，那個職業能用的裝備排最前面（搜尋字變了才重算） */
-  const preferFor = useCallback((keyword: string) => {
+  /** 搜職業名（劍士、法師…、初心者）時，那個職業能用的裝備排最前面，清單中間分兩組小標（搜尋字變了才重算） */
+  const preferFor = useCallback((keyword: string): Prefer | null => {
     const bit = jobSearchBit(keyword);
-    return bit === null ? null : new Set(sortedItems.filter(item => fitsJobSearch(item, bit)).map(item => String(item.id)));
+    if (bit === null) return null;
+    const name = keyword.trim();
+    return {
+      ids: new Set(sortedItems.filter(item => fitsJobSearch(item, bit)).map(item => String(item.id))),
+      // 初心者那組只有初心者專用的（不限職業的不算，跟 fitsJobSearch 同一條）
+      title: bit === -1 ? "初心者專用的裝備" : `${name}能用的裝備`,
+      rest: `名字或說明提到${name}的`,
+    };
   }, [sortedItems]);
 
-  /** 「誰能用」下拉：〇〇能用的看職業；〇〇現在就能穿的再看需求等級 */
+  /** 「誰能用」兩顆標籤：〇〇能用看職業；現在就能穿再看需求等級 */
   const fitsMine = useCallback((item: Item) => {
     if (mine === "usable") return usableBy(item, profile.job);
     if (mine === "now") return wearableNow(item, profile);
     return true;
   }, [mine, profile]);
 
-  /** 種類下拉只列篩選後還有東西的種類：劍士選了「能用的」不會看到拳套，勾了「只看打得到的」不會看到沒人掉的種類 */
+  /** 種類下拉只列篩選後還有東西的種類：劍士開了「能用」不會看到拳套，開了「只看打得到的」不會看到沒人掉的種類 */
   const subcategoryGroupList = useMemo(() => {
     if (!category) return [];
     const pool = sortedItems.filter(item => (!onlyDroppable || item.dm?.length) && fitsMine(item));
@@ -103,12 +112,15 @@ export function ItemDb() {
   }, [sortedItems, category, onlyDroppable, fitsMine]);
   const subcategories = useMemo(() => subcategoryGroupList.flatMap(group => group.options), [subcategoryGroupList]);
 
-  /** 選的種類在新的篩選下沒東西了，畫面當場回到全部種類（不等 effect，不會先閃一次空清單） */
-  const activeSubcategory = subcategories.includes(subcategory) ? subcategory : "";
-  // 狀態也一起清掉，之後取消勾選才不會突然跳回先前選的種類
+  /**
+   * 選的種類在新的篩選下沒東西了，畫面當場回到全部種類（不等 effect，不會先閃一次空清單）。
+   * 資料還沒載好時種類清單一定是空的，那不是「沒東西了」：照記住的種類，不然整頁重新整理會把選的種類弄丟
+   */
+  const activeSubcategory = !items || subcategories.includes(subcategory) ? subcategory : "";
+  // 狀態也一起清掉，之後把標籤關掉才不會突然跳回先前選的種類（資料載好之前不清）
   useEffect(() => {
-    if (subcategory !== activeSubcategory) setSubcategory(activeSubcategory);
-  }, [subcategory, activeSubcategory]);
+    if (items && subcategory !== activeSubcategory) setSubcategory(activeSubcategory);
+  }, [items, subcategory, activeSubcategory]);
 
   const entries = useMemo<DbEntry[]>(() => {
     return sortedItems
@@ -126,6 +138,16 @@ export function ItemDb() {
       }));
   }, [sortedItems, keywordsById, category, activeSubcategory, onlyDroppable, fitsMine, v002Monsters, v002Quests, notOpenYet]);
 
+  /** 「誰能用」兩顆標籤只能開一顆，點開著的那顆就關（＝不限職業）；開了就只看裝備分類 */
+  const pickMine = (mode: "usable" | "now") => {
+    const next = mine === mode ? "" : mode;
+    setMineMode(next);
+    if (next && category !== "裝備") {
+      setCategory("裝備");
+      setSubcategory("");
+    }
+  };
+
   return (
     <DbBrowser
       title="道具"
@@ -135,70 +157,49 @@ export function ItemDb() {
       error={error}
       preferFor={preferFor}
       filters={
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={category}
-            onChange={event => {
-              setCategory(event.target.value);
-              setSubcategory("");
-              // 「〇〇能用的」只看裝備分類，換到別的分類就回到全部裝備
-              if (event.target.value !== "裝備") setMineMode("");
-            }}
-            className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
-            aria-label="道具分類"
-          >
-            <option value="">全部分類</option>
-            {categories.map(name => (
-              <option key={name} value={name}>{name}</option>
-            ))}
-          </select>
-          {subcategories.length ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
             <select
-              value={activeSubcategory}
-              onChange={event => setSubcategory(event.target.value)}
-              className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
-              aria-label="道具種類"
-            >
-              <option value="">全部種類</option>
-              {/* 裝備分成武器、防具、飾品、其他；其他分類不分組 */}
-              {subcategoryGroupList.map(group => {
-                const options = group.options.map(name => <option key={name} value={name}>{name}</option>);
-                return group.label ? (
-                  <optgroup key={group.label} label={group.label}>{options}</optgroup>
-                ) : (
-                  <Fragment key="plain">{options}</Fragment>
-                );
-              })}
-            </select>
-          ) : null}
-          {mineName ? (
-            <select
-              value={mine}
+              value={category}
               onChange={event => {
-                setMineMode(event.target.value);
-                // 選了「〇〇能用的」就只看裝備分類
-                if (event.target.value && category !== "裝備") {
-                  setCategory("裝備");
-                  setSubcategory("");
-                }
+                setCategory(event.target.value);
+                setSubcategory("");
+                // 「〇〇能用」「現在就能穿」只看裝備分類，換到別的分類就都關掉（不限職業）
+                if (event.target.value !== "裝備") setMineMode("");
               }}
               className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
-              aria-label="誰能用"
+              aria-label="道具分類"
             >
-              <option value="">全部裝備</option>
-              <option value="usable">{mineName}能用的</option>
-              {isComplete ? <option value="now">{mineName}現在就能穿的</option> : null}
+              <option value="">全部分類</option>
+              {categories.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
             </select>
-          ) : null}
-          <label className="flex items-center gap-2 text-[13px] ink-soft">
-            <input
-              type="checkbox"
-              checked={onlyDroppable}
-              onChange={event => setOnlyDroppable(event.target.checked)}
-              className="size-4 accent-[color:var(--maple)]"
-            />
-            只看打得到的
-          </label>
+            {subcategories.length ? (
+              <select
+                value={activeSubcategory}
+                onChange={event => setSubcategory(event.target.value)}
+                className="tap-safe rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1.5 text-sm outline-none transition-colors focus:border-[color:var(--maple)]"
+                aria-label="道具種類"
+              >
+                <option value="">全部種類</option>
+                {/* 裝備分成武器、防具、飾品、其他；其他分類不分組 */}
+                {subcategoryGroupList.map(group => {
+                  const options = group.options.map(name => <option key={name} value={name}>{name}</option>);
+                  return group.label ? (
+                    <optgroup key={group.label} label={group.label}>{options}</optgroup>
+                  ) : (
+                    <Fragment key="plain">{options}</Fragment>
+                  );
+                })}
+              </select>
+            ) : null}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {mineName ? <FilterTag on={mine === "usable"} onClick={() => pickMine("usable")}>{mineName}能用</FilterTag> : null}
+            {mineName && isComplete ? <FilterTag on={mine === "now"} onClick={() => pickMine("now")}>現在就能穿</FilterTag> : null}
+            <FilterTag on={onlyDroppable} onClick={() => setOnlyDroppable(!onlyDroppable)}>只看打得到的</FilterTag>
+          </div>
         </div>
       }
       renderDetail={id => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monsterDrops, monsterMaps } from "@/lib/monster-view";
+import { monsterDrops, monsterMaps, monsterNote } from "@/lib/monster-view";
 import type { MapRecord } from "@/lib/types";
 
 const map = (zh: string, extra: Partial<MapRecord> = {}): MapRecord => ({ zh, st: "維多利亞", ...extra });
@@ -80,5 +80,14 @@ describe("怪物卡的掉落物", () => {
 
   it("都有名字：全部照原本的順序列", () => {
     expect(monsterDrops([4000000, 1302000], index)).toEqual({ shown: [4000000, 1302000], hidden: 0 });
+  });
+});
+
+describe("怪物清單右邊的小字", () => {
+  it("等級＋經驗；經驗大的有千分位；沒經驗只寫等級；沒等級不寫", () => {
+    expect(monsterNote({ lv: 35, exp: 150 })).toBe("Lv.35 · 經驗 150");
+    expect(monsterNote({ lv: 70, exp: 1200 })).toBe("Lv.70 · 經驗 1,200");
+    expect(monsterNote({ lv: 5, exp: 0 })).toBe("Lv.5");
+    expect(monsterNote({ lv: null, exp: 10 })).toBeUndefined();
   });
 });

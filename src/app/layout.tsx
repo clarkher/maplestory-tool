@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { HistoryScrollJump } from "@/components/HistoryScrollJump";
+import { HomePrefetch } from "@/components/HomePrefetch";
 import { restoreScrollBootstrap } from "@/lib/history-scroll";
 
 const notoTC = Noto_Sans_TC({
@@ -80,6 +81,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           {children}
         </main>
         <SiteFooter />
+        {/* 人在查資料、規劃頁時，背景先載首頁要的資料：之後點「我的路線」第一格就是完整路線（不畫任何東西） */}
+        <HomePrefetch />
       </body>
     </html>
   );
