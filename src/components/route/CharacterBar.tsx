@@ -104,7 +104,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
         aria-pressed={active}
         className={[
           "w-full rounded-full px-2 py-1.5 text-[13px] font-bold transition-colors",
-          active ? "bg-[color:var(--maple)] text-white" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]",
+          active ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]",
         ].join(" ")}
       >
         {name}
@@ -218,7 +218,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
                         className={[
                           "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
                           selected
-                            ? "bg-[color:var(--maple)] text-white"
+                            ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]"
                             : inLine
                               ? "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]"
                               : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]",
@@ -255,7 +255,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
                 aria-pressed={profile.job === 0}
                 className={[
                   "rounded-full px-3 py-1.5 text-[13px] font-bold",
-                  profile.job === 0 ? "bg-[color:var(--maple)] text-white" : "border border-dashed border-[color:var(--paper-edge)] ink-soft",
+                  profile.job === 0 ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-dashed border-[color:var(--paper-edge)] ink-soft",
                 ].join(" ")}
               >
                 初心者／還沒轉職
@@ -267,7 +267,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
             type="button"
             onClick={() => setEditing(false)}
             disabled={incomplete}
-            className="tap-safe w-full rounded-full bg-[color:var(--maple)] text-sm font-bold text-white disabled:opacity-40"
+            className="tap-safe w-full rounded-full bg-[color:var(--maple)] text-sm font-bold text-[color:var(--on-accent)] disabled:opacity-40"
           >
             {incomplete ? "選好職業、填好等級就能看" : "看我的路線"}
           </button>

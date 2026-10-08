@@ -219,7 +219,7 @@ function TabRow({ plan, onPick }: { plan: GearPlan; onPick: (tab: string | null)
 /* ------------------------------------------------------------------ 能力值 */
 
 const CELL_TONE = {
-  main: "bg-[color:var(--maple)] text-white",
+  main: "bg-[color:var(--maple)] text-[color:var(--on-accent)]",
   second: "bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
   rest: "bg-[color:var(--paper)] ink-faint",
 } as const;

@@ -27,23 +27,30 @@
 
   --ink: #2c2015;
   --ink-soft: #6d5943;
-  --ink-faint: #9c8a72;
+  /*
+    灰、橘、綠、藍、金的字色都壓到 WCAG AA：在區塊底（paper-deep）、毛玻璃、各自的淡底上對比都 4.5 以上
+    （v0.81 使用者選 A「整組壓深」：按鈕、框線跟著一起深）。淡底（*-wash）照舊用原本較亮的顏色，標籤底不跟著變深。
+  */
+  --ink-faint: #6d5c45;
 
   --wood: #8a5a32;
   --wood-deep: #5f3c1f;
 
-  --maple: #d84f26;
+  --maple: #b32a00;
   --maple-soft: #f0784a;
   --maple-wash: rgb(216 79 38 / 0.1);
 
-  --leaf: #4a8636;
+  --leaf: #2f6a18;
   --leaf-wash: rgb(74 134 54 / 0.12);
 
-  --sky: #2b7ba5;
+  --sky: #05638c;
   --sky-wash: rgb(43 123 165 / 0.12);
 
-  --gold: #b8862a;
+  --gold: #835400;
   --gold-wash: rgb(184 134 42 / 0.14);
+
+  /* 實心按鈕（楓葉橘、綠、天藍底）上的字：白天是白字 */
+  --on-accent: #fff;
 
   --grid-line: rgb(138 90 50 / 0.07);
 }
@@ -62,7 +69,8 @@
 
   --ink: #f6ead9;
   --ink-soft: #c3ae93;
-  --ink-faint: #8d7a63;
+  /* 要在毛玻璃卡片、金色淡底上都過 4.5（原本 #8d7a63 在毛玻璃上 3.9、金色淡底上 3.6） */
+  --ink-faint: #b7a38b;
 
   --wood: #b3814f;
   --wood-deep: #7a5330;
@@ -71,7 +79,8 @@
   --maple-soft: #ffa273;
   --maple-wash: rgb(255 129 72 / 0.14);
 
-  --leaf: #7ec263;
+  /* 綠字疊在金色淡底裡的綠標籤上要過 4.5（原本 #7ec263 只有 4.2） */
+  --leaf: #87cb6c;
   --leaf-wash: rgb(126 194 99 / 0.14);
 
   --sky: #6cb8e0;
@@ -79,6 +88,9 @@
 
   --gold: #e6b453;
   --gold-wash: rgb(230 180 83 / 0.16);
+
+  /* 夜晚的按鈕底很亮（白字只有 2.5），按鈕上的字改深咖啡（v0.81 使用者選 1「亮底深字」） */
+  --on-accent: #1a1209;
 
   --grid-line: rgb(255 210 160 / 0.05);
 }
@@ -186,7 +198,7 @@ body {
 
 ::selection {
   background-color: var(--maple);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 /* 一樣放進 @layer base：自己畫聚焦框的輸入框（outline-none）、膠囊按鈕的圓角，class 才蓋得過 */

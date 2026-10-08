@@ -30,7 +30,7 @@ export function NowCardSkeleton({ label }: { label: string }) {
   return (
     <article aria-label="現在去這裡" aria-busy="true" className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
       <div className="relative h-36 w-full animate-pulse bg-[color:var(--paper-deep)]">
-        <span className="absolute left-3 top-3 rounded-full bg-[color:var(--maple)] px-2.5 py-1 text-[12px] font-black text-white shadow">{label}</span>
+        <span className="absolute left-3 top-3 rounded-full bg-[color:var(--maple)] px-2.5 py-1 text-[12px] font-black text-[color:var(--on-accent)] shadow">{label}</span>
       </div>
       <div className="space-y-2.5 p-3.5">
         <div className="h-6 w-1/2 animate-pulse rounded-lg bg-[color:var(--paper-deep)]" />
@@ -58,7 +58,7 @@ function Hero({ map, maps, mobs, label }: { map?: number; maps: Record<string, M
       ) : (
         <div className="h-20 w-full bg-[color:var(--paper-deep)]" />
       )}
-      <span className="absolute left-3 top-3 rounded-full bg-[color:var(--maple)] px-2.5 py-1 text-[12px] font-black text-white shadow">{label}</span>
+      <span className="absolute left-3 top-3 rounded-full bg-[color:var(--maple)] px-2.5 py-1 text-[12px] font-black text-[color:var(--on-accent)] shadow">{label}</span>
       {mobs.length ? (
         <span className="absolute bottom-2 right-3 flex gap-1">
           {mobs.slice(0, 2).map(([id]) => (
@@ -156,7 +156,7 @@ function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { 
         </p>
         {/* 從城鎮走得到才給帶我去（跟 /go 同一個條件），不然點進去只會看到找不到起點 */}
         {canGo(option) ? (
-          <Link href={`/go?to=${option.map}`} className="tap-safe flex w-full items-center justify-center gap-1.5 rounded-full bg-[color:var(--maple)] text-[15px] font-black text-white shadow-sm">
+          <Link href={`/go?to=${option.map}`} className="tap-safe flex w-full items-center justify-center gap-1.5 rounded-full bg-[color:var(--maple)] text-[15px] font-black text-[color:var(--on-accent)] shadow-sm">
             <RouteIcon size={17} />
             帶我去 {option.title}
           </Link>
@@ -190,7 +190,7 @@ function PqCard({ pick, level, jobName, maps, routable }: Common & { pick: Extra
         </div>
         <span className="grid grid-cols-[1fr_auto] gap-2">
           {routable.has(pq.entrance) ? (
-            <Link href={`/go?to=${pq.entrance}`} className="tap-safe flex items-center justify-center gap-1.5 rounded-full bg-[color:var(--maple)] text-[15px] font-black text-white shadow-sm">
+            <Link href={`/go?to=${pq.entrance}`} className="tap-safe flex items-center justify-center gap-1.5 rounded-full bg-[color:var(--maple)] text-[15px] font-black text-[color:var(--on-accent)] shadow-sm">
               <RouteIcon size={17} />
               帶我去入口
             </Link>
