@@ -22,6 +22,7 @@ import {
   sourceOpensLater,
   sourceText,
   speedWord,
+  tabsFor,
   weaponStatParts,
   weaponStatsText,
 } from "@/lib/gear-view";
@@ -405,5 +406,79 @@ describe("真資料：10/15 開放後同一把武器還是先推舊地區拿得�
     const plan = gearPlan(gear, 210, 45, false);
     expect(plan.best?.n).toBe("黃色雨傘");
     expect(plan.bestSource).toMatchObject({ kind: "drop", drop: { n: "青螃蟹", lv: 48 } });
+  });
+});
+
+describe("tabsFor：卡片上方的點法切換", () => {
+  it("刺客：一般點法、全幸；暗殺者也有；法師各轉都是全智、裝備法", () => {
+    expect(tabsFor(gear.rules, 410).map(t => t.tab)).toEqual(["一般點法", "全幸"]);
+    expect(tabsFor(gear.rules, 400).map(t => t.tab)).toEqual(["一般點法", "全幸"]);
+    expect(tabsFor(gear.rules, 411).map(t => t.tab)).toEqual(["一般點法", "全幸"]);
+    for (const job of [200, 210, 220, 230, 211, 221, 231]) expect(tabsFor(gear.rules, job).map(t => t.tab)).toEqual(["全智", "裝備法"]);
+  });
+
+  it("俠盜、神偷、劍士、弓箭手、海盜沒有切換", () => {
+    for (const job of [420, 421, 100, 110, 131, 310, 320, 510, 520]) expect(tabsFor(gear.rules, job)).toEqual([]);
+  });
+});
+
+describe("真資料：gearPlan 選了第二套", () => {
+  it("刺客 35 全幸：四格敏 25、幸 162；敏捷靠裝備補 19 到 44，拳套是青銅指虎；空身先點到 31 就能用狼牙；一般點法這級用銀守護拳套", () => {
+    const plan = gearPlan(gear, 410, 35, true, "全幸");
+    expect(plan.rule?.tab).toBe("全幸");
+    expect(plan.targets).toEqual({ STR: 4, DEX: 25, INT: 4, LUK: 162 });
+    expect(plan.kit).toMatchObject({ stat: "DEX", base: 25, total: 19, wear: 44 });
+    expect(plan.kit?.worn.map(k => k.piece.n)).toEqual(["藍色桑那服／紅色桑那服", "破舊的披風", "綠色斗笠", "黏稠稠鞋子"]);
+    expect(plan.kit?.worn[0].source).toMatchObject({ kind: "quest" });
+    expect(plan.best?.n).toBe("青銅指虎");
+    expect(plan.stronger?.n).toBe("狼牙");
+    expect(plan.strongerShort).toEqual([{ stat: "DEX", short: 6 }]);
+    expect(plan.strongerVia).toBeNull();
+    expect(plan.diff).toEqual({ tab: "一般點法", stat: "LUK", delta: 45 });
+    expect(plan.compare).toMatchObject({ tab: "一般點法", weapon: { n: "銀守護拳套" }, need: { stat: "DEX", value: 70 } });
+    expect(plan.others.map(r => r.tab)).toContain("一般點法");
+  });
+
+  it("刺客 35 全幸的衝卷：套服敏捷卷軸、拳套攻擊卷軸，再來披風敏捷卷軸", () => {
+    const plan = gearPlan(gear, 410, 35, true, "全幸");
+    expect(plan.families.slice(0, 3).map(f => `${f.slot}${f.stat}`)).toEqual(["套服敏捷", "拳套攻擊", "披風敏捷"]);
+  });
+
+  it("刺客 25 全幸：披風 +5 後才戴得上斗笠，敏捷 33 → 鋼鐵拳套；桑那服、鞋子 30 等才有", () => {
+    const plan = gearPlan(gear, 410, 25, true, "全幸");
+    expect(plan.kit).toMatchObject({ total: 8, wear: 33 });
+    expect(plan.kit?.later.map(k => k.piece.lv)).toEqual([30, 30]);
+    expect(plan.best?.n).toBe("鋼鐵拳套");
+  });
+
+  it("暗殺者 80 全幸：還是青銅指虎（一般點法是閃電甲）", () => {
+    const plan = gearPlan(gear, 411, 80, false, "全幸");
+    expect(plan.best?.n).toBe("青銅指虎");
+    expect(plan.compare?.weapon.n).toContain("閃電甲");
+  });
+
+  it("火毒巫師 50 裝備法：大魔法師短杖；比全智少 49 智力；全智這級用黃色雨傘；沒有要湊的裝備", () => {
+    const plan = gearPlan(gear, 210, 50, true, "裝備法");
+    expect(plan.best?.n).toBe("大魔法師短杖");
+    expect(plan.targets).toEqual({ STR: 4, DEX: 4, INT: 209, LUK: 53 });
+    expect(plan.diff).toEqual({ tab: "全智", stat: "INT", delta: -49 });
+    expect(plan.compare).toMatchObject({ tab: "全智", weapon: { n: "黃色雨傘" }, need: null });
+    expect(plan.kit).toBeNull();
+  });
+
+  it("魔導士（火毒）70 裝備法：天使之翼", () => {
+    expect(gearPlan(gear, 211, 70, false, "裝備法").best?.n).toBe("天使之翼");
+  });
+
+  it("沒選、選了主推、選了這個職業沒有的標籤：都照主推（diff、compare、kit 都是 null）", () => {
+    for (const tab of [undefined, null, "一般點法", "裝備法"]) {
+      const plan = gearPlan(gear, 410, 35, true, tab);
+      expect(plan.rule?.tab).toBe("一般點法");
+      expect(plan.best?.n).toBe("銀守護拳套");
+      expect(plan.diff).toBeNull();
+      expect(plan.compare).toBeNull();
+      expect(plan.kit).toBeNull();
+    }
+    expect(gearPlan(gear, 420, 35, true, "全幸").rule?.label).toBe("幸運為主，敏捷只點到短刀需求");
   });
 });
