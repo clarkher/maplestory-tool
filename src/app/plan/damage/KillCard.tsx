@@ -8,6 +8,7 @@ import { Sprite } from "@/components/route/bits";
 import { monsterImage } from "@/lib/data";
 import { killLists, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
 import { useVisitState } from "@/lib/visit-state";
+import { Tag } from "./parts";
 
 const CELL = 38;
 const GAP = 6;
@@ -38,10 +39,10 @@ function Section({ title, storeKey, list, beforeOpen, onOpen }: {
   const shown = open ? list : list.slice(0, limit);
   return (
     <div>
-      <h3 className="mb-2 text-[15px] font-black">
+      <h2 className="mb-2 text-[15px] font-black">
         {title}
         <span className="ml-1 text-[13px] font-bold ink-soft">{list.length} 隻</span>
-      </h3>
+      </h2>
       <div ref={ref} className="flex flex-wrap" style={{ gap: GAP }}>
         {list.length === 0 ? <p className="text-[13px] ink-soft">沒有</p> : null}
         {shown.map(entry => (
@@ -55,13 +56,13 @@ function Section({ title, storeKey, list, beforeOpen, onOpen }: {
             style={{ width: CELL, height: CELL }}
           >
             <Sprite src={monsterImage(entry.monster.id)} size={30} />
-            <span className="absolute -bottom-1 right-0 rounded bg-[color:var(--wood-deep)] px-0.5 text-[9px] font-bold leading-tight text-white">Lv.{entry.monster.lv}</span>
-            {entry.v002 && beforeOpen ? <span className="absolute -top-1 left-0 rounded bg-[color:var(--gold)] px-0.5 text-[8px] font-bold leading-tight text-white">10/15</span> : null}
+            <span className="absolute -bottom-1 right-0 rounded bg-[color:var(--ink)] px-0.5 text-[10px] font-bold leading-tight text-[color:var(--paper)]">Lv.{entry.monster.lv}</span>
+            {entry.v002 && beforeOpen ? <span className="absolute -top-1 left-0 rounded bg-[color:var(--gold)] px-0.5 text-[10px] font-bold leading-tight text-[color:var(--on-accent)]">10/15</span> : null}
           </button>
         ))}
       </div>
       {list.length > limit ? (
-        <button type="button" onClick={() => setOpen(value => !value)} className="mt-1.5 text-[13px] font-bold text-[color:var(--sky)]" aria-expanded={open}>
+        <button type="button" onClick={() => setOpen(value => !value)} className="tap-safe mt-1.5 text-[13px] font-bold text-[color:var(--sky)]" aria-expanded={open}>
           {open ? "收起來" : `看全部 ${list.length} 隻`}
         </button>
       ) : null}
@@ -71,10 +72,31 @@ function Section({ title, storeKey, list, beforeOpen, onOpen }: {
 
 function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: string; onClose: () => void; onPick: () => void }) {
   const first = useRef<HTMLButtonElement>(null);
+  const dialog = useRef<HTMLDivElement>(null);
+  // 打開時把焦點放在第一顆按鈕（只做一次，跟 Esc 的監聽拆開，onClose 換了不會把焦點又搶回來）
   useEffect(() => {
     first.current?.focus();
+  }, []);
+  // Esc 關掉；Tab 在小卡裡的三個可聚焦元素（關掉、設成要打的怪、看掉寶）之間繞圈，不跑到後面的頁面
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const items = dialog.current?.querySelectorAll<HTMLElement>("a[href], button:not(:disabled)");
+      if (!items?.length) return;
+      const head = items[0];
+      const tail = items[items.length - 1];
+      const outside = !dialog.current?.contains(document.activeElement);
+      if (event.shiftKey && (document.activeElement === head || outside)) {
+        event.preventDefault();
+        tail.focus();
+      } else if (!event.shiftKey && (document.activeElement === tail || outside)) {
+        event.preventDefault();
+        head.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -83,6 +105,7 @@ function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: strin
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/30" onClick={onClose}>
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-label={`${monster.n} Lv.${monster.lv}`}
@@ -99,14 +122,17 @@ function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: strin
               {monster.n} <span className="text-[13px] ink-soft">Lv.{monster.lv}</span>
             </p>
             <p className="text-[12px] ink-soft">HP {monster.hp.toLocaleString()}・經驗 {monster.exp.toLocaleString()}</p>
-            <p className="text-[12px] font-bold text-[color:var(--leaf)]">最低一次 {entry.minUse.toLocaleString()}，穩穩{kind}</p>
+            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] font-bold text-[color:var(--leaf)]">
+              <span>最低一次 {entry.minUse.toLocaleString()}，穩穩{kind}</span>
+              <Tag level="unverified" />
+            </p>
           </div>
           <button type="button" aria-label="關掉" onClick={onClose} className="grid size-9 place-items-center rounded-full ink-soft">
             <CloseIcon size={18} />
           </button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-1.5">
-          <button ref={first} type="button" onClick={onPick} className="rounded-full bg-[color:var(--maple)] py-2.5 text-[14px] font-bold text-white">設成要打的怪</button>
+          <button ref={first} type="button" onClick={onPick} className="rounded-full bg-[color:var(--maple)] py-2.5 text-[14px] font-bold text-[color:var(--on-accent)]">設成要打的怪</button>
           <Link href={`/db/monsters?id=${monster.id}`} className="rounded-full border border-[color:var(--paper-edge)] py-2.5 text-center text-[14px] font-bold">看掉寶、出沒地點</Link>
         </div>
       </div>
@@ -125,7 +151,7 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
     setSelected(null);
     const element = opener.current;
     opener.current = null;
-    if (element?.isConnected) element.focus();
+    if (element?.isConnected) element.focus({ preventScroll: true });
   }, []);
   const open = (kind: string) => (entry: KillEntry, element: HTMLElement) => {
     opener.current = element;

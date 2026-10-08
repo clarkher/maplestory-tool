@@ -292,7 +292,10 @@ export type GroupResult =
       magicPower: number | null;
       critRate: number | null;
       short: Array<{ stat: StatKey; short: number }>;
+      /** 看細節裡才寫的備註（公式出處、穿透、彈藥沒驗證） */
       notes: string[];
+      /** 影響數字範圍、要在結果卡上直接看到的提醒（沒點精準技能，熟練度只有 10%）；不重複放進 notes */
+      warnings: string[];
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
@@ -312,6 +315,7 @@ type Prepared = {
   critRate: number | null;
   short: Array<{ stat: StatKey; short: number }>;
   notes: string[];
+  warnings: string[];
   at(target: Monster | null): { hit: Range; crit: Range | null };
 };
 
@@ -352,6 +356,11 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const masteryId = masterySkillFor(weapon.s, job);
   const masteryM = masteryId !== null ? rowAt(data.skills.get(masteryId), levelOf(masteryId))?.M : undefined;
   const mastery = masteryM ? masteryM / 100 : NO_MASTERY;
+  // 這把武器有對應的精準技能、但那個技能 0 級：熟練度只有 10%，下限會被壓得很低、範圍很寬——寫在結果卡上（精準技能不存在的一轉、法師不寫）
+  const masteryName = masteryId !== null ? data.skills.get(masteryId)?.n : undefined;
+  const warnings = masteryId !== null && masteryName && levelOf(masteryId) <= 0
+    ? [`沒點${masteryName}，熟練度只有 10%（下限會很低，可在下面「技能等級」改）`]
+    : [];
   const stats = group.stats;
 
   let base: Range | null;
@@ -396,6 +405,7 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     critRate: crit?.rate ?? null,
     short: statShortfall(weapon, stats),
     notes,
+    warnings,
     at(target) {
       const factors: Array<number | "immune"> = [amp];
       if (rule.element && target) factors.push(elementFactor(rule.element, target.el));

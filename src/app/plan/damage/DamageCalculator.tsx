@@ -114,7 +114,7 @@ export function DamageCalculator() {
     return savedState ?? defaultState(data, job, startLevel, buildTab);
   }, [pendingJob, data, job, savedState, startLevel, buildTab]);
 
-  // 怪物選單、打的怪、兩組的結果：每次按 −／＋ 都會重畫，不重算（選單要重排上千隻怪，兩組要各算一遍）
+  // 怪物選單、打的怪、兩組的結果：每次按 −／＋ 都會重畫，不重算（選單要重排一百多隻怪，兩組要各算一遍）
   const choices = useMemo(() => (base ? monsterChoices(base.monsters, base.maps) : []), [base]);
   const target = useMemo(
     () => (data && state && state.shared.monsterId !== null ? data.monsters.find(monster => monster.id === state.shared.monsterId) ?? null : null),

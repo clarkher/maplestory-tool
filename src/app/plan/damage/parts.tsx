@@ -2,9 +2,10 @@
 
 import { Fragment, memo, useId, useMemo, useRef, useState, type InputHTMLAttributes, type KeyboardEvent } from "react";
 import { ChoiceGroup } from "@/components/ChoiceGroup";
+import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, clampLevel, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { ammoChoices, clampLevel, defaultAmmo, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
 import type { Range } from "@/lib/damage";
 import { gearPlan, tabsFor, STAT_ORDER, STAT_WORD, shortText } from "@/lib/gear-view";
@@ -35,10 +36,10 @@ function TrustMark({ level }: { level: Trust }) {
   return <span className={`block text-[11px] font-bold ${tone}`}>{text}</span>;
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-2 border-b border-[color:var(--paper-edge)] py-2 last:border-0">
-      <span className="shrink-0 text-[13px] font-bold ink-soft">{label}</span>
+      <span className="flex shrink-0 items-center gap-1.5 text-[13px] font-bold ink-soft">{label}</span>
       <span className="flex min-w-0 items-center justify-end gap-1.5">{children}</span>
     </div>
   );
@@ -46,6 +47,19 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 
 const SELECT = "min-w-0 max-w-[60vw] truncate rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-2 py-1.5 text-[14px] font-bold sm:max-w-none";
 const SUMMARY = "cursor-pointer py-1.5 text-[13px] font-bold text-[color:var(--sky)]";
+
+/**
+ * 展開的標題列：不用瀏覽器原生的三角形（站上禁用那一類字元），改放站上的 ChevronDown，展開時轉 180 度
+ * （跟練功排行「看全部怪與小地圖」同一個做法）。open 由外面的 details 狀態傳進來。
+ */
+function Summary({ open, className, children }: { open: boolean; className: string; children: React.ReactNode }) {
+  return (
+    <summary className={`${className} flex list-none items-center gap-1 [&::-webkit-details-marker]:hidden [&::marker]:content-none`}>
+      {children}
+      <ChevronDown size={16} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+    </summary>
+  );
+}
 
 /**
  * 數字欄：打字時先放在草稿裡（打到一半的 3 不會馬上被拉成 4，才打得出 35），
@@ -79,8 +93,8 @@ function DraftNumber({ value, min, max, onCommit, ...rest }: {
 }
 
 /**
- * 怪物選單的選項：一千多個 option，包成 memo——按 −／＋ 時整張卡重畫，選項不用跟著一個一個比對
- * （props 沒變就整串跳過，是這頁重畫最大的一筆）。
+ * 怪物選單的選項：一百多個 option（monsters.json 約 125 隻），包成 memo——按 −／＋ 時整張卡重畫，選項不用跟著一個一個比對
+ * （props 沒變就整串跳過）。
  */
 const MonsterOptions = memo(function MonsterOptions({ choices, beforeOpen }: { choices: MonsterChoice[]; beforeOpen: boolean }) {
   return (
@@ -215,6 +229,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
                     {bits.map((bit, at) => <Fragment key={at}>{at ? "・" : null}{bit}</Fragment>)}
                   </p>
                 ) : null}
+                {result.warnings.map(warning => (
+                  <p key={warning} className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{warning}</p>
+                ))}
               </>
             ) : (
               <p className="text-[12px] ink-soft">{result.reason}</p>
@@ -224,7 +241,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
       })}
       {sameGroups(state.groups) ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[13px]">兩組一樣，改下面右組的設定來比</p> : diff ? <p className="rounded-lg bg-[color:var(--leaf-wash)] px-2.5 py-1.5 text-[13px] font-bold">{diff}</p> : null}
       <details open={detailsOpen} onToggle={event => setDetailsOpen(event.currentTarget.open)}>
-        <summary className={SUMMARY}>看細節</summary>
+        <Summary open={detailsOpen} className={SUMMARY}>看細節</Summary>
         <Details labels={labels} results={results} target={target} />
       </details>
     </section>
@@ -234,7 +251,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
 function Details({ labels, results, target }: { labels: [string, string]; results: readonly [GroupResult, GroupResult]; target: Monster | null }) {
   const cell = (result: GroupResult, pick: (ok: Extract<GroupResult, { ok: true }>) => string | null) => (result.ok ? pick(result) ?? "—" : "—");
   // 每一列都標這個數字是哪一級可信度（能力視窗、總攻擊是客戶端算式；魔攻、木樁一下是舊版公式；爆擊、打怪、命中沒驗證）
-  const rows: Array<[string, (ok: Extract<GroupResult, { ok: true }>) => string | null, Trust]> = [
+  const rows: Array<[string, (ok: Extract<GroupResult, { ok: true }>) => string | null, Trust, string?]> = [
     ["能力視窗攻擊力", ok => (ok.panel ? fmt(ok.panel) : null), "client"],
     ["魔攻", ok => (ok.magicPower !== null ? String(ok.magicPower) : null), "legacy"],
     ["總攻擊", ok => (ok.magic ? null : String(ok.attack)), "client"],
@@ -246,7 +263,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
       [`打${target.n}每一下`, ok => (ok.vs ? fmt(ok.vs.hit) : null), "unverified"],
       [`打${target.n}爆擊`, ok => (ok.vs?.crit ? fmt(ok.vs.crit.hit) : null), "unverified"],
       ["幾次打死", ok => (ok.vs ? `約 ${ok.vs.kills.avg}（最快 ${ok.vs.kills.fastest}、最慢 ${ok.vs.kills.slowest}）` : null), "unverified"],
-      ["要不 miss，命中要", ok => (ok.vs?.accuracy ? String(ok.vs.accuracy) : null), "unverified"],
+      ["要不 miss，命中要", ok => (ok.vs?.accuracy ? String(ok.vs.accuracy) : null), "unverified", "看能力視窗的命中率"],
     );
   }
   const visible = rows.filter(([, pick]) => results.some(result => result.ok && pick(result) !== null));
@@ -260,11 +277,12 @@ function Details({ labels, results, target }: { labels: [string, string]; result
           </tr>
         </thead>
         <tbody>
-          {visible.map(([label, pick, level]) => (
+          {visible.map(([label, pick, level, hint]) => (
             <tr key={label} className="border-t border-[color:var(--paper-edge)]">
               <th scope="row" className="py-1.5 pr-1 text-left text-[12px] font-bold ink-soft">
                 {label}
                 <TrustMark level={level} />
+                {hint ? <span className="block text-[11px] font-normal ink-faint">{hint}</span> : null}
               </th>
               {results.map((result, index) => <td key={index} className="py-1.5 text-right font-bold tabular-nums">{cell(result, pick)}</td>)}
             </tr>
@@ -374,7 +392,7 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
             tabIndex={active === index ? 0 : -1}
             onClick={() => onActive(index as 0 | 1)}
             onKeyDown={event => onTabKey(event, index)}
-            className={`rounded-full py-1.5 text-[13px] ${active === index ? "font-black text-white" : "font-bold ink-soft"}`}
+            className={`rounded-full py-1.5 text-[13px] ${active === index ? "font-black text-[color:var(--on-accent)]" : "font-bold ink-soft"}`}
             style={active === index ? { background: `var(--${TONES[index]})` } : undefined}
           >
             {label}
@@ -398,7 +416,9 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
           <select aria-label="武器" className={SELECT} value={group.weaponId ?? ""} onChange={event => {
             const next = data.gear.weapons.find(entry => entry.id === Number(event.target.value));
             const nextAmmo = next ? ammoChoices(data.gear.ammo ?? [], next.s) : [];
-            set({ weaponId: next?.id ?? null, ammoId: nextAmmo.some(entry => entry.id === group.ammoId) ? group.ammoId : nextAmmo[0]?.id ?? null });
+            // 同一種彈藥還能用就留著；換了種類（弓換弩）就用預設：商店買得到、攻擊最高那種
+            const keep = nextAmmo.some(entry => entry.id === group.ammoId);
+            set({ weaponId: next?.id ?? null, ammoId: keep ? group.ammoId : next ? defaultAmmo(data.gear.ammo ?? [], next.s, group.level, data.beforeOpen)?.id ?? null : null });
           }}>
             {group.weaponId === null ? <option value="" disabled>選武器</option> : null}
             {weapons.map(entry => <option key={entry.id} value={entry.id}>{`Lv.${entry.lv} ${entry.n}（${magic ? `魔攻 ${entry.mag ?? 0}` : `攻擊 ${entry.atk ?? 0}`}）${entry.o && data.beforeOpen ? "（10/15 開放）" : ""}`}</option>)}
@@ -408,10 +428,10 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
           <p className="my-1 rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">穿不上：{shortText(result.short)}（照樣算）</p>
         ) : null}
         {ammo.length ? (
-          <Row label={ammo[0].kind}>
+          <Row label={<span className="flex flex-col items-start gap-0.5">{ammo[0].kind}{ammo[0].kind === "飛鏢" ? null : <span className="rounded-full bg-[color:var(--gold-wash)] px-1.5 py-0.5 text-[11px] font-bold leading-tight text-[color:var(--gold)]">台服沒驗證</span>}</span>}>
             {group.ammoId ? <Sprite src={itemImage(group.ammoId)} size={22} /> : null}
             <select aria-label={ammo[0].kind} className={SELECT} value={group.ammoId ?? ""} onChange={event => set({ ammoId: Number(event.target.value) })}>
-              {ammo.map(entry => <option key={entry.id} value={entry.id}>{`${entry.n}（攻擊 +${entry.atk}）`}</option>)}
+              {ammo.map(entry => <option key={entry.id} value={entry.id}>{`${entry.n}（攻擊 +${entry.atk}）${entry.o && data.beforeOpen ? "（10/15 開放）" : ""}`}</option>)}
             </select>
           </Row>
         ) : null}
@@ -445,7 +465,7 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
           </div>
         ) : null}
         <details className="pt-1" open={levelsOpen} onToggle={event => setLevelsOpen(event.currentTarget.open)}>
-          <summary className={SUMMARY}>技能等級（預設照主流技能點法）</summary>
+          <Summary open={levelsOpen} className={SUMMARY}>技能等級（預設照主流技能點法）</Summary>
           {masteryId !== null ? <LevelSelect label={data.skills.get(masteryId)?.n ?? "精準"} id={masteryId} data={data} group={group} onChange={levels => set({ levels })} /> : null}
           {critId !== null && inLine(critId) ? <LevelSelect label={data.skills.get(critId)?.n ?? "爆擊"} id={critId} data={data} group={group} onChange={levels => set({ levels })} /> : null}
           {ampId !== undefined ? <LevelSelect label={data.skills.get(ampId)?.n ?? "魔力激發"} id={ampId} data={data} group={group} onChange={levels => set({ levels })} /> : null}
@@ -464,7 +484,7 @@ export function HowCard({ data, job, level }: { data: CalcData; job: number; lev
   const guided = useMemo(() => skillLevelsAt(job, level, data.guides, data.skills).guided, [job, level, data.guides, data.skills]);
   return (
     <details className="rounded-[var(--radius-card)] glass wood-frame p-3.5" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer py-1.5 text-[15px] font-black">怎麼算的</summary>
+      <Summary open={open} className="cursor-pointer py-1.5 text-[15px] font-black">怎麼算的</Summary>
       <div className="mt-2 space-y-2 text-[13px] leading-relaxed">
         <p><Tag level="client" /> 能力視窗攻擊力：依客戶端計算式整理的公式，還沒跟台服遊戲畫面逐筆對過。</p>
         <p><Tag level="legacy" /> 技能倍率（雙飛斬、魔法、龍咆哮、強弓…）：舊版公式，楓錄、楓憶跟舊版公式彙整寫法一致。</p>

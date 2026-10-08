@@ -173,7 +173,7 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
           <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
       ) : null}
-      <Link href="/plan/damage" className="flex items-center justify-center gap-0.5 pt-0.5 text-[13px] font-bold text-[color:var(--sky)] hover:underline">
+      <Link href="/plan/damage" className="tap-safe flex items-center justify-center gap-0.5 pt-0.5 text-[13px] font-bold text-[color:var(--sky)] hover:underline">
         算算看打怪多痛
         <ChevronRight size={14} />
       </Link>
