@@ -423,8 +423,18 @@ describe("tabsFor：卡片上方的點法切換", () => {
     for (const job of [200, 210, 220, 230, 211, 221, 231]) expect(tabsFor(gear.rules, job).map(t => t.tab)).toEqual(["全智", "裝備法"]);
   });
 
-  it("俠盜、神偷、劍士、弓箭手、海盜沒有切換", () => {
-    for (const job of [420, 421, 100, 110, 131, 310, 320, 510, 520]) expect(tabsFor(gear.rules, job)).toEqual([]);
+  it("俠盜、神偷也有一般點法、全幸（2026-10-08 使用者：照刺客的做法加）", () => {
+    for (const job of [420, 421]) expect(tabsFor(gear.rules, job).map(t => t.tab)).toEqual(["一般點法", "全幸"]);
+  });
+
+  it("劍士、弓箭手、海盜沒有切換", () => {
+    for (const job of [100, 110, 131, 310, 320, 510, 520]) expect(tabsFor(gear.rules, job)).toEqual([]);
+  });
+
+  it("每個標籤都有點法按鈕下那行白話說明（tabText）", () => {
+    for (const job of [400, 410, 411, 420, 421, 200, 210, 211, 231]) {
+      for (const { tab, rule } of tabsFor(gear.rules, job)) expect(rule.tabText, `${job} ${tab}`).toBeTruthy();
+    }
   });
 });
 
@@ -493,12 +503,34 @@ describe("真資料：gearPlan 選了第二套", () => {
     expect(gearPlan(gear, 211, 70, false, "裝備法").best?.n).toBe("天使之翼");
   });
 
-  it("火毒巫師選裝備法：玩家提醒・能力值有洗點（寫明要花真錢）跟不洗點兩條；全智不出現", () => {
+  it("火毒巫師：玩家提醒・能力值有洗點（寫明要花真錢）跟不洗點兩條，全智、裝備法兩頁都看得到", () => {
     const stat = (tab?: string) => gearPlan(gear, 210, 50, true, tab).notes.find(group => group.topic === "stat")?.notes.map(n => n.t) ?? [];
-    expect(stat("裝備法").filter(t => t.startsWith("全智轉裝備法"))).toHaveLength(2);
-    expect(stat("裝備法").some(t => t.includes("洗點") && t.includes("真錢"))).toBe(true);
-    expect(stat("裝備法").some(t => t.includes("不洗點"))).toBe(true);
-    expect(stat().some(t => t.startsWith("全智轉裝備法"))).toBe(false);
+    for (const tab of ["裝備法", undefined]) {
+      expect(stat(tab).filter(t => t.startsWith("全智轉裝備法"))).toHaveLength(2);
+      expect(stat(tab).some(t => t.includes("洗點") && t.includes("真錢"))).toBe(true);
+      expect(stat(tab).some(t => t.includes("不洗點"))).toBe(true);
+    }
+  });
+
+  it("俠盜 35 全幸（舊版經驗）：敏捷 25＋裝備 19＝44 → 飛影刃；空身先點到 36 就能用雙枝短刀；一般點法這級用暗影刃（要敏捷 70）", () => {
+    const plan = gearPlan(gear, 420, 35, true, "全幸");
+    expect(plan.rule?.tab).toBe("全幸");
+    expect(plan.rule?.v).toBe("legacy");
+    expect(plan.rule?.weapons).toEqual(["短刀"]);
+    expect(plan.kit).toMatchObject({ stat: "DEX", base: 25, total: 19, wear: 44 });
+    expect(plan.best?.n).toBe("飛影刃");
+    expect(plan.stronger?.n).toBe("雙枝短刀");
+    expect(plan.strongerShort).toEqual([{ stat: "DEX", short: 11 }]);
+    expect(plan.compare).toMatchObject({ tab: "一般點法", weapon: { n: "暗影刃" }, need: { stat: "DEX", value: 70 } });
+    expect(plan.families[0]).toMatchObject({ slot: "套服", stat: "敏捷" });
+    expect(plan.families.some(f => f.slot === "短刀" && f.stat === "攻擊")).toBe(true);
+  });
+
+  it("神偷 80 全幸：三轉也有全幸、要湊的裝備同一份", () => {
+    const plan = gearPlan(gear, 421, 80, false, "全幸");
+    expect(plan.rule?.tab).toBe("全幸");
+    expect(plan.kit?.wear).toBe(44);
+    expect(plan.best?.s).toBe("短刀");
   });
 
   it("沒選、選了主推、選了這個職業沒有的標籤：都照主推（diff、compare、kit 都是 null）", () => {
@@ -510,7 +542,8 @@ describe("真資料：gearPlan 選了第二套", () => {
       expect(plan.compare).toBeNull();
       expect(plan.kit).toBeNull();
     }
-    expect(gearPlan(gear, 420, 35, true, "全幸").rule?.label).toBe("幸運為主，敏捷只點到短刀需求");
+    expect(gearPlan(gear, 420, 35, true, "裝備法").rule?.label).toBe("幸運為主，敏捷只點到短刀需求");
+    expect(gearPlan(gear, 110, 35, true, "全幸").rule?.tab).toBeUndefined();
   });
 
   it("綠色斗笠只有〈第一次同行〉（21 到 30 等）能拿：35 等任務已經接不到，還是寫去哪拿、並標 30 等以後接不到；桑那服的任務沒有上限不標", () => {

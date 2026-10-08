@@ -466,3 +466,12 @@ test("convertStatRules：研究檔寫了 tab 就帶過去", () => {
   const [rule] = convertStatRules([{ jobs: [410], label: "全幸", main: "LUK", secondary: null, tab: "全幸", text: "x", sources: [], verified: "tw" }]);
   assert.equal(rule.tab, "全幸");
 });
+
+test("convertStatRules：研究檔寫了 tabText（點法按鈕下那行白話說明）就帶過去，沒寫就沒有這個欄位", () => {
+  const [withText, without] = convertStatRules([
+    { jobs: [410], label: "全幸", main: "LUK", secondary: null, tab: "全幸", tabText: "前期打得比較痛，但敏捷要靠裝備湊", text: "x", sources: [], verified: "tw" },
+    { jobs: [410], label: "一般", main: "LUK", secondary: null, tab: "一般點法", text: "x", sources: [], verified: "tw" },
+  ]);
+  assert.equal(withText.tabText, "前期打得比較痛，但敏捷要靠裝備湊");
+  assert.equal("tabText" in without, false);
+});
