@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { GoButton } from "@/components/PlanShell";
+import { useBuildChoice } from "@/lib/build-choice";
 import { itemImage, loadGear, mapName, monsterImage, peekGear, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { isMagicJob, type GearData } from "@/lib/gear";
@@ -433,11 +434,13 @@ function PqLink({ pqKey, common, text }: { pqKey: string; common: GuideCommon; t
 /**
  * 這一段該拿的武器（幾等換哪把、去哪拿）跟武器卷、手套攻擊卷（2026-10-07 使用者：「升級路線每一段也列裝備跟卷」）。
  * 算法在 lib/gear-view.ts 的 bandGear；裝備資料跟首頁「能力值與裝備」卡共用（loadGear 只載一次）。載不到就不顯示這塊。
+ * 卡片上方選了第二套點法（全幸、裝備法）就照那套算（2026-10-08 使用者），跟卡片讀同一份選擇（lib/build-choice）。
  */
 function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Record<string, MapRecord> }) {
   // 這次瀏覽載過就直接拿：換頁回首頁時展開的那一段不會晚一格才冒出裝備
   const [gear, setGear] = useState<GearData | null>(peekGear);
   const beforeOpen = useBeforeV002();
+  const [tab] = useBuildChoice(job);
   useEffect(() => {
     let cancelled = false;
     loadGear()
@@ -451,7 +454,7 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
   }, []);
   // 一段是 from 到 to 前一級（下一段從 to 開始）；最後一段（100–120）含上限那一級
   const last = band.to >= LEVEL_CAP ? band.to : band.to - 1;
-  const plan = useMemo(() => (gear ? bandGear(gear, job, band.from, last, beforeOpen) : null), [gear, job, band.from, last, beforeOpen]);
+  const plan = useMemo(() => (gear ? bandGear(gear, job, band.from, last, beforeOpen, tab) : null), [gear, job, band.from, last, beforeOpen, tab]);
   if (!plan || (!plan.weapons.length && !plan.families.length)) return null;
   const magic = isMagicJob(job);
   const label = (id: number) => mapName(maps, id);
