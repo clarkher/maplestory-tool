@@ -6,7 +6,7 @@ import { FilterTag } from "@/components/FilterTag";
 import { ChevronDown, ChevronRight, RouteIcon } from "@/components/Icons";
 import { useBuildChoice } from "@/lib/build-choice";
 import { itemImage, loadGear, mapName, peekGear } from "@/lib/data";
-import type { GearData, GearKit, GearWeapon, StatKey } from "@/lib/gear";
+import type { GearData, GearWeapon, StatKey } from "@/lib/gear";
 import {
   STAT_ORDER,
   STAT_SHORT,
@@ -23,6 +23,7 @@ import {
   weaponStatParts,
   type GearFamily,
   type GearPlan,
+  type KitEntry,
   type SourcePick,
 } from "@/lib/gear-view";
 import { jobOption } from "@/lib/jobs";
@@ -145,7 +146,7 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
       <TabRow plan={plan} onPick={setChosen} />
       <StatBlock plan={plan} job={job} />
       <WeaponBlock plan={plan} where={where} />
-      {plan.kit ? <KitBlock plan={plan} where={where} /> : null}
+      {plan.kit ? <KitBlock plan={plan} level={level} where={where} /> : null}
       {families.length ? (
         <Block label="衝卷" tag={<SourceTag kind="data" />}>
           {/* 法師拿雨傘：雨傘的卷軸只加物理攻擊，沒有加魔力的，先講清楚為什麼這裡沒有武器卷 */}
@@ -290,7 +291,10 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
           ) : stronger && plan.strongerVia ? (
             // 主流點法那項永遠是 4（全智的幸運），講「還差 74」是叫人補補不到的點數；改講換哪套點法就能用
             <WeaponLine weapon={stronger}>
-              {plan.strongerVia.tab ? `點上面「${plan.strongerVia.tab}」就能用` : `改用另一種點法「${plan.strongerVia.label}」就能用`} <NameLink weapon={stronger} />
+              {plan.strongerVia.tab && plan.tabs.some(entry => entry.rule === plan.strongerVia)
+                ? `點上面「${plan.strongerVia.tab}」就能用`
+                : `改用另一種點法「${plan.strongerVia.label}」就能用`}{" "}
+              <NameLink weapon={stronger} />
               <span className="whitespace-nowrap">（{offenseText(stronger, magic)}）</span>
             </WeaponLine>
           ) : stronger ? (
@@ -323,10 +327,10 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
 }
 
 /** 全幸要湊的敏捷裝：每件加幾點、去哪拿、要衝什麼卷、要先有多少能力值；等級還沒到的排後面變淡 */
-function KitBlock({ plan, where }: { plan: GearPlan; where: Where }) {
+function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where: Where }) {
   const kit = plan.kit!;
   const word = STAT_WORD[kit.stat];
-  const row = ({ piece, source }: { piece: GearKit; source: SourcePick | null }, later: boolean) => (
+  const row = ({ piece, source, closedAfter }: KitEntry, later: boolean) => (
     <li key={piece.ids[0]} className={`flex gap-2.5 ${later ? "opacity-60" : ""}`}>
       <ItemBox id={piece.ids[0]} size={36} />
       <div className="min-w-0 flex-1">
@@ -345,6 +349,14 @@ function KitBlock({ plan, where }: { plan: GearPlan; where: Where }) {
           />
         ) : null}
         <SourceLine pick={source} where={where} />
+        {/* 有等級上限的任務（綠色斗笠 30 等）：過了就接不到，這件算進去的敏捷要自己看著辦；沒過要先接 */}
+        {closedAfter !== undefined ? (
+          <p className="mt-0.5 text-[12px] leading-snug ink-soft">
+            {level > closedAfter
+              ? `這個任務 ${closedAfter} 等以後接不到，沒拿到的話${word}少 ${piece.v}`
+              : `這個任務 ${closedAfter} 等以後就接不到，要先接`}
+          </p>
+        ) : null}
       </div>
     </li>
   );

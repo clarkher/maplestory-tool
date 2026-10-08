@@ -207,6 +207,12 @@ export function tabsFor(rules: StatRule[], job: number): Array<{ tab: string; ru
 
 export type GearFamily = { slot: string; stat: string; options: GearScroll[]; pick: GearScroll; source: SourcePick | null };
 
+/**
+ * 要湊的裝備的一件：source 是去哪拿；closedAfter 只在拿法是有等級上限的任務時有，
+ * 值是那個任務的最高等級（綠色斗笠的〈第一次同行〉30 等以後就接不到），畫面據此提醒要先接、或已經接不到。
+ */
+export type KitEntry = { piece: GearKit; source: SourcePick | null; closedAfter?: number };
+
 export type GearPlan = {
   magic: boolean;
   rule: StatRule | null;
@@ -226,12 +232,12 @@ export type GearPlan = {
     base: number;
     wear: number;
     total: number;
-    worn: Array<{ piece: GearKit; source: SourcePick | null }>;
-    later: Array<{ piece: GearKit; source: SourcePick | null }>;
+    worn: KitEntry[];
+    later: KitEntry[];
   } | null;
-  /** 選了第二套才有：這套的主屬性比主推（tab 是主推的標籤）多／少幾點 */
+  /** 選了第二套才有：這套的主屬性比主推（tab 是主推的標籤）多／少幾點；兩套一樣多（差 0）就是 null */
   diff: { tab: string; stat: StatKey; delta: number } | null;
-  /** 選了第二套、主推這級用的武器跟現在不同才有；need＝要湊裝備的點法穿不上那把時，那把還要的副屬性 */
+  /** 選了第二套、主推這級用的武器跟現在用的、跟「再強一點」那把都不同才有；need＝要湊裝備的點法穿不上那把時，那把還要的副屬性 */
   compare: { tab: string; weapon: GearWeapon; need: { stat: StatKey; value: number } | null } | null;
   best: GearWeapon | null;
   bestSource: SourcePick | null;
@@ -317,7 +323,17 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
   const wearNow = wearAt ? wearAt(level) : null;
 
   const kitNow = rule?.kit?.length && targets ? kitStats(rule.kit, level, targets, beforeOpen) : null;
-  const kitPick = (piece: GearKit) => ({ piece, source: closestSource(piece.src, level, job) });
+  // 任務過了等級上限（綠色斗笠 31 等起接不到）還是算穿上的，不能只剩一件沒有出處的裝備：
+  // 現在的等級沒有來源時，退到「剛好穿得上它的等級」，再不行退到任務本身的最低等級，照樣寫去哪拿
+  const kitPick = (piece: GearKit): KitEntry => {
+    const questFloor = Math.min(...(piece.src.quests ?? []).map(quest => quest.minLv ?? 1));
+    const source =
+      closestSource(piece.src, level, job) ??
+      closestSource(piece.src, piece.lv, job) ??
+      (Number.isFinite(questFloor) ? closestSource(piece.src, questFloor, job) : null);
+    const closedAfter = source?.kind === "quest" ? source.quest.maxLv : undefined;
+    return closedAfter === undefined ? { piece, source } : { piece, source, closedAfter };
+  };
   const kit =
     kitNow && targets && rule
       ? {
@@ -338,9 +354,12 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
   let compare: GearPlan["compare"] = null;
   if (chosen && found.main?.tab && targets) {
     const mainAt = targetsAtFor(gear, job, found.main, beforeOpen)!;
-    diff = { tab: found.main.tab, stat: chosen.main, delta: targets[chosen.main] - mainAt(level)[chosen.main] };
+    const delta = targets[chosen.main] - mainAt(level)[chosen.main];
+    // 兩套點到一樣多（盜賊 10 到 14 等全幸的幸運）就不寫「多 0 點」
+    if (delta !== 0) diff = { tab: found.main.tab, stat: chosen.main, delta };
     const mainBest = weaponPicks(gear.weapons, job, level, { targetsAt: mainAt, beforeOpen, types: found.main.weapons }).best;
-    if (mainBest && mainBest.id !== picks.best?.id) {
+    // 主推這級用的跟現在選的這套用的、或這套的「再強一點」是同一把，就不再講第二次
+    if (mainBest && mainBest.id !== picks.best?.id && mainBest.id !== stronger?.id) {
       const short = wearNow ? statShortfall(mainBest, wearNow)[0] : undefined;
       compare = { tab: found.main.tab, weapon: mainBest, need: kit && short ? { stat: short.stat, value: mainBest.req![short.stat]! } : null };
     }
