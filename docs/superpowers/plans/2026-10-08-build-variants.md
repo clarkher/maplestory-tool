@@ -623,6 +623,83 @@ git commit -m "v0.72 (3/4): 能力值與裝備卡的組裝可以切第二套點�
 
 ---
 
+### Task 3b：法師「裝備法」頁的轉換提醒（洗點／不洗點）
+
+使用者 2026-10-08 追加：「都加 洗點不洗點都加 要跟用戶說清楚洗點要多花真錢」。只在選了「裝備法」時，「看全部」的玩家提醒・能力值多兩條；全智那頁不出現。
+
+**Files:**
+- Modify: `data/guides/gear.json`（gearNotes 加兩條，帶 `"tab": "裝備法"`）
+- Modify: `pipeline/lib/gear.mjs`（`convertNotes` 帶 tab）＋ `pipeline/lib/gear.test.mjs`
+- Modify: `src/lib/gear.ts`（`GearNote` 加 `tab?: string`）
+- Modify: `src/lib/gear-view.ts`（`notesFor(notes, job, tab?)`；`gearPlan` 傳 `rule?.tab`）＋ `src/lib/__tests__/gear-view.test.ts`
+- Regenerate: `public/data/gear.json`
+
+**Interfaces:**
+- Produces：`notesFor(notes: GearNote[], job: number, tab?: string)`：有寫 tab 的提醒只在那套點法出現；沒寫的照舊。
+
+- [ ] **Step 1：寫失敗的測試**
+
+`pipeline/lib/gear.test.mjs` 加：
+```js
+test("convertNotes：研究檔寫了 tab 就帶過去（只在那套點法出現的提醒）", () => {
+  const [note] = convertNotes([{ jobs: [210], topic: "stat", tab: "裝備法", text: "x", sources: [], verified: "tw" }]);
+  assert.equal(note.tab, "裝備法");
+});
+```
+`src/lib/__tests__/gear-view.test.ts` 的 notesFor 區加：
+```ts
+  it("寫了 tab 的提醒只在選了那套點法時出現", () => {
+    const tabbed = [note({ jobs: [210], topic: "stat", t: "轉換", tab: "裝備法" }), note({ jobs: [210], topic: "stat", t: "共通" })];
+    expect(notesFor(tabbed, 210).flatMap(group => group.notes.map(n => n.t))).toEqual(["共通"]);
+    expect(notesFor(tabbed, 210, "裝備法").flatMap(group => group.notes.map(n => n.t))).toEqual(["轉換", "共通"]);
+  });
+```
+真資料區加：
+```ts
+  it("火毒巫師選裝備法：玩家提醒・能力值有洗點（寫明要花真錢）跟不洗點兩條；全智不出現", () => {
+    const stat = (tab?: string) => gearPlan(gear, 210, 50, true, tab).notes.find(group => group.topic === "stat")?.notes.map(n => n.t) ?? [];
+    expect(stat("裝備法").filter(t => t.startsWith("全智轉裝備法"))).toHaveLength(2);
+    expect(stat("裝備法").some(t => t.includes("洗點") && t.includes("真錢"))).toBe(true);
+    expect(stat("裝備法").some(t => t.includes("不洗點"))).toBe(true);
+    expect(stat().some(t => t.startsWith("全智轉裝備法"))).toBe(false);
+  });
+```
+
+- [ ] **Step 2：跑測試確認失敗**（`node --test pipeline/lib/gear.test.mjs`、`node ../../../node_modules/vitest/vitest.mjs run src/lib/__tests__/gear-view.test.ts`）
+
+- [ ] **Step 3：實作**
+- `convertNotes`：物件加 `...(note.tab ? { tab: note.tab } : {})`。
+- `GearNote` 型別加 `/** 只在這套點法出現（「裝備法」的轉換提醒）；沒寫就每套都出現 */ tab?: string;`。
+- `notesFor(notes, job, tab?: string)`：`found` 的篩選加 `&& (!entry.tab || entry.tab === tab)`；函式註解補一句。
+- `gearPlan` 回傳的 `notes: notesFor(gear.notes, job, rule?.tab)`。
+
+- [ ] **Step 4：研究檔 gearNotes 加兩條**（放在「經典版不能卡裝」那條前面）
+
+```json
+    {
+      "jobs": [200, 210, 211, 220, 221, 230, 231],
+      "topic": "stat",
+      "tab": "裝備法",
+      "text": "全智轉裝備法・洗點（要花真錢）：用商城的「能力點數重配捲軸」，一張把 1 點智力退回來改點幸運，要儲值真錢買（巴哈玩家說洗 1 點約 20 台幣）。要洗的張數大約是「等級－1」（幸運從 4 補到等級＋3）：40 等約 39 張，照玩家說的價錢約 780 台幣；先穿幸運裝備（褐色斗笠＋3 等）可以少洗幾張。有錢 20 幾等就能轉，但要穿上法杖跟法師裝，傷害才會上來。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=345", "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288"],
+      "verified": "tw"
+    },
+    {
+      "jobs": [200, 210, 211, 220, 221, 230, 231],
+      "topic": "stat",
+      "tab": "裝備法",
+      "text": "全智轉裝備法・不洗點（不花錢）：之後升級的點全點幸運就好。例如 40 等開始全點幸運，50 等幸運 54，就穿得上 48 等的大魔法師短杖（要幸運 50）；補到之前繼續拿黃色雨傘。也有人到 55～60 等才改，不刻意花錢洗。",
+      "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"],
+      "verified": "tw"
+    },
+```
+
+- [ ] **Step 5：跑測試、重建 gear.json**（`node pipeline/build-gear.mjs`；diff 只准 notes、builtAt 變）
+
+- [ ] **Step 6：Commit** — 主旨 `v0.72 (3b/4): 法師裝備法頁加「全智怎麼轉裝備法」——洗點要花真錢、不洗點慢慢補`
+
+---
+
 ### Task 4：記住選擇＋卡片畫面＋README
 
 **Files:**
@@ -833,7 +910,7 @@ function KitBlock({ plan, where }: { plan: GearPlan; where: Where }) {
 
 - [ ] **Step 5：README**
 
-`README.md` 「能力值與裝備」那條句尾補：「盜賊（刺客這條）跟法師在卡片上方可以切第二套點法（全幸、裝備法）：能力值、武器、衝卷照那套算，全幸另外列要湊的敏捷裝備；選了會記住（每個系別一份），升級路線照主推。」
+`README.md` 「能力值與裝備」那條句尾補：「盜賊（刺客這條）跟法師在卡片上方可以切第二套點法（全幸、裝備法）：能力值、武器、衝卷照那套算，全幸另外列要湊的敏捷裝備；選了會記住（每個系別一份），升級路線照主推。法師選裝備法時，「看全部」的玩家提醒多「全智怎麼轉裝備法」：洗點（商城道具，要花真錢）跟不洗點兩種。」
 
 - [ ] **Step 6：跑全部測試、型別**
 
