@@ -320,7 +320,7 @@ describe("期望、幾下打死、差幾 %、命中", () => {
   });
   it("差幾 %：四捨五入；差不到 0.5% 是 0", () => {
     expect(diffPercent(611.8, 591.6)).toBe(3);
-    expect(diffPercent(100, 100.4)).toBe(0);
+    expect(diffPercent(100.4, 100)).toBe(0);
   });
   it("必中命中：迴避×(3.68＋0.14×等級差) 無條件進位", () => {
     expect(sureHitAccuracy(50, { lv: 50, eva: 18 })).toBe(Math.ceil(18 * 3.68));
