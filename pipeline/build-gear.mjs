@@ -9,6 +9,7 @@
  *
  * 輸出：
  *   public/data/gear.json  武器、卷軸（含來源）、能力值規則、轉職前配點、攻略筆記
+ *                          rules 的 tab（切換標籤字）照研究檔帶；kit（要湊的裝備）由 buildKit 從遊戲資料換算
  *
  * 研究檔是另一個 Task 平行在做的，這支腳本不能假設它存在：缺檔或缺欄位時 rules／notes 給空陣列、
  * before 不給，照樣把武器／卷軸（遊戲資料算得出來的部分）建出來，不能失敗。
@@ -26,6 +27,7 @@ import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { lintResearch } from "./lib/guides.mjs";
 import {
   WEAPON_TYPES,
+  buildKit,
   buildScrolls,
   buildWeapon,
   convertBefore,
@@ -79,7 +81,12 @@ function main() {
       const lines = lintIssues.map(issue => `  - ${issue.where}：${issue.label}「${issue.match}」`);
       throw new Error(`gear.json 研究檔有 ${lintIssues.length} 處內部筆記會上畫面，先改掉：\n${lines.join("\n")}`);
     }
-    rules = convertStatRules(research.statRules);
+    // 要湊的裝備（kit）在這裡用遊戲資料換算：點數、等級、需求、拿法都不照抄研究檔
+    const itemsById = new Map(items.map(item => [item.id, item]));
+    rules = convertStatRules(research.statRules).map((rule, index) => {
+      const kit = research.statRules[index].kit;
+      return kit ? { ...rule, kit: buildKit(kit, rule.secondary?.stat ?? rule.main, itemsById, ctx, warn) } : rule;
+    });
     notes = convertNotes(research.gearNotes);
     before = convertBefore(research.beforeAdvancement);
   } else {

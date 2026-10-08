@@ -366,6 +366,8 @@ export function convertStatRules(researchRules) {
     jobs: rule.jobs, label: rule.label, main: rule.main, secondary: rule.secondary ?? null,
     // 這套點法用的武器種類（一轉盜賊「拳套需求」只看拳套、一轉海盜「指虎需求」只看指虎）；沒寫就照職業能用的全部
     ...(rule.weapons?.length ? { weapons: rule.weapons } : {}),
+    // 卡片上方切換用的標籤字（盜賊「一般點法／全幸」、法師「全智／裝備法」）；主推跟另一套都寫了才會出現切換
+    ...(rule.tab ? { tab: rule.tab } : {}),
     t: rule.text, s: rule.sources, v: rule.verified,
     mainstream: Boolean(rule.mainstream),
   }));
@@ -383,4 +385,55 @@ export function convertNotes(researchNotes) {
 export function convertBefore(before) {
   if (!before) return undefined;
   return { t: before.text, s: before.sources, v: before.verified };
+}
+
+/**
+ * 研究檔 kit（這套點法要湊的裝備，全幸的敏捷裝）→ 畫面用的 GearKit[]。研究檔只寫道具 id 跟要衝的 100% 卷軸 id，
+ * 點數、等級、需求、拿法都從遊戲資料算，不照抄攻略的數字：
+ * 點數＝道具本身的這項屬性＋（有寫卷軸時）可衝次數 × 卷軸說明裡這項屬性加的點數（桑那服 10 次 × 套服敏捷卷軸 DEX+1＝10）。
+ * 同一件有好幾個 id（藍色／紅色桑那服）合併成一件：名字用「／」接、拿法合併、數值看第一個 id。
+ * 找不到道具、完全拿不到、卷軸讀不出這項屬性、最後加不到點的，整件不收並警告（結婚戒指這類拿不到的不寫進畫面）。
+ */
+export function buildKit(entries, stat, itemsById, ctx, warn = () => {}) {
+  const kit = [];
+  for (const entry of entries ?? []) {
+    const ids = entry.items ?? [];
+    const items = ids.map(id => itemsById.get(id)).filter(Boolean);
+    if (!ids.length || items.length !== ids.length) {
+      warn(`要湊的裝備 ${ids.join("、")}：遊戲資料找不到，略過`);
+      continue;
+    }
+    const name = items.map(item => item.n).join("／");
+    const src = mergeSources(items.map(item => buildSource(item, ctx)));
+    if (!hasAnySource(src)) {
+      warn(`要湊的裝備 ${name}：沒有拿得到的來源，略過`);
+      continue;
+    }
+    const eq = items[0].eq ?? {};
+    let value = eq[`inc${stat}`] ?? 0;
+    let scroll;
+    if (entry.scroll !== undefined) {
+      const scrollItem = itemsById.get(entry.scroll);
+      const parsed = scrollItem ? parseScroll(scrollItem) : null;
+      const per = parsed ? Number(new RegExp(`${stat}\\+(\\d+)`).exec(parsed.effect)?.[1] ?? 0) : 0;
+      if (!parsed || !per || !eq.tuc) {
+        warn(`要湊的裝備 ${name}：卷軸 ${entry.scroll} 讀不出 ${stat} 或這件不能衝卷，略過`);
+        continue;
+      }
+      value += eq.tuc * per;
+      scroll = { id: scrollItem.id, n: parsed.n, slot: parsed.slot, stat: parsed.stat, rate: parsed.rate, times: eq.tuc };
+    }
+    if (!value) {
+      warn(`要湊的裝備 ${name}：加不到 ${stat}，略過`);
+      continue;
+    }
+    const piece = { ids, n: name, slot: items[0].s, lv: eq.reqLevel ?? 0, stat, v: value };
+    const req = buildReq(eq);
+    if (req) piece.req = req;
+    if (scroll) piece.scroll = scroll;
+    piece.src = src;
+    if (ctx.v002Date && allSourcesV002(src)) piece.o = ctx.v002Date;
+    kit.push(piece);
+  }
+  return kit;
 }

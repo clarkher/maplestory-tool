@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   allSourcesV002,
+  buildKit,
   buildScrolls,
   buildSource,
   buildWeapon,
@@ -397,4 +398,40 @@ test("buildSource：有合成配方就帶 crafts；只有合成也算拿得到",
   assert.equal(src.crafts.length, 1);
   assert.equal(hasAnySource(src), true);
   assert.equal(allSourcesV002(src), false);
+});
+
+/* ------------------------------------------------------------ buildKit */
+
+const kitCtx = { monstersById: new Map([[7, { id: 7, n: "超級綠水靈", lv: 40, maps: [100000000] }]]), questsById: new Map(), maps: { 100000000: { zh: "弓箭手村" } }, openMap, v002Date: "2026-10-15" };
+const kitItems = new Map(
+  [
+    { id: 1050018, n: "藍色桑那服", c: "裝備", s: "套服", eq: { reqLevel: 30, tuc: 10 }, dm: [7] },
+    { id: 1051017, n: "紅色桑那服", c: "裝備", s: "套服", eq: { reqLevel: 30, tuc: 10 }, dm: [7] },
+    { id: 2040500, n: "套服敏捷卷軸100%", c: "消耗", s: "卷軸", d: "套服附加敏捷提升屬性。 成功率：100%，DEX+1" },
+    { id: 1002089, n: "綠色斗笠", c: "裝備", s: "帽子", eq: { reqLevel: 25, reqDEX: 30, incDEX: 3, tuc: 7 }, dm: [7] },
+    { id: 9, n: "絕版帽", c: "裝備", s: "帽子", eq: { reqLevel: 10, incDEX: 5 } },
+  ].map(item => [item.id, item]),
+);
+
+test("buildKit：點數＝道具本身＋可衝次數×卷軸點數；同一件好幾個 id 合併；需求、等級照遊戲資料", () => {
+  const kit = buildKit([{ items: [1050018, 1051017], scroll: 2040500 }, { items: [1002089] }], "DEX", kitItems, kitCtx);
+  assert.equal(kit.length, 2);
+  assert.deepEqual(
+    { ...kit[0], src: undefined },
+    { ids: [1050018, 1051017], n: "藍色桑那服／紅色桑那服", slot: "套服", lv: 30, stat: "DEX", v: 10, scroll: { id: 2040500, n: "套服敏捷卷軸", slot: "套服", stat: "敏捷", rate: 100, times: 10 }, src: undefined },
+  );
+  assert.equal(kit[0].src.drops[0].n, "超級綠水靈");
+  assert.deepEqual({ ...kit[1], src: undefined }, { ids: [1002089], n: "綠色斗笠", slot: "帽子", lv: 25, stat: "DEX", v: 3, req: { DEX: 30 }, src: undefined });
+});
+
+test("buildKit：找不到、拿不到、加不到這個屬性的整件不收並警告（不編造）", () => {
+  const warnings = [];
+  const kit = buildKit([{ items: [404] }, { items: [9] }, { items: [1050018] }], "DEX", kitItems, kitCtx, message => warnings.push(message));
+  assert.deepEqual(kit, []);
+  assert.equal(warnings.length, 3);
+});
+
+test("convertStatRules：研究檔寫了 tab 就帶過去", () => {
+  const [rule] = convertStatRules([{ jobs: [410], label: "全幸", main: "LUK", secondary: null, tab: "全幸", text: "x", sources: [], verified: "tw" }]);
+  assert.equal(rule.tab, "全幸");
 });
