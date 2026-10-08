@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight, RouteIcon } from "./Icons";
 import { ProfileForm } from "./ProfileForm";
+import { goLabel } from "@/lib/go-label";
 import type { Profile } from "@/lib/types";
 
 export function PlanShell({
@@ -47,10 +48,12 @@ export function PlanShell({
 }
 
 /** 每張結果卡右下角都有的「帶我去」，接到導航頁。 */
-export function GoButton({ to, label = "帶我去" }: { to: number; label?: string }) {
+/** place：要去的地點名稱。給了的話讀螢幕軟體念「到大木林Ⅱ的路線」，一整排按鈕才分得出是去哪（畫面上的字照舊） */
+export function GoButton({ to, label = "帶我去", place }: { to: number; label?: string; place?: string }) {
   return (
     <Link
       href={`/go?to=${to}`}
+      aria-label={place ? goLabel(label, place) : undefined}
       className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-white shadow-sm transition-transform hover:-translate-y-px"
     >
       <RouteIcon size={15} />

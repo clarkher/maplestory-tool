@@ -257,7 +257,7 @@ function NpcBlock({
             </p>
           ) : null}
         </div>
-        {npc.map ? <GoButton to={npc.map} label="路線" /> : null}
+        {npc.map ? <GoButton to={npc.map} label="路線" place={mapName(maps, npc.map)} /> : null}
       </div>
     </div>
   );

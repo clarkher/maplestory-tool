@@ -222,7 +222,7 @@ function MonsterDetail({
                       {row.spawns !== null ? ` · ${row.spawns} 個刷怪點` : " · 沒有刷怪點資料"}
                     </span>
                   </span>
-                  <GoButton to={row.id} label="路線" />
+                  <GoButton to={row.id} label="路線" place={mapName(maps, row.id)} />
                 </li>
               ))}
             </ul>

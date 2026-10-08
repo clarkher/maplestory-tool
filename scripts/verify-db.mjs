@@ -286,6 +286,12 @@ try {
     await touchAt("touchEnd", x, from - dy);
     await sleep(800);
   };
+  /** 按一下 Enter（真的按鍵事件，送到現在有焦點的地方） */
+  const pressEnter = async () => {
+    const key = { key: "Enter", code: "Enter", windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 };
+    await page.send("Input.dispatchKeyEvent", { type: "keyDown", text: "\r", ...key });
+    await page.send("Input.dispatchKeyEvent", { type: "keyUp", ...key });
+  };
   /** 手指點一下（不移動） */
   const fingerTap = async (x, y) => {
     await touchAt("touchStart", x, y);
@@ -972,6 +978,17 @@ try {
       btn?.click(); await __sleep(400);
       return { none, shown, value: input.value, focused: document.activeElement === input, gone: !__clearBtn(box) };`);
     check("X1 打寶「自己找」：有字時出現「×」，按了字清掉、焦點留在搜尋框", r.none && r.shown && r.value === "" && r.focused && r.gone, r);
+
+    // 提示字「例如 …」舉的每個例子都要搜得到（以前寫的「楓葉」打寶找不到）
+    const ex = await ev(`const input = document.querySelector("main input[aria-label='搜尋道具']"); const section = input.closest("section");
+      const words = (input.placeholder.split("例如")[1] ?? "").split("、").map(w => w.trim()).filter(Boolean);
+      const counts = {};
+      for (const w of words) {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, w); input.dispatchEvent(new Event("input", { bubbles: true }));
+        await __sleep(400); counts[w] = section.querySelectorAll("ul li").length;
+      }
+      return { placeholder: input.placeholder, words, counts };`);
+    check("X1 打寶「自己找」的提示字：舉的例子每個都搜得到", ex.words.length >= 2 && ex.words.every(w => ex.counts[w] > 0), ex);
   });
 
   // X2 帶我去選地圖：有字時「×」清掉字；已經選了地圖、按「更改」後還沒打字時，那顆「×」照舊是「取消更改」
@@ -1001,6 +1018,52 @@ try {
       return { none, shown, cleared, changed, cancelBefore, typing, cancelAfter };`);
     check("X2 帶我去選地圖：有字時出現「×」，按了字清掉、焦點留在搜尋框", r.none && r.shown && r.cleared.value === "" && r.cleared.focused && r.cleared.gone, r);
     check("X2 已選地圖按「更改」：沒字時是「取消更改」，打字後換成清掉字的「×」（只會有一顆），清掉後又變回「取消更改」", r.changed && r.cancelBefore && r.typing.clear && !r.typing.cancel && r.cancelAfter, r);
+  });
+
+  // X3 手機在搜尋框按 Enter（鍵盤上的鍵寫「搜尋」）：鍵盤收起來（焦點離開搜尋框），打的字和結果都還在
+  await section("X3", async () => {
+    await mobile();
+    await touchMode(true);
+    try {
+      const boxes = [
+        { name: "查資料", path: "/db/items", input: "main input[aria-label^=搜尋]", word: "帽" },
+        { name: "打寶「自己找」", path: "/plan/farm", input: "main input[aria-label='搜尋道具']", word: "藥水" },
+        { name: "帶我去選地圖", path: "/go", input: "main input[aria-label='要去哪裡']", word: "弓箭手" },
+      ];
+      for (const box of boxes) {
+        if (box.path === "/db/items") await fresh(box.path);
+        else await navigate(`${BASE}${box.path}`);
+        const before = await ev(`await __waitFor(() => !!document.querySelector(${JSON.stringify(box.input)})); await __sleep(600);
+          const input = document.querySelector(${JSON.stringify(box.input)}); input.focus();
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, ${JSON.stringify(box.word)}); input.dispatchEvent(new Event("input", { bubbles: true }));
+          await __sleep(500);
+          return { hint: input.getAttribute("enterkeyhint"), coarse: matchMedia("(pointer: coarse)").matches, focused: document.activeElement === input };`);
+        await pressEnter();
+        const after = await ev(`await __sleep(400); const input = document.querySelector(${JSON.stringify(box.input)});
+          return { focused: document.activeElement === input, value: input.value };`);
+        check(`X3 手機在${box.name}的搜尋框按 Enter：鍵盤上寫「搜尋」，按了收起鍵盤、打的字還在`,
+          before.hint === "search" && before.coarse && before.focused && !after.focused && after.value === box.word, { ...before, after });
+      }
+    } finally {
+      await touchMode(false);
+    }
+  });
+
+  // N17 卡片裡的「路線」：讀螢幕軟體念「到〇〇的路線」（以前一整排都只念「路線」，分不出是哪張圖），畫面上還是寫「路線」
+  await section("N17", async () => {
+    await fresh("/db/monsters");
+    let r = await ev(`const id = "210100"; __tap(id); await __waitFor(() => __id() === id); await __sleep(1000);
+      const maps = [...__row(id).querySelectorAll("article section")].find(s => s.querySelector("h3")?.textContent.startsWith("出沒地圖"));
+      const li = maps?.querySelector("ul > li");
+      const go = li?.querySelector("a[href^='/go?to=']");
+      return { name: li?.querySelector("span.truncate")?.textContent ?? "", label: go?.getAttribute("aria-label") ?? null, text: go?.textContent.trim() ?? null };`);
+    check("N17 怪物卡出沒地圖的「路線」：讀螢幕軟體念「到〇〇的路線」，畫面上還是寫「路線」", r.name !== "" && r.label === `到${r.name}的路線` && r.text === "路線", r);
+    await clearRemembered();
+    await navigate(`${BASE}/db/quests?id=6931`);
+    r = await ev(`await __ready(); await __sleep(900); const go = document.querySelector("main article a[href^='/go?to=']");
+      const place = go?.closest("div")?.querySelector("p.flex span.truncate")?.textContent ?? "";
+      return { place, label: go?.getAttribute("aria-label") ?? null, text: go?.textContent.trim() ?? null };`);
+    check("N17 任務卡 NPC 的「路線」：讀螢幕軟體念「到〇〇的路線」", r.place !== "" && r.label === `到${r.place}的路線` && r.text === "路線", r);
   });
 
   // N7 捲到底自動載入：沒有看得到的「再載」按鈕，捲到清單底下就自動接上 120 筆，筆數記住
@@ -1335,6 +1398,16 @@ try {
         titleTop: title ? Math.round(title.top) : null };`);
     check("D10 清單到底、右邊那一欄被往上推走時點卡片裡的「要先完成」：頁面往上一點、新卡片的標題出來",
       !r.skipped && r.pushedBy > 20 && r.id === "6930" && r.yAfter < r.yBefore && r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.titleTop > r.header, r);
+  });
+
+  // X4 電腦在搜尋框按 Enter：不動，焦點留在搜尋框（可以接著打）
+  await section("X4", async () => {
+    await desktop();
+    await fresh("/db/items");
+    await ev(`const input = __search(); input.focus(); __setSearch("帽"); await __sleep(400); return 1;`);
+    await pressEnter();
+    const r = await ev(`await __sleep(400); return { focused: document.activeElement === __search(), value: __search().value, coarse: matchMedia("(pointer: coarse)").matches };`);
+    check("X4 電腦在搜尋框按 Enter：焦點留在搜尋框、字還在", !r.coarse && r.focused && r.value === "帽", r);
   });
 
   // H11 桌機用滑鼠滾輪往下捲：導覽列不收（只有手指滑才收）

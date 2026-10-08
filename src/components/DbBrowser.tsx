@@ -11,7 +11,7 @@ import { reloadRestore } from "@/lib/reload-scroll";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
 import { EmptyBlock, LoadingBlock } from "./PlanShell";
-import { SearchClear } from "./SearchClear";
+import { SearchClear, searchKeys } from "./SearchClear";
 import Link from "next/link";
 import { statSpans, type StatSpan } from "@/lib/stat-layout";
 
@@ -522,6 +522,7 @@ export function DbBrowser({
             placeholder={searchPlaceholder}
             className="tap-safe w-full bg-transparent py-2.5 outline-none"
             aria-label={`搜尋${title}`}
+            {...searchKeys}
           />
           {query && hydrated ? (
             <SearchClear
