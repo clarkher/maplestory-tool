@@ -365,9 +365,13 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
     }
   }
 
+  // 要湊的裝備的卷軸分兩群：現在穿得上的（排前面）、還要等等級的（排最後，桑那服 30 等才拿得到，25 等的人先衝它沒用）
+  const kitFamilies = (pieces: GearKit[]) =>
+    pieces.flatMap(piece => (piece.scroll ? [scrollFamily(gear.scrolls, job, piece.scroll.slot, piece.scroll.stat, level)] : []));
   const families = mergeKitFamilies(
     scrollPicks(gear.scrolls, job, picks.best?.s ?? null, rule?.main ?? null, level),
-    (rule?.kit ?? []).flatMap(piece => (piece.scroll ? [scrollFamily(gear.scrolls, job, piece.scroll.slot, piece.scroll.stat, level)] : [])),
+    kitFamilies(kitNow?.worn ?? []),
+    kitFamilies(kitNow?.later ?? rule?.kit ?? []),
   ).map(family => {
     const pick = familyPick(family.options, beforeOpen);
     return { ...family, pick, source: closestSource(pick.src, level, job) };
@@ -412,13 +416,22 @@ function targetsAtFor(gear: GearData, job: number, rule: StatRule | null, before
 }
 
 /**
- * 要湊的裝備的卷軸（全幸：套服敏捷、披風敏捷）插進衝卷：第一組最前面（這套點法靠它穿得上武器），
- * 其餘排在武器卷後面；原本就有同一組的不重複。
+ * 要湊的裝備的卷軸（全幸：套服敏捷、披風敏捷）插進衝卷。
+ * now＝現在穿得上的裝備的卷軸：第一組最前面（這套點法靠它穿得上武器），其餘排在武器卷後面；
+ * soon＝還要等等級的裝備的卷軸（400 的桑那服 30 等才拿得到）：一律排最後，不然 10 到 29 等第一組會是衝不到的套服卷。
+ * 原本就有同一組的不重複；now 是空的就是「武器卷、soon」。
  */
-function mergeKitFamilies<T extends { slot: string; stat: string }>(base: T[], kitFamilies: Array<T | null>): T[] {
-  const extra = kitFamilies.filter((family): family is T => family !== null && !base.some(b => b.slot === family.slot && b.stat === family.stat));
-  if (!extra.length) return base;
-  return [extra[0], ...base.slice(0, 1), ...extra.slice(1), ...base.slice(1)];
+function mergeKitFamilies<T extends { slot: string; stat: string }>(base: T[], now: Array<T | null>, soon: Array<T | null>): T[] {
+  const seen: T[] = [...base];
+  const fresh = (families: Array<T | null>): T[] =>
+    families.flatMap(family => {
+      if (family === null || seen.some(s => s.slot === family.slot && s.stat === family.stat)) return [];
+      seen.push(family);
+      return [family];
+    });
+  const nowFamilies = fresh(now);
+  const soonFamilies = fresh(soon);
+  return [...nowFamilies.slice(0, 1), ...base.slice(0, 1), ...nowFamilies.slice(1), ...base.slice(1), ...soonFamilies];
 }
 
 /* ------------------------------------------------------------------ 升級路線每一段 */

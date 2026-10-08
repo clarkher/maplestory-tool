@@ -196,7 +196,8 @@ function TabRow({ plan, onPick }: { plan: GearPlan; onPick: (tab: string | null)
     <div role="group" aria-label="點法" className="flex flex-wrap items-center gap-1.5">
       <span className="mr-0.5 text-[12px] font-black ink-faint">點法</span>
       {plan.tabs.map(({ tab, rule }) => (
-        <FilterTag key={tab} on={rule === plan.rule} onClick={() => onPick(rule.mainstream ? null : tab)}>
+        // 主推一定是 tabsFor 排的第一個（跟 gearPlan 當預設的是同一條）：用位置判，不看 rule.mainstream——那個旗標在研究檔手寫，標歪了「選主推就清掉記住的值」會失靈
+        <FilterTag key={tab} on={rule === plan.rule} onClick={() => onPick(rule === plan.tabs[0].rule ? null : tab)}>
           {tab}
         </FilterTag>
       ))}

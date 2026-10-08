@@ -450,6 +450,19 @@ describe("真資料：gearPlan 選了第二套", () => {
     expect(plan.families.slice(0, 3).map(f => `${f.slot}${f.stat}`)).toEqual(["套服敏捷", "拳套攻擊", "披風敏捷"]);
   });
 
+  it("盜賊 25 全幸的衝卷：桑那服 30 等才拿得到，披風敏捷卷軸先、拳套攻擊卷軸再來，套服敏捷卷軸排在拳套攻擊後面", () => {
+    const names = gearPlan(gear, 400, 25, true, "全幸").families.map(f => `${f.slot}${f.stat}`);
+    expect(names.slice(0, 2)).toEqual(["披風敏捷", "拳套攻擊"]);
+    expect(names.indexOf("套服敏捷")).toBeGreaterThan(names.indexOf("拳套攻擊"));
+  });
+
+  it("盜賊 15 全幸的衝卷：披風、桑那服都還穿不上，拳套攻擊卷軸排第一，套服敏捷、披風敏捷卷軸都在後面", () => {
+    const names = gearPlan(gear, 400, 15, true, "全幸").families.map(f => `${f.slot}${f.stat}`);
+    expect(names[0]).toBe("拳套攻擊");
+    expect(names.indexOf("套服敏捷")).toBeGreaterThan(0);
+    expect(names.indexOf("披風敏捷")).toBeGreaterThan(0);
+  });
+
   it("刺客 25 全幸：披風 +5 後才戴得上斗笠，敏捷 33 → 鋼鐵拳套；桑那服、鞋子 30 等才有", () => {
     const plan = gearPlan(gear, 410, 25, true, "全幸");
     expect(plan.kit).toMatchObject({ total: 8, wear: 33 });
@@ -461,6 +474,10 @@ describe("真資料：gearPlan 選了第二套", () => {
     const plan = gearPlan(gear, 411, 80, false, "全幸");
     expect(plan.best?.n).toBe("青銅指虎");
     expect(plan.compare?.weapon.n).toContain("閃電甲");
+  });
+
+  it("暗殺者 80 全幸：點法那行寫的武器是「拳套」，不是「武器要的敏捷」（跟盜賊、刺客一樣）", () => {
+    expect(gearPlan(gear, 411, 80, false, "全幸").rule?.weapons).toEqual(["拳套"]);
   });
 
   it("火毒巫師 50 裝備法：大魔法師短杖；比全智少 49 智力；全智這級用黃色雨傘；沒有要湊的裝備", () => {

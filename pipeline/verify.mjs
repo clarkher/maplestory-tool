@@ -172,6 +172,26 @@ function main() {
   check("每種武器種類至少 1 把", missingWeaponTypes.length === 0, missingWeaponTypes.join("、"));
   check("卷軸數量合理", (gear?.scrolls?.length ?? 0) >= Math.floor(106 * 0.8), `${gear?.scrolls?.length ?? 0} 種`);
 
+  // 全幸要湊的裝備（kit）：buildKit 對找不到、不收錄、沒來源、卷軸對不上的整件略過並只警告，不會讓建置失敗。
+  // 每日資料更新如果因此掉了一件（例如桑那服哪天被標成不收錄），敏捷少了一截，推薦的拳套會悄悄改變，
+  // 畫面看起來一切正常——所以拿研究檔當標準，建出來的件數要跟研究檔寫的一樣多，少了就擋下來。研究檔不在就跳過。
+  const researchGear = readJson(path.resolve(import.meta.dirname, "..", "data", "guides", "gear.json"), null);
+  if (researchGear) {
+    const sameJobs = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const kitMismatches = [];
+    let kitRules = 0;
+    for (const rule of researchGear.statRules ?? []) {
+      if (!rule.kit) continue;
+      kitRules += 1;
+      const built = (gear?.rules ?? []).find(candidate => sameJobs(candidate.jobs, rule.jobs) && candidate.label === rule.label);
+      const builtCount = built?.kit?.length ?? 0;
+      if (builtCount !== rule.kit.length) {
+        kitMismatches.push(`[${rule.jobs.join("、")}]「${rule.label}」研究檔 ${rule.kit.length} 件、建出來 ${builtCount} 件${built ? "" : "（rules 裡找不到這條）"}`);
+      }
+    }
+    check("全幸要湊的裝備沒少件", kitMismatches.length === 0, kitMismatches.length ? kitMismatches.join("；") : `${kitRules} 條點法的件數都跟研究檔一樣`);
+  }
+
   console.log("=== 資料檢查 ===");
   for (const line of notes) console.log(line);
   if (failures.length) {

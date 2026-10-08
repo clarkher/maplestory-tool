@@ -394,15 +394,17 @@ export function convertBefore(before) {
  * 點數、等級、需求、拿法都從遊戲資料算，不照抄攻略的數字：
  * 點數＝道具本身的這項屬性＋（有寫卷軸時）可衝次數 × 卷軸說明裡這項屬性加的點數（桑那服 10 次 × 套服敏捷卷軸 DEX+1＝10）。
  * 同一件有好幾個 id（藍色／紅色桑那服）合併成一件：名字用「／」接、拿法合併、數值看第一個 id。
- * 找不到道具、完全拿不到、卷軸讀不出這項屬性、最後加不到點的，整件不收並警告（結婚戒指這類拿不到的不寫進畫面）。
+ * 找不到道具、遊戲資料標成不收錄（un）的、完全拿不到、卷軸讀不出這項屬性、最後加不到點的，整件不收並警告（結婚戒指這類拿不到的不寫進畫面）。
+ * 有寫卷軸時還要兩條都成立才收：卷軸成功率是 100（點數是「衝滿」算出來的，不是 100 的卷軸會失敗，畫面上的總點數就不準）、
+ * 卷軸部位跟道具部位對得上（套服卷軸寫給帽子，是研究檔 id 寫錯，不能默默算成加得上）。
  */
 export function buildKit(entries, stat, itemsById, ctx, warn = () => {}) {
   const kit = [];
   for (const entry of entries ?? []) {
     const ids = entry.items ?? [];
-    const items = ids.map(id => itemsById.get(id)).filter(Boolean);
+    const items = ids.map(id => itemsById.get(id)).filter(item => item && !item.un);
     if (!ids.length || items.length !== ids.length) {
-      warn(`要湊的裝備 ${ids.join("、")}：遊戲資料找不到，略過`);
+      warn(`要湊的裝備 ${ids.join("、")}：遊戲資料找不到或標成不收錄，略過`);
       continue;
     }
     const name = items.map(item => item.n).join("／");
@@ -420,6 +422,14 @@ export function buildKit(entries, stat, itemsById, ctx, warn = () => {}) {
       const per = parsed ? Number(new RegExp(`${stat}\\+(\\d+)`).exec(parsed.effect)?.[1] ?? 0) : 0;
       if (!parsed || !per || !eq.tuc) {
         warn(`要湊的裝備 ${name}：卷軸 ${entry.scroll} 讀不出 ${stat} 或這件不能衝卷，略過`);
+        continue;
+      }
+      if (parsed.rate !== 100) {
+        warn(`要湊的裝備 ${name}：卷軸 ${entry.scroll} 成功率 ${parsed.rate}%，不是 100%，衝滿的點數算不準，略過`);
+        continue;
+      }
+      if (parsed.slot !== items[0].s) {
+        warn(`要湊的裝備 ${name}（${items[0].s}）：卷軸 ${entry.scroll} 是${parsed.slot}卷軸，部位對不上，略過`);
         continue;
       }
       value += eq.tuc * per;
