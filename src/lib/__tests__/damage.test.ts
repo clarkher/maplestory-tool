@@ -12,6 +12,7 @@ import {
   dragonRoarBase,
   elementFactor,
   expectedHit,
+  floorRange,
   hitRange,
   killCounts,
   levelGap,
@@ -94,9 +95,35 @@ describe("打怪（舊版國際服公式，經典版沒驗證）", () => {
   it("無視防禦：只乘等級差，不扣防禦", () => {
     expect(hitRange({ base, magic: false, modifier: 1, ignoreDefense: true, multiplier: 1, charLevel: 50, target })).toEqual({ min: 200, max: 400 });
   });
+  it("無視防禦＋真的有等級差：物理還是乘 (1−0.01×差)，只是不扣物防", () => {
+    // 角色 40、怪 50：差 10 → ×0.9；200→180、400→360（精確整數，不扣 pdd 100）
+    expect(hitRange({ base, magic: false, modifier: 1, ignoreDefense: true, multiplier: 1, charLevel: 40, target })).toEqual({ min: 180, max: 360 });
+  });
   it("扣到負的最少 1；免疫每下 1", () => {
     expect(hitRange({ base: { min: 10, max: 20 }, magic: false, modifier: 1, ignoreDefense: false, multiplier: 1, charLevel: 50, target })).toEqual({ min: 1, max: 1 });
     expect(hitRange({ base, magic: true, modifier: "immune", ignoreDefense: false, multiplier: 1, charLevel: 50, target })).toEqual({ min: 1, max: 1 });
+  });
+  it("上限夾在 99,999；下限也不會超過", () => {
+    expect(hitRange({ base: { min: 50000, max: 200000 }, magic: false, modifier: 1, ignoreDefense: false, multiplier: 1, charLevel: 50, target: null })).toEqual({ min: 50000, max: 99999 });
+    expect(hitRange({ base: { min: 40000, max: 60000 }, magic: false, modifier: 1, ignoreDefense: false, multiplier: 2, charLevel: 50, target: null })).toEqual({ min: 80000, max: 99999 });
+  });
+  it("魔法不乘技能%：multiplier 給多少結果都一樣", () => {
+    // 角色 45、怪 50：差 5 → 魔防 80×0.6×1.05＝50.4、80×0.5×1.05＝42；200→149.6→149、400→358（精確整數）
+    const once = hitRange({ base, magic: true, modifier: 1, ignoreDefense: false, multiplier: 1, charLevel: 45, target });
+    const twice = hitRange({ base, magic: true, modifier: 1, ignoreDefense: false, multiplier: 2, charLevel: 45, target });
+    expect(once).toEqual({ min: 149, max: 358 });
+    expect(twice).toEqual(once);
+  });
+  it("取整加容差：浮點差一點點也要照精確算術（不會差 1）", () => {
+    // 45×1.4＝63、90×1.4＝126、90×2.3＝207、100×2.3＝230，浮點分別算成 62.99999…、125.99999…、206.99999…、229.99999…
+    expect(hitRange({ base: { min: 45, max: 90 }, magic: false, modifier: 1, ignoreDefense: false, multiplier: 1.4, charLevel: 1, target: null })).toEqual({ min: 63, max: 126 });
+    expect(hitRange({ base: { min: 90, max: 100 }, magic: false, modifier: 1, ignoreDefense: false, multiplier: 2.3, charLevel: 1, target: null })).toEqual({ min: 207, max: 230 });
+    // 等級差 7：× 0.93，500→465、1000→930（1−0.01×7 浮點是 0.9299999999999999）
+    expect(hitRange({ base: { min: 500, max: 1000 }, magic: false, modifier: 1, ignoreDefense: false, multiplier: 1, charLevel: 43, target: { lv: 50, pdd: 0, mdd: 0 } })).toEqual({ min: 465, max: 930 });
+  });
+  it("floorRange：差一點點的整數照整數算", () => {
+    expect(floorRange({ min: 62.99999999999999, max: 206.99999999999997 })).toEqual({ min: 63, max: 207 });
+    expect(floorRange({ min: 62.5, max: 207.4 })).toEqual({ min: 62, max: 207 });
   });
   it("屬性：弱 1.5、抗 0.5、免疫、沒寫 1；沒有屬性的攻擊一律 1", () => {
     expect(elementFactor("f", { f: "w" })).toBe(1.5);
@@ -110,6 +137,10 @@ describe("打怪（舊版國際服公式，經典版沒驗證）", () => {
     expect(chargeFactor("f", 30, 120, { f: "w" })).toBeCloseTo(1.2 * 1.5);
     expect(chargeFactor("f", 30, 120, { f: "r" })).toBeCloseTo(1.2 * 0.5);
     expect(chargeFactor("i", 30, 110, { i: "i" })).toBe("immune");
+  });
+  it("白騎士充能：等級項要吃進去（20 級：弱 ×1.35、抗 ×0.65；30 級剛好等於 1.5／0.5 測不出來）", () => {
+    expect(chargeFactor("f", 20, 120, { f: "w" })).toBeCloseTo(1.62);
+    expect(chargeFactor("f", 20, 120, { f: "r" })).toBeCloseTo(0.78);
   });
   it("修正相乘，有一個免疫就免疫", () => {
     expect(combineFactors([1.4, 1.5])).toBeCloseTo(2.1);
@@ -131,8 +162,18 @@ describe("期望、幾下打死、差幾 %、命中", () => {
     expect(diffPercent(611.8, 591.6)).toBe(3);
     expect(diffPercent(100.4, 100)).toBe(0);
   });
+  it("差幾 %：負的照給；差不到 0.5% 的負數是 0、不是 -0", () => {
+    expect(diffPercent(100, 100.4)).toBe(0); // toBe 用 Object.is，-0 會失敗
+    expect(diffPercent(90, 100)).toBe(-10);
+  });
   it("必中命中：迴避×(3.68＋0.14×等級差) 無條件進位", () => {
     expect(sureHitAccuracy(50, { lv: 50, eva: 18 })).toBe(Math.ceil(18 * 3.68));
     expect(sureHitAccuracy(50, { lv: 55, eva: 20 })).toBe(Math.ceil(20 * (3.68 + 0.7)));
+  });
+  it("必中命中：剛好整數不會被浮點多進一位（精確整數）", () => {
+    // 差 8：5×(3.68＋1.12)＝5×4.8＝24；浮點算成 24.000000000000004
+    expect(sureHitAccuracy(42, { lv: 50, eva: 5 })).toBe(24);
+    // 差 3：10×(3.68＋0.42)＝10×4.1＝41；浮點算成 41.00000000000001
+    expect(sureHitAccuracy(47, { lv: 50, eva: 10 })).toBe(41);
   });
 });

@@ -44,8 +44,14 @@ export function rawPanel(type: string, stats: Stats, attack: number, mastery: nu
   };
 }
 
+/**
+ * 取整的容差：浮點乘法會把數學上剛好的整數算成 62.99999999999999（45×1.4）或 24.000000000000004（5×4.8），
+ * 直接 floor／ceil 會差 1。差不到 1e-9 就當作整數，照精確算術取整。
+ */
+const EPS = 1e-9;
+
 export function floorRange(range: Range): Range {
-  return { min: Math.floor(range.min), max: Math.floor(range.max) };
+  return { min: Math.floor(range.min + EPS), max: Math.floor(range.max + EPS) };
 }
 
 /** 能力視窗上顯示的攻擊力（無條件捨去） */
@@ -123,7 +129,8 @@ export type HitTarget = { lv: number; pdd: number; mdd: number };
 
 /**
  * 每一下的傷害範圍（取整後）。順序照舊版公式彙整第 1～10 步：基本傷害×修正 → 扣防禦（物理先乘等級差）
- * → ×傷害倍率（(技能%＋爆擊加成)÷100，魔法給 1）→ 夾在 1～99,999 → 無條件捨去。target 是 null＝打木樁。
+ * → ×傷害倍率（(技能%＋爆擊加成)÷100，只有物理才乘；魔法沒有這一步，給多少都忽略）→ 夾在 1～99,999 → 無條件捨去
+ * （取整帶 1e-9 容差，見 EPS）。target 是 null＝打木樁。
  */
 export type HitInput = {
   base: Range;
@@ -135,7 +142,7 @@ export type HitInput = {
   target: HitTarget | null;
 };
 
-const clampHit = (value: number) => Math.min(99999, Math.max(1, Math.floor(value)));
+const clampHit = (value: number) => Math.min(99999, Math.max(1, Math.floor(value + EPS)));
 
 export function hitRange(input: HitInput): Range {
   if (input.modifier === "immune") return { min: 1, max: 1 };
@@ -158,7 +165,9 @@ export function hitRange(input: HitInput): Range {
       }
     }
   }
-  return { min: clampHit(min * input.multiplier), max: clampHit(max * input.multiplier) };
+  // 魔法沒有「乘技能%」這一步，multiplier 不管給多少都當 1
+  const multiplier = input.magic ? 1 : input.multiplier;
+  return { min: clampHit(min * multiplier), max: clampHit(max * multiplier) };
 }
 
 export function average(range: Range): number {
@@ -175,12 +184,12 @@ export function killCounts(hp: number, expectedUse: number, bestUse: number, wor
   return { avg: Math.ceil(hp / expectedUse), fastest: Math.ceil(hp / bestUse), slowest: Math.ceil(hp / worstUse) };
 }
 
-/** a 比 b 多幾 %（四捨五入到整數，b 比較大時是負的） */
+/** a 比 b 多幾 %（四捨五入到整數，b 比較大時是負的；差不到 0.5% 回 0，不回 -0） */
 export function diffPercent(a: number, b: number): number {
-  return Math.round((a / b - 1) * 100);
+  return Math.round((a / b - 1) * 100) || 0;
 }
 
 /** 物理必中的命中：迴避×(3.68＋0.14×等級差)（舊版公式彙整；波波命中門檻同一條） */
 export function sureHitAccuracy(charLevel: number, monster: { lv: number | null; eva: number }): number {
-  return Math.ceil(monster.eva * (3.68 + 0.14 * levelGap(charLevel, monster.lv ?? 0)));
+  return Math.ceil(monster.eva * (3.68 + 0.14 * levelGap(charLevel, monster.lv ?? 0)) - EPS);
 }
