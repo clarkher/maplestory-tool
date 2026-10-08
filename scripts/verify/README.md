@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，back-all 和 card-shot 都是 9347，reload-all 是 9367，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -168,9 +168,25 @@ node scripts/verify/reload-open.mjs <輸出> <網址> [埠=9363] [情境，逗�
 - 手機 375×812，角色 Lv.45（job 110）。環境變數 `WAIT`：回來後等幾毫秒再量，預設 5000。
 - 輸出：`<情境>-<種類>-1-before.png`／`-2-after.png`、`results.json`。console 每種一行：離開／停的位置、頁高、開著幾個、兩個點對不對得上。
   對不上時多印兩行，是兩邊各看到哪一塊。最後一行印總共幾種、通過幾種。一律 exit 0。
-- 已知會沒過的一種（2026-10-07，跟展開無關、改前就這樣）：懶人包 #pq-moon 的站內按返回會停在月妙那步的錨點（1281），
-  不是離開的位置（1425）：網址帶 # 的那一筆紀錄，按返回時畫面被捲到錨點，不是瀏覽器記的位置。另外處理。
+- 懶人包 #pq-moon 的站內按返回：v0.77 以前會停在月妙那步的錨點（離開 1425 → 停 1281），v0.77 修好。詳細量法見下面的 `hash-back.mjs`。
 - 測試機實測時間（2026-10-07）：全跑約 9 分鐘。
+
+#### `hash-back.mjs`：帶 # 的網址按返回，回到離開時的位置、不在錨點停一格（v0.77）
+
+```bash
+node scripts/verify/hash-back.mjs <輸出> <網址> [埠=9373]
+```
+
+- 為什麼要量：Chrome 站內按返回回到網址帶 # 的那一筆（懶人包 `/guide#pq-moon`）時，不還原位置，改捲到錨點。
+  不帶 # 的就正常。純 HTML 頁也一樣，不是 Next 捲的。v0.77 起由 `src/lib/reload-scroll.ts` 在畫面出來前跳回記下的位置。
+- 角色 15 等劍士，從首頁「看打法」點進來（站內連結），量停的位置要等於錨點（元素頂端扣掉 scroll-margin-top）：第一次點進來照舊捲到錨點。
+- 再捲到 70%、點頁尾「關於」、按返回；接著按下一頁到關於、再按返回；再返回首頁、按下一頁回來（用下一頁進到帶 # 的那一筆）。
+  回到懶人包的那一下用 screencast 收真的畫出來的每一格（`metadata.scrollOffsetY`），要停在離開時的位置，而且沒有任何一格畫在錨點上。
+  對照組：不帶 # 的 `/guide` 按返回、下一頁再返回（它前一筆是 about:blank，換文件，不跑返回首頁）。
+- 手機 375×812、關返回快取。輸出：每一步的畫面（`<情境>-<步驟>/<第幾格>-y<位置>.jpg`，只存位置有變的那幾格）、`results.json`。
+  console 每項一行，最後一行印總共幾項、對幾項。一律 exit 0。
+- 實測（2026-10-08，手機 375）：改前 6 項對 3（#pq-moon 三種回來的方式都是 2029 → 1281，畫出 1 格在錨點）；
+  改後 6 項全對（2029 → 2029，錨點 0 格）。分支預覽跑一次約 45 秒。
 
 #### `reload-all.mjs`：全站重新整理、離站再返回回不回得到原位（v0.44；v0.62 收進來）
 
