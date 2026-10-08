@@ -442,7 +442,8 @@ export function nearestUpgrade(
     candidatePool(weapons, job, magic, opts.types)
       .filter(w => w.lv <= level && (!opts.beforeOpen || !w.o) && obtainableBy(w.src, job, level))
       .filter(w => offenseStat(w, magic) > bestOffense && !canWear(w, wear))
-      .sort((a, b) => missing(a) - missing(b) || offenseStat(b, magic) - offenseStat(a, magic))[0] ?? null
+      // 差的點數一樣、攻擊也一樣時，照 weaponPicks 的排法（攻速、等級、非 V002、拿法多）決定，不看資料裡的順序
+      .sort((a, b) => missing(a) - missing(b) || offenseStat(b, magic) - offenseStat(a, magic) || rankWeapon(a, b, magic))[0] ?? null
   );
 }
 
