@@ -24,6 +24,8 @@
 // 最後一列收起就看前一列（不跳回清單開頭）；怪物資料載不到（擋掉 monsters.json）時清單照列、沒有建議等級（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
 // G3＝v0.60 的怪物頁：「適合我練的」「包含低 5 級」兩顆標籤手機 375、360 寬都在同一排、只能開一顆、點開著的就關，開了標籤下面小字寫等級範圍（Lv.30–40；僧侶再接職業規則），清單的等級範圍、順序、筆數、小字（Lv.35 · 經驗 405）照怪物資料另外算，整頁重新整理後標籤還開著，僧侶照玩家的 35 級算職業規則；「連沒有名字的怪一起列」只在資料真的有沒名字的怪時才出現（寫死：角色 Lv.35 槍騎兵、僧侶，跑完換回前面存的狂戰士 Lv.45）。
 // S1＝v0.71 的技能頁：遊戲資料沒有分等級數值的技能（skills.json 沒有 levels）點開不會整頁掛掉，卡片寫原因、沒有數值表（寫死：神匠之魂 1003 從清單點、肥肥的弱點攻擊 9000 直接打開網址）。
+// S2＝v0.74 的技能卡：效果行不露出 #代號（改寫滿級那一級的遊戲原文）、好幾級但沒有數值的一級一列放遊戲原文、隱身術 20 級那列放原文、
+// 魔力淨化寫沒有每一級的數字、說明尾巴的「#」拿掉（寫死：槍連擊 1311001、隱身術 4001003、魔力淨化 2000000、劍氣縱橫 1001005；槍連擊手機桌機都看）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -567,6 +569,77 @@ try {
       !d.crashed && d.title?.includes("肥肥的弱點攻擊") && d.text.includes("給予肥肥150%的傷害")
       && d.text.includes("遊戲資料沒有這個技能每一級的數值") && !d.table, d);
     await shot("s1-direct-9000.png");
+  });
+
+  // S2 技能卡的效果行跟每一級的數值（v0.74；使用者 10/08 看候選截圖選 B）：效果樣板有 #mpCon 這種代號的，改寫
+  // 「滿級效果（N 級）：滿級那一級的遊戲原文」；槍連擊這類好幾級但遊戲資料沒有數值的，一級一列放每一級的遊戲原文；
+  // 隱身術 20 級整列沒數值，那一列放原文；魔力淨化 16 級原文都一樣，照實寫沒有每一級的數字；說明尾巴的「#」拿掉。
+  // 都直接打開網址；槍連擊手機 375、桌機 1280 都看
+  await section("S2", async () => {
+    const CARD = `(() => {
+      const card = document.querySelector("main article");
+      if (!card) return null;
+      // 「效果：」或「滿級效果（30 級）：」
+      const effect = [...card.querySelectorAll("p")].find(p => /效果(（\\d+ 級）)?：$/.test(p.firstElementChild?.textContent ?? ""));
+      const table = card.querySelector("table");
+      return {
+        title: card.querySelector("h2")?.textContent ?? "",
+        // 標題旁的 #1311001 是技能編號，不算
+        text: card.textContent.replace(/#\\d+/g, ""),
+        effect: effect?.textContent ?? null,
+        heads: table ? [...table.querySelectorAll("thead th")].map(th => th.textContent.trim()) : [],
+        rows: table ? [...table.querySelectorAll("tbody tr")].map(tr => [...tr.children].map(cell => ({ text: cell.textContent.trim(), span: cell.colSpan }))) : [],
+        // 表格比外框寬＝手機上要左右滑才看得完
+        fits: table ? table.scrollWidth <= table.parentElement.clientWidth + 1 : null,
+      };
+    })()`;
+    const open = async id => {
+      await clearRemembered();
+      await navigate(`${BASE}/db/skills?id=${id}`);
+      return ev(`await __waitFor(() => !!document.querySelector("main article table, main article section")); await __sleep(800); return ${CARD};`);
+    };
+
+    const spear = await open(1311001);
+    check("S2 槍連擊：效果行是「滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊」",
+      spear?.effect === "滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊", spear?.effect);
+    check("S2 槍連擊：各等級數值一級一列放遊戲原文（表頭等級／效果、30 列，第 1、30 列照抄遊戲資料）",
+      spear?.heads.join("|") === "等級|效果" && spear.rows.length === 30
+        && spear.rows[0][1]?.text === "消耗MP10, 攻擊力55%, 對一名怪物兩次攻擊"
+        && spear.rows[29][1]?.text === "消耗MP24, 攻擊力170%, 對三名怪物三次攻擊",
+      { heads: spear?.heads, rows: spear?.rows.length, first: spear?.rows[0], last: spear?.rows[29] });
+    check("S2 槍連擊：手機 375 寬原文會換行，表格不用左右滑", spear?.fits === true, spear?.fits);
+    check("S2 槍連擊：卡片上沒有「#」（效果樣板的代號、說明殘留的都沒有）", spear && !spear.text.includes("#"), spear?.text.slice(0, 300));
+    await shot("s2-spear-mobile.png");
+
+    const stealth = await open(4001003);
+    check("S2 隱身術：第 20 級整列放遊戲原文「消耗MP5, 隱身200秒，移動速度 正常」（佔三欄），不是一排「—」",
+      stealth?.rows.length === 20 && stealth.rows[19].length === 2
+        && stealth.rows[19][1].text === "消耗MP5, 隱身200秒，移動速度 正常" && stealth.rows[19][1].span === 3, stealth?.rows[19]);
+    check("S2 隱身術：第 19 級照舊是數字（消耗 MP 6、持續時間 190、移動速度 -1）",
+      stealth?.rows[18]?.map(cell => cell.text).join("|") === "19|6|190|-1", stealth?.rows[18]);
+    check("S2 隱身術：效果行是滿級那一句", stealth?.effect === "滿級效果（20 級）：消耗MP5, 隱身200秒，移動速度 正常", stealth?.effect);
+
+    const mpRecovery = await open(2000000);
+    check("S2 魔力淨化：效果行照原句、寫「遊戲資料這 16 級寫的都是同一句…沒有每一級的數字」、沒有表",
+      mpRecovery?.effect === "效果：增加一定量的MP的恢復量" && mpRecovery.text.includes("遊戲資料這 16 級寫的都是同一句")
+        && mpRecovery.text.includes("沒有每一級的數字") && mpRecovery.rows.length === 0,
+      { effect: mpRecovery?.effect, rows: mpRecovery?.rows.length, text: mpRecovery?.text.slice(-120) });
+
+    const slash = await open(1001005);
+    check("S2 劍氣縱橫：效果行是「滿級效果（20 級）：消耗HP16和MP14, 攻擊力130%」，數值表照舊（20 列、消耗 HP／消耗 MP／傷害）",
+      slash?.effect === "滿級效果（20 級）：消耗HP16和MP14, 攻擊力130%" && slash.rows.length === 20
+        && slash.heads.join("|") === "等級|消耗 HP|消耗 MP|傷害",
+      { effect: slash?.effect, heads: slash?.heads, rows: slash?.rows.length });
+    check("S2 劍氣縱橫：說明尾巴沒有「#」（「所需技能：魔天一擊1等級以上」）",
+      slash?.text.includes("所需技能：魔天一擊1等級以上") && !slash.text.includes("#"), slash?.text.slice(0, 200));
+
+    await desktop();
+    const wide = await open(1311001);
+    check("S2 桌機 1280：槍連擊右邊的卡片一樣一級一列放原文、效果行是滿級那一句",
+      wide?.rows.length === 30 && wide.effect === "滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊" && wide.fits === true,
+      { rows: wide?.rows.length, effect: wide?.effect, fits: wide?.fits });
+    await shot("s2-spear-desktop.png");
+    await mobile();
   });
 
   // M15 從清單點開後，「收起」連點兩下：只收起，不會連退兩頁離開這一頁

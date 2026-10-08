@@ -19,6 +19,7 @@ import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { officialName } from "./lib/map-names.mjs";
 import { shopRows } from "./lib/shops.mjs";
+import { cleanSkillDesc, skillLevelText } from "./lib/skill-text.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -724,10 +725,12 @@ function buildSkills(artale, allJobs) {
     group: skill.jobGroup || "",
     adv: skill.advancement || "",
     max: skill.maxLevel ?? undefined,
-    desc: skill.description || undefined,
+    desc: cleanSkillDesc(skill.description),
     formula: skill.formula || undefined,
     labels: skill.valueLabels || undefined,
     levels: (skill.levels || []).map(level => level.values || {}),
+    // 每一級的說明原文只留卡片用得到的級數（沒有數值的那幾級、最高級），見 lib/skill-text.mjs
+    levelText: skillLevelText(skill.levels),
   }));
   return { list };
 }
