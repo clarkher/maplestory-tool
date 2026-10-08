@@ -26,6 +26,7 @@ import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
+import { KillCard } from "./KillCard";
 import { GroupEditor, HowCard, ResultCard, SharedCard } from "./parts";
 
 type BaseData = { gear: GearData; skills: Map<number, Skill>; monsters: Monster[]; maps: Record<string, MapRecord>; training: TrainingRow[] };
@@ -162,6 +163,7 @@ export function DamageCalculator() {
     <Shell>
       <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={setShared} choices={choices} beforeOpen={beforeOpen} />
       <ResultCard data={data} state={state} labels={labels} results={results} target={target} diff={diff} />
+      <KillCard data={data} state={state} active={tab} label={labels[tab]} onPick={monsterId => setShared({ monsterId })} beforeOpen={beforeOpen} choices={choices} />
       <GroupEditor data={data} state={state} labels={labels} result={results[tab]} active={tab} onActive={index => setActive(index)} onGroup={setGroup} />
       <HowCard data={data} job={job} level={state.groups[0].level} />
     </Shell>
