@@ -78,6 +78,9 @@ export type GearWeapon = {
   o?: string;
 };
 
+/** 彈藥（pipeline/lib/gear.mjs 的 buildAmmo）：kind 照道具 id 前四碼，atk／lv 從道具說明抽，src 同武器 */
+export type GearAmmo = { id: number; n: string; kind: "飛鏢" | "箭矢" | "弩箭" | "子彈"; atk: number; lv: number; src: GearSource; o?: string };
+
 export type GearScroll = {
   /** 同名同成功率合併後，留拿得到的那個 id（多個就留最小的） */
   id: number;
@@ -175,6 +178,8 @@ export type GearData = {
   scrolls: GearScroll[];
   /** 法師防具（v0.76 起才有；舊的 gear.json、測試假資料沒有就當沒有） */
   armor?: GearArmor[];
+  /** 彈藥，傷害計算機用 */
+  ammo?: GearAmmo[];
   rules: StatRule[];
   before?: { t: string; s: string[]; v: "tw" | "community" | "legacy" };
   notes: GearNote[];

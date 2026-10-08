@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   allSourcesV002,
   ARMOR_SLOTS,
+  buildAmmo,
   buildArmor,
   buildKit,
   buildScrolls,
@@ -17,6 +18,8 @@ import {
   isV002Quest,
   mergeSources,
   openMapFrom,
+  parseAmmoAttack,
+  parseAmmoLevel,
   parseScroll,
   questSources,
   shopSources,
@@ -578,4 +581,33 @@ test("sortArmor：智力跟防禦都一樣時拿法多的先，再一樣就 id �
     ranked(7, "鞋子", 30, { int: 1, def: 5 }, { shops: [{ p: "店", pr: 1 }], drops: [{ m: 1 }], quests: [{ id: "1" }] }),
   ]);
   assert.deepEqual(sorted.map(armor => armor.id), [7, 8, 9]);
+});
+
+/* ------------------------------------------------------------ buildAmmo */
+
+test("parseAmmoAttack：說明裡的「攻擊力 + N」（空白有沒有都要抓得到），沒寫回 0", () => {
+  assert.equal(parseAmmoAttack("用鋼鐵做成的飛鏢。消耗完可再補充。 #c等級限制：10, 攻擊力+25"), 25);
+  assert.equal(parseAmmoAttack("盜賊的禮物，以鋼鐵所鑄成的飛鏢。 攻擊力+ 15"), 15);
+  assert.equal(parseAmmoAttack("裝有青銅弓箭的專用矢筒，必須與弓一起使用。 攻擊力 + 1"), 1);
+  assert.equal(parseAmmoAttack("弓專用的箭矢"), 0);
+  assert.equal(parseAmmoAttack(undefined), 0);
+});
+
+test("parseAmmoLevel：「等級限制：N」，沒寫回 0", () => {
+  assert.equal(parseAmmoLevel("#c等級限制：10, 攻擊力+25"), 10);
+  assert.equal(parseAmmoLevel("攻擊力+16"), 0);
+});
+
+test("buildAmmo：id 前四碼決定種類，來源跟武器同一套；拿不到、不收錄、不是彈藥回 null", () => {
+  const monstersById = new Map([[5, { id: 5, n: "怪", lv: 50, maps: [100000000] }]]);
+  const ctx = { monstersById, questsById: new Map(), maps: { 100000000: { zh: "弓箭手村" } }, openMap, v002Date: "2026-10-15" };
+  const star = buildAmmo({ id: 2070005, n: "雷之鏢", c: "消耗", s: "飛鏢", d: "#c等級限制：10, 攻擊力+25", dm: [5] }, ctx);
+  assert.deepEqual({ ...star, src: undefined }, { id: 2070005, n: "雷之鏢", kind: "飛鏢", atk: 25, lv: 10, src: undefined });
+  assert.equal(star.src.drops.length, 1);
+  assert.equal(buildAmmo({ id: 2061001, n: "青銅弩箭", c: "消耗", s: "箭矢", d: "攻擊力 + 1", dm: [5] }, ctx).kind, "弩箭");
+  assert.equal(buildAmmo({ id: 2060000, n: "箭矢", c: "消耗", s: "箭矢", d: "弓專用的箭矢", dm: [5] }, ctx).kind, "箭矢");
+  assert.equal(buildAmmo({ id: 2330003, n: "高等子彈", c: "消耗", s: "子彈", d: "攻擊力+16", dm: [5] }, ctx).atk, 16);
+  assert.equal(buildAmmo({ id: 2070005, n: "雷之鏢", c: "消耗", s: "飛鏢", d: "攻擊力+25" }, ctx), null, "沒有來源");
+  assert.equal(buildAmmo({ id: 2331000, n: "未命名", c: "消耗", s: "子彈", un: 1, dm: [5] }, ctx), null, "不收錄");
+  assert.equal(buildAmmo({ id: 2000000, n: "紅色藥水", c: "消耗", s: "藥水", dm: [5] }, ctx), null, "不是彈藥");
 });

@@ -12,6 +12,7 @@
  *                          rules 的 tab（切換標籤字）照研究檔帶；kit（要湊的裝備）由 buildKit 從遊戲資料換算
  *                          armor（法師防具）：職業限制含法師、現在拿得到的帽子／套服／上衣／褲裙／鞋子／手套／盾牌，
  *                          給法師「裝備法」列每個部位穿得上的防具；排序見 lib/gear.mjs 的 sortArmor（前端同等級取第一件）
+ *                          ammo（彈藥）：飛鏢、箭矢、弩箭、子彈的攻擊力（道具說明抽）、等級限制、拿法，傷害計算機算總攻擊用
  *
  * 研究檔是另一個 Task 平行在做的，這支腳本不能假設它存在：缺檔或缺欄位時 rules／notes 給空陣列、
  * before 不給，照樣把武器／卷軸（遊戲資料算得出來的部分）建出來，不能失敗。
@@ -30,6 +31,7 @@ import { lintResearch } from "./lib/guides.mjs";
 import {
   ARMOR_SLOTS,
   WEAPON_TYPES,
+  buildAmmo,
   buildArmor,
   buildKit,
   buildScrolls,
@@ -117,11 +119,18 @@ function main() {
       .filter(Boolean),
   );
 
+  // 彈藥（傷害計算機算總攻擊用）：飛鏢、箭矢、弩箭、子彈，只收拿得到的
+  const ammo = items
+    .map(item => buildAmmo(item, ctx))
+    .filter(Boolean)
+    .sort((a, b) => a.kind.localeCompare(b.kind) || a.atk - b.atk || a.id - b.id);
+
   const gear = {
     builtAt: new Date().toISOString(),
     weapons,
     scrolls,
     armor,
+    ammo,
     rules,
     ...(before ? { before } : {}),
     notes,
@@ -138,6 +147,7 @@ function main() {
   const bySlot = new Map();
   for (const piece of armor) bySlot.set(piece.slot, (bySlot.get(piece.slot) ?? 0) + 1);
   console.log(`[gear] 法師防具 ${armor.length} 件：${ARMOR_SLOTS.map(slot => `${slot} ${bySlot.get(slot) ?? 0}`).join("、")}`);
+  console.log(`[gear] 彈藥 ${ammo.length} 種：${["飛鏢", "箭矢", "弩箭", "子彈"].map(kind => `${kind} ${ammo.filter(entry => entry.kind === kind).length}`).join("、")}`);
   console.log(`[gear] 卷軸 ${scrolls.length} 種、能力值規則 ${rules.length} 條、攻略筆記 ${notes.length} 條${before ? "、有轉職前配點說明" : ""}`);
   if (warnings.length) {
     console.log(`[gear] ${warnings.length} 筆警告：`);

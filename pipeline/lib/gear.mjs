@@ -358,6 +358,34 @@ export function buildWeapon(item, ctx) {
   return weapon;
 }
 
+/* -------------------------------------------------------- 彈藥（傷害計算機的總攻擊） */
+
+/** 道具 id 前四碼 → 彈藥種類（遊戲自己的分類：2070 飛鏢給拳套、2060 弓的箭矢、2061 弩箭、2330 火槍的子彈） */
+export const AMMO_KINDS = { 2070: "飛鏢", 2060: "箭矢", 2061: "弩箭", 2330: "子彈" };
+
+/** 道具說明裡的「攻擊力 + N」（「攻擊力+25」「攻擊力+ 15」「攻擊力 + 1」都有）；箭矢、弩箭矢說明本來就沒寫，回 0 */
+export function parseAmmoAttack(desc) {
+  const match = /攻擊力\s*\+\s*(\d+)/.exec(desc ?? "");
+  return match ? Number(match[1]) : 0;
+}
+
+/** 道具說明裡的「等級限制：N」，沒寫回 0 */
+export function parseAmmoLevel(desc) {
+  const match = /等級限制\s*[:：]\s*(\d+)/.exec(desc ?? "");
+  return match ? Number(match[1]) : 0;
+}
+
+/** 一個彈藥道具 → GearAmmo；不是彈藥、不收錄、拿不到回 null（跟武器一樣不編造拿不到的東西） */
+export function buildAmmo(item, ctx) {
+  const kind = AMMO_KINDS[Math.floor(item.id / 1000)];
+  if (!kind || item.un) return null;
+  const src = buildSource(item, ctx);
+  if (!hasAnySource(src)) return null;
+  const ammo = { id: item.id, n: item.n, kind, atk: parseAmmoAttack(item.d), lv: parseAmmoLevel(item.d), src };
+  if (ctx.v002Date && allSourcesV002(src)) ammo.o = ctx.v002Date;
+  return ammo;
+}
+
 /* -------------------------------------------------------- 法師防具 */
 
 /** GearArmor.slot／items.json 的 s 用的防具部位（遊戲客戶端用字；褲子在 items.json 也是寫褲裙）。排序也照這個順序。 */
