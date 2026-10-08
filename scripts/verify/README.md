@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -380,6 +380,16 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 - 2026-10-08 量改前的測試機（v0.76）：白天 12 頁 5,317 段字有 2,777 段沒過（灰字 2.7、金 2.3、楓葉橘 3.3、天藍 3.8、綠 3.6），
   夜晚 837 段（亮橘按鈕上的白字 2.47、灰字在毛玻璃上 3.9）。改法跟數字見 `src/app/globals.css` 的註解、`global-css.test.ts`。
 - 輸出：`results.json`（每頁每個主題：段數、沒過的字、字色、背景、比值、字級、class）。測試機兩個主題 12 頁約 3 分鐘。
+
+### 傷害計算機
+
+#### `damage-shot.mjs`（傷害計算機，v0.79）
+
+`node scripts/verify/damage-shot.mjs <輸出> <網址> [職業:等級,…]`（預設刺客 50、火毒巫師 40、狂戰士 50、槍手 60；埠 9383）。
+每個角色存整頁、看細節展開、點「一下打死」第一隻的底部小卡，另外刺客 50 存夜晚與 360 寬；`results.json` 有結果卡、名單數、細節表的字，`overflow360` 是 360 寬有沒有橫向捲動。
+角色用 localStorage `ms-profile` 帶入，sessionStorage 每次清掉（計算機的設定記在瀏覽紀錄，不清會沿用上一個角色的）。
+「看細節」是受控的 `<details>`（展開狀態記在瀏覽紀錄），所以腳本用點 `<summary>` 的方式展開（直接改 `open` 屬性 React 不一定認），`detailsOpen` 記有沒有真的展開；
+`consoleProblems` 是整趟 console 的錯誤、警告（hydration 警告、沒接住的例外）。
 
 ### 沒收進來的
 
