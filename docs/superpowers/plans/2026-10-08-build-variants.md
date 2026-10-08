@@ -19,7 +19,7 @@
 - 不改升級路線（`bandGear`、`RouteTimeline.tsx` 不動）。
 - 指令：worktree 沒有自己的 node_modules。vitest：`node ../../../node_modules/vitest/vitest.mjs run <檔>`；node:test：`node --test pipeline/lib/gear.test.mjs`；型別：`node ../../../node_modules/typescript/bin/tsc --noEmit -p .`。在 PowerShell 跑（Bash 工具的 PATH 沒有 node）。
 - 重建 gear.json 前提：`data/raw/artale.json` 已在 worktree（2026-10-08 已抓好；沒有的話合成來源會整個消失，不准 commit 那種 gear.json）。重建後 `git diff --stat public/data/gear.json` 只准有 rules 那段跟 builtAt 變。
-- commit 訊息開頭用 `v0.72:`（commit 前再查一次 `git log --all --oneline | grep -oE "v0\.[0-9]+" | sort -t. -k2 -n -u | tail -3`，被佔了就往上跳）。結尾加 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`。
+- commit 訊息開頭用 `v0.75:`（commit 前再查一次 `git log --all --oneline | grep -oE "v0\.[0-9]+" | sort -t. -k2 -n -u | tail -3`，被佔了就往上跳）。結尾加 `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`。
 
 ---
 
@@ -180,7 +180,7 @@ Run：`git diff --stat public/data/gear.json` → 只有 rules 附近跟 builtAt
 
 ```bash
 git add data/guides/gear.json pipeline/lib/gear.mjs pipeline/lib/gear.test.mjs pipeline/build-gear.mjs public/data/gear.json
-git commit -m "v0.72 (1/4): 研究檔點法加切換標籤與全幸要湊的裝備，建置時從遊戲資料換算點數與拿法"
+git commit -m "v0.75 (1/4): 研究檔點法加切換標籤與全幸要湊的裝備，建置時從遊戲資料換算點數與拿法"
 ```
 
 ---
@@ -370,7 +370,7 @@ Run：`node ../../../node_modules/vitest/vitest.mjs run src/lib/__tests__/gear.t
 
 ```bash
 git add src/lib/gear.ts src/lib/__tests__/gear.test.ts
-git commit -m "v0.72 (2/4): 能力值與裝備的算法加要湊的裝備、差最少點的下一把"
+git commit -m "v0.75 (2/4): 能力值與裝備的算法加要湊的裝備、差最少點的下一把"
 ```
 
 ---
@@ -618,7 +618,7 @@ Run：`node ../../../node_modules/typescript/bin/tsc --noEmit -p .` → 沒有�
 
 ```bash
 git add src/lib/gear-view.ts src/lib/__tests__/gear-view.test.ts
-git commit -m "v0.72 (3/4): 能力值與裝備卡的組裝可以切第二套點法——全幸照空身＋敏捷裝挑拳套、跟主推比差多少"
+git commit -m "v0.75 (3/4): 能力值與裝備卡的組裝可以切第二套點法——全幸照空身＋敏捷裝挑拳套、跟主推比差多少"
 ```
 
 ---
@@ -696,7 +696,7 @@ test("convertNotes：研究檔寫了 tab 就帶過去（只在那套點法出現
 
 - [ ] **Step 5：跑測試、重建 gear.json**（`node pipeline/build-gear.mjs`；diff 只准 notes、builtAt 變）
 
-- [ ] **Step 6：Commit** — 主旨 `v0.72 (3b/4): 法師裝備法頁加「全智怎麼轉裝備法」——洗點要花真錢、不洗點慢慢補`
+- [ ] **Step 6：Commit** — 主旨 `v0.75 (3b/4): 法師裝備法頁加「全智怎麼轉裝備法」——洗點要花真錢、不洗點慢慢補`
 
 ---
 
@@ -923,7 +923,7 @@ Run：掃 emoji：`node -e "const s=require('fs').readFileSync('src/components/r
 
 ```bash
 git add src/lib/build-choice.ts src/lib/__tests__/build-choice.test.ts src/components/route/GearCard.tsx README.md
-git commit -m "v0.72 (4/4): 能力值與裝備卡上方可以切第二套點法——盜賊全幸列要湊的敏捷裝，法師裝備法；記住每個系別選的"
+git commit -m "v0.75 (4/4): 能力值與裝備卡上方可以切第二套點法——盜賊全幸列要湊的敏捷裝，法師裝備法；記住每個系別選的"
 ```
 
 ---
