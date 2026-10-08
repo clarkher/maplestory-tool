@@ -93,10 +93,10 @@ describe("技能卡的各等級數值", () => {
     });
   });
 
-  it("好幾級沒有數值、每一級的原文都一樣（魔力淨化）：不列一排一樣的字，回 sameText 跟級數", () => {
+  it("好幾級沒有數值、每一級的原文都一樣（魔力淨化）：不列一排一樣的字，回 sameText、級數跟那一句（卡片照寫）", () => {
     expect(
       skillLevels({ levels: [{}, {}, {}], levelText: { 1: "增加一定量的MP的恢復量", 2: "增加一定量的MP的恢復量", 3: "增加一定量的MP的恢復量" } }),
-    ).toEqual({ kind: "sameText", count: 3 });
+    ).toEqual({ kind: "sameText", count: 3, text: "增加一定量的MP的恢復量" });
   });
 
   it("好幾級沒有數值、也沒有任何原文：回 noLevels（這時「遊戲資料沒有每一級的數值」才是真的）", () => {
@@ -210,7 +210,7 @@ describe("真資料：skills.json 每個技能的效果與各等級數值", () =
   });
 
   it("魔力淨化：16 級的原文都是同一句，回 sameText；效果行就是那一句", () => {
-    expect(skillLevels(byId(2000000))).toEqual({ kind: "sameText", count: 16 });
+    expect(skillLevels(byId(2000000))).toEqual({ kind: "sameText", count: 16, text: "增加一定量的MP的恢復量" });
     expect(skillEffect(byId(2000000))).toEqual({ label: "效果", text: "增加一定量的MP的恢復量" });
   });
 
@@ -249,7 +249,20 @@ describe("真資料：skills.json 每個技能的效果與各等級數值", () =
     }
   });
 
-  it("skills.json 只留卡片用得到的原文：整個檔案在 280KB 以內（每一級都留會超過 450KB）", () => {
-    expect(fs.statSync(`${DATA}skills.json`).size).toBeLessThan(280 * 1024);
+  it("skills.json 只留卡片用得到的原文（每一級都留檔案會大一倍）：有數值的技能只有最高級跟整列沒數值的那幾級，只有一級又沒數值的不留", () => {
+    let kept = 0;
+    for (const skill of skills) {
+      const levels = skill.levels ?? [];
+      const hasValues = levels.some(level => Object.keys(level).length > 0);
+      for (const key of Object.keys(skill.levelText ?? {})) {
+        const level = Number(key);
+        const inRange = Number.isInteger(level) && level >= 1 && level <= levels.length;
+        const needed = hasValues ? level === levels.length || Object.keys(levels[level - 1] ?? {}).length === 0 : levels.length > 1;
+        expect(inRange && needed, `${skill.id} ${skill.n} 第 ${key} 級`).toBe(true);
+        kept++;
+      }
+    }
+    // 少留的情況由上面幾條抓（有代號的每一個都換得到滿級原文、槍連擊等每一級都有原文）
+    expect(kept).toBeGreaterThan(0);
   });
 });

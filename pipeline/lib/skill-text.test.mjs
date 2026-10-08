@@ -77,6 +77,14 @@ test("韓文、還留著 #代號（沒代入數值）、空白的原文不留，
   assert.deepEqual(skillLevelText(levels), { 1: "消耗MP10, 攻擊力110%, 製造一個分身攻擊怪物" });
 });
 
+test("上游的級數跟順序對不上（排序變了、跳號）就讓重建失敗，不默默把原文標到錯的級數；訊息寫出是哪個技能", () => {
+  const levels = [
+    { level: 1, description: "消耗MP10, 攻擊力55%", values: {} },
+    { level: 3, description: "消耗MP10, 攻擊力65%", values: {} },
+  ];
+  assert.throws(() => skillLevelText(levels, "1311001 槍連擊"), error => error.message.includes("1311001 槍連擊") && error.message.includes("第 2 筆"));
+});
+
 test("沒有 levels（神匠之魂等 7 個）回 undefined", () => {
   assert.equal(skillLevelText([]), undefined);
   assert.equal(skillLevelText(undefined), undefined);

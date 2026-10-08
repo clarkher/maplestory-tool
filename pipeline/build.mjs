@@ -730,7 +730,7 @@ function buildSkills(artale, allJobs) {
     labels: skill.valueLabels || undefined,
     levels: (skill.levels || []).map(level => level.values || {}),
     // 每一級的說明原文只留卡片用得到的級數（沒有數值的那幾級、最高級），見 lib/skill-text.mjs
-    levelText: skillLevelText(skill.levels),
+    levelText: skillLevelText(skill.levels, `${skill.id} ${skill.name}`),
   }));
   return { list };
 }

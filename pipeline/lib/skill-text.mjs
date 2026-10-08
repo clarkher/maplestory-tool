@@ -26,9 +26,19 @@ const hasValues = level => Object.keys(level.values ?? {}).length > 0;
  *  - 有數值的技能的最高級：卡片「滿級效果」那一行
  * 只有一級又沒有數值的（英雄共鳴、坐騎）效果樣板本身就是完整句子，不用留。
  * 回傳 { 級數: 原文 }，一筆都沒有回 undefined（建置時 dropEmpty 拿掉欄位）。
+ * 級數照陣列順序算（skills.json 的 levels 也是第 i 筆＝i+1 級）；上游的 level 欄位對不上就讓重建失敗，
+ * 不默默把原文標到錯的級數。skill 是錯誤訊息裡的技能（「1311001 槍連擊」），方便回頭查上游。
  */
-export function skillLevelText(levels) {
+export function skillLevelText(levels, skill = "") {
   if (!levels?.length) return undefined;
+  levels.forEach((level, index) => {
+    if (level.level !== undefined && level.level !== index + 1) {
+      throw new Error(
+        `上游技能 ${skill || "（未標示）"} 的 levels 第 ${index + 1} 筆寫的是 ${level.level} 級，順序或級數對不上——` +
+          "先看上游 skills-data.js 的格式是不是改了，pipeline/lib/skill-text.mjs 跟 build.mjs 的 levels 要照實際級數重排再重建",
+      );
+    }
+  });
   const anyValues = levels.some(hasValues);
   const out = {};
   levels.forEach((level, index) => {

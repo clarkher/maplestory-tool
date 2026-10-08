@@ -53,6 +53,15 @@ function main() {
   // 2026-10-06 技能改成只收經典版實際存在的職業（lib/classic-jobs.mjs），上限跟著從 659 降下來；
   // 範圍公式不變：[floor(實際數×0.8), ceil(實際數×1.25)]，實際數基準是當時重建出來的 242 筆
   check("技能數量合理（僅經典版職業，到三轉）", skills?.length >= 193 && skills?.length <= 303, `${skills?.length} 個`);
+
+  // 技能卡上看得到的字（說明、沒有代號的效果樣板、每一級的原文）不准有「#」。上游清遊戲的顏色標記清不乾淨
+  // （2026-10-08 查到 81 個說明殘留「#」，pipeline/lib/skill-text.mjs 清掉了），之後若出現 #c 這種清不掉的，擋下自動更新。
+  // 有代號的樣板（消耗MP#mpCon）卡片不會直接放，改放滿級那一級的原文（src/lib/skill-view.ts），所以不算
+  const TOKEN = /#[A-Za-z]/;
+  const leaked = (skills ?? []).filter(skill =>
+    [skill.desc, TOKEN.test(skill.formula ?? "") ? "" : skill.formula, ...Object.values(skill.levelText ?? {})].some(text => text?.includes("#")),
+  );
+  check("技能卡上的字沒有「#」（說明、效果、每一級的原文）", leaked.length === 0, leaked.slice(0, 5).map(skill => `${skill.id} ${skill.n}`).join("、"));
   check("地圖數量合理", Object.keys(maps ?? {}).length >= 5000, `${Object.keys(maps ?? {}).length} 張`);
 
   const edges = Object.values(graph ?? {}).reduce((sum, list) => sum + list.length, 0);

@@ -10,7 +10,8 @@ import type { Skill } from "./types";
  * table：照列每一級（第 i 列是 i+1 級；那一級沒有這個數值是 null，畫面寫「—」）。
  *   整列都沒有數值、遊戲有那一級的原文時，rowText 帶那一句（鍵是級數，例：隱身術 20 級），畫面那一列放原文。
  * text：好幾級、每一級都沒有數值（槍連擊、蓄能激發…），第 i 列是 i+1 級的遊戲原文，沒有原文的是 null（畫面寫「—」）。
- * sameText：好幾級沒有數值、每一級的原文都一樣（魔力淨化 16 級都是「增加一定量的MP的恢復量」），沒有每一級的數字可列。
+ * sameText：好幾級沒有數值、每一級的原文都一樣（魔力淨化 16 級都是「增加一定量的MP的恢復量」），沒有每一級的數字可列；
+ *   text 是那一句（效果行不是這一句時，卡片要把它寫出來）。
  * noLevels：遊戲資料沒有每一級的資料——skills.json 沒有 levels（神匠之魂等 7 個），或好幾級但數值、原文都沒有，
  *   卡片照實寫原因、不編數字。
  * noValues：只有一級、沒有數值（英雄共鳴、坐騎等 30 個），效果樣板本身就是完整句子，寫在「效果：」那行，不列表。
@@ -18,7 +19,7 @@ import type { Skill } from "./types";
 export type SkillLevels =
   | { kind: "table"; fields: { key: string; label: string }[]; rows: (number | null)[][]; rowText?: Record<number, string> }
   | { kind: "text"; rows: (string | null)[] }
-  | { kind: "sameText"; count: number }
+  | { kind: "sameText"; count: number; text: string }
   | { kind: "noLevels" }
   | { kind: "noValues" };
 
@@ -49,7 +50,8 @@ export function skillLevels(skill: Pick<Skill, "levels" | "labels" | "levelText"
     if (levels.length === 1) return { kind: "noValues" };
     const texts = levels.map((_, index) => textOf(index));
     if (texts.every(text => text === null)) return { kind: "noLevels" };
-    if (texts.every(text => text === texts[0])) return { kind: "sameText", count: levels.length };
+    const [first] = texts;
+    if (first !== null && texts.every(text => text === first)) return { kind: "sameText", count: levels.length, text: first };
     return { kind: "text", rows: texts };
   }
   const rowText: Record<number, string> = {};

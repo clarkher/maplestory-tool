@@ -168,7 +168,10 @@ function SkillDetail({ skill }: { skill: Skill }) {
         </Section>
       ) : levels.kind === "sameText" ? (
         <Section title="各等級數值" extra={`${levels.count} 級`}>
-          <p className="text-xs ink-faint">遊戲資料這 {levels.count} 級寫的都是同一句（上面的效果），沒有每一級的數字。</p>
+          <p className="text-xs ink-faint">
+            遊戲資料這 {levels.count} 級寫的都是同一句
+            {effect?.text === levels.text ? "（上面的效果）" : `「${levels.text}」`}，沒有每一級的數字。
+          </p>
         </Section>
       ) : levels.kind === "noLevels" ? (
         <Section title="各等級數值">

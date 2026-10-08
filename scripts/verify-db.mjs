@@ -574,8 +574,10 @@ try {
   // S2 技能卡的效果行跟每一級的數值（v0.74；使用者 10/08 看候選截圖選 B）：效果樣板有 #mpCon 這種代號的，改寫
   // 「滿級效果（N 級）：滿級那一級的遊戲原文」；槍連擊這類好幾級但遊戲資料沒有數值的，一級一列放每一級的遊戲原文；
   // 隱身術 20 級整列沒數值，那一列放原文；魔力淨化 16 級原文都一樣，照實寫沒有每一級的數字；說明尾巴的「#」拿掉。
-  // 都直接打開網址；槍連擊手機 375、桌機 1280 都看
+  // 都直接打開網址；槍連擊手機 375、桌機 1280 都看，隱身術 20 級那句原文看手機 375、360 寬會不會撐出左右滑
   await section("S2", async () => {
+    // 前面哪一段停在別的寬度也不影響：先回手機 375
+    await mobile();
     const CARD = `(() => {
       const card = document.querySelector("main article");
       if (!card) return null;
@@ -618,6 +620,15 @@ try {
     check("S2 隱身術：第 19 級照舊是數字（消耗 MP 6、持續時間 190、移動速度 -1）",
       stealth?.rows[18]?.map(cell => cell.text).join("|") === "19|6|190|-1", stealth?.rows[18]);
     check("S2 隱身術：效果行是滿級那一句", stealth?.effect === "滿級效果（20 級）：消耗MP5, 隱身200秒，移動速度 正常", stealth?.effect);
+    check("S2 隱身術：手機 375 寬，20 級那句原文不會把表格撐出左右滑", stealth?.fits === true, stealth?.fits);
+    try {
+      await page.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 800, deviceScaleFactor: 2, mobile: true });
+      const narrow = await open(4001003);
+      check("S2 隱身術：手機 360 寬（安卓常見），20 級那句原文一樣不會把表格撐出左右滑", narrow?.fits === true, narrow?.fits);
+      await shot("s2-stealth-360.png");
+    } finally {
+      await mobile();
+    }
 
     const mpRecovery = await open(2000000);
     check("S2 魔力淨化：效果行照原句、寫「遊戲資料這 16 級寫的都是同一句…沒有每一級的數字」、沒有表",
@@ -633,13 +644,17 @@ try {
     check("S2 劍氣縱橫：說明尾巴沒有「#」（「所需技能：魔天一擊1等級以上」）",
       slash?.text.includes("所需技能：魔天一擊1等級以上") && !slash.text.includes("#"), slash?.text.slice(0, 200));
 
-    await desktop();
-    const wide = await open(1311001);
-    check("S2 桌機 1280：槍連擊右邊的卡片一樣一級一列放原文、效果行是滿級那一句",
-      wide?.rows.length === 30 && wide.effect === "滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊" && wide.fits === true,
-      { rows: wide?.rows.length, effect: wide?.effect, fits: wide?.fits });
-    await shot("s2-spear-desktop.png");
-    await mobile();
+    // 中間出錯也要切回手機，後面的段才不會在桌機寬跑
+    try {
+      await desktop();
+      const wide = await open(1311001);
+      check("S2 桌機 1280：槍連擊右邊的卡片一樣一級一列放原文、效果行是滿級那一句",
+        wide?.rows.length === 30 && wide.effect === "滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊" && wide.fits === true,
+        { rows: wide?.rows.length, effect: wide?.effect, fits: wide?.fits });
+      await shot("s2-spear-desktop.png");
+    } finally {
+      await mobile();
+    }
   });
 
   // M15 從清單點開後，「收起」連點兩下：只收起，不會連退兩頁離開這一頁
