@@ -14,7 +14,10 @@ const STORE = "ms-scroll";
 const LIMIT = 50;
 /** 資料等太久就放棄，之後才長出來的內容照瀏覽器原本的做法 */
 const GIVE_UP_MS = 20_000;
-/** 使用者自己動了（點、按鍵、滾輪、手指碰到；讀螢幕軟體按連結只送 click），或按上一頁／下一頁：停手，不跟他搶 */
+/**
+ * 使用者自己動了（點、按鍵、滾輪、手指碰到；讀螢幕軟體按連結只送 click），或按上一頁／下一頁：停手，不跟他搶。
+ * 按返回回到帶 # 的紀錄時開始放的那一段，是在那次 popstate 發送途中才裝上的，收不到那一次，下一次按返回才停
+ */
 const HANDS_ON = ["pointerdown", "keydown", "wheel", "touchstart", "click", "popstate"];
 
 type Store = Pick<Storage, "getItem" | "setItem">;
@@ -83,7 +86,8 @@ export type ReloadRestore = {
 
 /**
  * 記住每一筆瀏覽紀錄捲到哪；restore（這次是整頁重載）時，頁面長高、放得下了就跳回記下的位置。
- * 跳回去的這段時間，瀏覽器截掉、錨定推動造成的捲動都不記，連按兩次重新整理也回得去。
+ * 站內按上一頁／下一頁回到網址帶 # 的那一筆時也一樣跳回記下的位置（瀏覽器會捲到錨點）。
+ * 跳回去的這段時間，瀏覽器截掉、錨定推動、捲到錨點造成的捲動都不記，連按兩次重新整理也回得去。
  */
 export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: boolean }): ReloadRestore {
   // 這次載入動到的位置，離開時才併進 sessionStorage
@@ -109,9 +113,10 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
 
   /**
    * 把 key 那一筆放回 top：頁面每長高一次（盯上之後瀏覽器在下一次畫面前也會先通知一次），放得下了就直接跳。
-   * 使用者一動、換到別筆紀錄、等太久就停手。handsOn：哪些事算「動了」
+   * 使用者一動、又按了上一頁／下一頁、換到別筆紀錄、等太久就停手
    */
-  const putBack = (key: string, top: number, handsOn: readonly string[]): PutBack => {
+  const putBack = (key: string, top: number): PutBack => {
+    // 同時只有一段在放：前一段沒停的話，它之後停手會在這一段放的時候把捲動錨定打開
     current?.stop();
     let target = top;
     let on = true;
@@ -121,7 +126,7 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
       on = false;
       unwatch();
       env.scrollAnchoring(true);
-      for (const type of handsOn) env.events.removeEventListener(type, stop, true);
+      for (const type of HANDS_ON) env.events.removeEventListener(type, stop, true);
     };
     // 還沒停手、也還是同一筆紀錄。已經換到別筆紀錄（程式換的網址、又按了返回）就停手：不把這一頁的位置套過去，新的那一筆照常記
     const active = () => {
@@ -136,7 +141,7 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
     };
     // 記下的位置就是內容全部長出來之後的位置：這段時間內容插進上面，位置本來就該留在原處，不用瀏覽器幫忙往下推
     env.scrollAnchoring(false);
-    for (const type of handsOn) env.events.addEventListener(type, stop, { capture: true, passive: true });
+    for (const type of HANDS_ON) env.events.addEventListener(type, stop, { capture: true, passive: true });
     env.wait(GIVE_UP_MS, stop);
     unwatch = env.watchResize(place);
     current = {
@@ -154,13 +159,13 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
   };
 
   // 站內按返回回到網址帶 # 的那一筆：Chrome 捲到錨點、不還原位置，改由這裡跳回這一筆記下的位置（離開時在頂端也算）。
-  // 按返回的那個 popstate 不能讓自己停手；之後又按了返回，換了紀錄就停（active 會發現）
+  // 記憶體裡的是這次載入最後記到的，比 sessionStorage（切到背景時存的）新
   env.onTraverse(() => {
     if (!env.hasFragment()) return;
     const key = env.key();
     const top = recorded.has(key) ? recorded.get(key) : readAll(env.storage)[key];
     if (typeof top !== "number" || !Number.isFinite(top) || top < 0) return;
-    putBack(key, top, HANDS_ON.filter(type => type !== "popstate"));
+    putBack(key, top);
   });
 
   if (!restore) return { restoring: () => false, shift: () => {} };
@@ -168,7 +173,7 @@ export function keepScrollAcrossReloads(env: ScrollEnv, { restore }: { restore: 
   const saved = readAll(env.storage)[startKey];
   const savedTop = typeof saved === "number" && Number.isFinite(saved) && saved > 0 ? saved : 0;
   if (savedTop === 0) return { restoring: () => false, shift: () => {} };
-  const reload = putBack(startKey, savedTop, HANDS_ON);
+  const reload = putBack(startKey, savedTop);
   return {
     restoring: reload.active,
     shift: by => reload.moveTo(Math.max(0, savedTop + by)),

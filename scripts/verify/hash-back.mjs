@@ -3,7 +3,8 @@
 // 做法：手機 375×812。角色 15 等劍士，從首頁「看打法」（站內連結 /guide#pq-moon）點進來，量停的位置＝錨點（扣掉 scroll-margin-top）；
 // 捲到可捲高度 70% → 點頁尾「關於」→ 按返回。按返回這段用 screencast 收真的畫出來的每一格（metadata.scrollOffsetY），
 // 要停在離開時的位置，而且沒有任何一格畫在錨點上（Chrome 會先捲到錨點，要在畫面出來前跳回去）。
-// 接著按下一頁到關於、再按返回，一樣檢查。對照組：不帶 # 的 /guide 同樣操作（瀏覽器自己還原得回去）。
+// 接著按下一頁到關於、再按返回；再返回首頁、按下一頁回來（用下一頁進到帶 # 的那一筆），一樣檢查。
+// 對照組：不帶 # 的 /guide 按返回、下一頁再返回（瀏覽器自己還原得回去）。
 // 不論結果都 exit 0，最後一行印總數。
 import fs from "node:fs";
 import path from "node:path";
@@ -61,10 +62,12 @@ async function leaveAndBack(name, anchorY) {
     await __sleep(800); await __settle(3000); return Math.round(scrollY);`);
   if (!(await clickLink(`a[href="/about"]`, "/about"))) throw new Error(`${name}：找不到「關於」連結`);
   await sleep(1200);
-  for (const [step, moves] of [["按返回", [-1]], ["下一頁再返回", [1, -1]]]) {
+  // 最後一步是回到這一頁的那一下，錄下來；首頁在同一份文件裡，不帶 # 的對照組前一筆是 about:blank（換文件），不跑「返回首頁」
+  const steps = [["按返回", [-1]], ["下一頁再返回", [1, -1]], ...(anchorY === null ? [] : [["返回首頁再按下一頁", [-1, 1]]])];
+  for (const [step, moves] of steps) {
     let got = [];
-    for (const delta of moves) {
-      if (delta > 0) {
+    for (const [index, delta] of moves.entries()) {
+      if (index < moves.length - 1) {
         await b.traverse(delta);
         await sleep(1500);
       } else got = await traverseFilmed(delta, `${name}-${step}`);

@@ -529,6 +529,75 @@ describe("站內按返回回到帶 # 的紀錄：瀏覽器捲到錨點，跳回�
     expect(t.saved()["entry-guide"]).toBe(1500);
   });
 
+  it("又按了一次返回：當下就停手、交還捲動錨定（不等下一次捲動或頁面長高才發現）", () => {
+    const { t } = leftGuideAt(1425);
+    t.back("entry-guide", "#pq-moon");
+    expect(t.page.anchoring).toBe(false);
+    t.back("entry-home");
+    expect(t.page.anchoring).toBe(true);
+    expect(t.page.onResize).toBeNull();
+  });
+
+  it("從一筆帶 # 的紀錄按返回到另一筆帶 # 的：換放那一筆記下的位置", () => {
+    const t = fakePage({ key: "entry-guide", height: 3711 });
+    keepScrollAcrossReloads(t.env, { restore: false });
+    t.page.hash = "#pq-moon";
+    t.scrollTo(1425);
+    // 點「跳到主要內容」：同一頁、新的一筆，網址帶 #main
+    t.page.key = "entry-main";
+    t.page.hash = "#main";
+    t.scrollTo(66);
+    t.page.key = "entry-about";
+    t.page.hash = "";
+    t.scrollTo(0);
+    t.back("entry-main", "#main");
+    t.back("entry-guide", "#pq-moon");
+    t.scrollTo(1281);
+    t.grow(3711);
+    expect(t.page.jumps).toEqual([1425]);
+  });
+
+  it("按返回的通知就算比停手早到：同時只有一段在放，前一段不會在新的那段放的時候把捲動錨定打開", () => {
+    const t = fakePage({ key: "entry-guide", height: 3711 });
+    keepScrollAcrossReloads(t.env, { restore: false });
+    t.page.hash = "#pq-moon";
+    t.scrollTo(1425);
+    t.page.key = "entry-main";
+    t.page.hash = "#main";
+    t.scrollTo(66);
+    t.page.key = "entry-about";
+    t.page.hash = "";
+    t.scrollTo(0);
+    t.back("entry-main", "#main");
+    // 換到懶人包那一筆、還沒發 popstate 就先通知
+    t.page.key = "entry-guide";
+    t.page.hash = "#pq-moon";
+    t.page.onTraverse?.();
+    t.page.timers[0]();
+    expect(t.page.anchoring).toBe(false);
+    t.scrollTo(1281);
+    t.grow(3711);
+    expect(t.page.jumps).toEqual([1425]);
+  });
+
+  it("切過背景、回來又捲到別處才離開：照最後離開的位置（記憶體裡的比 sessionStorage 新）", () => {
+    const t = fakePage({ key: "entry-guide", height: 3711 });
+    keepScrollAcrossReloads(t.env, { restore: false });
+    t.page.hash = "#pq-moon";
+    t.scrollTo(1000);
+    t.page.hidden = true;
+    t.fire("visibilitychange");
+    t.page.hidden = false;
+    t.scrollTo(1425);
+    t.page.key = "entry-about";
+    t.page.hash = "";
+    t.scrollTo(0);
+    t.back("entry-guide", "#pq-moon");
+    t.scrollTo(1281);
+    t.grow(3711);
+    expect(t.page.y).toBe(1425);
+  });
+
   it("還沒跳就又按返回到不帶 # 的那一筆：不把懶人包的位置套過去，那一筆的捲動照記", () => {
     const { t } = leftGuideAt(1425);
     t.back("entry-guide", "#pq-moon");
