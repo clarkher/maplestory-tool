@@ -27,16 +27,17 @@ export function cleanSkillDesc(text, maxLevel) {
 
 /**
  * 說明尾巴的「所需技能：魔天一擊1等級以上」拆出來，卡片另外列一行、名字做成連到那個技能的連結。
- * 認得上游的寫法：「魔天一擊1等級以上」「詛咒術 3等級以上」「精準強化等級3以上」（也收只寫「5以上」的）；
- * 好幾個用「、」或逗號隔開。有一個認不得就整段不拆、說明原樣（不硬拆）。
+ * 開頭有兩種寫法：「所需技能：」、「需求技能：」（黑暗之劍、天使祝福、致命快打等 13 個，v0.80 起才收）。
+ * 認得上游的寫法：「魔天一擊1等級以上」「詛咒術 3等級以上」「精準強化等級3以上」（也收只寫「5以上」、
+ * 只寫「雙子星攻擊20級」沒有「以上」的）；好幾個用「、」或逗號隔開。有一個認不得就整段不拆、說明原樣（不硬拆）。
  * 回傳 { desc, req }，req 是 [{ name, level }]，沒有所需技能時是 undefined。
  */
 export function splitPrereq(desc) {
-  const match = desc?.match(/^([\s\S]*?)\s*所需技能\s*[：:]\s*(.+?)\s*$/);
+  const match = desc?.match(/^([\s\S]*?)\s*(?:所需|需求)技能\s*[：:]\s*(.+?)\s*$/);
   if (!match) return { desc, req: undefined };
   const req = [];
   for (const part of match[2].split(/\s*[、,，]\s*/)) {
-    const item = part.match(/^(.+?)\s*(?:等級\s*)?(\d+)\s*(?:等級|級)?\s*以上$/);
+    const item = part.match(/^(.+?)\s*(?:等級\s*)?(\d+)\s*(?:(?:等級|級)\s*(?:以上)?|以上)$/);
     // 名字裡還有「以上」或數字＝其實是「A 3等級以上和B 5等級以上」這種沒拆開的，不收
     if (!item || /以上|\d/.test(item[1])) return { desc, req: undefined };
     req.push({ name: item[1].trim(), level: Number(item[2]) });
@@ -48,15 +49,40 @@ export function splitPrereq(desc) {
 const jobLine = job => new Set([job, job - (job % 10), job - (job % 100)]);
 
 /**
- * 所需技能的名字接上技能 id（卡片才做得成連結）：只在同一條職業線找名字完全一樣、只有一個的；
- * 找不到（上游的字跟技能名對不上，例如「劍技專精」）或不只一個（「恢復術」刺客、俠盜各一個）就只留名字。
+ * 所需技能接上技能 id（卡片才做得成連結）。
+ *
+ * 先照台服客戶端（clientReq＝data/client/skill-req.json 的 req：{ 技能 id: { 所需技能 id: 等級 } }）：
+ * 遊戲自己的說明有 20 個名字寫錯（「劍技專精」其實是精準之劍、劍士的「恢復術」其實是生命恢復），
+ * 客戶端的 req 是用 id 寫的，照它接、名字換成那個技能的正式名稱（2026-10-08 使用者選 A：點下去的卡片跟這行同名）。
+ * 只收跟說明寫的等級一樣、同一條職業線、清單裡有的；好幾個所需技能時名字一樣的先配，
+ * 剩下寫錯的同一個等級只有一個、客戶端也只剩一個才配（配不準就不配）。
+ *
+ * 客戶端沒寫（或配不上）的退回舊辦法：只在同一條職業線找名字完全一樣、只有一個的；
+ * 找不到或不只一個（「恢復術」刺客、俠盜各一個）就只留名字。
  * list 是 buildSkills 做好的技能（{ id, n, job, req? }），直接改 req 裡的每一筆。
  */
-export function linkPrereqs(list) {
+export function linkPrereqs(list, clientReq = {}) {
+  const byId = new Map(list.map(skill => [skill.id, skill]));
   for (const skill of list) {
     if (!skill.req) continue;
     const line = jobLine(skill.job);
-    for (const req of skill.req) {
+    const client = Object.entries(clientReq[skill.id] ?? {})
+      .map(([id, level]) => ({ target: byId.get(Number(id)), level }))
+      .filter(({ target }) => target && line.has(target.job));
+    // 名字、等級都跟客戶端一樣的先配掉
+    const unmatched = skill.req.filter(req => {
+      const index = client.findIndex(item => item.level === req.level && item.target.n === req.name);
+      if (index < 0) return true;
+      req.id = client.splice(index, 1)[0].target.id;
+      return false;
+    });
+    for (const req of unmatched) {
+      const sameLevel = client.filter(item => item.level === req.level);
+      if (sameLevel.length === 1 && unmatched.filter(other => other.level === req.level).length === 1) {
+        req.name = sameLevel[0].target.n;
+        req.id = sameLevel[0].target.id;
+        continue;
+      }
       const found = list.filter(other => other.n === req.name && line.has(other.job));
       if (found.length === 1) req.id = found[0].id;
     }

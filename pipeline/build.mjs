@@ -714,6 +714,8 @@ const TODAY = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
 function buildSkills(artale, allJobs) {
   const advOf = new Map(allJobs.map(job => [job.id, job.advOrder]));
   const clientSkills = readJson(path.join(ROOT, "data", "client", "skills.json"), { skills: {} }).skills;
+  // 台服客戶端每個技能的所需技能（id → 等級）：遊戲說明有 20 個名字寫錯，照 id 接連結（scripts/client/skill-req.mjs 抽的）
+  const clientReq = readJson(path.join(ROOT, "data", "client", "skill-req.json"), { req: {} }).req;
   const list = (artale.skills || [])
     // 只收經典版實際存在的職業（見 lib/classic-jobs.mjs）：客戶端資料另外還有皇家騎士團、
     // 狂狼勇士、龍魔導士、影武者，經典版沒有這些職業，列出來查資料頁的職業選單會選得到
@@ -749,7 +751,10 @@ function buildSkills(artale, allJobs) {
     // 每一級的說明原文只留卡片用得到的級數（沒有數值的那幾級、最高級），見 lib/skill-text.mjs
     levelText: skillLevelText(levels, `${skill.id} ${skill.name}`),
   }));
-  linkPrereqs(list);
+  linkPrereqs(list, clientReq);
+  // 所需技能還接不上連結的（2026-10-08 v0.80 起是 0 個）：變多代表上游說明或客戶端改版了，要看一下
+  const unlinked = list.flatMap(skill => (skill.req ?? []).filter(req => !req.id).map(req => `${skill.id} ${skill.n}→${req.name}`));
+  if (unlinked.length) console.log(`[skills] 所需技能接不上連結的：${unlinked.length} 個（${unlinked.join("、")}）`);
   // 說明是韓文、建置時拿掉的有幾個（2026-10-08 是 19 個坐騎）：數字突然變多代表上游換了語系，要看一下
   const korean = (artale.skills || []).filter(skill => list.some(item => item.id === Number(skill.id)) && /\p{Script=Hangul}/u.test(skill.description || ""));
   if (korean.length) console.log(`[skills] 說明是韓文、沒有列的：${korean.length} 個（效果行照列中文）`);
