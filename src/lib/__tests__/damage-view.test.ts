@@ -6,6 +6,8 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { GearData, GearWeapon } from "@/lib/gear";
+import { BASIC_ATTACK } from "@/lib/damage-skills";
+import { gearPlan } from "@/lib/gear-view";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
 import { planTraining } from "@/lib/planner";
 import { LEVEL_CAP as PROFILE_LEVEL_CAP } from "@/lib/profile";
@@ -13,13 +15,20 @@ import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/typ
 import {
   ammoChoices,
   clampLevel,
+  computeGroup,
   defaultAmmo,
   defaultGroup,
   defaultMonster,
+  defaultSkill,
+  defaultState,
+  diffText,
   groupLabels,
+  killLists,
   LEVEL_CAP,
   monsterChoices,
   parseState,
+  regroup,
+  sameGroups,
   skillLevelsAt,
   weaponChoices,
   type CalcData,
@@ -276,5 +285,164 @@ describe("記下來的設定", () => {
     const broken = valid();
     edit(broken);
     expect(parseState(JSON.stringify(broken))).toBeNull();
+  });
+});
+
+describe("算一組", () => {
+  const shared = { job: 410, skillId: 4001344, skillLevel: 20, monsterId: null };
+  const group = defaultGroup(data, 410, 50, null);
+  it("刺客 50 一般點法雙飛斬：能力視窗 175～292、每鏢乘 150%、一次 2 鏢", () => {
+    const result = computeGroup(data, shared, { ...group, levels: { ...group.levels, 4100000: 20, 4100001: 30 } }, null);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.panel).toEqual({ min: 175, max: 292 });
+    expect(result.hits).toBe(2);
+    // 幸 172、總攻 41：每鏢 172×2.5×41÷100×1.5＝264.45 → 264；172×5×41÷100×1.5＝528.9 → 528
+    expect(result.raw.hit).toEqual({ min: 264, max: 528 });
+    expect(result.raw.use).toEqual({ min: 528, max: 1056 });
+    // 強力投擲 30 級：機率 50%、爆擊 150%＋100%
+    expect(result.critRate).toBeCloseTo(0.5);
+    expect(result.raw.crit!.hit).toEqual({ min: 440, max: 881 });
+  });
+  it("選了怪：扣防禦、算幾次打死、必中命中", () => {
+    const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+    const result = computeGroup(data, shared, group, dragon);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.vs).not.toBeNull();
+    expect(result.vs!.hit.max).toBeLessThan(result.raw.hit.max);
+    expect(result.vs!.kills.avg).toBeGreaterThan(0);
+    expect(result.vs!.accuracy).toBeGreaterThan(0);
+  });
+  it("武器用不了這個技能：寫原因不給數字", () => {
+    const result = computeGroup(data, { ...shared, skillId: 4001334, skillLevel: 20 }, group, null);
+    expect(result).toEqual({ ok: false, reason: "拳套用不了劈空斬" });
+  });
+  it("沒算的技能：寫原因", () => {
+    const result = computeGroup(data, { ...shared, job: 111, skillId: 1111003, skillLevel: 30 }, defaultGroup(data, 111, 80, null), null);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toContain("鬥氣");
+  });
+  it("法師：魔攻＝智力＋武器魔攻＋其他；火焰箭打火弱的怪 ×1.5、法師沒有爆擊", () => {
+    const mage = defaultGroup(data, 210, 40, null);
+    const shared210 = { job: 210, skillId: 2101004, skillLevel: 30, monsterId: null };
+    const raw = computeGroup(data, shared210, mage, null);
+    if (!raw.ok) throw new Error(raw.reason);
+    const weapon = gear.weapons.find(w => w.id === mage.weaponId)!;
+    expect(raw.magicPower).toBe(mage.stats.INT + (weapon.mag ?? 0));
+    expect(raw.critRate).toBeNull();
+    // 沒有防禦、等級比角色低的假靶，只差在火弱不弱
+    const plainTarget = { ...data.monsters[0], lv: 1, pdd: 0, mdd: 0, el: undefined };
+    const weakTarget = { ...plainTarget, el: { f: "w" } };
+    const plain = computeGroup(data, shared210, mage, plainTarget);
+    const weak = computeGroup(data, shared210, mage, weakTarget);
+    if (!plain.ok || !weak.ok) throw new Error("算不出來");
+    expect(Math.abs(weak.vs!.hit.max - plain.vs!.hit.max * 1.5)).toBeLessThanOrEqual(1);
+  });
+  it("穿不上的武器照算，寫差幾點", () => {
+    const weak = { ...group, stats: { ...group.stats, DEX: 25 } };
+    const result = computeGroup(data, shared, weak, null);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.short).toEqual([{ stat: "DEX", short: 65 }]);
+  });
+});
+
+describe("兩組預設", () => {
+  it("刺客 50：左一般點法、右全幸，同等級；技能預設雙飛斬", () => {
+    const state = defaultState(data, 410, 50, null);
+    expect(state.groups[0].tab).toBe("一般點法");
+    expect(state.groups[1].tab).toBe("全幸");
+    expect(state.groups[1].level).toBe(50);
+    expect(state.shared.skillId).toBe(4001344);
+    expect(state.shared.monsterId).not.toBeNull();
+  });
+  it("首頁選了全幸：左全幸、右一般點法", () => {
+    const state = defaultState(data, 410, 50, "全幸");
+    expect(state.groups[0].tab).toBe("全幸");
+    expect(state.groups[1].tab).toBe("一般點法");
+  });
+  it("狂戰士 50（沒有第二套）：右邊同一套、等級拉到下一把武器、武器是那把", () => {
+    const state = defaultState(data, 110, 50, null);
+    const next = gearPlanNext(110, 50);
+    expect(next).not.toBeNull();
+    expect(state.groups[1].level).toBe(next!.lv);
+    expect(state.groups[1].weaponId).toBe(next!.id);
+  });
+  it("換點法、換等級：能力值、武器重設成那套那級的預設，其他攻擊、增益留著", () => {
+    const group = { ...defaultGroup(data, 410, 50, null), extra: 7, buffs: [] };
+    const changed = regroup(data, 410, group, { tab: "全幸" });
+    expect(changed.tab).toBe("全幸");
+    expect(changed.stats.LUK).toBe(237);
+    expect(changed.extra).toBe(7);
+    expect(regroup(data, 410, group, { level: 60 }).level).toBe(60);
+  });
+  it("兩組一樣看得出來", () => {
+    const group = defaultGroup(data, 410, 50, null);
+    expect(sameGroups([group, { ...group }])).toBe(true);
+    expect(sameGroups([group, { ...group, extra: 1 }])).toBe(false);
+  });
+});
+
+describe("一下／兩下打死", () => {
+  const state = defaultState(data, 410, 50, null);
+  const choices = monsterChoices(data.monsters, data.maps);
+  const lists = killLists(data, { ...state.shared, skillId: 4001344, skillLevel: 20 }, state.groups[0], choices)!;
+  it("兩張不重複、等級高到低", () => {
+    const one = new Set(lists.one.map(entry => entry.monster.id));
+    expect(lists.two.every(entry => !one.has(entry.monster.id))).toBe(true);
+    for (const list of [lists.one, lists.two]) {
+      expect(list.every((entry, index) => index === 0 || (list[index - 1].monster.lv ?? 0) >= (entry.monster.lv ?? 0))).toBe(true);
+    }
+  });
+  it("一下＝最低一次 ≥ HP；兩下＝最低一次×2 ≥ HP", () => {
+    expect(lists.one.length).toBeGreaterThan(0);
+    expect(lists.one.every(entry => entry.minUse >= entry.monster.hp)).toBe(true);
+    expect(lists.two.every(entry => entry.minUse < entry.monster.hp && entry.minUse * 2 >= entry.monster.hp)).toBe(true);
+  });
+});
+
+describe("差多少的字", () => {
+  const ok = (expectedUse: number) => ({ ok: true, expectedUse }) as unknown as Parameters<typeof diffText>[1];
+  it("大的比小的多幾 %；差不到 1% 寫差不多；有一組算不出來不寫", () => {
+    expect(diffText(["一般點法", "全幸"], ok(611.8), ok(591.6))).toBe("一般點法比全幸多約 3%");
+    expect(diffText(["一般點法", "全幸"], ok(591.6), ok(611.8))).toBe("全幸比一般點法多約 3%");
+    expect(diffText(["A", "B"], ok(100), ok(100.3))).toBe("兩組差不多");
+    expect(diffText(["A", "B"], { ok: false, reason: "x" }, ok(1))).toBeNull();
+  });
+});
+
+function gearPlanNext(job: number, level: number) {
+  return gearPlan(gear, job, level, false, null).next;
+}
+
+// 下面是照真資料多補的：預設技能怎麼挑、槍連擊／矛連擊吃每一級說明、沒練功圖的等級不選怪也算得出來
+describe("預設技能", () => {
+  it("沒有攻擊技能點的劍士 10：普通攻擊；刺客 50：雙飛斬 20；火毒巫師 50：火焰箭 30", () => {
+    expect(defaultSkill(data, 100, defaultGroup(data, 100, 10, null))).toEqual({ skillId: BASIC_ATTACK, skillLevel: 1 });
+    expect(defaultSkill(data, 410, defaultGroup(data, 410, 50, null))).toEqual({ skillId: 4001344, skillLevel: 20 });
+    expect(defaultSkill(data, 210, defaultGroup(data, 210, 50, null))).toEqual({ skillId: 2101004, skillLevel: 30 });
+  });
+});
+
+describe("槍連擊、矛連擊", () => {
+  const dragon = defaultGroup(data, 131, 90, null);
+  const spear = (skillId: number, skillLevel: number) => computeGroup(data, { job: 131, skillId, skillLevel, monsterId: null }, dragon, null);
+  it("用槍打槍連擊：1 級 55% 兩下、30 級 170% 三下（來自每一級的說明）", () => {
+    const low = spear(1311001, 1);
+    const high = spear(1311001, 30);
+    if (!low.ok || !high.ok) throw new Error("算不出來");
+    expect([low.hits, high.hits]).toEqual([2, 3]);
+    expect(Math.abs(high.raw.hit.max - (low.raw.hit.max * 170) / 55)).toBeLessThanOrEqual(170 / 55);
+  });
+  it("拿槍不能用矛連擊", () => {
+    expect(spear(1311002, 30)).toEqual({ ok: false, reason: "槍用不了矛連擊" });
+  });
+});
+
+describe("沒有練功圖的等級", () => {
+  it("刺客 120：預設不選怪，照樣算得出打木樁", () => {
+    const state = defaultState(data, 410, 120, null);
+    expect(state.shared.monsterId).toBeNull();
+    const result = computeGroup(data, state.shared, state.groups[0], null);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.vs).toBeNull();
   });
 });
