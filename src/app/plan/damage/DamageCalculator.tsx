@@ -7,11 +7,12 @@ import { LoadingBlock } from "@/components/PlanShell";
 import { useBuildChoice } from "@/lib/build-choice";
 import { loadGear, loadGuide, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
 import {
-  clampLevel,
+  clampState,
   computeGroup,
   defaultState,
   diffText,
   groupLabels,
+  monsterChoices,
   parseState,
   type CalcData,
   type CalcState,
@@ -90,9 +91,7 @@ export function DamageCalculator() {
   // 記下的設定：型別對才用；等級另外夾回這個職業的範圍（parseState 只看型別，不看轉職等級）
   const savedState = useMemo(() => {
     const parsed = parseState(saved);
-    if (!parsed) return null;
-    const { job } = parsed.shared;
-    return { ...parsed, groups: parsed.groups.map(group => ({ ...group, level: clampLevel(job, group.level) })) as [GroupConfig, GroupConfig] };
+    return parsed ? clampState(parsed) : null;
   }, [saved]);
   const job = pendingJob ?? savedState?.shared.job ?? profile.job;
   const [buildTab] = useBuildChoice(Math.max(job, 0));
@@ -114,6 +113,19 @@ export function DamageCalculator() {
     return savedState ?? defaultState(data, job, startLevel, buildTab);
   }, [pendingJob, data, job, savedState, startLevel, buildTab]);
 
+  // 怪物選單、打的怪、兩組的結果：每次按 −／＋ 都會重畫，不重算（選單要重排上千隻怪，兩組要各算一遍）
+  const choices = useMemo(() => (base ? monsterChoices(base.monsters, base.maps) : []), [base]);
+  const target = useMemo(
+    () => (data && state && state.shared.monsterId !== null ? data.monsters.find(monster => monster.id === state.shared.monsterId) ?? null : null),
+    [data, state],
+  );
+  const calc = useMemo(() => {
+    if (!data || !state) return null;
+    const results = [computeGroup(data, state.shared, state.groups[0], target), computeGroup(data, state.shared, state.groups[1], target)] as const;
+    const labels = groupLabels(state.groups);
+    return { results, labels, diff: diffText(labels, results[0], results[1]) };
+  }, [data, state, target]);
+
   if (failed) return <Shell><p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">資料讀取失敗，重新整理一次試試。</p></Shell>;
   if (!loaded) return <Shell><LoadingBlock /></Shell>;
 
@@ -123,28 +135,34 @@ export function DamageCalculator() {
   if (job <= 0) {
     return (
       <Shell>
-        <SharedCard data={null} state={null} job={job} onJob={pickJob} onShared={() => {}} beforeOpen={beforeOpen} />
+        <SharedCard data={null} state={null} job={job} onJob={pickJob} onShared={() => {}} choices={choices} beforeOpen={beforeOpen} />
         <p className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-8 text-center text-[15px] ink-soft">
           {job === 0 ? "轉職後才有攻擊技能可以算，先選一個職業看看" : "先選職業，下面就會算出來"}
         </p>
       </Shell>
     );
   }
-  if (!data || !state) return <Shell><LoadingBlock label="整理武器、技能跟怪物中…" /></Shell>;
+  // 換職業、資料還在載：共用設定卡照樣畫在原位（職業那格的焦點才不會掉），載入中的字放在它下面
+  if (!data || !state || !calc) {
+    return (
+      <Shell>
+        <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={() => {}} choices={choices} beforeOpen={beforeOpen} />
+        <LoadingBlock label="整理武器、技能跟怪物中…" />
+      </Shell>
+    );
+  }
 
   const setShared = (patch: Partial<SharedConfig>) => update({ ...state, shared: { ...state.shared, ...patch } });
   const setGroup = (index: 0 | 1, next: GroupConfig) =>
     update({ ...state, groups: (index === 0 ? [next, state.groups[1]] : [state.groups[0], next]) as [GroupConfig, GroupConfig] });
-  const target = state.shared.monsterId !== null ? data.monsters.find(monster => monster.id === state.shared.monsterId) ?? null : null;
-  const results = [computeGroup(data, state.shared, state.groups[0], target), computeGroup(data, state.shared, state.groups[1], target)] as const;
-  const labels = groupLabels(state.groups);
+  const { results, labels, diff } = calc;
   const tab = (active === 1 ? 1 : 0) as 0 | 1;
 
   return (
     <Shell>
-      <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={setShared} beforeOpen={beforeOpen} />
-      <ResultCard data={data} state={state} labels={labels} results={results} target={target} diff={diffText(labels, results[0], results[1])} />
-      <GroupEditor data={data} state={state} labels={labels} active={tab} onActive={index => setActive(index)} onGroup={setGroup} />
+      <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={setShared} choices={choices} beforeOpen={beforeOpen} />
+      <ResultCard data={data} state={state} labels={labels} results={results} target={target} diff={diff} />
+      <GroupEditor data={data} state={state} labels={labels} result={results[tab]} active={tab} onActive={index => setActive(index)} onGroup={setGroup} />
       <HowCard data={data} job={job} level={state.groups[0].level} />
     </Shell>
   );
