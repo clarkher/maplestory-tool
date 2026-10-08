@@ -23,6 +23,10 @@ function fakePage({ key = "entry-quest", height = 991, saved }: { key?: string; 
     anchoring: true,
     onResize: null as null | (() => void),
     timers: [] as Array<() => void>,
+    /** 網址的 #（片段），沒有是空字串 */
+    hash: "",
+    /** 站內按上一頁／下一頁、換到那一筆之後通知（分不出是不是按上一頁的瀏覽器不會裝） */
+    onTraverse: null as null | (() => void),
   };
   const env: ScrollEnv = {
     events,
@@ -45,6 +49,10 @@ function fakePage({ key = "entry-quest", height = 991, saved }: { key?: string; 
     scrollAnchoring: on => {
       page.anchoring = on;
     },
+    hasFragment: () => page.hash.length > 1,
+    onTraverse: then => {
+      page.onTraverse = then;
+    },
   };
   const fire = (type: string) => events.dispatchEvent(new Event(type));
   return {
@@ -63,6 +71,13 @@ function fakePage({ key = "entry-quest", height = 991, saved }: { key?: string; 
     scrollTo(y: number) {
       page.y = y;
       fire("scroll");
+    },
+    /** 站內按上一頁／下一頁回到 key 那一筆（網址帶 hash）：瀏覽器發 popstate，這一筆是按上一頁來的就通知 */
+    back(key: string, hash = "") {
+      page.key = key;
+      page.hash = hash;
+      fire("popstate");
+      page.onTraverse?.();
     },
   };
 }
@@ -427,6 +442,132 @@ describe("查資料卡片搬家：要跳回去的位置跟著卡片挪，一樣�
   });
 });
 
+// 懶人包從首頁「看打法」帶 #pq-moon 進來（Next 捲到錨點 1281），往下捲，點「關於」離開（新的一筆，Next 捲回頂端）。
+// Chrome 站內按返回回到網址帶 # 的那一筆時，不還原位置、改捲到錨點：停 1281，不是離開時的 1425
+describe("站內按返回回到帶 # 的紀錄：瀏覽器捲到錨點，跳回離開時的位置", () => {
+  function leftGuideAt(top: number) {
+    const t = fakePage({ key: "entry-guide", height: 3711 });
+    const restore = keepScrollAcrossReloads(t.env, { restore: false });
+    t.page.hash = "#pq-moon";
+    t.scrollTo(1281);
+    t.scrollTo(top);
+    t.page.key = "entry-about";
+    t.page.hash = "";
+    t.scrollTo(0);
+    return { t, restore };
+  }
+
+  it("捲到 1425 離開、按返回：瀏覽器捲到錨點 1281，下一次畫面前跳回 1425", () => {
+    const { t } = leftGuideAt(1425);
+    t.back("entry-guide", "#pq-moon");
+    t.scrollTo(1281);
+    expect(t.page.jumps).toEqual([]);
+    // 盯上之後，瀏覽器在下一次畫面前一定先通知一次（ResizeObserver 的第一次）
+    t.grow(3711);
+    expect(t.page.jumps).toEqual([1425]);
+    expect(t.page.y).toBe(1425);
+  });
+
+  it("瀏覽器捲到錨點那一下不記：跳回去之後再離開，記的還是 1425", () => {
+    const { t } = leftGuideAt(1425);
+    t.back("entry-guide", "#pq-moon");
+    t.scrollTo(1281);
+    t.grow(3711);
+    t.fire("pagehide");
+    expect(t.saved()["entry-guide"]).toBe(1425);
+  });
+
+  it("離開時在最上面：回到最上面，不是錨點", () => {
+    const { t } = leftGuideAt(0);
+    t.back("entry-guide", "#pq-moon");
+    t.scrollTo(1281);
+    t.grow(3711);
+    expect(t.page.y).toBe(0);
+  });
+
+  it("位置已經存進 sessionStorage（切過背景）：一樣拿得到", () => {
+    const { t } = leftGuideAt(1425);
+    t.page.hidden = true;
+    t.fire("visibilitychange");
+    t.page.hidden = false;
+    t.back("entry-guide", "#pq-moon");
+    t.scrollTo(1281);
+    t.grow(3711);
+    expect(t.page.y).toBe(1425);
+  });
+
+  it("不帶 # 的紀錄按返回：瀏覽器自己還原得回去，不盯、不跳", () => {
+    const t = fakePage({ key: "entry-guide", height: 3711 });
+    keepScrollAcrossReloads(t.env, { restore: false });
+    t.scrollTo(1959);
+    t.page.key = "entry-about";
+    t.scrollTo(0);
+    t.back("entry-guide");
+    t.scrollTo(1959);
+    expect(t.page.onResize).toBeNull();
+    expect(t.page.jumps).toEqual([]);
+  });
+
+  it("這一筆沒記過位置：照瀏覽器的，不盯", () => {
+    const t = fakePage({ key: "entry-about", height: 3711 });
+    keepScrollAcrossReloads(t.env, { restore: false });
+    t.back("entry-guide", "#pq-moon");
+    expect(t.page.onResize).toBeNull();
+  });
+
+  it("使用者一動就停手、交還捲動錨定，之後自己捲的照記", () => {
+    const { t } = leftGuideAt(1425);
+    t.back("entry-guide", "#pq-moon");
+    t.scrollTo(1281);
+    expect(t.page.anchoring).toBe(false);
+    t.fire("touchstart");
+    t.grow(3711);
+    expect(t.page.jumps).toEqual([]);
+    expect(t.page.anchoring).toBe(true);
+    t.scrollTo(1500);
+    t.fire("pagehide");
+    expect(t.saved()["entry-guide"]).toBe(1500);
+  });
+
+  it("還沒跳就又按返回到不帶 # 的那一筆：不把懶人包的位置套過去，那一筆的捲動照記", () => {
+    const { t } = leftGuideAt(1425);
+    t.back("entry-guide", "#pq-moon");
+    t.back("entry-home");
+    t.scrollTo(2525);
+    t.grow(3711);
+    expect(t.page.jumps).toEqual([]);
+    expect(t.page.anchoring).toBe(true);
+    t.fire("pagehide");
+    expect(t.saved()).toMatchObject({ "entry-guide": 1425, "entry-home": 2525 });
+  });
+
+  it("等太久就放棄：之後頁面才長高也不跳", () => {
+    const { t } = leftGuideAt(1425);
+    t.back("entry-guide", "#pq-moon");
+    t.page.timers[0]();
+    t.grow(3711);
+    expect(t.page.jumps).toEqual([]);
+    expect(t.page.onResize).toBeNull();
+  });
+
+  it("整頁重載還在還原時按返回回到帶 # 的紀錄：整頁重載那段停手（restoring 變 false），改放這一筆的位置", () => {
+    const t = fakePage({ key: "entry-about", height: 812, saved: { "entry-about": 1952, "entry-guide": 1425 } });
+    const restore = keepScrollAcrossReloads(t.env, { restore: true });
+    expect(restore.restoring()).toBe(true);
+    t.back("entry-guide", "#pq-moon");
+    expect(restore.restoring()).toBe(false);
+    t.scrollTo(1281);
+    t.grow(3711);
+    expect(t.page.jumps).toEqual([1425]);
+  });
+
+  it("查資料頁問 restoring：只管整頁重載，按返回放回帶 # 的紀錄時一樣是 false", () => {
+    const { t, restore } = leftGuideAt(1425);
+    t.back("entry-guide", "#pq-moon");
+    expect(restore.restoring()).toBe(false);
+  });
+});
+
 describe("哪些載入要還原", () => {
   const navigationOf = (type: string) => ({
     getEntriesByType: (kind: string) => (kind === "navigation" ? [{ type }] : []),
@@ -469,7 +610,7 @@ function fakeBrowser({
     location: { pathname, search },
     performance: { getEntriesByType: (kind: string) => (kind === "navigation" ? [{ type }] : []) },
     sessionStorage: { getItem: (name: string) => store.get(name) ?? null, setItem: (name: string, value: string) => void store.set(name, value) },
-    navigation: navigationKey ? { currentEntry: { key: navigationKey } } : undefined,
+    navigation: navigationKey ? Object.assign(new EventTarget(), { currentEntry: { key: navigationKey } }) : undefined,
     scrollTo(options: ScrollToOptions) {
       scrolls.push(options);
     },
@@ -551,6 +692,57 @@ describe("裝到真的瀏覽器上（window、document、sessionStorage、Resize
     const b = fakeBrowser({ type: "navigate", pathname: "/db/monsters", search: "?id=100100", saved: { "/db/monsters?id=100100": 4001 } });
     installReloadScroll(b.win as never, b.doc as never);
     expect(reloadRestore()?.restoring()).toBe(false);
+  });
+
+  /** 懶人包 #pq-moon 捲到 1425，點「關於」離開（Next pushState：navigate 是 push，不發 popstate） */
+  function leaveGuide(b: ReturnType<typeof fakeBrowser>) {
+    Object.assign(b.win.location, { pathname: "/guide", hash: "#pq-moon" });
+    b.win.scrollY = 1425;
+    b.win.dispatchEvent(new Event("scroll"));
+    b.win.navigation?.dispatchEvent(Object.assign(new Event("navigate"), { navigationType: "push" }));
+    Object.assign(b.win.location, { pathname: "/about", hash: "" });
+    if (b.win.navigation) b.win.navigation.currentEntry.key = "k-about";
+    b.win.scrollY = 0;
+    b.win.dispatchEvent(new Event("scroll"));
+  }
+  const navigate = (b: ReturnType<typeof fakeBrowser>, navigationType: string) =>
+    b.win.navigation?.dispatchEvent(Object.assign(new Event("navigate"), { navigationType }));
+
+  it("按返回回到帶 # 的紀錄（navigate 是 traverse，Next 中間 replaceState，接著 popstate）：盯著頁面，下一次畫面前跳回 1425", () => {
+    const b = fakeBrowser({ type: "navigate", navigationKey: "k-guide" });
+    installReloadScroll(b.win as never, b.doc as never);
+    leaveGuide(b);
+    navigate(b, "traverse");
+    navigate(b, "replace");
+    b.win.navigation!.currentEntry.key = "k-guide";
+    Object.assign(b.win.location, { pathname: "/guide", hash: "#pq-moon" });
+    b.win.dispatchEvent(new Event("popstate"));
+    expect(b.observers).toHaveLength(1);
+    // 瀏覽器捲到錨點，接著第一次通知
+    b.win.scrollY = 1281;
+    b.win.dispatchEvent(new Event("scroll"));
+    b.root.scrollHeight = 3711;
+    b.observers[0].callback();
+    expect(b.scrolls).toEqual([{ top: 1425, behavior: "instant" }]);
+  });
+
+  it("從連結點進 #pq-moon、點頁內錨點（navigate 是 push，也會發 popstate）：不盯、不跳，照瀏覽器捲到錨點", () => {
+    const b = fakeBrowser({ type: "navigate", navigationKey: "k-guide" });
+    installReloadScroll(b.win as never, b.doc as never);
+    leaveGuide(b);
+    navigate(b, "push");
+    b.win.navigation!.currentEntry.key = "k-guide-2";
+    Object.assign(b.win.location, { pathname: "/guide", hash: "#pq-moon" });
+    b.win.dispatchEvent(new Event("popstate"));
+    expect(b.observers).toHaveLength(0);
+  });
+
+  it("沒有 Navigation API 的瀏覽器分不出是不是按返回：照舊交給瀏覽器", () => {
+    const b = fakeBrowser({ type: "navigate", pathname: "/guide", saved: { "/guide": 1425 } });
+    installReloadScroll(b.win as never, b.doc as never);
+    Object.assign(b.win.location, { hash: "#pq-moon" });
+    b.win.dispatchEvent(new Event("popstate"));
+    expect(b.observers).toHaveLength(0);
   });
 
   it("瀏覽器少了哪個功能（沒有 ResizeObserver、sessionStorage、performance）都不出錯，頁面照常", () => {
