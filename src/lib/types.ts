@@ -140,7 +140,11 @@ export type Skill = {
   desc?: string;
   formula?: string;
   labels?: Record<string, string>;
-  levels: Record<string, number>[];
+  /**
+   * 每一級的數值。遊戲資料裡沒有分等級資料的技能（神匠之魂、怪物騎乘、肥肥的弱點攻擊…，上游 levels 是空的）
+   * 沒有這個欄位：建置時 dropEmpty 把空陣列拿掉了。畫面怎麼列見 skill-view.ts
+   */
+  levels?: Record<string, number>[];
 };
 
 export type Job = {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import { itemImage, loadGuide, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
@@ -11,17 +12,27 @@ import {
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
 import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
+import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
+import type { Monster } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 import { CharacterBar } from "./CharacterBar";
 import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
-import { Panel, SourceTag, Sprite } from "./bits";
+import { SourceTag, Sprite } from "./bits";
 import { RouteTimeline } from "./RouteTimeline";
 import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
 
 export type GuideStatus = GuideState["status"];
+
+/**
+ * 硬重新整理時、React 接手之前就先跑（伺服器畫的版本裡的一小段 script，排在大標前面）：本機存過完整的角色（職業＋等級）
+ * 就在 <html> 標 data-profile="saved"，讓「你現在幾等、什麼職業？」看不見。<html> 本來就有 suppressHydrationWarning
+ * （深色模式也是這樣先標上去），不會跟 React 對不起來。站內換頁一開始就讀得到角色，不會畫這段。
+ */
+const SAVED_PROFILE_HINT = `try{var p=JSON.parse(localStorage.getItem("ms-profile")||"null");if(p&&p.level>0&&p.job>=0)document.documentElement.dataset.profile="saved"}catch(e){}`;
 
 export function RouteHome() {
   const showV002Banner = useBeforeV002();
@@ -82,7 +93,12 @@ export function RouteHome() {
   // 等級段只跟職業有關；固定同一個陣列，升級路線的標籤 memo 才不會每次重算
   const bands = useMemo(() => bandsFor(profile.job), [profile.job]);
 
-  const effective = useMemo(() => (data ? effectiveLevels(data.quests, data.monsters, data.common) : null), [data]);
+  // 推算記在這次瀏覽裡（session-memo）：換頁離開首頁再回來，資料跟角色沒變就直接拿上次算好的，慢手機換頁比較快。
+  // 用到的函式本身也放進依賴：開發時改了 now-plan.ts，熱更新換成新函式就會重算，不會拿舊程式算的結果（正式版函式不會變）
+  const effective = useMemo(
+    () => (data ? sessionMemo("home:effective", [effectiveLevels, data.quests, data.monsters, data.common], () => effectiveLevels(data.quests, data.monsters, data.common)) : null),
+    [data],
+  );
   // 先解展開任務細節時，「要先完成」寫前置任務的名字
   const questNames = useMemo(() => new Map((data?.quests ?? []).map(quest => [quest.id, quest.n])), [data]);
 
@@ -100,40 +116,47 @@ export function RouteHome() {
 
   const plan = useMemo(() => {
     if (!data || !ready || !effective) return null;
-    const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
-    const pick = mainPick({
-      level: profile.level,
-      job: profile.job,
-      guide: stageGuide,
-      common: data.common,
-      training: data.training,
-      monsters: data.monsters,
-      maps: data.maps,
-      graph: data.graph,
-      nearestTown: data.nearestTown,
+    // 主推卡、先解、長線也記在這次瀏覽裡：資料、攻略、等級、職業都一樣就直接拿上次的
+    const deps = [
+      mainPick, nowQuests, longRunNow, pqJustClosed,
+      data.quests, data.monsters, data.common, data.training, data.maps, data.graph, data.nearestTown, effective, stageGuide, profile.level, profile.job,
+    ];
+    return sessionMemo("home:plan", deps, () => {
+      const monsterIndex = new Map(data.monsters.map(monster => [monster.id, monster]));
+      const pick = mainPick({
+        level: profile.level,
+        job: profile.job,
+        guide: stageGuide,
+        common: data.common,
+        training: data.training,
+        monsters: data.monsters,
+        maps: data.maps,
+        graph: data.graph,
+        nearestTown: data.nearestTown,
+      });
+      const todo = nowQuests({
+        level: profile.level,
+        job: profile.job,
+        quests: data.quests,
+        monsters: data.monsters,
+        common: data.common,
+        maps: data.maps,
+        effective,
+      });
+      // 長線跟先解同一批候選（實際等級、過期都套），規則在 now-plan 的 longRunNow
+      const longRun = longRunNow({
+        level: profile.level,
+        job: profile.job,
+        quests: data.quests,
+        monsters: data.monsters,
+        common: data.common,
+        maps: data.maps,
+        effective,
+      }).slice(0, 3);
+      // 組隊任務剛過遊戲上限（超綠 30 等）時，主推卡說一聲
+      const pqClosed = pqJustClosed(data.common, profile.job, profile.level, data.quests);
+      return { monsterIndex, pick, todo, longRun, pqClosed };
     });
-    const todo = nowQuests({
-      level: profile.level,
-      job: profile.job,
-      quests: data.quests,
-      monsters: data.monsters,
-      common: data.common,
-      maps: data.maps,
-      effective,
-    });
-    // 長線跟先解同一批候選（實際等級、過期都套），規則在 now-plan 的 longRunNow
-    const longRun = longRunNow({
-      level: profile.level,
-      job: profile.job,
-      quests: data.quests,
-      monsters: data.monsters,
-      common: data.common,
-      maps: data.maps,
-      effective,
-    }).slice(0, 3);
-    // 組隊任務剛過遊戲上限（超綠 30 等）時，主推卡說一聲
-    const pqClosed = pqJustClosed(data.common, profile.job, profile.level, data.quests);
-    return { monsterIndex, pick, todo, longRun, pqClosed };
   }, [data, ready, effective, profile, stageGuide]);
 
   if (error) {
@@ -149,8 +172,11 @@ export function RouteHome() {
         </p>
       ) : null}
 
+      {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
+          存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
+      {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}
       {!ready ? (
-        <header className="px-1 pt-2 text-center">
+        <header className={loaded ? "px-1 pt-2 text-center" : "px-1 pt-2 text-center [[data-profile=saved]_&]:invisible"}>
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed ink-soft">
             選好之後，直接告訴你現在去哪練、先解哪些任務、技能點哪個。
@@ -203,25 +229,9 @@ export function RouteHome() {
           <GearCard job={stage} level={profile.level} maps={data.maps} routable={data.routable} />
 
           {plan.longRun.length ? (
-            <Panel title="長線，有空再刷" aside={<SourceTag kind="data" />}>
-              <ul className="space-y-2">
-                {plan.longRun.map(entry => {
-                  const dropper = entry.droppers.map(id => plan.monsterIndex.get(id)).find(Boolean);
-                  return (
-                    <li key={`${entry.kind}:${entry.id}`} className="flex items-center gap-2.5 text-[13px]">
-                      {dropper ? <Sprite src={monsterImage(dropper.id)} size={34} /> : <Sprite src={itemImage(entry.id)} size={28} />}
-                      <span className="min-w-0 flex-1 leading-snug">
-                        <b>{entry.kind === "kill" ? `打${entry.n}` : entry.n}</b> 累計 {formatNumber(entry.c)} {entry.kind === "kill" ? "隻" : "個"}
-                        <span className="block text-[12px] ink-soft">
-                          {entry.quests.length} 個任務共 {formatNumber(entry.exp)} 經驗
-                          {entry.kind === "item" && dropper ? ` · ${dropper.n} 會掉` : ""}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Panel>
+            // 換職業或等級時重新掛載：展開狀態不帶到別的角色（跟先解同一招）。key 加前綴：跟同一層的先解（TodoList）撞 key 的話，
+            // 換等級時 React 會把先解重複畫一份
+            <LongRun key={`longrun:${profile.job}:${profile.level}`} job={profile.job} level={profile.level} entries={plan.longRun} monsterIndex={plan.monsterIndex} />
           ) : null}
 
           <section aria-label="升級路線" className="space-y-2.5 pt-2">
@@ -258,5 +268,48 @@ export function RouteHome() {
         </>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 長線，有空再刷：預設收起，只列標題跟幾項，點開才列出來——首頁短一點、手機少捲幾下。
+ * 展開記在這一筆瀏覽紀錄上（visit-state）：重新整理、按返回照舊；換職業或等級由上一層換一個新元件，重新收起。
+ */
+function LongRun({ job, level, entries, monsterIndex }: {
+  job: number; level: number; entries: ReturnType<typeof longRunNow>; monsterIndex: Map<number, Monster>;
+}) {
+  const [open, setOpen] = useVisitState(`home:longrun:${job}:${level}`, false);
+  return (
+    <section aria-label="長線，有空再刷" className="rounded-[var(--radius-card)] glass wood-frame p-3.5 sm:p-4">
+      <h2 className="text-[15px] font-black">
+        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="flex w-full items-center gap-2 text-left">
+          <span className="min-w-0 flex-1">
+            長線，有空再刷
+            <span className="ml-1.5 text-[12px] font-bold ink-faint">{entries.length} 項</span>
+          </span>
+          <SourceTag kind="data" />
+          <ChevronDown size={16} className={`shrink-0 ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
+        </button>
+      </h2>
+      {open ? (
+        <ul className="mt-2.5 space-y-2">
+          {entries.map(entry => {
+            const dropper = entry.droppers.map(id => monsterIndex.get(id)).find(Boolean);
+            return (
+              <li key={`${entry.kind}:${entry.id}`} className="flex items-center gap-2.5 text-[13px]">
+                {dropper ? <Sprite src={monsterImage(dropper.id)} size={34} /> : <Sprite src={itemImage(entry.id)} size={28} />}
+                <span className="min-w-0 flex-1 leading-snug">
+                  <b>{entry.kind === "kill" ? `打${entry.n}` : entry.n}</b> 累計 {formatNumber(entry.c)} {entry.kind === "kill" ? "隻" : "個"}
+                  <span className="block text-[12px] ink-soft">
+                    {entry.quests.length} 個任務共 {formatNumber(entry.exp)} 經驗
+                    {entry.kind === "item" && dropper ? ` · ${dropper.n} 會掉` : ""}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </section>
   );
 }

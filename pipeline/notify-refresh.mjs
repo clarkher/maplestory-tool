@@ -1,16 +1,18 @@
 /**
  * 資料自動更新（.github/workflows/data-refresh.yml）的失敗通知，跑在 notify job。
  *
- * refresh 失敗：開一張 issue（label「資料更新失敗」、指派給 repo 擁有者）；已經有開著的就不另開——
+ * refresh（建置）或 publish（開 PR 合併）失敗：開一張 issue（label「資料更新失敗」、指派給 repo 擁有者）；已經有開著的就不另開——
  *   同樣的失敗（同一步、同一個上游版本）只更新內文「最後一次失敗」那行（不發通知），有變才在那張留言。
- * refresh 跑超過時間上限被中止（結果是 cancelled，但有主要步驟跑到一半）也算失敗；
+ *   步驟名與錯誤訊息從失敗的那個 job 讀（lib/refresh-issue.mjs 的 overallResult）。
+ * 跑超過時間上限被中止（結果是 cancelled，但有主要步驟跑到一半）也算失敗；
  * 一步都沒跑（GitHub 沒派到機器）、或只有收尾步驟被中止，不通知。
- * refresh 成功：有開著的就留言「恢復了」並關掉。
+ * 成功（publish 合併了，或 dry-run、版本沒變所以沒跑）：有開著的就留言「恢復了」並關掉。
  * 內容與判斷在 lib/refresh-issue.mjs；這支只負責打 GitHub API（讀取與改內文遇到 5xx、連線失敗會重試，開 issue、留言不重試）。
  *
  * 環境變數（workflow 給）：
  *   GH_TOKEN        要有 issues: write、actions: read
  *   REFRESH_RESULT  refresh job 的結果：success／failure／cancelled
+ *   PUBLISH_RESULT  publish job 的結果：success／failure／cancelled／skipped（沒給當成沒跑）
  *   UPSTREAM_STAMP  上游版本（data/raw/artale.json 的 metadata.generatedAt），取上游那步就失敗時是空的
  *   SITE_STAMP      網站目前的資料版本（public/data/meta.json 的 dataGeneratedAt）
  *   DRY_RUN         "true" 就改用測試用的 label 與標題（workflow 開頭的 env：勾 dry_run、simulate_failure，或不是從 main 觸發）
@@ -19,9 +21,9 @@
  *
  * 本機預覽某一次執行會發出什麼內容（只讀，不開 issue、不留言、不關）：
  *   GH_TOKEN=$(gh auth token) GITHUB_REPOSITORY=clarkher/maplestory-tool GITHUB_RUN_ID=<run id> \
- *   REFRESH_RESULT=failure PRINT_ONLY=true node pipeline/notify-refresh.mjs
+ *   REFRESH_RESULT=success PUBLISH_RESULT=failure PRINT_ONLY=true node pipeline/notify-refresh.mjs
  */
-import { notifyRefresh } from "./lib/refresh-issue.mjs";
+import { notifyRefresh, overallResult } from "./lib/refresh-issue.mjs";
 
 const env = process.env;
 const LABEL_COLOR = "d73a4a";
@@ -80,11 +82,11 @@ function githubApi({ token, repo, runId, apiUrl }) {
       return issues.find(issue => !issue.pull_request) ?? null;
     },
 
-    async refreshJob() {
-      // filter=latest：每個 job 拿最新那次（只重跑 notify 時也找得到 refresh）
+    async job(name) {
+      // filter=latest：每個 job 拿最新那次（只重跑 notify 時也找得到 refresh、publish）
       const { jobs } = await json("GET", `repos/${repo}/actions/runs/${runId}/jobs?filter=latest&per_page=100`);
-      const job = jobs.find(candidate => candidate.name === "refresh");
-      if (!job) throw new Error("這次執行裡找不到 refresh 這個 job");
+      const job = jobs.find(candidate => candidate.name === name);
+      if (!job) throw new Error(`這次執行裡找不到 ${name} 這個 job`);
       return job;
     },
 
@@ -182,9 +184,11 @@ const github = githubApi({
   apiUrl: env.GITHUB_API_URL || "https://api.github.com",
 });
 
+const { result, job } = overallResult({ refresh: required("REFRESH_RESULT"), publish: env.PUBLISH_RESULT });
 const outcome = await notifyRefresh(
   {
-    result: required("REFRESH_RESULT"),
+    result,
+    job,
     dryRun: env.DRY_RUN === "true",
     upstreamStamp: env.UPSTREAM_STAMP ?? "",
     siteStamp: env.SITE_STAMP ?? "",
@@ -204,4 +208,4 @@ const DONE = {
   none: "不用通知",
 };
 const done = `${env.PRINT_ONLY === "true" && outcome.action !== "none" ? "（預覽）會" : ""}${DONE[outcome.action]}`;
-console.log(`refresh 結果 ${env.REFRESH_RESULT} → ${done}${outcome.issue?.number ? `：${outcome.issue.html_url}` : ""}`);
+console.log(`refresh 結果 ${env.REFRESH_RESULT}、publish 結果 ${env.PUBLISH_RESULT || "（沒給）"} → ${done}${outcome.issue?.number ? `：${outcome.issue.html_url}` : ""}`);

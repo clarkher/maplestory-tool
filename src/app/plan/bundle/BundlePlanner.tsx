@@ -12,6 +12,7 @@ import { formatCompact, formatNumber } from "@/lib/format";
 import { planQuestBundles, type QuestBundle } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import type { FarmingRow, MapRecord, Monster, Quest } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 
 export function BundlePlanner() {
   const { profile, setProfile, loaded } = useProfile();
@@ -125,7 +126,8 @@ function BundleCard({
   maps: Record<string, MapRecord>;
   monsterIndex: Map<number, Monster>;
 }) {
-  const [open, setOpen] = useState(false);
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時卡片一樣長，才捲得回同一段
+  const [open, setOpen] = useVisitState(`bundle:card:${bundle.map}`, false);
   const record = maps[String(bundle.map)];
 
   return (

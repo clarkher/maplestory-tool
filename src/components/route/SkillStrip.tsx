@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { skillImage } from "@/lib/data";
 import { availableSp, buildProgress, isFreeStep, mainBuild, stepText, type PlannedStep } from "@/lib/skill-plan";
 import type { GuideBuild, GuideJob } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 import { SourceLinks, SourceTag, Sprite } from "./bits";
 
 /**
@@ -14,7 +15,8 @@ import { SourceLinks, SourceTag, Sprite } from "./bits";
 export function SkillStrip({ guide, job, level, prefer, leftover }: {
   guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] } | null;
 }) {
-  const [open, setOpen] = useState(false);
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時首頁一樣長，才捲得回同一段
+  const [open, setOpen] = useVisitState("home:skill", false);
   const build = mainBuild(guide.builds, prefer);
   // 收合時就先把這條點法的技能圖載進快取，展開時不會一格一格冒出來
   useEffect(() => {

@@ -74,7 +74,7 @@ export function jobFit(stage: number, level: number, mobs: Array<[number, number
 }
 
 /**
- * 單隻怪合不合這個職業練（怪物頁「只看適合我練的」）：跟 jobFit 同一套條件——
+ * 單隻怪合不合這個職業練（怪物頁「適合我練的」「包含低 5 級」）：跟 jobFit 同一套條件——
  * 僧侶這一系 31～70 只打不死系、火毒不打抗火的、冰雷不打抗冰的；其他職業、還沒選職業不加規則。
  */
 export function monsterSuitsJob(stage: number, level: number, monster: Monster): boolean {
@@ -85,7 +85,7 @@ export function monsterSuitsJob(stage: number, level: number, monster: Monster):
   return true;
 }
 
-/** 怪物頁篩選旁邊寫的職業規則（原因跟練功卡片同一套說法）；沒有特別規則回 null */
+/** 怪物頁範圍標籤下面小字、接在等級範圍後面寫的職業規則（原因跟練功卡片同一套說法）；沒有特別規則回 null */
 export function trainingRuleNote(stage: number, level: number): string | null {
   const branch = branchOf(stage);
   if (clericUndeadOnly(branch, level)) return "只列不死系：群體治癒補得到";

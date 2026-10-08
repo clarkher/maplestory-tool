@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   errorTail, failedStepName, planAction, issueKeys, failureBody, recoveredBody, notifyRefresh,
-  taipeiTime, readFailureMark, markFailure,
+  taipeiTime, readFailureMark, markFailure, overallResult,
 } from "./refresh-issue.mjs";
 
 const ESC = "\x1b";
@@ -307,6 +307,21 @@ test("失敗：沒有開著的 issue 就開新的，有就在那張留言；成�
   assert.equal(planAction("success", false), "none");
 });
 
+test("refresh（建置）跟 publish（開 PR 合併）的結果併成一個：refresh 沒成功看 refresh，refresh 成功就看 publish 有沒有失敗或被中止", () => {
+  // refresh 沒成功時 publish 不會跑（skipped）
+  assert.deepEqual(overallResult({ refresh: "failure", publish: "skipped" }), { result: "failure", job: "refresh" });
+  assert.deepEqual(overallResult({ refresh: "cancelled", publish: "skipped" }), { result: "cancelled", job: "refresh" });
+  // 開 PR、合併失敗或卡住：資料沒上線，也要通知，步驟與 log 看 publish
+  assert.deepEqual(overallResult({ refresh: "success", publish: "failure" }), { result: "failure", job: "publish" });
+  assert.deepEqual(overallResult({ refresh: "success", publish: "cancelled" }), { result: "cancelled", job: "publish" });
+  // publish 合併成功，或沒跑（dry-run、上游版本沒變）：成功，不用看哪個 job
+  assert.deepEqual(overallResult({ refresh: "success", publish: "success" }), { result: "success", job: null });
+  assert.deepEqual(overallResult({ refresh: "success", publish: "skipped" }), { result: "success", job: null });
+  // 本機預覽拆 job 之前的舊執行：沒有 publish 的結果
+  assert.deepEqual(overallResult({ refresh: "success", publish: undefined }), { result: "success", job: null });
+  assert.deepEqual(overallResult({ refresh: "failure", publish: "" }), { result: "failure", job: "refresh" });
+});
+
 test("被取消（含 GitHub 沒派到機器）不通知、也不關", () => {
   assert.equal(planAction("cancelled", false), "none");
   assert.equal(planAction("cancelled", true), "none");
@@ -463,7 +478,7 @@ function fakeGitHub({ open = null, job = FAILED_JOB, log = FETCH_FAILURE, jobErr
     calls,
     writes: () => calls.filter(([name]) => ["ensureLabel", "createIssue", "comment", "updateIssue", "close"].includes(name)),
     async findOpenIssue(label) { calls.push(["findOpenIssue", label]); return open; },
-    async refreshJob() { calls.push(["refreshJob"]); if (jobError) throw jobError; return job; },
+    async job(name) { calls.push(["job", name]); if (jobError) throw jobError; return job; },
     async jobLog(id) { calls.push(["jobLog", id]); if (logError) throw logError; return log; },
     async ensureLabel(label) { calls.push(["ensureLabel", label]); },
     async createIssue(issue) { calls.push(["createIssue", issue]); return { number: 7, html_url: "https://github.com/clarkher/maplestory-tool/issues/7" }; },
@@ -580,7 +595,7 @@ test("成功、沒有開著的：只查一下，什麼都不寫", async () => {
 test("被取消、一步都沒跑（GitHub 沒派到機器，10/05 那次）：不通知，也不查 issue", async () => {
   const github = fakeGitHub({ open: OPEN_ISSUE, job: { id: 111966673830, name: "refresh", conclusion: "cancelled", steps: [] } });
   assert.equal((await notifyRefresh({ ...FAILED, result: "cancelled" }, github)).action, "none");
-  assert.deepEqual(github.calls, [["refreshJob"]]);
+  assert.deepEqual(github.calls, [["job", "refresh"]]);
 });
 
 test("被取消、但有一步被中止（跑超過時間上限）：當成失敗開 issue，寫哪一步被中止與中止前的輸出", async () => {
@@ -590,7 +605,59 @@ test("被取消、但有一步被中止（跑超過時間上限）：當成失�
   const [, issue] = github.writes()[1];
   assert.match(issue.body, /失敗的步驟：（測試）故意失敗（被中止，多半是跑超過時間上限）/);
   assert.match(issue.body, /The operation was canceled\./);
-  assert.equal(github.calls.filter(([name]) => name === "refreshJob").length, 1, "步驟只讀一次");
+  assert.equal(github.calls.filter(([name]) => name === "job").length, 1, "步驟只讀一次");
+});
+
+// jobs API 回的 publish job：開 PR 那一步失敗（例如標題太長，GitHub 回 422）
+const PUBLISH_FAILED_JOB = {
+  id: 112700000001,
+  name: "publish",
+  conclusion: "failure",
+  html_url: "https://github.com/clarkher/maplestory-tool/actions/runs/37600000000/job/112700000001",
+  steps: [
+    { number: 1, name: "Set up job", conclusion: "success" },
+    { number: 2, name: "Run actions/checkout@v4", conclusion: "success" },
+    { number: 3, name: "下載重建好的資料檔", conclusion: "success" },
+    { number: 4, name: "開 PR 並自動合併", conclusion: "failure" },
+    { number: 8, name: "Post Run actions/checkout@v4", conclusion: "success" },
+    { number: 9, name: "Complete job", conclusion: "success" },
+  ],
+};
+const PUBLISH_FAILURE_LOG = actionsLog([
+  "##[group]Run # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡",
+  "shell: /usr/bin/bash -e {0}",
+  "##[endgroup]",
+  "To https://github.com/clarkher/maplestory-tool",
+  " * [new branch]      data/refresh-20261008100000 -> data/refresh-20261008100000",
+  "pull request create failed: GraphQL: Title is too long (maximum is 256 characters) (createPullRequest)",
+  "##[error]Process completed with exit code 1.",
+]);
+
+test("refresh 成功、publish（開 PR、合併）失敗：讀 publish 那個 job，issue 寫它失敗的那一步、連到它的 log", async () => {
+  const github = fakeGitHub({ job: PUBLISH_FAILED_JOB, log: PUBLISH_FAILURE_LOG });
+  const outcome = await notifyRefresh({ ...FAILED, job: "publish", upstreamStamp: "2026-10-08T10:00:00+08:00" }, github);
+  assert.equal(outcome.action, "create");
+  assert.deepEqual(github.calls.find(([name]) => name === "job"), ["job", "publish"]);
+  assert.deepEqual(github.calls.find(([name]) => name === "jobLog"), ["jobLog", 112700000001]);
+  const [, issue] = github.writes()[1];
+  assert.match(issue.body, /失敗的步驟：開 PR 並自動合併/);
+  assert.match(issue.body, /Title is too long/);
+  assert.ok(issue.body.includes(`執行紀錄：${PUBLISH_FAILED_JOB.html_url}`));
+  assert.deepEqual(readFailureMark(issue.body), { step: "開 PR 並自動合併", upstream: "2026-10-08T10:00:00+08:00", count: 1 });
+});
+
+test("publish 跑超過時間上限被中止：讀 publish 的步驟，有一步被中止就當失敗開 issue", async () => {
+  const stuck = {
+    ...PUBLISH_FAILED_JOB,
+    conclusion: "cancelled",
+    steps: PUBLISH_FAILED_JOB.steps.map(step => (step.name === "開 PR 並自動合併" ? { ...step, conclusion: "cancelled" } : step)),
+  };
+  const github = fakeGitHub({ job: stuck, log: TIMED_OUT_LOG });
+  const outcome = await notifyRefresh({ ...FAILED, result: "cancelled", job: "publish" }, github);
+  assert.equal(outcome.action, "create");
+  assert.deepEqual(github.calls[0], ["job", "publish"]);
+  const [, issue] = github.writes()[1];
+  assert.match(issue.body, /失敗的步驟：開 PR 並自動合併（被中止，多半是跑超過時間上限）/);
 });
 
 test("被取消、只有收尾步驟被中止（主要步驟都跑完了）：不通知", async () => {

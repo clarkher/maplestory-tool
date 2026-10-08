@@ -207,6 +207,18 @@ describe("種類叫「裝備」、又拿不到的道具不列", () => {
   });
 });
 
+describe("GM 專用道具不列", () => {
+  it("名字有 GM 又拿不到的不列（不管分類）", () => {
+    expect(hiddenFromList({ id: 1052173, n: "沒看頭的GM制服", c: "裝備", s: "套服", eq: { reqLevel: 1 } })).toBe(true);
+    expect(hiddenFromList({ id: 3994085, n: "GM的火燭", c: "裝飾", s: "活動裝飾" })).toBe(true);
+  });
+
+  it("名字有 GM 但拿得到的照列；名字沒有 GM 的一般道具照列", () => {
+    expect(hiddenFromList({ id: 3994085, n: "GM的火燭", c: "裝飾", s: "活動裝飾", dm: [100100] })).toBe(false);
+    expect(hiddenFromList({ id: 1002019, n: "紅色髮帶", c: "裝備", s: "帽子", eq: { reqLevel: 5 } })).toBe(false);
+  });
+});
+
 describe("道具清單的預設排序", () => {
   it("裝備最前面、依需求等級由低到高，沒寫等級的排在裝備最後；再來消耗、其他、裝飾、現金、時裝", () => {
     const shield: Item = { id: 1092000, n: "木盾", c: "裝備", s: "盾牌", eq: { reqLevel: 10 } };

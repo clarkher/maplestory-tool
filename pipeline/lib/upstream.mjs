@@ -30,8 +30,8 @@ export const UPSTREAM_PARTS = [
 
 /**
  * 把 `window.名稱 = {JSON};` 解成物件。
- * 內容是純 JSON，直接解析就好——不要用 eval／vm 去執行別人 repo 裡的東西，
- * 這支會在帶著寫入權限的 CI 裡跑。
+ * 內容是純 JSON，直接解析就好——不要用 eval／vm 去執行別人 repo 裡的東西：
+ * 這支在 CI 裡跑，產出的資料會直接合進正式機。
  */
 export function parseUpstreamScript(text, globalName, file) {
   const prefix = new RegExp(`^\\s*window\\.${globalName}\\s*=\\s*`);
@@ -53,12 +53,40 @@ export function parseUpstreamScript(text, globalName, file) {
  */
 const ISO_STAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
 
+/**
+ * 遊戲版本只收「1.15.2」這種 2～4 段數字（上游 2026-08 到 10 月的 1.13.1～1.15.2 都是三段）。
+ * 會寫進 PR 標題（GitHub 上限 256 字，太長開不出 PR，那時資料分支已經推上去了）、commit 訊息、網站頁尾，
+ * 各檔版本也會印進執行紀錄（換行後面寫 ::指令:: 會被 Actions 當成指令）。
+ */
+const GAME_VERSION = /^\d{1,4}(?:\.\d{1,4}){1,3}$/;
+
+/** 產生時間的文字版（「2026-09-24 11:25:10 GMT+8」）只拿來顯示、不限格式，但會印進執行紀錄、寫進網站的 meta.json。 */
+const MAX_STAMP_TEXT = 64;
+const CONTROL_CHARS = /[\p{Cc}\p{Zl}\p{Zp}]/u; // 控制字元（含 \n、\r、ESC）、行／段落分隔字元
+
+/** 原字串可能帶換行或指令，放進錯誤訊息一律 JSON 跳脫、只留前 80 字。 */
+function shown(value) {
+  const text = JSON.stringify(value) ?? String(value);
+  return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+}
+
+// 下面三個：有寫但格式不對就讓重建失敗（跟其他「格式可能改了」一樣），沒寫的檔照舊略過
 function checkedGeneratedAt(value, file) {
   if (value == null || value === "") return null;
   if (typeof value === "string" && ISO_STAMP.test(value) && Number.isFinite(Date.parse(value))) return value;
-  // 原字串可能帶換行或指令，印出來一律 JSON 跳脫、只留前 80 字
-  const shown = JSON.stringify(value);
-  throw new Error(`上游 ${file} 的 metadata.generatedAt 不是 ISO 時間格式（${shown.length > 80 ? `${shown.slice(0, 80)}…` : shown}），格式可能改了`);
+  throw new Error(`上游 ${file} 的 metadata.generatedAt 不是 ISO 時間格式（${shown(value)}），格式可能改了`);
+}
+
+function checkedGameVersion(value, file) {
+  if (value == null || value === "") return null;
+  if (typeof value === "string" && GAME_VERSION.test(value)) return value;
+  throw new Error(`上游 ${file} 的 metadata.gameVersion 不是「1.15.2」這種版本號（${shown(value)}），格式可能改了`);
+}
+
+function checkGeneratedAtText(value, file) {
+  if (value == null || value === "") return;
+  if (typeof value === "string" && value.length <= MAX_STAMP_TEXT && !CONTROL_CHARS.test(value)) return;
+  throw new Error(`上游 ${file} 的 metadata.generatedAtText 有換行、控制字元或超過 ${MAX_STAMP_TEXT} 字（${shown(value)}），格式可能改了`);
 }
 
 /**
@@ -92,7 +120,9 @@ export function assembleUpstream(parts) {
 
     const metadata = part.metadata || {};
     const generatedAt = checkedGeneratedAt(metadata.generatedAt, spec.file);
-    partVersions[spec.file] = { gameVersion: metadata.gameVersion ?? null, generatedAt };
+    const gameVersion = checkedGameVersion(metadata.gameVersion, spec.file);
+    checkGeneratedAtText(metadata.generatedAtText, spec.file);
+    partVersions[spec.file] = { gameVersion, generatedAt };
     const stamp = Date.parse(generatedAt ?? "");
     if (Number.isFinite(stamp) && (!newest || stamp > newest.stamp)) newest = { stamp, metadata };
   }

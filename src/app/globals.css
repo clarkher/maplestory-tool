@@ -98,6 +98,23 @@ html {
   scroll-behavior: smooth;
 }
 
+/*
+  導覽列的高度（SiteHeader 量好寫進 --header-h）。手指往下滑、導覽列收起來時 <html> 多一個 data-header-hidden，--header-offset 變 0：
+  黏在導覽列下面的東西（查資料開著的那一列、桌機右邊那一欄）用 --header-offset，跟著貼到最上面。
+*/
+:root {
+  --header-h: 65px;
+  --header-offset: var(--header-h);
+}
+:root[data-header-hidden] {
+  --header-offset: 0px;
+}
+
+/* 捲過來時讓出頂端的導覽列：導覽列在的時候跟以前一樣是 80px（65＋15），收起來時只留一點空隙、不留導覽列的空位 */
+@utility scroll-mt-header {
+  scroll-margin-top: calc(var(--header-offset) + 15px);
+}
+
 body {
   min-height: 100dvh;
   background-color: var(--paper);

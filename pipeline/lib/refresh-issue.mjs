@@ -98,7 +98,19 @@ function wasStopped(job) {
 }
 
 /**
- * refresh job 的結果＋有沒有開著的 issue → 要做什麼。
+ * refresh（建置）跟 publish（開 PR 合併）兩個 job 的結果 → 這次算什麼結果、要看哪個 job 的步驟與 log。
+ * refresh 沒成功時 publish 不會跑，看 refresh；refresh 成功，publish 失敗或被中止（資料沒上線）就看 publish；
+ * publish 成功或沒跑（dry-run、上游版本沒變）都算成功，不用看哪個 job（job 是 null）。
+ * publish 是空的（本機預覽拆 job 之前的舊執行）當成沒跑。
+ */
+export function overallResult({ refresh, publish }) {
+  if (refresh !== "success") return { result: refresh, job: "refresh" };
+  if (publish === "failure" || publish === "cancelled") return { result: publish, job: "publish" };
+  return { result: "success", job: null };
+}
+
+/**
+ * 這次的結果＋有沒有開著的 issue → 要做什麼。
  * cancelled 一律不動；跑超過時間上限的那種 cancelled，notifyRefresh 會先看步驟、改成 failure 再問。
  */
 export function planAction(result, hasOpenIssue) {
@@ -173,24 +185,25 @@ function fenceFor(lines) {
 }
 
 /**
- * notify job 的主流程：refresh 失敗就開 issue（已經有開著的就更新那張），成功就留言並關掉。
+ * notify job 的主流程：資料更新失敗就開 issue（已經有開著的就更新那張），成功就留言並關掉。
  * 已經有開著的時候，同樣的失敗（同一步、同一個上游版本）只改內文的「最後一次失敗」那行——改內文不發通知，
  * 排程一天兩次壞著不修才不會每 12 小時吵一次；失敗的步驟或上游版本變了才留言（會通知）。
  *
- * ctx：{ result（refresh job 的結果）, dryRun, upstreamStamp, siteStamp, runUrl, readmeUrl, assignee, now }
+ * ctx：{ result、job（overallResult() 的結果；job 沒給就是 refresh）, dryRun, upstreamStamp, siteStamp, runUrl, readmeUrl, assignee, now }
  * github：打 GitHub API 的動作（pipeline/notify-refresh.mjs 給真的，測試給假的）——
- *   findOpenIssue(label)、refreshJob()、jobLog(jobId)、ensureLabel(label)、
+ *   findOpenIssue(label)、job(name)（這次執行裡叫這個名字的 job）、jobLog(jobId)、ensureLabel(label)、
  *   createIssue({ title, body, label, assignee })、comment(number, body)、updateIssue(number, body)、close(number)
  * 回傳 { action: "create" | "comment" | "update" | "close" | "none", issue? }
  */
 export async function notifyRefresh(ctx, github) {
   let result = ctx.result;
+  const jobName = ctx.job ?? "refresh";
   let job;
   if (result === "cancelled") {
     // 跑超過時間上限也是 cancelled（10/07 實測）：有哪一步被中止就當失敗；一步都沒跑是 GitHub 沒派到機器，下一輪會再跑。
     // 手動取消整個執行時 notify 根本不會跑（workflow 的 if: !cancelled()），不會走到這裡
-    job = await github.refreshJob().catch(error => {
-      console.warn(`refresh 被取消，但讀不到它的步驟，當成不用通知：${error.message}`);
+    job = await github.job(jobName).catch(error => {
+      console.warn(`${jobName} 被取消，但讀不到它的步驟，當成不用通知：${error.message}`);
       return null;
     });
     if (!wasStopped(job)) return { action: "none" };
@@ -208,7 +221,7 @@ export async function notifyRefresh(ctx, github) {
   }
   if (action === "none") return { action };
 
-  const failure = { ...ctx, ...(await failureDetails(github, job)), at: taipeiTime(ctx.now ?? new Date()) };
+  const failure = { ...ctx, ...(await failureDetails(github, job, jobName)), at: taipeiTime(ctx.now ?? new Date()) };
   if (action === "create") {
     await github.ensureLabel(label);
     const issue = await github.createIssue({ title, body: failureBody(failure), label, assignee: ctx.assignee });
@@ -229,10 +242,10 @@ export async function notifyRefresh(ctx, github) {
  * 失敗的步驟名＋錯誤最後幾行＋失敗那個 job 的網址（點了直接看到那段 log）；
  * job 已經讀過就不再讀。API 讀不到也照樣回內容，通知本身不能因此開不出來。
  */
-async function failureDetails(github, job) {
+async function failureDetails(github, job, jobName) {
   if (!job) {
     try {
-      job = await github.refreshJob();
+      job = await github.job(jobName);
     } catch (error) {
       // 步驟名寫固定的字：錯誤訊息每次不一樣（網址帶執行編號），放進步驟名會讓 API 壞著的期間每次都被當成「失敗有變」而留言
       return { stepName: "（讀不到這次執行的步驟）", tail: [], tailNote: `讀不到這次執行的步驟（${error.message}）` };

@@ -19,15 +19,16 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，back-all 和 card-shot 都是 9347，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，back-all 和 card-shot 都是 9347，reload-all 是 9367，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
-  first-frame 會印 PASS／FAIL，但一律 exit 0。
+  first-frame 會印 PASS／FAIL，但一律 exit 0。check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
 - 測試機實測時間（2026-10-07）：first-frame 的 nav 段 25 秒、scroll-proof 45 秒、crossdoc（plain）75 秒、
-  after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒。
+  after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
+  gear-source-shot 三個角色 13 秒。
   border-compare 全部跑約 20 分鐘。
 - 不會被 `npm test` 跑到：vitest 只抓 `src/**/*.test.ts`，`node --test` 只抓 `pipeline/**/*.test.mjs`。
 - `.gitignore` 擋掉這個資料夾裡除了 `.mjs` 跟本檔以外的東西，也擋掉任何 `chrome-profile*/`。
@@ -37,6 +38,20 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 ## 每支在做什麼
 
 ### 換頁第一格
+
+#### `check-first-frame.mjs`：自動檢查換頁第一格，沒過 exit 1（v0.68，GitHub Actions「測試 / 第一格」）
+
+```bash
+node scripts/verify/check-first-frame.mjs [輸出] [網址，預設 http://localhost:3000]
+```
+
+- 六項，只看結構、不看時間（GitHub 的機器快慢不穩，時間門檻會偶發紅燈）：
+  1 首頁 → 查資料 → 我的路線，DOM 只有一個狀態、就是完整路線；2 硬重新整理、存過角色，不出現「你現在幾等、什麼職業？」；
+  3 硬重新整理、沒存過角色，第一格就看得到那句問題；4 首頁「帶我去」→ /go 第一格就是路線；5 查資料 → 練功地圖排行第一格就是結果；
+  6 沒有 hydration 警告、沒接住的錯誤。
+- 本機跑：先 `next build` 再 `next start`（或直接給測試機網址），約 25 秒。`CI` 環境變數有設時 Chrome 會加 `--no-sandbox`。
+- 驗過抓得到：故意把首頁、/go、練功排行改回「先畫載入中」、大標改成都看不見，1／3／4／5 紅；對還沒有 v0.54 的正式機跑，2 紅。
+- 輸出：`results.json`（每項的細節、console）、`1-home.png`；CI 沒過時整個資料夾上傳成 artifact「first-frame」。
 
 #### `first-frame.mjs`：「10/15 開放」標示第一個畫面就要在（v0.37）
 
@@ -62,7 +77,11 @@ node scripts/verify/home-first-frame.mjs <輸出> <網址>
 ```
 
 - 情境：A 首頁 → 查資料 → 我的路線（A4／A6 是 CPU 慢 4／6 倍）、B 從查資料進站、C 等級加一、D 硬重新整理、
-  E 沒選職業、F 不可能的組合（狂戰士 25 等）、G 道具頁「誰能用」、H 首頁換職業。
+  D2 沒存過角色的人硬重新整理、E 沒選職業、F 不可能的組合（狂戰士 25 等）、G 道具頁的「狂戰士能用」標籤、H 首頁換職業。
+- D 的 `questionFrames`／`domQuestion`：存過角色的人硬重新整理時，畫出來的格數／DOM 裡出現「你現在幾等、什麼職業？」
+  的次數，v0.54 起都要是 0（大標看不見，位置照留）。D2 是沒存過角色的人，第一格就要看到那句問題。
+- G 找 `main button[aria-pressed]` 裡文字以「能用」結尾的那顆（v0.55 起道具頁的「誰能用」下拉換成標籤按鈕，之前找 `select[aria-label="誰能用"]`），
+  印出它的文字（`text`，預期「狂戰士能用」）跟 `aria-pressed`（`pressed`，一打開預期 `"false"`）；`textOk`、`pressedOk` 是跟預期值比的結果。
 - `ONLY=A6,H` 只跑名稱開頭符合的情境。
 - 每一格（rAF，畫出來之前）記高度跟有哪些區塊，另外用 screencast 存真的畫出來的畫面。
 - 輸出：`<情境>-cast-<序號>-<毫秒>ms.jpg`（換頁後每一張 screencast）、`<情境>-settled-*.png`、`results.json`
@@ -117,6 +136,46 @@ node scripts/verify/crossdoc.mjs <輸出> <網址> [埠=9348] [plain|early] [nob
 - 第 6 個參數 `nobf`：關掉返回快取（`--disable-features=BackForwardCache`），離站返回一定整頁重載。
 - 輸出：`results.json`，console 每個情境一行。
 
+#### `reload-open.mjs`：展開過的卡片，重新整理、返回之後還在不在、停在不在同一段（v0.59）
+
+```bash
+node scripts/verify/reload-open.mjs <輸出> <網址> [埠=9363] [情境，逗號分隔：home,quest,train,bundle,go,guide,guide-pq]
+```
+
+- 每個情境跑四種：
+  - 重新整理。
+  - 離站再返回：關返回快取，一定整頁重載。
+  - 站內按返回：點頁尾「資料從哪來」再按返回。
+  - 站內重新點進來：點頁首「查資料」，再從查資料頁點回這一頁；這是新的一筆紀錄。帶我去、懶人包 #pq-moon 查資料頁沒有連結，不跑這種。
+- 每一種都先從別頁點進來（新的一筆瀏覽紀錄），先記「剛進來時開著幾個」，要等於預設：首頁 1（你在的那段）、懶人包 1（第一步）、
+  懶人包 #pq-moon 2（第一步＋月妙自動展開），其他 0。不等於預設就算沒過。
+- 再像使用者一樣點開幾張卡：
+  - 首頁：還有 N 個任務；長任務線看細節、還有 N 段、第 3 段；為什麼要解；第二列看細節；技能條；裝備看全部；主推理由展開；你在那段的「為什麼」；升級路線第一段。
+  - 解任務：連卡住的一起看、三張看細節。
+  - 懶人包：收起第一步、點開第二三步。
+  - 懶人包 #pq-moon：收起自動展開的月妙（重新整理後網址的 # 還在，要保持收起）。
+- 捲到可捲高度 70% 的地方，記下畫面兩個固定點是哪一塊：頁首下方 y=90、畫面中間 y=420。
+  回來後同一塊、差 2px 內、開著的數量一樣，才印「同一段」。站內重新點進來要回到預設，才印「照預設」。
+- 手機 375×812，角色 Lv.45（job 110）。環境變數 `WAIT`：回來後等幾毫秒再量，預設 5000。
+- 輸出：`<情境>-<種類>-1-before.png`／`-2-after.png`、`results.json`。console 每種一行：離開／停的位置、頁高、開著幾個、兩個點對不對得上。
+  對不上時多印兩行，是兩邊各看到哪一塊。最後一行印總共幾種、通過幾種。一律 exit 0。
+- 已知會沒過的一種（2026-10-07，跟展開無關、改前就這樣）：懶人包 #pq-moon 的站內按返回會停在月妙那步的錨點（1281），
+  不是離開的位置（1425）：網址帶 # 的那一筆紀錄，按返回時畫面被捲到錨點，不是瀏覽器記的位置。另外處理。
+- 測試機實測時間（2026-10-07）：全跑約 9 分鐘。
+
+#### `reload-all.mjs`：全站重新整理、離站再返回回不回得到原位（v0.44；v0.62 收進來）
+
+```bash
+node scripts/verify/reload-all.mjs <輸出> <網址> [埠=9367] [頁面,頁面…]
+```
+
+- 預設 10 頁：懶人包、關於、首頁、規劃四頁、怪物清單、道具清單、開著卡片的 `/db/monsters?id=100100`。
+  每頁捲到 60% 高度，各量「重新整理」跟「離站再返回」（一律關返回快取，返回一定整頁重載）。
+- v0.62 起開著卡片的網址也要回到離開時的位置（之前會跳回卡片頂端：離開 4001 → 停 357）。
+- 手機 375 寬。重新整理、返回後等 4 秒再看（環境變數 `WAIT` 改毫秒數）。
+- 輸出：每格一張截圖、`results.json`；console 每格一行（離開 → 停在哪、對不對、一載入的逐格位置），最後一行是幾格對。
+- 幾支 Chrome 同時跑會互相拖慢，資料還沒到就量，數字會歪：最後一輪一支一支跑。
+
 #### `after-back.mjs`：按完返回後，頁內平滑捲動還在不在（v0.40）
 
 ```bash
@@ -127,12 +186,14 @@ node scripts/verify/after-back.mjs <輸出> <網址> [埠=9354]
 - 兩個都跟「沒按返回」對照。
 - 輸出：`item-tap-*.png`、`results.json`。
 
-#### `m13-select.mjs`：道具清單「誰能用」篩選＋按返回（v0.35 以後）
+#### `m13-select.mjs`：道具清單「誰能用」篩選＋按返回（只適用 v0.35～v0.54）
 
 ```bash
 node scripts/verify/m13-select.mjs <輸出> <網址> [埠=9361]
 ```
 
+- **v0.55 起不能用**：「誰能用」下拉換成「〇〇能用」「現在就能穿」標籤按鈕，這支找不到下拉選單、會卡在等選項再出錯。
+  同一件事（按「〇〇能用」標籤 → 離開再返回 → 篩選還在、清單一樣、捲回原位）改跑 `npm run verify:db` 的 M13（`VERIFY_ONLY=M13`）。
 - 選「狂戰士能用的」→ 捲到中間 → 頁首「查資料」→ 返回：篩選還在、清單一樣、捲回原位、直接跳。
 - 這是舊查資料頁驗收的 M13 改成下拉選單的版本。
 - 輸出：`m13-after-back.png`、`results.json`。
@@ -226,6 +287,23 @@ node scripts/verify/card-shot.mjs <輸出> <檔名前綴> <網址> [<網址> …
 - 輸出：`<前綴>-<id>-mobile.png`、`<前綴>-<id>-desktop.png`，console 印 JSON。
 - v0.39 起長卡片頂端有一條黏著的「收起」列，截圖頂端的怪名會被它蓋住一點。chip 的文字跟顏色不受影響。
 
+### 首頁裝備卡
+
+#### `gear-source-shot.mjs`：武器、卷軸「去哪拿」截圖，可以把瀏覽器時間調到 10/15 之後（v0.66）
+
+```bash
+AT=2026-10-16T10:00:00+08:00 node scripts/verify/gear-source-shot.mjs <輸出> <網址> 400:25,100:35,210:45
+```
+
+- 第三個參數是要看的角色，`職業代碼:等級`，逗號分隔（400 一轉盜賊、100 劍士、210 火毒巫師）。
+  手機 390 寬，每個角色另外開一次首頁（先清 localStorage、sessionStorage，再放 `ms-profile`）。
+- `AT`：瀏覽器時鐘調到這個時間（ISO）；不給就用真的時間。調到 10/15 開機之後，看的就是開放後的推薦。
+  v0.61 起開放後也先推舊地區的來源：一轉盜賊 25 等狼牙「墮落城市的後街吉姆合成」、劍士 35 等綠蛇刀「小幽靈會掉」、
+  火毒巫師 45 等黃色雨傘「青螃蟹會掉」（v0.61 以前，開放後會變成冰原雪域斯考特的店、雲彩公園的月光精靈）。
+- 輸出：`<職業>-<等級>.png`（裝備卡從頂端截到武器那塊）、`<職業>-<等級>-route.png`（升級路線「你在這」那一段的「裝備」，
+  沒展開會自己點開）、`results.json`；console 印主推武器、去哪拿、路線每一列的字。
+- 改前／改後：同一個 `AT` 各跑一次改前、改後的網址（例如正式機 vs 測試機），兩邊的字直接比。
+
 ### 沒收進來的
 
 - `db-verify.mjs`：已被 `scripts/verify-db.mjs`（`npm run verify:db`）取代。M1–M19、D1–D3 都在，還多了 N1–N13、D4。
@@ -256,6 +334,12 @@ node scripts/verify/card-shot.mjs <輸出> <檔名前綴> <網址> [<網址> …
 - **頁首按鈕有 0.15 秒變色動畫**，截圖裡舊的那顆還是橘色不是 bug。
 - **`captureBeyondViewport: true` 會把固定頁首畫進截圖範圍**，蓋住卡片頂端。
   改用 `false`，先把目標捲到頁首下面再截（card-shot）。
+- **`Page.captureScreenshot` 的 `clip` 是整頁座標**：`getBoundingClientRect()` 量到的視窗座標要加上 `scrollX`／`scrollY`，
+  不然截到的是頁面最上面那一段（全空白）。**高度是負的 clip 會讓它一直不回**，整支腳本卡死不報錯——
+  捲動還沒到位就量（全站 `html` 是平滑捲動）最容易算出負的。量位置前先把 `html` 設 `scroll-behavior: auto !important`
+  再跳過去，DevTools 呼叫也要設等待上限（gear-source-shot 的 `send` 每個最多 60 秒）。
+- **剛開的 Chrome 停在 `about:blank`，再 `Page.navigate` 到 `about:blank` 不會有 load 事件**，沒設逾時會一直等下去。
+  第一頁直接導到要量的網址。
 - **手機觸控點長頁面底部的輸入框可能點不到**：點完檢查 `activeElement`，沒點中就 `el.focus()`（border-* 的 `tap`）。
 - **改前／改後要用每個 commit 固定的部署網址**，不要拿 dev 測試機當改前（它一小時會被合好幾次）。
   `gh api "repos/clarkher/maplestory-tool/deployments?sha=<完整 sha>"` 拿 id，

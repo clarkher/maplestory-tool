@@ -10,14 +10,14 @@ export default function Page() {
   return (
     <article className="prose-page space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">隱私權政策</h1>
-      <p className="ink-soft">最後更新：2026 年 10 月 5 日</p>
+      <p className="ink-soft">最後更新：2026 年 10 月 7 日</p>
 
       <Block title="我們不需要你的帳號">
         本站不提供註冊、不需要登入，也沒有任何帳號系統。你不用給我們電子郵件、電話或任何個人身分資料。
       </Block>
 
       <Block title="存在你自己瀏覽器裡的東西">
-        <p>你填的等級與職業、「帶我去」上次選的出發點，以及白天／夜晚配色的選擇，只存在你自己裝置的 localStorage 裡，不會送到我們的伺服器。</p>
+        <p>你填的等級與職業、你在任務頁按「我做完了」的任務、「帶我去」上次選的出發點，以及白天／夜晚配色的選擇，只存在你自己裝置的 localStorage 裡，不會送到我們的伺服器。</p>
         <p className="mt-2">清除瀏覽器資料就會一併消失，我們也拿不回來。</p>
       </Block>
 

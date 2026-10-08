@@ -11,6 +11,7 @@ import { rewardSummary } from "@/lib/format";
 import { planQuests, QUEST_BUCKET_LABEL, type QuestPlan } from "@/lib/planner";
 import { useProfile } from "@/lib/profile";
 import type { MapRecord, Quest } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 
 export function QuestPlanner() {
   const { profile, setProfile, loaded } = useProfile();
@@ -18,7 +19,8 @@ export function QuestPlanner() {
   const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
-  const [showBlocked, setShowBlocked] = useState(false);
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時卡片一樣多、一樣長，才捲得回同一段
+  const [showBlocked, setShowBlocked] = useVisitState("quest:blocked", false);
 
   useEffect(() => {
     if (quests && maps) return;
@@ -105,8 +107,8 @@ export function QuestPlanner() {
 }
 
 function QuestCard({ plan, maps }: { plan: QuestPlan; maps: Record<string, MapRecord> }) {
-  const [open, setOpen] = useState(false);
   const { quest } = plan;
+  const [open, setOpen] = useVisitState(`quest:card:${quest.id}`, false);
   const blocked = plan.blockedBy.length > 0;
   const startMap = quest.sNpc?.map;
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);

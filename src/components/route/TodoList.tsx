@@ -1,23 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, useState } from "react";
+import { Fragment } from "react";
 import { ChevronDown, RouteIcon } from "@/components/Icons";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
 import { itemImage, mapName, npcImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
+import { normalizeJob } from "@/lib/jobs";
 import { npcGoTarget, partsText, type NowQuest } from "@/lib/now-plan";
+import { useStoredProfile } from "@/lib/profile";
 import type { MapRecord } from "@/lib/types";
+import { useVisitState } from "@/lib/visit-state";
 import { PartsText, SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 
 /** 一開始顯示幾條；其餘按「還有 N 個任務」展開（關鍵獎勵可能超過 5 個，不能藏掉） */
 const FIRST_SHOWN = 5;
 
-type RowProps = { item: NowQuest; routable: Set<number>; maps: Record<string, MapRecord>; questNames: Map<string, string> };
+type RowProps = {
+  item: NowQuest;
+  routable: Set<number>;
+  maps: Record<string, MapRecord>;
+  questNames: Map<string, string>;
+  /** 這一列的展開記在哪（lib/visit-state 的 key 開頭） */
+  memoryKey: string;
+};
 
 /** 先解：一次就做完的任務，關鍵獎勵排前面。 */
-export function TodoList({ items, routable, maps, questNames }: Omit<RowProps, "item"> & { items: NowQuest[] }) {
-  const [showAll, setShowAll] = useState(false);
+export function TodoList({ items, routable, maps, questNames }: Omit<RowProps, "item" | "memoryKey"> & { items: NowQuest[] }) {
+  // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時清單一樣長，才捲得回同一段。
+  // 跟首頁換掉這張卡的條件一樣（RouteHome 的 key）：換職業或等級就是另一份清單，展開不帶過去
+  const { profile } = useStoredProfile();
+  const scope = `home:todo:${normalizeJob(profile.job)}:${profile.level}`;
+  const [showAll, setShowAll] = useVisitState(`${scope}:all`, false);
   if (!items.length) return null;
   const shown = showAll ? items : items.slice(0, FIRST_SHOWN);
   return (
@@ -25,7 +39,7 @@ export function TodoList({ items, routable, maps, questNames }: Omit<RowProps, "
       <h2 className="px-1 pt-1 text-[16px] font-black">出發前，先解這 {items.length} 個任務</h2>
       <ul className="space-y-2">
         {shown.map(item => (
-          <TodoRow key={item.key} item={item} routable={routable} maps={maps} questNames={questNames} />
+          <TodoRow key={item.key} item={item} routable={routable} maps={maps} questNames={questNames} memoryKey={`${scope}:${item.key}`} />
         ))}
       </ul>
       {items.length > FIRST_SHOWN ? (
@@ -42,10 +56,10 @@ export function TodoList({ items, routable, maps, questNames }: Omit<RowProps, "
   );
 }
 
-function TodoRow({ item, routable, maps, questNames }: RowProps) {
-  const [open, setOpen] = useState(false);
+function TodoRow({ item, routable, maps, questNames, memoryKey }: RowProps) {
+  const [open, setOpen] = useVisitState(`${memoryKey}:why`, false);
   // 任務細節（找誰、要交什麼、拿什麼）：點任務名稱或「看細節」在卡片裡展開，跟「現在能接的任務」頁同一份內容
-  const [detail, setDetail] = useState(false);
+  const [detail, setDetail] = useVisitState(`${memoryKey}:detail`, false);
   const fraction = levelText(item.fraction);
   const parts = partsText(item);
   const lead = [item.exp ? `+${formatNumber(item.exp)} 經驗` : null, fraction].filter((chunk): chunk is string => Boolean(chunk));
@@ -117,7 +131,7 @@ function TodoRow({ item, routable, maps, questNames }: RowProps) {
           {item.quests.length === 1 ? (
             <QuestDetailBody quest={item.quests[0]} maps={maps} questNames={questNames} />
           ) : (
-            <PartList item={item} maps={maps} questNames={questNames} />
+            <PartList item={item} maps={maps} questNames={questNames} memoryKey={memoryKey} />
           )}
         </div>
       ) : null}
@@ -129,9 +143,9 @@ function TodoRow({ item, routable, maps, questNames }: RowProps) {
 const FIRST_PARTS = 5;
 
 /** 好幾段的任務線：一段一行（名稱＋要交什麼），點哪一段才展開那一段的細節 */
-function PartList({ item, maps, questNames }: Omit<RowProps, "routable">) {
-  const [showAll, setShowAll] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+function PartList({ item, maps, questNames, memoryKey }: Omit<RowProps, "routable">) {
+  const [showAll, setShowAll] = useVisitState(`${memoryKey}:parts`, false);
+  const [openId, setOpenId] = useVisitState<string | null>(`${memoryKey}:part`, null);
   const shown = showAll ? item.quests : item.quests.slice(0, FIRST_PARTS);
   return (
     <div className="space-y-1.5">
