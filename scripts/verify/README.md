@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -360,6 +360,26 @@ node scripts/verify/build-variants-shot.mjs <輸出> <網址> [職業:等級:點
   `click-after-reload.png`、`results.json`（上面這些，加 `keyboard`、`contrast`、console 錯誤／警告）。`WIDTH=360` 看安卓換行；`AT` 同 gear-source-shot。
 - 預設埠 9371。本機 dev server（已編譯過）跑 11 個角色＋三段實測 2026-10-08 約 5 分鐘（284 秒，那時 CPU 被別的程式吃滿；
   兩個角色加三段約 2 分鐘）。測試機還沒量（v0.75 那版 8 個角色約 40 秒）。
+
+### 文字對比
+
+#### `contrast-audit.mjs`：全站小字對比（WCAG AA），沒過 exit 1（v0.81）
+
+```bash
+MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁面,頁面…]
+```
+
+- 每一頁、白天跟夜晚各載一次，畫面上每個有直接文字的元素都算字色跟實際背景的對比。
+  算法跟 build-variants-shot 的 contrast 一樣（顏色畫在 canvas 讀回來、背景一路往下疊、opacity 照群組合成），那支只量一塊，這支量整頁。
+- 門檻：一般字 4.5；大字（24px 以上，或 18.66px 以上且粗體）3。停用的按鈕不算。有任何一段沒過就 exit 1。
+- 頁面不給就跑 12 頁：首頁、`/db/items?id=1472004`（青銅指虎）、查資料怪物／任務／技能、`/plan` 四頁、`/go`、`/guide`、`/about`。
+  首頁先存刺客 35 全幸（`ms-profile`、`ms-build`），卡片才畫得出來。只看預設展開的樣子，收起來的卡片裡面量不到。
+- **在 Git Bash 裡一定要加 `MSYS_NO_PATHCONV=1`**，不然首頁的 `/` 會被換成 `C:/Program Files/Git/`，那一頁只量到錯誤頁的 7 段字。
+- 沒算 body 的暈光、圖片背景、backdrop-filter（毛玻璃當成疊在下層的半透明色）；字壓在圖上的地方要自己看。
+- 環境變數：`THEMES=light` 只跑白天；`WIDTH` 視窗寬（預設 390）。預設埠 9375。
+- 2026-10-08 量改前的測試機（v0.76）：白天 12 頁 5,317 段字有 2,777 段沒過（灰字 2.7、金 2.3、楓葉橘 3.3、天藍 3.8、綠 3.6），
+  夜晚 837 段（亮橘按鈕上的白字 2.47、灰字在毛玻璃上 3.9）。改法跟數字見 `src/app/globals.css` 的註解、`global-css.test.ts`。
+- 輸出：`results.json`（每頁每個主題：段數、沒過的字、字色、背景、比值、字級、class）。測試機兩個主題 12 頁約 3 分鐘。
 
 ### 沒收進來的
 
