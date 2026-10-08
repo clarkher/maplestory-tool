@@ -614,6 +614,21 @@ describe("bandGear：升級路線跟著卡片選的點法換（第二套點法�
     expect(bandGear(fixture, 410, 21, 29, true, "全幸").weapons.map(e => [e.level, e.weapon.n])).toEqual([[21, "拳套10"], [25, "拳套20"]]);
   });
 
+  it("還沒轉到的那一轉有好幾條點法都對得上武器種類時，先挑主推（研究檔把全幸排在主推前面也一樣）", () => {
+    const dagger = (id: number, lv: number, atk: number, dex: number) =>
+      weapon({ id, n: `短刀${lv}`, s: "短刀", lv, atk, job: 8, req: { DEX: dex }, src: shop });
+    const swapped: GearData = {
+      ...fixture,
+      rules: [
+        rule({ jobs: [420], label: "俠盜全幸", main: "LUK", secondary: { stat: "DEX", type: "fixed", value: 25 }, weapons: ["短刀"], tab: "全幸", mainstream: false }),
+        rule({ jobs: [420], label: "俠盜一般", main: "LUK", secondary: { stat: "DEX", type: "equip", floor: 25 }, weapons: ["短刀"], tab: "一般點法" }),
+        rule({ jobs: [421], label: "神偷一般", main: "LUK", secondary: { stat: "DEX", type: "equip", floor: 25 }, weapons: ["短刀"] }),
+      ],
+      weapons: [dagger(1, 30, 40, 25), dagger(2, 35, 50, 70)],
+    };
+    expect(bandGear(swapped, 421, 30, 39, true).weapons.map(e => e.weapon.n)).toEqual(["短刀30", "短刀35"]);
+  });
+
   it("現在的職業卡片上沒有這個標籤（俠盜沒有全幸）：不換", () => {
     expect(bandGear(fixture, 420, 21, 29, true, "全幸")).toEqual(bandGear(fixture, 420, 21, 29, true));
   });

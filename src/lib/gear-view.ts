@@ -509,7 +509,9 @@ function ruleAt(rules: StatRule[], job: number, stage: number, tab?: string | nu
   }
   if (stage === job) return rulesFor(rules, job).main;
   const wanted = weaponTypesFor(job);
-  const matching = rules.find(rule => rule.jobs.includes(stage) && rule.weapons?.some(type => wanted.includes(type)));
+  const fits = (rule: StatRule) => rule.jobs.includes(stage) && rule.weapons?.some(type => wanted.includes(type));
+  // 對得上武器種類的有好幾條（俠盜的一般點法跟全幸都寫短刀）：先挑主推，不看研究檔的排列順序
+  const matching = rules.find(rule => fits(rule) && rule.mainstream) ?? rules.find(fits);
   return matching ?? rulesFor(rules, stage).main;
 }
 
