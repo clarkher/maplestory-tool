@@ -142,6 +142,22 @@ export type StatRule = {
   mainstream: boolean;
 };
 
+/**
+ * 法師防具（pipeline/lib/gear.mjs 的 buildArmor）：給「裝備法」挑每個部位穿得上的。只收職業限制含法師、拿得到的；
+ * slot 部位（帽子、套服、上衣、褲裙、鞋子、手套、盾牌）、lv 需求等級、req 要的能力值、job reqJob 位元、src 怎麼拿、o 只有 V002 才拿得到。
+ * 陣列已排好：部位、等級低到高，同等級加智力多的、防禦高的、拿法多的先——挑的時候同等級取第一件。
+ */
+export type GearArmor = {
+  id: number;
+  n: string;
+  slot: string;
+  lv: number;
+  req?: Partial<Record<StatKey, number>>;
+  job: number;
+  src: GearSource;
+  o?: string;
+};
+
 export type GearNote = {
   jobs: number[];
   topic: "weapon" | "scroll" | "armor" | "stat";
@@ -157,6 +173,8 @@ export type GearData = {
   builtAt: string;
   weapons: GearWeapon[];
   scrolls: GearScroll[];
+  /** 法師防具（v0.76 起才有；舊的 gear.json、測試假資料沒有就當沒有） */
+  armor?: GearArmor[];
   rules: StatRule[];
   before?: { t: string; s: string[]; v: "tw" | "community" | "legacy" };
   notes: GearNote[];
@@ -248,6 +266,56 @@ export function kitStats(
   return { stats, worn: kit.filter(piece => wornSet.has(piece)), later: kit.filter(piece => !wornSet.has(piece)) };
 }
 
+/** 卷軸效果原文裡這個能力值加幾點：「DEX+2，命中率+1」→ 2；沒寫回 0 */
+function effectGain(effect: string, stat: StatKey): number {
+  return Number(new RegExp(`\\b${stat}\\+(\\d+)`).exec(effect)?.[1] ?? 0);
+}
+
+/**
+ * 運氣好的上限：要湊的裝備裡有寫卷軸的那幾件，改衝同部位同屬性、這個成功率（60%）的那張，全部成功時各加多少。
+ * 道具本身的點數＝原本的 v － 衝卷次數 × 100% 那張加的點數；新的 v＝道具本身＋次數 × 這張加的點數
+ * （桑那服 10 次：100% 每張 +1 是 10，60% 每張 +2 就是 20）。卷軸效果照遊戲資料，不寫死。
+ * 這個成功率沒有卷、或 10/15 前只有 V002 拿得到的那件照原本；一件都換不到回 null。沒換的件回傳同一個物件。
+ */
+export function luckyKit(kit: GearKit[], scrolls: GearScroll[], job: number, rate: number, beforeOpen = false): GearKit[] | null {
+  let changed = false;
+  const result = kit.map(piece => {
+    const used = piece.scroll;
+    if (!used) return piece;
+    const family = scrollFamily(scrolls, job, used.slot, used.stat);
+    const from = family?.options.find(option => option.rate === used.rate);
+    const to = family?.options.find(option => option.rate === rate && !(beforeOpen && option.o));
+    const perFrom = from ? effectGain(from.effect, piece.stat) : 0;
+    const perTo = to ? effectGain(to.effect, piece.stat) : 0;
+    if (!to || !perFrom || !perTo) return piece;
+    changed = true;
+    return { ...piece, v: piece.v - used.times * perFrom + used.times * perTo, scroll: { ...used, id: to.id, rate: to.rate } };
+  });
+  return changed ? result : null;
+}
+
+/** 法師防具挑件的部位：套服跟「上衣＋褲裙」二選一（見 armorPicks） */
+const ARMOR_SLOTS = ["帽子", "套服", "上衣", "褲裙", "鞋子", "手套", "盾牌"];
+
+/**
+ * 每個部位現在拿得到、穿得上（照 wear）、等級最高的那件法師防具：帽子、身上、鞋子、手套、盾牌各一件。
+ * 身上：上衣跟褲裙都有、而且兩件都比套服高等才列兩件，不然列套服（沒有套服才只列有的那件）。
+ * 同等級取陣列裡第一件（pipeline 已照加智力、防禦、拿法多寡排好）。10/15 前不收只有 V002 拿得到的。
+ */
+export function armorPicks(armor: GearArmor[], job: number, level: number, wear: Record<StatKey, number>, beforeOpen = false): GearArmor[] {
+  const usable = armor.filter(
+    piece => canJobUse(piece.job, job) === true && piece.lv <= level && !(beforeOpen && piece.o) && obtainableBy(piece.src, job, level) && canWear(piece, wear),
+  );
+  const top = (slot: string): GearArmor | null => {
+    const inSlot = usable.filter(piece => piece.slot === slot);
+    const highest = Math.max(...inSlot.map(piece => piece.lv));
+    return inSlot.find(piece => piece.lv === highest) ?? null;
+  };
+  const [hat, overall, shirt, pants, shoes, gloves, shield] = ARMOR_SLOTS.map(top);
+  const body = shirt && pants && (!overall || Math.min(shirt.lv, pants.lv) > overall.lv) ? [shirt, pants] : overall ? [overall] : [shirt, pants];
+  return [hat, ...body, shoes, gloves, shield].filter((piece): piece is GearArmor => piece !== null);
+}
+
 /* ------------------------------------------------------------------ 武器種類 */
 
 /**
@@ -316,10 +384,13 @@ function offenseStat(weapon: GearWeapon, magic: boolean): number {
   return (magic ? weapon.mag : weapon.atk) ?? 0;
 }
 
-/** 這把武器穿不穿得上：每一項需求都要 ≤ 對應的能力值目標；沒寫需求就沒有限制。 */
-export function canWear(weapon: GearWeapon, targets: Record<StatKey, number>): boolean {
-  if (!weapon.req) return true;
-  return STAT_KEYS.every(key => (weapon.req![key] ?? 0) <= targets[key]);
+/** 有能力值需求的東西（武器、法師防具） */
+type Wearable = { req?: Partial<Record<StatKey, number>> };
+
+/** 這把武器（或這件防具）穿不穿得上：每一項需求都要 ≤ 對應的能力值目標；沒寫需求就沒有限制。 */
+export function canWear(item: Wearable, targets: Record<StatKey, number>): boolean {
+  if (!item.req) return true;
+  return STAT_KEYS.every(key => (item.req![key] ?? 0) <= targets[key]);
 }
 
 /**
@@ -485,11 +556,11 @@ export function equipRequirement(
   return result;
 }
 
-/** 武器的力敏智幸需求比目標高的部分：「照這套點法敏捷還差 10」。沒寫需求或沒超過目標的不列。 */
-export function statShortfall(weapon: GearWeapon, targets: Record<StatKey, number>): Array<{ stat: StatKey; short: number }> {
+/** 武器（或防具）的力敏智幸需求比目標高的部分：「照這套點法敏捷還差 10」。沒寫需求或沒超過目標的不列。 */
+export function statShortfall(item: Wearable, targets: Record<StatKey, number>): Array<{ stat: StatKey; short: number }> {
   const result: Array<{ stat: StatKey; short: number }> = [];
   for (const stat of STAT_KEYS) {
-    const req = weapon.req?.[stat];
+    const req = item.req?.[stat];
     if (req === undefined) continue;
     const short = req - targets[stat];
     if (short > 0) result.push({ stat, short });
