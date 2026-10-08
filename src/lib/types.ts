@@ -152,8 +152,9 @@ export type Skill = {
    */
   levelText?: Record<string, string>;
   /**
-   * 所需技能（從說明尾巴「所需技能：魔天一擊1等級以上」拆出來，pipeline/lib/skill-text.mjs）。
-   * id 是同一條職業線裡名字完全一樣的那個技能，卡片做成連結；上游的字對不上技能名的（例「劍技專精」）沒有 id、只列名字
+   * 所需技能（從說明尾巴「所需技能：魔天一擊1等級以上」「需求技能：…」拆出來，pipeline/lib/skill-text.mjs）。
+   * id 照台服客戶端的 req 接（data/client/skill-req.json），name 是那個技能的正式名稱（遊戲說明寫「劍技專精」的，這裡是精準之劍）；
+   * 客戶端沒寫的退回找同一條職業線裡名字完全一樣的那個。都找不到就沒有 id、只列名字（2026-10-08 v0.80 起 0 個）
    */
   req?: { name: string; level: number; id?: number }[];
 };

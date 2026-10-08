@@ -157,6 +157,73 @@ test("所需技能只在同一條職業線（自己、上一轉、一轉）找�
   assert.deepEqual(list[10].req, [{ name: "同名技能", level: 1 }]);
 });
 
+test("寫「需求技能：」的也拆（黑暗之劍等 13 個，v0.78 漏了）；只寫「20級」沒寫「以上」的（3連發）也收", () => {
+  assert.deepEqual(splitPrereq("攻擊單一敵人，但只限裝備劍，並且鬥氣量有上升的狀態下使用。 需求技能：鬥氣集中1級以上"), {
+    desc: "攻擊單一敵人，但只限裝備劍，並且鬥氣量有上升的狀態下使用。",
+    req: [{ name: "鬥氣集中", level: 1 }],
+  });
+  assert.deepEqual(splitPrereq("提升魔法攻擊速度。 需求技能：魔力激發 3級以上").req, [{ name: "魔力激發", level: 3 }]);
+  assert.deepEqual(splitPrereq("無法與其他各種藥水重複使用。 需求技能： 神聖之光5級以上").req, [{ name: "神聖之光", level: 5 }]);
+  assert.deepEqual(splitPrereq("使用雙子星攻擊時所發射的子彈數量增多，且攻擊力也會提升。 需求技能：雙子星攻擊20級").req, [{ name: "雙子星攻擊", level: 20 }]);
+  // 只有數字、沒寫級也沒寫以上：認不得，不拆
+  assert.equal(splitPrereq("提升攻擊力。 需求技能：雙子星攻擊20").req, undefined);
+  // 技能名本身有數字的（四轉瞬‧迅雷要「3連發 20級」）照收；「A 3等級以上和B 5等級以上」照舊不收
+  assert.deepEqual(splitPrereq("連續發射子彈。 需求技能：3連發 20級").req, [{ name: "3連發", level: 20 }]);
+  assert.equal(splitPrereq("提升攻擊力。 所需技能：憤怒 3級和激勵5級").req, undefined);
+});
+
+// data/client/skill-req.json：台服客戶端每個技能的 req（所需技能 id → 等級），scripts/client/skill-req.mjs 抽的
+test("客戶端寫了所需技能就照它的 id 接，名字換成那個技能的正式名稱（遊戲說明寫錯的「劍技專精」→ 精準之劍；2026-10-08 使用者選 A）", () => {
+  const list = [
+    { id: 1100000, n: "精準之劍", job: 110 },
+    { id: 1100002, n: "終極之劍", job: 110, req: [{ name: "劍技專精", level: 3 }] },
+    { id: 1000002, n: "生命恢復", job: 100 },
+    // 劍士線沒有「恢復術」，客戶端寫的是生命恢復；盜賊線的恢復術不能被拿來接
+    { id: 1001003, n: "自身強化", job: 100, req: [{ name: "恢復術", level: 3 }] },
+    { id: 4100002, n: "恢復術", job: 410 },
+    // 名字本來就對的照接（客戶端跟名字指到同一個）
+    { id: 1001004, n: "魔天一擊", job: 100 },
+    { id: 1001005, n: "劍氣縱橫", job: 100, req: [{ name: "魔天一擊", level: 1 }] },
+  ];
+  linkPrereqs(list, { 1100002: { 1100000: 3 }, 1001003: { 1000002: 3 }, 1001005: { 1001004: 1 } });
+  assert.deepEqual(list[1].req, [{ name: "精準之劍", level: 3, id: 1100000 }]);
+  assert.deepEqual(list[3].req, [{ name: "生命恢復", level: 3, id: 1000002 }]);
+  assert.deepEqual(list[6].req, [{ name: "魔天一擊", level: 1, id: 1001004 }]);
+});
+
+test("客戶端的等級跟說明不一樣、指到別條職業線、或清單裡沒有那個技能：不照客戶端接，退回找同名（不亂接）", () => {
+  const list = [
+    { id: 1100000, n: "精準之劍", job: 110 },
+    { id: 1100002, n: "終極之劍", job: 110, req: [{ name: "劍技專精", level: 3 }] },
+    { id: 1200001, n: "精準之棍", job: 120 },
+    { id: 1100003, n: "終極之斧", job: 110, req: [{ name: "斧頭專精", level: 3 }] },
+    { id: 1101004, n: "快速之劍", job: 110, req: [{ name: "精準之劍", level: 5 }] },
+  ];
+  linkPrereqs(list, { 1100002: { 1100000: 5 }, 1100003: { 1200001: 3 }, 1101004: { 9999999: 5 } });
+  assert.deepEqual(list[1].req, [{ name: "劍技專精", level: 3 }]);
+  assert.deepEqual(list[3].req, [{ name: "斧頭專精", level: 3 }]);
+  assert.deepEqual(list[4].req, [{ name: "精準之劍", level: 5, id: 1100000 }]);
+});
+
+test("好幾個所需技能：名字一樣的先配；同一個等級剩一個寫錯的、客戶端也剩一個才配給它，兩個以上配不準就只留名字", () => {
+  const sword = { id: 1100000, n: "精準之劍", job: 110 };
+  const rage = { id: 1101006, n: "激勵", job: 110 };
+  const axe = { id: 1100001, n: "精準之斧", job: 110 };
+  const one = { id: 1, n: "一個寫錯", job: 110, req: [{ name: "劍技專精", level: 3 }, { name: "激勵", level: 3 }] };
+  const two = { id: 2, n: "兩個寫錯", job: 110, req: [{ name: "劍技專精", level: 3 }, { name: "斧頭專精", level: 3 }] };
+  linkPrereqs([sword, rage, axe, one, two], { 1: { 1100000: 3, 1101006: 3 }, 2: { 1100000: 3, 1100001: 3 } });
+  assert.deepEqual(one.req, [{ name: "精準之劍", level: 3, id: 1100000 }, { name: "激勵", level: 3, id: 1101006 }]);
+  assert.deepEqual(two.req, [{ name: "劍技專精", level: 3 }, { name: "斧頭專精", level: 3 }]);
+});
+
+test("說明寫的名字本來就是這條職業線的技能、只是等級跟客戶端不一樣：照名字接，不被改名配給客戶端同等級的別的技能（code review）", () => {
+  const sword = { id: 1100000, n: "精準之劍", job: 110 };
+  const rage = { id: 1101006, n: "激勵", job: 110 };
+  const skill = { id: 1, n: "測試", job: 110, req: [{ name: "精準之劍", level: 5 }] };
+  linkPrereqs([sword, rage, skill], { 1: { 1100000: 3, 1101006: 5 } });
+  assert.deepEqual(skill.req, [{ name: "精準之劍", level: 5, id: 1100000 }]);
+});
+
 test("說明寫了有效期限的活動技能（宇宙衝鋒「有效時間：2009年6月8日00時」）讀得出到期日；沒寫的回 null", () => {
   assert.equal(expiredOn("連按兩次左右方向鍵瞬間提升移動速度和跳躍力。有效時間：2009年6月8日00時"), "2009-06-08");
   assert.equal(expiredOn("可以騎雪吉拉移動。 有效期間：2009年9月7日00點"), "2009-09-07");
