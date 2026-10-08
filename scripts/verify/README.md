@@ -372,8 +372,9 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 - 每一頁、白天跟夜晚各載一次，畫面上每個有直接文字的元素都算字色跟實際背景的對比。
   算法跟 build-variants-shot 的 contrast 一樣（顏色畫在 canvas 讀回來、背景一路往下疊、opacity 照群組合成），那支只量一塊，這支量整頁。
 - 門檻：一般字 4.5；大字（24px 以上，或 18.66px 以上且粗體）3。停用的按鈕不算。有任何一段沒過就 exit 1。
-- 頁面不給就跑 12 頁：首頁、`/db/items?id=1472004`（青銅指虎）、查資料怪物／任務／技能、`/plan` 四頁、`/go`、`/guide`、`/about`。
-  首頁先存刺客 35 全幸（`ms-profile`、`ms-build`），卡片才畫得出來。只看預設展開的樣子，收起來的卡片裡面量不到。
+- 頁面不給就跑 13 頁：首頁、`/db/items?id=1472004`（青銅指虎）、查資料怪物／任務／技能、`/plan` 五頁（`/plan/farm`、`/plan/quest`、`/plan/train`、`/plan/bundle`、`/plan/damage`）、`/go`、`/guide`、`/about`。
+  首頁先存刺客 35 全幸（`ms-profile`、`ms-build`），卡片才畫得出來。只看預設展開的樣子，收起來的卡片裡面量不到；
+  傷害計算機（`/plan/damage`）例外：量之前會把頁面上所有 `<details>`（看細節、技能等級、怎麼算的）全部展開。
 - **在 Git Bash 裡一定要加 `MSYS_NO_PATHCONV=1`**，不然首頁的 `/` 會被換成 `C:/Program Files/Git/`，那一頁只量到錯誤頁的 7 段字。
 - 沒算 body 的暈光、圖片背景、backdrop-filter（毛玻璃當成疊在下層的半透明色）；字壓在圖上的地方要自己看。
 - 環境變數：`THEMES=light` 只跑白天；`WIDTH` 視窗寬（預設 390）。預設埠 9375。
