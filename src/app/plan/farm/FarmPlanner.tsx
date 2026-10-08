@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CloseIcon, SearchIcon } from "@/components/Icons";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
-import { SearchClear } from "@/components/SearchClear";
+import { SearchClear, searchKeys } from "@/components/SearchClear";
 import {
   itemImage, loadFarming, loadItems, loadMaps, loadMonsters, loadQuests, mapName, monsterImage,
   peekFarming, peekItems, peekMaps, peekMonsters, peekQuests,
@@ -259,9 +259,10 @@ export function FarmPlanner() {
               <input
                 value={query}
                 onChange={event => setQuery(event.target.value)}
-                placeholder="輸入道具名稱，例如 楓葉、藥水、弓"
+                placeholder="輸入道具名稱，例如 卷軸、藥水、弓"
                 className="tap-safe w-full bg-transparent py-2.5 outline-none"
                 aria-label="搜尋道具"
+                {...searchKeys}
               />
               {query ? <SearchClear onClear={() => setQuery("")} /> : null}
             </div>
