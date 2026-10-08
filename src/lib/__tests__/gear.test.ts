@@ -4,9 +4,12 @@ import {
   closestSource,
   equipRequirement,
   isMagicJob,
+  kitStats,
+  nearestUpgrade,
   obtainableBy,
   questFits,
   rulesFor,
+  scrollFamily,
   scrollPicks,
   statShortfall,
   statTargets,
@@ -14,7 +17,7 @@ import {
   weaponPicks,
   weaponTypesFor,
 } from "@/lib/gear";
-import type { GearScroll, GearSource, GearWeapon, StatRule } from "@/lib/gear";
+import type { GearKit, GearScroll, GearSource, GearWeapon, StatRule } from "@/lib/gear";
 
 const source = (over: Partial<GearSource> = {}): GearSource => ({ ...over });
 
@@ -570,5 +573,86 @@ describe("合成來源", () => {
   it("舊地區的合成排在冰原雪域的店前面（狼牙：推墮落城市後街吉姆合成，不推斯考特賣 60,000 楓幣）", () => {
     const src = source({ shops: [{ p: "冰原雪域", n: "斯考特", m: 211000000, pr: 60000, o: "2026-10-15" }], crafts: [craft] });
     expect(closestSource(src, 25)).toEqual({ kind: "craft", craft });
+  });
+});
+
+const piece = (over: Partial<GearKit> & Pick<GearKit, "n" | "lv" | "v">): GearKit => ({ ids: [1], slot: "帽子", stat: "DEX", src: { quests: [{ id: "1", n: "任務" }] }, ...over });
+
+describe("kitStats：空身加上要湊的裝備", () => {
+  const cape = piece({ n: "破舊的披風", lv: 25, v: 5 });
+  const hat = piece({ n: "綠色斗笠", lv: 25, v: 3, req: { DEX: 30 } });
+  const robe = piece({ n: "桑那服", lv: 30, v: 10 });
+  const base = { STR: 4, DEX: 25, INT: 4, LUK: 112 };
+
+  it("等級不夠的不算，排在 later", () => {
+    const result = kitStats([cape, hat, robe], 20, base);
+    expect(result.stats.DEX).toBe(25);
+    expect(result.worn).toEqual([]);
+    expect(result.later.map(k => k.n)).toEqual(["破舊的披風", "綠色斗笠", "桑那服"]);
+  });
+
+  it("先穿上的會讓後面的穿得上（披風 +5 才戴得上要敏捷 30 的斗笠），順序不影響", () => {
+    const result = kitStats([hat, cape, robe], 25, base);
+    expect(result.stats.DEX).toBe(33);
+    expect(result.worn.map(k => k.n)).toEqual(["綠色斗笠", "破舊的披風"]);
+    expect(result.later.map(k => k.n)).toEqual(["桑那服"]);
+  });
+
+  it("10/15 前不算只有 V002 才拿得到的", () => {
+    const later = piece({ n: "V002 帽", lv: 10, v: 9, o: "2026-10-15" });
+    expect(kitStats([later], 30, base, true).stats.DEX).toBe(25);
+    expect(kitStats([later], 30, base, false).stats.DEX).toBe(34);
+  });
+
+  it("不改到傳進來的 base", () => {
+    kitStats([cape], 30, base);
+    expect(base.DEX).toBe(25);
+  });
+});
+
+describe("nearestUpgrade：比現在這把強、穿不上的裡面，差最少點的那把", () => {
+  const claw = (id: number, n: string, lv: number, atk: number, dex: number) =>
+    weapon({ id, n, s: "拳套", lv, job: 8, atk, req: { DEX: dex, LUK: 0 }, src: source({ shops: [{ p: "店", pr: 1 }] }) });
+  const weapons = [claw(1, "青銅指虎", 20, 14, 40), claw(2, "狼牙", 25, 16, 50), claw(3, "銀守護拳套", 35, 20, 70), claw(4, "護腕", 40, 22, 80)];
+  const wear = { STR: 4, DEX: 44, INT: 4, LUK: 162 };
+
+  it("刺客 35 全幸（敏捷 44）：狼牙只差 6，不是攻擊最高的銀守護拳套；等級還沒到的護腕不算", () => {
+    expect(nearestUpgrade(weapons, 410, 35, wear, weapons[0])?.n).toBe("狼牙");
+  });
+
+  it("都穿得上或沒有更強的回 null", () => {
+    expect(nearestUpgrade(weapons, 410, 35, { ...wear, DEX: 999 }, weapons[2])).toBeNull();
+  });
+
+  it("等級還沒到的不算——就算它只差 2 點、比狼牙更近", () => {
+    const far = claw(5, "遠期拳套", 40, 21, 46);
+    expect(nearestUpgrade([weapons[0], weapons[1], far], 410, 35, wear, weapons[0])?.n).toBe("狼牙");
+    expect(nearestUpgrade([weapons[0], weapons[1], far], 410, 40, wear, weapons[0])?.n).toBe("遠期拳套");
+  });
+
+  it("已經穿得上的不算，就算比現在這把強、等級也夠（要的是「再點幾點」才能用的）", () => {
+    expect(nearestUpgrade(weapons, 410, 35, { ...wear, DEX: 999 }, weapons[1])).toBeNull();
+  });
+
+  it("沒有比現在這把更強的（攻擊不高於 best）不算", () => {
+    expect(nearestUpgrade(weapons, 410, 35, wear, weapons[2])).toBeNull();
+  });
+
+  it("差的點數、攻擊都一樣時照武器排序：攻速數字小的先，跟寫的順序無關", () => {
+    const slow = weapon({ id: 6, n: "慢拳套", s: "拳套", lv: 25, job: 8, atk: 16, spd: 6, req: { DEX: 50 }, src: source({ shops: [{ p: "店", pr: 1 }] }) });
+    const fast = weapon({ id: 7, n: "快拳套", s: "拳套", lv: 25, job: 8, atk: 16, spd: 4, req: { DEX: 50 }, src: source({ shops: [{ p: "店", pr: 1 }] }) });
+    expect(nearestUpgrade([weapons[0], slow, fast], 410, 35, wear, weapons[0])?.n).toBe("快拳套");
+    expect(nearestUpgrade([weapons[0], fast, slow], 410, 35, wear, weapons[0])?.n).toBe("快拳套");
+  });
+});
+
+describe("scrollFamily：單一部位單一屬性的一組卷軸", () => {
+  const scrolls = [
+    scroll({ id: 1, n: "套服敏捷卷軸", slot: "套服", stat: "敏捷", rate: 60, effect: "DEX+2，命中率+1", src: source({ shops: [{ p: "店", pr: 1 }] }) }),
+    scroll({ id: 2, n: "套服敏捷卷軸", slot: "套服", stat: "敏捷", rate: 100, effect: "DEX+1", src: source({ shops: [{ p: "店", pr: 1 }] }) }),
+  ];
+  it("成功率高的在前；沒有拿得到的回 null", () => {
+    expect(scrollFamily(scrolls, 410, "套服", "敏捷")?.options.map(s => s.rate)).toEqual([100, 60]);
+    expect(scrollFamily(scrolls, 410, "披風", "敏捷")).toBeNull();
   });
 });

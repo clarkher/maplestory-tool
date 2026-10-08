@@ -97,6 +97,24 @@ export type GearScroll = {
 
 export type StatKey = "STR" | "DEX" | "INT" | "LUK";
 
+/**
+ * 這套點法要湊的裝備（全幸的敏捷裝），pipeline/lib/gear.mjs 的 buildKit 從遊戲資料換算：
+ * ids 是同一件裝備的各個道具代碼、n 名稱、slot 部位、lv 需求等級、stat／v 穿上後加哪個能力值加多少、
+ * req 穿它本身要的能力值、scroll 這件裝備要衝的卷軸（id 是代表的那張卷軸）、src 怎麼拿、o 只有 V002 才拿得到。
+ */
+export type GearKit = {
+  ids: number[];
+  n: string;
+  slot: string;
+  lv: number;
+  stat: StatKey;
+  v: number;
+  req?: Partial<Record<StatKey, number>>;
+  scroll?: { id: number; n: string; slot: string; stat: string; rate: number; times: number };
+  src: GearSource;
+  o?: string;
+};
+
 export type StatRule = {
   jobs: number[];
   label: string;
@@ -112,6 +130,10 @@ export type StatRule = {
   };
   /** 這套點法用的武器種類（一轉盜賊「拳套需求」只看拳套）；沒寫就照職業能用的全部 */
   weapons?: string[];
+  /** 卡片上方切換用的標籤字（「全幸」「裝備法」）；主推跟另一套都有才出現切換 */
+  tab?: string;
+  /** 這套點法要湊的裝備：武器、防具要的副屬性靠這些補（全幸的敏捷） */
+  kit?: GearKit[];
   t: string;
   s: string[];
   v: "tw" | "community" | "legacy";
@@ -125,6 +147,8 @@ export type GearNote = {
   s: string[];
   v: "tw" | "community" | "legacy";
   items?: number[];
+  /** 只在這套點法出現（「裝備法」的轉換提醒）；沒寫就每套都出現 */
+  tab?: string;
 };
 
 export type GearData = {
@@ -193,6 +217,33 @@ export function statTargets(rule: StatRule, level: number, equipReq?: Partial<Re
   result[sec.stat] = secondaryValue;
   result[rule.main] = Math.max(STAT_FLOOR, total - secondaryValue - STAT_FLOOR * 2);
   return result;
+}
+
+/**
+ * 空身能力值加上要湊的裝備：等級到了、要求的能力值（空身＋已經穿上的）夠了才算穿上，
+ * 一直套到沒有新的能穿為止——破舊的披風 +5 讓敏捷到 30，才戴得上要敏捷 30 的綠色斗笠，跟研究檔寫的順序無關。
+ * worn 照研究檔順序；later 是還穿不上的（等級不夠、需求不夠、10/15 前只有 V002 拿得到）。
+ */
+export function kitStats(
+  kit: GearKit[],
+  level: number,
+  base: Record<StatKey, number>,
+  beforeOpen = false,
+): { stats: Record<StatKey, number>; worn: GearKit[]; later: GearKit[] } {
+  const stats = { ...base };
+  const wornSet = new Set<GearKit>();
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const piece of kit) {
+      if (wornSet.has(piece) || piece.lv > level || (beforeOpen && piece.o)) continue;
+      if (!STAT_KEYS.every(key => (piece.req?.[key] ?? 0) <= stats[key])) continue;
+      stats[piece.stat] += piece.v;
+      wornSet.add(piece);
+      changed = true;
+    }
+  }
+  return { stats, worn: kit.filter(piece => wornSet.has(piece)), later: kit.filter(piece => !wornSet.has(piece)) };
 }
 
 /* ------------------------------------------------------------------ 武器種類 */
@@ -375,6 +426,30 @@ export function weaponPicks(
 }
 
 /**
+ * 「空身再點幾點就能用」的那把：拿得到、比現在這把強、照 wear 穿不上的裡面，差的點數加起來最少的；
+ * 同分攻擊／魔力高的先。全幸用：35 等差 6 點敏捷的狼牙，比差 26 點的銀守護拳套實際。
+ */
+export function nearestUpgrade(
+  weapons: GearWeapon[],
+  job: number,
+  level: number,
+  wear: Record<StatKey, number>,
+  best: GearWeapon | null,
+  opts: { beforeOpen?: boolean; types?: string[] } = {},
+): GearWeapon | null {
+  const magic = isMagicJob(job);
+  const bestOffense = best ? offenseStat(best, magic) : -Infinity;
+  const missing = (w: GearWeapon) => statShortfall(w, wear).reduce((sum, entry) => sum + entry.short, 0);
+  return (
+    candidatePool(weapons, job, magic, opts.types)
+      .filter(w => w.lv <= level && (!opts.beforeOpen || !w.o) && obtainableBy(w.src, job, level))
+      .filter(w => offenseStat(w, magic) > bestOffense && !canWear(w, wear))
+      // 差的點數一樣、攻擊也一樣時，照 weaponPicks 的排法（攻速、等級、非 V002、拿法多）決定，不看資料裡的順序
+      .sort((a, b) => missing(a) - missing(b) || offenseStat(b, magic) - offenseStat(a, magic) || rankWeapon(a, b, magic))[0] ?? null
+  );
+}
+
+/**
  * 從 1 等算到現在，每一等「當時拿得到的第一名」的力敏智幸需求，取各屬性出現過的最大值；
  * 事先濾掉這套點法另外兩項（非 main、非 secondary.stat）需求超過 4 的武器——
  * 那兩項這套點法本來就不會點超過 4，那種武器不管哪個等級都穿不上，不該拿來決定
@@ -427,6 +502,18 @@ const MAIN_STAT_WORD: Record<StatKey, string> = { STR: "力量", DEX: "敏捷", 
 /** 主屬性卷的部位順序；手套在這裡是「手套＋主屬性」卷，跟手套攻擊卷（武器家族後面那組）分開算 */
 const MAIN_STAT_SLOTS = ["手套", "披風", "套服", "上衣", "褲裙", "鞋子", "耳環", "頭盔"];
 
+/** 一個部位一種屬性的一組卷軸（100%／60%／10%），只收這個職業拿得到的、成功率高的在前；一張都沒有回 null */
+export function scrollFamily(
+  scrolls: GearScroll[],
+  job: number,
+  slot: string,
+  stat: string,
+  level?: number,
+): { slot: string; stat: string; options: GearScroll[] } | null {
+  const options = scrolls.filter(s => s.slot === slot && s.stat === stat && obtainableBy(s.src, job, level)).sort((a, b) => b.rate - a.rate);
+  return options.length ? { slot, stat, options } : null;
+}
+
 /**
  * 推薦卷軸，依序：武器種類攻擊卷（法師是魔力卷；weaponType 給 null 時這個職業能用的每一種都各列一組）、
  * 手套攻擊卷（物理職業才有，法師沒有手套攻擊這種東西）、主屬性卷（披風、套服…裡名字對上主屬性的，
@@ -445,10 +532,8 @@ export function scrollPicks(
 
   const families: Array<{ slot: string; stat: string; options: GearScroll[] }> = [];
   const addFamily = (slot: string, stat: string) => {
-    const options = scrolls
-      .filter(s => s.slot === slot && s.stat === stat && obtainableBy(s.src, job, level))
-      .sort((a, b) => b.rate - a.rate);
-    if (options.length) families.push({ slot, stat, options });
+    const family = scrollFamily(scrolls, job, slot, stat, level);
+    if (family) families.push(family);
   };
 
   for (const slot of weaponSlots) addFamily(slot, weaponStat);

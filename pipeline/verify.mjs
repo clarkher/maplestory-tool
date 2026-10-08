@@ -53,6 +53,15 @@ function main() {
   // 2026-10-06 技能改成只收經典版實際存在的職業（lib/classic-jobs.mjs），上限跟著從 659 降下來；
   // 範圍公式不變：[floor(實際數×0.8), ceil(實際數×1.25)]，實際數基準是當時重建出來的 242 筆
   check("技能數量合理（僅經典版職業，到三轉）", skills?.length >= 193 && skills?.length <= 303, `${skills?.length} 個`);
+
+  // 技能卡上看得到的字（說明、沒有代號的效果樣板、每一級的原文）不准有「#」。上游清遊戲的顏色標記清不乾淨
+  // （2026-10-08 查到 81 個說明殘留「#」，pipeline/lib/skill-text.mjs 清掉了），之後若出現 #c 這種清不掉的，擋下自動更新。
+  // 有代號的樣板（消耗MP#mpCon）卡片不會直接放，改放滿級那一級的原文（src/lib/skill-view.ts），所以不算
+  const TOKEN = /#[A-Za-z]/;
+  const leaked = (skills ?? []).filter(skill =>
+    [skill.desc, TOKEN.test(skill.formula ?? "") ? "" : skill.formula, ...Object.values(skill.levelText ?? {})].some(text => text?.includes("#")),
+  );
+  check("技能卡上的字沒有「#」（說明、效果、每一級的原文）", leaked.length === 0, leaked.slice(0, 5).map(skill => `${skill.id} ${skill.n}`).join("、"));
   check("地圖數量合理", Object.keys(maps ?? {}).length >= 5000, `${Object.keys(maps ?? {}).length} 張`);
 
   const edges = Object.values(graph ?? {}).reduce((sum, list) => sum + list.length, 0);
@@ -171,6 +180,26 @@ function main() {
   const missingWeaponTypes = WEAPON_TYPES.filter(type => !weaponTypesSeen.has(type));
   check("每種武器種類至少 1 把", missingWeaponTypes.length === 0, missingWeaponTypes.join("、"));
   check("卷軸數量合理", (gear?.scrolls?.length ?? 0) >= Math.floor(106 * 0.8), `${gear?.scrolls?.length ?? 0} 種`);
+
+  // 全幸要湊的裝備（kit）：buildKit 對找不到、不收錄、沒來源、卷軸對不上的整件略過並只警告，不會讓建置失敗。
+  // 每日資料更新如果因此掉了一件（例如桑那服哪天被標成不收錄），敏捷少了一截，推薦的拳套會悄悄改變，
+  // 畫面看起來一切正常——所以拿研究檔當標準，建出來的件數要跟研究檔寫的一樣多，少了就擋下來。研究檔不在就跳過。
+  const researchGear = readJson(path.resolve(import.meta.dirname, "..", "data", "guides", "gear.json"), null);
+  if (researchGear) {
+    const sameJobs = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    const kitMismatches = [];
+    let kitRules = 0;
+    for (const rule of researchGear.statRules ?? []) {
+      if (!rule.kit) continue;
+      kitRules += 1;
+      const built = (gear?.rules ?? []).find(candidate => sameJobs(candidate.jobs, rule.jobs) && candidate.label === rule.label);
+      const builtCount = built?.kit?.length ?? 0;
+      if (builtCount !== rule.kit.length) {
+        kitMismatches.push(`[${rule.jobs.join("、")}]「${rule.label}」研究檔 ${rule.kit.length} 件、建出來 ${builtCount} 件${built ? "" : "（rules 裡找不到這條）"}`);
+      }
+    }
+    check("全幸要湊的裝備沒少件", kitMismatches.length === 0, kitMismatches.length ? kitMismatches.join("；") : `${kitRules} 條點法的件數都跟研究檔一樣`);
+  }
 
   console.log("=== 資料檢查 ===");
   for (const line of notes) console.log(line);

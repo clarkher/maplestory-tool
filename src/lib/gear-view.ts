@@ -9,13 +9,17 @@ import {
   closestSource,
   equipRequirement,
   isMagicJob,
+  kitStats,
+  nearestUpgrade,
   rulesFor,
+  scrollFamily,
   scrollPicks,
   statShortfall,
   statTargets,
   weaponPicks,
   weaponTypesFor,
   type GearData,
+  type GearKit,
   type GearNote,
   type GearScroll,
   type GearWeapon,
@@ -172,12 +176,13 @@ const NOTE_TOPICS: Array<[GearNote["topic"], string]> = [
 /**
  * 玩家提醒依主題分組（武器、衝卷、防具、能力值）。某個主題這一轉沒有任何一條，就沿上一轉找
  * （三轉 → 二轉 → 一轉，跟 rulesFor 同一個方向）；這一轉自己有的主題不再往上找。初心者回空陣列。
+ * 提醒寫了 tab 的，只在選了那套點法時出現（tab 是目前選的點法標籤）；沒寫 tab 的每套都出現。
  */
-export function notesFor(notes: GearNote[], job: number): Array<{ topic: GearNote["topic"]; label: string; notes: GearNote[] }> {
+export function notesFor(notes: GearNote[], job: number, tab?: string): Array<{ topic: GearNote["topic"]; label: string; notes: GearNote[] }> {
   const groups: Array<{ topic: GearNote["topic"]; label: string; notes: GearNote[] }> = [];
   for (const [topic, label] of NOTE_TOPICS) {
     for (let current = job; current > 0; current = previousJob(current)) {
-      const found = notes.filter(entry => entry.topic === topic && entry.jobs.includes(current));
+      const found = notes.filter(entry => entry.topic === topic && entry.jobs.includes(current) && (!entry.tab || entry.tab === tab));
       if (found.length) {
         groups.push({ topic, label, notes: found });
         break;
@@ -187,9 +192,26 @@ export function notesFor(notes: GearNote[], job: number): Array<{ topic: GearNot
   return groups;
 }
 
+/**
+ * 卡片上方的點法切換：這個職業的主推跟其他點法裡有寫 tab 的，主推排第一。
+ * 主推沒有 tab、或湊不到兩條，回空陣列（不出現切換——俠盜、劍士、弓箭手）。
+ */
+export function tabsFor(rules: StatRule[], job: number): Array<{ tab: string; rule: StatRule }> {
+  const { main, others } = rulesFor(rules, job);
+  if (!main?.tab) return [];
+  const tabs = [main, ...others].filter(rule => rule.tab).map(rule => ({ tab: rule.tab!, rule }));
+  return tabs.length > 1 ? tabs : [];
+}
+
 /* ------------------------------------------------------------------ 組裝 */
 
 export type GearFamily = { slot: string; stat: string; options: GearScroll[]; pick: GearScroll; source: SourcePick | null };
+
+/**
+ * 要湊的裝備的一件：source 是去哪拿；closedAfter 只在拿法是有等級上限的任務時有，
+ * 值是那個任務的最高等級（綠色斗笠的〈第一次同行〉30 等以後就接不到），畫面據此提醒要先接、或已經接不到。
+ */
+export type KitEntry = { piece: GearKit; source: SourcePick | null; closedAfter?: number };
 
 export type GearPlan = {
   magic: boolean;
@@ -197,8 +219,26 @@ export type GearPlan = {
   others: StatRule[];
   /** 這一轉還沒有自己的點法，沿用上一轉的 */
   inherited: boolean;
-  /** 照這套點法現在的力敏智幸；沒有點法時 null */
+  /** 卡片上方的點法切換（主推排第一）；這個職業沒有第二套就是空的 */
+  tabs: Array<{ tab: string; rule: StatRule }>;
+  /** 照這套點法現在的力敏智幸（空身，不含要湊的裝備）；沒有點法時 null */
   targets: Record<StatKey, number> | null;
+  /**
+   * 這套點法要湊的裝備（全幸的敏捷裝）：stat 是補哪個能力值、base 空身那格、wear 穿上之後、total 補了多少；
+   * worn 現在穿得上的、later 還穿不上的（等級、需求不夠）。沒有要湊的裝備就是 null。
+   */
+  kit: {
+    stat: StatKey;
+    base: number;
+    wear: number;
+    total: number;
+    worn: KitEntry[];
+    later: KitEntry[];
+  } | null;
+  /** 選了第二套才有：這套的主屬性比主推（tab 是主推的標籤）多／少幾點；兩套一樣多（差 0）就是 null */
+  diff: { tab: string; stat: StatKey; delta: number } | null;
+  /** 選了第二套、主推這級用的武器跟現在用的、跟「再強一點」那把都不同才有；need＝要湊裝備的點法穿不上那把時，那把還要的副屬性 */
+  compare: { tab: string; weapon: GearWeapon; need: { stat: StatKey; value: number } | null } | null;
   best: GearWeapon | null;
   bestSource: SourcePick | null;
   /** best 照這套點法還差的點數（有點法時 weaponPicks 已經只挑穿得上的，正常是空的） */
@@ -220,7 +260,11 @@ const EMPTY_PLAN: Omit<GearPlan, "magic"> = {
   rule: null,
   others: [],
   inherited: false,
+  tabs: [],
   targets: null,
+  kit: null,
+  diff: null,
+  compare: null,
   best: null,
   bestSource: null,
   bestShort: [],
@@ -254,30 +298,81 @@ function otherRuleThatWears(
  * equipRequirement，而且每個等級只算一次（weaponPicks 會拿很多個等級來問）。
  * beforeOpen（10/15 前）一路傳下去：能力值目標、武器只看現在拿得到的；來源不分開放前後都先推舊地區的（見 closestSource）。
  * 初心者（0）回空的一包。
+ * tab 是卡片上方選的第二套點法（全幸、裝備法）：沒選、選了主推、選了這個職業沒有的標籤都照主推。
  */
-export function gearPlan(gear: GearData, job: number, level: number, beforeOpen: boolean): GearPlan {
+export function gearPlan(gear: GearData, job: number, level: number, beforeOpen: boolean, tab?: string | null): GearPlan {
   const magic = isMagicJob(job);
   if (job <= 0) return { magic, ...EMPTY_PLAN };
 
-  const { main: rule, others, inherited } = rulesFor(gear.rules, job);
-  const cache = new Map<number, Record<StatKey, number>>();
-  const targetsAt = rule
-    ? (lv: number) => {
-        let targets = cache.get(lv);
-        if (!targets) {
-          const equipReq = rule.secondary?.type === "equip" ? equipRequirement(gear.weapons, job, lv, rule, beforeOpen) : undefined;
-          targets = statTargets(rule, lv, equipReq);
-          cache.set(lv, targets);
-        }
-        return targets;
-      }
-    : undefined;
-  const targets = targetsAt ? targetsAt(level) : null;
+  const found = rulesFor(gear.rules, job);
+  const tabs = tabsFor(gear.rules, job);
+  // 選了第二套（全幸、裝備法）就換那條；沒選、選了主推、這個職業沒有那個標籤都照主推
+  const chosen = tab ? tabs.find(entry => entry.tab === tab && entry.rule !== found.main)?.rule ?? null : null;
+  const rule = chosen ?? found.main;
+  const others = chosen ? [found.main!, ...found.others].filter(other => other !== chosen) : found.others;
+  const inherited = found.inherited;
 
-  const picks = weaponPicks(gear.weapons, job, level, { targetsAt, beforeOpen, types: rule?.weapons });
+  // 空身的四格（每個等級只算一次，weaponPicks 會拿很多等級來問）
+  const baseAt = targetsAtFor(gear, job, rule, beforeOpen);
+  const targets = baseAt ? baseAt(level) : null;
+  // 穿不穿得上看「空身＋要湊的裝備」（全幸的敏捷裝）；沒有 kit 的點法就是空身
+  const wearAt = rule?.kit?.length && baseAt ? (lv: number) => kitStats(rule.kit!, lv, baseAt(lv), beforeOpen).stats : baseAt;
+
+  const picks = weaponPicks(gear.weapons, job, level, { targetsAt: wearAt, beforeOpen, types: rule?.weapons });
   const source = (weapon: GearWeapon) => closestSource(weapon.src, level, job);
+  const wearNow = wearAt ? wearAt(level) : null;
 
-  const families = scrollPicks(gear.scrolls, job, picks.best?.s ?? null, rule?.main ?? null, level).map(family => {
+  const kitNow = rule?.kit?.length && targets ? kitStats(rule.kit, level, targets, beforeOpen) : null;
+  // 任務過了等級上限（綠色斗笠 31 等起接不到）還是算穿上的，不能只剩一件沒有出處的裝備：
+  // 現在的等級沒有來源時，退到「剛好穿得上它的等級」，再不行退到任務本身的最低等級，照樣寫去哪拿
+  const kitPick = (piece: GearKit): KitEntry => {
+    const questFloor = Math.min(...(piece.src.quests ?? []).map(quest => quest.minLv ?? 1));
+    const source =
+      closestSource(piece.src, level, job) ??
+      closestSource(piece.src, piece.lv, job) ??
+      (Number.isFinite(questFloor) ? closestSource(piece.src, questFloor, job) : null);
+    const closedAfter = source?.kind === "quest" ? source.quest.maxLv : undefined;
+    return closedAfter === undefined ? { piece, source } : { piece, source, closedAfter };
+  };
+  const kit =
+    kitNow && targets && rule
+      ? {
+          stat: rule.kit![0].stat,
+          base: targets[rule.kit![0].stat],
+          wear: kitNow.stats[rule.kit![0].stat],
+          total: kitNow.worn.reduce((sum, piece) => sum + piece.v, 0),
+          worn: kitNow.worn.map(kitPick),
+          later: kitNow.later.map(kitPick),
+        }
+      : null;
+
+  // 全幸：「再強一點」改成差最少點的那把（空身再點幾點就能用），不再找別的點法
+  const stronger = kit && wearNow ? nearestUpgrade(gear.weapons, job, level, wearNow, picks.best, { beforeOpen, types: rule?.weapons }) : picks.stronger;
+
+  // 選了第二套：跟主推比主屬性、主推這級用哪把
+  let diff: GearPlan["diff"] = null;
+  let compare: GearPlan["compare"] = null;
+  if (chosen && found.main?.tab && targets) {
+    const mainAt = targetsAtFor(gear, job, found.main, beforeOpen)!;
+    const delta = targets[chosen.main] - mainAt(level)[chosen.main];
+    // 兩套點到一樣多（盜賊 10 到 14 等全幸的幸運）就不寫「多 0 點」
+    if (delta !== 0) diff = { tab: found.main.tab, stat: chosen.main, delta };
+    const mainBest = weaponPicks(gear.weapons, job, level, { targetsAt: mainAt, beforeOpen, types: found.main.weapons }).best;
+    // 主推這級用的跟現在選的這套用的、或這套的「再強一點」是同一把，就不再講第二次
+    if (mainBest && mainBest.id !== picks.best?.id && mainBest.id !== stronger?.id) {
+      const short = wearNow ? statShortfall(mainBest, wearNow)[0] : undefined;
+      compare = { tab: found.main.tab, weapon: mainBest, need: kit && short ? { stat: short.stat, value: mainBest.req![short.stat]! } : null };
+    }
+  }
+
+  // 要湊的裝備的卷軸分兩群：現在穿得上的（排前面）、還要等等級的（排最後，桑那服 30 等才拿得到，25 等的人先衝它沒用）
+  const kitFamilies = (pieces: GearKit[]) =>
+    pieces.flatMap(piece => (piece.scroll ? [scrollFamily(gear.scrolls, job, piece.scroll.slot, piece.scroll.stat, level)] : []));
+  const families = mergeKitFamilies(
+    scrollPicks(gear.scrolls, job, picks.best?.s ?? null, rule?.main ?? null, level),
+    kitFamilies(kitNow?.worn ?? []),
+    kitFamilies(kitNow?.later ?? rule?.kit ?? []),
+  ).map(family => {
     const pick = familyPick(family.options, beforeOpen);
     return { ...family, pick, source: closestSource(pick.src, level, job) };
   });
@@ -287,18 +382,56 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
     rule,
     others,
     inherited,
+    tabs,
     targets,
+    kit,
+    diff,
+    compare,
     best: picks.best,
     bestSource: picks.best ? source(picks.best) : null,
-    bestShort: picks.best && targets ? statShortfall(picks.best, targets) : [],
+    bestShort: picks.best && wearNow ? statShortfall(picks.best, wearNow) : [],
     alternatives: picks.alternatives.map(weapon => ({ weapon, source: source(weapon) })),
     next: picks.next,
-    stronger: picks.stronger,
-    strongerShort: picks.stronger && targets ? statShortfall(picks.stronger, targets) : [],
-    strongerVia: picks.stronger ? otherRuleThatWears(gear, job, level, others, picks.stronger, beforeOpen) : null,
+    stronger,
+    strongerShort: stronger && wearNow ? statShortfall(stronger, wearNow) : [],
+    strongerVia: !kit && stronger ? otherRuleThatWears(gear, job, level, others, stronger, beforeOpen) : null,
     families,
-    notes: notesFor(gear.notes, job),
+    notes: notesFor(gear.notes, job, rule?.tab),
   };
+}
+
+/** 這套點法空身的四格，每個等級只算一次；equip 類型才吃 equipRequirement。沒有點法回 undefined */
+function targetsAtFor(gear: GearData, job: number, rule: StatRule | null, beforeOpen: boolean) {
+  if (!rule) return undefined;
+  const cache = new Map<number, Record<StatKey, number>>();
+  return (lv: number) => {
+    let targets = cache.get(lv);
+    if (!targets) {
+      const equipReq = rule.secondary?.type === "equip" ? equipRequirement(gear.weapons, job, lv, rule, beforeOpen) : undefined;
+      targets = statTargets(rule, lv, equipReq);
+      cache.set(lv, targets);
+    }
+    return targets;
+  };
+}
+
+/**
+ * 要湊的裝備的卷軸（全幸：套服敏捷、披風敏捷）插進衝卷。
+ * now＝現在穿得上的裝備的卷軸：第一組最前面（這套點法靠它穿得上武器），其餘排在武器卷後面；
+ * soon＝還要等等級的裝備的卷軸（400 的桑那服 30 等才拿得到）：一律排最後，不然 10 到 29 等第一組會是衝不到的套服卷。
+ * 原本就有同一組的不重複；now 是空的就是「武器卷、soon」。
+ */
+function mergeKitFamilies<T extends { slot: string; stat: string }>(base: T[], now: Array<T | null>, soon: Array<T | null>): T[] {
+  const seen: T[] = [...base];
+  const fresh = (families: Array<T | null>): T[] =>
+    families.flatMap(family => {
+      if (family === null || seen.some(s => s.slot === family.slot && s.stat === family.stat)) return [];
+      seen.push(family);
+      return [family];
+    });
+  const nowFamilies = fresh(now);
+  const soonFamilies = fresh(soon);
+  return [...nowFamilies.slice(0, 1), ...base.slice(0, 1), ...nowFamilies.slice(1), ...base.slice(1), ...soonFamilies];
 }
 
 /* ------------------------------------------------------------------ 升級路線每一段 */
