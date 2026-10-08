@@ -176,12 +176,13 @@ const NOTE_TOPICS: Array<[GearNote["topic"], string]> = [
 /**
  * 玩家提醒依主題分組（武器、衝卷、防具、能力值）。某個主題這一轉沒有任何一條，就沿上一轉找
  * （三轉 → 二轉 → 一轉，跟 rulesFor 同一個方向）；這一轉自己有的主題不再往上找。初心者回空陣列。
+ * 提醒寫了 tab 的，只在選了那套點法時出現（tab 是目前選的點法標籤）；沒寫 tab 的每套都出現。
  */
-export function notesFor(notes: GearNote[], job: number): Array<{ topic: GearNote["topic"]; label: string; notes: GearNote[] }> {
+export function notesFor(notes: GearNote[], job: number, tab?: string): Array<{ topic: GearNote["topic"]; label: string; notes: GearNote[] }> {
   const groups: Array<{ topic: GearNote["topic"]; label: string; notes: GearNote[] }> = [];
   for (const [topic, label] of NOTE_TOPICS) {
     for (let current = job; current > 0; current = previousJob(current)) {
-      const found = notes.filter(entry => entry.topic === topic && entry.jobs.includes(current));
+      const found = notes.filter(entry => entry.topic === topic && entry.jobs.includes(current) && (!entry.tab || entry.tab === tab));
       if (found.length) {
         groups.push({ topic, label, notes: found });
         break;
@@ -372,7 +373,7 @@ export function gearPlan(gear: GearData, job: number, level: number, beforeOpen:
     strongerShort: stronger && wearNow ? statShortfall(stronger, wearNow) : [],
     strongerVia: !kit && stronger ? otherRuleThatWears(gear, job, level, others, stronger, beforeOpen) : null,
     families,
-    notes: notesFor(gear.notes, job),
+    notes: notesFor(gear.notes, job, rule?.tab),
   };
 }
 

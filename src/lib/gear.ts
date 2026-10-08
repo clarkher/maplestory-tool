@@ -147,6 +147,8 @@ export type GearNote = {
   s: string[];
   v: "tw" | "community" | "legacy";
   items?: number[];
+  /** 只在這套點法出現（「裝備法」的轉換提醒）；沒寫就每套都出現 */
+  tab?: string;
 };
 
 export type GearData = {
