@@ -23,6 +23,7 @@
 // 清單很下面（第 70 列以後）的任務打勾，卡片留在那一列下面、那一列跟按鈕不動、載出來的筆數不被收回 60 筆，收起後原本的下一列放到導覽列下方，
 // 最後一列收起就看前一列（不跳回清單開頭）；怪物資料載不到（擋掉 monsters.json）時清單照列、沒有建議等級（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
 // G3＝v0.60 的怪物頁：「適合我練的」「包含低 5 級」兩顆標籤手機 375、360 寬都在同一排、只能開一顆、點開著的就關，開了標籤下面小字寫等級範圍（Lv.30–40；僧侶再接職業規則），清單的等級範圍、順序、筆數、小字（Lv.35 · 經驗 405）照怪物資料另外算，整頁重新整理後標籤還開著，僧侶照玩家的 35 級算職業規則；「連沒有名字的怪一起列」只在資料真的有沒名字的怪時才出現（寫死：角色 Lv.35 槍騎兵、僧侶，跑完換回前面存的狂戰士 Lv.45）。
+// S1＝v0.71 的技能頁：遊戲資料沒有分等級數值的技能（skills.json 沒有 levels）點開不會整頁掛掉，卡片寫原因、沒有數值表（寫死：神匠之魂 1003 從清單點、肥肥的弱點攻擊 9000 直接打開網址）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -541,6 +542,31 @@ try {
       return { id, open, rowTop, chosen: option.value, kept };`);
     check("M14 技能頁：展開在那一筆下面、捲到導覽列下方", r.open[0] === r.id && near(r.rowTop, 80), r);
     check("M14 技能頁：職業篩選離開再回來還在", r.kept === r.chosen, r);
+  });
+
+  // S1 遊戲資料沒有分等級數值的技能（skills.json 沒有 levels）點開不會整頁掛掉（v0.71；之前整頁「This page couldn't load」）：
+  // 卡片照列說明、寫原因、沒有數值表。神匠之魂 1003 在預設清單前幾列，從清單點；肥肥的弱點攻擊 9000 直接打開網址
+  await section("S1", async () => {
+    // 整頁掛掉時畫面只剩 Next 的錯誤頁（This page couldn't load）
+    const CRASHED = `document.body.innerText.includes("couldn")`;
+    const CARD = `({ crashed: ${CRASHED}, title: document.querySelector("main article h2")?.textContent ?? null,
+      text: document.querySelector("main article")?.textContent ?? "", table: !!document.querySelector("main article table") })`;
+    await fresh("/db/skills");
+    const r = await ev(`const id = "1003";
+      if (!__row(id)) return { skipped: "預設清單前 60 筆沒有神匠之魂 1003" };
+      __tap(id); await __waitFor(() => !!__row(id)?.querySelector("article") || ${CRASHED}); await __sleep(800);
+      return { open: __open(), ...${CARD} };`);
+    check("S1 從清單點開神匠之魂 1003：卡片打開、不會整頁掛掉", !r.skipped && !r.crashed && r.open[0] === "1003" && r.title?.includes("神匠之魂"), r);
+    check("S1 神匠之魂的卡片：照列說明、寫「遊戲資料沒有這個技能每一級的數值」、沒有數值表",
+      !r.skipped && r.text.includes("借用匠人之魂") && r.text.includes("遊戲資料沒有這個技能每一級的數值") && !r.table, r);
+    await shot("s1-list-1003.png");
+    await clearRemembered();
+    await navigate(BASE + "/db/skills?id=9000");
+    const d = await ev(`await __waitFor(() => !!document.querySelector("main article") || ${CRASHED}); await __sleep(800); return ${CARD};`);
+    check("S1 直接打開 ?id=9000（肥肥的弱點攻擊）：卡片在、照列說明、寫原因、沒有數值表",
+      !d.crashed && d.title?.includes("肥肥的弱點攻擊") && d.text.includes("給予肥肥150%的傷害")
+      && d.text.includes("遊戲資料沒有這個技能每一級的數值") && !d.table, d);
+    await shot("s1-direct-9000.png");
   });
 
   // M15 從清單點開後，「收起」連點兩下：只收起，不會連退兩頁離開這一頁
