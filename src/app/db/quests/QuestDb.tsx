@@ -257,7 +257,8 @@ function NpcBlock({
             </p>
           ) : null}
         </div>
-        {npc.map ? <GoButton to={npc.map} label="路線" place={mapName(maps, npc.map)} /> : null}
+        {/* 讀螢幕軟體念「到阿里可那裡的路線」：念地圖名的話，NPC 在還沒開放的地圖時每一顆都是「到未開放地圖的路線」 */}
+        {npc.map ? <GoButton to={npc.map} label="路線" place={npc.n ? `${npc.n}那裡` : mapName(maps, npc.map)} /> : null}
       </div>
     </div>
   );
