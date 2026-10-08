@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
 import { loadSkills, peekSkills } from "@/lib/data";
@@ -9,7 +9,7 @@ import { skillJobGroups, stageJob } from "@/lib/jobs";
 import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
-import { changedParts, reachableLevel, skillEffect, skillIcon, skillLevels } from "@/lib/skill-view";
+import { changedParts, reachableLevel, reachText, skillEffect, skillIcon, skillLevels } from "@/lib/skill-view";
 import type { Skill } from "@/lib/types";
 import { isV002Skill } from "@/lib/v002";
 
@@ -19,7 +19,7 @@ export function SkillDb() {
   const [error, setError] = useState<string | null>(null);
   // "" 是全部職業，其餘存職業代碼的字串（跟 <select> value 同型，比對時不用再轉數字）。
   // null 是還沒自己選過：存了角色就先篩你現在這一轉的職業（Lv.50 選了龍騎士 → 槍騎兵），沒存就全部（v0.78）
-  const [chosenJob, setChosenJob] = useRemembered<string | null>("db:技能:jobFilter", null);
+  const [chosenJob, setChosenJob] = useRemembered<string | null>("db:技能:job", null);
   const { profile, isComplete } = useStoredProfile();
   const jobFilter = chosenJob ?? (isComplete ? String(stageJob(profile.job, profile.level)) : "");
   const notOpenYet = useBeforeV002();
@@ -32,6 +32,8 @@ export function SkillDb() {
     () => new Map((skills ?? []).map(skill => [String(skill.id), skill])),
     [skills],
   );
+  // 卡片算「你點得到第幾級」時找所需技能用
+  const findSkill = useCallback((id: number) => skillIndex.get(String(id)), [skillIndex]);
 
   const entries = useMemo<DbEntry[]>(() => {
     if (!skills) return [];
@@ -75,7 +77,7 @@ export function SkillDb() {
       renderDetail={id => {
         const skill = skillIndex.get(id);
         if (!skill) return null;
-        return <SkillDetail skill={skill} />;
+        return <SkillDetail skill={skill} find={findSkill} />;
       }}
     />
   );
@@ -84,61 +86,74 @@ export function SkillDb() {
 /**
  * 各等級數值表的外框。表格放得下時表頭黏在上面（手機在「收起」那一列下面、桌機在右邊那一欄頂端），
  * 往下捲到 30 級還看得到每一欄是什麼；放不下（欄位太多）才改成左右滑，這時表頭不黏——
- * 會左右滑的框是捲動容器，表頭黏不出去。overflow-x: clip 不算捲動容器，所以放得下時用它切圓角。
+ * 會左右滑的框是捲動容器，表頭黏不出去。overflow: clip 不算捲動容器，所以放得下時用它切圓角（兩個方向都切，圓角才切得到）。
+ * 手機上表頭要黏在「收起」那一列下面：量那一列實際多高（字放大、有「10/15 開放」標籤時會變高）寫進 --stuck-h。
  */
 function TableFrame({ children }: { children: (sticky: boolean) => React.ReactNode }) {
   const frame = useRef<HTMLDivElement>(null);
   const [fits, setFits] = useState(true);
+  const [stuckHeight, setStuckHeight] = useState(44);
   useLayoutEffect(() => {
     const box = frame.current;
     const table = box?.querySelector("table");
     if (!box || !table) return;
-    const check = () => setFits(table.scrollWidth <= box.clientWidth + 1);
+    // 黏住的那一列：清單裡展開的那一列，或卡片放在清單最上面時的那顆「收起」（DbBrowser）
+    const bar = box.closest("li")?.querySelector(":scope > button") ?? document.querySelector("#db-top > button");
+    const check = () => {
+      setFits(table.scrollWidth <= box.clientWidth + 1);
+      if (bar) setStuckHeight(Math.round(bar.getBoundingClientRect().height));
+    };
     check();
     const observer = new ResizeObserver(check);
     observer.observe(box);
     observer.observe(table);
+    if (bar) observer.observe(bar);
     return () => observer.disconnect();
   }, []);
   return (
-    <div ref={frame} className={`rounded-xl border border-[color:var(--paper-edge)] ${fits ? "overflow-x-clip" : "scroll-x"}`}>
+    <div
+      ref={frame}
+      style={{ "--stuck-h": `${stuckHeight}px` } as React.CSSProperties}
+      className={`rounded-xl border border-[color:var(--paper-edge)] ${fits ? "overflow-clip" : "scroll-x"}`}
+    >
       {children(fits)}
     </div>
   );
 }
 
 /**
- * 表頭格子的樣式。黏住時要自己有底色（不然底下的列會透出來）；手機黏在導覽列＋「收起」那一列（44px）下面，
+ * 表頭格子的樣式。黏住時要自己有底色（不然底下的列會透出來）；手機黏在導覽列＋「收起」那一列（--stuck-h）下面，
  * 導覽列收起來時跟著往上（--header-offset 變 0，同樣 0.2 秒）；桌機右邊那一欄自己會捲，黏在它頂端
  */
 const headCell = (sticky: boolean, extra = "") =>
   [
     "px-3 py-2 text-left font-bold bg-[color:var(--paper-deep)]",
     sticky
-      ? "sticky top-[calc(var(--header-offset)+44px)] z-[1] transition-[top] duration-200 ease-out lg:top-0 shadow-[0_1px_0_var(--paper-edge)]"
+      ? "sticky top-[calc(var(--header-offset)+var(--stuck-h,44px))] z-[1] transition-[top] duration-200 ease-out lg:top-0 shadow-[0_1px_0_var(--paper-edge)]"
       : "",
     extra,
   ].join(" ");
 
-/** 存了角色、技能在你的職業線上：標出你現在最多點得到的那一列（reachableLevel） */
-const rowClass = (index: number, mark: number | undefined) =>
-  `border-t border-[color:var(--paper-edge)]${mark === index + 1 ? " bg-[color:var(--maple-wash)]" : ""}`;
+/** 存了角色、技能在你的職業線上：標出你現在最多點得到的那一列（reachableLevel；點數還不夠付所需技能時 level 是 0，不標） */
+const rowProps = (index: number, mark: number | undefined) => ({
+  className: `border-t border-[color:var(--paper-edge)]${mark === index + 1 ? " bg-[color:var(--maple-wash)]" : ""}`,
+  "aria-current": mark === index + 1 ? ("true" as const) : undefined,
+});
 
-function SkillDetail({ skill }: { skill: Skill }) {
+type FindSkill = (id: number) => Skill | undefined;
+
+function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
   const notOpenYet = useBeforeV002();
   const { profile, isComplete } = useStoredProfile();
   const levels = useMemo(() => skillLevels(skill), [skill]);
   const effect = useMemo(() => skillEffect(skill), [skill]);
-  const reach = isComplete ? reachableLevel(skill, profile) : null;
+  // 所需技能要花的點數一起扣（找所需技能用 find）
+  const reach = isComplete ? reachableLevel(skill, profile, find) : null;
   const icon = skillIcon(skill.id);
   const max = skill.levels?.length ?? 0;
   const reachNote = reach ? (
     <p className="text-xs ink-soft">
-      你 Lv.{profile.level}：
-      {reach.full
-        ? `點數夠把這招點滿（${max} 級）`
-        : `${reach.tier}到現在有 ${reach.sp} 點，全點這招最多到第 ${reach.level} 級`}
-      ，標橘的那一列。
+      你 Lv.{profile.level}：{reachText(reach, max)}
     </p>
   ) : null;
 
@@ -222,7 +237,7 @@ function SkillDetail({ skill }: { skill: Skill }) {
                     // 整列沒有數值、遊戲有那一級的原文（隱身術 20 級）：整列放原文，不寫一排「—」
                     const text = levels.rowText?.[index + 1];
                     return (
-                      <tr key={index} className={rowClass(index, reach?.level)}>
+                      <tr key={index} {...rowProps(index, reach?.level)}>
                         <th scope="row" className="px-3 py-1.5 text-left font-bold tabular-nums">{index + 1}</th>
                         {text ? (
                           <td colSpan={row.length} className="px-3 py-1.5">{text}</td>
@@ -253,7 +268,7 @@ function SkillDetail({ skill }: { skill: Skill }) {
                 </thead>
                 <tbody>
                   {levels.rows.map((text, index) => (
-                    <tr key={index} className={rowClass(index, reach?.level)}>
+                    <tr key={index} {...rowProps(index, reach?.level)}>
                       <th scope="row" className="px-3 py-1.5 text-left align-top font-bold tabular-nums">{index + 1}</th>
                       <td className="px-3 py-1.5">
                         {text === null

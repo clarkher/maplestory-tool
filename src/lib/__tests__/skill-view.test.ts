@@ -9,7 +9,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { changedParts, reachableLevel, skillEffect, skillIcon, skillLevels } from "@/lib/skill-view";
+import { changedParts, reachableLevel, reachText, skillEffect, skillIcon, skillLevels } from "@/lib/skill-view";
 import type { Skill } from "@/lib/types";
 
 describe("技能卡的各等級數值", () => {
@@ -267,8 +267,13 @@ describe("真資料：skills.json 每個技能的效果與各等級數值", () =
 });
 
 describe("真資料：說明、所需技能、到期的活動技能（v0.78）", () => {
-  it("說明開頭不再重複「[最高等級：N]」「[等級上限 : N]」（標題下已經寫上限幾級）", () => {
-    for (const skill of skills) expect(skill.desc ?? "", `${skill.id} ${skill.n}`).not.toMatch(/^\s*\[(最高等級|等級上限)/);
+  it("說明開頭不再重複跟上限一樣的「[最高等級：N]」（標題下已經寫上限幾級）；寫的跟上限不同（精靈的祝福 12／上限 20）或沒有上限（弱點攻擊）的照留", () => {
+    for (const skill of skills) {
+      const tag = (skill.desc ?? "").match(/^\s*\[(?:最高等級|等級上限)\s*[：:]\s*(\d+)\]/);
+      if (tag) expect(Number(tag[1]), `${skill.id} ${skill.n}`).not.toBe(skill.max);
+    }
+    expect(byId(12).desc?.startsWith("[等級上限：12]")).toBe(true);
+    expect(byId(9000).desc?.startsWith("[等級上限 : 1]")).toBe(true);
   });
 
   it("說明沒有韓文（19 個坐騎技能的韓文說明不列，效果行是中文）", () => {
@@ -291,7 +296,8 @@ describe("真資料：說明、所需技能、到期的活動技能（v0.78）",
         if (req.id === undefined) continue;
         const target = byId(req.id);
         expect(target.n, `${skill.id} → ${req.id}`).toBe(req.name);
-        expect([skill.job, skill.job - (skill.job % 10), skill.job - (skill.job % 100)], `${skill.id} → ${req.id}`).toContain(target.job);
+        // 同一條職業線＝所需技能的職業代碼拿掉結尾的 0 之後，是這個技能職業代碼的開頭（131 → 13／1、411 → 41／4）
+        expect(String(skill.job).startsWith(String(target.job).replace(/0+$/, "")), `${skill.id}(${skill.job}) → ${req.id}(${target.job})`).toBe(true);
         linked++;
       }
     }
@@ -333,7 +339,7 @@ describe("表頭單位、文字表標出變了的數字、你點得到第幾級�
     expect(changedParts(null, "消耗MP10, 攻擊力55%")).toEqual([{ text: "消耗MP10, 攻擊力55%", changed: false }]);
   });
 
-  it("上一級沒有原文、或數字個數變了（蓄能激發 4 級多了「物理攻擊力增加11」）：多出來的數字算變了", () => {
+  it("數字個數變了（蓄能激發 4 級多了「物理攻擊力增加11」）：多出來的數字算變了（上一級沒有原文的那一列整列不標，跟第 1 級一樣）", () => {
     expect(changedParts("持續時間為31秒，命中率與迴避率增加2", "持續時間為32秒，命中率與迴避率增加2，物理攻擊力增加11")).toEqual([
       { text: "持續時間為", changed: false },
       { text: "32", changed: true },
@@ -345,15 +351,15 @@ describe("表頭單位、文字表標出變了的數字、你點得到第幾級�
   });
 
   it("你點得到第幾級：這一轉到現在的點數（轉職 1 點、之後每級 3 點）全點這招能到的級數；Lv.32 槍騎兵的二轉技能 7 點→第 7 級", () => {
-    expect(reachableLevel({ job: 130, levels: Array(20).fill({}) }, { job: 130, level: 32 })).toEqual({ level: 7, sp: 7, full: false, tier: "二轉" });
+    expect(reachableLevel({ job: 130, levels: Array(20).fill({}) }, { job: 130, level: 32 })).toEqual({ level: 7, sp: 7, cost: 0, full: false, tier: "二轉" });
   });
 
   it("點數夠點滿就是 full；已經過了的那一轉（Lv.45 狂戰士看一轉的劍氣縱橫）照那一轉拿到的點數算，一定夠", () => {
-    expect(reachableLevel({ job: 100, levels: Array(20).fill({}) }, { job: 110, level: 45 })).toEqual({ level: 20, sp: 61, full: true, tier: "一轉" });
+    expect(reachableLevel({ job: 100, levels: Array(20).fill({}) }, { job: 110, level: 45 })).toEqual({ level: 20, sp: 61, cost: 0, full: true, tier: "一轉" });
   });
 
   it("法師 8 等就一轉：Lv.9 法師的一轉技能 4 點", () => {
-    expect(reachableLevel({ job: 200, levels: Array(20).fill({}) }, { job: 200, level: 9 })).toEqual({ level: 4, sp: 4, full: false, tier: "一轉" });
+    expect(reachableLevel({ job: 200, levels: Array(20).fill({}) }, { job: 200, level: 9 })).toEqual({ level: 4, sp: 4, cost: 0, full: false, tier: "一轉" });
   });
 
   it("不是自己的職業線、還沒轉到的那一轉（Lv.50 選了龍騎士，三轉技能要 70 等）、初心者技能、還沒存角色：都不標", () => {
@@ -386,9 +392,78 @@ describe("真資料：衝鋒用台服客戶端的每一級數值、壞掉的技�
   });
 
   it("向下跳躍 1006 的圖示上游是壞的（綠色雜訊），改用同一個技能皇家騎士團版 10001006 的圖（1000～1009 兩版逐位元組一樣）；木妖的弱點攻擊 9001 找不到可靠的圖就不放", () => {
-    expect(skillIcon(1006)).toBe("/assets/skills/10001006.png");
+    expect(skillIcon(1006)).toBe("/skill-icons/1006.png");
     expect(skillIcon(9001)).toBeUndefined();
     expect(skillIcon(1000)).toBe("/assets/skills/1000.png");
     expect(fs.existsSync(fileURLToPath(new URL("../../../public/assets/skills/10001006.png", import.meta.url)))).toBe(true);
+  });
+});
+
+describe("你點得到第幾級要先扣掉所需技能的點數（v0.78 code review）", () => {
+  const ward = { id: 1301006, n: "禦魔陣", job: 130, levels: Array(20).fill({}) };
+  const lookup = (list: Array<Pick<Skill, "id" | "job" | "levels" | "req">>) => (id: number) => list.find(item => item.id === id);
+
+  it("神聖之火要先把禦魔陣點到 3 級：Lv.32 槍騎兵 7 點，扣 3 點，這招最多到第 4 級（不是第 7 級）", () => {
+    const fire = { id: 1301007, job: 130, levels: Array(30).fill({}), req: [{ name: "禦魔陣", level: 3, id: 1301006 }] };
+    expect(reachableLevel(fire, { job: 130, level: 32 }, lookup([ward, fire]))).toEqual({ level: 4, sp: 7, cost: 3, full: false, tier: "二轉" });
+  });
+
+  it("所需技能自己也有所需技能（同一轉）：整條一起扣；兩個技能都要同一個時只算要得最高的那一次", () => {
+    const b = { id: 2, job: 130, levels: Array(20).fill({}) };
+    const c = { id: 3, job: 130, levels: Array(20).fill({}), req: [{ name: "B", level: 5, id: 2 }] };
+    const a = { id: 1, job: 130, levels: Array(20).fill({}), req: [{ name: "B", level: 3, id: 2 }, { name: "C", level: 2, id: 3 }] };
+    // B 要到 5 級（C 要的比 A 要的高）、C 要 2 級：一共 7 點
+    expect(reachableLevel(a, { job: 130, level: 40 }, lookup([a, b, c]))?.cost).toBe(7);
+  });
+
+  it("所需技能在上一轉（三轉技能要二轉技能）：那一轉的點數早就花了，不從這一轉扣", () => {
+    const third = { id: 1311008, job: 131, levels: Array(30).fill({}), req: [{ name: "禦魔陣", level: 3, id: 1301006 }] };
+    expect(reachableLevel(third, { job: 131, level: 75 }, lookup([ward, third]))?.cost).toBe(0);
+  });
+
+  it("所需技能對不上 id（上游寫「劍技專精」）：至少扣它寫的級數，當作同一轉", () => {
+    const sword = { id: 1101004, job: 110, levels: Array(20).fill({}), req: [{ name: "劍技專精", level: 5 }] };
+    // Lv.37 狂戰士：二轉 22 點，扣 5 點剩 17 點 → 第 17 級（不是點滿）
+    expect(reachableLevel(sword, { job: 110, level: 37 }, lookup([sword]))).toEqual({ level: 17, sp: 22, cost: 5, full: false, tier: "二轉" });
+  });
+
+  it("點數還不夠付所需技能（Lv.30 狂戰士只有 1 點、快速之劍要先花 5 點）：level 0、還差幾點（要先花 5 點再 1 點才點得到）", () => {
+    const sword = { id: 1101004, job: 110, levels: Array(20).fill({}), req: [{ name: "劍技專精", level: 5 }] };
+    expect(reachableLevel(sword, { job: 110, level: 30 }, lookup([sword]))).toEqual({ level: 0, sp: 1, cost: 5, full: false, tier: "二轉", missing: 5 });
+  });
+
+  it("真資料：神聖之火 × Lv.32 槍騎兵是第 4 級", () => {
+    const find = (id: number) => skills.find(skill => skill.id === id);
+    expect(reachableLevel(byId(1301007), { job: 130, level: 32 }, find)).toEqual({ level: 4, sp: 7, cost: 3, full: false, tier: "二轉" });
+  });
+});
+
+describe("卡片上「你點得到第幾級」那一句（v0.78）", () => {
+  const base = { sp: 7, tier: "二轉" };
+  it("點數夠點滿：沒有所需技能／有所需技能各一種說法", () => {
+    expect(reachText({ ...base, level: 20, sp: 61, cost: 0, full: true }, 20)).toBe("點數夠把這招點滿（20 級），標橘的那一列。");
+    expect(reachText({ ...base, level: 20, sp: 61, cost: 5, full: true }, 20)).toBe("扣掉所需技能也夠把這招點滿（20 級），標橘的那一列。");
+  });
+  it("還沒點滿：寫這一轉有幾點、扣掉所需技能幾點、最多到第幾級", () => {
+    expect(reachText({ ...base, level: 7, cost: 0, full: false }, 30)).toBe("二轉到現在有 7 點，全點這招最多到第 7 級，標橘的那一列。");
+    expect(reachText({ ...base, level: 4, cost: 3, full: false }, 30)).toBe("二轉到現在有 7 點，扣掉所需技能 3 點，這招最多到第 4 級，標橘的那一列。");
+  });
+  it("點數還不夠付所需技能：寫還差幾點，不提標橘（沒有那一列）", () => {
+    expect(reachText({ level: 0, sp: 1, cost: 5, full: false, tier: "二轉", missing: 5 }, 20)).toBe("二轉到現在有 1 點，所需技能要先花 5 點，還差 5 點才點得到這招。");
+  });
+});
+
+describe("code review 修正：全形百分比、圖示放自己的資料夾（v0.78）", () => {
+  it("樣板裡寫全形「％」的（盾防精通「盾牌的物理防禦力增加#x％」）表頭一樣補「（%）」", () => {
+    const result = skillLevels({ formula: "盾牌的物理防禦力增加#x％", labels: { x: "物理防禦力" }, levels: [{ x: 20 }] });
+    expect(result.kind === "table" && result.fields).toEqual([{ key: "x", label: "物理防禦力", unit: "%" }]);
+    expect(skillLevels(byId(1110001)).kind === "table" && (skillLevels(byId(1110001)) as { fields: { unit?: string }[] }).fields[0].unit).toBe("%");
+  });
+
+  it("向下跳躍的圖示放在 public/skill-icons/（上游同步不會蓋掉、也不會被刪），跟皇家騎士團版 10001006 逐位元組一樣", () => {
+    expect(skillIcon(1006)).toBe("/skill-icons/1006.png");
+    const own = fs.readFileSync(fileURLToPath(new URL("../../../public/skill-icons/1006.png", import.meta.url)));
+    const cygnus = fs.readFileSync(fileURLToPath(new URL("../../../public/assets/skills/10001006.png", import.meta.url)));
+    expect(own.equals(cygnus)).toBe(true);
   });
 });

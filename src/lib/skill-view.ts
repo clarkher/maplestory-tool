@@ -4,6 +4,7 @@
  * 規則（2026-10-08 使用者看候選截圖選 B）：效果樣板有 #mpCon 這種代號時，改寫滿級那一級的遊戲原文；
  * 好幾級但上游沒有數值的（槍連擊、極速詠唱…8 個），一級一列放每一級的遊戲原文。數字一律照遊戲資料，不從句子硬拆、不編。
  */
+import { skillImage } from "./data";
 import { jobTier, previousJob, stageJob, tierStartLevel } from "./jobs";
 import { spAtLevel } from "./skill-plan";
 import type { Skill } from "./types";
@@ -67,7 +68,8 @@ export function skillLevels(skill: Pick<Skill, "levels" | "labels" | "levelText"
   return {
     kind: "table",
     fields: fields.map(key => {
-      const unit = skill.formula?.match(new RegExp(`#${key}(%|秒)`))?.[1];
+      // 全形「％」（盾防精通「增加#x％」）也算，表頭一律寫半形 %
+      const unit = skill.formula?.match(new RegExp(`#${key}(%|％|秒)`))?.[1]?.replace("％", "%");
       return { key, label: skill.labels?.[key] ?? key, ...(unit ? { unit } : {}) };
     }),
     rows: levels.map(level => fields.map(key => level[key] ?? null)),
@@ -100,15 +102,45 @@ export function changedParts(prev: string | null, cur: string): { text: string; 
 
 const TIER_NAME = { 1: "一轉", 2: "二轉", 3: "三轉" } as const;
 
+/** reachableLevel 要找所需技能時用的查表（給 id 拿技能）；沒給就只扣對不上 id 的那種 */
+type SkillLookup = (id: number) => Pick<Skill, "id" | "job" | "levels" | "req"> | undefined;
+
+/**
+ * 同一轉裡，學這招之前要先點的點數：所需技能（和它自己的所需技能，一路往上）要到的級數加起來。
+ * 同一個技能被要求好幾次時只算要得最高的那一次；所需技能在上一轉的不算（那一轉的點數早就花了）；
+ * 上游的字對不上技能（沒有 id，例「劍技專精」）時當作同一轉、扣它寫的級數（不知道它自己還要什麼）。
+ */
+function prereqCost(skill: Pick<Skill, "job" | "req">, find?: SkillLookup): number {
+  const need = new Map<string, number>();
+  const visit = (current: Pick<Skill, "job" | "req">, depth: number) => {
+    if (depth > 10) return;
+    for (const req of current.req ?? []) {
+      const target = req.id === undefined ? undefined : find?.(req.id);
+      if (target && target.job !== skill.job) continue;
+      const key = req.id === undefined ? `name:${req.name}` : String(req.id);
+      need.set(key, Math.max(need.get(key) ?? 0, req.level));
+      if (target) visit(target, depth + 1);
+    }
+  };
+  visit(skill, 0);
+  let total = 0;
+  for (const level of need.values()) total += level;
+  return total;
+}
+
 /**
  * 存了角色時，這個技能你現在最多點得到第幾級：這一轉拿到的點數（轉職 1 點、之後每級 3 點，跟首頁技能條同一套，
- * skill-plan.ts）全點這招能到的級數。已經過了的那一轉照那一轉拿到的點數算（一轉、二轉的點數都夠把單一技能點滿）。
+ * skill-plan.ts）先扣掉所需技能要花的（prereqCost），剩下的全點這招能到的級數。
+ * 已經過了的那一轉照那一轉拿到的點數算（一轉、二轉的點數都夠把單一技能點滿）。
+ * 點數還不夠付所需技能：level 0、missing 是還差幾點才點得到這招第 1 級。
  * 不是自己的職業線、還沒轉到的那一轉、初心者技能、還沒存角色：回 null，卡片不標。
+ * （2026-10-08 code review 抓到第一版沒扣所需技能：Lv.32 槍騎兵看神聖之火寫第 7 級，其實要先把禦魔陣點到 3 級，只到第 4 級）
  */
 export function reachableLevel(
-  skill: Pick<Skill, "job" | "levels">,
+  skill: Pick<Skill, "job" | "levels" | "req">,
   profile: { job: number; level: number },
-): { level: number; sp: number; full: boolean; tier: string } | null {
+  find?: SkillLookup,
+): { level: number; sp: number; cost: number; full: boolean; tier: string; missing?: number } | null {
   const max = skill.levels?.length ?? 0;
   if (skill.job <= 0 || !max || profile.job < 0 || profile.level <= 0) return null;
   // 現在實際在哪一轉，往上一轉一路找到一轉：技能的職業要在這條線上
@@ -117,21 +149,33 @@ export function reachableLevel(
   const at = line.indexOf(skill.job);
   if (at < 0) return null;
   const sp = at === 0 ? spAtLevel(skill.job, profile.level) : spAtLevel(skill.job, tierStartLevel(line[at - 1]));
-  const tier = jobTier(skill.job);
-  return { level: Math.min(max, sp), sp, full: sp >= max, tier: tier ? TIER_NAME[tier] : "" };
+  const cost = prereqCost(skill, find);
+  const tierNo = jobTier(skill.job);
+  const tier = tierNo ? TIER_NAME[tierNo] : "";
+  const left = sp - cost;
+  if (left <= 0) return { level: 0, sp, cost, full: false, tier, missing: cost + 1 - sp };
+  return { level: Math.min(max, left), sp, cost, full: left >= max, tier };
+}
+
+/** 卡片上「你 Lv.32：」後面那一句（reachableLevel 的結果、技能總共幾級） */
+export function reachText(reach: NonNullable<ReturnType<typeof reachableLevel>>, max: number): string {
+  if (reach.level === 0) {
+    return `${reach.tier}到現在有 ${reach.sp} 點，所需技能要先花 ${reach.cost} 點，還差 ${reach.missing} 點才點得到這招。`;
+  }
+  if (reach.full) return `${reach.cost ? "扣掉所需技能也" : "點數"}夠把這招點滿（${max} 級），標橘的那一列。`;
+  const spent = reach.cost ? `扣掉所需技能 ${reach.cost} 點，這招` : "全點這招";
+  return `${reach.tier}到現在有 ${reach.sp} 點，${spent}最多到第 ${reach.level} 級，標橘的那一列。`;
 }
 
 /**
- * 上游壞掉的技能圖示（2026-10-08 查：整張是綠色雜訊）。向下跳躍 1006 跟皇家騎士團版的同一個技能 10001006 是同一張圖——
- * 初心者技能 1000～1005、1007、1009 兩版的圖檔逐位元組一樣，只有 1006 這張壞了——改用那一張。
+ * 上游壞掉的技能圖示（2026-10-08 查：整張是綠色雜訊）。向下跳躍 1006 改放我們自己的那張（data.ts 的 skillImage，
+ * public/skill-icons/，上游同步會整個覆蓋 public/assets/skills，所以不放那裡）。
  * 木妖的弱點攻擊 9001 在客戶端圖集裡對不出是哪一張（肥肥 9000、綠水靈 9002 跟皇家騎士團版也不同），找不到可靠的圖就不放，
- * 不放壞掉的圖。上游同步會整個覆蓋 public/assets/skills，所以不改檔案、在這裡換。
+ * 不放壞掉的圖。
  */
-const ICON_FROM: Record<number, number> = { 1006: 10001006 };
 const NO_ICON = new Set([9001]);
 
 /** 技能圖示的網址；圖是壞的、又找不到可靠替代的回 undefined（清單、卡片就不放圖） */
 export function skillIcon(id: number): string | undefined {
-  if (NO_ICON.has(id)) return undefined;
-  return `/assets/skills/${ICON_FROM[id] ?? id}.png`;
+  return NO_ICON.has(id) ? undefined : skillImage(id);
 }

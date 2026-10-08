@@ -557,7 +557,7 @@ try {
       text: document.querySelector("main article")?.textContent ?? "", table: !!document.querySelector("main article table") })`;
     await fresh("/db/skills");
     // v0.78 起存了角色會先篩你這一轉的職業（開頭存的狂戰士），初心者技能不在清單上：先記成「全部職業」再重新載入
-    await evaluate(`sessionStorage.setItem("ms-db:db:技能:jobFilter", '""'); 1`);
+    await evaluate(`sessionStorage.setItem("ms-db:db:技能:job", '""'); 1`);
     await reload();
     await ev(`await __ready(); await __sleep(600); return 1;`);
     const r = await ev(`const id = "1003";
@@ -668,7 +668,7 @@ try {
   // 角色照開頭存的 Lv.45 狂戰士（110）；「還沒點滿」那條暫時換成 Lv.32 槍騎兵，跑完換回來
   await section("S3", async () => {
     await mobile();
-    const JOB_KEY = "ms-db:db:技能:jobFilter";
+    const JOB_KEY = "ms-db:db:技能:job";
     const setProfile = (level, job) => evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: ${level}, job: ${job} })); 1`);
     const CARD = `(() => {
       const card = document.querySelector("main article");
@@ -715,8 +715,8 @@ try {
       slash?.req === "所需技能：魔天一擊 1 級以上" && slash.reqLinks.some(link => link.text === "魔天一擊" && link.href === "/db/skills?id=1001004"),
       { req: slash?.req, links: slash?.reqLinks });
     check("S3 劍氣縱橫：表頭補單位「傷害（%）」", slash?.heads.join("|") === "等級|消耗 HP|消耗 MP|傷害（%）", slash?.heads);
-    check("S3 劍氣縱橫（一轉）× Lv.45 狂戰士：寫「點數夠把這招點滿（20 級）」、標橘第 20 列",
-      slash?.note === "你 Lv.45：點數夠把這招點滿（20 級），標橘的那一列。" && slash.marked.join(",") === "20", { note: slash?.note, marked: slash?.marked });
+    check("S3 劍氣縱橫（一轉，要先學魔天一擊）× Lv.45 狂戰士：寫「扣掉所需技能也夠把這招點滿（20 級）」、標橘第 20 列",
+      slash?.note === "你 Lv.45：扣掉所需技能也夠把這招點滿（20 級），標橘的那一列。" && slash.marked.join(",") === "20", { note: slash?.note, marked: slash?.marked });
     const jump = await ev(`const link = [...document.querySelectorAll("main article p a")].find(a => a.textContent === "魔天一擊");
       link.click(); await __waitFor(() => location.search.includes("1001004")); await __sleep(1000);
       return { path: location.pathname, search: location.search, title: document.querySelector("main article h2")?.textContent ?? "" };`);
@@ -725,8 +725,13 @@ try {
     try {
       await setProfile(32, 130);
       const fire = await open(1301007);
-      check("S3 神聖之火（二轉）× Lv.32 槍騎兵：寫「二轉到現在有 7 點，全點這招最多到第 7 級」、標橘第 7 列",
-        fire?.note === "你 Lv.32：二轉到現在有 7 點，全點這招最多到第 7 級，標橘的那一列。" && fire.marked.join(",") === "7", { note: fire?.note, marked: fire?.marked });
+      // 神聖之火要先把禦魔陣點到 3 級：7 點扣 3 點，只到第 4 級（第一版沒扣、寫第 7 級，code review 抓到）
+      check("S3 神聖之火（二轉）× Lv.32 槍騎兵：寫「二轉到現在有 7 點，扣掉所需技能 3 點，這招最多到第 4 級」、標橘第 4 列",
+        fire?.note === "你 Lv.32：二轉到現在有 7 點，扣掉所需技能 3 點，這招最多到第 4 級，標橘的那一列。" && fire.marked.join(",") === "4", { note: fire?.note, marked: fire?.marked });
+      await setProfile(30, 110);
+      const quick = await open(1101004);
+      check("S3 快速之劍 × Lv.30 狂戰士（只有 1 點、所需技能要先花 5 點）：寫「還差 5 點才點得到這招」、不標任何一列",
+        quick?.note === "你 Lv.30：二轉到現在有 1 點，所需技能要先花 5 點，還差 5 點才點得到這招。" && quick.marked.length === 0, { note: quick?.note, marked: quick?.marked });
       const other = await open(2001004);
       check("S3 不是自己職業線的技能（法師的魔靈彈）不寫、不標", other && other.note === null && other.marked.length === 0, { note: other?.note, marked: other?.marked });
     } finally {
@@ -772,7 +777,7 @@ try {
     // 壞掉的圖示：向下跳躍換成皇家騎士團版同一張、木妖的弱點攻擊不放圖
     await open(1006);
     const jumpIcon = await ev(`const img = document.querySelector("main article header img"); await __waitFor(() => img?.complete); return { src: img?.getAttribute("src") ?? null, width: img?.naturalWidth ?? 0 };`);
-    check("S3 向下跳躍 1006：圖示換成 10001006（載得到）", jumpIcon.src === "/assets/skills/10001006.png" && jumpIcon.width > 0, jumpIcon);
+    check("S3 向下跳躍 1006：圖示換成我們自己放的那張（public/skill-icons/1006.png，載得到）", jumpIcon.src === "/skill-icons/1006.png" && jumpIcon.width > 0, jumpIcon);
     await open(9001);
     const woodIcon = await ev(`return { img: !!document.querySelector("main article header img"), title: document.querySelector("main article h2")?.textContent ?? "" };`);
     check("S3 木妖的弱點攻擊 9001：找不到可靠的圖就不放（不放壞掉的綠色雜訊）", woodIcon.title.includes("木妖") && !woodIcon.img, woodIcon);

@@ -728,7 +728,7 @@ function buildSkills(artale, allJobs) {
     })
     .map(skill => ({
       skill,
-      ...splitPrereq(cleanSkillDesc(skill.description)),
+      ...splitPrereq(cleanSkillDesc(skill.description, skill.maxLevel ?? undefined)),
       // 上游沒給每一級數值、台服客戶端有的（衝鋒），數值跟表頭用客戶端的（data/client/skills.json）
       ...clientLevels(skill.levels, clientSkills[skill.id], `${skill.id} ${skill.name}`),
     }))
@@ -750,6 +750,9 @@ function buildSkills(artale, allJobs) {
     levelText: skillLevelText(levels, `${skill.id} ${skill.name}`),
   }));
   linkPrereqs(list);
+  // 說明是韓文、建置時拿掉的有幾個（2026-10-08 是 19 個坐騎）：數字突然變多代表上游換了語系，要看一下
+  const korean = (artale.skills || []).filter(skill => list.some(item => item.id === Number(skill.id)) && /\p{Script=Hangul}/u.test(skill.description || ""));
+  if (korean.length) console.log(`[skills] 說明是韓文、沒有列的：${korean.length} 個（效果行照列中文）`);
   return { list };
 }
 

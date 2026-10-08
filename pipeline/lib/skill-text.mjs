@@ -12,21 +12,22 @@
  * （2026-10-08 查：81 個技能，多半在「所需技能：…以上#」的尾巴，有 3 個前面還多一個反斜線）。
  * 後面接英文字母的 # 是樣板代號，說明裡目前沒有，不在這裡處理。
  */
-export function cleanSkillDesc(text) {
+export function cleanSkillDesc(text, maxLevel) {
   // 韓文說明（19 個坐騎技能，上游「[TW][마스터 레벨 : 1]…」）不留：卡片的效果行是中文，照列那一行就好（2026-10-08 使用者「全修」）
   if (!text || /\p{Script=Hangul}/u.test(text)) return undefined;
   return (
     text
       .replace(/\\?#(?![A-Za-z])/g, "")
-      // 開頭的「[最高等級：20]」「[等級上限 : 1]」：卡片標題下已經寫「上限 20 級」（2026-10-08 查：216 個都跟 maxLevel 一樣）
-      .replace(/^\s*\[(?:最高等級|等級上限)\s*[：:]\s*\d+\]\s*/, "")
+      // 開頭的「[最高等級：20]」「[等級上限 : 1]」跟技能上限（maxLevel）一樣才拿掉：卡片標題下已經寫「上限 20 級」。
+      // 不一樣（精靈的祝福寫 12、上限 20）或沒有上限（肥肥的弱點攻擊）就照留，那是唯一寫到的地方
+      .replace(/^\s*\[(?:最高等級|等級上限)\s*[：:]\s*(\d+)\]\s*/, (tag, level) => (Number(level) === maxLevel ? "" : tag))
       .trim() || undefined
   );
 }
 
 /**
  * 說明尾巴的「所需技能：魔天一擊1等級以上」拆出來，卡片另外列一行、名字做成連到那個技能的連結。
- * 認得三種寫法：「魔天一擊1等級以上」「詛咒術 3等級以上」「精準強化等級3以上」，還有只寫「5以上」的；
+ * 認得上游的寫法：「魔天一擊1等級以上」「詛咒術 3等級以上」「精準強化等級3以上」（也收只寫「5以上」的）；
  * 好幾個用「、」或逗號隔開。有一個認不得就整段不拆、說明原樣（不硬拆）。
  * 回傳 { desc, req }，req 是 [{ name, level }]，沒有所需技能時是 undefined。
  */
@@ -36,7 +37,8 @@ export function splitPrereq(desc) {
   const req = [];
   for (const part of match[2].split(/\s*[、,，]\s*/)) {
     const item = part.match(/^(.+?)\s*(?:等級\s*)?(\d+)\s*(?:等級|級)?\s*以上$/);
-    if (!item) return { desc, req: undefined };
+    // 名字裡還有「以上」或數字＝其實是「A 3等級以上和B 5等級以上」這種沒拆開的，不收
+    if (!item || /以上|\d/.test(item[1])) return { desc, req: undefined };
     req.push({ name: item[1].trim(), level: Number(item[2]) });
   }
   return { desc: match[1].trim() || undefined, req };
@@ -108,16 +110,18 @@ export function skillLevelText(levels, skill = "") {
 /**
  * 上游沒給每一級數值、台服客戶端有的技能（data/client/skills.json，用 scripts/client/ 從本機客戶端抽；目前只有衝鋒 5001005：
  * 上游每一級只寫 MP 跟秒數，樣板卻說還加移動速度、跳躍力），每一級的數值跟表頭改用客戶端的，說明原文照留。
- * 上游已經有數值就用上游的，不混兩邊；級數對不上（改版後上限變了）就讓重建失敗，免得數字錯開一級。
+ * 上游已經有數值就用上游的，不混兩邊。級數對不上（改版後上限變了）就不用客戶端的、印警告：退回上游的文字
+ * （卡片一級一列放原文，還是對的），不擋每天的資料更新——重抽要有本機客戶端，排程自己修不好（2026-10-08 code review）。
  * 回傳 { levels, labels }：labels 只有用了客戶端時才有，其他時候是 undefined（照上游的 valueLabels）。
  */
-export function clientLevels(levels, client, skill = "") {
+export function clientLevels(levels, client, skill = "", { warn = console.warn } = {}) {
   if (!client || !levels?.length || levels.some(hasValues)) return { levels, labels: undefined };
   if (client.levels.length !== levels.length) {
-    throw new Error(
-      `技能 ${skill || "（未標示）"} 在 data/client/skills.json 有 ${client.levels.length} 級、上游有 ${levels.length} 級，對不上——` +
-        "客戶端或上游改版了，照 README「客戶端技能數值」重新抽再重建",
+    warn(
+      `[skills] 技能 ${skill || "（未標示）"} 在 data/client/skills.json 有 ${client.levels.length} 級、上游有 ${levels.length} 級，對不上，` +
+        "這次改用上游的每一級文字；照 README「客戶端技能數值」重新抽",
     );
+    return { levels, labels: undefined };
   }
   return {
     levels: levels.map((level, index) => ({ ...level, values: client.levels[index] })),
