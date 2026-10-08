@@ -13,6 +13,7 @@ import {
 } from "@/lib/data";
 import { setQuestDone, useDoneQuests } from "@/lib/done-quests";
 import { rewardSummary } from "@/lib/format";
+import { npcPlace } from "@/lib/go-label";
 import { effectiveLevels } from "@/lib/now-plan";
 import { isDevQuest, QUEST_BUCKET_LABEL } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
@@ -257,7 +258,8 @@ function NpcBlock({
             </p>
           ) : null}
         </div>
-        {npc.map ? <GoButton to={npc.map} label="路線" place={mapName(maps, npc.map)} /> : null}
+        {/* 讀螢幕軟體念「到阿里可那裡的路線」（npcPlace） */}
+        {npc.map ? <GoButton to={npc.map} label="路線" place={npcPlace(npc.n, mapName(maps, npc.map))} /> : null}
       </div>
     </div>
   );

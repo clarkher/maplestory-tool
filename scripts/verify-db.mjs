@@ -1086,10 +1086,13 @@ try {
     check("N17 怪物卡出沒地圖的「路線」：讀螢幕軟體念「到〇〇的路線」，畫面上還是寫「路線」", r.name !== "" && r.label === `到${r.name}的路線` && r.text === "路線", r);
     await clearRemembered();
     await navigate(`${BASE}/db/quests?id=6931`);
-    r = await ev(`await __ready(); await __sleep(900); const go = document.querySelector("main article a[href^='/go?to=']");
-      const place = go?.closest("div")?.querySelector("p.flex span.truncate")?.textContent ?? "";
-      return { place, label: go?.getAttribute("aria-label") ?? null, text: go?.textContent.trim() ?? null };`);
-    check("N17 任務卡 NPC 的「路線」：讀螢幕軟體念「到〇〇的路線」", r.place !== "" && r.label === `到${r.place}的路線` && r.text === "路線", r);
+    // 任務卡的 NPC：念 NPC 的名字（兩個 NPC 都在還沒開放的地圖時，念地圖名會兩顆都是「到未開放地圖的路線」）
+    r = await ev(`await __ready(); await __sleep(900);
+      const buttons = [...document.querySelectorAll("main article a[href^='/go?to=']")].map(go => ({
+        npc: go.closest("div")?.querySelector("p.font-bold")?.textContent ?? "", label: go.getAttribute("aria-label"), text: go.textContent.trim() }));
+      return { buttons };`);
+    check("N17 任務卡 NPC 的「路線」：讀螢幕軟體念「到〇〇那裡的路線」（〇〇是 NPC），畫面上還是寫「路線」",
+      r.buttons.length > 0 && r.buttons.every(b => b.npc !== "" && b.label === `到${b.npc}那裡的路線` && b.text === "路線"), r);
   });
 
   // N7 捲到底自動載入：沒有看得到的「再載」按鈕，捲到清單底下就自動接上 120 筆，筆數記住
