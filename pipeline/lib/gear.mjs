@@ -368,6 +368,8 @@ export function convertStatRules(researchRules) {
     ...(rule.weapons?.length ? { weapons: rule.weapons } : {}),
     // 卡片上方切換用的標籤字（盜賊「一般點法／全幸」、法師「全智／裝備法」）；主推跟另一套都寫了才會出現切換
     ...(rule.tab ? { tab: rule.tab } : {}),
+    // 點法按鈕下那行白話說明（選中那套的好處跟代價，「全幸：前期打得比較痛，但敏捷要靠裝備湊」）
+    ...(rule.tabText ? { tabText: rule.tabText } : {}),
     t: rule.text, s: rule.sources, v: rule.verified,
     mainstream: Boolean(rule.mainstream),
   }));
