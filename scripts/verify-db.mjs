@@ -1084,15 +1084,22 @@ try {
       const go = li?.querySelector("a[href^='/go?to=']");
       return { name: li?.querySelector("span.truncate")?.textContent ?? "", label: go?.getAttribute("aria-label") ?? null, text: go?.textContent.trim() ?? null };`);
     check("N17 怪物卡出沒地圖的「路線」：讀螢幕軟體念「到〇〇的路線」，畫面上還是寫「路線」", r.name !== "" && r.label === `到${r.name}的路線` && r.text === "路線", r);
-    await clearRemembered();
-    await navigate(`${BASE}/db/quests?id=6931`);
-    // 任務卡的 NPC：念 NPC 的名字（兩個 NPC 都在還沒開放的地圖時，念地圖名會兩顆都是「到未開放地圖的路線」）
-    r = await ev(`await __ready(); await __sleep(900);
-      const buttons = [...document.querySelectorAll("main article a[href^='/go?to=']")].map(go => ({
-        npc: go.closest("div")?.querySelector("p.font-bold")?.textContent ?? "", label: go.getAttribute("aria-label"), text: go.textContent.trim() }));
-      return { buttons };`);
-    check("N17 任務卡 NPC 的「路線」：讀螢幕軟體念「到〇〇那裡的路線」（〇〇是 NPC），畫面上還是寫「路線」",
-      r.buttons.length > 0 && r.buttons.every(b => b.npc !== "" && b.label === `到${b.npc}那裡的路線` && b.text === "路線"), r);
+    // 任務卡的 NPC：念 NPC 的名字（兩個 NPC 都在還沒開放的地圖時，念地圖名會兩顆都是「到未開放地圖的路線」）；
+    // 地圖開放時多念地名，同名的 NPC 在不同地方也分得出來（69098 有兩個「漢斯」）
+    const npcButtons = id => ev(`await __ready(); await __sleep(900);
+      return [...document.querySelectorAll("main article a[href^='/go?to=']")].map(go => {
+        const box = go.closest("div");
+        return { npc: box?.querySelector("p.font-bold")?.textContent ?? "", map: box?.querySelector("p.flex span.truncate")?.textContent ?? "",
+          label: go.getAttribute("aria-label"), text: go.textContent.trim() };
+      });`);
+    const want = b => b.map === "未開放地圖" ? `到${b.npc}那裡的路線` : `到${b.npc}那裡（${b.map}）的路線`;
+    for (const quest of ["6931", "69098"]) {
+      await clearRemembered();
+      await navigate(`${BASE}/db/quests?id=${quest}`);
+      const buttons = await npcButtons(quest);
+      check(`N17 任務卡 NPC 的「路線」（${quest}）：讀螢幕軟體念「到〇〇那裡的路線」，地圖開放時多念地名，畫面上還是寫「路線」`,
+        buttons.length > 0 && buttons.every(b => b.npc !== "" && b.label === want(b) && b.text === "路線"), buttons);
+    }
   });
 
   // N7 捲到底自動載入：沒有看得到的「再載」按鈕，捲到清單底下就自動接上 120 筆，筆數記住
