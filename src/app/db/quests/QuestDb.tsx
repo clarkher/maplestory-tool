@@ -259,7 +259,7 @@ function NpcBlock({
           ) : null}
         </div>
         {/* 讀螢幕軟體念「到阿里可那裡的路線」（npcPlace） */}
-        {npc.map ? <GoButton to={npc.map} label="路線" place={npcPlace(npc.n, mapName(maps, npc.map))} /> : null}
+        {npc.map ? <GoButton to={npc.map} label="路線" place={npcPlace(npc.n, maps[String(npc.map)]?.zh, mapName(maps, npc.map))} /> : null}
       </div>
     </div>
   );
