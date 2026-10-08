@@ -145,6 +145,12 @@ export type Skill = {
    * 沒有這個欄位：建置時 dropEmpty 把空陣列拿掉了。畫面怎麼列見 skill-view.ts
    */
   levels?: Record<string, number>[];
+  /**
+   * 遊戲每一級的說明原文（上游 levels[].description，例「消耗MP10, 攻擊力55%, 對一名怪物兩次攻擊」），鍵是級數。
+   * 只留卡片用得到的（pipeline/lib/skill-text.mjs）：好幾級又沒有數值的那幾級（槍連擊整個技能、隱身術 20 級）、
+   * 有數值的技能的最高級（「滿級效果」那一行）。一筆都沒有就沒有這個欄位
+   */
+  levelText?: Record<string, string>;
 };
 
 export type Job = {

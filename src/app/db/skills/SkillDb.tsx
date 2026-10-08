@@ -7,7 +7,7 @@ import { loadSkills, peekSkills } from "@/lib/data";
 import { skillJobGroups } from "@/lib/jobs";
 import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
-import { skillLevels } from "@/lib/skill-view";
+import { skillEffect, skillLevels } from "@/lib/skill-view";
 import type { Skill } from "@/lib/types";
 import { isV002Skill } from "@/lib/v002";
 
@@ -79,6 +79,7 @@ export function SkillDb() {
 function SkillDetail({ skill }: { skill: Skill }) {
   const notOpenYet = useBeforeV002();
   const levels = useMemo(() => skillLevels(skill), [skill]);
+  const effect = useMemo(() => skillEffect(skill), [skill]);
 
   return (
     <DetailCard>
@@ -102,10 +103,10 @@ function SkillDetail({ skill }: { skill: Skill }) {
         <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{skill.desc}</p>
       ) : null}
 
-      {skill.formula ? (
+      {effect ? (
         <p className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2 text-sm">
-          <span className="ink-faint">效果：</span>
-          {skill.formula}
+          <span className="ink-faint">{effect.label}：</span>
+          {effect.text}
         </p>
       ) : null}
 
@@ -124,17 +125,53 @@ function SkillDetail({ skill }: { skill: Skill }) {
                 </tr>
               </thead>
               <tbody>
-                {levels.rows.map((row, index) => (
+                {levels.rows.map((row, index) => {
+                  // 整列沒有數值、遊戲有那一級的原文（隱身術 20 級）：整列放原文，不寫一排「—」
+                  const text = levels.rowText?.[index + 1];
+                  return (
+                    <tr key={index} className="border-t border-[color:var(--paper-edge)]">
+                      <th scope="row" className="px-3 py-1.5 text-left font-bold tabular-nums">{index + 1}</th>
+                      {text ? (
+                        <td colSpan={row.length} className="px-3 py-1.5">{text}</td>
+                      ) : (
+                        row.map((value, column) => (
+                          <td key={levels.fields[column].key} className="px-3 py-1.5 tabular-nums">{value ?? "—"}</td>
+                        ))
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      ) : levels.kind === "text" ? (
+        <Section title="各等級數值" extra={`${levels.rows.length} 級`}>
+          <div className="scroll-x rounded-xl border border-[color:var(--paper-edge)]">
+            <table className="w-full text-sm">
+              <thead className="bg-[color:var(--paper-deep)]">
+                <tr>
+                  <th scope="col" className="w-16 px-3 py-2 text-left font-bold">等級</th>
+                  <th scope="col" className="px-3 py-2 text-left font-bold">效果</th>
+                </tr>
+              </thead>
+              <tbody>
+                {levels.rows.map((text, index) => (
                   <tr key={index} className="border-t border-[color:var(--paper-edge)]">
-                    <th scope="row" className="px-3 py-1.5 text-left font-bold tabular-nums">{index + 1}</th>
-                    {row.map((value, column) => (
-                      <td key={levels.fields[column].key} className="px-3 py-1.5 tabular-nums">{value ?? "—"}</td>
-                    ))}
+                    <th scope="row" className="px-3 py-1.5 text-left align-top font-bold tabular-nums">{index + 1}</th>
+                    <td className="px-3 py-1.5">{text ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        </Section>
+      ) : levels.kind === "sameText" ? (
+        <Section title="各等級數值" extra={`${levels.count} 級`}>
+          <p className="text-xs ink-faint">
+            遊戲資料這 {levels.count} 級寫的都是同一句
+            {effect?.text === levels.text ? "（上面的效果）" : `「${levels.text}」`}，沒有每一級的數字。
+          </p>
         </Section>
       ) : levels.kind === "noLevels" ? (
         <Section title="各等級數值">
