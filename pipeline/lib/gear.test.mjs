@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   allSourcesV002,
+  ARMOR_SLOTS,
+  buildArmor,
   buildKit,
   buildScrolls,
   buildSource,
@@ -18,6 +20,7 @@ import {
   parseScroll,
   questSources,
   shopSources,
+  sortArmor,
   WEAPON_TYPES,
 } from "./gear.mjs";
 
@@ -474,4 +477,105 @@ test("convertStatRules：研究檔寫了 tabText（點法按鈕下那行白話�
   ]);
   assert.equal(withText.tabText, "前期打得比較痛，但敏捷要靠裝備湊");
   assert.equal("tabText" in without, false);
+});
+
+/* ------------------------------------------------------------ buildArmor / sortArmor（法師防具） */
+
+const armorCtx = {
+  monstersById: new Map([
+    [7, { id: 7, n: "超級綠水靈", lv: 40, maps: [100000000] }],
+    [8, { id: 8, n: "雪怪", lv: 45, maps: [200010000] }],
+  ]),
+  questsById: new Map(),
+  maps: { 100000000: { zh: "弓箭手村" }, 200010000: { zh: "雲彩公園Ⅰ", o: "2026-10-15" } },
+  openMap,
+  v002Date: "2026-10-15",
+};
+const mageHat = (over = {}) => ({
+  id: 1002991, n: "黑星魔法帽", c: "裝備", s: "帽子",
+  eq: { reqLevel: 35, reqJob: 2, reqINT: 108, reqLUK: 38, incINT: 2, incPDD: 18, incMDD: 50, tuc: 7 },
+  dm: [7],
+  ...over,
+});
+
+test("ARMOR_SLOTS：七個防具部位，用字跟 items.json 的 s 一樣", () => {
+  assert.deepEqual(ARMOR_SLOTS, ["帽子", "套服", "上衣", "褲裙", "鞋子", "手套", "盾牌"]);
+});
+
+test("buildArmor：法師帽子（reqJob 2）→ 帶 slot、lv、req、job、src，欄位順序照 GearArmor；rank 是智力跟物防＋魔防", () => {
+  const result = buildArmor(mageHat(), armorCtx);
+  assert.deepEqual(result.armor, {
+    id: 1002991, n: "黑星魔法帽", slot: "帽子", lv: 35, req: { INT: 108, LUK: 38 }, job: 2,
+    src: { drops: [{ m: 7, n: "超級綠水靈", lv: 40, map: 100000000 }] },
+  });
+  assert.deepEqual(Object.keys(result.armor), ["id", "n", "slot", "lv", "req", "job", "src"]);
+  assert.deepEqual(result.rank, { int: 2, def: 68 });
+});
+
+test("buildArmor：沒寫需求屬性就不給 req；沒寫等級算 0；沒加智力／防禦的 rank 是 0", () => {
+  const result = buildArmor(mageHat({ eq: { reqJob: 2 } }), armorCtx);
+  assert.equal("req" in result.armor, false);
+  assert.equal(result.armor.lv, 0);
+  assert.deepEqual(result.rank, { int: 0, def: 0 });
+});
+
+test("buildArmor：職業限制含法師的才收（reqJob 3＝劍士＋法師也收）", () => {
+  assert.equal(buildArmor(mageHat({ eq: { reqLevel: 10, reqJob: 3 } }), armorCtx).armor.job, 3);
+});
+
+test("buildArmor：全職業（reqJob 0 或沒寫）、劍士（1）、負數職業代碼都不收", () => {
+  assert.equal(buildArmor(mageHat({ eq: { reqLevel: 10, reqJob: 0 } }), armorCtx), null);
+  assert.equal(buildArmor(mageHat({ eq: { reqLevel: 10 } }), armorCtx), null);
+  assert.equal(buildArmor(mageHat({ eq: { reqLevel: 10, reqJob: 1 } }), armorCtx), null);
+  assert.equal(buildArmor(mageHat({ eq: { reqLevel: 10, reqJob: -1 } }), armorCtx), null);
+});
+
+test("buildArmor：不在防具部位的（耳環、短杖）、不是裝備的、不收錄（un）的都不收", () => {
+  assert.equal(buildArmor(mageHat({ s: "耳環" }), armorCtx), null);
+  assert.equal(buildArmor(mageHat({ s: "短杖" }), armorCtx), null);
+  assert.equal(buildArmor(mageHat({ c: "消耗" }), armorCtx), null);
+  assert.equal(buildArmor(mageHat({ un: 1 }), armorCtx), null);
+});
+
+test("buildArmor：完全沒有來源（拿不到）回 null，不編造", () => {
+  assert.equal(buildArmor(mageHat({ dm: undefined }), armorCtx), null);
+});
+
+test("buildArmor：所有來源都要等 V002 → 帶 o，放在 src 後面", () => {
+  const { armor } = buildArmor(mageHat({ dm: [8] }), armorCtx);
+  assert.equal(armor.o, "2026-10-15");
+  assert.deepEqual(Object.keys(armor), ["id", "n", "slot", "lv", "req", "job", "src", "o"]);
+});
+
+const ranked = (id, slot, lv, rank, src = { drops: [{ m: 1 }] }) => ({ armor: { id, n: `防具${id}`, slot, lv, job: 2, src }, rank });
+
+test("sortArmor：部位照 ARMOR_SLOTS 順序，同部位等級低到高，只回 armor 物件", () => {
+  const sorted = sortArmor([
+    ranked(1, "盾牌", 10, { int: 0, def: 0 }),
+    ranked(2, "手套", 20, { int: 0, def: 0 }),
+    ranked(3, "帽子", 30, { int: 0, def: 0 }),
+    ranked(4, "帽子", 10, { int: 0, def: 0 }),
+    ranked(5, "褲裙", 10, { int: 0, def: 0 }),
+  ]);
+  assert.deepEqual(sorted.map(armor => armor.id), [4, 3, 5, 2, 1]);
+  assert.equal("rank" in sorted[0], false);
+  assert.equal(sorted[0].n, "防具4");
+});
+
+test("sortArmor：同部位同等級時加智力多的先、再比防禦（物防＋魔防）多的", () => {
+  const sorted = sortArmor([
+    ranked(1, "帽子", 30, { int: 0, def: 90 }),
+    ranked(2, "帽子", 30, { int: 3, def: 10 }),
+    ranked(3, "帽子", 30, { int: 0, def: 20 }),
+  ]);
+  assert.deepEqual(sorted.map(armor => armor.id), [2, 1, 3]);
+});
+
+test("sortArmor：智力跟防禦都一樣時拿法多的先，再一樣就 id 小的先", () => {
+  const sorted = sortArmor([
+    ranked(9, "鞋子", 30, { int: 1, def: 5 }, { drops: [{ m: 1 }] }),
+    ranked(8, "鞋子", 30, { int: 1, def: 5 }, { drops: [{ m: 1 }] }),
+    ranked(7, "鞋子", 30, { int: 1, def: 5 }, { shops: [{ p: "店", pr: 1 }], drops: [{ m: 1 }], quests: [{ id: "1" }] }),
+  ]);
+  assert.deepEqual(sorted.map(armor => armor.id), [7, 8, 9]);
 });
