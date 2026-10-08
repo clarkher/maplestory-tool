@@ -387,6 +387,10 @@ describe("兩組預設", () => {
     expect(changed.extra).toBe(7);
     expect(regroup(data, 410, group, { level: 60 }).level).toBe(60);
   });
+  it("已經最強那把（狂戰士 90）：沒有下一把可換，兩組預設一樣", () => {
+    const state = defaultState(data, 110, 90, null);
+    expect(sameGroups(state.groups)).toBe(true);
+  });
   it("兩組一樣看得出來", () => {
     const group = defaultGroup(data, 410, 50, null);
     expect(sameGroups([group, { ...group }])).toBe(true);
@@ -414,11 +418,14 @@ describe("一下／兩下打死", () => {
 
 describe("差多少的字", () => {
   const ok = (expectedUse: number) => ({ ok: true, expectedUse }) as unknown as Parameters<typeof diffText>[1];
-  it("大的比小的多幾 %；差不到 1% 寫差不多；有一組算不出來不寫", () => {
+  it("大的比小的多幾 %；有一組算不出來不寫", () => {
     expect(diffText(["一般點法", "全幸"], ok(611.8), ok(591.6))).toBe("一般點法比全幸多約 3%");
     expect(diffText(["一般點法", "全幸"], ok(591.6), ok(611.8))).toBe("全幸比一般點法多約 3%");
-    expect(diffText(["A", "B"], ok(100), ok(100.3))).toBe("兩組差不多");
     expect(diffText(["A", "B"], { ok: false, reason: "x" }, ok(1))).toBeNull();
+  });
+  it("四捨五入後是 0 寫差不多；差 0.6% 四捨五入是 1，寫多約 1%", () => {
+    expect(diffText(["A", "B"], ok(100), ok(100.3))).toBe("兩組差不多");
+    expect(diffText(["A", "B"], ok(100.6), ok(100))).toBe("A比B多約 1%");
   });
 });
 
@@ -447,6 +454,44 @@ describe("槍連擊、矛連擊", () => {
   });
   it("拿槍不能用矛連擊", () => {
     expect(spear(1311002, 30)).toEqual({ ok: false, reason: "槍用不了矛連擊" });
+  });
+});
+
+describe("沒點精準技能的提醒（熟練度只有 10%）", () => {
+  const warningsOf = (job: number, level: number, patch?: (group: ReturnType<typeof defaultGroup>) => void) => {
+    const state = defaultState(data, job, level, null);
+    const group = structuredClone(state.groups[0]);
+    patch?.(group);
+    const result = computeGroup(data, state.shared, group, null);
+    if (!result.ok) throw new Error(result.reason);
+    return result.warnings;
+  };
+  it("狂戰士 50：預設武器的精準之斧攻略是 0 級，寫沒點精準之斧、熟練度只有 10%、可以在技能等級改", () => {
+    const state = defaultState(data, 110, 50, null);
+    const weapon = gear.weapons.find(entry => entry.id === state.groups[0].weaponId)!;
+    expect(weapon.s).toMatch(/斧/);
+    expect(state.groups[0].levels[1100001] ?? 0).toBe(0);
+    const warnings = warningsOf(110, 50);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("沒點精準之斧");
+    expect(warnings[0]).toContain("熟練度只有 10%");
+    expect(warnings[0]).toContain("技能等級");
+  });
+  it("把精準之斧設 20 級就沒有", () => {
+    expect(warningsOf(110, 50, group => { group.levels = { ...group.levels, 1100001: 20 }; })).toEqual([]);
+  });
+  it("刺客 50：精準暗器有點，沒有", () => {
+    expect(warningsOf(410, 50)).toEqual([]);
+  });
+  it("一轉、法師沒有精準技能，不寫", () => {
+    expect(warningsOf(100, 20)).toEqual([]);
+    expect(warningsOf(210, 40)).toEqual([]);
+  });
+  it("這句是提醒不是備註：不重複放進看細節的 notes", () => {
+    const state = defaultState(data, 110, 50, null);
+    const result = computeGroup(data, state.shared, state.groups[0], null);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.notes.join("")).not.toContain("熟練度只有 10%");
   });
 });
 
