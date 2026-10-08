@@ -379,7 +379,7 @@ function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where
             className="block text-[12px] ink-soft"
           />
         ) : null}
-        <SourceLine pick={source} where={where} />
+        <SourceLine pick={source} where={where} quiet={later} />
         {/* 有等級上限的任務（綠色斗笠 30 等）：過了就接不到，這件算進去的敏捷要自己看著辦；沒過要先接 */}
         {closedAfter !== undefined ? (
           <p className="mt-0.5 text-[12px] leading-snug ink-soft">
@@ -408,7 +408,11 @@ function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where
           {kit.lucky.weapon ? (
             plan.best && kit.lucky.weapon.id !== plan.best.id ? (
               <>
-                ，能用 <NameLink weapon={kit.lucky.weapon} />
+                ，能用{" "}
+                {/* 米色底上天藍字只有 4.3:1：這行的武器名改深色加底線 */}
+                <Link href={`/db/items?id=${kit.lucky.weapon.id}`} className="font-bold underline decoration-dotted underline-offset-2">
+                  {kit.lucky.weapon.n}
+                </Link>
                 <span className="whitespace-nowrap">（{offenseText(kit.lucky.weapon, plan.magic)}）</span>
               </>
             ) : (
@@ -429,6 +433,8 @@ function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where
 function ArmorBlock({ plan, where }: { plan: GearPlan; where: Where }) {
   const armor = plan.armor!;
   const cannot = armor.mainCannot;
+  // 部位照遊戲說明框的字：資料裡的「褲裙」在客戶端寫「褲/裙」
+  const slotWord = (slot: string) => (slot === "褲裙" ? "褲/裙" : slot);
   return (
     <Block label="穿得上的法師防具" tag={<SourceTag kind="data" />}>
       <ul className="space-y-2.5">
@@ -442,7 +448,7 @@ function ArmorBlock({ plan, where }: { plan: GearPlan; where: Where }) {
               </p>
               <Chunks
                 parts={[
-                  piece.slot,
+                  slotWord(piece.slot),
                   piece.lv > 0 ? `Lv.${piece.lv}` : "不限等級",
                   ...Object.entries(piece.req ?? {}).map(([stat, value]) => `${STAT_WORD[stat as StatKey]} ${value}`),
                 ]}
@@ -456,7 +462,7 @@ function ArmorBlock({ plan, where }: { plan: GearPlan; where: Where }) {
       {cannot ? (
         <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] leading-snug">
           {cannot.tab}的{STAT_WORD[cannot.stat]}只有 {cannot.have}，
-          {cannot.slots.length === armor.pieces.length ? "上面這些都穿不上" : `穿不上${cannot.slots.join("、")}`}
+          {cannot.slots.length === armor.pieces.length ? "上面這些都穿不上" : `穿不上${cannot.slots.map(slotWord).join("、")}`}
         </p>
       ) : null}
     </Block>
@@ -515,8 +521,11 @@ function OpenChip({ later, where, spaced = false }: { later: string | undefined;
   );
 }
 
-/** 怎麼拿：商店／哪隻怪會掉（走得到就給「帶我去」）／哪個任務給 */
-function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; where: Where; chip?: boolean }) {
+/**
+ * 怎麼拿：商店／哪隻怪會掉（走得到就給「帶我去」）／哪個任務給。
+ * quiet：要湊的裝備還沒到等級的那幾列——「帶我去」跟合成材料改深咖啡色，淺色主題對比也在 4.5:1 以上（楓葉橘在米色底只有 3.3）
+ */
+function SourceLine({ pick, where, chip = true, quiet = false }: { pick: SourcePick | null; where: Where; chip?: boolean; quiet?: boolean }) {
   if (!pick) return null;
   // 掉落的怪在哪張圖、店開在哪張圖：走得到就給「帶我去」
   const target = pick.kind === "drop" ? pick.drop.map : pick.kind === "shop" ? pick.shop.m : pick.kind === "craft" ? pick.craft.m : undefined;
@@ -541,7 +550,7 @@ function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; whe
           <>
             <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
             {/* 合成要的材料另起一行：要先去打這些東西 */}
-            <span className="block break-keep wrap-anywhere ink-faint">材料：{craftMaterialsText(pick.craft)}</span>
+            <span className={`block break-keep wrap-anywhere ${quiet ? "ink-soft" : "ink-faint"}`}>材料：{craftMaterialsText(pick.craft)}</span>
           </>
         ) : (
           <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
@@ -551,7 +560,9 @@ function SourceLine({ pick, where, chip = true }: { pick: SourcePick | null; whe
       {go !== null ? (
         <Link
           href={`/go?to=${go}`}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--maple)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--maple)]"
+          className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold ${
+            quiet ? "border-[color:var(--ink-soft)] text-[color:var(--ink-soft)]" : "border-[color:var(--maple)] text-[color:var(--maple)]"
+          }`}
         >
           <RouteIcon size={13} />
           帶我去
