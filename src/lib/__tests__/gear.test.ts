@@ -623,6 +623,27 @@ describe("nearestUpgrade：比現在這把強、穿不上的裡面，差最少�
   it("都穿得上或沒有更強的回 null", () => {
     expect(nearestUpgrade(weapons, 410, 35, { ...wear, DEX: 999 }, weapons[2])).toBeNull();
   });
+
+  it("等級還沒到的不算——就算它只差 2 點、比狼牙更近", () => {
+    const far = claw(5, "遠期拳套", 40, 21, 46);
+    expect(nearestUpgrade([weapons[0], weapons[1], far], 410, 35, wear, weapons[0])?.n).toBe("狼牙");
+    expect(nearestUpgrade([weapons[0], weapons[1], far], 410, 40, wear, weapons[0])?.n).toBe("遠期拳套");
+  });
+
+  it("已經穿得上的不算，就算比現在這把強、等級也夠（要的是「再點幾點」才能用的）", () => {
+    expect(nearestUpgrade(weapons, 410, 35, { ...wear, DEX: 999 }, weapons[1])).toBeNull();
+  });
+
+  it("沒有比現在這把更強的（攻擊不高於 best）不算", () => {
+    expect(nearestUpgrade(weapons, 410, 35, wear, weapons[2])).toBeNull();
+  });
+
+  it("差的點數、攻擊都一樣時照武器排序：攻速數字小的先，跟寫的順序無關", () => {
+    const slow = weapon({ id: 6, n: "慢拳套", s: "拳套", lv: 25, job: 8, atk: 16, spd: 6, req: { DEX: 50 }, src: source({ shops: [{ p: "店", pr: 1 }] }) });
+    const fast = weapon({ id: 7, n: "快拳套", s: "拳套", lv: 25, job: 8, atk: 16, spd: 4, req: { DEX: 50 }, src: source({ shops: [{ p: "店", pr: 1 }] }) });
+    expect(nearestUpgrade([weapons[0], slow, fast], 410, 35, wear, weapons[0])?.n).toBe("快拳套");
+    expect(nearestUpgrade([weapons[0], fast, slow], 410, 35, wear, weapons[0])?.n).toBe("快拳套");
+  });
 });
 
 describe("scrollFamily：單一部位單一屬性的一組卷軸", () => {
