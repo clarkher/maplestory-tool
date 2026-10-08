@@ -249,6 +249,7 @@
       "label": "三轉：敏捷只點到拳套需求，其餘全幸",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "weapons": ["拳套"],
       "tab": "一般點法",
       "text": "舊版攻略：三轉一樣敏捷只點到拳套要的量（40 等以上的拳套要等級＋40），其餘全點幸運。",
       "sources": [
@@ -274,6 +275,7 @@
       "label": "三轉全幸：敏捷停在 25",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
+      "weapons": ["拳套"],
       "tab": "全幸",
       "kit": [
         { "items": [1050018, 1051017], "scroll": 2040500 },

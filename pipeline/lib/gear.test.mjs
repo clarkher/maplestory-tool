@@ -415,6 +415,8 @@ const kitItems = new Map(
     { id: 2040500, n: "套服敏捷卷軸100%", c: "消耗", s: "卷軸", d: "套服附加敏捷提升屬性。 成功率：100%，DEX+1" },
     { id: 1002089, n: "綠色斗笠", c: "裝備", s: "帽子", eq: { reqLevel: 25, reqDEX: 30, incDEX: 3, tuc: 7 }, dm: [7] },
     { id: 9, n: "絕版帽", c: "裝備", s: "帽子", eq: { reqLevel: 10, incDEX: 5 } },
+    { id: 1002090, n: "不收錄的斗笠", c: "裝備", s: "帽子", un: 1, eq: { reqLevel: 25, incDEX: 3, tuc: 7 }, dm: [7] },
+    { id: 2040501, n: "套服敏捷卷軸60%", c: "消耗", s: "卷軸", d: "套服附加敏捷提升屬性。 成功率：60%，DEX+2" },
   ].map(item => [item.id, item]),
 );
 
@@ -434,6 +436,30 @@ test("buildKit：找不到、拿不到、加不到這個屬性的整件不收並
   const kit = buildKit([{ items: [404] }, { items: [9] }, { items: [1050018] }], "DEX", kitItems, kitCtx, message => warnings.push(message));
   assert.deepEqual(kit, []);
   assert.equal(warnings.length, 3);
+});
+
+test("buildKit：遊戲資料標成不收錄（un）的道具跟找不到一樣，略過並警告", () => {
+  const warnings = [];
+  const kit = buildKit([{ items: [1002090] }], "DEX", kitItems, kitCtx, message => warnings.push(message));
+  assert.deepEqual(kit, []);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /1002090/);
+});
+
+test("buildKit：卷軸成功率不是 100（60%）就略過並警告——點數會被當成一定衝得上", () => {
+  const warnings = [];
+  const kit = buildKit([{ items: [1050018], scroll: 2040501 }], "DEX", kitItems, kitCtx, message => warnings.push(message));
+  assert.deepEqual(kit, []);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /2040501/);
+});
+
+test("buildKit：卷軸部位跟道具部位對不上（套服卷軸寫給帽子）就略過並警告", () => {
+  const warnings = [];
+  const kit = buildKit([{ items: [1002089], scroll: 2040500 }], "DEX", kitItems, kitCtx, message => warnings.push(message));
+  assert.deepEqual(kit, []);
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0], /2040500/);
 });
 
 test("convertStatRules：研究檔寫了 tab 就帶過去", () => {
