@@ -1,5 +1,5 @@
 /**
- * build-gear.mjs 用的純函式：卷軸說明解析、掉落／任務來源、武器與卷軸組裝、研究檔格式轉換。
+ * build-gear.mjs 用的純函式：卷軸說明解析、掉落／任務來源、武器與卷軸組裝、法師防具（buildArmor／sortArmor）、研究檔格式轉換。
  * 抽出來是為了能單獨測（gear.test.mjs），風格跟 lib/guides.mjs 一致。
  */
 import { CLASSIC_JOB_IDS } from "./classic-jobs.mjs";
@@ -358,6 +358,63 @@ export function buildWeapon(item, ctx) {
   return weapon;
 }
 
+/* -------------------------------------------------------- 法師防具 */
+
+/** GearArmor.slot／items.json 的 s 用的防具部位（遊戲客戶端用字；褲子在 items.json 也是寫褲裙）。排序也照這個順序。 */
+export const ARMOR_SLOTS = ["帽子", "套服", "上衣", "褲裙", "鞋子", "手套", "盾牌"];
+
+/** 法師在 reqJob 位元裡的那一位（1 劍士、2 法師、4 弓箭手、8 盜賊、16 海盜） */
+const MAGE_JOB_BIT = 2;
+
+/**
+ * 一件防具道具 → { armor: GearArmor, rank }；不收的回 null。
+ *
+ * 只收「職業限制含法師」的（reqJob > 0 且有法師那一位）：這份清單是給首頁「能力值與裝備」卡選了
+ * 法師「裝備法」（幸運＝等級＋3）時用的，裝備法要看的就是法師專屬防具的幸運需求；
+ * 全職業（reqJob 0 或沒寫）的帽子鞋子太多又不是法師在挑的，負數職業代碼（初心者專用等）也不是法師能穿的，都不收。
+ * 部位只收 ARMOR_SLOTS（耳環、披風、武器不在這份）；遊戲資料標成不收錄（un）的、完全拿不到的回 null，不編造。
+ *
+ * rank 不寫進輸出，只給 sortArmor 排同等級的先後：加智力多的、物防＋魔防多的排前面。
+ */
+export function buildArmor(item, ctx) {
+  if (item.c !== "裝備" || item.un || !ARMOR_SLOTS.includes(item.s)) return null;
+  const eq = item.eq ?? {};
+  if (!(eq.reqJob > 0 && (eq.reqJob & MAGE_JOB_BIT))) return null;
+  const src = buildSource(item, ctx);
+  if (!hasAnySource(src)) return null;
+  const armor = { id: item.id, n: item.n, slot: item.s, lv: eq.reqLevel ?? 0 };
+  const req = buildReq(eq);
+  if (req) armor.req = req;
+  armor.job = eq.reqJob;
+  armor.src = src;
+  if (ctx.v002Date && allSourcesV002(src)) armor.o = ctx.v002Date;
+  const rank = { int: eq.incINT ?? 0, def: (eq.incPDD ?? 0) + (eq.incMDD ?? 0) };
+  return { armor, rank };
+}
+
+/** 一件裝備有幾種拿法（店家＋合成＋掉落怪＋任務的筆數），同分時拿法多的比較好湊到 */
+function sourceCount(src) {
+  return (src.shops?.length ?? 0) + (src.crafts?.length ?? 0) + (src.drops?.length ?? 0) + (src.quests?.length ?? 0);
+}
+
+/**
+ * buildArmor 的結果（已濾掉 null）排序後只留 armor 物件。
+ * 排序：部位照 ARMOR_SLOTS → 等級低到高 → 同等級加智力多的先 → 物防＋魔防多的先 → 拿法多的先 → id 小的先。
+ * 前端每個部位挑「現在拿得到、穿得上、等級最高」的那件，同等級直接取陣列裡第一件，
+ * 所以同等級的先後在這裡就排好（智力對法師最有用，其次是防禦），前端不用再比數值。
+ */
+export function sortArmor(list) {
+  return [...list]
+    .sort((a, b) =>
+      ARMOR_SLOTS.indexOf(a.armor.slot) - ARMOR_SLOTS.indexOf(b.armor.slot)
+      || a.armor.lv - b.armor.lv
+      || b.rank.int - a.rank.int
+      || b.rank.def - a.rank.def
+      || sourceCount(b.armor.src) - sourceCount(a.armor.src)
+      || a.armor.id - b.armor.id)
+    .map(entry => entry.armor);
+}
+
 /* -------------------------------------------------------- 研究檔格式轉換 */
 
 /** 研究檔 statRules（text／sources／verified）→ 畫面用的 StatRule（t／s／v）；研究檔沒有就回空陣列，不能失敗。 */
@@ -368,6 +425,8 @@ export function convertStatRules(researchRules) {
     ...(rule.weapons?.length ? { weapons: rule.weapons } : {}),
     // 卡片上方切換用的標籤字（盜賊「一般點法／全幸」、法師「全智／裝備法」）；主推跟另一套都寫了才會出現切換
     ...(rule.tab ? { tab: rule.tab } : {}),
+    // 點法按鈕下那行白話說明（選中那套的好處跟代價，「全幸：前期打得比較痛，但敏捷要靠裝備湊」）
+    ...(rule.tabText ? { tabText: rule.tabText } : {}),
     t: rule.text, s: rule.sources, v: rule.verified,
     mainstream: Boolean(rule.mainstream),
   }));

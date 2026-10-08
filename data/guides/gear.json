@@ -59,6 +59,7 @@
       "main": "INT",
       "secondary": null,
       "tab": "全智",
+      "tabText": "不用花錢湊幸運裝備",
       "text": "能力點全部點智力。前期武器用不吃幸運的轉職短杖、黃色雨傘就好，不用花錢湊幸運裝備。",
       "sources": [
         "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
@@ -75,6 +76,7 @@
       "main": "INT",
       "secondary": { "stat": "LUK", "type": "level", "offset": 3 },
       "tab": "裝備法",
+      "tabText": "被打比較不痛，但要花錢買法杖跟法師裝",
       "text": "幸運點到等級＋3，就穿得上同等級的法師武器和防具，其餘點智力。魔攻跟全智差不多，但被打比較不痛，要花錢買裝備；前期先全智、之後再轉也可以。",
       "sources": [
         "https://forum.gamer.com.tw/C.php?bsn=85994&snA=345",
@@ -91,6 +93,7 @@
       "main": "INT",
       "secondary": null,
       "tab": "全智",
+      "tabText": "不用花錢湊幸運裝備",
       "text": "舊版法師攻略一路算到 120 等：全智就是智力以外都留 4，三轉繼續全點智力。",
       "sources": [
         "https://www.ptt.cc/bbs/MapleStory/M.1222068617.A.945.html",
@@ -106,6 +109,7 @@
       "main": "INT",
       "secondary": { "stat": "LUK", "type": "level", "offset": 3 },
       "tab": "裝備法",
+      "tabText": "被打比較不痛，但要花錢買法杖跟法師裝",
       "text": "舊版算法：裝備法三轉一樣把幸運維持在等級＋3，到四轉才不再點幸運。",
       "sources": [
         "https://www.ptt.cc/bbs/MapleStory/M.1222068617.A.945.html"
@@ -200,6 +204,7 @@
       "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
       "weapons": ["拳套"],
       "tab": "一般點法",
+      "tabText": "同等級的拳套都穿得上，不用另外湊裝備",
       "text": "敏捷只點到手上拳套要的量（25 等狼牙要 50、40 等拳套要 80），其餘全點幸運；換拳套前再補敏捷。",
       "sources": [
         "https://forum.gamer.com.tw/C.php?bsn=85994&snA=932",
@@ -215,6 +220,9 @@
       "label": "幸運為主，敏捷只點到短刀需求",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "weapons": ["短刀"],
+      "tab": "一般點法",
+      "tabText": "同等級的短刀都穿得上，不用另外湊裝備",
       "text": "敏捷只點到手上短刀要的量，其餘全點幸運；換刀前先確認敏捷夠不夠。",
       "sources": [
         "https://bobogameguides.com/maplestory-classic/guides/skills-overview.html",
@@ -224,12 +232,35 @@
       "mainstream": true
     },
     {
+      "jobs": [420],
+      "label": "全幸：敏捷停在 25，其餘全幸",
+      "main": "LUK",
+      "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
+      "weapons": ["短刀"],
+      "tab": "全幸",
+      "tabText": "幸運點得最多，但短刀要的敏捷要靠裝備湊",
+      "kit": [
+        { "items": [1050018, 1051017], "scroll": 2040500 },
+        { "items": [1102053], "scroll": 2041018 },
+        { "items": [1002089] },
+        { "items": [1072369] }
+      ],
+      "text": "舊版刀賊攻略的全幸型：敏捷停在 25，其餘全點幸運，短刀要的敏捷靠斗笠、桑那服、披風衝敏捷補；經典版查不到有人這樣玩。",
+      "sources": [
+        "https://www.ptt.cc/bbs/MapleStory/M.1213528198.A.8DF.html",
+        "https://forum.gamer.com.tw/G2.php?bsn=7650&sn=1476"
+      ],
+      "verified": "legacy",
+      "mainstream": false
+    },
+    {
       "jobs": [400, 410],
       "label": "全幸：敏捷停在 25，其餘全幸",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
       "weapons": ["拳套"],
       "tab": "全幸",
+      "tabText": "前期打得比較痛，但敏捷要靠裝備湊",
       "kit": [
         { "items": [1050018, 1051017], "scroll": 2040500 },
         { "items": [1102053], "scroll": 2041018 },
@@ -251,6 +282,7 @@
       "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
       "weapons": ["拳套"],
       "tab": "一般點法",
+      "tabText": "同等級的拳套都穿得上，不用另外湊裝備",
       "text": "舊版攻略：三轉一樣敏捷只點到拳套要的量（40 等以上的拳套要等級＋40），其餘全點幸運。",
       "sources": [
         "https://www.ptt.cc/bbs/MapleStory/M.1213528198.A.8DF.html"
@@ -263,6 +295,9 @@
       "label": "三轉：敏捷只點到短刀需求，其餘全幸",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "equip", "floor": 25 },
+      "weapons": ["短刀"],
+      "tab": "一般點法",
+      "tabText": "同等級的短刀都穿得上，不用另外湊裝備",
       "text": "舊版刀賊攻略：三轉一樣敏捷跟著裝備需求走（70 等要 110、80 等要 120），其餘全點幸運。",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&sn=1476"
@@ -277,6 +312,7 @@
       "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
       "weapons": ["拳套"],
       "tab": "全幸",
+      "tabText": "幸運點得最多，但拳套要的敏捷要靠裝備湊",
       "kit": [
         { "items": [1050018, 1051017], "scroll": 2040500 },
         { "items": [1102053], "scroll": 2041018 },
@@ -296,6 +332,15 @@
       "label": "三轉全幸：敏捷停在 25",
       "main": "LUK",
       "secondary": { "stat": "DEX", "type": "fixed", "value": 25 },
+      "weapons": ["短刀"],
+      "tab": "全幸",
+      "tabText": "幸運點得最多，但短刀要的敏捷要靠裝備湊",
+      "kit": [
+        { "items": [1050018, 1051017], "scroll": 2040500 },
+        { "items": [1102053], "scroll": 2041018 },
+        { "items": [1002089] },
+        { "items": [1072369] }
+      ],
       "text": "舊版攻略：全幸型三轉一樣敏捷停在 25，其餘全點幸運，武器要的敏捷靠裝備補。",
       "sources": [
         "https://www.ptt.cc/bbs/MapleStory/M.1213528198.A.8DF.html",
@@ -713,15 +758,13 @@
     {
       "jobs": [200, 210, 211, 220, 221, 230, 231],
       "topic": "stat",
-      "tab": "裝備法",
-      "text": "全智轉裝備法・洗點（要花真錢）：用商城的「能力點數重配捲軸」，一張把 1 點智力退回來改點幸運，要儲值真錢買（巴哈玩家說洗 1 點約 20 台幣）。要洗的張數大約是「等級－1」（幸運從 4 補到等級＋3）：40 等約 39 張，照玩家說的價錢約 780 台幣；先穿幸運裝備（褐色斗笠＋3 等）可以少洗幾張。有錢 20 幾等就能轉，但要穿上法杖跟法師裝，傷害才會上來。",
+      "text": "全智轉裝備法・洗點（要花真錢）：用商城的「能力點數重配捲軸」，一張把 1 點智力退回來改點幸運。要儲值樂豆點買：遊戲商城一張 20 樂豆點（價錢查自遊戲客戶端裡的商城價目表；樂豆點要用台幣儲值）。要洗的張數大約是「等級－1」（幸運從 4 補到等級＋3）：40 等約 39 張、約 780 樂豆點；先穿幸運裝備（褐色斗笠＋3 等）可以少洗幾張。有錢 20 幾等就能轉，但要穿上法杖跟法師裝，傷害才會上來。",
       "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=345", "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1288"],
       "verified": "tw"
     },
     {
       "jobs": [200, 210, 211, 220, 221, 230, 231],
       "topic": "stat",
-      "tab": "裝備法",
       "text": "全智轉裝備法・不洗點（不花錢）：之後升級的點全點幸運就好。例如 40 等開始全點幸運，50 等幸運 54，就穿得上 48 等的大魔法師短杖（要幸運 50）；補到之前繼續拿黃色雨傘。也有人到 55～60 等才改，不刻意花錢洗。",
       "sources": ["https://forum.gamer.com.tw/C.php?bsn=85994&snA=345"],
       "verified": "tw"

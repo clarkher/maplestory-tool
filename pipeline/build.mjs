@@ -19,7 +19,7 @@ import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { officialName } from "./lib/map-names.mjs";
 import { shopRows } from "./lib/shops.mjs";
-import { cleanSkillDesc, skillLevelText } from "./lib/skill-text.mjs";
+import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -708,8 +708,12 @@ function dropEmpty(object) {
 
 /* ---------------------------------------------------------------- 技能 */
 
+/** 建置當天（台灣時間 "YYYY-MM-DD"）：活動技能寫的有效期限比這天早就算到期 */
+const TODAY = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+
 function buildSkills(artale, allJobs) {
   const advOf = new Map(allJobs.map(job => [job.id, job.advOrder]));
+  const clientSkills = readJson(path.join(ROOT, "data", "client", "skills.json"), { skills: {} }).skills;
   const list = (artale.skills || [])
     // 只收經典版實際存在的職業（見 lib/classic-jobs.mjs）：客戶端資料另外還有皇家騎士團、
     // 狂狼勇士、龍魔導士、影武者，經典版沒有這些職業，列出來查資料頁的職業選單會選得到
@@ -717,7 +721,18 @@ function buildSkills(artale, allJobs) {
     .filter(skill => isClassicJob(Number(skill.jobId)))
     // 三轉四轉的技能現在學不到，列出來只會讓人以為練得到
     .filter(skill => (advOf.get(Number(skill.jobId)) ?? 9) <= RELEASE.maxAdvancementOrder)
-    .map(skill => dropEmpty({
+    // 說明寫著早就到期的活動技能（宇宙衝鋒「有效時間：2009年6月8日00時」等 4 個）經典版拿不到，不列（2026-10-08 使用者「全修」）
+    .filter(skill => {
+      const end = expiredOn(skill.description);
+      return !end || end >= TODAY;
+    })
+    .map(skill => ({
+      skill,
+      ...splitPrereq(cleanSkillDesc(skill.description, skill.maxLevel ?? undefined)),
+      // 上游沒給每一級數值、台服客戶端有的（衝鋒），數值跟表頭用客戶端的（data/client/skills.json）
+      ...clientLevels(skill.levels, clientSkills[skill.id], `${skill.id} ${skill.name}`),
+    }))
+    .map(({ skill, desc, req, levels, labels }) => dropEmpty({
     id: Number(skill.id),
     n: skill.name || "",
     job: Number(skill.jobId),
@@ -725,13 +740,19 @@ function buildSkills(artale, allJobs) {
     group: skill.jobGroup || "",
     adv: skill.advancement || "",
     max: skill.maxLevel ?? undefined,
-    desc: cleanSkillDesc(skill.description),
+    // 說明尾巴的「所需技能：魔天一擊1等級以上」拆成 req，卡片另外列一行、做成連結（id 下面 linkPrereqs 接）
+    desc,
+    req,
     formula: skill.formula || undefined,
-    labels: skill.valueLabels || undefined,
-    levels: (skill.levels || []).map(level => level.values || {}),
+    labels: labels || skill.valueLabels || undefined,
+    levels: (levels || []).map(level => level.values || {}),
     // 每一級的說明原文只留卡片用得到的級數（沒有數值的那幾級、最高級），見 lib/skill-text.mjs
-    levelText: skillLevelText(skill.levels, `${skill.id} ${skill.name}`),
+    levelText: skillLevelText(levels, `${skill.id} ${skill.name}`),
   }));
+  linkPrereqs(list);
+  // 說明是韓文、建置時拿掉的有幾個（2026-10-08 是 19 個坐騎）：數字突然變多代表上游換了語系，要看一下
+  const korean = (artale.skills || []).filter(skill => list.some(item => item.id === Number(skill.id)) && /\p{Script=Hangul}/u.test(skill.description || ""));
+  if (korean.length) console.log(`[skills] 說明是韓文、沒有列的：${korean.length} 個（效果行照列中文）`);
   return { list };
 }
 

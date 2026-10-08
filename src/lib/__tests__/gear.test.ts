@@ -4,7 +4,9 @@ import {
   closestSource,
   equipRequirement,
   isMagicJob,
+  armorPicks,
   kitStats,
+  luckyKit,
   nearestUpgrade,
   obtainableBy,
   questFits,
@@ -17,7 +19,7 @@ import {
   weaponPicks,
   weaponTypesFor,
 } from "@/lib/gear";
-import type { GearKit, GearScroll, GearSource, GearWeapon, StatRule } from "@/lib/gear";
+import type { GearArmor, GearKit, GearScroll, GearSource, GearWeapon, StatRule } from "@/lib/gear";
 
 const source = (over: Partial<GearSource> = {}): GearSource => ({ ...over });
 
@@ -654,5 +656,74 @@ describe("scrollFamily：單一部位單一屬性的一組卷軸", () => {
   it("成功率高的在前；沒有拿得到的回 null", () => {
     expect(scrollFamily(scrolls, 410, "套服", "敏捷")?.options.map(s => s.rate)).toEqual([100, 60]);
     expect(scrollFamily(scrolls, 410, "披風", "敏捷")).toBeNull();
+  });
+});
+
+describe("armorPicks：每個部位穿得上、拿得到、等級最高的那件", () => {
+  const shop = { shops: [{ p: "店", pr: 1 }] };
+  const armor = (id: number, n: string, slot: string, lv: number, luk: number, over: Partial<GearArmor> = {}): GearArmor => ({
+    id, n, slot, lv, req: { INT: lv * 3 + 2, LUK: lv + 3 }, job: 2, src: shop, ...over,
+  });
+  const list = [
+    armor(1, "帽15", "帽子", 15, 18),
+    armor(2, "帽30", "帽子", 30, 33),
+    armor(3, "帽35甲", "帽子", 35, 38),
+    armor(4, "帽35乙", "帽子", 35, 38),
+    armor(5, "帽40", "帽子", 40, 43),
+    armor(10, "套服30", "套服", 30, 33),
+    armor(11, "上衣35", "上衣", 35, 38),
+    armor(12, "褲裙35", "褲裙", 35, 38),
+    armor(20, "鞋35", "鞋子", 35, 38, { src: { drops: [{ m: 1, n: "怪", lv: 58, map: 1, o: "2026-10-15" }] }, o: "2026-10-15" }),
+    armor(21, "鞋20", "鞋子", 20, 23),
+    armor(30, "手套10", "手套", 10, 13),
+  ];
+  const wear35 = { STR: 4, DEX: 4, INT: 200, LUK: 38 };
+
+  it("裝備法 35 等（幸運 38）：帽子取 35 等的第一件（同等級照資料順序）、40 等的不算；上衣褲裙都比套服高等就換成兩件；鞋子 10/15 前不推只有 V002 的", () => {
+    expect(armorPicks(list, 210, 35, wear35, true).map(a => a.n)).toEqual(["帽35甲", "上衣35", "褲裙35", "鞋20", "手套10"]);
+    expect(armorPicks(list, 210, 35, wear35, false).map(a => a.n)).toEqual(["帽35甲", "上衣35", "褲裙35", "鞋35", "手套10"]);
+  });
+
+  it("穿不上的（幸運不夠）不算：全智幸運 4 一件都沒有", () => {
+    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 4 }, true)).toEqual([]);
+    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 33 }, true).map(a => a.n)).toEqual(["帽30", "套服30", "鞋20", "手套10"]);
+  });
+
+  it("別的職業用不了（法師防具給刺客）回空陣列", () => {
+    expect(armorPicks(list, 410, 35, { STR: 4, DEX: 999, INT: 999, LUK: 999 }, true)).toEqual([]);
+  });
+});
+
+describe("luckyKit：有卷的那幾件改衝別的成功率、全部成功時加多少", () => {
+  const dex = (id: number, slot: string, rate: number, effect: string, over: Partial<GearScroll> = {}) =>
+    scroll({ id, n: `${slot}敏捷卷軸`, slot, stat: "敏捷", rate, effect, src: source({ shops: [{ p: "店", pr: 1 }] }), ...over });
+  const scrolls = [
+    dex(1, "套服", 100, "DEX+1"),
+    dex(2, "套服", 60, "DEX+2，命中率+1"),
+    dex(3, "套服", 10, "DEX+5，命中率+3，移動速度+1"),
+    dex(4, "披風", 100, "DEX+1"),
+    dex(5, "披風", 60, "DEX+2"),
+  ];
+  const robe = piece({ n: "桑那服", lv: 30, v: 10, slot: "套服", scroll: { id: 1, n: "套服敏捷卷軸", slot: "套服", stat: "敏捷", rate: 100, times: 10 } });
+  const cape = piece({ n: "破舊的披風", lv: 25, v: 5, slot: "披風", scroll: { id: 4, n: "披風敏捷卷軸", slot: "披風", stat: "敏捷", rate: 100, times: 5 } });
+  const hat = piece({ n: "綠色斗笠", lv: 25, v: 3, req: { DEX: 30 } });
+
+  it("60%：桑那服 10 次 × 2＝20、披風 5 次 × 2＝10；沒有卷的斗笠照原本", () => {
+    const lucky = luckyKit([robe, cape, hat], scrolls, 410, 60)!;
+    expect(lucky.map(p => p.v)).toEqual([20, 10, 3]);
+    expect(lucky[0].scroll).toMatchObject({ rate: 60, times: 10, id: 2 });
+    expect(lucky[2]).toBe(hat);
+  });
+
+  it("道具本身有加點的照算（本身 +1、衝 100% 五次＝6 → 改 60% 是 1＋10＝11）", () => {
+    const own = { ...cape, v: 6 };
+    expect(luckyKit([own], scrolls, 410, 60)![0].v).toBe(11);
+  });
+
+  it("那個成功率沒有卷（披風沒有 10%）就照原本；10/15 前只有 V002 拿得到的那張不算；一件都換不到回 null", () => {
+    expect(luckyKit([robe, cape], scrolls, 410, 10)!.map(p => p.v)).toEqual([50, 5]);
+    const later = scrolls.map(s => (s.rate === 60 ? { ...s, o: "2026-10-15" } : s));
+    expect(luckyKit([robe, cape], later, 410, 60, true)).toBeNull();
+    expect(luckyKit([hat], scrolls, 410, 60)).toBeNull();
   });
 });

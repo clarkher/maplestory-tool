@@ -8,8 +8,10 @@
  *   public/data/{items,monsters,maps,quests}.json  站內遊戲資料，算武器／卷軸的數值與拿法
  *
  * 輸出：
- *   public/data/gear.json  武器、卷軸（含來源）、能力值規則、轉職前配點、攻略筆記
+ *   public/data/gear.json  武器、卷軸（含來源）、法師防具、能力值規則、轉職前配點、攻略筆記
  *                          rules 的 tab（切換標籤字）照研究檔帶；kit（要湊的裝備）由 buildKit 從遊戲資料換算
+ *                          armor（法師防具）：職業限制含法師、現在拿得到的帽子／套服／上衣／褲裙／鞋子／手套／盾牌，
+ *                          給法師「裝備法」列每個部位穿得上的防具；排序見 lib/gear.mjs 的 sortArmor（前端同等級取第一件）
  *
  * 研究檔是另一個 Task 平行在做的，這支腳本不能假設它存在：缺檔或缺欄位時 rules／notes 給空陣列、
  * before 不給，照樣把武器／卷軸（遊戲資料算得出來的部分）建出來，不能失敗。
@@ -26,7 +28,9 @@ import path from "node:path";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { lintResearch } from "./lib/guides.mjs";
 import {
+  ARMOR_SLOTS,
   WEAPON_TYPES,
+  buildArmor,
   buildKit,
   buildScrolls,
   buildWeapon,
@@ -34,6 +38,7 @@ import {
   convertNotes,
   convertStatRules,
   openMapFrom,
+  sortArmor,
 } from "./lib/gear.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -104,10 +109,19 @@ function main() {
     ctx,
   ).sort((a, b) => a.slot.localeCompare(b.slot) || a.stat.localeCompare(b.stat) || a.rate - b.rate);
 
+  // 法師防具：buildArmor 自己濾部位／職業／不收錄／拿不到，這裡只要先挑裝備類省掉不必要的來源計算
+  const armor = sortArmor(
+    items
+      .filter(item => item.c === "裝備" && ARMOR_SLOTS.includes(item.s))
+      .map(item => buildArmor(item, ctx))
+      .filter(Boolean),
+  );
+
   const gear = {
     builtAt: new Date().toISOString(),
     weapons,
     scrolls,
+    armor,
     rules,
     ...(before ? { before } : {}),
     notes,
@@ -121,6 +135,9 @@ function main() {
   const byType = new Map();
   for (const weapon of weapons) byType.set(weapon.s, (byType.get(weapon.s) ?? 0) + 1);
   for (const type of WEAPON_TYPES) console.log(`  ${type.padEnd(4, "　")} ${byType.get(type) ?? 0} 把`);
+  const bySlot = new Map();
+  for (const piece of armor) bySlot.set(piece.slot, (bySlot.get(piece.slot) ?? 0) + 1);
+  console.log(`[gear] 法師防具 ${armor.length} 件：${ARMOR_SLOTS.map(slot => `${slot} ${bySlot.get(slot) ?? 0}`).join("、")}`);
   console.log(`[gear] 卷軸 ${scrolls.length} 種、能力值規則 ${rules.length} 條、攻略筆記 ${notes.length} 條${before ? "、有轉職前配點說明" : ""}`);
   if (warnings.length) {
     console.log(`[gear] ${warnings.length} 筆警告：`);
