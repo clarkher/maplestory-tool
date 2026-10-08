@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { FilterTag } from "@/components/FilterTag";
 import { ChevronDown, ChevronRight, RouteIcon } from "@/components/Icons";
+import { useBuildChoice } from "@/lib/build-choice";
 import { itemImage, loadGear, mapName, peekGear } from "@/lib/data";
-import type { GearData, GearWeapon, StatKey } from "@/lib/gear";
+import type { GearData, GearKit, GearWeapon, StatKey } from "@/lib/gear";
 import {
   STAT_ORDER,
   STAT_SHORT,
@@ -129,7 +131,9 @@ function GuideSources({ urls, verified }: { urls: string[]; verified: Verified }
 }
 
 function GearContent({ gear, job, level, title, where }: { gear: GearData; job: number; level: number; title: string; where: Where }) {
-  const plan = useMemo(() => gearPlan(gear, job, level, where.beforeOpen), [gear, job, level, where.beforeOpen]);
+  // 卡片上方選的第二套點法（全幸、裝備法）：記在系別上，換等級、換轉職都還是那套
+  const [chosen, setChosen] = useBuildChoice(job);
+  const plan = useMemo(() => gearPlan(gear, job, level, where.beforeOpen, chosen), [gear, job, level, where.beforeOpen, chosen]);
   // 「看全部」記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時首頁一樣長，才捲得回同一段；換職業、等級不帶過去
   const [open, setOpen] = useVisitState(`home:gear:${job}:${level}`, false);
   const families = open ? plan.families : plan.families.slice(0, FIRST_FAMILIES);
@@ -138,8 +142,10 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
 
   return (
     <Frame title={title}>
+      <TabRow plan={plan} onPick={setChosen} />
       <StatBlock plan={plan} job={job} />
       <WeaponBlock plan={plan} where={where} />
+      {plan.kit ? <KitBlock plan={plan} where={where} /> : null}
       {families.length ? (
         <Block label="衝卷" tag={<SourceTag kind="data" />}>
           {/* 法師拿雨傘：雨傘的卷軸只加物理攻擊，沒有加魔力的，先講清楚為什麼這裡沒有武器卷 */}
@@ -182,6 +188,21 @@ function Block({ label, tag, children }: { label: string; tag?: ReactNode; child
   );
 }
 
+/** 點法切換（盜賊一般點法／全幸、法師全智／裝備法）：選主推就清掉記住的值 */
+function TabRow({ plan, onPick }: { plan: GearPlan; onPick: (tab: string | null) => void }) {
+  if (!plan.tabs.length) return null;
+  return (
+    <div role="group" aria-label="點法" className="flex flex-wrap items-center gap-1.5">
+      <span className="mr-0.5 text-[12px] font-black ink-faint">點法</span>
+      {plan.tabs.map(({ tab, rule }) => (
+        <FilterTag key={tab} on={rule === plan.rule} onClick={() => onPick(rule.mainstream ? null : tab)}>
+          {tab}
+        </FilterTag>
+      ))}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ 能力值 */
 
 const CELL_TONE = {
@@ -209,6 +230,12 @@ function StatBlock({ plan, job }: { plan: GearPlan; job: number }) {
         })}
       </dl>
       <p className="text-[13px] font-bold leading-snug">{rule.label}</p>
+      {plan.diff ? (
+        <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] leading-snug">
+          比「{plan.diff.tab}」{plan.diff.delta >= 0 ? "多" : "少"} {Math.abs(plan.diff.delta)} {STAT_WORD[plan.diff.stat]}
+          {plan.kit ? `；${plan.rule?.weapons?.[0] ?? "武器"}要的${STAT_WORD[plan.kit.stat]}靠下面的裝備補` : ""}
+        </p>
+      ) : null}
       {inherited ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] leading-snug">{inherited}</p> : null}
     </Block>
   );
@@ -254,10 +281,16 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
           {plan.bestShort.length ? (
             <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px]">照這套點法{shortText(plan.bestShort)}</p>
           ) : null}
-          {stronger && plan.strongerVia ? (
+          {stronger && plan.kit ? (
+            // 選了要湊裝備的點法（全幸）：能力值不是補不到的點數，是空身先點多少再靠裝備補，講點到幾就能用
+            <WeaponLine weapon={stronger}>
+              空身{STAT_WORD[plan.kit.stat]}先點到 {plan.kit.base + (plan.strongerShort.find(s => s.stat === plan.kit!.stat)?.short ?? 0)} 就能用 <NameLink weapon={stronger} />
+              <span className="whitespace-nowrap">（{offenseText(stronger, magic)}）</span>
+            </WeaponLine>
+          ) : stronger && plan.strongerVia ? (
             // 主流點法那項永遠是 4（全智的幸運），講「還差 74」是叫人補補不到的點數；改講換哪套點法就能用
             <WeaponLine weapon={stronger}>
-              改用另一種點法「{plan.strongerVia.label}」就能用 <NameLink weapon={stronger} />
+              {plan.strongerVia.tab ? `點上面「${plan.strongerVia.tab}」就能用` : `改用另一種點法「${plan.strongerVia.label}」就能用`} <NameLink weapon={stronger} />
               <span className="whitespace-nowrap">（{offenseText(stronger, magic)}）</span>
             </WeaponLine>
           ) : stronger ? (
@@ -274,10 +307,56 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
               <OpenChip later={next.o} where={where} spaced />
             </WeaponLine>
           ) : null}
+          {plan.compare ? (
+            <WeaponLine weapon={plan.compare.weapon}>
+              {plan.compare.tab}這級用 <NameLink weapon={plan.compare.weapon} />
+              <span className="whitespace-nowrap">（{offenseText(plan.compare.weapon, magic)}）</span>
+              {plan.compare.need ? `，${plan.rule?.tab}要${STAT_WORD[plan.compare.need.stat]} ${plan.compare.need.value} 才穿得上` : ""}
+            </WeaponLine>
+          ) : null}
         </>
       ) : (
         <p className="text-[13px] ink-soft">這個等級還找不到拿得到、穿得上的武器</p>
       )}
+    </Block>
+  );
+}
+
+/** 全幸要湊的敏捷裝：每件加幾點、去哪拿、要衝什麼卷、要先有多少能力值；等級還沒到的排後面變淡 */
+function KitBlock({ plan, where }: { plan: GearPlan; where: Where }) {
+  const kit = plan.kit!;
+  const word = STAT_WORD[kit.stat];
+  const row = ({ piece, source }: { piece: GearKit; source: SourcePick | null }, later: boolean) => (
+    <li key={piece.ids[0]} className={`flex gap-2.5 ${later ? "opacity-60" : ""}`}>
+      <ItemBox id={piece.ids[0]} size={36} />
+      <div className="min-w-0 flex-1">
+        <p className="flex flex-wrap items-baseline gap-x-1.5 text-[14px] font-bold leading-snug">
+          <Link href={`/db/items?id=${piece.ids[0]}`}>{piece.n}</Link>
+          <span className="whitespace-nowrap text-[13px] font-black text-[color:var(--maple)]">{word} +{piece.v}</span>
+          {later && piece.lv > 0 ? <span className="whitespace-nowrap text-[12px] font-bold ink-faint">Lv.{piece.lv} 起</span> : null}
+        </p>
+        {piece.scroll || piece.req ? (
+          <Chunks
+            parts={[
+              ...(piece.scroll ? [`衝${piece.scroll.n} ${piece.scroll.rate}% ${piece.scroll.times} 次`] : []),
+              ...Object.entries(piece.req ?? {}).map(([stat, value]) => `要先有${STAT_WORD[stat as StatKey]} ${value}`),
+            ]}
+            className="block text-[12px] ink-soft"
+          />
+        ) : null}
+        <SourceLine pick={source} where={where} />
+      </div>
+    </li>
+  );
+  return (
+    <Block label={`要湊的${word}裝備`} tag={plan.rule ? <SourceTag kind="guide" verified={plan.rule.v} /> : undefined}>
+      <ul className="space-y-2.5">
+        {kit.worn.map(entry => row(entry, false))}
+        {kit.later.map(entry => row(entry, true))}
+      </ul>
+      <p className="text-[13px] font-bold">
+        合計：{word} {kit.base}＋{kit.total}＝{kit.wear}
+      </p>
     </Block>
   );
 }
