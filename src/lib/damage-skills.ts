@@ -25,6 +25,8 @@ export type SkillRule = {
   pierce?: true;
   /** 台服說明寫明要的武器（「發射 2 個飛鏢」→ 拳套、「用短劍」→ 短刀） */
   weapons?: string[];
+  /** 這一級的攻擊力 % 跟下數只寫在 levelText（levels 那列是空的，槍連擊、矛連擊），取值走 skillRow */
+  fromText?: true;
   /** 細節裡多寫的一句 */
   note?: string;
 };
@@ -42,6 +44,8 @@ export const SKILL_RULES: Record<number, SkillRule> = {
   1311004: { kind: "normal", weapons: ["矛"] }, // 無雙矛「揮舞矛」
   1311005: { kind: "normal", ignoreDef: "always" }, // 龍之獻祭「無視防禦的攻擊」
   1311006: { kind: "dragonRoar" }, // 龍咆哮
+  1311001: { kind: "normal", fromText: true, weapons: ["槍"] }, // 槍連擊「用槍」，攻擊力、下數看每一級說明
+  1311002: { kind: "normal", fromText: true, weapons: ["矛"] }, // 矛連擊「用矛」，攻擊力、下數看每一級說明
   // 法師
   2001004: { kind: "magic" }, // 魔靈彈
   2001005: { kind: "magic", hits: 2 }, // 魔力爪「攻擊一個敵人兩次」
@@ -110,7 +114,7 @@ export const NOT_CALCULATED: Record<number, string> = {
   1111005: "要看鬥氣珠數，鬥氣倍率各家寫法不同",
   1111006: "要看鬥氣珠數，鬥氣倍率各家寫法不同",
   1211002: "跟充能怎麼疊查不到",
-  2111003: "毒霧的持續傷害怎麼算查不到",
+  2111003: "致命毒霧的持續傷害怎麼算查不到",
   2311006: "召喚獸的傷害另有算法，沒查到",
   3111005: "召喚獸的傷害另有算法，沒查到",
   3211005: "召喚獸的傷害另有算法，沒查到",
@@ -120,6 +124,10 @@ export const NOT_CALCULATED: Record<number, string> = {
   3210001: "不是爆擊，是貼臉時改成射箭＋秒殺機率，查不到專門公式",
   4111002: "分身追加的傷害沒算",
   1111002: "鬥氣集中的加成各家寫法不同",
+  4211004: "分身怎麼算傷害、各打幾下查不到",
+  3101005: "衝擊跟爆炸兩段怎麼算查不到",
+  4111004: "傷害看丟出去的楓幣多少，這版沒算",
+  4211006: "傷害看引爆的楓幣多少，這版沒算",
 };
 
 export const CRIT_SKILL = { throw: 4100001, bow: 3000001 };
@@ -170,6 +178,36 @@ export function masterySkillFor(weaponType: string, job: number): number | null 
 /** 一次打幾下：該級有 attackCount 用它，否則用技能表的 hits，都沒有 1 */
 export function hitsAt(rule: SkillRule, row: Record<string, number> | undefined): number {
   return row?.attackCount ?? rule.hits ?? 1;
+}
+
+const COUNT_WORDS: Record<string, number> = { 一: 1, 二: 2, 兩: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+
+/**
+ * 從遊戲每一級的說明原文（levelText）抓攻擊力 % 跟一次打幾下，
+ * 例「消耗MP10, 攻擊力55%, 對一名怪物兩次攻擊」→ { damage: 55, attackCount: 2 }。
+ * 抓不到的欄位不放（不是放 undefined），這樣併進 levels 那一列時不會蓋掉原本的值。
+ */
+export function parseLevelText(text: string | undefined): { damage?: number; attackCount?: number } {
+  const result: { damage?: number; attackCount?: number } = {};
+  if (!text) return result;
+  const damage = text.match(/(?:攻擊力|殺傷力)\s*(\d+)\s*%/);
+  if (damage) result.damage = Number(damage[1]);
+  const hits = text.match(/([一二兩三四五六七八九十]|\d+)\s*次攻擊/);
+  if (hits) result.attackCount = COUNT_WORDS[hits[1]] ?? Number(hits[1]);
+  return result;
+}
+
+/**
+ * 選到的技能在這一級的數值列：levels[level-1]（超過最高級取最後一級）；沒有技能或 0 級以下回空列。
+ * 規則標了 fromText 的（槍連擊、矛連擊：levels 那列是空的），再併進 levelText 解析出的攻擊力與下數，解析的值優先。
+ */
+export function skillRow(skill: Skill | undefined, level: number, rule?: SkillRule): Record<string, number> {
+  if (!skill || level <= 0) return {};
+  const levels = skill.levels ?? [];
+  const clamped = levels.length > 0 ? Math.min(level, levels.length) : level;
+  const row = levels[clamped - 1] ?? {};
+  if (!rule?.fromText) return row;
+  return { ...row, ...parseLevelText(skill.levelText?.[String(clamped)]) };
 }
 
 /** 這個職業一路上來（一轉→三轉）算得出來的攻擊技能；物理職業最前面是普通攻擊 */
