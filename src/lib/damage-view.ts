@@ -267,6 +267,12 @@ export function parseState(raw: string | null): CalcState | null {
   }
 }
 
+/** 記下的設定裡兩組的等級夾回這個職業的範圍（parseState 只看型別、不看轉職等級；暗殺者記成 10 級會畫出不存在的等級） */
+export function clampState(state: CalcState): CalcState {
+  const { job } = state.shared;
+  return { ...state, groups: state.groups.map(group => ({ ...group, level: clampLevel(job, group.level) })) as [GroupConfig, GroupConfig] };
+}
+
 /* ------------------------------------------------------------------ 算一組 */
 
 export type Unready = { ok: false; reason: string };

@@ -15,6 +15,7 @@ import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/typ
 import {
   ammoChoices,
   clampLevel,
+  clampState,
   computeGroup,
   defaultAmmo,
   defaultGroup,
@@ -237,6 +238,18 @@ describe("記下來的設定", () => {
     const group = defaultGroup(data, 410, 50, null);
     const state = { shared: { job: 410, skillId: 4001344, skillLevel: 20, monsterId: null }, groups: [group, group] };
     expect(parseState(JSON.stringify(state))).toEqual(state);
+  });
+  it("等級夾回職業的範圍：暗殺者（三轉）記成 10 級→70；合法的等級原封不動", () => {
+    const group = defaultGroup(data, 411, 80, null);
+    const bad = { shared: { job: 411, skillId: BASIC_ATTACK, skillLevel: 1, monsterId: null }, groups: [{ ...group, level: 10 }, { ...group, level: 200 }] as [typeof group, typeof group] };
+    const fixed = clampState(bad);
+    expect(fixed.groups.map(entry => entry.level)).toEqual([70, LEVEL_CAP]);
+    expect(fixed.shared).toEqual(bad.shared);
+    expect(fixed.groups[0].stats).toEqual(bad.groups[0].stats);
+    const valid = defaultState(data, 410, 50, null);
+    expect(clampState(valid)).toEqual(valid);
+    const mage = defaultState(data, 210, 40, null);
+    expect(clampState(mage)).toEqual(mage);
   });
   it("有選怪、沒有彈藥的法師也照原樣讀回來", () => {
     const group = { ...defaultGroup(data, 210, 40, null), ammoId: null, charge: null };
