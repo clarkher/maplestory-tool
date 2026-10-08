@@ -54,7 +54,7 @@ export function GoButton({ to, label = "帶我去", place }: { to: number; label
     <Link
       href={`/go?to=${to}`}
       aria-label={place ? goLabel(label, place) : undefined}
-      className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-white shadow-sm transition-transform hover:-translate-y-px"
+      className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm transition-transform hover:-translate-y-px"
     >
       <RouteIcon size={15} />
       {label}

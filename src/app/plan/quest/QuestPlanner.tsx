@@ -144,7 +144,7 @@ function QuestCard({ plan, maps }: { plan: QuestPlan; maps: Record<string, MapRe
                 </span>
               ) : null}
               {plan.bucket === "expiring" && plan.levelsLeft !== undefined ? (
-                <span className="rounded-full bg-[color:var(--maple)] px-2 py-0.5 text-[11px] font-bold text-white">
+                <span className="rounded-full bg-[color:var(--maple)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--on-accent)]">
                   再 {plan.levelsLeft} 級就接不到
                 </span>
               ) : null}

@@ -277,7 +277,7 @@ export function FarmPlanner() {
                         onClick={() => toggle(item.id)}
                         className={[
                           "tap-safe inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[13px] font-bold transition-colors",
-                          picked ? "bg-[color:var(--leaf)] text-white" : "bg-[color:var(--paper-deep)] hover:bg-[color:var(--maple-wash)]",
+                          picked ? "bg-[color:var(--leaf)] text-[color:var(--on-accent)]" : "bg-[color:var(--paper-deep)] hover:bg-[color:var(--maple-wash)]",
                         ].join(" ")}
                       >
                         <Image src={itemImage(item.id)} alt="" width={20} height={20} className="size-5 object-contain" unoptimized />
