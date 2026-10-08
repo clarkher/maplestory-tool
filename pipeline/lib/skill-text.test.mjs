@@ -167,6 +167,9 @@ test("寫「需求技能：」的也拆（黑暗之劍等 13 個，v0.78 漏了�
   assert.deepEqual(splitPrereq("使用雙子星攻擊時所發射的子彈數量增多，且攻擊力也會提升。 需求技能：雙子星攻擊20級").req, [{ name: "雙子星攻擊", level: 20 }]);
   // 只有數字、沒寫級也沒寫以上：認不得，不拆
   assert.equal(splitPrereq("提升攻擊力。 需求技能：雙子星攻擊20").req, undefined);
+  // 技能名本身有數字的（四轉瞬‧迅雷要「3連發 20級」）照收；「A 3等級以上和B 5等級以上」照舊不收
+  assert.deepEqual(splitPrereq("連續發射子彈。 需求技能：3連發 20級").req, [{ name: "3連發", level: 20 }]);
+  assert.equal(splitPrereq("提升攻擊力。 所需技能：憤怒 3級和激勵5級").req, undefined);
 });
 
 // data/client/skill-req.json：台服客戶端每個技能的 req（所需技能 id → 等級），scripts/client/skill-req.mjs 抽的
@@ -211,6 +214,14 @@ test("好幾個所需技能：名字一樣的先配；同一個等級剩一個�
   linkPrereqs([sword, rage, axe, one, two], { 1: { 1100000: 3, 1101006: 3 }, 2: { 1100000: 3, 1100001: 3 } });
   assert.deepEqual(one.req, [{ name: "精準之劍", level: 3, id: 1100000 }, { name: "激勵", level: 3, id: 1101006 }]);
   assert.deepEqual(two.req, [{ name: "劍技專精", level: 3 }, { name: "斧頭專精", level: 3 }]);
+});
+
+test("說明寫的名字本來就是這條職業線的技能、只是等級跟客戶端不一樣：照名字接，不被改名配給客戶端同等級的別的技能（code review）", () => {
+  const sword = { id: 1100000, n: "精準之劍", job: 110 };
+  const rage = { id: 1101006, n: "激勵", job: 110 };
+  const skill = { id: 1, n: "測試", job: 110, req: [{ name: "精準之劍", level: 5 }] };
+  linkPrereqs([sword, rage, skill], { 1: { 1100000: 3, 1101006: 5 } });
+  assert.deepEqual(skill.req, [{ name: "精準之劍", level: 5, id: 1100000 }]);
 });
 
 test("說明寫了有效期限的活動技能（宇宙衝鋒「有效時間：2009年6月8日00時」）讀得出到期日；沒寫的回 null", () => {

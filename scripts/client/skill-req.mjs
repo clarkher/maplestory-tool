@@ -30,6 +30,8 @@ for (const job of [...CLASSIC_JOB_IDS].sort((a, b) => a - b)) {
   }
 }
 if (missing.length) throw new Error(`bundle 裡找不到職業物件 ${missing.join("、")}：檔名可能改了，找 aa/w/json_*.bundle 裡有 WZJS 物件「500」的那一包`);
+// 一個都沒抽到＝客戶端改版、skill／req 的欄位名變了：別寫出空檔（建置會變成 20 個所需技能接不上），先停下來看（code review）
+if (!Object.keys(req).length) throw new Error("客戶端資料裡一個技能的 req 都沒找到：先用 wzjs.mjs 印 100 skill/1001003 看欄位名是不是改了");
 
 fs.writeFileSync(
   out,

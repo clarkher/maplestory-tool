@@ -38,8 +38,9 @@ export function splitPrereq(desc) {
   const req = [];
   for (const part of match[2].split(/\s*[、,，]\s*/)) {
     const item = part.match(/^(.+?)\s*(?:等級\s*)?(\d+)\s*(?:(?:等級|級)\s*(?:以上)?|以上)$/);
-    // 名字裡還有「以上」或數字＝其實是「A 3等級以上和B 5等級以上」這種沒拆開的，不收
-    if (!item || /以上|\d/.test(item[1])) return { desc, req: undefined };
+    // 名字裡還有「以上」或「3級」這種等級＝其實是「A 3等級以上和B 5等級以上」這種沒拆開的，不收；
+    // 名字本身有數字的（3連發）照收（code review）
+    if (!item || /以上|\d\s*(?:等級|級)|等級\s*\d/.test(item[1])) return { desc, req: undefined };
     req.push({ name: item[1].trim(), level: Number(item[2]) });
   }
   return { desc: match[1].trim() || undefined, req };
@@ -54,11 +55,10 @@ const jobLine = job => new Set([job, job - (job % 10), job - (job % 100)]);
  * 先照台服客戶端（clientReq＝data/client/skill-req.json 的 req：{ 技能 id: { 所需技能 id: 等級 } }）：
  * 遊戲自己的說明有 20 個名字寫錯（「劍技專精」其實是精準之劍、劍士的「恢復術」其實是生命恢復），
  * 客戶端的 req 是用 id 寫的，照它接、名字換成那個技能的正式名稱（2026-10-08 使用者選 A：點下去的卡片跟這行同名）。
- * 只收跟說明寫的等級一樣、同一條職業線、清單裡有的；好幾個所需技能時名字一樣的先配，
- * 剩下寫錯的同一個等級只有一個、客戶端也只剩一個才配（配不準就不配）。
- *
- * 客戶端沒寫（或配不上）的退回舊辦法：只在同一條職業線找名字完全一樣、只有一個的；
- * 找不到或不只一個（「恢復術」刺客、俠盜各一個）就只留名字。
+ * 只收跟說明寫的等級一樣、同一條職業線、清單裡有的；名字、等級都一樣的先配，
+ * 名字本來就是這條職業線的技能就照名字接（舊辦法：名字完全一樣、只有一個的），
+ * 名字這條線找不到（寫錯）的，同一個等級寫錯的只有它、客戶端也只剩一個才配、改正式名稱（配不準就不配）。
+ * 都配不上就只留名字（不只一個同名的也一樣，例「恢復術」刺客、俠盜各一個）。
  * list 是 buildSkills 做好的技能（{ id, n, job, req? }），直接改 req 裡的每一筆。
  */
 export function linkPrereqs(list, clientReq = {}) {
@@ -76,15 +76,19 @@ export function linkPrereqs(list, clientReq = {}) {
       req.id = client.splice(index, 1)[0].target.id;
       return false;
     });
-    for (const req of unmatched) {
-      const sameLevel = client.filter(item => item.level === req.level);
-      if (sameLevel.length === 1 && unmatched.filter(other => other.level === req.level).length === 1) {
-        req.name = sameLevel[0].target.n;
-        req.id = sameLevel[0].target.id;
-        continue;
-      }
+    // 名字本來就是這條職業線的技能：照名字接（等級跟客戶端不一樣也不改名，code review）
+    const wrong = unmatched.filter(req => {
       const found = list.filter(other => other.n === req.name && line.has(other.job));
       if (found.length === 1) req.id = found[0].id;
+      return !found.length;
+    });
+    // 名字這條線找不到（遊戲說明寫錯）：同一個等級寫錯的只有它、客戶端也只剩一個才配
+    for (const req of wrong) {
+      const sameLevel = client.filter(item => item.level === req.level);
+      if (sameLevel.length === 1 && wrong.filter(other => other.level === req.level).length === 1) {
+        req.name = sameLevel[0].target.n;
+        req.id = sameLevel[0].target.id;
+      }
     }
   }
   return list;
