@@ -200,6 +200,12 @@ describe("notesFor：玩家提醒依主題分組", () => {
   it("初心者沒有玩家提醒", () => {
     expect(notesFor(notes, 0)).toEqual([]);
   });
+
+  it("寫了 tab 的提醒只在選了那套點法時出現", () => {
+    const tabbed = [note({ jobs: [210], topic: "stat", t: "轉換", tab: "裝備法" }), note({ jobs: [210], topic: "stat", t: "共通" })];
+    expect(notesFor(tabbed, 210).flatMap(group => group.notes.map(n => n.t))).toEqual(["共通"]);
+    expect(notesFor(tabbed, 210, "裝備法").flatMap(group => group.notes.map(n => n.t))).toEqual(["轉換", "共通"]);
+  });
 });
 
 /* ------------------------------------------------------------------ 真資料 */
@@ -468,6 +474,14 @@ describe("真資料：gearPlan 選了第二套", () => {
 
   it("魔導士（火毒）70 裝備法：天使之翼", () => {
     expect(gearPlan(gear, 211, 70, false, "裝備法").best?.n).toBe("天使之翼");
+  });
+
+  it("火毒巫師選裝備法：玩家提醒・能力值有洗點（寫明要花真錢）跟不洗點兩條；全智不出現", () => {
+    const stat = (tab?: string) => gearPlan(gear, 210, 50, true, tab).notes.find(group => group.topic === "stat")?.notes.map(n => n.t) ?? [];
+    expect(stat("裝備法").filter(t => t.startsWith("全智轉裝備法"))).toHaveLength(2);
+    expect(stat("裝備法").some(t => t.includes("洗點") && t.includes("真錢"))).toBe(true);
+    expect(stat("裝備法").some(t => t.includes("不洗點"))).toBe(true);
+    expect(stat().some(t => t.startsWith("全智轉裝備法"))).toBe(false);
   });
 
   it("沒選、選了主推、選了這個職業沒有的標籤：都照主推（diff、compare、kit 都是 null）", () => {

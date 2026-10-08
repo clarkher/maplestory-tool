@@ -373,11 +373,13 @@ export function convertStatRules(researchRules) {
   }));
 }
 
-/** 研究檔 gearNotes（text／sources／verified）→ 畫面用的 GearNote（t／s／v）；items 有才帶。 */
+/** 研究檔 gearNotes（text／sources／verified）→ 畫面用的 GearNote（t／s／v）；items、tab 有才帶。 */
 export function convertNotes(researchNotes) {
   return (researchNotes ?? []).map(note => ({
     jobs: note.jobs, topic: note.topic, t: note.text, s: note.sources, v: note.verified,
     ...(note.items?.length ? { items: note.items } : {}),
+    // 只在這套點法出現的提醒（法師「裝備法」的全智轉換）；沒寫就每套都出現
+    ...(note.tab ? { tab: note.tab } : {}),
   }));
 }
 

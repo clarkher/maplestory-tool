@@ -348,6 +348,11 @@ test("convertNotes：items 欄位有才帶", () => {
   assert.deepEqual(result, [{ jobs: [100], topic: "weapon", t: "備註", s: ["x"], v: "community" }]);
 });
 
+test("convertNotes：研究檔寫了 tab 就帶過去（只在那套點法出現的提醒）", () => {
+  const [note] = convertNotes([{ jobs: [210], topic: "stat", tab: "裝備法", text: "x", sources: [], verified: "tw" }]);
+  assert.equal(note.tab, "裝備法");
+});
+
 test("convertBefore：轉成 t／s／v", () => {
   assert.deepEqual(convertBefore({ text: "轉職前自動配點", sources: ["x"], verified: "tw" }), { t: "轉職前自動配點", s: ["x"], v: "tw" });
 });
