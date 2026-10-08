@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
-import { FilterTag } from "@/components/FilterTag";
+import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown, ChevronRight, RouteIcon } from "@/components/Icons";
 import { useBuildChoice } from "@/lib/build-choice";
 import { itemImage, loadGear, mapName, peekGear } from "@/lib/data";
@@ -147,6 +147,7 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
       <StatBlock plan={plan} job={job} />
       <WeaponBlock plan={plan} where={where} />
       {plan.kit ? <KitBlock plan={plan} level={level} where={where} /> : null}
+      {plan.armor ? <ArmorBlock plan={plan} where={where} /> : null}
       {families.length ? (
         <Block label="衝卷" tag={<SourceTag kind="data" />}>
           {/* 法師拿雨傘：雨傘的卷軸只加物理攻擊，沒有加魔力的，先講清楚為什麼這裡沒有武器卷 */}
@@ -189,18 +190,28 @@ function Block({ label, tag, children }: { label: string; tag?: ReactNode; child
   );
 }
 
-/** 點法切換（盜賊一般點法／全幸、法師全智／裝備法）：選主推就清掉記住的值 */
+/**
+ * 點法切換（盜賊一般點法／全幸、法師全智／裝備法）：單選按鈕，選主推就清掉記住的值。
+ * 下面一行講選中那套的好處跟代價（研究檔 tabText，2026-10-08 使用者選候選 A）。
+ */
 function TabRow({ plan, onPick }: { plan: GearPlan; onPick: (tab: string | null) => void }) {
   if (!plan.tabs.length) return null;
+  const current = plan.tabs.find(entry => entry.rule === plan.rule) ?? plan.tabs[0];
   return (
-    <div role="group" aria-label="點法" className="flex flex-wrap items-center gap-1.5">
-      <span className="mr-0.5 text-[12px] font-black ink-faint">點法</span>
-      {plan.tabs.map(({ tab, rule }) => (
+    <div className="space-y-1">
+      <ChoiceGroup
+        label="點法"
+        options={plan.tabs.map(entry => entry.tab)}
+        value={current.tab}
         // 主推一定是 tabsFor 排的第一個（跟 gearPlan 當預設的是同一條）：用位置判，不看 rule.mainstream——那個旗標在研究檔手寫，標歪了「選主推就清掉記住的值」會失靈
-        <FilterTag key={tab} on={rule === plan.rule} onClick={() => onPick(rule === plan.tabs[0].rule ? null : tab)}>
-          {tab}
-        </FilterTag>
-      ))}
+        onChange={tab => onPick(tab === plan.tabs[0].tab ? null : tab)}
+      />
+      {current.rule.tabText ? (
+        <p className="text-[12px] leading-snug ink-soft">
+          <b className="text-[color:var(--ink)]">{current.tab}：</b>
+          {current.rule.tabText}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -288,6 +299,12 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
             <WeaponLine weapon={stronger}>
               空身{STAT_WORD[plan.kit.stat]}先點到 {plan.kit.base + (plan.strongerShort.find(s => s.stat === plan.kit!.stat)?.short ?? 0)} 就能用 <NameLink weapon={stronger} />
               <span className="whitespace-nowrap">（{offenseText(stronger, magic)}）</span>
+              {/* 多點的那幾點是從主屬性挪過去的：講清楚代價 */}
+              {plan.strongerCost ? (
+                <span className="whitespace-nowrap">
+                  ，{STAT_WORD[plan.strongerCost.stat]}少 {plan.strongerCost.value}
+                </span>
+              ) : null}
             </WeaponLine>
           ) : stronger && plan.strongerVia ? (
             // 主流點法那項永遠是 4（全智的幸運），講「還差 74」是叫人補補不到的點數；改講換哪套點法就能用
@@ -327,18 +344,31 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
   );
 }
 
-/** 全幸要湊的敏捷裝：每件加幾點、去哪拿、要衝什麼卷、要先有多少能力值；等級還沒到的排後面變淡 */
+/**
+ * 全幸要湊的敏捷裝：每件加幾點、去哪拿、要衝什麼卷、要先有多少能力值；等級還沒到的排後面。
+ * 還沒到的那幾列不用透明度變淡（手機在戶外看不清楚，2026-10-08）：字照常、點數改深咖啡色、前面標「Lv.30 起」，
+ * 對比都在 4.5:1 以上。任務隨機給的（綠色斗笠〈第一次同行〉）名字旁標「隨機，不一定拿到」。
+ */
 function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where: Where }) {
   const kit = plan.kit!;
   const word = STAT_WORD[kit.stat];
   const row = ({ piece, source, closedAfter }: KitEntry, later: boolean) => (
-    <li key={piece.ids[0]} className={`flex gap-2.5 ${later ? "opacity-60" : ""}`}>
+    <li key={piece.ids[0]} className="flex gap-2.5">
       <ItemBox id={piece.ids[0]} size={36} />
       <div className="min-w-0 flex-1">
-        <p className="flex flex-wrap items-baseline gap-x-1.5 text-[14px] font-bold leading-snug">
+        <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-[14px] font-bold leading-snug">
+          {later && piece.lv > 0 ? (
+            <span className="whitespace-nowrap rounded-md bg-[color:var(--paper)] px-1.5 text-[12px] font-black ink-soft">Lv.{piece.lv} 起</span>
+          ) : null}
           <Link href={`/db/items?id=${piece.ids[0]}`}>{piece.n}</Link>
-          <span className="whitespace-nowrap text-[13px] font-black text-[color:var(--maple)]">{word} +{piece.v}</span>
-          {later && piece.lv > 0 ? <span className="whitespace-nowrap text-[12px] font-bold ink-faint">Lv.{piece.lv} 起</span> : null}
+          <span className={`whitespace-nowrap text-[13px] font-black ${later ? "ink-soft" : "text-[color:var(--maple)]"}`}>
+            {word} +{piece.v}
+          </span>
+          {source?.kind === "quest" && source.quest.rand ? (
+            <span className="whitespace-nowrap rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--ink)]">
+              隨機，不一定拿到
+            </span>
+          ) : null}
         </p>
         {piece.scroll || piece.req ? (
           <Chunks
@@ -370,6 +400,65 @@ function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where
       <p className="text-[13px] font-bold">
         合計：{word} {kit.base}＋{kit.total}＝{kit.wear}
       </p>
+      {kit.lucky ? (
+        // 運氣好的上限：只算全部成功，講清楚不是保證；10% 卷全過的機率低到不算
+        <p className="rounded-lg bg-[color:var(--paper)] px-2.5 py-1.5 text-[12px] leading-snug">
+          <b>運氣好的上限：</b>
+          {kit.lucky.slots.join("、")}改衝 {kit.lucky.rate}% 卷全部成功，{word}最多 {kit.lucky.wear}
+          {kit.lucky.weapon ? (
+            plan.best && kit.lucky.weapon.id !== plan.best.id ? (
+              <>
+                ，能用 <NameLink weapon={kit.lucky.weapon} />
+                <span className="whitespace-nowrap">（{offenseText(kit.lucky.weapon, plan.magic)}）</span>
+              </>
+            ) : (
+              `，武器還是${kit.lucky.weapon.n}`
+            )
+          ) : null}
+          。<span className="ink-soft">全部成功才有，不是保證；10% 卷全過幾乎不可能，不算。</span>
+        </p>
+      ) : null}
+    </Block>
+  );
+}
+
+/**
+ * 裝備法穿得上的法師防具：每個部位現在拿得到、穿得上、等級最高的那件（gearPlan 的 armor）。
+ * 最下面講主推（全智）穿不上哪幾件：全部都穿不上就說「上面這些」，只有幾件就列部位。
+ */
+function ArmorBlock({ plan, where }: { plan: GearPlan; where: Where }) {
+  const armor = plan.armor!;
+  const cannot = armor.mainCannot;
+  return (
+    <Block label="穿得上的法師防具" tag={<SourceTag kind="data" />}>
+      <ul className="space-y-2.5">
+        {armor.pieces.map(({ piece, source }) => (
+          <li key={piece.id} className="flex gap-2.5">
+            <ItemBox id={piece.id} size={36} />
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-baseline gap-x-1.5 text-[14px] font-bold leading-snug">
+                <Link href={`/db/items?id=${piece.id}`}>{piece.n}</Link>
+                <OpenChip later={piece.o ?? (source ? sourceOpensLater(source) : undefined)} where={where} />
+              </p>
+              <Chunks
+                parts={[
+                  piece.slot,
+                  piece.lv > 0 ? `Lv.${piece.lv}` : "不限等級",
+                  ...Object.entries(piece.req ?? {}).map(([stat, value]) => `${STAT_WORD[stat as StatKey]} ${value}`),
+                ]}
+                className="block text-[12px] tabular-nums ink-soft"
+              />
+              <SourceLine pick={source} where={where} chip={false} />
+            </div>
+          </li>
+        ))}
+      </ul>
+      {cannot ? (
+        <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] leading-snug">
+          {cannot.tab}的{STAT_WORD[cannot.stat]}只有 {cannot.have}，
+          {cannot.slots.length === armor.pieces.length ? "上面這些都穿不上" : `穿不上${cannot.slots.join("、")}`}
+        </p>
+      ) : null}
     </Block>
   );
 }
