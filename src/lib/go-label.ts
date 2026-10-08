@@ -11,8 +11,11 @@ export function goLabel(label: string, place: string): string {
 
 /**
  * 任務卡 NPC 的「路線」要念到哪裡：念 NPC 的名字（「到阿里可那裡的路線」）——念地圖名的話，NPC 在還沒開放的地圖時每一顆都是「到未開放地圖的路線」。
- * 名字是空的、沒有、或壞掉沒有任何文字（資料裡有「???? ?」）就念地圖名
+ * 地圖開放時多念地名（「到漢斯那裡（魔法森林圖書館）的路線」），同名的 NPC 在不同地方也分得出來。
+ * 名字是空的、沒有、或壞掉沒有任何文字（資料裡有「???? ?」）就念卡片上寫的地名。
+ * openMap：開放的地圖的中文名（沒開放傳 undefined 或空字串）；shownMap：卡片上寫的地名（沒開放是「未開放地圖」）
  */
-export function npcPlace(npcName: string | undefined, mapNameText: string): string {
-  return npcName && /\p{L}/u.test(npcName) ? `${npcName}那裡` : mapNameText;
+export function npcPlace(npcName: string | undefined, openMap: string | undefined, shownMap: string): string {
+  if (!npcName || !/\p{L}/u.test(npcName)) return shownMap;
+  return openMap ? `${npcName}那裡（${openMap}）` : `${npcName}那裡`;
 }
