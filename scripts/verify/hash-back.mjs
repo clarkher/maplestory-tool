@@ -42,7 +42,8 @@ async function traverseFilmed(delta, tag) {
   await b.page.send("Page.stopScreencast");
   const got = frames;
   frames = null;
-  const dir = path.join(OUT, tag);
+  // 情境名稱裡有斜線（「不帶 # 的 /guide」）：資料夾名稱換成底線，不然會多拆一層
+  const dir = path.join(OUT, tag.replace(/[\\/:*?"<>|]/g, "_"));
   fs.mkdirSync(dir, { recursive: true });
   got.forEach((f, i) => {
     if (i < 60 && (i === 0 || f.y !== got[i - 1].y)) fs.writeFileSync(path.join(dir, `${String(i).padStart(3, "0")}-y${f.y}.jpg`), Buffer.from(f.data, "base64"));
