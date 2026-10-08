@@ -1280,7 +1280,7 @@ git commit -m "v0.79 (4/8): 計算機的預設值——兩組的點法、武器�
 - Test: `src/lib/__tests__/damage-view.test.ts`（加 describe）
 
 **Interfaces:**
-- Consumes：Task 2 全部公式；Task 3 `SKILL_RULES`、`BASIC_RULE`、`BASIC_ATTACK`、`NOT_CALCULATED`、`CRIT_SKILL`、`AMP_SKILLS`、`BUFFS`、`CHARGES`、`masterySkillFor`、`hitsAt`、`attackSkillIds`；`statShortfall` from `./gear`；`tabsFor` from `./gear-view`。
+- Consumes：Task 2 全部公式；Task 3 `skillRow(skill, level, rule)`（Ruling 5：槍連擊／矛連擊的攻擊力與下數從 levelText 解析）、`SKILL_RULES`、`BASIC_RULE`、`BASIC_ATTACK`、`NOT_CALCULATED`、`CRIT_SKILL`、`AMP_SKILLS`、`BUFFS`、`CHARGES`、`masterySkillFor`、`hitsAt`、`attackSkillIds`；`statShortfall` from `./gear`；`tabsFor` from `./gear-view`。
 - Produces:
   ```ts
   export type Unready = { ok: false; reason: string };
@@ -1472,6 +1472,7 @@ import {
   masterySkillFor,
   NOT_CALCULATED,
   SKILL_RULES,
+  skillRow,
 } from "./damage-skills";
 import { isMagicJob, kitStats, statShortfall, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
 import { gearPlan, tabsFor } from "./gear-view";
@@ -1548,7 +1549,8 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const levelOf = (id: number) => group.levels[id] ?? 0;
   // 勾了的增益、選的充能：技能點法沒點的照最高等級（使用者自己勾的）
   const chosenRow = (id: number) => rowAt(data.skills.get(id), levelOf(id) || (data.skills.get(id)?.levels?.length ?? 0));
-  const row = rowAt(skill, Math.max(1, shared.skillLevel)) ?? {};
+  // 選的技能這一級的數值；槍連擊這種只寫在說明文字的（fromText）由 skillRow 解析進 damage／attackCount
+  const row = isBasic ? {} : skillRow(skill, Math.max(1, shared.skillLevel), rule);
   const magic = rule.kind === "magic";
   const buffSum = (stat: "pad" | "mad") =>
     BUFFS.filter(buff => buff.stat === stat && group.buffs.includes(buff.id) && inLine(buff.id)).reduce((sum, buff) => sum + (chosenRow(buff.id)?.[stat] ?? 0), 0);
