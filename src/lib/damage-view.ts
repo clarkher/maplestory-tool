@@ -4,16 +4,18 @@
  * 公式在 damage.ts、技能表在 damage-skills.ts；點法、武器沿用 gear-view.ts 的 gearPlan（不改它）。
  * 測試在 __tests__/damage-view.test.ts（真資料）。
  */
-import { isMagicJob, kitStats, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
+import { isMagicJob, kitStats, obtainableBy, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
 import { gearPlan } from "./gear-view";
 import { canJobUse } from "./item-view";
 import { jobOption, jobTier, minLevelFor, previousJob, SECOND_JOB_LEVEL, stageJob, THIRD_JOB_LEVEL, tierStartLevel } from "./jobs";
+import { BOSS_SPAWN_MAX } from "./now-plan";
 import { jobLineage, planTraining } from "./planner";
+import { LEVEL_CAP } from "./profile";
 import { buildProgress, mainBuild, spAtLevel } from "./skill-plan";
 import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "./types";
 
-/** 經典版等級上限（meta.json release.levelCap） */
-export const LEVEL_CAP = 120;
+/** 經典版等級上限：沿用 profile.ts 那一個（那裡是唯一要改的地方，v002-open 的排程也是改那一行），這裡只轉出去 */
+export { LEVEL_CAP };
 
 export type CalcData = {
   gear: GearData;
@@ -105,9 +107,12 @@ export function defaultAmmo(ammo: GearAmmo[], weaponType: string, level: number,
   return pool.length ? pool[pool.length - 1] : null;
 }
 
-/** 武器選單：物理職業照職業能用的種類，法師是有魔攻、職業用得到的（跟 gear.ts 的候選同一套規則），需求等級低到高 */
+/**
+ * 武器選單：物理職業照職業能用的種類，法師是有魔攻、職業用得到的；兩邊都要這個職業拿得到
+ * （obtainableBy：只有別的職業接得到的任務才給的不列）——跟 gear.ts 的候選（candidatePool）同一套規則，需求等級低到高
+ */
 export function weaponChoices(gear: GearData, job: number): GearWeapon[] {
-  const usable = (weapon: GearWeapon) => canJobUse(weapon.job, job) === true;
+  const usable = (weapon: GearWeapon) => canJobUse(weapon.job, job) === true && obtainableBy(weapon.src, job);
   const types = new Set(weaponTypesFor(job));
   const list = isMagicJob(job)
     ? gear.weapons.filter(weapon => (weapon.mag ?? 0) > 0 && usable(weapon))
@@ -140,21 +145,36 @@ export function defaultGroup(data: CalcData, job: number, level: number, tab: st
   };
 }
 
-/** 預設怪：練功排行（planTraining）以這個等級排出的第一名那張圖的主力怪 */
+/**
+ * 預設怪：練功排行（planTraining，前 30 張）依序找，取第一張「主力怪在怪物選單裡」的圖的主力怪。
+ * 跳過王圖（刷怪點 BOSS_SPAWN_MAX 個以下，跟 timeline.ts 同一條規則——巴洛古那種圖不是拿來練功的）；
+ * 還沒開放（beforeOpen）時再跳過只在 V002 才有的怪（跟選單的 v002 同一條規則）。都沒有回 null。
+ */
 export function defaultMonster(data: CalcData, job: number, level: number): number | null {
   const byId = new Map(data.monsters.map(monster => [monster.id, monster]));
-  return planTraining({ job, level }, data.training, byId, 1)[0]?.lead?.id ?? null;
+  for (const pick of planTraining({ job, level }, data.training, byId, 30)) {
+    if (pick.row.sp <= BOSS_SPAWN_MAX || !pick.lead) continue;
+    const choice = choiceFor(pick.lead, data.maps);
+    if (!choice || (data.beforeOpen && choice.v002)) continue;
+    return pick.lead.id;
+  }
+  return null;
 }
 
 export type MonsterChoice = { monster: Monster; v002: boolean };
 
+/** 這隻怪在選單裡的樣子：出現在有中文名地圖的怪才有（不收錄、沒有等級的不收），v002＝出現的有名地圖全是 V002 的；不收的回 null */
+function choiceFor(monster: Monster, maps: Record<string, MapRecord>): MonsterChoice | null {
+  if (monster.un || monster.lv === null) return null;
+  const named = monster.maps.filter(id => maps[String(id)]?.zh);
+  if (!named.length) return null;
+  return { monster, v002: named.every(id => Boolean(maps[String(id)]?.o)) };
+}
+
 /** 怪物選單：出現在有中文名地圖的怪（不收錄、沒有等級的不列），依等級低到高；v002＝出現的有名地圖全是 V002 的 */
 export function monsterChoices(monsters: Monster[], maps: Record<string, MapRecord>): MonsterChoice[] {
   return monsters
-    .filter(monster => !monster.un && monster.lv !== null)
-    .map(monster => ({ monster, named: monster.maps.filter(id => maps[String(id)]?.zh) }))
-    .filter(entry => entry.named.length > 0)
-    .map(({ monster, named }) => ({ monster, v002: named.every(id => Boolean(maps[String(id)]?.o)) }))
+    .flatMap(monster => choiceFor(monster, maps) ?? [])
     .sort((a, b) => (a.monster.lv ?? 0) - (b.monster.lv ?? 0) || a.monster.id - b.monster.id);
 }
 
@@ -166,20 +186,50 @@ export function groupLabels(groups: [GroupConfig, GroupConfig]): [string, string
   return ["左組", "右組"];
 }
 
-function isGroup(value: unknown): value is GroupConfig {
-  const group = value as GroupConfig;
-  return Boolean(group) && typeof group.level === "number" && typeof group.stats === "object" && Array.isArray(group.buffs) && typeof group.levels === "object";
+const STAT_KEY_LIST: StatKey[] = ["STR", "DEX", "INT", "LUK"];
+
+function isNum(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
-/** 記在瀏覽紀錄裡的設定：壞掉或少欄位都當沒記（回 null，畫面改用預設） */
+function isNumOrNull(value: unknown): value is number | null {
+  return value === null || isNum(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** 一組設定每個欄位都要在、型別對（沒存、null 不該有 null 的地方、字串當數字都不收），等級在 1 到上限之間 */
+function isGroup(value: unknown): value is GroupConfig {
+  if (!isRecord(value)) return false;
+  const { tab, level, weaponId, ammoId, extra, stats, buffs, charge, levels } = value;
+  return (
+    (tab === null || typeof tab === "string") &&
+    isNum(level) && level >= 1 && level <= LEVEL_CAP &&
+    isNumOrNull(weaponId) && isNumOrNull(ammoId) && isNumOrNull(charge) &&
+    isNum(extra) &&
+    isRecord(stats) && STAT_KEY_LIST.every(key => isNum(stats[key])) &&
+    Array.isArray(buffs) && buffs.every(isNum) &&
+    isRecord(levels) && Object.values(levels).every(isNum)
+  );
+}
+
+/** 共用的設定：職業要是經典版有的、技能 id 跟等級是數字、怪是數字或沒選（null） */
+function isShared(value: unknown): value is SharedConfig {
+  if (!isRecord(value)) return false;
+  const { job, skillId, skillLevel, monsterId } = value;
+  return isNum(job) && jobOption(job) !== undefined && isNum(skillId) && isNum(skillLevel) && isNumOrNull(monsterId);
+}
+
+/** 記在瀏覽紀錄裡的設定：壞掉、少欄位、型別不對都當沒記（回 null，畫面改用預設） */
 export function parseState(raw: string | null): CalcState | null {
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as CalcState;
-    const shared = parsed?.shared;
-    if (!shared || typeof shared.job !== "number" || typeof shared.skillId !== "number" || typeof shared.skillLevel !== "number") return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!isRecord(parsed) || !isShared(parsed.shared)) return null;
     if (!Array.isArray(parsed.groups) || parsed.groups.length !== 2 || !parsed.groups.every(isGroup)) return null;
-    return parsed;
+    return parsed as CalcState;
   } catch {
     return null;
   }
