@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，back-all 和 card-shot 都是 9347，reload-all 是 9367，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，back-all 和 card-shot 都是 9347，reload-all 是 9367，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -303,6 +303,21 @@ AT=2026-10-16T10:00:00+08:00 node scripts/verify/gear-source-shot.mjs <輸出> <
 - 輸出：`<職業>-<等級>.png`（裝備卡從頂端截到武器那塊）、`<職業>-<等級>-route.png`（升級路線「你在這」那一段的「裝備」，
   沒展開會自己點開）、`results.json`；console 印主推武器、去哪拿、路線每一列的字。
 - 改前／改後：同一個 `AT` 各跑一次改前、改後的網址（例如正式機 vs 測試機），兩邊的字直接比。
+
+#### `build-variants-shot.mjs`：第二套點法（全幸、裝備法）各角色截圖＋實際點切換（v0.72）
+
+```bash
+node scripts/verify/build-variants-shot.mjs <輸出> <網址> [職業:等級:點法,…]
+```
+
+- 第三個參數不給就跑預設 8 個：刺客 35 一般／全幸、刺客 25 全幸、暗殺者 80 全幸、火毒 50 全智／裝備法、俠盜 35、狂戰士 35。
+  `點法` 空白＝沒選（主推）；後面加 `+`（例：`210:50:裝備法+`）會先點「看全部」再截，看得到點法說明跟玩家提醒。
+  每個角色先清 localStorage，再放 `ms-profile` 跟 `ms-build`（`{"400":"全幸"}`，鍵是一轉職業代碼）。
+- 最後一段「click」實際點：刺客 35 沒選 → 點「全幸」→ 重新整理 → 點回「一般點法」，印每一步的標籤、四格、`ms-build`。
+  對的結果：全幸亮、`{"400":"全幸"}` → 重新整理還是全幸 → `{}`。
+- 輸出：`<職業>-<等級>-<點法>.png`（整張卡，視窗開 2400 高、截圖不含固定頁首）、`click-after-reload.png`、`results.json`
+  （每張卡的標籤、四格、每一區的字，還有 console 錯誤／警告）。`WIDTH=360` 看安卓換行；`AT` 同 gear-source-shot。
+- 預設埠 9371。本機 dev server 第一次開每頁要編譯，8 個角色約 2～3 分鐘；測試機約 40 秒。
 
 ### 沒收進來的
 
