@@ -495,4 +495,28 @@ describe("真資料：gearPlan 選了第二套", () => {
     }
     expect(gearPlan(gear, 420, 35, true, "全幸").rule?.label).toBe("幸運為主，敏捷只點到短刀需求");
   });
+
+  it("綠色斗笠只有〈第一次同行〉（21 到 30 等）能拿：35 等任務已經接不到，還是寫去哪拿、並標 30 等以後接不到；桑那服的任務沒有上限不標", () => {
+    for (const level of [25, 35]) {
+      const plan = gearPlan(gear, 410, level, true, "全幸");
+      const entries = [...(plan.kit?.worn ?? []), ...(plan.kit?.later ?? [])];
+      const hat = entries.find(entry => entry.piece.n === "綠色斗笠");
+      expect(hat?.source).toMatchObject({ kind: "quest", quest: { n: "第一次同行" } });
+      expect(hat?.closedAfter).toBe(30);
+      const sauna = entries.find(entry => entry.piece.n.startsWith("藍色桑那服"));
+      expect(sauna?.source).toMatchObject({ kind: "quest" });
+      expect(sauna?.closedAfter).toBeUndefined();
+    }
+  });
+
+  it("盜賊 10 等全幸：敏捷跟一般點法一樣多，不寫「多 0 點」（diff 是 null）；15 等多 5 點", () => {
+    expect(gearPlan(gear, 400, 10, true, "全幸").diff).toBeNull();
+    expect(gearPlan(gear, 400, 15, true, "全幸").diff).toMatchObject({ stat: "LUK", delta: 5 });
+  });
+
+  it("盜賊 15 等全幸：一般點法這級用的跟「再強一點」是同一把鋼鐵拳套，不講兩次（compare 是 null）", () => {
+    const plan = gearPlan(gear, 400, 15, true, "全幸");
+    expect(plan.stronger?.n).toBe("鋼鐵拳套");
+    expect(plan.compare).toBeNull();
+  });
 });
