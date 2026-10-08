@@ -28,9 +28,9 @@ export function Tag({ level }: { level: Trust }) {
   return <span className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${tone}`}>{text}</span>;
 }
 
-/** 表格每一列數字旁邊的短字樣（跟 Tag 同一套說法，只是縮短） */
+/** 表格每一列數字旁邊的字樣：客戶端、舊版公式照 Tag 全文，沒驗證的在窄欄縮成「未驗證」（全文在 Tag 跟「怎麼算的」那張卡） */
 function TrustMark({ level }: { level: Trust }) {
-  const text = level === "client" ? "依客戶端" : level === "legacy" ? "舊版公式" : "未驗證";
+  const text = level === "client" ? "玩家依客戶端整理" : level === "legacy" ? "舊版公式" : "未驗證";
   const tone = level === "unverified" ? "text-[color:var(--gold)]" : "text-[color:var(--sky)]";
   return <span className={`block text-[11px] font-bold ${tone}`}>{text}</span>;
 }
@@ -192,7 +192,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
               result.panel ? (
                 <span>能力視窗 {fmt(result.panel)}<span className="ink-faint">（玩家依客戶端整理）</span></span>
               ) : result.magicPower !== null ? (
-                <span>魔攻 {result.magicPower}<span className="ink-faint">（玩家依客戶端整理）</span></span>
+                <span>魔攻 {result.magicPower}<span className="ink-faint">（舊版公式）</span></span>
               ) : null,
             ].filter(Boolean)
           : [];
@@ -233,10 +233,10 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
 
 function Details({ labels, results, target }: { labels: [string, string]; results: readonly [GroupResult, GroupResult]; target: Monster | null }) {
   const cell = (result: GroupResult, pick: (ok: Extract<GroupResult, { ok: true }>) => string | null) => (result.ok ? pick(result) ?? "—" : "—");
-  // 每一列都標這個數字是哪一級可信度（能力視窗、總攻擊是客戶端算式；木樁一下是舊版公式；爆擊、打怪、命中沒驗證）
+  // 每一列都標這個數字是哪一級可信度（能力視窗、總攻擊是客戶端算式；魔攻、木樁一下是舊版公式；爆擊、打怪、命中沒驗證）
   const rows: Array<[string, (ok: Extract<GroupResult, { ok: true }>) => string | null, Trust]> = [
     ["能力視窗攻擊力", ok => (ok.panel ? fmt(ok.panel) : null), "client"],
-    ["魔攻", ok => (ok.magicPower !== null ? String(ok.magicPower) : null), "client"],
+    ["魔攻", ok => (ok.magicPower !== null ? String(ok.magicPower) : null), "legacy"],
     ["總攻擊", ok => (ok.magic ? null : String(ok.attack)), "client"],
     ["每一下（木樁）", ok => fmt(ok.raw.hit), "legacy"],
     ["爆擊那一下", ok => (ok.raw.crit && ok.critRate !== null ? `${fmt(ok.raw.crit.hit)}（${Math.round(ok.critRate * 100)}%）` : null), "unverified"],
