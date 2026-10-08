@@ -304,7 +304,7 @@ AT=2026-10-16T10:00:00+08:00 node scripts/verify/gear-source-shot.mjs <輸出> <
   沒展開會自己點開）、`results.json`；console 印主推武器、去哪拿、路線每一列的字。
 - 改前／改後：同一個 `AT` 各跑一次改前、改後的網址（例如正式機 vs 測試機），兩邊的字直接比。
 
-#### `build-variants-shot.mjs`：第二套點法（全幸、裝備法）各角色截圖＋實際點切換（v0.72）
+#### `build-variants-shot.mjs`：第二套點法（全幸、裝備法）各角色截圖＋實際點切換（v0.75）
 
 ```bash
 node scripts/verify/build-variants-shot.mjs <輸出> <網址> [職業:等級:點法,…]
