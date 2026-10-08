@@ -151,6 +151,11 @@ export type Skill = {
    * 有數值的技能的最高級（「滿級效果」那一行）。一筆都沒有就沒有這個欄位
    */
   levelText?: Record<string, string>;
+  /**
+   * 所需技能（從說明尾巴「所需技能：魔天一擊1等級以上」拆出來，pipeline/lib/skill-text.mjs）。
+   * id 是同一條職業線裡名字完全一樣的那個技能，卡片做成連結；上游的字對不上技能名的（例「劍技專精」）沒有 id、只列名字
+   */
+  req?: { name: string; level: number; id?: number }[];
 };
 
 export type Job = {

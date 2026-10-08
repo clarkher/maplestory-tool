@@ -79,7 +79,7 @@
     "monsters": 125,
     "items": 12968,
     "quests": 436,
-    "skills": 242,
+    "skills": 238,
     "maps": 5878,
     "mapsWithChineseName": 360,
     "portalEdges": 4041,
@@ -94,5 +94,5 @@
     "monstersWithoutSpawnData": 19,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-08T02:56:54.431Z"
+  "builtAt": "2026-10-08T08:27:08.363Z"
 }

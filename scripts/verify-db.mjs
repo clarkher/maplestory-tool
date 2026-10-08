@@ -26,6 +26,8 @@
 // S1＝v0.71 的技能頁：遊戲資料沒有分等級數值的技能（skills.json 沒有 levels）點開不會整頁掛掉，卡片寫原因、沒有數值表（寫死：神匠之魂 1003 從清單點、肥肥的弱點攻擊 9000 直接打開網址）。
 // S2＝v0.74 的技能卡：效果行不露出 #代號（改寫滿級那一級的遊戲原文）、好幾級但沒有數值的一級一列放遊戲原文、隱身術 20 級那列放原文、
 // 魔力淨化寫沒有每一級的數字、說明尾巴的「#」拿掉（寫死：槍連擊 1311001、隱身術 4001003、魔力淨化 2000000、劍氣縱橫 1001005；槍連擊手機桌機都看）。
+// S3＝v0.78 的技能卡 12 項：存了角色先篩你這一轉的職業、所需技能連結、表頭單位、標出你點得到第幾級、表頭黏住、文字表標出變了的數字、衝鋒用客戶端數值、
+// 壞圖示、韓文說明、到期的活動技能（角色 Lv.45 狂戰士；「還沒點滿」暫時換 Lv.32 槍騎兵）。v0.78 起 S1 先把職業篩選記成「全部職業」（不然初心者技能不在清單上）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -534,7 +536,7 @@ try {
   // M14 技能頁：展開在那一筆下面、職業篩選離開再回來還在
   await section("M14", async () => {
     await fresh("/db/skills");
-    const r = await ev(`const select = document.querySelector("main select"); const option = [...select.options].find(o => o.value && o.textContent.includes("狂戰士")) ?? select.options[1];
+    const r = await ev(`const select = document.querySelector("main select"); const option = [...select.options].find(o => o.value && o.textContent.includes("火毒巫師")) ?? select.options[1];
       select.value = option.value; select.dispatchEvent(new Event("change", { bubbles: true })); await __sleep(500);
       const id = __rowId(2); __tap(id); await __waitFor(() => __id() === id); await __sleep(1200);
       const open = __open(); const rowTop = __top(id);
@@ -554,6 +556,10 @@ try {
     const CARD = `({ crashed: ${CRASHED}, title: document.querySelector("main article h2")?.textContent ?? null,
       text: document.querySelector("main article")?.textContent ?? "", table: !!document.querySelector("main article table") })`;
     await fresh("/db/skills");
+    // v0.78 起存了角色會先篩你這一轉的職業（開頭存的狂戰士），初心者技能不在清單上：先記成「全部職業」再重新載入
+    await evaluate(`sessionStorage.setItem("ms-db:db:技能:job", '""'); 1`);
+    await reload();
+    await ev(`await __ready(); await __sleep(600); return 1;`);
     const r = await ev(`const id = "1003";
       if (!__row(id)) return { skipped: "預設清單前 60 筆沒有神匠之魂 1003" };
       __tap(id); await __waitFor(() => !!__row(id)?.querySelector("article") || ${CRASHED}); await __sleep(800);
@@ -637,12 +643,12 @@ try {
       { effect: mpRecovery?.effect, rows: mpRecovery?.rows.length, text: mpRecovery?.text.slice(-120) });
 
     const slash = await open(1001005);
-    check("S2 劍氣縱橫：效果行是「滿級效果（20 級）：消耗HP16和MP14, 攻擊力130%」，數值表照舊（20 列、消耗 HP／消耗 MP／傷害）",
+    check("S2 劍氣縱橫：效果行是「滿級效果（20 級）：消耗HP16和MP14, 攻擊力130%」，數值表照舊（20 列、消耗 HP／消耗 MP／傷害（%））",
       slash?.effect === "滿級效果（20 級）：消耗HP16和MP14, 攻擊力130%" && slash.rows.length === 20
-        && slash.heads.join("|") === "等級|消耗 HP|消耗 MP|傷害",
+        && slash.heads.join("|") === "等級|消耗 HP|消耗 MP|傷害（%）",
       { effect: slash?.effect, heads: slash?.heads, rows: slash?.rows.length });
-    check("S2 劍氣縱橫：說明尾巴沒有「#」（「所需技能：魔天一擊1等級以上」）",
-      slash?.text.includes("所需技能：魔天一擊1等級以上") && !slash.text.includes("#"), slash?.text.slice(0, 200));
+    check("S2 劍氣縱橫：卡片上沒有「#」（上游說明尾巴「所需技能：魔天一擊1等級以上#」，v0.78 起所需技能另外列成「魔天一擊 1 級以上」）",
+      slash?.text.includes("所需技能：魔天一擊 1 級以上") && !slash.text.includes("#"), slash?.text.slice(0, 200));
 
     // 中間出錯也要切回手機，後面的段才不會在桌機寬跑
     try {
@@ -655,6 +661,133 @@ try {
     } finally {
       await mobile();
     }
+  });
+
+  // S3 技能卡 12 項優化（v0.78；使用者 10/08「全修」）：預設篩你這一轉的職業、所需技能做成連結、表頭單位、
+  // 標出你點得到第幾級、表頭黏住、文字表標出變了的數字、說明開頭的最高等級拿掉、韓文說明不列、2009 年到期的活動技能不列。
+  // 角色照開頭存的 Lv.45 狂戰士（110）；「還沒點滿」那條暫時換成 Lv.32 槍騎兵，跑完換回來
+  await section("S3", async () => {
+    await mobile();
+    const JOB_KEY = "ms-db:db:技能:job";
+    const setProfile = (level, job) => evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: ${level}, job: ${job} })); 1`);
+    const CARD = `(() => {
+      const card = document.querySelector("main article");
+      if (!card) return null;
+      const table = card.querySelector("table");
+      const rows = table ? [...table.querySelectorAll("tbody tr")] : [];
+      const bg = tr => getComputedStyle(tr).backgroundColor;
+      return {
+        title: card.querySelector("h2")?.textContent ?? "",
+        text: card.textContent,
+        desc: card.querySelector("p.whitespace-pre-wrap")?.textContent ?? null,
+        req: [...card.querySelectorAll("p")].find(p => p.textContent.startsWith("所需技能："))?.textContent ?? null,
+        reqLinks: [...card.querySelectorAll("p a[href]")].map(a => ({ text: a.textContent, href: a.getAttribute("href") })),
+        heads: table ? [...table.querySelectorAll("thead th")].map(th => th.textContent.trim()) : [],
+        note: [...card.querySelectorAll("section p")].find(p => p.textContent.startsWith("你 Lv."))?.textContent ?? null,
+        // 標橘的列：底色跟一般列不一樣的那幾列（第幾級）
+        marked: rows.map((tr, i) => bg(tr) !== "rgba(0, 0, 0, 0)" ? i + 1 : 0).filter(Boolean),
+        bold: rows.map(tr => [...tr.querySelectorAll("td b")].map(b => b.textContent)),
+      };
+    })()`;
+    const open = async id => {
+      await navigate(`${BASE}/db/skills?id=${id}`);
+      return ev(`await __waitFor(() => !!document.querySelector("main article section")); await __sleep(800); return ${CARD};`);
+    };
+
+    // 預設篩你這一轉的職業；自己選過「全部職業」就照你選的，重新整理也一樣
+    await fresh("/db/skills");
+    const f = await ev(`const select = document.querySelector("main select"); return { value: select.value, rows: __rows().length };`);
+    check("S3 沒選過職業：存了 Lv.45 狂戰士，技能頁先篩狂戰士（8 個）", f.value === "110" && f.rows === 8, f);
+    const all = await ev(`const select = document.querySelector("main select");
+      const set = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+      set.call(select, ""); select.dispatchEvent(new Event("change", { bubbles: true }));
+      await __waitFor(() => __rows().length > 8); await __sleep(600);
+      return { value: select.value, rows: __rows().length, saved: sessionStorage.getItem(${JSON.stringify(JOB_KEY)}) };`);
+    await reload();
+    const kept = await ev(`await __ready(); await __sleep(600); return { value: document.querySelector("main select").value, rows: __rows().length };`);
+    check("S3 自己選「全部職業」：清單變全部、重新整理後還是全部（不會又被篩回狂戰士）",
+      all.value === "" && all.rows > 8 && all.saved === '""' && kept.value === "" && kept.rows > 8, { all, kept });
+
+    // 所需技能、表頭單位、標出點得到第幾級、說明開頭
+    const slash = await open(1001005);
+    check("S3 劍氣縱橫：說明開頭沒有「[最高等級：20]」、尾巴的所需技能拆出去", slash?.desc === "消耗HP、MP以作為裝備的武器對周圍的敵人進行整體攻擊。", slash?.desc);
+    check("S3 劍氣縱橫：另一行寫「所需技能：魔天一擊 1 級以上」，魔天一擊是連到 ?id=1001004 的連結",
+      slash?.req === "所需技能：魔天一擊 1 級以上" && slash.reqLinks.some(link => link.text === "魔天一擊" && link.href === "/db/skills?id=1001004"),
+      { req: slash?.req, links: slash?.reqLinks });
+    check("S3 劍氣縱橫：表頭補單位「傷害（%）」", slash?.heads.join("|") === "等級|消耗 HP|消耗 MP|傷害（%）", slash?.heads);
+    check("S3 劍氣縱橫（一轉，要先學魔天一擊）× Lv.45 狂戰士：寫「扣掉所需技能也夠把這招點滿（20 級）」、標橘第 20 列",
+      slash?.note === "你 Lv.45：扣掉所需技能也夠把這招點滿（20 級），標橘的那一列。" && slash.marked.join(",") === "20", { note: slash?.note, marked: slash?.marked });
+    const jump = await ev(`const link = [...document.querySelectorAll("main article p a")].find(a => a.textContent === "魔天一擊");
+      link.click(); await __waitFor(() => location.search.includes("1001004")); await __sleep(1000);
+      return { path: location.pathname, search: location.search, title: document.querySelector("main article h2")?.textContent ?? "" };`);
+    check("S3 點所需技能「魔天一擊」：留在技能頁、卡片換成魔天一擊", jump.path === "/db/skills" && jump.search === "?id=1001004" && jump.title.includes("魔天一擊"), jump);
+
+    try {
+      await setProfile(32, 130);
+      const fire = await open(1301007);
+      // 神聖之火要先把禦魔陣點到 3 級：7 點扣 3 點，只到第 4 級（第一版沒扣、寫第 7 級，code review 抓到）
+      check("S3 神聖之火（二轉）× Lv.32 槍騎兵：寫「二轉到現在有 7 點，扣掉所需技能 3 點，這招最多到第 4 級」、標橘第 4 列",
+        fire?.note === "你 Lv.32：二轉到現在有 7 點，扣掉所需技能 3 點，這招最多到第 4 級，標橘的那一列。" && fire.marked.join(",") === "4", { note: fire?.note, marked: fire?.marked });
+      await setProfile(30, 110);
+      const quick = await open(1101004);
+      check("S3 快速之劍 × Lv.30 狂戰士（只有 1 點、所需技能要先花 5 點）：寫「還差 5 點才點得到這招」、不標任何一列",
+        quick?.note === "你 Lv.30：二轉到現在有 1 點，所需技能要先花 5 點，還差 5 點才點得到這招。" && quick.marked.length === 0, { note: quick?.note, marked: quick?.marked });
+      const other = await open(2001004);
+      check("S3 不是自己職業線的技能（法師的魔靈彈）不寫、不標", other && other.note === null && other.marked.length === 0, { note: other?.note, marked: other?.marked });
+    } finally {
+      await setProfile(45, 110);
+    }
+
+    // 文字表：跟上一級不一樣的數字加粗
+    const spear = await open(1311001);
+    check("S3 槍連擊：第 6 級加粗的是變了的數字（13、80、兩），第 1 級不加粗",
+      spear?.bold[5]?.join("|") === "13|80|兩" && spear.bold[0]?.length === 0, { row1: spear?.bold[0], row6: spear?.bold[5] });
+
+    // 表頭黏住：蓄能激發 40 級，捲到 30 級附近，表頭貼在「收起」那一列下面
+    const charge = await open(5110001);
+    const stick = await ev(`document.documentElement.style.setProperty("scroll-behavior", "auto", "important");
+      const rows = [...document.querySelectorAll("main article tbody tr")];
+      window.scrollTo(0, rows[29].getBoundingClientRect().top + window.scrollY - 400); await __sleep(500);
+      const th = document.querySelector("main article thead th").getBoundingClientRect();
+      const bar = (document.querySelector("main li [aria-expanded='true']") ?? document.querySelector("#db-top > button")).getBoundingClientRect();
+      return { thTop: Math.round(th.top), barBottom: Math.round(bar.bottom), row1Top: Math.round(rows[0].getBoundingClientRect().top) };`);
+    check("S3 蓄能激發：捲到 30 級附近，表頭還貼在「收起」那一列下面（第 1 列早就捲出畫面）",
+      charge?.title.includes("蓄能激發") && near(stick.thTop, stick.barBottom, 2) && stick.row1Top < stick.thTop, stick);
+    await shot("s3-sticky-mobile.png");
+    try {
+      await desktop();
+      await open(5110001);
+      const pane = await ev(`const card = document.querySelector("main article"); const box = card.parentElement.closest("[class*='overflow-y-auto']");
+        const rows = [...card.querySelectorAll("tbody tr")];
+        box.scrollTop = rows[29].offsetTop; await __sleep(500);
+        return { thTop: Math.round(card.querySelector("thead th").getBoundingClientRect().top), boxTop: Math.round(box.getBoundingClientRect().top), row1Top: Math.round(rows[0].getBoundingClientRect().top) };`);
+      check("S3 桌機：右邊那一欄捲到 30 級附近，表頭貼在那一欄頂端", near(pane.thTop, pane.boxTop, 10) && pane.row1Top < pane.thTop, pane);
+      await shot("s3-sticky-desktop.png");
+    } finally {
+      await mobile();
+    }
+
+    // 衝鋒：上游只有文字，改用台服客戶端的每一級數值（data/client/skills.json）
+    const dash = await open(5001005);
+    const dashRows = await ev(`return [...document.querySelectorAll("main article tbody tr")].map(tr => [...tr.children].map(cell => cell.textContent.trim()).join("|"));`);
+    check("S3 衝鋒：數值表是消耗 MP／移動速度／跳躍力／持續時間（秒），第 1 級 14、12、1、4，第 10 級 5、30、10、20（客戶端原值）",
+      dash?.heads.join("|") === "等級|消耗 MP|移動速度|跳躍力|持續時間（秒）" && dashRows[0] === "1|14|12|1|4" && dashRows[9] === "10|5|30|10|20",
+      { heads: dash?.heads, first: dashRows[0], last: dashRows[9] });
+
+    // 壞掉的圖示：向下跳躍換成皇家騎士團版同一張、木妖的弱點攻擊不放圖
+    await open(1006);
+    const jumpIcon = await ev(`const img = document.querySelector("main article header img"); await __waitFor(() => img?.complete); return { src: img?.getAttribute("src") ?? null, width: img?.naturalWidth ?? 0 };`);
+    check("S3 向下跳躍 1006：圖示換成我們自己放的那張（public/skill-icons/1006.png，載得到）", jumpIcon.src === "/skill-icons/1006.png" && jumpIcon.width > 0, jumpIcon);
+    await open(9001);
+    const woodIcon = await ev(`return { img: !!document.querySelector("main article header img"), title: document.querySelector("main article h2")?.textContent ?? "" };`);
+    check("S3 木妖的弱點攻擊 9001：找不到可靠的圖就不放（不放壞掉的綠色雜訊）", woodIcon.title.includes("木妖") && !woodIcon.img, woodIcon);
+
+    // 韓文說明、到期的活動技能
+    const yeti = await open(1018);
+    check("S3 雪吉拉騎士 1018：卡片沒有韓文、效果行是中文", yeti && !/\p{Script=Hangul}/u.test(yeti.text) && yeti.text.includes("跳躍力 120"), yeti?.text.slice(0, 200));
+    await navigate(`${BASE}/db/skills?id=1014`);
+    const gone = await ev(`await __ready(); await __sleep(1500); return { card: !!document.querySelector("main article"), row: !!document.getElementById("db-row-1014") };`);
+    check("S3 宇宙衝鋒 1014（2009 年到期）不列：直接打開網址也沒有卡片", !gone.card && !gone.row, gone);
   });
 
   // M15 從清單點開後，「收起」連點兩下：只收起，不會連退兩頁離開這一頁

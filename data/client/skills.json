@@ -1,0 +1,20 @@
+{
+  "_source": "台服《新楓之谷：經典版》客戶端 1.15.x（使用者本機 D:/屁哥/maplestory_classic）StreamingAssets/aa/w/json_ea789eaaa37ed8ffb144c59e8ca8d456.bundle 物件「500」的 skill/5001005/level，2026-10-08 用 scripts/client/ 抽出（README「客戶端技能數值」）。只收上游 skills-data.js 沒給每一級數值、客戶端有的技能；表頭照技能效果樣板的用字（消耗MP #mpCon，移動速度+#x，跳躍力+#y，持續時間#time秒）。魔力淨化 2000000 客戶端也只有每一級同一句說明、沒有數字，所以不在這裡。",
+  "skills": {
+    "5001005": {
+      "labels": { "mpCon": "消耗 MP", "x": "移動速度", "y": "跳躍力", "time": "持續時間" },
+      "levels": [
+        { "mpCon": 14, "x": 12, "y": 1, "time": 4 },
+        { "mpCon": 13, "x": 14, "y": 2, "time": 4 },
+        { "mpCon": 12, "x": 16, "y": 3, "time": 8 },
+        { "mpCon": 11, "x": 18, "y": 4, "time": 8 },
+        { "mpCon": 10, "x": 20, "y": 5, "time": 12 },
+        { "mpCon": 9, "x": 22, "y": 6, "time": 12 },
+        { "mpCon": 8, "x": 24, "y": 7, "time": 16 },
+        { "mpCon": 7, "x": 26, "y": 8, "time": 16 },
+        { "mpCon": 6, "x": 28, "y": 9, "time": 20 },
+        { "mpCon": 5, "x": 30, "y": 10, "time": 20 }
+      ]
+    }
+  }
+}
