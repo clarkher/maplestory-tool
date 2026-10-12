@@ -53,6 +53,7 @@ const SPEED_RULES: Record<number, SpeedRule> = {
   3001004: "weapon", // 斷魂箭
   3001005: "weapon", // 二連箭
   3101003: "weapon", // 強弓
+  3101005: "weapon", // 炸彈箭（客戶端沒有 action，用弓本身的射箭動作）
   3201003: 800, // 強弩（研究寫 6 階 750～810，用慢的那個）
   3201005: "weapon", // 穿透之箭
   3111003: "weapon", // 烈火箭
