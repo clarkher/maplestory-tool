@@ -5,7 +5,7 @@ import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, clampLevel, defaultAmmo, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { ammoChoices, defaultAmmo, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
 import type { Range } from "@/lib/damage";
 import { gearPlan, tabsFor, STAT_ORDER, STAT_WORD, shortText } from "@/lib/gear-view";
@@ -46,6 +46,8 @@ function Row({ label, children }: { label: React.ReactNode; children: React.Reac
 }
 
 const SELECT = "min-w-0 max-w-[60vw] truncate rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-2 py-1.5 text-[14px] font-bold sm:max-w-none";
+/** 職業旁邊的等級：固定寬、不縮（「Lv.120」要完整看得到），職業那格讓出空間 */
+const LEVEL_SELECT = "w-[5.75rem] shrink-0 rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-2 py-1.5 text-[14px] font-bold";
 const SUMMARY = "cursor-pointer py-1.5 text-[13px] font-bold text-[color:var(--sky)]";
 
 /**
@@ -115,10 +117,23 @@ const LevelOptions = memo(function LevelOptions({ from }: { from: number }) {
   );
 });
 
+/** 上方分頁固定的兩組名字（2026-10-12 使用者選 A：分頁不寫點法，免得跟分頁裡的「點法」選項重複） */
+export const GROUP_NAMES = ["左組", "右組"] as const;
+
+/** 結果卡、名單說明用的組名：「左組・一般點法」；兩組沒差在點法或武器時只寫「左組」 */
+export function groupName(index: number, labels: [string, string]): string {
+  const base = GROUP_NAMES[index];
+  return labels[index] === base ? base : `${base}・${labels[index]}`;
+}
+
 /* ------------------------------------------------------------------ 共用設定 */
 
-export function SharedCard({ data, state, job, onJob, onShared, choices, beforeOpen }: {
+export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNotice, choices, beforeOpen }: {
   data: CalcData | null; state: CalcState | null; job: number; onJob: (job: number) => void; onShared: (patch: Partial<SharedConfig>) => void;
+  /** 換等級（兩組一起換，DamageCalculator 用 relevel） */
+  onLevel: (level: number) => void;
+  /** 換職業時等級被拉高的說明（「三轉最低 70 等，已調成 70」）；沒有就 null */
+  levelNotice: string | null;
   /** 怪物選單（DamageCalculator 算一次傳下來，不要每次重畫都重排） */
   choices: MonsterChoice[]; beforeOpen: boolean;
 }) {
@@ -128,9 +143,9 @@ export function SharedCard({ data, state, job, onJob, onShared, choices, beforeO
   const skill = data && state && state.shared.skillId !== BASIC_ATTACK ? data.skills.get(state.shared.skillId) : undefined;
   return (
     <section aria-label="共用設定" className="rounded-[var(--radius-card)] glass wood-frame px-3.5 py-1.5">
-      <Row label="職業">
+      <Row label="職業／等級">
         {avatar ? <Sprite src={avatar} size={22} /> : null}
-        <select aria-label="職業" className={SELECT} value={job > 0 ? job : ""} onChange={event => onJob(Number(event.target.value))}>
+        <select aria-label="職業" className={state && job > 0 ? `${SELECT} flex-1` : SELECT} value={job > 0 ? job : ""} onChange={event => onJob(Number(event.target.value))}>
           {job <= 0 ? <option value="">選職業</option> : null}
           {JOB_GROUPS.map(group => (
             <optgroup key={group.label} label={group.label}>
@@ -138,7 +153,14 @@ export function SharedCard({ data, state, job, onJob, onShared, choices, beforeO
             </optgroup>
           ))}
         </select>
+        {/* 等級兩組共用、跟著職業：選單只列這個職業可能的等級（三轉 70 起、二轉 30 起），不可能的組合選不到 */}
+        {state && job > 0 ? (
+          <select aria-label="等級" className={LEVEL_SELECT} value={state.groups[0].level} onChange={event => onLevel(Number(event.target.value))}>
+            <LevelOptions from={minLevelFor(job)} />
+          </select>
+        ) : null}
       </Row>
+      {levelNotice ? <p role="status" className="pb-1 text-right text-[12px] font-bold text-[color:var(--gold)]">{levelNotice}</p> : null}
       {data && state ? (
         <>
           <Row label="技能">
@@ -213,7 +235,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
         return (
           <div key={index} className="space-y-1">
             <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[13px] font-black" style={{ color: `var(--${TONES[index]})` }}>{labels[index]}</span>
+              <span className="text-[13px] font-black" style={{ color: `var(--${TONES[index]})` }}>{groupName(index, labels)}</span>
               <span className="text-[20px] font-black tabular-nums">{result.ok ? fmt(shown(result)!) : "—"}</span>
             </div>
             {result.ok ? (
@@ -334,8 +356,8 @@ function LevelSelect({ label, id, data, group, onChange }: { label: string; id: 
   );
 }
 
-export function GroupEditor({ data, state, labels, result, active, onActive, onGroup }: {
-  data: CalcData; state: CalcState; labels: [string, string];
+export function GroupEditor({ data, state, result, active, onActive, onGroup }: {
+  data: CalcData; state: CalcState;
   /** 現在改的這一組的計算結果（穿不上的武器要寫在武器那一列下面） */
   result: GroupResult; active: 0 | 1; onActive: (index: 0 | 1) => void; onGroup: (index: 0 | 1, group: GroupConfig) => void;
 }) {
@@ -360,6 +382,8 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
   // 全幸這種要湊裝備的點法：寫出預設的副屬性是「空身＋裝備」各多少（使用者改過那格就不寫）
   const plan = useMemo(() => gearPlan(data.gear, job, group.level, data.beforeOpen, group.tab), [data.gear, job, group.level, data.beforeOpen, group.tab]);
   const kitHint = plan.kit && group.stats[plan.kit.stat] === plan.kit.wear ? `${STAT_WORD[plan.kit.stat]}：空身 ${plan.kit.base}＋裝備 ${plan.kit.total}` : null;
+  // 武器原本的攻擊／魔攻（「武器攻擊」那格沒改過時顯示這個）
+  const baseWeaponPower = weapon ? (magic ? weapon.mag : weapon.atk) ?? 0 : 0;
   const amount = (id: number, stat: "pad" | "mad") => {
     const levels = data.skills.get(id)?.levels ?? [];
     return levels[(group.levels[id] || levels.length) - 1]?.[stat] ?? 0;
@@ -368,8 +392,8 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
   const tabId = (index: number) => `${uid}-tab-${index}`;
   // 跟站上的 ChoiceGroup 一樣的鍵盤：Tab 只停在選中的那顆，左右鍵換到另一組並把焦點帶過去，Home／End 到頭尾（到頭會繞回去）
   const onTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
-    const last = labels.length - 1;
-    const target = event.key === "ArrowRight" ? (index + 1) % labels.length : event.key === "ArrowLeft" ? (index + last) % labels.length : event.key === "Home" ? 0 : event.key === "End" ? last : null;
+    const last = GROUP_NAMES.length - 1;
+    const target = event.key === "ArrowRight" ? (index + 1) % GROUP_NAMES.length : event.key === "ArrowLeft" ? (index + last) % GROUP_NAMES.length : event.key === "Home" ? 0 : event.key === "End" ? last : null;
     if (target === null) return;
     event.preventDefault();
     onActive(target as 0 | 1);
@@ -378,7 +402,7 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
   return (
     <section aria-label="兩組設定" className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
       <div role="tablist" aria-label="改哪一組" className="mb-2 grid grid-cols-2 gap-1 rounded-full bg-[color:var(--paper-deep)] p-1">
-        {labels.map((label, index) => (
+        {GROUP_NAMES.map((label, index) => (
           <button
             key={index}
             ref={node => {
@@ -405,12 +429,7 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
             <ChoiceGroup label="點法" options={tabs.map(entry => entry.tab)} value={group.tab ?? tabs[0].tab} onChange={tab => onGroup(active, regroup(data, job, group, { tab }))} />
           </div>
         ) : null}
-        <Row label="等級">
-          <select aria-label="等級" className={SELECT} value={group.level} onChange={event => onGroup(active, regroup(data, job, group, { level: clampLevel(job, Number(event.target.value)) }))}>
-            <LevelOptions from={minLevelFor(job)} />
-          </select>
-        </Row>
-        <p className="pb-1 text-right text-[11px] ink-faint">換點法、等級會把能力值、武器重設成那套的預設</p>
+        {tabs.length > 1 ? <p className="pb-1 text-right text-[11px] ink-faint">換點法會把能力值、武器重設成那套的預設</p> : null}
         <Row label="武器">
           {weapon ? <Sprite src={itemImage(weapon.id)} size={22} /> : null}
           <select aria-label="武器" className={SELECT} value={group.weaponId ?? ""} onChange={event => {
@@ -418,14 +437,36 @@ export function GroupEditor({ data, state, labels, result, active, onActive, onG
             const nextAmmo = next ? ammoChoices(data.gear.ammo ?? [], next.s) : [];
             // 同一種彈藥還能用就留著；換了種類（弓換弩）就用預設：商店買得到、攻擊最高那種
             const keep = nextAmmo.some(entry => entry.id === group.ammoId);
-            set({ weaponId: next?.id ?? null, ammoId: keep ? group.ammoId : next ? defaultAmmo(data.gear.ammo ?? [], next.s, group.level, data.beforeOpen)?.id ?? null : null });
+            set({ weaponId: next?.id ?? null, weaponAtk: null, ammoId: keep ? group.ammoId : next ? defaultAmmo(data.gear.ammo ?? [], next.s, group.level, data.beforeOpen)?.id ?? null : null });
           }}>
             {group.weaponId === null ? <option value="" disabled>選武器</option> : null}
             {weapons.map(entry => <option key={entry.id} value={entry.id}>{`Lv.${entry.lv} ${entry.n}（${magic ? `魔攻 ${entry.mag ?? 0}` : `攻擊 ${entry.atk ?? 0}`}）${entry.o && data.beforeOpen ? "（10/15 開放）" : ""}`}</option>)}
           </select>
         </Row>
+        {result.ok
+          ? result.warnings.filter(warning => warning.startsWith("要 Lv.")).map(warning => (
+              <p key={warning} className="my-1 rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{warning}</p>
+            ))
+          : null}
         {result.ok && result.short.length ? (
           <p className="my-1 rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">穿不上：{shortText(result.short)}（照樣算）</p>
+        ) : null}
+        {weapon ? (
+          <>
+            <Row label={magic ? "武器魔攻" : "武器攻擊"}>
+              <DraftNumber
+                aria-label={magic ? "武器魔攻" : "武器攻擊"}
+                className={`${SELECT} w-20 text-right`}
+                value={group.weaponAtk ?? baseWeaponPower}
+                min={0}
+                max={999}
+                onCommit={value => set({ weaponAtk: value === baseWeaponPower ? null : value })}
+              />
+            </Row>
+            <p className="pb-1 text-right text-[11px] ink-faint">
+              {group.weaponAtk === null ? `${weapon.n}原本的${magic ? "魔攻" : "攻擊"}，衝卷後自己改` : `原本 ${baseWeaponPower}，換武器會重設`}
+            </p>
+          </>
         ) : null}
         {ammo.length ? (
           <Row label={<span className="flex flex-col items-start gap-0.5">{ammo[0].kind}{ammo[0].kind === "飛鏢" ? null : <span className="rounded-full bg-[color:var(--gold-wash)] px-1.5 py-0.5 text-[11px] font-bold leading-tight text-[color:var(--gold)]">台服沒驗證</span>}</span>}>

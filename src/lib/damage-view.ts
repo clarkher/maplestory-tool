@@ -63,8 +63,11 @@ export type CalcData = {
 export type GroupConfig = {
   /** 點法標籤（「一般點法」「全幸」）；這個職業沒有第二套是 null */
   tab: string | null;
+  /** 角色等級：兩組共用（畫面上放在最上面跟職業一起選），存在每組裡是為了計算方便，兩組永遠一樣 */
   level: number;
   weaponId: number | null;
+  /** 武器攻擊（法師是武器魔攻）改過的值：衝卷後數值會飄；null＝照武器原本的數值 */
+  weaponAtk: number | null;
   ammoId: number | null;
   /** 其他攻擊（法師是其他魔攻）：手套衝卷、其他裝備 */
   extra: number;
@@ -168,6 +171,7 @@ export function defaultGroup(data: CalcData, job: number, level: number, tab: st
     tab: plan.rule?.tab ?? null,
     level: lv,
     weaponId: weapon?.id ?? null,
+    weaponAtk: null,
     ammoId: weapon ? defaultAmmo(data.gear.ammo ?? [], weapon.s, lv, data.beforeOpen)?.id ?? null : null,
     extra: 0,
     stats: { ...stats },
@@ -210,11 +214,18 @@ export function monsterChoices(monsters: Monster[], maps: Record<string, MapReco
     .sort((a, b) => (a.monster.lv ?? 0) - (b.monster.lv ?? 0) || a.monster.id - b.monster.id);
 }
 
-/** 兩組的名字：點法不同寫點法、等級不同寫等級、都一樣寫左組右組 */
-export function groupLabels(groups: [GroupConfig, GroupConfig]): [string, string] {
+/**
+ * 兩組在結果卡、名單、「多約幾 %」裡的名字：點法不同寫點法、武器不同寫武器名、都一樣寫左組右組。
+ * 上方分頁固定寫「左組／右組」（2026-10-12 使用者選 A），這裡是說明兩組差在哪。
+ */
+export function groupLabels(groups: [GroupConfig, GroupConfig], weapons: GearWeapon[]): [string, string] {
   const [a, b] = groups;
   if (a.tab && b.tab && a.tab !== b.tab) return [a.tab, b.tab];
-  if (a.level !== b.level) return [`Lv.${a.level}`, `Lv.${b.level}`];
+  if (a.weaponId !== b.weaponId) {
+    const name = (id: number | null) => weapons.find(weapon => weapon.id === id)?.n;
+    const [nameA, nameB] = [name(a.weaponId), name(b.weaponId)];
+    if (nameA && nameB && nameA !== nameB) return [nameA, nameB];
+  }
   return ["左組", "右組"];
 }
 
@@ -235,11 +246,13 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** 一組設定每個欄位都要在、型別對（沒存、null 不該有 null 的地方、字串當數字都不收），等級在 1 到上限之間 */
 function isGroup(value: unknown): value is GroupConfig {
   if (!isRecord(value)) return false;
-  const { tab, level, weaponId, ammoId, extra, stats, buffs, charge, levels } = value;
+  const { tab, level, weaponId, weaponAtk, ammoId, extra, stats, buffs, charge, levels } = value;
   return (
     (tab === null || typeof tab === "string") &&
     isNum(level) && level >= 1 && level <= LEVEL_CAP &&
     isNumOrNull(weaponId) && isNumOrNull(ammoId) && isNumOrNull(charge) &&
+    // 武器攻擊是 v0.82 才加的：舊版記下的沒有這欄，當作沒改
+    (weaponAtk === undefined || isNumOrNull(weaponAtk)) &&
     isNum(extra) &&
     isRecord(stats) && STAT_KEY_LIST.every(key => isNum(stats[key])) &&
     Array.isArray(buffs) && buffs.every(isNum) &&
@@ -261,16 +274,20 @@ export function parseState(raw: string | null): CalcState | null {
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed) || !isShared(parsed.shared)) return null;
     if (!Array.isArray(parsed.groups) || parsed.groups.length !== 2 || !parsed.groups.every(isGroup)) return null;
-    return parsed as CalcState;
+    const groups = parsed.groups.map(group => ({ ...group, weaponAtk: group.weaponAtk ?? null })) as [GroupConfig, GroupConfig];
+    return { shared: parsed.shared, groups };
   } catch {
     return null;
   }
 }
 
-/** 記下的設定裡兩組的等級夾回這個職業的範圍（parseState 只看型別、不看轉職等級；暗殺者記成 10 級會畫出不存在的等級） */
+/**
+ * 記下的設定裡的等級夾回這個職業的範圍、兩組統一用左組的（parseState 只看型別、不看轉職等級；暗殺者記成 10 級會畫出不存在的等級；
+ * v0.82 起等級兩組共用，v0.79 記下的兩組可能不同）
+ */
 export function clampState(state: CalcState): CalcState {
-  const { job } = state.shared;
-  return { ...state, groups: state.groups.map(group => ({ ...group, level: clampLevel(job, group.level) })) as [GroupConfig, GroupConfig] };
+  const level = clampLevel(state.shared.job, state.groups[0].level);
+  return { ...state, groups: state.groups.map(group => ({ ...group, level })) as [GroupConfig, GroupConfig] };
 }
 
 /* ------------------------------------------------------------------ 算一組 */
@@ -352,22 +369,27 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     BUFFS.filter(buff => buff.stat === stat && group.buffs.includes(buff.id) && inLine(buff.id)).reduce((sum, buff) => sum + (chosenRow(buff.id)?.[stat] ?? 0), 0);
 
   const ammo = (data.gear.ammo ?? []).find(entry => entry.id === group.ammoId && entry.kind === AMMO_KIND[weapon.s]);
-  const attack = (weapon.atk ?? 0) + (ammo?.atk ?? 0) + group.extra + buffSum("pad");
+  // 武器攻擊／魔攻：使用者改過（衝卷）用改過的，沒改照武器原本的
+  const weaponPower = group.weaponAtk ?? (magic ? weapon.mag : weapon.atk) ?? 0;
+  const attack = (magic ? weapon.atk ?? 0 : weaponPower) + (ammo?.atk ?? 0) + group.extra + buffSum("pad");
   const masteryId = masterySkillFor(weapon.s, job);
   const masteryM = masteryId !== null ? rowAt(data.skills.get(masteryId), levelOf(masteryId))?.M : undefined;
   const mastery = masteryM ? masteryM / 100 : NO_MASTERY;
   // 這把武器有對應的精準技能、但那個技能 0 級：熟練度只有 10%，下限會被壓得很低、範圍很寬——寫在結果卡上（精準技能不存在的一轉、法師不寫）
   const masteryName = masteryId !== null ? data.skills.get(masteryId)?.n : undefined;
-  const warnings = masteryId !== null && masteryName && levelOf(masteryId) <= 0
-    ? [`沒點${masteryName}，熟練度只有 10%（下限會很低，可在下面「技能等級」改）`]
-    : [];
+  const warnings: string[] = [];
+  // 等級兩組共用後，右組「換下一把武器」常常是還拿不到的那把：照樣算，但寫在結果卡上
+  if (weapon.lv > group.level) warnings.push(`要 Lv.${weapon.lv} 才拿得到（照樣算）`);
+  if (masteryId !== null && masteryName && levelOf(masteryId) <= 0) {
+    warnings.push(`沒點${masteryName}，熟練度只有 10%（下限會很低，可在下面「技能等級」改）`);
+  }
   const stats = group.stats;
 
   let base: Range | null;
   let magicPower: number | null = null;
   let amp = 1;
   if (magic) {
-    magicPower = stats.INT + (weapon.mag ?? 0) + group.extra + buffSum("mad");
+    magicPower = stats.INT + weaponPower + group.extra + buffSum("mad");
     base = magicBase(stats.INT, magicPower, row.mad ?? 0, (row.M ?? 0) / 100);
     const ampId = AMP_SKILLS.find(id => inLine(id) && levelOf(id) > 0);
     if (ampId !== undefined) amp = (rowAt(data.skills.get(ampId), levelOf(ampId))?.y ?? 100) / 100;
@@ -466,26 +488,33 @@ export function defaultSkill(data: CalcData, job: number, group: GroupConfig): {
 }
 
 /**
- * 兩組預設：左＝首頁選的點法（沒選＝主推）；右＝第二套點法（有的話），沒有就同一套、等級拉到下一把武器、武器換那把，
- * 連下一把都沒有就跟左邊一樣。技能、怪物用左組算；預設怪可能是 null（這個等級沒有練功圖，等於不選怪）。
+ * 兩組預設：左＝首頁選的點法（沒選＝主推）；右＝第二套點法（有的話），沒有就同一套、同等級、武器換下一把
+ * （v0.82 起等級兩組共用，下一把常常還拿不到，結果卡會寫「要 Lv.N 才拿得到」），連下一把都沒有就跟左邊一樣。
+ * 技能、怪物用左組算；預設怪可能是 null（這個等級沒有練功圖，等於不選怪）。
  */
 export function defaultState(data: CalcData, job: number, level: number, buildTab: string | null): CalcState {
   const tabs = tabsFor(data.gear.rules, job);
   const leftTab = buildTab && tabs.some(entry => entry.tab === buildTab) ? buildTab : tabs[0]?.tab ?? null;
   const left = defaultGroup(data, job, level, leftTab);
-  const otherTab = tabs.find(entry => entry.tab !== left.tab)?.tab;
-  let right: GroupConfig;
-  if (otherTab) right = defaultGroup(data, job, left.level, otherTab);
-  else {
-    const next = gearPlan(data.gear, job, left.level, data.beforeOpen, leftTab).next;
-    right = next ? withWeapon(data, defaultGroup(data, job, Math.max(next.lv, left.level), leftTab), next) : structuredClone(left);
-  }
+  const right = rightGroup(data, job, left, defaultGroup(data, job, left.level, otherTabOf(data, job, left.tab) ?? leftTab));
   return { shared: { job, ...defaultSkill(data, job, left), monsterId: defaultMonster(data, job, left.level) }, groups: [left, right] };
 }
 
+/** 這個職業另一套點法的標籤；沒有第二套回 undefined */
+function otherTabOf(data: CalcData, job: number, tab: string | null): string | undefined {
+  return tabsFor(data.gear.rules, job).find(entry => entry.tab !== tab)?.tab;
+}
+
+/** 右組：有第二套點法就是 candidate（那套的預設）；沒有就同一套換下一把武器，連下一把都沒有就跟左組一樣 */
+function rightGroup(data: CalcData, job: number, left: GroupConfig, candidate: GroupConfig): GroupConfig {
+  if (otherTabOf(data, job, left.tab)) return candidate;
+  const next = gearPlan(data.gear, job, left.level, data.beforeOpen, left.tab).next;
+  return next ? withWeapon(data, candidate, next) : { ...candidate, weaponId: left.weaponId, ammoId: left.ammoId, weaponAtk: left.weaponAtk };
+}
+
 function withWeapon(data: CalcData, group: GroupConfig, weapon: GearWeapon): GroupConfig {
-  const ammo = defaultAmmo(data.gear.ammo ?? [], weapon.s, group.level, data.beforeOpen);
-  return { ...group, weaponId: weapon.id, ammoId: ammo?.id ?? null };
+  const ammo = defaultAmmo(data.gear.ammo ?? [], weapon.s, Math.max(group.level, weapon.lv), data.beforeOpen);
+  return { ...group, weaponId: weapon.id, weaponAtk: null, ammoId: ammo?.id ?? null };
 }
 
 /** 換點法、換等級：能力值、武器、彈藥、技能等級重設成那套那級的預設；其他攻擊、增益、充能留著 */
@@ -494,30 +523,55 @@ export function regroup(data: CalcData, job: number, group: GroupConfig, change:
   return { ...fresh, extra: group.extra, buffs: group.buffs, charge: group.charge };
 }
 
+/**
+ * 換等級（等級在最上面、兩組共用）：兩組各自照自己的點法重設成那一級的預設（regroup），右組照預設的規則再挑一次武器；
+ * 技能等級跟著技能點法在新等級點到的級數（沒點到留原本的）；怪是舊等級的預設怪才跟著換，自己選的留著。等級夾在職業範圍。
+ */
+export function relevel(data: CalcData, state: CalcState, level: number): CalcState {
+  const { job } = state.shared;
+  const lv = clampLevel(job, level);
+  const left = regroup(data, job, state.groups[0], { level: lv });
+  const right = rightGroup(data, job, left, regroup(data, job, state.groups[1], { level: lv }));
+  const oldDefault = defaultMonster(data, job, state.groups[0].level);
+  const monsterId = state.shared.monsterId === oldDefault ? defaultMonster(data, job, lv) : state.shared.monsterId;
+  const skillLevel = left.levels[state.shared.skillId] || state.shared.skillLevel;
+  return { shared: { ...state.shared, skillLevel, monsterId }, groups: [left, right] };
+}
+
 export function sameGroups(groups: [GroupConfig, GroupConfig]): boolean {
   return JSON.stringify(groups[0]) === JSON.stringify(groups[1]);
 }
 
 /* ------------------------------------------------------------------ 一下／兩下打死 */
 
-export type KillEntry = { monster: Monster; v002: boolean; minUse: number };
+/** minUse：最低一次（不爆擊）；midUse：最高跟最低的中間值一次（不爆擊） */
+export type KillEntry = { monster: Monster; v002: boolean; minUse: number; midUse: number };
+export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry[]; nearTwo: KillEntry[] };
 
 /**
  * 一下打死＝這組用一次選的技能、扣完防禦的最低一次 ≥ HP；兩下＝最低一次×2 ≥ HP、不在一下那張。爆擊不算（要穩穩打死）。
- * 等級高到低，同等級 HP 高的先。這組算不出來（武器用不了、沒算的技能）回 null。
+ * 差一點（2026-10-12 使用者追加，選 B 分一下、兩下）＝用最高跟最低的中間值算一下（中間值 ≥ HP）或兩下（中間值×2 ≥ HP）打得死、
+ * 但最低傷害在那個下數打不死的（運氣好才打得死）：差一點一下排除一下打死的、差一點兩下排除一下／兩下打死跟差一點一下的；
+ * 所以同一隻可能同時在「兩下打死」跟「差一點一下」（穩穩兩下、運氣好一下）。
+ * 每張都是等級高到低，同等級 HP 高的先。這組算不出來（武器用不了、沒算的技能）回 null。
  */
-export function killLists(data: CalcData, shared: SharedConfig, group: GroupConfig, choices: MonsterChoice[]): { one: KillEntry[]; two: KillEntry[] } | null {
+export function killLists(data: CalcData, shared: SharedConfig, group: GroupConfig, choices: MonsterChoice[]): KillLists | null {
   const prepared = prepare(data, shared, group);
   if (!prepared.ok) return null;
-  const one: KillEntry[] = [];
-  const two: KillEntry[] = [];
+  const lists: KillLists = { one: [], two: [], nearOne: [], nearTwo: [] };
   for (const { monster, v002 } of choices) {
-    const minUse = prepared.at(monster).hit.min * prepared.hits;
-    if (minUse >= monster.hp) one.push({ monster, v002, minUse });
-    else if (minUse * 2 >= monster.hp) two.push({ monster, v002, minUse });
+    const { hit } = prepared.at(monster);
+    const entry = { monster, v002, minUse: hit.min * prepared.hits, midUse: ((hit.min + hit.max) / 2) * prepared.hits };
+    const { hp } = monster;
+    if (entry.minUse >= hp) lists.one.push(entry);
+    else if (entry.minUse * 2 >= hp) lists.two.push(entry);
+    // 差一點照下數各自排除「那個下數已經穩穩打得死」的：中間值一下打得死、最低一下打不死的，就算最低兩下穩死也列進「差一點一下」
+    // （穩穩兩下、運氣好一下）。不這樣排，雙飛斬這種上限是下限兩倍的技能，「差一點一下」永遠是空的（2026-10-12 實測）
+    if (entry.minUse < hp && entry.midUse >= hp) lists.nearOne.push(entry);
+    else if (entry.minUse * 2 < hp && entry.midUse * 2 >= hp) lists.nearTwo.push(entry);
   }
   const order = (a: KillEntry, b: KillEntry) => (b.monster.lv ?? 0) - (a.monster.lv ?? 0) || b.monster.hp - a.monster.hp || a.monster.id - b.monster.id;
-  return { one: one.sort(order), two: two.sort(order) };
+  return { one: lists.one.sort(order), two: lists.two.sort(order), nearOne: lists.nearOne.sort(order), nearTwo: lists.nearTwo.sort(order) };
 }
 
 /** 「一般點法比全幸多約 3%」：大的比小的；差距四捨五入後是 0（不到 0.5%）寫「兩組差不多」；有一組算不出來不寫 */

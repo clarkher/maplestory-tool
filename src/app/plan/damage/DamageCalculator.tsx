@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import { useBuildChoice } from "@/lib/build-choice";
@@ -14,20 +14,24 @@ import {
   groupLabels,
   monsterChoices,
   parseState,
+  relevel,
   type CalcData,
   type CalcState,
   type GroupConfig,
   type SharedConfig,
 } from "@/lib/damage-view";
 import type { GearData } from "@/lib/gear";
-import { minLevelFor } from "@/lib/jobs";
+import { jobTier, minLevelFor } from "@/lib/jobs";
 import { jobLineage } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 import { KillCard } from "./KillCard";
-import { GroupEditor, HowCard, ResultCard, SharedCard } from "./parts";
+import { GroupEditor, groupName, HowCard, ResultCard, SharedCard } from "./parts";
+
+/** 換職業時等級被拉高的說明用字 */
+const TIER_WORD: Record<number, string> = { 1: "一轉", 2: "二轉", 3: "三轉" };
 
 type BaseData = { gear: GearData; skills: Map<number, Skill>; monsters: Monster[]; maps: Record<string, MapRecord>; training: TrainingRow[] };
 
@@ -74,6 +78,10 @@ export function DamageCalculator() {
   const [active, setActive] = useVisitState<number>("damage:tab", 0);
   // 換職業：先記下要換成誰，等那個職業的攻略載好再算預設
   const [pendingJob, setPendingJob] = useState<number | null>(null);
+  // 換職業時等級被拉到這個職業的最低等級（三轉 70）：寫一行說明，下次改等級或職業就收掉
+  const [levelNotice, setLevelNotice] = useState<string | null>(null);
+  // 換職業前畫面上的等級（換的當下記下來；等攻略載好算預設時，job 已經是新職業，startLevel 會被夾過，看不出原本幾等）
+  const levelBeforeSwitch = useRef<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,7 +113,11 @@ export function DamageCalculator() {
 
   useEffect(() => {
     if (pendingJob === null || !data) return;
-    setSaved(JSON.stringify(defaultState(data, pendingJob, Math.max(savedState?.groups[0].level ?? startLevel, minLevelFor(pendingJob)), buildTab)));
+    const before = levelBeforeSwitch.current ?? savedState?.groups[0].level ?? startLevel;
+    levelBeforeSwitch.current = null;
+    const lowest = minLevelFor(pendingJob);
+    setSaved(JSON.stringify(defaultState(data, pendingJob, Math.max(before, lowest), buildTab)));
+    setLevelNotice(before < lowest ? `${TIER_WORD[jobTier(pendingJob)] ?? ""}最低 ${lowest} 等，已調成 ${lowest}` : null);
     setPendingJob(null);
   }, [pendingJob, data, savedState, startLevel, buildTab, setSaved]);
 
@@ -123,7 +135,7 @@ export function DamageCalculator() {
   const calc = useMemo(() => {
     if (!data || !state) return null;
     const results = [computeGroup(data, state.shared, state.groups[0], target), computeGroup(data, state.shared, state.groups[1], target)] as const;
-    const labels = groupLabels(state.groups);
+    const labels = groupLabels(state.groups, data.gear.weapons);
     return { results, labels, diff: diffText(labels, results[0], results[1]) };
   }, [data, state, target]);
 
@@ -131,12 +143,16 @@ export function DamageCalculator() {
   if (!loaded) return <Shell><LoadingBlock /></Shell>;
 
   const update = (next: CalcState) => setSaved(JSON.stringify(next));
-  const pickJob = (next: number) => setPendingJob(next);
+  const pickJob = (next: number) => {
+    setLevelNotice(null);
+    levelBeforeSwitch.current = state?.groups[0].level ?? (profile.level || null);
+    setPendingJob(next);
+  };
 
   if (job <= 0) {
     return (
       <Shell>
-        <SharedCard data={null} state={null} job={job} onJob={pickJob} onShared={() => {}} choices={choices} beforeOpen={beforeOpen} />
+        <SharedCard data={null} state={null} job={job} onJob={pickJob} onShared={() => {}} onLevel={() => {}} levelNotice={null} choices={choices} beforeOpen={beforeOpen} />
         <p className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-8 text-center text-[15px] ink-soft">
           {job === 0 ? "轉職後才有攻擊技能可以算，先選一個職業看看" : "先選職業，下面就會算出來"}
         </p>
@@ -147,7 +163,7 @@ export function DamageCalculator() {
   if (!data || !state || !calc) {
     return (
       <Shell>
-        <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={() => {}} choices={choices} beforeOpen={beforeOpen} />
+        <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={() => {}} onLevel={() => {}} levelNotice={levelNotice} choices={choices} beforeOpen={beforeOpen} />
         <LoadingBlock label="整理武器、技能跟怪物中…" />
       </Shell>
     );
@@ -161,10 +177,23 @@ export function DamageCalculator() {
 
   return (
     <Shell>
-      <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={setShared} choices={choices} beforeOpen={beforeOpen} />
+      <SharedCard
+        data={data}
+        state={state}
+        job={job}
+        onJob={pickJob}
+        onShared={setShared}
+        onLevel={level => {
+          setLevelNotice(null);
+          update(relevel(data, state, level));
+        }}
+        levelNotice={levelNotice}
+        choices={choices}
+        beforeOpen={beforeOpen}
+      />
       <ResultCard data={data} state={state} labels={labels} results={results} target={target} diff={diff} />
-      <KillCard data={data} state={state} active={tab} label={labels[tab]} onPick={monsterId => setShared({ monsterId })} beforeOpen={beforeOpen} choices={choices} />
-      <GroupEditor data={data} state={state} labels={labels} result={results[tab]} active={tab} onActive={index => setActive(index)} onGroup={setGroup} />
+      <KillCard data={data} state={state} active={tab} label={groupName(tab, labels)} onPick={monsterId => setShared({ monsterId })} beforeOpen={beforeOpen} choices={choices} />
+      <GroupEditor data={data} state={state} result={results[tab]} active={tab} onActive={index => setActive(index)} onGroup={setGroup} />
       <HowCard data={data} job={job} level={state.groups[0].level} />
     </Shell>
   );
