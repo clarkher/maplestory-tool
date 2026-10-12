@@ -12,6 +12,7 @@ import {
   dragonRoarBase,
   elementFactor,
   expectedHit,
+  healBase,
   hitRange,
   killCounts,
   luckySevenBase,
@@ -32,13 +33,15 @@ import {
   BUFFS,
   CHARGES,
   CRIT_SKILL,
+  HEAL,
+  HEAL_TARGETS_MAX,
   hitsAt,
   masterySkillFor,
   NOT_CALCULATED,
   SKILL_RULES,
   skillRow,
 } from "./damage-skills";
-import { actionMs, BOOSTERS, boosterSteps, DRAGON_ROAR, dragonRoarStunMs, expPerSecond, MAGIC_TIER, skillBaseMs, type Booster } from "./damage-speed";
+import { actionMs, BOOSTERS, boosterSteps, DRAGON_ROAR, dragonRoarStunMs, expPerSecond, fixedMs, MAGIC_TIER, skillBaseMs, type Booster } from "./damage-speed";
 import { isMagicJob, kitStats, obtainableBy, statShortfall, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
 import { gearPlan, tabsFor } from "./gear-view";
 import { canJobUse } from "./item-view";
@@ -85,7 +88,14 @@ export type GroupConfig = {
   booster: boolean;
 };
 
-export type SharedConfig = { job: number; skillId: number; skillLevel: number; monsterId: number | null };
+export type SharedConfig = {
+  job: number;
+  skillId: number;
+  skillLevel: number;
+  monsterId: number | null;
+  /** 群體治癒範圍內幾隻怪（v0.88 使用者選 3A，1～5，沒寫當 1）；其他技能用不到 */
+  targets?: number;
+};
 export type CalcState = { shared: SharedConfig; groups: [GroupConfig, GroupConfig] };
 
 /** 武器種類 → 彈藥種類 */
@@ -296,8 +306,10 @@ function isGroup(value: unknown): value is GroupConfig {
 /** 共用的設定：職業要是經典版有的、技能 id 跟等級是數字、怪是數字或沒選（null） */
 function isShared(value: unknown): value is SharedConfig {
   if (!isRecord(value)) return false;
-  const { job, skillId, skillLevel, monsterId } = value;
-  return isNum(job) && jobOption(job) !== undefined && isNum(skillId) && isNum(skillLevel) && isNumOrNull(monsterId);
+  const { job, skillId, skillLevel, monsterId, targets } = value;
+  // 群體治癒範圍內幾隻是 v0.88 才加的：沒有這欄照收，有的話要是 1～5 的整數
+  const targetsOk = targets === undefined || (isNum(targets) && Number.isInteger(targets) && targets >= 1 && targets <= HEAL_TARGETS_MAX);
+  return isNum(job) && jobOption(job) !== undefined && isNum(skillId) && isNum(skillLevel) && isNumOrNull(monsterId) && targetsOk;
 }
 
 /** 記在瀏覽紀錄裡的設定：壞掉、少欄位、型別不對都當沒記（回 null，畫面改用預設） */
@@ -327,8 +339,11 @@ export function clampState(state: CalcState): CalcState {
 
 export type Unready = { ok: false; reason: string };
 export type HitPair = { hit: Range; use: Range; crit: { hit: Range; use: Range } | null };
-/** 出一招幾毫秒、用的攻速階（夾在 0～10，法師是施法的階）、有沒有算到加速；stun＝龍咆哮這一輪被自暈拉長（秒數跟攻速無關） */
-export type Speed = { ms: number; tier: number; boosted: boolean; stun: boolean };
+/**
+ * 出一招幾毫秒、用的攻速階（夾在 0～10，法師是施法的階）、有沒有算到加速；stun＝龍咆哮這一輪被自暈拉長（秒數跟攻速無關）；
+ * fixed＝出手時間固定、不吃攻速（群體治癒）
+ */
+export type Speed = { ms: number; tier: number; boosted: boolean; stun: boolean; fixed: boolean };
 export type GroupResult =
   | Unready
   | {
@@ -354,6 +369,9 @@ export type GroupResult =
       elementNote: string | null;
       /** 出一招幾毫秒；海盜、龍之獻祭查不到是 null（畫面寫 SPEED_UNKNOWN） */
       speed: Speed | null;
+      /** 群體治癒（v0.88）：只打得到不死系、targets＝範圍內幾隻（每秒經驗每一隻都算） */
+      heal: boolean;
+      targets: number;
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
@@ -377,6 +395,8 @@ type Prepared = {
   warnings: string[];
   levelNeeded: number | null;
   speed: Speed | null;
+  heal: boolean;
+  targets: number;
   at(target: Monster | null): { hit: Range; crit: Range | null };
   elementNote(target: Monster): string | null;
 };
@@ -409,7 +429,10 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const chosenRow = (id: number) => rowAt(data.skills.get(id), levelOf(id) || (data.skills.get(id)?.levels?.length ?? 0));
   // 選的技能這一級的數值；槍連擊這種只寫在說明文字的（fromText）由 skillRow 解析進 damage／attackCount
   const row: Record<string, number> = isBasic ? {} : skillRow(skill, Math.max(1, shared.skillLevel), rule);
-  const magic = rule.kind === "magic";
+  // 群體治癒也是魔法（魔攻、扣魔防、魔法命中），只是基本傷害用自己那條公式
+  const heal = rule.kind === "heal";
+  const magic = rule.kind === "magic" || heal;
+  const targets = heal ? shared.targets ?? 1 : 1;
   const buffSum = (stat: "pad" | "mad") =>
     BUFFS.filter(buff => buff.stat === stat && group.buffs.includes(buff.id) && inLine(buff.id)).reduce((sum, buff) => sum + (chosenRow(buff.id)?.[stat] ?? 0), 0);
 
@@ -438,9 +461,12 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   let amp = 1;
   if (magic) {
     magicPower = stats.INT + weaponPower + group.extra + buffSum("mad");
-    base = magicBase(stats.INT, magicPower, row.mad ?? 0, (row.M ?? 0) / 100);
-    const ampId = AMP_SKILLS.find(id => inLine(id) && levelOf(id) > 0);
-    if (ampId !== undefined) amp = (rowAt(data.skills.get(ampId), levelOf(ampId))?.y ?? 100) / 100;
+    if (heal) base = healBase(stats.INT, stats.LUK, magicPower, targets, row.hp ?? 0);
+    else {
+      base = magicBase(stats.INT, magicPower, row.mad ?? 0, (row.M ?? 0) / 100);
+      const ampId = AMP_SKILLS.find(id => inLine(id) && levelOf(id) > 0);
+      if (ampId !== undefined) amp = (rowAt(data.skills.get(ampId), levelOf(ampId))?.y ?? 100) / 100;
+    }
   } else if (rule.kind === "lucky") base = luckySevenBase(stats, attack);
   else if (rule.kind === "dragonRoar") base = dragonRoarBase(stats, attack, mastery);
   else if (rule.kind === "arrowBomb") base = arrowBombBase(stats, attack);
@@ -468,7 +494,13 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const action = baseMs === null ? null : actionMs(baseMs, tier);
   // 龍咆哮放完會自暈，一輪是動作跟自暈取長的
   const stunMs = shared.skillId === DRAGON_ROAR ? dragonRoarStunMs(Math.max(1, shared.skillLevel)) : 0;
-  const speed = action === null ? null : { ms: Math.max(action, stunMs), tier, boosted: steps > 0, stun: stunMs > action };
+  const fixed = isBasic ? undefined : fixedMs(shared.skillId);
+  const speed: Speed | null =
+    fixed !== undefined
+      ? { ms: fixed, tier: MAGIC_TIER, boosted: false, stun: false, fixed: true }
+      : action === null
+        ? null
+        : { ms: Math.max(action, stunMs), tier, boosted: steps > 0, stun: stunMs > action, fixed: false };
 
   const notes: string[] = [];
   if (rule.note) notes.push(rule.note);
@@ -490,7 +522,11 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     warnings,
     levelNeeded,
     speed,
+    heal,
+    targets,
     elementNote(target) {
+      // 群體治癒算不算神聖屬性各說各話（v0.88 使用者選 4A：不乘），打怕神聖的怪寫一行
+      if (heal) return target.el?.h === "w" ? HEAL_HOLY_NOTE : null;
       // 白騎士充能看充能的屬性（倍數只寫打弱點／抗性那一段，充能本身的殺傷力 % 另外算）；其他看招式自己的屬性
       const element = charge?.element ?? rule.element;
       if (!element) return null;
@@ -514,6 +550,13 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     },
   };
 }
+
+/** 群體治癒打怕神聖的怪（不乘，寫出來讓人知道可能更高） */
+export const HEAL_HOLY_NOTE = "牠怕神聖屬性：如果群體治癒算神聖，再 ×1.5";
+/** 群體治癒結果卡的假設那一行（研究裡各說各話的部分照多數來源選） */
+export const HEAL_ASSUMPTION = "群體治癒：舊版玩家整理的公式，台服沒驗證；恢復力先乘再扣魔防、只算自己（組隊時隊友也佔一格，每隻更低）";
+/** 選了群體治癒、怪不是不死系 */
+export const HEAL_UNDEAD_ONLY = "群體治癒只打得到不死系的怪";
 
 /** 屬性的寫法照客戶端：火屬性、冰屬性、雷屬性、毒屬性、神聖屬性 */
 const ELEMENT_WORD: Record<Element, string> = { f: "火屬性", i: "冰屬性", l: "雷屬性", p: "毒屬性", h: "神聖屬性" };
@@ -561,6 +604,7 @@ function pairOf(prepared: Prepared, target: Monster | null): HitPair {
 export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupConfig, target: Monster | null): GroupResult {
   const prepared = prepare(data, shared, group);
   if (!prepared.ok) return prepared;
+  if (prepared.heal && target && !target.und) return { ok: false, reason: HEAL_UNDEAD_ONLY };
   const raw = pairOf(prepared, null);
   const rate = prepared.critRate ?? 0;
   const expectedOf = (pair: HitPair) => prepared.hits * expectedHit(pair.hit, pair.crit?.hit ?? null, rate);
@@ -575,8 +619,8 @@ export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupC
       accuracyKind: prepared.magic ? "magic" : "physical",
       expPerSec: null,
     };
-    // 每秒經驗（v0.87 使用者選 1A：範圍技能也只算打一隻）
-    if (prepared.speed) vs.expPerSec = expPerSecond(target.exp, vs.kills.avg, prepared.speed.ms);
+    // 每秒經驗（v0.87 使用者選 1A：範圍技能也只算打一隻）；群體治癒的隻數是使用者自己選的、傷害也照隻數攤，範圍內每一隻都算
+    if (prepared.speed) vs.expPerSec = expPerSecond(target.exp, vs.kills.avg, prepared.speed.ms, prepared.targets);
   }
   const { at: _at, elementNote: _note, ...rest } = prepared;
   return { ...rest, raw, vs, elementNote: target ? prepared.elementNote(target) : null, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };
@@ -589,6 +633,8 @@ export function defaultSkill(data: CalcData, job: number, group: GroupConfig): {
   const ids = attackSkillIds(data.skills, job);
   let best: { skillId: number; skillLevel: number; value: number } | null = null;
   for (const id of ids) {
+    // 群體治癒只打得到不死系，不當預設
+    if (id === HEAL) continue;
     const skillLevel = id === BASIC_ATTACK ? 1 : group.levels[id] ?? 0;
     if (skillLevel <= 0) continue;
     const result = computeGroup(data, { job, skillId: id, skillLevel, monsterId: null }, group, null);
@@ -645,9 +691,33 @@ export function relevel(data: CalcData, state: CalcState, level: number): CalcSt
   const left = regroup(data, job, state.groups[0], { level: lv });
   const right = rightGroup(data, job, left, regroup(data, job, state.groups[1], { level: lv }));
   const oldDefault = defaultMonster(data, job, state.groups[0].level);
-  const monsterId = state.shared.monsterId === oldDefault ? defaultMonster(data, job, lv) : state.shared.monsterId;
+  let monsterId = state.shared.monsterId === oldDefault ? defaultMonster(data, job, lv) : state.shared.monsterId;
+  // 群體治癒跟著預設怪換到不是不死系的怪時，改挑這一級的不死系
+  if (state.shared.skillId === HEAL && monsterId !== state.shared.monsterId && !data.monsters.find(monster => monster.id === monsterId)?.und) {
+    monsterId = undeadDefault(monsterChoices(data.monsters, data.maps), lv, data.beforeOpen);
+  }
   const skillLevel = left.levels[state.shared.skillId] || state.shared.skillLevel;
   return { shared: { ...state.shared, skillLevel, monsterId }, groups: [left, right] };
+}
+
+/**
+ * 群體治癒的預設怪：不死系裡等級不超過角色、最高的那隻（同等級取選單裡排後面的）；都比角色高就挑最低的；
+ * 還沒開放（beforeOpen）跳過只在 V002 的怪。沒有不死系回 null。
+ */
+export function undeadDefault(choices: MonsterChoice[], level: number, beforeOpen: boolean): number | null {
+  const undead = choices.filter(choice => choice.monster.und && !(beforeOpen && choice.v002));
+  if (!undead.length) return null;
+  const reachable = undead.filter(choice => (choice.monster.lv ?? 0) <= level);
+  return (reachable.length ? reachable[reachable.length - 1] : undead[0]).monster.id;
+}
+
+/** 改共用設定：換成群體治癒、選的怪不是不死系（或沒選）時，順便換成 undeadDefault；其他照改 */
+export function withSkill(state: CalcState, patch: Partial<SharedConfig>, choices: MonsterChoice[], beforeOpen: boolean): CalcState {
+  const shared = { ...state.shared, ...patch };
+  if (patch.skillId === HEAL && !choices.find(choice => choice.monster.id === shared.monsterId)?.monster.und) {
+    shared.monsterId = undeadDefault(choices, state.groups[0].level, beforeOpen);
+  }
+  return { ...state, shared };
 }
 
 export function sameGroups(groups: [GroupConfig, GroupConfig]): boolean {
@@ -671,7 +741,8 @@ export function killLists(data: CalcData, shared: SharedConfig, group: GroupConf
   const prepared = prepare(data, shared, group);
   if (!prepared.ok) return null;
   const lists: KillLists = { one: [], two: [], nearOne: [], nearTwo: [] };
-  for (const { monster, v002 } of choices) {
+  // 群體治癒只打得到不死系（v0.88 使用者：只顯示群體治癒打到的怪）
+  for (const { monster, v002 } of prepared.heal ? choices.filter(choice => choice.monster.und) : choices) {
     const { hit } = prepared.at(monster);
     const entry = { monster, v002, minUse: hit.min * prepared.hits, midUse: ((hit.min + hit.max) / 2) * prepared.hits };
     const { hp } = monster;

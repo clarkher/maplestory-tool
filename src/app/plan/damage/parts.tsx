@@ -5,8 +5,9 @@ import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, boosterFor, defaultAmmo, expRateText, levelNeededText, monsterStats, secondsText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
-import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
+import { ammoChoices, boosterFor, defaultAmmo, expRateText, HEAL_ASSUMPTION, levelNeededText, monsterStats, secondsText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, HEAL, HEAL_TARGETS_MAX, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
+import { healTargetMultiplier } from "@/lib/damage";
 import type { Range } from "@/lib/damage";
 import { boosterSteps, SPEED_UNKNOWN } from "@/lib/damage-speed";
 import { gearPlan, tabsFor, STAT_ORDER, STAT_WORD, shortText } from "@/lib/gear-view";
@@ -185,6 +186,19 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
               </select>
             ) : null}
           </Row>
+          {/* 群體治癒範圍內幾隻（v0.88 使用者選 3A）：怪越多每隻分到越少 */}
+          {state.shared.skillId === HEAL ? (
+            <>
+              <Row label="範圍內幾隻">
+                <select aria-label="範圍內幾隻" className={SELECT} value={state.shared.targets ?? 1} onChange={event => onShared({ targets: Number(event.target.value) })}>
+                  {Array.from({ length: HEAL_TARGETS_MAX }, (_, index) => <option key={index} value={index + 1}>{index + 1} 隻</option>)}
+                </select>
+              </Row>
+              <p className="pb-1 text-right text-[11px] ink-faint">
+                怪越多每隻分到越少：{[1, 3, 5].map(count => `${count} 隻 ×${Number(healTargetMultiplier(count).toFixed(2))}`).join("、")}
+              </p>
+            </>
+          ) : null}
           {missing.length ? <p className="pb-1 text-[12px] ink-faint">沒算的：{missing.map(entry => entry.name).filter((name, index, all) => all.indexOf(name) === index).join("、")}（原因在最下面）</p> : null}
           <Row label="打哪隻怪">
             {state.shared.monsterId !== null ? <Sprite src={monsterImage(state.shared.monsterId)} size={24} /> : null}
@@ -226,7 +240,8 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
   const first = results.find(result => result.ok);
   // 兩組都算不出來也要寫選的是哪個技能（不能說「技能一次（1 下）」），幾下是算得出來才有的
   const skillName = state.shared.skillId === BASIC_ATTACK ? "普通攻擊" : data.skills.get(state.shared.skillId)?.n ?? "技能";
-  const title = first?.ok ? `${first.name}一次（${first.hits} 下）` : `${skillName}一次`;
+  // 群體治癒的數字是每一隻吃到的（範圍內每隻 1 下）
+  const title = first?.ok ? (first.heal ? `${first.name}一次（範圍內 ${first.targets} 隻，每隻 1 下）` : `${first.name}一次（${first.hits} 下）`) : `${skillName}一次`;
   const shown = (result: GroupResult) => (result.ok ? (result.vs ?? result.raw).use : null);
   // 屬性加成（v0.84 使用者選 A）：兩組一樣（同一招、同一隻怪）只寫一次，不一樣（只有一組開充能）就各寫在那組下面
   const notes = results.map(result => (result.ok ? result.elementNote : null));
@@ -241,6 +256,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
         <h2 className="text-[15px] font-black">{title}</h2>
         {target ? <Tag level="unverified" /> : <Tag level="legacy" />}
       </header>
+      {first?.ok && first.heal ? <p className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{HEAL_ASSUMPTION}</p> : null}
       {sharedNote ? <ElementNote text={sharedNote} /> : null}
       {hitVs ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[12px] font-bold">{accuracyText(hitVs.accuracy, hitVs.accuracyKind)}</p> : null}
       {results.map((result, index) => {
@@ -295,7 +311,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
         );
       })}
       {results.some(result => result.ok && result.vs?.expPerSec != null) ? (
-        <p className="text-[11px] ink-faint">每秒經驗是理論最快：不含走路、MISS、怪物回生，實際大概再低 1～3 成；範圍技能也只算打一隻。出手時間是國際服經典版玩家整理，台服沒驗證。</p>
+        <p className="text-[11px] ink-faint">
+          每秒經驗是理論最快：不含走路、MISS、怪物回生，實際大概再低 1～3 成；{first?.ok && first.heal ? "群體治癒算範圍內每一隻" : "範圍技能也只算打一隻"}。出手時間是國際服經典版玩家整理，台服沒驗證。
+        </p>
       ) : null}
       {sameGroups(state.groups) ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[13px]">兩組一樣，改下面右組的設定來比</p> : diff ? <p className="rounded-lg bg-[color:var(--leaf-wash)] px-2.5 py-1.5 text-[13px] font-bold">{diff}</p> : null}
       <details open={detailsOpen} onToggle={event => setDetailsOpen(event.currentTarget.open)}>
@@ -315,7 +333,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
     ["總攻擊", ok => (ok.magic ? null : String(ok.attack)), "client"],
     ["每一下（木樁）", ok => fmt(ok.raw.hit), "legacy"],
     ["爆擊那一下", ok => (ok.raw.crit && ok.critRate !== null ? `${fmt(ok.raw.crit.hit)}（${Math.round(ok.critRate * 100)}%）` : null), "unverified"],
-    ["出一招幾秒", ok => (ok.speed ? `${secondsText(ok.speed.ms)} 秒（${ok.speed.stun ? "放完自暈" : `${ok.speed.tier} 階`}）` : "查不到"), "unverified", "括號是攻速階，開加速快 2 階；法師固定 6 階、極速詠唱快 1～2 階；龍咆哮放完會自暈"],
+    ["出一招幾秒", ok => (ok.speed ? `${secondsText(ok.speed.ms)} 秒（${ok.speed.fixed ? "固定" : ok.speed.stun ? "放完自暈" : `${ok.speed.tier} 階`}）` : "查不到"), "unverified", "括號是攻速階，開加速快 2 階；法師固定 6 階、極速詠唱快 1～2 階；龍咆哮放完會自暈；群體治癒固定 0.6 秒"],
   ];
   if (target) {
     rows.push(
@@ -323,7 +341,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
       [`打${target.n}爆擊`, ok => (ok.vs?.crit ? fmt(ok.vs.crit.hit) : null), "unverified"],
       ["幾次打死", ok => (ok.vs ? `約 ${ok.vs.kills.avg}（最快 ${ok.vs.kills.fastest}、最慢 ${ok.vs.kills.slowest}）` : null), "unverified"],
       ["要不 miss，命中要", ok => (ok.vs ? `${ok.vs.accuracyKind === "magic" ? "魔法 " : ""}${ok.vs.accuracy.toLocaleString()}` : null), "unverified", "物理看能力視窗的命中率；法師看魔法命中（智力÷10＋幸運÷10）"],
-      ["每秒經驗", ok => (ok.vs ? (ok.vs.expPerSec !== null ? expRateText(ok.vs.expPerSec) : "查不到") : null), "unverified", "只算打一隻、不含走路"],
+      ["每秒經驗", ok => (ok.vs ? (ok.vs.expPerSec !== null ? expRateText(ok.vs.expPerSec) : "查不到") : null), "unverified", "只算打一隻（群體治癒算範圍內每一隻）、不含走路"],
     );
   }
   const visible = rows.filter(([, pick]) => results.some(result => result.ok && pick(result) !== null));
@@ -589,6 +607,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
 export function HowCard({ data, job, level }: { data: CalcData; job: number; level: number }) {
   const [open, setOpen] = useVisitState("damage:how", false);
   const missing = useMemo(() => notCalculatedFor(data.skills, job), [data.skills, job]);
+  const hasHeal = useMemo(() => attackSkillIds(data.skills, job).includes(HEAL), [data.skills, job]);
   const guided = useMemo(() => skillLevelsAt(job, level, data.guides, data.skills).guided, [job, level, data.guides, data.skills]);
   return (
     <details className="rounded-[var(--radius-card)] glass wood-frame p-3.5" open={open} onToggle={event => setOpen(event.currentTarget.open)}>
@@ -598,6 +617,9 @@ export function HowCard({ data, job, level }: { data: CalcData; job: number; lev
         <p><Tag level="legacy" /> 技能倍率（雙飛斬、魔法、龍咆哮、強弓…）：舊版公式，楓錄、楓憶跟舊版公式彙整寫法一致。</p>
         <p><Tag level="unverified" /> 打怪（防禦、等級差、屬性）、爆擊、命中：舊版國際服的公式，台服經典版沒人實測過，數字可能不準。</p>
         <p><Tag level="unverified" /> 出一招幾秒、每秒經驗：國際服經典版玩家整理的出手時間（每個技能、每個攻速一張表），台服沒驗證；每秒經驗不含走路、MISS、怪物回生，範圍技能也只算打一隻。海盜、龍之獻祭查不到。</p>
+        {hasHeal ? (
+          <p><Tag level="unverified" /> 群體治癒打不死系：(智力×1.2＋幸運)×魔攻÷1000×目標倍率×恢復力%，下限把 1.2 換成 0.3；目標倍率＝1.5＋5÷(範圍內隻數＋自己)。舊版玩家整理，台服沒驗證；算不算神聖屬性各說各話，這裡不乘。</p>
+        ) : null}
         {guided ? null : <p className="font-bold">這個職業還沒有技能點法攻略，技能等級先用最高等級</p>}
         <SourceLinks urls={["https://bobogameguides.com/maplestory-classic/tools/attack-power/", "https://ayumilovemaple.wordpress.com/2009/09/06/maplestory-formula-compilation/", "https://oddjobs.codeberg.page/dmg-calc/", "https://meowdb.com/msclassic/guides/attack-speed-and-animation-times"]} />
         {missing.length ? (
