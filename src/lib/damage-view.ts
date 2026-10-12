@@ -702,10 +702,13 @@ export function relevel(data: CalcData, state: CalcState, level: number): CalcSt
 
 /**
  * 群體治癒的預設怪：不死系裡等級不超過角色、最高的那隻（同等級取選單裡排後面的）；都比角色高就挑最低的；
- * 還沒開放（beforeOpen）跳過只在 V002 的怪。沒有不死系回 null。
+ * 還沒開放（beforeOpen）跳過只在 V002 的怪。整張圖最多 BOSS_SPAWN_MAX 隻的（殭屍蘑菇王這種王、冥界幽靈這種迴避 999 的稀有怪）
+ * 不自動挑——跟練功排行跳過王圖同一條規則；手動還是選得到。沒有不死系回 null。
  */
 export function undeadDefault(choices: MonsterChoice[], level: number, beforeOpen: boolean): number | null {
-  const undead = choices.filter(choice => choice.monster.und && !(beforeOpen && choice.v002));
+  const open = choices.filter(choice => choice.monster.und && !(beforeOpen && choice.v002));
+  const common = open.filter(choice => !choice.monster.sp?.length || Math.max(...choice.monster.sp.map(([, count]) => count)) > BOSS_SPAWN_MAX);
+  const undead = common.length ? common : open;
   if (!undead.length) return null;
   const reachable = undead.filter(choice => (choice.monster.lv ?? 0) <= level);
   return (reachable.length ? reachable[reachable.length - 1] : undead[0]).monster.id;
