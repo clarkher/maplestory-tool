@@ -420,6 +420,8 @@ type Prepared = {
   speed: Speed | null;
   heal: boolean;
   targets: number;
+  /** 這一招打出去的屬性（白騎士充能看充能的）；沒有屬性、群體治癒（神聖不乘）是 null */
+  element: Element | null;
   at(target: Monster | null): { hit: Range; crit: Range | null };
   elementNote(target: Monster): string | null;
 };
@@ -547,6 +549,7 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     speed,
     heal,
     targets,
+    element: heal ? null : charge?.element ?? rule.element ?? null,
     elementNote(target) {
       // 群體治癒算不算神聖屬性各說各話（v0.88 使用者選 4A：不乘），打怕神聖的怪寫一行
       if (heal) return target.el?.h === "w" ? HEAL_HOLY_NOTE : null;
@@ -653,7 +656,7 @@ export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupC
       vs.tenMinute = tenMinute(vs.expPerSec, group.level, data.expToNext);
     }
   }
-  const { at: _at, elementNote: _note, ...rest } = prepared;
+  const { at: _at, elementNote: _note, element: _element, ...rest } = prepared;
   return { ...rest, raw, vs, elementNote: target ? prepared.elementNote(target) : null, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };
 }
 
@@ -762,7 +765,8 @@ export function sameGroups(groups: [GroupConfig, GroupConfig]): boolean {
 
 /** minUse：最低一次（不爆擊）；midUse：最高跟最低的中間值一次（不爆擊） */
 export type KillEntry = { monster: Monster; v002: boolean; minUse: number; midUse: number };
-export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry[]; nearTwo: KillEntry[] };
+/** element：這一招的屬性（名單上「只看怕這個屬性的怪」按鈕用），沒有屬性是 null */
+export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry[]; nearTwo: KillEntry[]; element: Element | null };
 
 /**
  * 一下打死＝這組用一次選的技能、扣完防禦的最低一次 ≥ HP；兩下＝最低一次×2 ≥ HP、不在一下那張。爆擊不算（要穩穩打死）。
@@ -774,7 +778,7 @@ export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry
 export function killLists(data: CalcData, shared: SharedConfig, group: GroupConfig, choices: MonsterChoice[]): KillLists | null {
   const prepared = prepare(data, shared, group);
   if (!prepared.ok) return null;
-  const lists: KillLists = { one: [], two: [], nearOne: [], nearTwo: [] };
+  const lists: KillLists = { one: [], two: [], nearOne: [], nearTwo: [], element: prepared.element };
   // 群體治癒只打得到不死系（v0.88 使用者：只顯示群體治癒打到的怪）
   for (const { monster, v002 } of prepared.heal ? choices.filter(choice => choice.monster.und) : choices) {
     const { hit } = prepared.at(monster);
@@ -788,7 +792,20 @@ export function killLists(data: CalcData, shared: SharedConfig, group: GroupConf
     else if (entry.minUse * 2 < hp && entry.midUse * 2 >= hp) lists.nearTwo.push(entry);
   }
   const order = (a: KillEntry, b: KillEntry) => (b.monster.lv ?? 0) - (a.monster.lv ?? 0) || b.monster.hp - a.monster.hp || a.monster.id - b.monster.id;
-  return { one: lists.one.sort(order), two: lists.two.sort(order), nearOne: lists.nearOne.sort(order), nearTwo: lists.nearTwo.sort(order) };
+  return { one: lists.one.sort(order), two: lists.two.sort(order), nearOne: lists.nearOne.sort(order), nearTwo: lists.nearTwo.sort(order), element: lists.element };
+}
+
+/** 「只看怕這個屬性的怪」（v0.90）：on 而且招式有屬性時，四張都只留弱那個屬性的怪（順序不變）；否則原樣回 */
+export function weakFilter(lists: KillLists, on: boolean): KillLists {
+  const element = lists.element;
+  if (!on || !element) return lists;
+  const weak = (list: KillEntry[]) => list.filter(entry => entry.monster.el?.[element] === "w");
+  return { ...lists, one: weak(lists.one), two: weak(lists.two), nearOne: weak(lists.nearOne), nearTwo: weak(lists.nearTwo) };
+}
+
+/** 屬性的字：「火屬性」「神聖屬性」（名單按鈕跟結果卡同一套） */
+export function elementWord(element: Element): string {
+  return ELEMENT_WORD[element];
 }
 
 /** 「一般點法比全幸多約 3%」：大的比小的；差距四捨五入後是 0（不到 0.5%）寫「兩組差不多」；有一組算不出來不寫 */
