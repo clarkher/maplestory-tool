@@ -12,7 +12,7 @@ import { gearPlan } from "@/lib/gear-view";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
 import { planTraining } from "@/lib/planner";
 import { LEVEL_CAP as PROFILE_LEVEL_CAP } from "@/lib/profile";
-import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/types";
+import type { GuideCommon, GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/types";
 import {
   ammoChoices,
   boosterFor,
@@ -25,8 +25,10 @@ import {
   defaultSkill,
   defaultState,
   diffText,
-  expRateText,
   groupLabels,
+  levelPercentText,
+  tenMinute,
+  tenMinuteExpText,
   killLists,
   levelNoticeText,
   monsterStats,
@@ -60,6 +62,7 @@ const data: CalcData = {
   monsters: read<Monster[]>("monsters.json"),
   maps: read<Record<string, MapRecord>>("maps.json"),
   training: read<TrainingRow[]>("training.json"),
+  expToNext: read<GuideCommon>("guides/common.json").expTable.toNext,
   // 測試固定當作已開放（10/15 之後），不跟著跑測試的日期變
   beforeOpen: false,
 };
@@ -793,13 +796,7 @@ describe("秒數、每秒經驗的寫法", () => {
     expect(secondsText(2000)).toBe("2");
     expect(secondsText(1590)).toBe("1.59");
   });
-  it("每秒經驗：10 以上取整加千分位、以下一位小數、太小寫不到 0.1", () => {
-    expect(expRateText(1234.6)).toBe("1,235");
-    expect(expRateText(52.4)).toBe("52");
-    expect(expRateText(8.26)).toBe("8.3");
-    expect(expRateText(0.04)).toBe("不到 0.1");
-    expect(expRateText(0)).toBe("0");
-  });
+
 });
 
 describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）", () => {
@@ -920,5 +917,40 @@ describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）
     expect(save(2.5)).toBeNull();
     expect(save("3")).toBeNull();
     expect(parseState(JSON.stringify(state))).not.toBeNull();
+  });
+});
+
+describe("10 分鐘經驗、占這一級的 %（v0.89 使用者：每秒經驗改 10 分鐘預估，% 照當前等級升級要的經驗）", () => {
+  const toNext = data.expToNext;
+  it("10 分鐘＝每秒×600；% ＝ 10 分鐘經驗 ÷ 這一級升到下一級要的經驗", () => {
+    const result = tenMinute(44, 50, toNext);
+    expect(result.exp).toBeCloseTo(26400);
+    expect(result.percent).toBeCloseTo((26400 / toNext[50]) * 100);
+  });
+  it("滿等（120）沒有下一級：% 是 null", () => {
+    expect(tenMinute(44, 120, toNext).percent).toBeNull();
+  });
+  it("computeGroup 帶出 10 分鐘經驗跟 %，照兩組共用的等級算", () => {
+    const state = defaultState(data, 410, 50, null);
+    const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+    const result = computeGroup(data, state.shared, state.groups[0], dragon);
+    if (!result.ok || !result.vs || result.vs.expPerSec === null || !result.vs.tenMinute) throw new Error("算不出來");
+    expect(result.vs.tenMinute.exp).toBeCloseTo(result.vs.expPerSec * 600);
+    expect(result.vs.tenMinute.percent).toBeCloseTo(((result.vs.expPerSec * 600) / toNext[50]) * 100);
+  });
+  it("出手時間查不到：10 分鐘也是 null", () => {
+    const state = defaultState(data, 510, 50, null);
+    const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+    const result = computeGroup(data, { ...state.shared, skillId: 5001001, skillLevel: 20 }, state.groups[0], dragon);
+    expect(result.ok && result.vs?.tenMinute).toBeNull();
+  });
+  it("寫法：經驗取整加千分位；% 10 以上取整、以下一位小數、太小寫不到 0.1%", () => {
+    expect(tenMinuteExpText(26400.4)).toBe("26,400");
+    expect(tenMinuteExpText(0)).toBe("0");
+    expect(levelPercentText(135.2)).toBe("135%");
+    expect(levelPercentText(12.34)).toBe("12%");
+    expect(levelPercentText(3.46)).toBe("3.5%");
+    expect(levelPercentText(0.46)).toBe("0.5%");
+    expect(levelPercentText(0.04)).toBe("不到 0.1%");
   });
 });

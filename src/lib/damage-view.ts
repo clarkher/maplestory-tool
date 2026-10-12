@@ -63,6 +63,8 @@ export type CalcData = {
   monsters: Monster[];
   maps: Record<string, MapRecord>;
   training: TrainingRow[];
+  /** 升級經驗表（guides/common.json 的 expTable.toNext）：[n]＝Lv.n 升到 n+1 要的經驗，算 10 分鐘經驗占這一級幾 % */
+  expToNext: number[];
   beforeOpen: boolean;
 };
 
@@ -339,6 +341,16 @@ export function clampState(state: CalcState): CalcState {
 
 export type Unready = { ok: false; reason: string };
 export type HitPair = { hit: Range; use: Range; crit: { hit: Range; use: Range } | null };
+/** 10 分鐘經驗、占這一級升級經驗的 %（滿等沒有下一級是 null） */
+export type TenMinute = { exp: number; percent: number | null };
+
+/** 每秒經驗換成 10 分鐘（v0.89 使用者：改 10 分鐘預估，% 照當前等級升級要的經驗） */
+export function tenMinute(expPerSec: number, level: number, expToNext: number[]): TenMinute {
+  const exp = expPerSec * 600;
+  const need = expToNext[level];
+  return { exp, percent: need ? (exp / need) * 100 : null };
+}
+
 /**
  * 出一招幾毫秒、用的攻速階（夾在 0～10，法師是施法的階）、有沒有算到加速；stun＝龍咆哮這一輪被自暈拉長（秒數跟攻速無關）；
  * fixed＝出手時間固定、不吃攻速（群體治癒）
@@ -375,8 +387,19 @@ export type GroupResult =
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
-      /** accuracy：要不 miss 命中要多少（物理看命中、法師看魔法命中，accuracyKind 分）；expPerSec：每秒經驗（只算打一隻，出手時間查不到是 null） */
-      vs: (HitPair & { kills: { avg: number; fastest: number; slowest: number }; accuracy: number; accuracyKind: "physical" | "magic"; expPerSec: number | null }) | null;
+      /**
+       * accuracy：要不 miss 命中要多少（物理看命中、法師看魔法命中，accuracyKind 分）；expPerSec：每秒經驗（只算打一隻，出手時間查不到是 null）；
+       * tenMinute：10 分鐘經驗跟占這一級升級經驗的 %（畫面寫這個，v0.89）
+       */
+      vs:
+        | (HitPair & {
+            kills: { avg: number; fastest: number; slowest: number };
+            accuracy: number;
+            accuracyKind: "physical" | "magic";
+            expPerSec: number | null;
+            tenMinute: TenMinute | null;
+          })
+        | null;
       /** 一次的期望（選了怪用扣完防禦的） */
       expectedUse: number;
     };
@@ -582,12 +605,16 @@ export function secondsText(ms: number): string {
   return String(Number((ms / 1000).toFixed(2)));
 }
 
-/** 每秒經驗的數字：10 以上取整、以下留一位小數（0.8）；太小寫「不到 0.1」；經驗 0 的怪（戰車那種）寫 0 */
-export function expRateText(value: number): string {
-  if (value <= 0) return "0";
-  if (value >= 10) return Math.round(value).toLocaleString();
-  if (value >= 0.1) return String(Number(value.toFixed(1)));
-  return "不到 0.1";
+/** 10 分鐘經驗：取整加千分位（經驗 0 的怪寫 0） */
+export function tenMinuteExpText(value: number): string {
+  return Math.round(Math.max(0, value)).toLocaleString();
+}
+
+/** 占這一級幾 %：10 以上取整、以下一位小數、太小寫「不到 0.1%」 */
+export function levelPercentText(percent: number): string {
+  if (percent >= 10) return `${Math.round(percent)}%`;
+  if (percent >= 0.1) return `${Number(percent.toFixed(1))}%`;
+  return "不到 0.1%";
 }
 
 /** 「要 Lv.60 才拿得到（照樣算）」：結果卡（warnings）跟分頁裡武器下面用同一句 */
@@ -618,9 +645,13 @@ export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupC
       accuracy: prepared.magic ? magicSureHitAccuracy(group.level, target) : sureHitAccuracy(group.level, target),
       accuracyKind: prepared.magic ? "magic" : "physical",
       expPerSec: null,
+      tenMinute: null,
     };
     // 每秒經驗（v0.87 使用者選 1A：範圍技能也只算打一隻）；群體治癒的隻數是使用者自己選的、傷害也照隻數攤，範圍內每一隻都算
-    if (prepared.speed) vs.expPerSec = expPerSecond(target.exp, vs.kills.avg, prepared.speed.ms, prepared.targets);
+    if (prepared.speed) {
+      vs.expPerSec = expPerSecond(target.exp, vs.kills.avg, prepared.speed.ms, prepared.targets);
+      vs.tenMinute = tenMinute(vs.expPerSec, group.level, data.expToNext);
+    }
   }
   const { at: _at, elementNote: _note, ...rest } = prepared;
   return { ...rest, raw, vs, elementNote: target ? prepared.elementNote(target) : null, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };

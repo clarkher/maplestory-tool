@@ -5,7 +5,7 @@ import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, boosterFor, defaultAmmo, expRateText, HEAL_ASSUMPTION, levelNeededText, monsterStats, secondsText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { ammoChoices, boosterFor, defaultAmmo, HEAL_ASSUMPTION, levelNeededText, levelPercentText, monsterStats, secondsText, tenMinuteExpText, type TenMinute, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, HEAL, HEAL_TARGETS_MAX, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
 import { healTargetMultiplier } from "@/lib/damage";
 import type { Range } from "@/lib/damage";
@@ -229,6 +229,12 @@ export function accuracyText(accuracy: number, kind: "physical" | "magic"): stri
     : `要不 miss，命中要 ${accuracy.toLocaleString()}（看能力視窗的命中率）`;
 }
 
+/** 「10 分鐘約 26,400 經驗，Lv.50 升級經驗的 3.7%」；滿等沒有下一級就不寫 % */
+function tenMinuteText(value: TenMinute, level: number): string {
+  const head = `10 分鐘約 ${tenMinuteExpText(value.exp)} 經驗`;
+  return value.percent === null ? head : `${head}，Lv.${level} 升級經驗的 ${levelPercentText(value.percent)}`;
+}
+
 /** 屬性加成那一行（「火屬性打弱點 ×1.5」）：資訊不是警告，用天藍淡底 */
 function ElementNote({ text }: { text: string }) {
   return <p className="rounded-lg bg-[color:var(--sky-wash)] px-2.5 py-1.5 text-[12px] font-bold text-[color:var(--sky)]">{text}</p>;
@@ -264,6 +270,8 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
         const bits = result.ok
           ? [
               result.vs && target ? <span>打{target.n}約 {result.vs.kills.avg} 次</span> : null,
+              // 出手時間放在這行（v0.89：10 分鐘經驗那行才放得下一行）
+              result.vs && result.speed ? <span>{result.speed.stun ? `一輪 ${secondsText(result.speed.ms)} 秒（含放完自暈）` : `出一招 ${secondsText(result.speed.ms)} 秒`}</span> : null,
               result.panel ? (
                 <span>能力視窗 {fmt(result.panel)}<span className="ink-faint">（玩家依客戶端整理）</span></span>
               ) : result.magicPower !== null ? (
@@ -290,14 +298,12 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
                     {bits.map((bit, at) => <Fragment key={at}>{at ? "・" : null}{bit}</Fragment>)}
                   </p>
                 ) : null}
-                {/* 每秒經驗（v0.87）：選了怪才有；出手時間查不到的招式照實寫 */}
+                {/* 10 分鐘經驗（v0.87 每秒經驗，v0.89 使用者改成 10 分鐘＋占這一級升級經驗的 %）：選了怪才有；出手時間查不到的招式照實寫 */}
                 {result.vs ? (
-                  result.vs.expPerSec !== null && result.speed ? (
-                    <p className="text-[13px] font-bold">
-                      每秒約 {expRateText(result.vs.expPerSec)} 經驗<span className="text-[12px] font-normal ink-soft">（{result.speed.stun ? `一輪 ${secondsText(result.speed.ms)} 秒，含放完自暈` : `出一招 ${secondsText(result.speed.ms)} 秒`}）</span>
-                    </p>
+                  result.vs.tenMinute ? (
+                    <p className="text-[13px] font-bold">{tenMinuteText(result.vs.tenMinute, state.groups[index].level)}</p>
                   ) : (
-                    <p className="text-[12px] ink-soft">每秒經驗：{SPEED_UNKNOWN}</p>
+                    <p className="text-[12px] ink-soft">10 分鐘經驗：{SPEED_UNKNOWN}</p>
                   )
                 ) : null}
                 {!sharedNote && result.elementNote ? <ElementNote text={result.elementNote} /> : null}
@@ -311,9 +317,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
           </div>
         );
       })}
-      {results.some(result => result.ok && result.vs?.expPerSec != null) ? (
+      {results.some(result => result.ok && result.vs?.tenMinute) ? (
         <p className="text-[11px] ink-faint">
-          每秒經驗是理論最快：不含走路、MISS、怪物回生，實際大概再低 1～3 成；
+          10 分鐘經驗是理論最快：一直打、不含走路、MISS、怪物回生，實際大概再低 1～3 成；
           {first?.ok && first.heal ? "群體治癒算範圍內每一隻，出一招 0.6 秒是舊版玩家整理，台服沒驗證。" : "範圍技能也只算打一隻。出手時間是國際服經典版玩家整理，台服沒驗證。"}
         </p>
       ) : null}
@@ -343,7 +349,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
       [`打${target.n}爆擊`, ok => (ok.vs?.crit ? fmt(ok.vs.crit.hit) : null), "unverified"],
       ["幾次打死", ok => (ok.vs ? `約 ${ok.vs.kills.avg}（最快 ${ok.vs.kills.fastest}、最慢 ${ok.vs.kills.slowest}）` : null), "unverified"],
       ["要不 miss，命中要", ok => (ok.vs ? `${ok.vs.accuracyKind === "magic" ? "魔法 " : ""}${ok.vs.accuracy.toLocaleString()}` : null), "unverified", "物理看能力視窗的命中率；法師看魔法命中（智力÷10＋幸運÷10）"],
-      ["每秒經驗", ok => (ok.vs ? (ok.vs.expPerSec !== null ? expRateText(ok.vs.expPerSec) : "查不到") : null), "unverified", "只算打一隻（群體治癒算範圍內每一隻）、不含走路"],
+      ["10 分鐘經驗", ok => (ok.vs ? (ok.vs.tenMinute ? `${tenMinuteExpText(ok.vs.tenMinute.exp)}${ok.vs.tenMinute.percent !== null ? `（${levelPercentText(ok.vs.tenMinute.percent)}）` : ""}` : "查不到") : null), "unverified", "只算打一隻（群體治癒算範圍內每一隻）、不含走路；括號是這一級升級經驗的幾 %"],
     );
   }
   const visible = rows.filter(([, pick]) => results.some(result => result.ok && pick(result) !== null));
@@ -618,7 +624,7 @@ export function HowCard({ data, job, level }: { data: CalcData; job: number; lev
         <p><Tag level="client" /> 能力視窗攻擊力：依客戶端計算式整理的公式，還沒跟台服遊戲畫面逐筆對過。</p>
         <p><Tag level="legacy" /> 技能倍率（雙飛斬、魔法、龍咆哮、強弓…）：舊版公式，楓錄、楓憶跟舊版公式彙整寫法一致。</p>
         <p><Tag level="unverified" /> 打怪（防禦、等級差、屬性）、爆擊、命中：舊版國際服的公式，台服經典版沒人實測過，數字可能不準。</p>
-        <p><Tag level="unverified" /> 出一招幾秒、每秒經驗：國際服經典版玩家整理的出手時間（每個技能、每個攻速一張表），台服沒驗證；每秒經驗不含走路、MISS、怪物回生，範圍技能也只算打一隻（群體治癒算範圍內每一隻）。海盜、龍之獻祭查不到。</p>
+        <p><Tag level="unverified" /> 出一招幾秒、10 分鐘經驗：國際服經典版玩家整理的出手時間（每個技能、每個攻速一張表），台服沒驗證；10 分鐘經驗＝一直打不停、不含走路、MISS、怪物回生，範圍技能也只算打一隻（群體治癒算範圍內每一隻）；% 是這個等級升到下一級要的經驗的幾 %。海盜、龍之獻祭查不到。</p>
         {hasHeal ? (
           <p><Tag level="unverified" /> 群體治癒打不死系：(智力×1.2＋幸運)×魔攻÷1000×目標倍率×恢復力%，下限把 1.2 換成 0.3；目標倍率＝1.5＋5÷(範圍內隻數＋自己)；出一招固定 0.6 秒。舊版玩家整理，台服沒驗證；算不算神聖屬性各說各話，這裡不乘。</p>
         ) : null}

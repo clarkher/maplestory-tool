@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { useBuildChoice } from "@/lib/build-choice";
-import { loadGear, loadGuide, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
+import { loadGear, loadGuide, loadGuideCommon, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
 import {
   clampLevel,
   clampState,
@@ -32,7 +32,7 @@ import { useVisitState } from "@/lib/visit-state";
 import { KillCard } from "./KillCard";
 import { GroupEditor, groupName, HowCard, ResultCard, SharedCard } from "./parts";
 
-type BaseData = { gear: GearData; skills: Map<number, Skill>; monsters: Monster[]; maps: Record<string, MapRecord>; training: TrainingRow[] };
+type BaseData = { gear: GearData; skills: Map<number, Skill>; monsters: Monster[]; maps: Record<string, MapRecord>; training: TrainingRow[]; expToNext: number[] };
 
 /** 這個職業一路上來的攻略（一轉→三轉）；載完才回物件，載不到的那轉是 undefined（畫面退回技能最高等級） */
 function useGuides(job: number): Record<number, GuideJob | undefined> | null {
@@ -79,9 +79,9 @@ export function DamageCalculator() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadGear(), loadSkills(), loadMonsters(), loadMaps(), loadTraining()])
-      .then(([gear, skills, monsters, maps, training]) => {
-        if (!cancelled) setBase({ gear, skills: new Map(skills.map(skill => [skill.id, skill])), monsters, maps, training });
+    Promise.all([loadGear(), loadSkills(), loadMonsters(), loadMaps(), loadTraining(), loadGuideCommon()])
+      .then(([gear, skills, monsters, maps, training, common]) => {
+        if (!cancelled) setBase({ gear, skills: new Map(skills.map(skill => [skill.id, skill])), monsters, maps, training, expToNext: common.expTable.toNext });
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
