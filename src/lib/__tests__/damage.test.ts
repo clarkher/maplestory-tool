@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  arrowBombBase,
+  knockbackBase,
   average,
   chargeFactor,
   combineFactors,
@@ -58,7 +58,7 @@ describe("技能基本傷害（舊版公式）", () => {
     expect(r.min).toBeCloseTo(((300 * 4 * 0.6 * 0.9 + 60) * 100) / 100);
   });
   it("強弓／強弩：除以 150、熟練度固定 10%", () => {
-    const r = arrowBombBase(stats(50, 200, 4, 4), 75);
+    const r = knockbackBase(stats(50, 200, 4, 4), 75);
     expect(r.max).toBeCloseTo(((200 * 3.4 + 50) * 75) / 150);
     expect(r.min).toBeCloseTo(((200 * 3.4 * 0.1 * 0.9 + 50) * 75) / 150);
   });

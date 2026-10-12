@@ -9,7 +9,7 @@ import { monsterImage } from "@/lib/data";
 import { elementWord, killLists, monsterStats, weakFilter, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
 import { useVisitState } from "@/lib/visit-state";
 import { magicSureHitAccuracy, sureHitAccuracy } from "@/lib/damage";
-import { HEAL } from "@/lib/damage-skills";
+import { BOMB_ARROW, HEAL } from "@/lib/damage-skills";
 import { isMagicJob } from "@/lib/gear";
 import { accuracyText, Tag } from "./parts";
 
@@ -197,6 +197,7 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
           <Section title="兩下打死" storeKey="damage:kill-two" list={lists.two} beforeOpen={beforeOpen} onOpen={open({ hits: "兩下", near: false })} />
           <p className="text-[11px] ink-faint">
             {state.shared.skillId === HEAL ? `群體治癒只列不死系、照範圍內 ${state.shared.targets ?? 1} 隻算；` : null}
+            {state.shared.skillId === BOMB_ARROW ? "炸彈箭照被射中那隻（50%）算；" : null}
             照「{label}」算、最低傷害也打得死才算；等級高的排前面。打怪公式是舊版國際服的，經典版沒驗證。
           </p>
           {/* 差一點（2026-10-12 使用者追加，選 B）：中間值打得死、最低打不死的，分一下、兩下兩排 */}

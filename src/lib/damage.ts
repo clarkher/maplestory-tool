@@ -73,8 +73,8 @@ export function dragonRoarBase(stats: Stats, attack: number, mastery: number): R
   };
 }
 
-/** 強弓／強弩：用弓敲的公式，除以 150、熟練度固定 10% */
-export function arrowBombBase(stats: Stats, attack: number): Range {
+/** 強弓／強弩：用弓敲的公式，除以 150、熟練度固定 10%（舊版公式彙整的「Power Knock Back」段；不是炸彈箭） */
+export function knockbackBase(stats: Stats, attack: number): Range {
   return {
     min: ((stats.DEX * 3.4 * 0.1 * 0.9 + stats.STR) * attack) / 150,
     max: ((stats.DEX * 3.4 + stats.STR) * attack) / 150,
