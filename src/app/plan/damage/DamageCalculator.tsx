@@ -7,12 +7,14 @@ import { LoadingBlock } from "@/components/PlanShell";
 import { useBuildChoice } from "@/lib/build-choice";
 import { loadGear, loadGuide, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
 import {
+  clampLevel,
   clampState,
   computeGroup,
   defaultState,
   diffText,
   groupLabels,
   monsterChoices,
+  levelNoticeText,
   parseState,
   relevel,
   type CalcData,
@@ -21,7 +23,7 @@ import {
   type SharedConfig,
 } from "@/lib/damage-view";
 import type { GearData } from "@/lib/gear";
-import { jobTier, minLevelFor } from "@/lib/jobs";
+import { minLevelFor } from "@/lib/jobs";
 import { jobLineage } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
@@ -29,9 +31,6 @@ import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/typ
 import { useVisitState } from "@/lib/visit-state";
 import { KillCard } from "./KillCard";
 import { GroupEditor, groupName, HowCard, ResultCard, SharedCard } from "./parts";
-
-/** 換職業時等級被拉高的說明用字 */
-const TIER_WORD: Record<number, string> = { 1: "一轉", 2: "二轉", 3: "三轉" };
 
 type BaseData = { gear: GearData; skills: Map<number, Skill>; monsters: Monster[]; maps: Record<string, MapRecord>; training: TrainingRow[] };
 
@@ -117,7 +116,7 @@ export function DamageCalculator() {
     levelBeforeSwitch.current = null;
     const lowest = minLevelFor(pendingJob);
     setSaved(JSON.stringify(defaultState(data, pendingJob, Math.max(before, lowest), buildTab)));
-    setLevelNotice(before < lowest ? `${TIER_WORD[jobTier(pendingJob)] ?? ""}最低 ${lowest} 等，已調成 ${lowest}` : null);
+    setLevelNotice(levelNoticeText(pendingJob, before));
     setPendingJob(null);
   }, [pendingJob, data, savedState, startLevel, buildTab, setSaved]);
 
@@ -185,8 +184,10 @@ export function DamageCalculator() {
         onJob={pickJob}
         onShared={setShared}
         onLevel={level => {
-          setLevelNotice(null);
-          update(relevel(data, state, level));
+          // 打的等級不合理（三轉打 50、打 200）：夾回範圍並寫明；合法的就把說明收掉
+          setLevelNotice(levelNoticeText(job, level));
+          // 夾完還是原本的等級（三轉在 70 又打 50）就不重算，免得把手改過的能力值、武器攻擊洗掉
+          if (clampLevel(job, level) !== state.groups[0].level) update(relevel(data, state, level));
         }}
         levelNotice={levelNotice}
         choices={choices}

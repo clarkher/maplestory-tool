@@ -160,6 +160,19 @@ export function clampLevel(job: number, level: number): number {
   return Math.min(LEVEL_CAP, Math.max(minLevelFor(job), Math.round(level) || 1));
 }
 
+const TIER_WORD: Record<number, string> = { 1: "一轉", 2: "二轉", 3: "三轉" };
+
+/**
+ * 等級打字（或換職業）時被夾回範圍的說明：比這個職業最低等級低→「三轉最低 70 等，已調成 70」、超過上限→「等級上限 120，已調成 120」；
+ * 合法的回 null（不寫）。換職業時拿「換之前畫面上的等級」來問。
+ */
+export function levelNoticeText(job: number, level: number): string | null {
+  const lowest = minLevelFor(job);
+  if (level < lowest) return `${TIER_WORD[jobTier(job)] ?? ""}最低 ${lowest} 等，已調成 ${lowest}`;
+  if (level > LEVEL_CAP) return `等級上限 ${LEVEL_CAP}，已調成 ${LEVEL_CAP}`;
+  return null;
+}
+
 /** 一組的預設：gearPlan 的點法（含要湊的裝備）、主推武器、商店彈藥、技能點法的等級；其他攻擊 0、增益不勾 */
 export function defaultGroup(data: CalcData, job: number, level: number, tab: string | null): GroupConfig {
   const lv = clampLevel(job, level);

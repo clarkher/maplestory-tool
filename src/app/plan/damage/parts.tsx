@@ -46,8 +46,6 @@ function Row({ label, children }: { label: React.ReactNode; children: React.Reac
 }
 
 const SELECT = "min-w-0 max-w-[60vw] truncate rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-2 py-1.5 text-[14px] font-bold sm:max-w-none";
-/** 職業旁邊的等級：固定寬、不縮（「Lv.120」要完整看得到），職業那格讓出空間 */
-const LEVEL_SELECT = "w-[5.75rem] shrink-0 rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-2 py-1.5 text-[14px] font-bold";
 const SUMMARY = "cursor-pointer py-1.5 text-[13px] font-bold text-[color:var(--sky)]";
 
 /**
@@ -67,8 +65,10 @@ function Summary({ open, className, children }: { open: boolean; className: stri
  * 數字欄：打字時先放在草稿裡（打到一半的 3 不會馬上被拉成 4，才打得出 35），
  * 離開欄位或按 Enter 才取整、夾進範圍；外面把值換掉（換點法、換等級）草稿就作廢、跟著新的值。
  */
-function DraftNumber({ value, min, max, onCommit, ...rest }: {
+function DraftNumber({ value, min, max, onCommit, onStep, ...rest }: {
   value: number; min: number; max: number; onCommit: (value: number) => void;
+  /** 給了就讓鍵盤上下鍵加減 1（等級那格用） */
+  onStep?: (delta: number) => void;
 } & Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "onChange" | "onBlur" | "onKeyDown" | "onFocus" | "min" | "max">) {
   const [edit, setEdit] = useState<{ text: string; base: number } | null>(null);
   const shown = edit && edit.base === value ? edit.text : String(value);
@@ -89,6 +89,11 @@ function DraftNumber({ value, min, max, onCommit, ...rest }: {
       onBlur={commit}
       onKeyDown={event => {
         if (event.key === "Enter") commit();
+        if (onStep && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+          event.preventDefault();
+          setEdit(null);
+          onStep(event.key === "ArrowUp" ? 1 : -1);
+        }
       }}
     />
   );
@@ -104,15 +109,6 @@ const MonsterOptions = memo(function MonsterOptions({ choices, beforeOpen }: { c
       {choices.map(({ monster, v002 }) => (
         <option key={monster.id} value={monster.id}>{`${monster.n} Lv.${monster.lv}${v002 && beforeOpen ? "（10/15 開放）" : ""}`}</option>
       ))}
-    </>
-  );
-});
-
-/** 等級選單的選項（一個職業最多 90 多個），同樣不隨每次重畫重比對 */
-const LevelOptions = memo(function LevelOptions({ from }: { from: number }) {
-  return (
-    <>
-      {Array.from({ length: LEVEL_CAP - from + 1 }, (_, index) => from + index).map(level => <option key={level} value={level}>Lv.{level}</option>)}
     </>
   );
 });
@@ -143,9 +139,9 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
   const skill = data && state && state.shared.skillId !== BASIC_ATTACK ? data.skills.get(state.shared.skillId) : undefined;
   return (
     <section aria-label="共用設定" className="rounded-[var(--radius-card)] glass wood-frame px-3.5 py-1.5">
-      <Row label="職業／等級">
+      <Row label="職業">
         {avatar ? <Sprite src={avatar} size={22} /> : null}
-        <select aria-label="職業" className={state && job > 0 ? `${SELECT} flex-1` : SELECT} value={job > 0 ? job : ""} onChange={event => onJob(Number(event.target.value))}>
+        <select aria-label="職業" className={SELECT} value={job > 0 ? job : ""} onChange={event => onJob(Number(event.target.value))}>
           {job <= 0 ? <option value="">選職業</option> : null}
           {JOB_GROUPS.map(group => (
             <optgroup key={group.label} label={group.label}>
@@ -153,13 +149,13 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
             </optgroup>
           ))}
         </select>
-        {/* 等級兩組共用、跟著職業：選單只列這個職業可能的等級（三轉 70 起、二轉 30 起），不可能的組合選不到 */}
-        {state && job > 0 ? (
-          <select aria-label="等級" className={LEVEL_SELECT} value={state.groups[0].level} onChange={event => onLevel(Number(event.target.value))}>
-            <LevelOptions from={minLevelFor(job)} />
-          </select>
-        ) : null}
       </Row>
+      {/* 等級兩組共用、跟著職業（v0.83 使用者：要能打字、也能上下切）：打的不合理（三轉打 50、打 200）由 onLevel 夾回並寫明 */}
+      {state && job > 0 ? (
+        <Row label="等級">
+          <LevelStepper job={job} value={state.groups[0].level} onLevel={onLevel} />
+        </Row>
+      ) : null}
       {/* 讀屏的說明區塊一直掛著、只換字（沒字時藏起來），換職業拉等級時才念得出來 */}
       <p role="status" className={levelNotice ? "pb-1 text-right text-[12px] font-bold text-[color:var(--gold)]" : "sr-only"}>{levelNotice ?? ""}</p>
       {state && job > 0 ? <p className="pb-1 text-right text-[11px] ink-faint">換等級會把兩組的能力值、武器重設成那一級的預設（其他攻擊、增益留著）</p> : null}
@@ -342,6 +338,25 @@ function Stepper({ stat, value, onChange }: { stat: StatKey; value: number; onCh
         <DraftNumber id={`stat-${stat}`} className="w-14 bg-transparent text-center text-[17px] font-black tabular-nums" value={value} min={4} max={9999} onCommit={onChange} />
         <button type="button" aria-label={`${STAT_WORD[stat]}加 1`} className="grid size-9 place-items-center rounded-md bg-[color:var(--glass-strong)] text-[16px] font-black" onClick={() => step(1)}>＋</button>
       </div>
+    </div>
+  );
+}
+
+/**
+ * 角色等級：−／＋ 跟能力值同一種按鈕、中間可以直接打字（Enter 或離開才算）、鍵盤上下鍵加減 1。
+ * 打的數字不夾（交給 onLevel 夾回並寫說明）；按鈕到這個職業的最低等級、上限就停。
+ */
+function LevelStepper({ job, value, onLevel }: { job: number; value: number; onLevel: (level: number) => void }) {
+  const lowest = minLevelFor(job);
+  const step = (delta: number) => {
+    const next = Math.min(LEVEL_CAP, Math.max(lowest, value + delta));
+    if (next !== value) onLevel(next);
+  };
+  return (
+    <div className="flex items-center gap-1">
+      <button type="button" aria-label="等級減 1" disabled={value <= lowest} className="grid size-9 place-items-center rounded-md bg-[color:var(--paper-deep)] text-[16px] font-black disabled:opacity-40" onClick={() => step(-1)}>−</button>
+      <DraftNumber aria-label="等級" className="w-14 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] py-1.5 text-center text-[16px] font-black tabular-nums" value={value} min={1} max={999} onCommit={onLevel} onStep={step} />
+      <button type="button" aria-label="等級加 1" disabled={value >= LEVEL_CAP} className="grid size-9 place-items-center rounded-md bg-[color:var(--paper-deep)] text-[16px] font-black disabled:opacity-40" onClick={() => step(1)}>＋</button>
     </div>
   );
 }
