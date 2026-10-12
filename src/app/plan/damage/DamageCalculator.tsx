@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { useBuildChoice } from "@/lib/build-choice";
-import { loadGear, loadGuide, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
+import { loadGear, loadGuide, loadGuideCommon, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
 import {
   clampLevel,
   clampState,
@@ -15,11 +15,13 @@ import {
   levelNoticeText,
   parseState,
   relevel,
+  withSkill,
   type CalcData,
   type CalcState,
   type GroupConfig,
   type SharedConfig,
 } from "@/lib/damage-view";
+import { HEAL } from "@/lib/damage-skills";
 import type { GearData } from "@/lib/gear";
 import { minLevelFor } from "@/lib/jobs";
 import { jobLineage } from "@/lib/planner";
@@ -30,7 +32,7 @@ import { useVisitState } from "@/lib/visit-state";
 import { KillCard } from "./KillCard";
 import { GroupEditor, groupName, HowCard, ResultCard, SharedCard } from "./parts";
 
-type BaseData = { gear: GearData; skills: Map<number, Skill>; monsters: Monster[]; maps: Record<string, MapRecord>; training: TrainingRow[] };
+type BaseData = { gear: GearData; skills: Map<number, Skill>; monsters: Monster[]; maps: Record<string, MapRecord>; training: TrainingRow[]; expToNext: number[] };
 
 /** 這個職業一路上來的攻略（一轉→三轉）；載完才回物件，載不到的那轉是 undefined（畫面退回技能最高等級） */
 function useGuides(job: number): Record<number, GuideJob | undefined> | null {
@@ -77,9 +79,9 @@ export function DamageCalculator() {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadGear(), loadSkills(), loadMonsters(), loadMaps(), loadTraining()])
-      .then(([gear, skills, monsters, maps, training]) => {
-        if (!cancelled) setBase({ gear, skills: new Map(skills.map(skill => [skill.id, skill])), monsters, maps, training });
+    Promise.all([loadGear(), loadSkills(), loadMonsters(), loadMaps(), loadTraining(), loadGuideCommon()])
+      .then(([gear, skills, monsters, maps, training, common]) => {
+        if (!cancelled) setBase({ gear, skills: new Map(skills.map(skill => [skill.id, skill])), monsters, maps, training, expToNext: common.expTable.toNext });
       })
       .catch(() => {
         if (!cancelled) setFailed(true);
@@ -120,6 +122,9 @@ export function DamageCalculator() {
 
   // 怪物選單、打的怪、兩組的結果：每次按 −／＋ 都會重畫，不重算（選單要重排一百多隻怪，兩組要各算一遍）
   const choices = useMemo(() => (base ? monsterChoices(base.monsters, base.maps) : []), [base]);
+  // 群體治癒只打得到不死系（v0.88 使用者：只顯示群體治癒打到的怪）：怪物選單、一下兩下名單都只剩不死系
+  const heal = state?.shared.skillId === HEAL;
+  const shownChoices = useMemo(() => (heal ? choices.filter(choice => choice.monster.und) : choices), [heal, choices]);
   const target = useMemo(
     () => (data && state && state.shared.monsterId !== null ? data.monsters.find(monster => monster.id === state.shared.monsterId) ?? null : null),
     [data, state],
@@ -162,7 +167,8 @@ export function DamageCalculator() {
     );
   }
 
-  const setShared = (patch: Partial<SharedConfig>) => update({ ...state, shared: { ...state.shared, ...patch } });
+  // 換成群體治癒、選的怪不是不死系時，withSkill 順便換成不死系
+  const setShared = (patch: Partial<SharedConfig>) => update(withSkill(state, patch, choices, beforeOpen));
   const setGroup = (index: 0 | 1, next: GroupConfig) =>
     update({ ...state, groups: (index === 0 ? [next, state.groups[1]] : [state.groups[0], next]) as [GroupConfig, GroupConfig] });
   const { results, labels, diff } = calc;
@@ -183,11 +189,11 @@ export function DamageCalculator() {
           if (clampLevel(job, level) !== state.groups[0].level) update(relevel(data, state, level));
         }}
         levelNotice={levelNotice}
-        choices={choices}
+        choices={shownChoices}
         beforeOpen={beforeOpen}
       />
       <ResultCard data={data} state={state} labels={labels} results={results} target={target} diff={diff} />
-      <KillCard data={data} state={state} active={tab} label={groupName(tab, labels)} onPick={monsterId => setShared({ monsterId })} beforeOpen={beforeOpen} choices={choices} />
+      <KillCard data={data} state={state} active={tab} label={groupName(tab, labels)} onPick={monsterId => setShared({ monsterId })} beforeOpen={beforeOpen} choices={shownChoices} />
       <GroupEditor data={data} state={state} result={results[tab]} active={tab} onActive={index => setActive(index)} onGroup={setGroup} />
       <HowCard data={data} job={job} level={state.groups[0].level} />
     </Shell>

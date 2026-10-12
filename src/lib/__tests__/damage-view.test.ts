@@ -6,14 +6,16 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { GearData, GearWeapon } from "@/lib/gear";
-import { BASIC_ATTACK } from "@/lib/damage-skills";
+import { attackSkillIds, BASIC_ATTACK, HEAL } from "@/lib/damage-skills";
+import { actionMs, dragonRoarStunMs, SPEED_UNKNOWN } from "@/lib/damage-speed";
 import { gearPlan } from "@/lib/gear-view";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
 import { planTraining } from "@/lib/planner";
 import { LEVEL_CAP as PROFILE_LEVEL_CAP } from "@/lib/profile";
-import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/types";
+import type { GuideCommon, GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/types";
 import {
   ammoChoices,
+  boosterFor,
   clampLevel,
   clampState,
   computeGroup,
@@ -24,14 +26,21 @@ import {
   defaultState,
   diffText,
   groupLabels,
+  levelPercentText,
+  tenMinute,
+  tenMinuteExpText,
   killLists,
   levelNoticeText,
+  monsterStats,
   LEVEL_CAP,
   monsterChoices,
   parseState,
   regroup,
   relevel,
   sameGroups,
+  secondsText,
+  undeadDefault,
+  withSkill,
   skillLevelsAt,
   weaponChoices,
   type CalcData,
@@ -53,6 +62,7 @@ const data: CalcData = {
   monsters: read<Monster[]>("monsters.json"),
   maps: read<Record<string, MapRecord>>("maps.json"),
   training: read<TrainingRow[]>("training.json"),
+  expToNext: read<GuideCommon>("guides/common.json").expTable.toNext,
   // 測試固定當作已開放（10/15 之後），不跟著跑測試的日期變
   beforeOpen: false,
 };
@@ -311,6 +321,14 @@ describe("記下來的設定", () => {
     const broken = valid();
     edit(broken);
     expect(parseState(JSON.stringify(broken))).toBeNull();
+  });
+});
+
+describe("怪物的 HP 跟經驗（v0.86 使用者：打哪隻怪、滑鼠移過去都要看得到）", () => {
+  it("「HP 3,200・經驗 135」：數字加千分位", () => {
+    const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+    expect(monsterStats(dragon)).toBe(`HP ${dragon.hp.toLocaleString()}・經驗 ${dragon.exp.toLocaleString()}`);
+    expect(monsterStats({ hp: 25000, exp: 1210 })).toBe("HP 25,000・經驗 1,210");
   });
 });
 
@@ -671,5 +689,268 @@ describe("沒有練功圖的等級", () => {
     const result = computeGroup(data, state.shared, state.groups[0], null);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.vs).toBeNull();
+  });
+});
+
+describe("出一招幾秒、每秒經驗（v0.87 使用者 1A 只算打一隻、2A 開加速）", () => {
+  const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+  const weaponOf = (id: number) => gear.weapons.find(weapon => weapon.id === id)!;
+  /** 刺客 50 拿鋼鐵鬥拳（攻速 4），極速暗殺點到 level、開加速 on */
+  const assassin = (level: number, on: boolean) => {
+    const state = defaultState(data, 410, 50, null);
+    const group = { ...state.groups[0], weaponId: 1472008, weaponAtk: null, levels: { ...state.groups[0].levels, 4101003: level }, booster: on };
+    return { shared: { ...state.shared, skillId: 4001344, skillLevel: 20 }, group };
+  };
+  it("有學極速暗殺、開加速：拳套攻速 4 −2 階＝2 階，雙飛斬 600 毫秒", () => {
+    const { shared, group } = assassin(1, true);
+    const result = computeGroup(data, shared, group, dragon);
+    if (!result.ok) throw new Error(result.reason);
+    expect(weaponOf(1472008).spd).toBe(4);
+    expect(result.speed).toEqual({ ms: actionMs(800, 2), tier: 2, boosted: true, stun: false, fixed: false });
+    expect(result.speed?.ms).toBe(600);
+  });
+  it("關掉加速：照武器 4 階 720 毫秒；沒學（0 級）勾著也不算", () => {
+    const off = assassin(1, false);
+    const offResult = computeGroup(data, off.shared, off.group, dragon);
+    expect(offResult.ok && offResult.speed).toEqual({ ms: 720, tier: 4, boosted: false, stun: false, fixed: false });
+    const unlearned = assassin(0, true);
+    const unlearnedResult = computeGroup(data, unlearned.shared, unlearned.group, dragon);
+    expect(unlearnedResult.ok && unlearnedResult.speed).toEqual({ ms: 720, tier: 4, boosted: false, stun: false, fixed: false });
+  });
+  it("每秒經驗＝經驗÷(約幾次打死×秒)，只算打一隻", () => {
+    const { shared, group } = assassin(1, true);
+    const result = computeGroup(data, shared, group, dragon);
+    if (!result.ok || !result.vs) throw new Error("算不出來");
+    expect(result.vs.expPerSec).toBeCloseTo(dragon.exp / (result.vs.kills.avg * 0.6));
+  });
+  it("沒選怪沒有每秒經驗（vs 是 null），出一招幾秒照樣有", () => {
+    const { shared, group } = assassin(1, true);
+    const result = computeGroup(data, shared, group, null);
+    expect(result.ok && result.vs).toBeNull();
+    expect(result.ok && result.speed?.ms).toBe(600);
+  });
+  it("加速要對得上武器：狂戰士拿斧頭只有快速之劍有學 → 不算加速", () => {
+    const state = defaultState(data, 110, 50, null);
+    const axe = gear.weapons.find(weapon => weapon.s === "雙手斧" && weapon.lv <= 50)!;
+    const group = { ...state.groups[0], weaponId: axe.id, weaponAtk: null, levels: { ...state.groups[0].levels, 1101004: 20, 1101005: 0 }, booster: true };
+    const result = computeGroup(data, { ...state.shared, skillId: BASIC_ATTACK, skillLevel: 1 }, group, null);
+    expect(result.ok && result.speed).toEqual({ ms: actionMs(800, axe.spd!), tier: axe.spd, boosted: false, stun: false, fixed: false });
+    expect(boosterFor(data, 110, "雙手斧")?.id).toBe(1101005);
+    expect(boosterFor(data, 110, "單手劍")?.id).toBe(1101004);
+    expect(boosterFor(data, 100, "單手劍")).toBeUndefined();
+  });
+  it("法師固定 6 階、不看法杖攻速：極速詠唱 20 級 −2 → 魔靈彈 720、5 級 −1 → 750、關掉 810", () => {
+    const state = defaultState(data, 211, 80, null);
+    const speedOf = (level: number, on: boolean) => {
+      const group = { ...state.groups[0], levels: { ...state.groups[0].levels, 2111005: level }, booster: on };
+      const result = computeGroup(data, { ...state.shared, skillId: 2001004, skillLevel: 20 }, group, null);
+      return result.ok ? result.speed?.ms : null;
+    };
+    expect(speedOf(20, true)).toBe(720);
+    expect(speedOf(5, true)).toBe(750);
+    expect(speedOf(20, false)).toBe(810);
+    expect(boosterFor(data, 211, "長杖")?.id).toBe(2111005);
+    expect(boosterFor(data, 210, "長杖")).toBeUndefined();
+  });
+  it("龍咆哮一輪＝max(動作, 自暈)：30 級自暈 2 秒 → 2000 毫秒", () => {
+    const state = defaultState(data, 131, 80, null);
+    const result = computeGroup(data, { ...state.shared, skillId: 1311006, skillLevel: 30 }, state.groups[0], null);
+    expect(result.ok && result.speed?.ms).toBe(Math.max(2000, dragonRoarStunMs(30)));
+    expect(result.ok && result.speed?.stun).toBe(true);
+    const low = computeGroup(data, { ...state.shared, skillId: 1311006, skillLevel: 5 }, state.groups[0], null);
+    expect(low.ok && low.speed?.ms).toBe(4000);
+  });
+  it("海盜查不到：speed 是 null、每秒經驗 null，原因一句", () => {
+    const state = defaultState(data, 510, 50, null);
+    const result = computeGroup(data, { ...state.shared, skillId: 5001001, skillLevel: 20 }, state.groups[0], dragon);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.speed).toBeNull();
+    expect(result.vs?.expPerSec).toBeNull();
+    expect(SPEED_UNKNOWN).toContain("查不到");
+  });
+  it("物理武器沒有攻速資料：當查不到（不自己假設 6 階）", () => {
+    const { shared, group } = assassin(1, true);
+    const noSpeed = { ...data, gear: { ...gear, weapons: gear.weapons.map(weapon => (weapon.id === 1472008 ? { ...weapon, spd: undefined } : weapon)) } };
+    const result = computeGroup(noSpeed, shared, group, dragon);
+    expect(result.ok && result.speed).toBeNull();
+    expect(result.ok && result.vs?.expPerSec).toBeNull();
+  });
+  it("預設開加速；換點法、換等級留著使用者關掉的；舊紀錄沒有這欄當開著", () => {
+    const state = defaultState(data, 410, 50, null);
+    expect(state.groups[0].booster).toBe(true);
+    const off = { ...state.groups[0], booster: false };
+    expect(regroup(data, 410, off, { level: 60 }).booster).toBe(false);
+    const legacy = JSON.parse(JSON.stringify(state));
+    delete legacy.groups[0].booster;
+    delete legacy.groups[1].booster;
+    expect(parseState(JSON.stringify(legacy))?.groups[0].booster).toBe(true);
+    const broken = JSON.parse(JSON.stringify(state));
+    broken.groups[0].booster = "yes";
+    expect(parseState(JSON.stringify(broken))).toBeNull();
+  });
+});
+
+describe("秒數、每秒經驗的寫法", () => {
+  it("毫秒寫成秒：720 → 0.72、2000 → 2、1590 → 1.59", () => {
+    expect(secondsText(720)).toBe("0.72");
+    expect(secondsText(2000)).toBe("2");
+    expect(secondsText(1590)).toBe("1.59");
+  });
+
+});
+
+describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）", () => {
+  const byName = (name: string) => data.monsters.find(monster => monster.n === name)!;
+  const choices = monsterChoices(data.monsters, data.maps);
+  /** 僧侶 50：智力 200、幸運 30、武器魔攻改成 60（魔攻＝260，跟研究算例同一組），群體治癒 30 級 */
+  const cleric = (targets?: number) => {
+    const state = defaultState(data, 230, 50, null);
+    const group = { ...state.groups[0], stats: { STR: 4, DEX: 4, INT: 200, LUK: 30 }, weaponAtk: 60, extra: 0, buffs: [] };
+    return { shared: { ...state.shared, skillId: HEAL, skillLevel: 30, ...(targets === undefined ? {} : { targets }) }, group };
+  };
+  it("僧侶、祭司的技能選單有群體治癒；預設技能不會挑它（只打得到不死系）", () => {
+    expect(attackSkillIds(data.skills, 230)).toContain(HEAL);
+    expect(attackSkillIds(data.skills, 231)).toContain(HEAL);
+    expect(attackSkillIds(data.skills, 210)).not.toContain(HEAL);
+    for (const job of [230, 231]) {
+      for (const level of [30, 50, 70, 90, 120]) {
+        if (level < 70 && job === 231) continue;
+        expect(defaultState(data, job, level, null).shared.skillId, `${job} ${level}`).not.toBe(HEAL);
+      }
+    }
+    // 120 等群體治癒打木樁一次比預設技能高：上面那條真的擋得到（不是剛好比較低）
+    const high = defaultState(data, 230, 120, null);
+    const healRaw = computeGroup(data, { ...high.shared, skillId: HEAL, skillLevel: 30 }, high.groups[0], null);
+    const picked = computeGroup(data, high.shared, high.groups[0], null);
+    expect(healRaw.ok && picked.ok && healRaw.expectedUse > picked.expectedUse).toBe(true);
+  });
+  it("打骷髏犬（魔防 190）：每一下 166～747，跟研究算例一樣；一次 1 下、魔攻 260", () => {
+    const { shared, group } = cleric();
+    const result = computeGroup(data, shared, group, byName("骷髏犬"));
+    if (!result.ok || !result.vs) throw new Error(result.ok ? "沒有 vs" : result.reason);
+    expect(result.vs.hit).toEqual({ min: 166, max: 747 });
+    expect(result.hits).toBe(1);
+    expect(result.magicPower).toBe(260);
+    expect(result.vs.crit).toBeNull();
+    expect(result.vs.accuracyKind).toBe("magic");
+  });
+  it("範圍內 3 隻：每隻 79～484（怪越多每隻越少）；沒寫隻數當 1 隻", () => {
+    const three = cleric(3);
+    const result = computeGroup(data, three.shared, three.group, byName("骷髏犬"));
+    expect(result.ok && result.vs?.hit).toEqual({ min: 79, max: 484 });
+  });
+  it("選了不是不死系的怪：寫「群體治癒只打得到不死系的怪」", () => {
+    const { shared, group } = cleric();
+    const result = computeGroup(data, shared, group, byName("青龍"));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toBe("群體治癒只打得到不死系的怪");
+  });
+  it("神聖不乘（4A）：打怕神聖的怪寫一行「如果算神聖再 ×1.5」，不怕神聖的不寫", () => {
+    const { shared, group } = cleric();
+    const weak = computeGroup(data, shared, group, byName("骷髏犬"));
+    expect(weak.ok && weak.elementNote).toBe("牠怕神聖屬性：如果群體治癒算神聖，再 ×1.5");
+    const plain = computeGroup(data, shared, group, byName("冥界幽靈"));
+    expect(plain.ok && plain.elementNote).toBeNull();
+  });
+  it("出一招固定 600 毫秒（不吃攻速）；每秒經驗算範圍內每一隻", () => {
+    const three = cleric(3);
+    const dog = byName("骷髏犬");
+    const result = computeGroup(data, three.shared, three.group, dog);
+    if (!result.ok || !result.vs) throw new Error("算不出來");
+    expect(result.speed).toEqual({ ms: 600, tier: 6, boosted: false, stun: false, fixed: true });
+    expect(result.vs.expPerSec).toBeCloseTo((dog.exp * 3) / (result.vs.kills.avg * 0.6));
+  });
+  it("一下兩下名單只有不死系", () => {
+    const { shared, group } = cleric();
+    const lists = killLists(data, shared, group, choices);
+    if (!lists) throw new Error("沒有名單");
+    const all = [...lists.one, ...lists.two, ...lists.nearOne, ...lists.nearTwo];
+    expect(all.length).toBeGreaterThan(0);
+    for (const entry of all) expect(entry.monster.und, entry.monster.n).toBe(1);
+  });
+  it("換成群體治癒時選的怪不是不死系：換成等級不超過角色、最高的不死系；都太高挑最低的；10/15 前跳過 V002", () => {
+    expect(undeadDefault(choices, 50, false)).toBe(byName("大幽靈").id);
+    expect(undeadDefault(choices, 10, false)).toBe(byName("殭屍菇菇").id);
+    const before = undeadDefault(choices, 60, true);
+    const pick = choices.find(choice => choice.monster.id === before)!;
+    expect(pick.monster.und).toBe(1);
+    expect(pick.v002).toBe(false);
+    expect(pick.monster.lv).toBe(57);
+  });
+  it("自動挑不死系跳過王、稀有怪（整張圖最多 3 隻：殭屍蘑菇王、冥界幽靈、厄運死神）；10/15 前跳過 V002（自己組的清單）", () => {
+    for (const level of [56, 65, 70]) {
+      const pick = undeadDefault(choices, level, false);
+      expect(["殭屍蘑菇王", "冥界幽靈", "厄運死神"]).not.toContain(data.monsters.find(monster => monster.id === pick)?.n);
+    }
+    const fake = (id: number, lv: number, v002: boolean, spawns: number) => ({
+      monster: { ...byName("骷髏犬"), id, n: `怪${id}`, lv, sp: [[1, spawns, 0]] as [number, number, number][] },
+      v002,
+    });
+    const list = [fake(1, 40, false, 10), fake(2, 50, true, 10), fake(3, 50, false, 1)];
+    expect(undeadDefault(list, 55, false)).toBe(2);
+    expect(undeadDefault(list, 55, true)).toBe(1);
+    // 全是稀有怪時照樣挑得出來（不回 null）
+    expect(undeadDefault([fake(3, 50, false, 1)], 55, false)).toBe(3);
+  });
+  it("換等級：群體治癒的怪跟著預設怪換到不是不死系時，改挑這一級的不死系", () => {
+    const state = defaultState(data, 230, 40, null);
+    const healed = withSkill(state, { skillId: HEAL, skillLevel: 30 }, choices, false);
+    expect(byName("大幽靈").id).toBe(healed.shared.monsterId);
+    expect(defaultMonster(data, 230, 40)).toBe(healed.shared.monsterId);
+    const next = relevel(data, healed, 50);
+    expect(data.monsters.find(monster => monster.id === next.shared.monsterId)?.und).toBe(1);
+  });
+  it("withSkill：換成群體治癒、怪不是不死系 → 換怪；本來就是不死系 → 留著；換回別的技能不動怪", () => {
+    const state = defaultState(data, 230, 50, null);
+    const dragon = { ...state, shared: { ...state.shared, monsterId: byName("青龍").id } };
+    expect(withSkill(dragon, { skillId: HEAL, skillLevel: 30 }, choices, false).shared.monsterId).toBe(byName("大幽靈").id);
+    const dog = { ...state, shared: { ...state.shared, monsterId: byName("骷髏犬").id } };
+    expect(withSkill(dog, { skillId: HEAL, skillLevel: 30 }, choices, false).shared.monsterId).toBe(byName("骷髏犬").id);
+    expect(withSkill(dragon, { skillId: 2301005, skillLevel: 20 }, choices, false).shared.monsterId).toBe(byName("青龍").id);
+  });
+  it("記下的範圍內隻數要是 1～5 的整數；沒有這欄照收", () => {
+    const state = defaultState(data, 230, 50, null);
+    const save = (targets: unknown) => parseState(JSON.stringify({ ...state, shared: { ...state.shared, targets } }));
+    expect(save(3)?.shared.targets).toBe(3);
+    expect(save(0)).toBeNull();
+    expect(save(6)).toBeNull();
+    expect(save(2.5)).toBeNull();
+    expect(save("3")).toBeNull();
+    expect(parseState(JSON.stringify(state))).not.toBeNull();
+  });
+});
+
+describe("10 分鐘經驗、占這一級的 %（v0.89 使用者：每秒經驗改 10 分鐘預估，% 照當前等級升級要的經驗）", () => {
+  const toNext = data.expToNext;
+  it("10 分鐘＝每秒×600；% ＝ 10 分鐘經驗 ÷ 這一級升到下一級要的經驗", () => {
+    const result = tenMinute(44, 50, toNext);
+    expect(result.exp).toBeCloseTo(26400);
+    expect(result.percent).toBeCloseTo((26400 / toNext[50]) * 100);
+  });
+  it("滿等（120）沒有下一級：% 是 null", () => {
+    expect(tenMinute(44, 120, toNext).percent).toBeNull();
+  });
+  it("computeGroup 帶出 10 分鐘經驗跟 %，照兩組共用的等級算", () => {
+    const state = defaultState(data, 410, 50, null);
+    const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+    const result = computeGroup(data, state.shared, state.groups[0], dragon);
+    if (!result.ok || !result.vs || result.vs.expPerSec === null || !result.vs.tenMinute) throw new Error("算不出來");
+    expect(result.vs.tenMinute.exp).toBeCloseTo(result.vs.expPerSec * 600);
+    expect(result.vs.tenMinute.percent).toBeCloseTo(((result.vs.expPerSec * 600) / toNext[50]) * 100);
+  });
+  it("出手時間查不到：10 分鐘也是 null", () => {
+    const state = defaultState(data, 510, 50, null);
+    const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+    const result = computeGroup(data, { ...state.shared, skillId: 5001001, skillLevel: 20 }, state.groups[0], dragon);
+    expect(result.ok && result.vs?.tenMinute).toBeNull();
+  });
+  it("寫法：經驗取整加千分位；% 10 以上取整、以下一位小數、太小寫不到 0.1%", () => {
+    expect(tenMinuteExpText(26400.4)).toBe("26,400");
+    expect(tenMinuteExpText(0)).toBe("0");
+    expect(levelPercentText(135.2)).toBe("135%");
+    expect(levelPercentText(12.34)).toBe("12%");
+    expect(levelPercentText(3.46)).toBe("3.5%");
+    expect(levelPercentText(0.46)).toBe("0.5%");
+    expect(levelPercentText(0.04)).toBe("不到 0.1%");
   });
 });

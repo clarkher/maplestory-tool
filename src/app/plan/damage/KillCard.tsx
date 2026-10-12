@@ -6,9 +6,10 @@ import { createPortal } from "react-dom";
 import { CloseIcon } from "@/components/Icons";
 import { Sprite } from "@/components/route/bits";
 import { monsterImage } from "@/lib/data";
-import { killLists, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
+import { killLists, monsterStats, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
 import { useVisitState } from "@/lib/visit-state";
 import { magicSureHitAccuracy, sureHitAccuracy } from "@/lib/damage";
+import { HEAL } from "@/lib/damage-skills";
 import { isMagicJob } from "@/lib/gear";
 import { accuracyText, Tag } from "./parts";
 
@@ -54,8 +55,8 @@ function Section({ title, storeKey, list, beforeOpen, onOpen, heading = "h2" }: 
           <button
             key={entry.monster.id}
             type="button"
-            title={`${entry.monster.n} Lv.${entry.monster.lv}`}
-            aria-label={`${entry.monster.n} Lv.${entry.monster.lv}`}
+            title={`${entry.monster.n} Lv.${entry.monster.lv}\n${monsterStats(entry.monster)}`}
+            aria-label={`${entry.monster.n} Lv.${entry.monster.lv}，${monsterStats(entry.monster)}`}
             onClick={event => onOpen(entry, event.currentTarget)}
             className="relative grid place-items-center rounded-lg bg-[color:var(--paper-deep)] transition-transform hover:-translate-y-0.5 hover:ring-2 hover:ring-[color:var(--maple-soft)]"
             style={{ width: CELL, height: CELL }}
@@ -129,7 +130,7 @@ function Sheet({ entry, kind, hitText, onClose, onPick }: { entry: KillEntry; ki
             <p className="text-[15px] font-black">
               {monster.n} <span className="text-[13px] ink-soft">Lv.{monster.lv}</span>
             </p>
-            <p className="text-[12px] ink-soft">HP {monster.hp.toLocaleString()}・經驗 {monster.exp.toLocaleString()}</p>
+            <p className="text-[12px] ink-soft">{monsterStats(monster)}</p>
             <p className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] font-bold ${kind.near ? "text-[color:var(--gold)]" : "text-[color:var(--leaf)]"}`}>
               <span>
                 {kind.near
@@ -176,7 +177,10 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
         <>
           <Section title="一下打死" storeKey="damage:kill-one" list={lists.one} beforeOpen={beforeOpen} onOpen={open({ hits: "一下", near: false })} />
           <Section title="兩下打死" storeKey="damage:kill-two" list={lists.two} beforeOpen={beforeOpen} onOpen={open({ hits: "兩下", near: false })} />
-          <p className="text-[11px] ink-faint">照「{label}」算、最低傷害也打得死才算；等級高的排前面。打怪公式是舊版國際服的，經典版沒驗證。</p>
+          <p className="text-[11px] ink-faint">
+            {state.shared.skillId === HEAL ? `群體治癒只列不死系、照範圍內 ${state.shared.targets ?? 1} 隻算；` : null}
+            照「{label}」算、最低傷害也打得死才算；等級高的排前面。打怪公式是舊版國際服的，經典版沒驗證。
+          </p>
           {/* 差一點（2026-10-12 使用者追加，選 B）：中間值打得死、最低打不死的，分一下、兩下兩排 */}
           <div className="space-y-3 rounded-xl border border-dashed border-[color:var(--paper-edge)] p-3">
             <h2 className="text-[15px] font-black">差一點<span className="ml-1 text-[12px] font-bold ink-soft">運氣好才打得死</span></h2>
