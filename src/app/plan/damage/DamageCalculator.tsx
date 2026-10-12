@@ -145,7 +145,8 @@ export function DamageCalculator() {
   const update = (next: CalcState) => setSaved(JSON.stringify(next));
   const pickJob = (next: number) => {
     setLevelNotice(null);
-    levelBeforeSwitch.current = state?.groups[0].level ?? (profile.level || null);
+    // ??=：攻略還在載時又換一次職業，留第一次換之前畫面上的等級（那時 state 是 null，savedState 還是換之前那份）
+    levelBeforeSwitch.current ??= state?.groups[0].level ?? savedState?.groups[0].level ?? (profile.level || null);
     setPendingJob(next);
   };
 

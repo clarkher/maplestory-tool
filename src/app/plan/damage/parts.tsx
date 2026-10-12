@@ -5,7 +5,7 @@ import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, defaultAmmo, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { ammoChoices, defaultAmmo, levelNeededText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
 import type { Range } from "@/lib/damage";
 import { gearPlan, tabsFor, STAT_ORDER, STAT_WORD, shortText } from "@/lib/gear-view";
@@ -160,7 +160,9 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
           </select>
         ) : null}
       </Row>
-      {levelNotice ? <p role="status" className="pb-1 text-right text-[12px] font-bold text-[color:var(--gold)]">{levelNotice}</p> : null}
+      {/* 讀屏的說明區塊一直掛著、只換字（沒字時藏起來），換職業拉等級時才念得出來 */}
+      <p role="status" className={levelNotice ? "pb-1 text-right text-[12px] font-bold text-[color:var(--gold)]" : "sr-only"}>{levelNotice ?? ""}</p>
+      {state && job > 0 ? <p className="pb-1 text-right text-[11px] ink-faint">換等級會把兩組的能力值、武器重設成那一級的預設（其他攻擊、增益留著）</p> : null}
       {data && state ? (
         <>
           <Row label="技能">
@@ -295,7 +297,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
         <thead>
           <tr>
             <th className="w-[38%]" />
-            {labels.map((label, index) => <th key={index} className="pb-1 text-right text-[12px] font-black" style={{ color: `var(--${TONES[index]})` }}>{label}</th>)}
+            {labels.map((_label, index) => <th key={index} className="pb-1 text-right text-[12px] font-black" style={{ color: `var(--${TONES[index]})` }}>{groupName(index, labels)}</th>)}
           </tr>
         </thead>
         <tbody>
@@ -314,7 +316,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
       {results.map((result, index) =>
         result.ok && (result.short.length || result.notes.length) ? (
           <p key={index} className="text-[12px] ink-soft">
-            <span className="font-bold" style={{ color: `var(--${TONES[index]})` }}>{labels[index]}：</span>
+            <span className="font-bold" style={{ color: `var(--${TONES[index]})` }}>{groupName(index, labels)}：</span>
             {[result.short.length ? `穿不上：${shortText(result.short)}（照樣算）` : null, ...result.notes].filter(Boolean).join("；")}
           </p>
         ) : null,
@@ -443,11 +445,9 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
             {weapons.map(entry => <option key={entry.id} value={entry.id}>{`Lv.${entry.lv} ${entry.n}（${magic ? `魔攻 ${entry.mag ?? 0}` : `攻擊 ${entry.atk ?? 0}`}）${entry.o && data.beforeOpen ? "（10/15 開放）" : ""}`}</option>)}
           </select>
         </Row>
-        {result.ok
-          ? result.warnings.filter(warning => warning.startsWith("要 Lv.")).map(warning => (
-              <p key={warning} className="my-1 rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{warning}</p>
-            ))
-          : null}
+        {result.ok && result.levelNeeded !== null ? (
+          <p className="my-1 rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{levelNeededText(result.levelNeeded)}</p>
+        ) : null}
         {result.ok && result.short.length ? (
           <p className="my-1 rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">穿不上：{shortText(result.short)}（照樣算）</p>
         ) : null}

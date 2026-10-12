@@ -313,6 +313,8 @@ export type GroupResult =
       notes: string[];
       /** 影響數字範圍、要在結果卡上直接看到的提醒（沒點精準技能，熟練度只有 10%）；不重複放進 notes */
       warnings: string[];
+      /** 這把武器要幾等才拿得到（比角色等級高才有，結果卡的提醒用 levelNeededText 寫）；拿得到是 null */
+      levelNeeded: number | null;
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
@@ -333,6 +335,7 @@ type Prepared = {
   short: Array<{ stat: StatKey; short: number }>;
   notes: string[];
   warnings: string[];
+  levelNeeded: number | null;
   at(target: Monster | null): { hit: Range; crit: Range | null };
 };
 
@@ -369,7 +372,9 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     BUFFS.filter(buff => buff.stat === stat && group.buffs.includes(buff.id) && inLine(buff.id)).reduce((sum, buff) => sum + (chosenRow(buff.id)?.[stat] ?? 0), 0);
 
   const ammo = (data.gear.ammo ?? []).find(entry => entry.id === group.ammoId && entry.kind === AMMO_KIND[weapon.s]);
-  // 武器攻擊／魔攻：使用者改過（衝卷）用改過的，沒改照武器原本的
+  // 武器攻擊／魔攻：使用者改過（衝卷）用改過的，沒改照武器原本的。魔法技能改的是魔攻（算 magicPower），
+  // 物理總攻擊照武器原本的攻擊——但法師只有魔法技能（沒有普通攻擊），這裡的 attack 實際用不到；畫面上「武器魔攻」用 isMagicJob 判斷，
+  // 跟這裡的 rule.kind === "magic" 目前一定一致（法師的技能表全是 magic），以後法師有物理技能時兩邊要一起改
   const weaponPower = group.weaponAtk ?? (magic ? weapon.mag : weapon.atk) ?? 0;
   const attack = (magic ? weapon.atk ?? 0 : weaponPower) + (ammo?.atk ?? 0) + group.extra + buffSum("pad");
   const masteryId = masterySkillFor(weapon.s, job);
@@ -379,7 +384,8 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const masteryName = masteryId !== null ? data.skills.get(masteryId)?.n : undefined;
   const warnings: string[] = [];
   // 等級兩組共用後，右組「換下一把武器」常常是還拿不到的那把：照樣算，但寫在結果卡上
-  if (weapon.lv > group.level) warnings.push(`要 Lv.${weapon.lv} 才拿得到（照樣算）`);
+  const levelNeeded = weapon.lv > group.level ? weapon.lv : null;
+  if (levelNeeded !== null) warnings.push(levelNeededText(levelNeeded));
   if (masteryId !== null && masteryName && levelOf(masteryId) <= 0) {
     warnings.push(`沒點${masteryName}，熟練度只有 10%（下限會很低，可在下面「技能等級」改）`);
   }
@@ -428,6 +434,7 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     short: statShortfall(weapon, stats),
     notes,
     warnings,
+    levelNeeded,
     at(target) {
       const factors: Array<number | "immune"> = [amp];
       if (rule.element && target) factors.push(elementFactor(rule.element, target.el));
@@ -442,6 +449,11 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
       };
     },
   };
+}
+
+/** 「要 Lv.60 才拿得到（照樣算）」：結果卡（warnings）跟分頁裡武器下面用同一句 */
+export function levelNeededText(level: number): string {
+  return `要 Lv.${level} 才拿得到（照樣算）`;
 }
 
 function pairOf(prepared: Prepared, target: Monster | null): HitPair {

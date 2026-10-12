@@ -393,9 +393,11 @@ describe("兩組預設", () => {
     const result = computeGroup(data, state.shared, state.groups[1], null);
     if (!result.ok) throw new Error(result.reason);
     expect(result.warnings).toContain(`要 Lv.${next!.lv} 才拿得到（照樣算）`);
+    expect(result.levelNeeded).toBe(next!.lv);
     const left = computeGroup(data, state.shared, state.groups[0], null);
     if (!left.ok) throw new Error(left.reason);
     expect(left.warnings.some(text => text.startsWith("要 Lv."))).toBe(false);
+    expect(left.levelNeeded).toBeNull();
   });
   it("換點法、換等級：能力值、武器重設成那套那級的預設，其他攻擊、增益留著", () => {
     const group = { ...defaultGroup(data, 410, 50, null), extra: 7, buffs: [] };
