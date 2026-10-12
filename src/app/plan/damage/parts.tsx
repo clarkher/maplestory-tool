@@ -277,7 +277,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
                 {result.vs ? (
                   result.vs.expPerSec !== null && result.speed ? (
                     <p className="text-[13px] font-bold">
-                      每秒約 {expRateText(result.vs.expPerSec)} 經驗<span className="text-[12px] font-normal ink-soft">（出一招 {secondsText(result.speed.ms)} 秒）</span>
+                      每秒約 {expRateText(result.vs.expPerSec)} 經驗<span className="text-[12px] font-normal ink-soft">（{result.speed.stun ? `一輪 ${secondsText(result.speed.ms)} 秒，含放完自暈` : `出一招 ${secondsText(result.speed.ms)} 秒`}）</span>
                     </p>
                   ) : (
                     <p className="text-[12px] ink-soft">每秒經驗：{SPEED_UNKNOWN}</p>
@@ -315,7 +315,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
     ["總攻擊", ok => (ok.magic ? null : String(ok.attack)), "client"],
     ["每一下（木樁）", ok => fmt(ok.raw.hit), "legacy"],
     ["爆擊那一下", ok => (ok.raw.crit && ok.critRate !== null ? `${fmt(ok.raw.crit.hit)}（${Math.round(ok.critRate * 100)}%）` : null), "unverified"],
-    ["出一招幾秒", ok => (ok.speed ? `${secondsText(ok.speed.ms)} 秒（${ok.speed.tier} 階）` : "查不到"), "unverified", "括號是攻速階，開加速快 2 階；法師固定 6 階、極速詠唱快 1～2 階"],
+    ["出一招幾秒", ok => (ok.speed ? `${secondsText(ok.speed.ms)} 秒（${ok.speed.stun ? "放完自暈" : `${ok.speed.tier} 階`}）` : "查不到"), "unverified", "括號是攻速階，開加速快 2 階；法師固定 6 階、極速詠唱快 1～2 階；龍咆哮放完會自暈"],
   ];
   if (target) {
     rows.push(

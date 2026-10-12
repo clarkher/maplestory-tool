@@ -327,8 +327,8 @@ export function clampState(state: CalcState): CalcState {
 
 export type Unready = { ok: false; reason: string };
 export type HitPair = { hit: Range; use: Range; crit: { hit: Range; use: Range } | null };
-/** 出一招幾毫秒、用的攻速階（夾在 0～10，法師是施法的階）、有沒有算到加速 */
-export type Speed = { ms: number; tier: number; boosted: boolean };
+/** 出一招幾毫秒、用的攻速階（夾在 0～10，法師是施法的階）、有沒有算到加速；stun＝龍咆哮這一輪被自暈拉長（秒數跟攻速無關） */
+export type Speed = { ms: number; tier: number; boosted: boolean; stun: boolean };
 export type GroupResult =
   | Unready
   | {
@@ -461,12 +461,14 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   // 出一招幾毫秒（v0.87）：法師固定 6 階、物理看武器攻速；開了加速、而且手上武器對得上的加速技能有學才快
   const booster = boosterFor(data, job, weapon.s);
   const steps = booster && group.booster ? boosterSteps(booster, levelOf(booster.id)) : 0;
-  const baseMs = skillBaseMs(isBasic ? BASIC_ATTACK : shared.skillId, weapon.s, Math.max(1, shared.skillLevel));
-  const tier = Math.min(10, Math.max(0, (magic ? MAGIC_TIER : weapon.spd ?? MAGIC_TIER) - steps));
-  let ms = baseMs === null ? null : actionMs(baseMs, tier);
+  // 物理武器沒有攻速資料就當查不到（不自己假設 6 階）；法師不看武器
+  const weaponTier = magic ? MAGIC_TIER : weapon.spd;
+  const baseMs = weaponTier === undefined ? null : skillBaseMs(isBasic ? BASIC_ATTACK : shared.skillId, weapon.s, Math.max(1, shared.skillLevel));
+  const tier = Math.min(10, Math.max(0, (weaponTier ?? MAGIC_TIER) - steps));
+  const action = baseMs === null ? null : actionMs(baseMs, tier);
   // 龍咆哮放完會自暈，一輪是動作跟自暈取長的
-  if (ms !== null && shared.skillId === DRAGON_ROAR) ms = Math.max(ms, dragonRoarStunMs(Math.max(1, shared.skillLevel)));
-  const speed = ms === null ? null : { ms, tier, boosted: steps > 0 };
+  const stunMs = shared.skillId === DRAGON_ROAR ? dragonRoarStunMs(Math.max(1, shared.skillLevel)) : 0;
+  const speed = action === null ? null : { ms: Math.max(action, stunMs), tier, boosted: steps > 0, stun: stunMs > action };
 
   const notes: string[] = [];
   if (rule.note) notes.push(rule.note);
@@ -537,8 +539,9 @@ export function secondsText(ms: number): string {
   return String(Number((ms / 1000).toFixed(2)));
 }
 
-/** 每秒經驗的數字：10 以上取整、以下留一位小數（0.8）；太小寫「不到 0.1」 */
+/** 每秒經驗的數字：10 以上取整、以下留一位小數（0.8）；太小寫「不到 0.1」；經驗 0 的怪（戰車那種）寫 0 */
 export function expRateText(value: number): string {
+  if (value <= 0) return "0";
   if (value >= 10) return Math.round(value).toLocaleString();
   if (value >= 0.1) return String(Number(value.toFixed(1)));
   return "不到 0.1";
