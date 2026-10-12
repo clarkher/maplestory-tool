@@ -214,6 +214,11 @@ export function defaultMonster(data: CalcData, job: number, level: number): numb
 
 export type MonsterChoice = { monster: Monster; v002: boolean };
 
+/** 「HP 3,200・經驗 135」：打哪隻怪那格、名單的滑鼠提示、怪物小卡同一種寫法（v0.86 使用者要看得到） */
+export function monsterStats(monster: Pick<Monster, "hp" | "exp">): string {
+  return `HP ${monster.hp.toLocaleString()}・經驗 ${monster.exp.toLocaleString()}`;
+}
+
 /** 這隻怪在選單裡的樣子：出現在有中文名地圖的怪才有（不收錄、沒有等級的不收），v002＝出現的有名地圖全是 V002 的；不收的回 null */
 function choiceFor(monster: Monster, maps: Record<string, MapRecord>): MonsterChoice | null {
   if (monster.un || monster.lv === null) return null;

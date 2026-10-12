@@ -26,6 +26,7 @@ import {
   groupLabels,
   killLists,
   levelNoticeText,
+  monsterStats,
   LEVEL_CAP,
   monsterChoices,
   parseState,
@@ -311,6 +312,14 @@ describe("記下來的設定", () => {
     const broken = valid();
     edit(broken);
     expect(parseState(JSON.stringify(broken))).toBeNull();
+  });
+});
+
+describe("怪物的 HP 跟經驗（v0.86 使用者：打哪隻怪、滑鼠移過去都要看得到）", () => {
+  it("「HP 3,200・經驗 135」：數字加千分位", () => {
+    const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+    expect(monsterStats(dragon)).toBe(`HP ${dragon.hp.toLocaleString()}・經驗 ${dragon.exp.toLocaleString()}`);
+    expect(monsterStats({ hp: 25000, exp: 1210 })).toBe("HP 25,000・經驗 1,210");
   });
 });
 

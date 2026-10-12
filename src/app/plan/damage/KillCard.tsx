@@ -6,7 +6,7 @@ import { createPortal } from "react-dom";
 import { CloseIcon } from "@/components/Icons";
 import { Sprite } from "@/components/route/bits";
 import { monsterImage } from "@/lib/data";
-import { killLists, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
+import { killLists, monsterStats, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
 import { useVisitState } from "@/lib/visit-state";
 import { magicSureHitAccuracy, sureHitAccuracy } from "@/lib/damage";
 import { isMagicJob } from "@/lib/gear";
@@ -54,8 +54,8 @@ function Section({ title, storeKey, list, beforeOpen, onOpen, heading = "h2" }: 
           <button
             key={entry.monster.id}
             type="button"
-            title={`${entry.monster.n} Lv.${entry.monster.lv}`}
-            aria-label={`${entry.monster.n} Lv.${entry.monster.lv}`}
+            title={`${entry.monster.n} Lv.${entry.monster.lv}\n${monsterStats(entry.monster)}`}
+            aria-label={`${entry.monster.n} Lv.${entry.monster.lv}，${monsterStats(entry.monster)}`}
             onClick={event => onOpen(entry, event.currentTarget)}
             className="relative grid place-items-center rounded-lg bg-[color:var(--paper-deep)] transition-transform hover:-translate-y-0.5 hover:ring-2 hover:ring-[color:var(--maple-soft)]"
             style={{ width: CELL, height: CELL }}
@@ -129,7 +129,7 @@ function Sheet({ entry, kind, hitText, onClose, onPick }: { entry: KillEntry; ki
             <p className="text-[15px] font-black">
               {monster.n} <span className="text-[13px] ink-soft">Lv.{monster.lv}</span>
             </p>
-            <p className="text-[12px] ink-soft">HP {monster.hp.toLocaleString()}・經驗 {monster.exp.toLocaleString()}</p>
+            <p className="text-[12px] ink-soft">{monsterStats(monster)}</p>
             <p className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] font-bold ${kind.near ? "text-[color:var(--gold)]" : "text-[color:var(--leaf)]"}`}>
               <span>
                 {kind.near

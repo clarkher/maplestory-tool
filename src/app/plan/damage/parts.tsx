@@ -5,7 +5,7 @@ import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, defaultAmmo, levelNeededText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { ammoChoices, defaultAmmo, levelNeededText, monsterStats, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
 import type { Range } from "@/lib/damage";
 import { gearPlan, tabsFor, STAT_ORDER, STAT_WORD, shortText } from "@/lib/gear-view";
@@ -137,6 +137,8 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
   const skillIds = useMemo(() => (data && job > 0 ? attackSkillIds(data.skills, job) : []), [data, job]);
   const missing = useMemo(() => (data && job > 0 ? notCalculatedFor(data.skills, job) : []), [data, job]);
   const skill = data && state && state.shared.skillId !== BASIC_ATTACK ? data.skills.get(state.shared.skillId) : undefined;
+  // 選的怪（顯示 HP、經驗用）
+  const target = data && state && state.shared.monsterId !== null ? data.monsters.find(monster => monster.id === state.shared.monsterId) : undefined;
   return (
     <section aria-label="共用設定" className="rounded-[var(--radius-card)] glass wood-frame px-3.5 py-1.5">
       <Row label="職業">
@@ -195,6 +197,7 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
               <MonsterOptions choices={choices} beforeOpen={beforeOpen} />
             </select>
           </Row>
+          {target ? <p className="pb-1 text-right text-[12px] font-bold ink-soft">{monsterStats(target)}</p> : null}
         </>
       ) : null}
     </section>
