@@ -20,6 +20,7 @@ import {
   panelRange,
   rawPanel,
   sureHitAccuracy,
+  type Element,
   type Range,
 } from "./damage";
 import {
@@ -328,6 +329,8 @@ export type GroupResult =
       warnings: string[];
       /** 這把武器要幾等才拿得到（比角色等級高才有，結果卡的提醒用 levelNeededText 寫）；拿得到是 null */
       levelNeeded: number | null;
+      /** 選了怪、招式（或白騎士充能）有屬性、怪對那個屬性有弱點／抗性／免疫時的說明：「火屬性打弱點 ×1.5」；其他 null */
+      elementNote: string | null;
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
@@ -350,6 +353,7 @@ type Prepared = {
   warnings: string[];
   levelNeeded: number | null;
   at(target: Monster | null): { hit: Range; crit: Range | null };
+  elementNote(target: Monster): string | null;
 };
 
 const times = (range: Range, hits: number): Range => ({ min: range.min * hits, max: range.max * hits });
@@ -448,6 +452,15 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     notes,
     warnings,
     levelNeeded,
+    elementNote(target) {
+      // 白騎士充能看充能的屬性（倍數只寫打弱點／抗性那一段，充能本身的殺傷力 % 另外算）；其他看招式自己的屬性
+      const element = charge?.element ?? rule.element;
+      if (!element) return null;
+      const factor = charge
+        ? ratioOf(chargeFactor(charge.element, chargeLevel, chargePercent, target.el), chargeFactor(charge.element, chargeLevel, chargePercent, undefined))
+        : elementFactor(element, target.el);
+      return elementNoteText(element, factor);
+    },
     at(target) {
       const factors: Array<number | "immune"> = [amp];
       if (rule.element && target) factors.push(elementFactor(rule.element, target.el));
@@ -462,6 +475,25 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
       };
     },
   };
+}
+
+/** 屬性的寫法照客戶端：火屬性、冰屬性、雷屬性、毒屬性、神聖屬性 */
+const ELEMENT_WORD: Record<Element, string> = { f: "火屬性", i: "冰屬性", l: "雷屬性", p: "毒屬性", h: "神聖屬性" };
+
+/** 充能打這隻怪的倍數 ÷ 打普通怪的倍數（只留弱點／抗性那一段）；免疫照樣是免疫 */
+function ratioOf(factor: number | "immune", normal: number | "immune"): number | "immune" {
+  if (factor === "immune" || normal === "immune") return "immune";
+  return normal === 0 ? 1 : factor / normal;
+}
+
+/** 「火屬性打弱點 ×1.5」「火屬性打抗性 ×0.5」「火屬性對牠無效，每下只剩 1」；倍數是 1 不寫（回 null） */
+export function elementNoteText(element: Element, factor: number | "immune"): string | null {
+  const word = ELEMENT_WORD[element];
+  if (factor === "immune") return `${word}對牠無效，每下只剩 1`;
+  const shown = Number(factor.toFixed(2));
+  if (shown > 1) return `${word}打弱點 ×${shown}`;
+  if (shown < 1) return `${word}打抗性 ×${shown}`;
+  return null;
 }
 
 /** 「要 Lv.60 才拿得到（照樣算）」：結果卡（warnings）跟分頁裡武器下面用同一句 */
@@ -491,8 +523,8 @@ export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupC
       accuracy: prepared.magic ? null : sureHitAccuracy(group.level, target),
     };
   }
-  const { at: _at, ...rest } = prepared;
-  return { ...rest, raw, vs, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };
+  const { at: _at, elementNote: _note, ...rest } = prepared;
+  return { ...rest, raw, vs, elementNote: target ? prepared.elementNote(target) : null, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };
 }
 
 /* ------------------------------------------------------------------ 預設技能、兩組預設 */

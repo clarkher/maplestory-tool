@@ -203,6 +203,11 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
 
 /* ------------------------------------------------------------------ 結果 */
 
+/** 屬性加成那一行（「火屬性打弱點 ×1.5」）：資訊不是警告，用天藍淡底 */
+function ElementNote({ text }: { text: string }) {
+  return <p className="rounded-lg bg-[color:var(--sky-wash)] px-2.5 py-1.5 text-[12px] font-bold text-[color:var(--sky)]">{text}</p>;
+}
+
 export function ResultCard({ data, state, labels, results, target, diff }: {
   data: CalcData; state: CalcState; labels: [string, string]; results: readonly [GroupResult, GroupResult]; target: Monster | null; diff: string | null;
 }) {
@@ -212,6 +217,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
   const skillName = state.shared.skillId === BASIC_ATTACK ? "普通攻擊" : data.skills.get(state.shared.skillId)?.n ?? "技能";
   const title = first?.ok ? `${first.name}一次（${first.hits} 下）` : `${skillName}一次`;
   const shown = (result: GroupResult) => (result.ok ? (result.vs ?? result.raw).use : null);
+  // 屬性加成（v0.84 使用者選 A）：兩組一樣（同一招、同一隻怪）只寫一次，不一樣（只有一組開充能）就各寫在那組下面
+  const notes = results.map(result => (result.ok ? result.elementNote : null));
+  const sharedNote = notes[0] !== null && notes[0] === notes[1] ? notes[0] : null;
   const scale = Math.max(1, ...results.map(result => shown(result)?.max ?? 0));
   return (
     <section aria-label="結果" className="space-y-3 rounded-[var(--radius-card)] glass wood-frame p-3.5">
@@ -219,6 +227,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
         <h2 className="text-[15px] font-black">{title}</h2>
         {target ? <Tag level="unverified" /> : <Tag level="legacy" />}
       </header>
+      {sharedNote ? <ElementNote text={sharedNote} /> : null}
       {results.map((result, index) => {
         const bits = result.ok
           ? [
@@ -249,6 +258,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
                     {bits.map((bit, at) => <Fragment key={at}>{at ? "・" : null}{bit}</Fragment>)}
                   </p>
                 ) : null}
+                {!sharedNote && result.elementNote ? <ElementNote text={result.elementNote} /> : null}
                 {result.warnings.map(warning => (
                   <p key={warning} className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{warning}</p>
                 ))}

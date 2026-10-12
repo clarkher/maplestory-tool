@@ -314,6 +314,44 @@ describe("記下來的設定", () => {
   });
 });
 
+describe("屬性加成寫在結果卡（v0.84 使用者選 A）", () => {
+  const mage = defaultGroup(data, 210, 40, null);
+  const fireArrow = { job: 210, skillId: 2101004, skillLevel: 30, monsterId: null };
+  const target = (el?: Record<string, string>) => ({ ...data.monsters[0], lv: 1, pdd: 0, mdd: 0, el });
+  const note = (shared: typeof fireArrow, group: typeof mage, el?: Record<string, string>) => {
+    const result = computeGroup(data, shared, group, target(el));
+    if (!result.ok) throw new Error(result.reason);
+    return result.elementNote;
+  };
+  it("火焰箭打怕火的怪：火屬性打弱點 ×1.5", () => {
+    expect(note(fireArrow, mage, { f: "w" })).toBe("火屬性打弱點 ×1.5");
+  });
+  it("打抗火的：×0.5；免疫：對牠無效、每下只剩 1", () => {
+    expect(note(fireArrow, mage, { f: "r" })).toBe("火屬性打抗性 ×0.5");
+    expect(note(fireArrow, mage, { f: "i" })).toBe("火屬性對牠無效，每下只剩 1");
+  });
+  it("聖屬性寫「神聖屬性」（客戶端用字）", () => {
+    const priest = defaultGroup(data, 230, 40, null);
+    expect(note({ job: 230, skillId: 2301005, skillLevel: 30, monsterId: null }, priest, { h: "w" })).toBe("神聖屬性打弱點 ×1.5");
+  });
+  it("怪沒有那個屬性的弱點抗性、沒選怪、招式沒有屬性：不寫", () => {
+    expect(note(fireArrow, mage, { i: "w" })).toBeNull();
+    expect(note(fireArrow, mage, undefined)).toBeNull();
+    const raw = computeGroup(data, fireArrow, mage, null);
+    if (!raw.ok) throw new Error(raw.reason);
+    expect(raw.elementNote).toBeNull();
+    const assassin = defaultGroup(data, 410, 50, null);
+    expect(note({ job: 410, skillId: 4001344, skillLevel: 20, monsterId: null }, assassin, { f: "w" })).toBeNull();
+  });
+  it("白騎士充能：寫屬性跟弱點的倍數（滿等 ×1.5，充能本身的殺傷力另外算）", () => {
+    const base = defaultGroup(data, 121, 80, null);
+    // 烈焰之劍要拿劍：挑一把騎士用得到的劍（預設武器可能是棍）
+    const sword = weaponChoices(gear, 121).find(w => w.s === "單手劍" || w.s === "雙手劍")!;
+    const knight = { ...base, weaponId: sword.id, charge: 1211003, levels: { ...base.levels, 1211003: 30 } };
+    expect(note({ job: 121, skillId: BASIC_ATTACK, skillLevel: 1, monsterId: null }, knight, { f: "w" })).toBe("火屬性打弱點 ×1.5");
+  });
+});
+
 describe("算一組", () => {
   const shared = { job: 410, skillId: 4001344, skillLevel: 20, monsterId: null };
   const group = defaultGroup(data, 410, 50, null);
