@@ -101,7 +101,7 @@ try {
     await shot(`${key}.png`);
     results[key] = await evaluate(`({
       result: document.querySelector('section[aria-label="結果"]')?.innerText,
-      kills: [...document.querySelectorAll('section[aria-label="一下、兩下打死的怪"] h3')].map(h => h.innerText),
+      kills: [...document.querySelectorAll('section[aria-label="一下、兩下打死的怪"] h2, section[aria-label="一下、兩下打死的怪"] h3')].map(h => h.innerText),
       shared: [...document.querySelectorAll('section[aria-label="共用設定"] select')].map(s => s.selectedOptions[0]?.text),
     })`);
     // 點細節：看細節是受控的 <details>（記在瀏覽紀錄上），要真的點 summary 讓 React 知道，不能直接改 open

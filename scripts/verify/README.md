@@ -387,7 +387,7 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 #### `damage-shot.mjs`（傷害計算機，v0.79）
 
 `node scripts/verify/damage-shot.mjs <輸出> <網址> [職業:等級,…]`（預設刺客 50、火毒巫師 40、狂戰士 50、槍手 60；埠 9383）。
-每個角色存整頁、看細節展開、點「一下打死」第一隻的底部小卡，另外刺客 50 存夜晚與 360 寬；`results.json` 有結果卡、名單數、細節表的字，`overflow360` 是 360 寬有沒有橫向捲動。
+每個角色存整頁、看細節展開、點「一下打死」第一隻的底部小卡，另外刺客 50 存夜晚與 360 寬；`results.json` 有結果卡、名單數（一下、兩下、差一點的一下／兩下，v0.82 起標題是 h2／h3）、細節表的字，`overflow360` 是 360 寬有沒有橫向捲動。
 角色用 localStorage `ms-profile` 帶入，sessionStorage 每次清掉（計算機的設定記在瀏覽紀錄，不清會沿用上一個角色的）。
 「看細節」是受控的 `<details>`（展開狀態記在瀏覽紀錄），所以腳本用點 `<summary>` 的方式展開（直接改 `open` 屬性 React 不一定認），`detailsOpen` 記有沒有真的展開；
 `consoleProblems` 是整趟 console 的錯誤、警告（hydration 警告、沒接住的例外）。
