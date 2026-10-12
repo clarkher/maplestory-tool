@@ -29,9 +29,12 @@ function useColumns() {
   return [ref, columns] as const;
 }
 
-function Section({ title, storeKey, list, beforeOpen, onOpen }: {
+function Section({ title, storeKey, list, beforeOpen, onOpen, heading = "h2" }: {
   title: string; storeKey: string; list: KillEntry[]; beforeOpen: boolean; onOpen: (entry: KillEntry, opener: HTMLElement) => void;
+  /** 「差一點」底下的「一下」「兩下」是小標（h3），其他是 h2 */
+  heading?: "h2" | "h3";
 }) {
+  const Heading = heading;
   const [ref, columns] = useColumns();
   // 「看全部」展開的狀態記在同一筆瀏覽紀錄上（重新整理、按返回回來還是展開的）
   const [open, setOpen] = useVisitState(storeKey, false);
@@ -39,10 +42,10 @@ function Section({ title, storeKey, list, beforeOpen, onOpen }: {
   const shown = open ? list : list.slice(0, limit);
   return (
     <div>
-      <h2 className="mb-2 text-[15px] font-black">
+      <Heading className={`mb-2 font-black ${heading === "h2" ? "text-[15px]" : "text-[14px]"}`}>
         {title}
         <span className="ml-1 text-[13px] font-bold ink-soft">{list.length} 隻</span>
-      </h2>
+      </Heading>
       <div ref={ref} className="flex flex-wrap" style={{ gap: GAP }}>
         {list.length === 0 ? <p className="text-[13px] ink-soft">沒有</p> : null}
         {shown.map(entry => (
@@ -70,7 +73,10 @@ function Section({ title, storeKey, list, beforeOpen, onOpen }: {
   );
 }
 
-function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: string; onClose: () => void; onPick: () => void }) {
+/** 小卡是從哪一張點開的：確定一下／兩下（最低傷害打得死）或差一點（中間值打得死） */
+type Kind = { hits: "一下" | "兩下"; near: boolean };
+
+function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: Kind; onClose: () => void; onPick: () => void }) {
   const first = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   // 打開時把焦點放在第一顆按鈕（只做一次，跟 Esc 的監聽拆開，onClose 換了不會把焦點又搶回來）
@@ -122,8 +128,12 @@ function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: strin
               {monster.n} <span className="text-[13px] ink-soft">Lv.{monster.lv}</span>
             </p>
             <p className="text-[12px] ink-soft">HP {monster.hp.toLocaleString()}・經驗 {monster.exp.toLocaleString()}</p>
-            <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] font-bold text-[color:var(--leaf)]">
-              <span>最低一次 {entry.minUse.toLocaleString()}，穩穩{kind}</span>
+            <p className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] font-bold ${kind.near ? "text-[color:var(--gold)]" : "text-[color:var(--leaf)]"}`}>
+              <span>
+                {kind.near
+                  ? `平均一次 ${Math.floor(entry.midUse).toLocaleString()}，運氣好${kind.hits}`
+                  : `最低一次 ${entry.minUse.toLocaleString()}，穩穩${kind.hits}`}
+              </span>
               <Tag level="unverified" />
             </p>
           </div>
@@ -144,7 +154,7 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
   data: CalcData; state: CalcState; active: 0 | 1; label: string; onPick: (monsterId: number) => void; beforeOpen: boolean; choices: MonsterChoice[];
 }) {
   const lists = useMemo(() => killLists(data, state.shared, state.groups[active], choices), [data, state, active, choices]);
-  const [selected, setSelected] = useState<{ entry: KillEntry; kind: string } | null>(null);
+  const [selected, setSelected] = useState<{ entry: KillEntry; kind: Kind } | null>(null);
   // 小卡是從哪個圖示點開的：關掉後把焦點還給它（鍵盤、讀屏的人才不會掉到頁首）
   const opener = useRef<HTMLElement | null>(null);
   const close = useCallback(() => {
@@ -153,7 +163,7 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
     opener.current = null;
     if (element?.isConnected) element.focus({ preventScroll: true });
   }, []);
-  const open = (kind: string) => (entry: KillEntry, element: HTMLElement) => {
+  const open = (kind: Kind) => (entry: KillEntry, element: HTMLElement) => {
     opener.current = element;
     setSelected({ entry, kind });
   };
@@ -161,9 +171,16 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
     <section aria-label="一下、兩下打死的怪" className="space-y-3 rounded-[var(--radius-card)] glass wood-frame p-3.5">
       {lists ? (
         <>
-          <Section title="一下打死" storeKey="damage:kill-one" list={lists.one} beforeOpen={beforeOpen} onOpen={open("一下")} />
-          <Section title="兩下打死" storeKey="damage:kill-two" list={lists.two} beforeOpen={beforeOpen} onOpen={open("兩下")} />
+          <Section title="一下打死" storeKey="damage:kill-one" list={lists.one} beforeOpen={beforeOpen} onOpen={open({ hits: "一下", near: false })} />
+          <Section title="兩下打死" storeKey="damage:kill-two" list={lists.two} beforeOpen={beforeOpen} onOpen={open({ hits: "兩下", near: false })} />
           <p className="text-[11px] ink-faint">照「{label}」算、最低傷害也打得死才算；等級高的排前面。打怪公式是舊版國際服的，經典版沒驗證。</p>
+          {/* 差一點（2026-10-12 使用者追加，選 B）：中間值打得死、最低打不死的，分一下、兩下兩排 */}
+          <div className="space-y-3 rounded-xl border border-dashed border-[color:var(--paper-edge)] p-3">
+            <h2 className="text-[15px] font-black">差一點<span className="ml-1 text-[12px] font-bold ink-soft">運氣好才打得死</span></h2>
+            <Section heading="h3" title="一下" storeKey="damage:kill-near-one" list={lists.nearOne} beforeOpen={beforeOpen} onOpen={open({ hits: "一下", near: true })} />
+            <Section heading="h3" title="兩下" storeKey="damage:kill-near-two" list={lists.nearTwo} beforeOpen={beforeOpen} onOpen={open({ hits: "兩下", near: true })} />
+            <p className="text-[11px] ink-faint">用最高跟最低傷害的中間值算打得死、但最低傷害在那個下數打不死；同一隻可能也在「兩下打死」（穩穩兩下、運氣好一下）。</p>
+          </div>
         </>
       ) : (
         <p className="text-[13px] ink-soft">「{label}」這組算不出來（看上面的原因），名單出不來</p>

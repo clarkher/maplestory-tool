@@ -29,6 +29,7 @@ import {
   monsterChoices,
   parseState,
   regroup,
+  relevel,
   sameGroups,
   skillLevelsAt,
   weaponChoices,
@@ -215,16 +216,16 @@ describe("怪物", () => {
   });
 });
 
-describe("組名", () => {
+describe("組名（結果卡、名單、差多少用；上方分頁固定寫左組／右組）", () => {
   const base = defaultGroup(data, 410, 50, null);
   it("點法不同寫點法名", () => {
-    expect(groupLabels([base, { ...base, tab: "全幸" }])).toEqual(["一般點法", "全幸"]);
+    expect(groupLabels([base, { ...base, tab: "全幸" }], gear.weapons)).toEqual(["一般點法", "全幸"]);
   });
-  it("同點法不同等級寫等級", () => {
-    expect(groupLabels([base, { ...base, level: 60 }])).toEqual(["Lv.50", "Lv.60"]);
+  it("同點法、武器不同寫武器名", () => {
+    expect(groupLabels([base, { ...base, weaponId: 1472020 }], gear.weapons)).toEqual(["赤紅手甲", "藍寶手甲"]);
   });
   it("都一樣寫左組、右組", () => {
-    expect(groupLabels([base, base])).toEqual(["左組", "右組"]);
+    expect(groupLabels([base, base], gear.weapons)).toEqual(["左組", "右組"]);
   });
 });
 
@@ -239,11 +240,13 @@ describe("記下來的設定", () => {
     const state = { shared: { job: 410, skillId: 4001344, skillLevel: 20, monsterId: null }, groups: [group, group] };
     expect(parseState(JSON.stringify(state))).toEqual(state);
   });
-  it("等級夾回職業的範圍：暗殺者（三轉）記成 10 級→70；合法的等級原封不動", () => {
+  it("等級夾回職業的範圍、兩組統一用左組的（等級兩組共用）：暗殺者（三轉）記成 10 級→70；合法的原封不動", () => {
     const group = defaultGroup(data, 411, 80, null);
     const bad = { shared: { job: 411, skillId: BASIC_ATTACK, skillLevel: 1, monsterId: null }, groups: [{ ...group, level: 10 }, { ...group, level: 200 }] as [typeof group, typeof group] };
     const fixed = clampState(bad);
-    expect(fixed.groups.map(entry => entry.level)).toEqual([70, LEVEL_CAP]);
+    expect(fixed.groups.map(entry => entry.level)).toEqual([70, 70]);
+    const split = { ...bad, groups: [{ ...group, level: 90 }, { ...group, level: 100 }] as [typeof group, typeof group] };
+    expect(clampState(split).groups.map(entry => entry.level)).toEqual([90, 90]);
     expect(fixed.shared).toEqual(bad.shared);
     expect(fixed.groups[0].stats).toEqual(bad.groups[0].stats);
     const valid = defaultState(data, 410, 50, null);
@@ -255,6 +258,14 @@ describe("記下來的設定", () => {
     const group = { ...defaultGroup(data, 210, 40, null), ammoId: null, charge: null };
     const state = { shared: { job: 210, skillId: 2101004, skillLevel: 29, monsterId: 5130104 }, groups: [group, { ...group, level: 120 }] };
     expect(parseState(JSON.stringify(state))).toEqual(state);
+  });
+
+  it("舊版記下的設定沒有武器攻擊這欄：照樣讀回來、當作沒改（null）", () => {
+    const group = defaultGroup(data, 410, 50, null) as Record<string, unknown>;
+    const { weaponAtk: _drop, ...old } = group;
+    const parsed = parseState(JSON.stringify({ shared: { job: 410, skillId: 4001344, skillLevel: 20, monsterId: null }, groups: [old, old] }));
+    expect(parsed).not.toBeNull();
+    expect(parsed!.groups.map(entry => entry.weaponAtk)).toEqual([null, null]);
   });
 
   type Loose = { shared: Record<string, unknown>; groups: Array<Record<string, unknown>> };
@@ -278,6 +289,7 @@ describe("記下來的設定", () => {
     ["彈藥 id 不是數字也不是 null", state => { state.groups[1].ammoId = false; }],
     ["充能不是數字也不是 null", state => { state.groups[0].charge = "1"; }],
     ["其他攻擊是 null", state => { state.groups[0].extra = null; }],
+    ["武器攻擊不是數字也不是 null", state => { state.groups[0].weaponAtk = "30"; }],
     ["其他攻擊不是數字", state => { state.groups[0].extra = "3"; }],
     ["增益不是陣列", state => { state.groups[0].buffs = null; }],
     ["增益裡有不是數字的", state => { state.groups[1].buffs = [1, "x"]; }],
@@ -372,12 +384,18 @@ describe("兩組預設", () => {
     expect(state.groups[0].tab).toBe("全幸");
     expect(state.groups[1].tab).toBe("一般點法");
   });
-  it("狂戰士 50（沒有第二套）：右邊同一套、等級拉到下一把武器、武器是那把", () => {
+  it("狂戰士 50（沒有第二套）：右邊同一套、同等級（等級兩組共用）、武器換下一把，結果卡寫要幾等才拿得到", () => {
     const state = defaultState(data, 110, 50, null);
     const next = gearPlanNext(110, 50);
     expect(next).not.toBeNull();
-    expect(state.groups[1].level).toBe(next!.lv);
+    expect(state.groups[1].level).toBe(50);
     expect(state.groups[1].weaponId).toBe(next!.id);
+    const result = computeGroup(data, state.shared, state.groups[1], null);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.warnings).toContain(`要 Lv.${next!.lv} 才拿得到（照樣算）`);
+    const left = computeGroup(data, state.shared, state.groups[0], null);
+    if (!left.ok) throw new Error(left.reason);
+    expect(left.warnings.some(text => text.startsWith("要 Lv."))).toBe(false);
   });
   it("換點法、換等級：能力值、武器重設成那套那級的預設，其他攻擊、增益留著", () => {
     const group = { ...defaultGroup(data, 410, 50, null), extra: 7, buffs: [] };
@@ -398,6 +416,69 @@ describe("兩組預設", () => {
   });
 });
 
+describe("換等級（等級在最上面、兩組共用）", () => {
+  it("兩組一起換成新等級，各自的點法留著，能力值重設成那一級的預設", () => {
+    const state = defaultState(data, 410, 50, null);
+    const next = relevel(data, state, 60);
+    expect(next.groups.map(group => group.level)).toEqual([60, 60]);
+    expect(next.groups.map(group => group.tab)).toEqual(["一般點法", "全幸"]);
+    expect(next.groups[0].stats).toEqual(defaultGroup(data, 410, 60, "一般點法").stats);
+  });
+  it("沒有第二套的職業：右組照樣換成那一級的下一把武器", () => {
+    const state = defaultState(data, 110, 50, null);
+    const next = relevel(data, state, 55);
+    const want = gearPlanNext(110, 55);
+    expect(next.groups[1].weaponId).toBe(want ? want.id : next.groups[0].weaponId);
+    expect(next.groups[0].weaponId).toBe(defaultGroup(data, 110, 55, null).weaponId);
+  });
+  it("其他攻擊、增益留著；武器攻擊改過的會重設", () => {
+    const state = defaultState(data, 410, 50, null);
+    const touched = { ...state, groups: [{ ...state.groups[0], extra: 5, weaponAtk: 33 }, state.groups[1]] as typeof state.groups };
+    const next = relevel(data, touched, 60);
+    expect(next.groups[0].extra).toBe(5);
+    expect(next.groups[0].weaponAtk).toBeNull();
+  });
+  it("怪是預設那隻就跟著換成新等級的預設；自己選的留著", () => {
+    const state = defaultState(data, 410, 50, null);
+    expect(relevel(data, state, 70).shared.monsterId).toBe(defaultMonster(data, 410, 70));
+    const picked = { ...state, shared: { ...state.shared, monsterId: 2110200 } };
+    expect(relevel(data, picked, 70).shared.monsterId).toBe(2110200);
+  });
+  it("技能等級跟著技能點法在新等級點到的級數（沒點到就留原本的）", () => {
+    const state = defaultState(data, 410, 30, null);
+    const next = relevel(data, state, 50);
+    expect(next.shared.skillLevel).toBe(next.groups[0].levels[next.shared.skillId] || state.shared.skillLevel);
+  });
+  it("等級夾在職業範圍（暗殺者不可能 10 級）", () => {
+    const state = defaultState(data, 411, 80, null);
+    expect(relevel(data, state, 10).groups.map(group => group.level)).toEqual([70, 70]);
+  });
+});
+
+describe("武器攻擊可以改（衝卷）", () => {
+  const shared = { job: 410, skillId: 4001344, skillLevel: 20, monsterId: null };
+  const group = defaultGroup(data, 410, 50, null);
+  it("預設沒改（null），照武器原本的攻擊", () => {
+    expect(group.weaponAtk).toBeNull();
+  });
+  it("改成 30：總攻擊比原本（赤紅手甲 26）多 4", () => {
+    const before = computeGroup(data, shared, group, null);
+    const after = computeGroup(data, shared, { ...group, weaponAtk: 30 }, null);
+    if (!before.ok || !after.ok) throw new Error("算不出來");
+    expect(after.attack - before.attack).toBe(4);
+  });
+  it("法師改的是武器魔攻", () => {
+    const mage = defaultGroup(data, 210, 40, null);
+    const weapon = gear.weapons.find(w => w.id === mage.weaponId)!;
+    const result = computeGroup(data, { job: 210, skillId: 2101004, skillLevel: 30, monsterId: null }, { ...mage, weaponAtk: (weapon.mag ?? 0) + 10 }, null);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.magicPower).toBe(mage.stats.INT + (weapon.mag ?? 0) + 10);
+  });
+  it("換點法、換武器（regroup）會把改過的武器攻擊清掉", () => {
+    expect(regroup(data, 410, { ...group, weaponAtk: 40 }, { tab: "全幸" }).weaponAtk).toBeNull();
+  });
+});
+
 describe("一下／兩下打死", () => {
   const state = defaultState(data, 410, 50, null);
   const choices = monsterChoices(data.monsters, data.maps);
@@ -406,6 +487,19 @@ describe("一下／兩下打死", () => {
     const one = new Set(lists.one.map(entry => entry.monster.id));
     expect(lists.two.every(entry => !one.has(entry.monster.id))).toBe(true);
     for (const list of [lists.one, lists.two]) {
+      expect(list.every((entry, index) => index === 0 || (list[index - 1].monster.lv ?? 0) >= (entry.monster.lv ?? 0))).toBe(true);
+    }
+  });
+  it("差一點：中間值一下（或兩下）打得死、最低在那個下數打不死；差一點一下不跟一下打死重複，差一點兩下不跟其他三張重複；等級高到低", () => {
+    const ids = (list: typeof lists.one) => new Set(list.map(entry => entry.monster.id));
+    const [one, two, nearOne] = [ids(lists.one), ids(lists.two), ids(lists.nearOne)];
+    expect(lists.nearOne.length).toBeGreaterThan(0);
+    expect(lists.nearTwo.length).toBeGreaterThan(0);
+    expect(lists.nearOne.every(entry => !one.has(entry.monster.id))).toBe(true);
+    expect(lists.nearTwo.every(entry => !one.has(entry.monster.id) && !two.has(entry.monster.id) && !nearOne.has(entry.monster.id))).toBe(true);
+    expect(lists.nearOne.every(entry => entry.midUse >= entry.monster.hp && entry.minUse < entry.monster.hp)).toBe(true);
+    expect(lists.nearTwo.every(entry => entry.midUse < entry.monster.hp && entry.midUse * 2 >= entry.monster.hp && entry.minUse * 2 < entry.monster.hp)).toBe(true);
+    for (const list of [lists.nearOne, lists.nearTwo]) {
       expect(list.every((entry, index) => index === 0 || (list[index - 1].monster.lv ?? 0) >= (entry.monster.lv ?? 0))).toBe(true);
     }
   });
