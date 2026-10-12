@@ -203,6 +203,13 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
 
 /* ------------------------------------------------------------------ 結果 */
 
+/** 「要不 miss，命中要 132」；法師「要不 miss，魔法命中要 26（魔法命中＝智力÷10＋幸運÷10）」（結果卡、怪物小卡同一句） */
+export function accuracyText(accuracy: number, kind: "physical" | "magic"): string {
+  return kind === "magic"
+    ? `要不 miss，魔法命中要 ${accuracy.toLocaleString()}（魔法命中＝智力÷10＋幸運÷10）`
+    : `要不 miss，命中要 ${accuracy.toLocaleString()}（看能力視窗的命中率）`;
+}
+
 /** 屬性加成那一行（「火屬性打弱點 ×1.5」）：資訊不是警告，用天藍淡底 */
 function ElementNote({ text }: { text: string }) {
   return <p className="rounded-lg bg-[color:var(--sky-wash)] px-2.5 py-1.5 text-[12px] font-bold text-[color:var(--sky)]">{text}</p>;
@@ -220,6 +227,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
   // 屬性加成（v0.84 使用者選 A）：兩組一樣（同一招、同一隻怪）只寫一次，不一樣（只有一組開充能）就各寫在那組下面
   const notes = results.map(result => (result.ok ? result.elementNote : null));
   const sharedNote = notes[0] !== null && notes[0] === notes[1] ? notes[0] : null;
+  // 要不 miss（v0.85 使用者選 A）：只看等級跟怪（兩組共用等級），寫一次；法師看魔法命中
+  const hitResult = results.find(result => result.ok && result.vs);
+  const hitVs = hitResult?.ok ? hitResult.vs : null;
   const scale = Math.max(1, ...results.map(result => shown(result)?.max ?? 0));
   return (
     <section aria-label="結果" className="space-y-3 rounded-[var(--radius-card)] glass wood-frame p-3.5">
@@ -228,6 +238,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
         {target ? <Tag level="unverified" /> : <Tag level="legacy" />}
       </header>
       {sharedNote ? <ElementNote text={sharedNote} /> : null}
+      {hitVs ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[12px] font-bold">{accuracyText(hitVs.accuracy, hitVs.accuracyKind)}</p> : null}
       {results.map((result, index) => {
         const bits = result.ok
           ? [
@@ -293,7 +304,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
       [`打${target.n}每一下`, ok => (ok.vs ? fmt(ok.vs.hit) : null), "unverified"],
       [`打${target.n}爆擊`, ok => (ok.vs?.crit ? fmt(ok.vs.crit.hit) : null), "unverified"],
       ["幾次打死", ok => (ok.vs ? `約 ${ok.vs.kills.avg}（最快 ${ok.vs.kills.fastest}、最慢 ${ok.vs.kills.slowest}）` : null), "unverified"],
-      ["要不 miss，命中要", ok => (ok.vs?.accuracy ? String(ok.vs.accuracy) : null), "unverified", "看能力視窗的命中率"],
+      ["要不 miss，命中要", ok => (ok.vs ? `${ok.vs.accuracyKind === "magic" ? "魔法 " : ""}${ok.vs.accuracy.toLocaleString()}` : null), "unverified", "物理看能力視窗的命中率；法師看魔法命中（智力÷10＋幸運÷10）"],
     );
   }
   const visible = rows.filter(([, pick]) => results.some(result => result.ok && pick(result) !== null));

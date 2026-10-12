@@ -20,6 +20,7 @@ import {
   magicBase,
   panelRange,
   rawPanel,
+  magicSureHitAccuracy,
   sureHitAccuracy,
 } from "@/lib/damage";
 
@@ -169,6 +170,13 @@ describe("期望、幾下打死、差幾 %、命中", () => {
   it("必中命中：迴避×(3.68＋0.14×等級差) 無條件進位", () => {
     expect(sureHitAccuracy(50, { lv: 50, eva: 18 })).toBe(Math.ceil(18 * 3.68));
     expect(sureHitAccuracy(50, { lv: 55, eva: 20 })).toBe(Math.ceil(20 * (3.68 + 0.7)));
+  });
+  it("魔法必中命中：(迴避＋1)×(1＋0.04×等級差) 無條件進位（舊版玩家整理，魔法命中＝智力÷10＋幸運÷10）", () => {
+    expect(magicSureHitAccuracy(50, { lv: 50, eva: 20 })).toBe(21);
+    // 怪高 5 級：21 × 1.2 ＝ 25.2 → 26
+    expect(magicSureHitAccuracy(50, { lv: 55, eva: 20 })).toBe(26);
+    // 角色比怪高不打折
+    expect(magicSureHitAccuracy(60, { lv: 55, eva: 20 })).toBe(21);
   });
   it("必中命中：剛好整數不會被浮點多進一位（精確整數）", () => {
     // 差 8：5×(3.68＋1.12)＝5×4.8＝24；浮點算成 24.000000000000004

@@ -12,6 +12,12 @@ describe("導覽列哪一顆亮", () => {
     expect(activeNav("/db/quests")).toBe("查資料");
     expect(activeNav("/plan/train")).toBe("查資料");
     expect(activeNav("/privacy")).toBeUndefined();
-    expect(NAV.map(item => item.label)).toEqual(["我的路線", "帶我去", "查資料"]);
+  });
+
+  it("傷害計算機拉出來放「我的路線」旁邊（v0.85 使用者選 A「算傷害」），在計算機頁亮它、不亮查資料", () => {
+    expect(NAV.map(item => item.label)).toEqual(["我的路線", "算傷害", "帶我去", "查資料"]);
+    expect(NAV[1].href).toBe("/plan/damage");
+    expect(activeNav("/plan/damage")).toBe("算傷害");
+    expect(activeNav("/plan/farm")).toBe("查資料");
   });
 });

@@ -34,7 +34,8 @@ export function SiteHeader() {
           <span className="hidden text-[17px] font-black tracking-tight min-[400px]:inline">楓谷幫手</span>
         </Link>
 
-        <nav className="scroll-x -mx-1 flex flex-1 items-center gap-1 px-1" aria-label="主選單">
+        {/* 四顆（v0.85 加「算傷害」）：手機上縮一點才放得下——400 寬以下按鈕左右 8px、間距 2px，380 寬以下字 13px（360 寬量過有 11px 餘裕） */}
+        <nav className="scroll-x -mx-1 flex flex-1 items-center gap-0.5 px-1 min-[400px]:gap-1" aria-label="主選單">
           {NAV.map(item => {
             const active = activeNav(pathname) === item.label;
             return (
@@ -44,7 +45,7 @@ export function SiteHeader() {
                 aria-current={active ? "page" : undefined}
                 className={[
                   // 只有滑鼠移上去才漸變：換頁時「目前這頁」的橘底直接換過去，不會兩顆同時偏橘
-                  "shrink-0 rounded-full px-3 py-1.5 text-sm font-bold hover:transition-colors",
+                  "shrink-0 rounded-full px-2 py-1.5 text-[13px] font-bold hover:transition-colors min-[380px]:text-sm min-[400px]:px-3",
                   active
                     ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] shadow-sm"
                     : "text-[color:var(--ink-soft)] hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--ink)]",

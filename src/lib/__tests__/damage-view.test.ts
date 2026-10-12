@@ -314,6 +314,24 @@ describe("記下來的設定", () => {
   });
 });
 
+describe("要不 miss 命中要多少（v0.85 使用者選 A：物理一條、法師用魔法那條）", () => {
+  const monster = { ...data.monsters[0], lv: 55, pdd: 0, mdd: 0, eva: 20, el: undefined };
+  it("物理職業：必中門檻，標物理", () => {
+    const group = defaultGroup(data, 410, 50, null);
+    const result = computeGroup(data, { job: 410, skillId: 4001344, skillLevel: 20, monsterId: null }, group, monster);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.vs!.accuracy).toBe(Math.ceil(20 * (3.68 + 0.14 * 5)));
+    expect(result.vs!.accuracyKind).toBe("physical");
+  });
+  it("法師：魔法必中門檻，標魔法", () => {
+    const mage = defaultGroup(data, 210, 50, null);
+    const result = computeGroup(data, { job: 210, skillId: 2101004, skillLevel: 30, monsterId: null }, mage, monster);
+    if (!result.ok) throw new Error(result.reason);
+    expect(result.vs!.accuracy).toBe(26);
+    expect(result.vs!.accuracyKind).toBe("magic");
+  });
+});
+
 describe("屬性加成寫在結果卡（v0.84 使用者選 A）", () => {
   const mage = defaultGroup(data, 210, 40, null);
   const fireArrow = { job: 210, skillId: 2101004, skillLevel: 30, monsterId: null };

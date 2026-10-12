@@ -8,7 +8,9 @@ import { Sprite } from "@/components/route/bits";
 import { monsterImage } from "@/lib/data";
 import { killLists, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
 import { useVisitState } from "@/lib/visit-state";
-import { Tag } from "./parts";
+import { magicSureHitAccuracy, sureHitAccuracy } from "@/lib/damage";
+import { isMagicJob } from "@/lib/gear";
+import { accuracyText, Tag } from "./parts";
 
 const CELL = 38;
 const GAP = 6;
@@ -76,7 +78,7 @@ function Section({ title, storeKey, list, beforeOpen, onOpen, heading = "h2" }: 
 /** 小卡是從哪一張點開的：確定一下／兩下（最低傷害打得死）或差一點（中間值打得死） */
 type Kind = { hits: "一下" | "兩下"; near: boolean };
 
-function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: Kind; onClose: () => void; onPick: () => void }) {
+function Sheet({ entry, kind, hitText, onClose, onPick }: { entry: KillEntry; kind: Kind; hitText: string; onClose: () => void; onPick: () => void }) {
   const first = useRef<HTMLButtonElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   // 打開時把焦點放在第一顆按鈕（只做一次，跟 Esc 的監聽拆開，onClose 換了不會把焦點又搶回來）
@@ -136,6 +138,7 @@ function Sheet({ entry, kind, onClose, onPick }: { entry: KillEntry; kind: Kind;
               </span>
               <Tag level="unverified" />
             </p>
+            <p className="text-[12px] ink-soft">{hitText}</p>
           </div>
           <button type="button" aria-label="關掉" onClick={onClose} className="grid size-9 place-items-center rounded-full ink-soft">
             <CloseIcon size={18} />
@@ -191,6 +194,10 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
             <Sheet
               entry={selected.entry}
               kind={selected.kind}
+              hitText={accuracyText(
+                isMagicJob(state.shared.job) ? magicSureHitAccuracy(state.groups[active].level, selected.entry.monster) : sureHitAccuracy(state.groups[active].level, selected.entry.monster),
+                isMagicJob(state.shared.job) ? "magic" : "physical",
+              )}
               onClose={close}
               onPick={() => {
                 onPick(selected.entry.monster.id);

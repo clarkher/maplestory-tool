@@ -189,6 +189,14 @@ export function diffPercent(a: number, b: number): number {
   return Math.round((a / b - 1) * 100) || 0;
 }
 
+/**
+ * 魔法必中的命中：(迴避＋1)×(1＋0.04×等級差)，無條件進位。魔法命中＝智力÷10＋幸運÷10（各自捨去），跟裝備的命中無關。
+ * 舊版國際服玩家整理（好幾個來源同一族，side-session-notes/local_bac19159…/2026-10-12-命中研究.md），經典版沒驗證。
+ */
+export function magicSureHitAccuracy(charLevel: number, monster: { lv: number | null; eva: number }): number {
+  return Math.ceil((monster.eva + 1) * (1 + 0.04 * levelGap(charLevel, monster.lv ?? 0)) - EPS);
+}
+
 /** 物理必中的命中：迴避×(3.68＋0.14×等級差)（舊版公式彙整；波波命中門檻同一條） */
 export function sureHitAccuracy(charLevel: number, monster: { lv: number | null; eva: number }): number {
   return Math.ceil(monster.eva * (3.68 + 0.14 * levelGap(charLevel, monster.lv ?? 0)) - EPS);
