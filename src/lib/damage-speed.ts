@@ -71,6 +71,13 @@ const SPEED_RULES: Record<number, SpeedRule> = {
   4211002: 900, // 落葉斬
 };
 
+/** 出手時間固定、不吃攻速跟加速的技能：群體治癒 600 毫秒（Oddjobs） */
+const FIXED_MS: Record<number, number> = { 2301002: 600 };
+
+export function fixedMs(skillId: number): number | undefined {
+  return FIXED_MS[skillId];
+}
+
 /** 查不到出手時間時，畫面上那一句 */
 export const SPEED_UNKNOWN = "這招出手時間查不到，不算";
 

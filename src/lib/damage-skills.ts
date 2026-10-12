@@ -10,7 +10,8 @@ import { jobTier } from "./jobs";
 import { jobLineage } from "./planner";
 import type { Skill } from "./types";
 
-export type DamageKind = "normal" | "lucky" | "dragonRoar" | "arrowBomb" | "magic";
+/** heal＝群體治癒打不死系（v0.88，自己一條公式，只打得到不死系） */
+export type DamageKind = "normal" | "lucky" | "dragonRoar" | "arrowBomb" | "magic" | "heal";
 
 export type SkillRule = {
   /** 一次打幾下（台服說明），沒寫 1；該級有 attackCount 時以它為準（迴旋斬） */
@@ -34,6 +35,10 @@ export type SkillRule = {
 /** 「普通攻擊」用的假 id（不是遊戲技能） */
 export const BASIC_ATTACK = 0;
 export const BASIC_RULE: SkillRule = { kind: "normal" };
+/** 群體治癒 */
+export const HEAL = 2301002;
+/** 群體治癒範圍內最多幾隻怪（舊版：含自己共 6 格） */
+export const HEAL_TARGETS_MAX = 5;
 
 export const SKILL_RULES: Record<number, SkillRule> = {
   // 劍士
@@ -54,6 +59,7 @@ export const SKILL_RULES: Record<number, SkillRule> = {
   2201004: { kind: "magic", element: "i" }, // 冰錐術
   2201005: { kind: "magic", element: "l" }, // 電閃雷鳴
   2301005: { kind: "magic", element: "h" }, // 神聖之箭
+  2301002: { kind: "heal" }, // 群體治癒「範圍內的不死怪物會受到傷害」（台服資料只有恢復力 %，公式見 damage.ts healBase）
   2111002: { kind: "magic", element: "f" }, // 末日烈焰
   2111006: { kind: "magic", note: "火、毒混合屬性怎麼算查不到，沒套屬性" }, // 火毒合擊
   2211002: { kind: "magic", element: "i" }, // 冰風暴

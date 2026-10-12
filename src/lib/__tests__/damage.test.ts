@@ -22,6 +22,8 @@ import {
   rawPanel,
   magicSureHitAccuracy,
   sureHitAccuracy,
+  healBase,
+  healTargetMultiplier,
 } from "@/lib/damage";
 
 const stats = (STR: number, DEX: number, INT: number, LUK: number) => ({ STR, DEX, INT, LUK });
@@ -183,5 +185,25 @@ describe("期望、幾下打死、差幾 %、命中", () => {
     expect(sureHitAccuracy(42, { lv: 50, eva: 5 })).toBe(24);
     // 差 3：10×(3.68＋0.42)＝10×4.1＝41；浮點算成 41.00000000000001
     expect(sureHitAccuracy(47, { lv: 50, eva: 10 })).toBe(41);
+  });
+});
+
+describe("群體治癒打不死系（v0.88，舊版玩家整理，台服沒驗證）", () => {
+  it("目標倍率＝1.5＋5÷(範圍內隻數＋自己)：1 隻 4、2 隻 3.17、5 隻 2.33", () => {
+    expect(healTargetMultiplier(1)).toBe(4);
+    expect(healTargetMultiplier(2)).toBeCloseTo(3.1667, 4);
+    expect(healTargetMultiplier(5)).toBeCloseTo(2.3333, 4);
+  });
+  it("研究算例：智力 200、幸運 30、魔攻 260、1 隻、恢復力 300% → 280.8～842.4（還沒扣魔防）", () => {
+    const base = healBase(200, 30, 260, 1, 300);
+    expect(base.min).toBeCloseTo(280.8);
+    expect(base.max).toBeCloseTo(842.4);
+  });
+  it("恢復力先乘再扣魔防：打殭屍菇菇 262～827、骷髏犬 166～747、骷髏犬範圍內 3 隻 79～484", () => {
+    const hit = (monsters: number, target: { lv: number; pdd: number; mdd: number }) =>
+      hitRange({ base: healBase(200, 30, 260, monsters, 300), magic: true, modifier: 1, ignoreDefense: false, multiplier: 1, charLevel: 50, target });
+    expect(hit(1, { lv: 24, pdd: 0, mdd: 30 })).toEqual({ min: 262, max: 827 });
+    expect(hit(1, { lv: 44, pdd: 0, mdd: 190 })).toEqual({ min: 166, max: 747 });
+    expect(hit(3, { lv: 44, pdd: 0, mdd: 190 })).toEqual({ min: 79, max: 484 });
   });
 });

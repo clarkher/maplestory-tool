@@ -90,6 +90,21 @@ export function magicBase(int: number, magic: number, spellAttack: number, maste
   };
 }
 
+/** 群體治癒的目標倍率：1.5＋5÷(範圍內隻數＋自己)，怪越多每隻分到越少（1 隻 4、5 隻 2.33） */
+export function healTargetMultiplier(monsters: number): number {
+  return 1.5 + 5 / (monsters + 1);
+}
+
+/**
+ * 群體治癒打不死系（v0.88）：上限＝(智力×1.2＋幸運)×魔攻÷1000×目標倍率×恢復力%，下限把 1.2 換成 0.3。
+ * 不用法術基本攻擊、熟練度；恢復力% 在這裡先乘（之後再扣魔防，照 Oddjobs 程式）。
+ * 舊版玩家整理（Technolink 公式彙整、Oddjobs 一致，side-session-notes/local_bac19159…/2026-10-12-群體治癒研究.md），經典版沒驗證。
+ */
+export function healBase(int: number, luk: number, magic: number, monsters: number, percent: number): Range {
+  const scale = (magic / 1000) * healTargetMultiplier(monsters) * (percent / 100);
+  return { min: (int * 0.3 + luk) * scale, max: (int * 1.2 + luk) * scale };
+}
+
 /** 等級差：怪物比你高才算，你比怪高是 0 */
 export function levelGap(charLevel: number, mobLevel: number): number {
   return Math.max(0, mobLevel - charLevel);

@@ -6,7 +6,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { BASIC_ATTACK, SKILL_RULES } from "@/lib/damage-skills";
-import { actionMs, BOOSTERS, boosterSteps, dragonRoarStunMs, expPerSecond, skillBaseMs, SPEED_UNKNOWN } from "@/lib/damage-speed";
+import { actionMs, BOOSTERS, boosterSteps, dragonRoarStunMs, expPerSecond, fixedMs, skillBaseMs, SPEED_UNKNOWN } from "@/lib/damage-speed";
 import type { Skill } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
@@ -82,8 +82,14 @@ describe("每個技能的基本毫秒", () => {
     ];
     for (const [id, weapon, base] of table) expect(skillBaseMs(id, weapon, 20), `${id} ${skills.get(id)?.n}`).toBe(base);
   });
-  it("技能表裡每個技能都有答案：不是海盜、龍之獻祭就要有毫秒", () => {
+  it("群體治癒固定 600 毫秒（不吃攻速），其他技能沒有固定時間", () => {
+    expect(fixedMs(2301002)).toBe(600);
+    expect(fixedMs(2301005)).toBeUndefined();
+    expect(fixedMs(BASIC_ATTACK)).toBeUndefined();
+  });
+  it("技能表裡每個技能都有答案：不是海盜、龍之獻祭就要有毫秒（固定時間的另外算）", () => {
     for (const id of Object.keys(SKILL_RULES).map(Number)) {
+      if (fixedMs(id) !== undefined) continue;
       const pirate = Math.floor(id / 1000000) === 5;
       const weapon = SKILL_RULES[id].weapons?.[0] ?? (pirate ? "指虎" : id >= 3000000 && id < 4000000 ? "弓" : id >= 4000000 ? "拳套" : "單手劍");
       const ms = skillBaseMs(id, weapon, 30);
