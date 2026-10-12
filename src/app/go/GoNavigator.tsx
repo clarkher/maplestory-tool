@@ -289,7 +289,7 @@ function RouteCard({
             className="grid size-8 place-items-center rounded-full text-sm font-black tabular-nums"
             style={{
               backgroundColor: isEnd ? "var(--maple)" : isStart ? "var(--leaf)" : "var(--paper-deep)",
-              color: isEnd || isStart ? "#fff" : "var(--ink-soft)",
+              color: isEnd || isStart ? "var(--on-accent)" : "var(--ink-soft)",
             }}
           >
             {isEnd ? <PinIcon size={16} /> : index + 1}

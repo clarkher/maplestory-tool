@@ -224,7 +224,7 @@ function DoneButton({ id }: { id: string }) {
       className={[
         "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-full border px-[11px] text-[13px] font-bold transition-colors",
         done
-          ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-white"
+          ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-[color:var(--on-accent)]"
           : "border-[color:var(--paper-edge)] bg-[color:var(--paper)] hover:bg-[color:var(--maple-wash)]",
       ].join(" ")}
     >

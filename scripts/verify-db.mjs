@@ -28,6 +28,7 @@
 // 魔力淨化寫沒有每一級的數字、說明尾巴的「#」拿掉（寫死：槍連擊 1311001、隱身術 4001003、魔力淨化 2000000、劍氣縱橫 1001005；槍連擊手機桌機都看）。
 // S3＝v0.78 的技能卡 12 項：存了角色先篩你這一轉的職業、所需技能連結、表頭單位、標出你點得到第幾級、表頭黏住、文字表標出變了的數字、衝鋒用客戶端數值、
 // 壞圖示、韓文說明、到期的活動技能（角色 Lv.45 狂戰士；「還沒點滿」暫時換 Lv.32 槍騎兵）。v0.78 起 S1 先把職業篩選記成「全部職業」（不然初心者技能不在清單上）。
+// v0.80 加：所需技能照台服客戶端接、寫錯的名字換正式名（終極之劍→精準之劍）、「需求技能：」也拆（天使祝福，暫時換 Lv.35 僧侶）。
 // 篩選的標籤按鈕（button[aria-pressed]）用 __tag／__pressed 找、看。
 import { spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -734,6 +735,30 @@ try {
         quick?.note === "你 Lv.30：二轉到現在有 1 點，所需技能要先花 5 點，還差 5 點才點得到這招。" && quick.marked.length === 0, { note: quick?.note, marked: quick?.marked });
       const other = await open(2001004);
       check("S3 不是自己職業線的技能（法師的魔靈彈）不寫、不標", other && other.note === null && other.marked.length === 0, { note: other?.note, marked: other?.marked });
+    } finally {
+      await setProfile(45, 110);
+    }
+
+    // v0.80：所需技能照台服客戶端接——遊戲說明寫錯的「劍技專精」換成正式名稱精準之劍、連得過去；
+    // 寫「需求技能：」的 13 個也拆出來（天使祝福），點得到第幾級連所需技能的所需技能一起扣
+    const ult = await open(1100002);
+    check("S3 終極之劍：所需技能寫正式名稱「精準之劍 3 級以上」（遊戲說明原文寫劍技專精），連到 ?id=1100000",
+      ult?.req === "所需技能：精準之劍 3 級以上" && ult.reqLinks.some(link => link.text === "精準之劍" && link.href === "/db/skills?id=1100000"),
+      { req: ult?.req, links: ult?.reqLinks });
+    const ultJump = await ev(`const link = [...document.querySelectorAll("main article p a")].find(a => a.textContent === "精準之劍");
+      link.click(); await __waitFor(() => location.search.includes("1100000")); await __sleep(1000);
+      return { search: location.search, title: document.querySelector("main article h2")?.textContent ?? "" };`);
+    check("S3 點「精準之劍」：卡片換成精準之劍（名字跟上一張寫的一樣）", ultJump.search === "?id=1100000" && ultJump.title.includes("精準之劍"), ultJump);
+    try {
+      await setProfile(35, 230);
+      const bless = await open(2301004);
+      check("S3 天使祝福：說明裡的「需求技能：神聖之光5級以上」拆成另一行「所需技能：神聖之光 5 級以上」，連到 ?id=2301003",
+        !/需求技能/.test(bless?.desc ?? "") && bless?.req === "所需技能：神聖之光 5 級以上" && bless.reqLinks.some(link => link.href === "/db/skills?id=2301003"),
+        { desc: bless?.desc, req: bless?.req, links: bless?.reqLinks });
+      // 神聖之光自己又要群體治癒 5 級：一共扣 10 點（v0.80 以前沒拆、沒扣，寫第 16 級）
+      check("S3 天使祝福 × Lv.35 僧侶：寫「二轉到現在有 16 點，扣掉所需技能 10 點，這招最多到第 6 級」、標橘第 6 列",
+        bless?.note === "你 Lv.35：二轉到現在有 16 點，扣掉所需技能 10 點，這招最多到第 6 級，標橘的那一列。" && bless.marked.join(",") === "6", { note: bless?.note, marked: bless?.marked });
+      await shot("s3-prereq-bless.png");
     } finally {
       await setProfile(45, 110);
     }

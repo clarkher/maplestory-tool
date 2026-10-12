@@ -296,7 +296,7 @@ function ItemDetail({
           </ul>
           <Link
             href={`/plan/farm?want=${item.id}`}
-            className="tap-safe mt-1 inline-flex rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-white"
+            className="tap-safe mt-1 inline-flex rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
           >
             排出哪張圖收最快
           </Link>

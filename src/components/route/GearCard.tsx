@@ -173,6 +173,10 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
           <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
         </button>
       ) : null}
+      <Link href="/plan/damage" className="tap-safe flex items-center justify-center gap-0.5 pt-0.5 text-[13px] font-bold text-[color:var(--sky)] hover:underline">
+        算算看打怪多痛
+        <ChevronRight size={14} />
+      </Link>
     </Frame>
   );
 }
@@ -219,7 +223,7 @@ function TabRow({ plan, onPick }: { plan: GearPlan; onPick: (tab: string | null)
 /* ------------------------------------------------------------------ 能力值 */
 
 const CELL_TONE = {
-  main: "bg-[color:var(--maple)] text-white",
+  main: "bg-[color:var(--maple)] text-[color:var(--on-accent)]",
   second: "bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
   rest: "bg-[color:var(--paper)] ink-faint",
 } as const;

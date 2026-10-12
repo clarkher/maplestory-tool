@@ -288,10 +288,10 @@ describe("真資料：說明、所需技能、到期的活動技能（v0.78）",
     expect(byId(1001004).n).toBe("魔天一擊");
   });
 
-  it("所需技能接上的 id 都是真的技能、名字一樣、在同一條職業線（自己、上一轉、一轉）；說明裡不再有「所需技能」", () => {
+  it("所需技能接上的 id 都是真的技能、名字一樣、在同一條職業線（自己、上一轉、一轉）；說明裡不再有「所需技能」「需求技能」", () => {
     let linked = 0;
     for (const skill of skills) {
-      expect(skill.desc ?? "", `${skill.id} ${skill.n}`).not.toContain("所需技能");
+      expect(skill.desc ?? "", `${skill.id} ${skill.n}`).not.toMatch(/(所需|需求)技能/);
       for (const req of skill.req ?? []) {
         if (req.id === undefined) continue;
         const target = byId(req.id);
@@ -307,6 +307,40 @@ describe("真資料：說明、所需技能、到期的活動技能（v0.78）",
   it("寫著 2009 年就到期的活動技能（宇宙船、宇宙衝鋒、宇宙光束、雪吉拉騎士 1017）不列；另一個沒寫期限的雪吉拉騎士 1018 照列", () => {
     for (const id of [1013, 1014, 1015, 1017]) expect(skills.some(skill => skill.id === id), String(id)).toBe(false);
     expect(byId(1018).n).toBe("雪吉拉騎士");
+  });
+});
+
+describe("真資料：所需技能照台服客戶端接，寫錯的名字換成正式技能名（v0.80）", () => {
+  const reqOf = (id: number) => byId(id).req;
+
+  it("每一筆所需技能都接得上連結（遊戲說明寫錯名字的 20 個、寫「需求技能：」的 13 個都算）", () => {
+    const all = skills.flatMap(skill => (skill.req ?? []).map(req => ({ skill, req })));
+    expect(all.filter(({ req }) => req.id === undefined).map(({ skill, req }) => `${skill.id} ${skill.n}→${req.name}`)).toEqual([]);
+    expect(all.length).toBeGreaterThanOrEqual(73);
+  });
+
+  it("遊戲說明寫錯的名字換成正式技能名：劍技專精→精準之劍、恢復術→生命恢復、憤怒→激勵、龍之血→龍之魂、快速之箭→快速之弓、復仇者→風魔手裏劍、楓幣爆炸→楓幣炸彈", () => {
+    expect(reqOf(1100002)).toEqual([{ name: "精準之劍", level: 3, id: 1100000 }]);
+    expect(reqOf(1201005)).toEqual([{ name: "精準之棍", level: 5, id: 1200001 }]);
+    expect(reqOf(1301005)).toEqual([{ name: "精準之矛", level: 5, id: 1300001 }]);
+    expect(reqOf(1000001)).toEqual([{ name: "生命淨化", level: 5, id: 1000000 }]);
+    expect(reqOf(1001003)).toEqual([{ name: "生命恢復", level: 3, id: 1000002 }]);
+    expect(reqOf(1101007)).toEqual([{ name: "激勵", level: 3, id: 1101006 }]);
+    expect(reqOf(1311007)).toEqual([{ name: "龍之魂", level: 3, id: 1311008 }]);
+    expect(reqOf(3101004)).toEqual([{ name: "快速之弓", level: 5, id: 3101002 }]);
+    expect(reqOf(4111006)).toEqual([{ name: "風魔手裏劍", level: 5, id: 4111005 }]);
+    expect(reqOf(4211003)).toEqual([{ name: "楓幣炸彈", level: 3, id: 4211006 }]);
+  });
+
+  it("寫「需求技能：」的拆出來了：黑暗之劍要鬥氣集中 1 級、天使祝福要神聖之光 5 級、3連發要雙子星攻擊 20 級（原文沒寫「以上」）", () => {
+    expect(reqOf(1111003)).toEqual([{ name: "鬥氣集中", level: 1, id: 1111002 }]);
+    expect(reqOf(2301004)).toEqual([{ name: "神聖之光", level: 5, id: 2301003 }]);
+    expect(reqOf(5210000)).toEqual([{ name: "雙子星攻擊", level: 20, id: 5001003 }]);
+  });
+
+  it("你點得到第幾級也扣得到這 13 個的所需技能：Lv.35 僧侶 16 點，天使祝福要神聖之光 5 級、神聖之光又要群體治癒 5 級，扣 10 點→第 6 級（以前沒扣、寫第 16 級）", () => {
+    const find = (id: number) => skills.find(skill => skill.id === id);
+    expect(reachableLevel(byId(2301004), { job: 230, level: 35 }, find)).toEqual({ level: 6, sp: 16, cost: 10, full: false, tier: "二轉" });
   });
 });
 

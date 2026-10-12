@@ -108,11 +108,11 @@ function BandItem({
         aria-hidden
         // 三種圓點都套米色外圈，接上後面那條米色直線（2026-10-07 使用者看過實心版，選維持外圈）
         className={`absolute -left-8 top-3 grid size-[27px] place-items-center rounded-full border-[3px] border-[color:var(--paper-edge)] ${
-          state === "current" ? "bg-[color:var(--maple)]" : state === "done" ? "bg-[color:var(--leaf)]" : "bg-[color:var(--paper)]"
+          state === "current" ? "bg-[color:var(--maple)]" : state === "done" ? "bg-[color:var(--leaf)] text-[color:var(--on-accent)]" : "bg-[color:var(--paper)]"
         }`}
       >
         {state === "done" ? (
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <path d="m5 12 5 5 9-10" />
           </svg>
         ) : null}
@@ -356,7 +356,7 @@ function TrainRowItem({
         {row.go !== undefined ? (
           <GoButton to={row.go} label="去" />
         ) : row.pq ? (
-          <Link href={row.pq.guide} className="tap-safe inline-flex shrink-0 items-center rounded-full bg-[color:var(--sky)] px-3 text-[13px] font-bold text-white">
+          <Link href={row.pq.guide} className="tap-safe inline-flex shrink-0 items-center rounded-full bg-[color:var(--sky)] px-3 text-[13px] font-bold text-[color:var(--on-accent)]">
             圖解
           </Link>
         ) : null}

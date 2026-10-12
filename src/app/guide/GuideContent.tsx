@@ -49,7 +49,7 @@ export function GuideContent() {
               className={[
                 "tap-safe shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors",
                 entry.key === job
-                  ? "bg-[color:var(--maple)] text-white shadow-sm"
+                  ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] shadow-sm"
                   : "glass wood-frame hover:bg-[color:var(--maple-wash)]",
               ].join(" ")}
             >
@@ -236,7 +236,7 @@ function StepCard({
             className="grid size-9 place-items-center rounded-full text-sm font-black tabular-nums"
             style={{
               backgroundColor: index === total - 1 ? "var(--maple)" : "var(--leaf-wash)",
-              color: index === total - 1 ? "#fff" : "var(--leaf)",
+              color: index === total - 1 ? "var(--on-accent)" : "var(--leaf)",
             }}
           >
             {index + 1}

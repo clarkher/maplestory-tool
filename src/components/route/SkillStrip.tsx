@@ -39,7 +39,7 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
         type="button"
         onClick={() => setOpen(value => !value)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 bg-[color:var(--maple)] px-3 py-2.5 text-left text-white"
+        className="flex w-full items-center gap-2.5 bg-[color:var(--maple)] px-3 py-2.5 text-left text-[color:var(--on-accent)]"
       >
         {iconId ? (
           <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/90">
@@ -152,7 +152,7 @@ function StepRow({ step }: { step: PlannedStep }) {
       {STATE_TEXT[step.state] ? (
         <span
           className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-            step.state === "now" ? "bg-[color:var(--maple)] text-white" : step.state === "next" ? "bg-[color:var(--paper-deep)]" : "ink-faint"
+            step.state === "now" ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : step.state === "next" ? "bg-[color:var(--paper-deep)]" : "ink-faint"
           }`}
         >
           {STATE_TEXT[step.state]}

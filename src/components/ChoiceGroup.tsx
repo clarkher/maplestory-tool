@@ -65,7 +65,7 @@ export function ChoiceGroup({
             className={[
               "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-full border px-[11px] text-[13px] font-bold transition-colors",
               checked
-                ? "border-[color:var(--maple)] bg-[color:var(--maple)] text-white"
+                ? "border-[color:var(--maple)] bg-[color:var(--maple)] text-[color:var(--on-accent)]"
                 : "border-[color:var(--paper-edge)] bg-[color:var(--paper)] hover:bg-[color:var(--maple-wash)]",
             ].join(" ")}
           >
