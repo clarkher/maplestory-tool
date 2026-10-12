@@ -25,6 +25,7 @@ import {
   diffText,
   groupLabels,
   killLists,
+  levelNoticeText,
   LEVEL_CAP,
   monsterChoices,
   parseState,
@@ -454,6 +455,22 @@ describe("換等級（等級在最上面、兩組共用）", () => {
   it("等級夾在職業範圍（暗殺者不可能 10 級）", () => {
     const state = defaultState(data, 411, 80, null);
     expect(relevel(data, state, 10).groups.map(group => group.level)).toEqual([70, 70]);
+  });
+});
+
+describe("等級打字防呆的說明（v0.83：等級改成輸入＋上下切）", () => {
+  it("打的比這個職業的最低等級低：拉到最低並寫是幾轉", () => {
+    expect(levelNoticeText(411, 50)).toBe("三轉最低 70 等，已調成 70");
+    expect(levelNoticeText(410, 25)).toBe("二轉最低 30 等，已調成 30");
+    expect(levelNoticeText(200, 5)).toBe("一轉最低 8 等，已調成 8");
+  });
+  it("打超過上限：調成 120", () => {
+    expect(levelNoticeText(410, 200)).toBe(`等級上限 ${LEVEL_CAP}，已調成 ${LEVEL_CAP}`);
+  });
+  it("合法的等級不寫", () => {
+    expect(levelNoticeText(410, 50)).toBeNull();
+    expect(levelNoticeText(411, 70)).toBeNull();
+    expect(levelNoticeText(410, LEVEL_CAP)).toBeNull();
   });
 });
 
