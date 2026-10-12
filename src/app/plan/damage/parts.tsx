@@ -5,9 +5,10 @@ import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, defaultAmmo, levelNeededText, monsterStats, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { ammoChoices, boosterFor, defaultAmmo, expRateText, levelNeededText, monsterStats, secondsText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
 import type { Range } from "@/lib/damage";
+import { boosterSteps, SPEED_UNKNOWN } from "@/lib/damage-speed";
 import { gearPlan, tabsFor, STAT_ORDER, STAT_WORD, shortText } from "@/lib/gear-view";
 import { isMagicJob, type StatKey } from "@/lib/gear";
 import { jobAvatar, minLevelFor, skillJobGroups } from "@/lib/jobs";
@@ -272,6 +273,16 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
                     {bits.map((bit, at) => <Fragment key={at}>{at ? "・" : null}{bit}</Fragment>)}
                   </p>
                 ) : null}
+                {/* 每秒經驗（v0.87）：選了怪才有；出手時間查不到的招式照實寫 */}
+                {result.vs ? (
+                  result.vs.expPerSec !== null && result.speed ? (
+                    <p className="text-[13px] font-bold">
+                      每秒約 {expRateText(result.vs.expPerSec)} 經驗<span className="text-[12px] font-normal ink-soft">（出一招 {secondsText(result.speed.ms)} 秒）</span>
+                    </p>
+                  ) : (
+                    <p className="text-[12px] ink-soft">每秒經驗：{SPEED_UNKNOWN}</p>
+                  )
+                ) : null}
                 {!sharedNote && result.elementNote ? <ElementNote text={result.elementNote} /> : null}
                 {result.warnings.map(warning => (
                   <p key={warning} className="rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{warning}</p>
@@ -283,6 +294,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
           </div>
         );
       })}
+      {results.some(result => result.ok && result.vs?.expPerSec != null) ? (
+        <p className="text-[11px] ink-faint">每秒經驗是理論最快：不含走路、MISS、怪物回生，實際大概再低 1～3 成；範圍技能也只算打一隻。出手時間是國際服經典版玩家整理，台服沒驗證。</p>
+      ) : null}
       {sameGroups(state.groups) ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[13px]">兩組一樣，改下面右組的設定來比</p> : diff ? <p className="rounded-lg bg-[color:var(--leaf-wash)] px-2.5 py-1.5 text-[13px] font-bold">{diff}</p> : null}
       <details open={detailsOpen} onToggle={event => setDetailsOpen(event.currentTarget.open)}>
         <Summary open={detailsOpen} className={SUMMARY}>看細節</Summary>
@@ -301,6 +315,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
     ["總攻擊", ok => (ok.magic ? null : String(ok.attack)), "client"],
     ["每一下（木樁）", ok => fmt(ok.raw.hit), "legacy"],
     ["爆擊那一下", ok => (ok.raw.crit && ok.critRate !== null ? `${fmt(ok.raw.crit.hit)}（${Math.round(ok.critRate * 100)}%）` : null), "unverified"],
+    ["出一招幾秒", ok => (ok.speed ? `${secondsText(ok.speed.ms)} 秒（${ok.speed.tier} 階）` : "查不到"), "unverified", "括號是攻速階，開加速快 2 階；法師固定 6 階、極速詠唱快 1～2 階"],
   ];
   if (target) {
     rows.push(
@@ -308,6 +323,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
       [`打${target.n}爆擊`, ok => (ok.vs?.crit ? fmt(ok.vs.crit.hit) : null), "unverified"],
       ["幾次打死", ok => (ok.vs ? `約 ${ok.vs.kills.avg}（最快 ${ok.vs.kills.fastest}、最慢 ${ok.vs.kills.slowest}）` : null), "unverified"],
       ["要不 miss，命中要", ok => (ok.vs ? `${ok.vs.accuracyKind === "magic" ? "魔法 " : ""}${ok.vs.accuracy.toLocaleString()}` : null), "unverified", "物理看能力視窗的命中率；法師看魔法命中（智力÷10＋幸運÷10）"],
+      ["每秒經驗", ok => (ok.vs ? (ok.vs.expPerSec !== null ? expRateText(ok.vs.expPerSec) : "查不到") : null), "unverified", "只算打一隻、不含走路"],
     );
   }
   const visible = rows.filter(([, pick]) => results.some(result => result.ok && pick(result) !== null));
@@ -420,6 +436,10 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
   const masteryId = weapon ? masterySkillFor(weapon.s, job) : null;
   const critId = weapon?.s === "拳套" ? CRIT_SKILL.throw : weapon && (weapon.s === "弓" || weapon.s === "弩") ? CRIT_SKILL.bow : null;
   const ampId = AMP_SKILLS.find(inLine);
+  // 加速（v0.87 使用者選 2A）：手上武器對得上的加速技能有學才出現勾選；沒學的可在「技能等級」改
+  const booster = weapon ? boosterFor(data, job, weapon.s) : undefined;
+  const boosterLevel = booster ? group.levels[booster.id] ?? 0 : 0;
+  const boosterName = booster ? data.skills.get(booster.id)?.n ?? "加速" : null;
   // 全幸這種要湊裝備的點法：寫出預設的副屬性是「空身＋裝備」各多少（使用者改過那格就不寫）
   const plan = useMemo(() => gearPlan(data.gear, job, group.level, data.beforeOpen, group.tab), [data.gear, job, group.level, data.beforeOpen, group.tab]);
   const kitHint = plan.kit && group.stats[plan.kit.stat] === plan.kit.wear ? `${STAT_WORD[plan.kit.stat]}：空身 ${plan.kit.base}＋裝備 ${plan.kit.total}` : null;
@@ -524,9 +544,16 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
         </div>
         {kitHint ? <p className="text-[12px] font-bold">{kitHint}</p> : null}
         <p className="text-[11px] ink-faint">預設是首頁「能力值與裝備」那套點法（含要湊的裝備），身上其他裝備加的自己加</p>
-        {buffs.length || charges.length ? (
+        {buffs.length || charges.length || (booster && boosterLevel > 0) ? (
           <div className="space-y-1.5 py-2">
             <p className="text-[13px] font-bold ink-soft">增益</p>
+            {booster && boosterLevel > 0 ? (
+              <label className="flex items-center gap-2 text-[14px]">
+                <input type="checkbox" checked={group.booster} onChange={event => set({ booster: event.target.checked })} />
+                <Sprite src={skillImage(booster.id)} size={20} />
+                {boosterName}（{magic ? "施法" : "攻擊速度"}快 {boosterSteps(booster, boosterLevel)} 階）
+              </label>
+            ) : null}
             {buffs.map(buff => (
               <label key={buff.id} className="flex items-center gap-2 text-[14px]">
                 <input type="checkbox" checked={group.buffs.includes(buff.id)} onChange={event => set({ buffs: event.target.checked ? [...group.buffs, buff.id] : group.buffs.filter(id => id !== buff.id) })} />
@@ -549,6 +576,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
           {masteryId !== null ? <LevelSelect label={data.skills.get(masteryId)?.n ?? "精準"} id={masteryId} data={data} group={group} onChange={levels => set({ levels })} /> : null}
           {critId !== null && inLine(critId) ? <LevelSelect label={data.skills.get(critId)?.n ?? "爆擊"} id={critId} data={data} group={group} onChange={levels => set({ levels })} /> : null}
           {ampId !== undefined ? <LevelSelect label={data.skills.get(ampId)?.n ?? "魔力激發"} id={ampId} data={data} group={group} onChange={levels => set({ levels })} /> : null}
+          {booster && boosterName ? <LevelSelect label={boosterName} id={booster.id} data={data} group={group} onChange={levels => set({ levels })} /> : null}
           {charges.map(charge => (group.charge === charge.id ? <LevelSelect key={charge.id} label={data.skills.get(charge.id)?.n ?? "充能"} id={charge.id} data={data} group={group} onChange={levels => set({ levels })} /> : null))}
         </details>
       </div>
@@ -569,8 +597,9 @@ export function HowCard({ data, job, level }: { data: CalcData; job: number; lev
         <p><Tag level="client" /> 能力視窗攻擊力：依客戶端計算式整理的公式，還沒跟台服遊戲畫面逐筆對過。</p>
         <p><Tag level="legacy" /> 技能倍率（雙飛斬、魔法、龍咆哮、強弓…）：舊版公式，楓錄、楓憶跟舊版公式彙整寫法一致。</p>
         <p><Tag level="unverified" /> 打怪（防禦、等級差、屬性）、爆擊、命中：舊版國際服的公式，台服經典版沒人實測過，數字可能不準。</p>
+        <p><Tag level="unverified" /> 出一招幾秒、每秒經驗：國際服經典版玩家整理的出手時間（每個技能、每個攻速一張表），台服沒驗證；每秒經驗不含走路、MISS、怪物回生，範圍技能也只算打一隻。海盜、龍之獻祭查不到。</p>
         {guided ? null : <p className="font-bold">這個職業還沒有技能點法攻略，技能等級先用最高等級</p>}
-        <SourceLinks urls={["https://bobogameguides.com/maplestory-classic/tools/attack-power/", "https://ayumilovemaple.wordpress.com/2009/09/06/maplestory-formula-compilation/", "https://oddjobs.codeberg.page/dmg-calc/"]} />
+        <SourceLinks urls={["https://bobogameguides.com/maplestory-classic/tools/attack-power/", "https://ayumilovemaple.wordpress.com/2009/09/06/maplestory-formula-compilation/", "https://oddjobs.codeberg.page/dmg-calc/", "https://meowdb.com/msclassic/guides/attack-speed-and-animation-times"]} />
         {missing.length ? (
           <div>
             <p className="font-bold">沒算的</p>

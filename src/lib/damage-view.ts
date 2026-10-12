@@ -38,6 +38,7 @@ import {
   SKILL_RULES,
   skillRow,
 } from "./damage-skills";
+import { actionMs, BOOSTERS, boosterSteps, DRAGON_ROAR, dragonRoarStunMs, expPerSecond, MAGIC_TIER, skillBaseMs, type Booster } from "./damage-speed";
 import { isMagicJob, kitStats, obtainableBy, statShortfall, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
 import { gearPlan, tabsFor } from "./gear-view";
 import { canJobUse } from "./item-view";
@@ -78,8 +79,10 @@ export type GroupConfig = {
   buffs: number[];
   /** 白騎士充能技能 id */
   charge: number | null;
-  /** 技能 id → 等級（精準、爆擊、魔力激發、增益、充能用；預設照技能點法） */
+  /** 技能 id → 等級（精準、爆擊、魔力激發、增益、充能、加速用；預設照技能點法） */
   levels: Record<number, number>;
+  /** 開加速（v0.87 使用者選 2A，預設開）：手上武器對得上的加速技能有學才有效 */
+  booster: boolean;
 };
 
 export type SharedConfig = { job: number; skillId: number; skillLevel: number; monsterId: number | null };
@@ -193,7 +196,15 @@ export function defaultGroup(data: CalcData, job: number, level: number, tab: st
     buffs: [],
     charge: null,
     levels: skillLevelsAt(job, lv, data.guides, data.skills).levels,
+    booster: true,
   };
+}
+
+/** 這個職業一路上來、手上武器用得到的加速技能（法師是極速詠唱，不看武器）；沒有回 undefined */
+export function boosterFor(data: CalcData, job: number, weaponType: string): Booster | undefined {
+  const lineage = new Set(jobLineage(job));
+  const magic = isMagicJob(job);
+  return BOOSTERS.find(entry => lineage.has(data.skills.get(entry.id)?.job ?? -1) && (entry.weapons === "magic" ? magic : !magic && entry.weapons.includes(weaponType)));
 }
 
 /**
@@ -266,13 +277,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** 一組設定每個欄位都要在、型別對（沒存、null 不該有 null 的地方、字串當數字都不收），等級在 1 到上限之間 */
 function isGroup(value: unknown): value is GroupConfig {
   if (!isRecord(value)) return false;
-  const { tab, level, weaponId, weaponAtk, ammoId, extra, stats, buffs, charge, levels } = value;
+  const { tab, level, weaponId, weaponAtk, ammoId, extra, stats, buffs, charge, levels, booster } = value;
   return (
     (tab === null || typeof tab === "string") &&
     isNum(level) && level >= 1 && level <= LEVEL_CAP &&
     isNumOrNull(weaponId) && isNumOrNull(ammoId) && isNumOrNull(charge) &&
     // 武器攻擊是 v0.82 才加的：舊版記下的沒有這欄，當作沒改
     (weaponAtk === undefined || isNumOrNull(weaponAtk)) &&
+    // 開加速是 v0.87 才加的：舊版記下的沒有這欄，當作開著
+    (booster === undefined || typeof booster === "boolean") &&
     isNum(extra) &&
     isRecord(stats) && STAT_KEY_LIST.every(key => isNum(stats[key])) &&
     Array.isArray(buffs) && buffs.every(isNum) &&
@@ -294,7 +307,7 @@ export function parseState(raw: string | null): CalcState | null {
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed) || !isShared(parsed.shared)) return null;
     if (!Array.isArray(parsed.groups) || parsed.groups.length !== 2 || !parsed.groups.every(isGroup)) return null;
-    const groups = parsed.groups.map(group => ({ ...group, weaponAtk: group.weaponAtk ?? null })) as [GroupConfig, GroupConfig];
+    const groups = parsed.groups.map(group => ({ ...group, weaponAtk: group.weaponAtk ?? null, booster: group.booster ?? true })) as [GroupConfig, GroupConfig];
     return { shared: parsed.shared, groups };
   } catch {
     return null;
@@ -314,6 +327,8 @@ export function clampState(state: CalcState): CalcState {
 
 export type Unready = { ok: false; reason: string };
 export type HitPair = { hit: Range; use: Range; crit: { hit: Range; use: Range } | null };
+/** 出一招幾毫秒、用的攻速階（夾在 0～10，法師是施法的階）、有沒有算到加速 */
+export type Speed = { ms: number; tier: number; boosted: boolean };
 export type GroupResult =
   | Unready
   | {
@@ -337,11 +352,13 @@ export type GroupResult =
       levelNeeded: number | null;
       /** 選了怪、招式（或白騎士充能）有屬性、怪對那個屬性有弱點／抗性／免疫時的說明：「火屬性打弱點 ×1.5」；其他 null */
       elementNote: string | null;
+      /** 出一招幾毫秒；海盜、龍之獻祭查不到是 null（畫面寫 SPEED_UNKNOWN） */
+      speed: Speed | null;
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
-      /** accuracy：要不 miss 命中要多少（物理看命中、法師看魔法命中，accuracyKind 分） */
-      vs: (HitPair & { kills: { avg: number; fastest: number; slowest: number }; accuracy: number; accuracyKind: "physical" | "magic" }) | null;
+      /** accuracy：要不 miss 命中要多少（物理看命中、法師看魔法命中，accuracyKind 分）；expPerSec：每秒經驗（只算打一隻，出手時間查不到是 null） */
+      vs: (HitPair & { kills: { avg: number; fastest: number; slowest: number }; accuracy: number; accuracyKind: "physical" | "magic"; expPerSec: number | null }) | null;
       /** 一次的期望（選了怪用扣完防禦的） */
       expectedUse: number;
     };
@@ -359,6 +376,7 @@ type Prepared = {
   notes: string[];
   warnings: string[];
   levelNeeded: number | null;
+  speed: Speed | null;
   at(target: Monster | null): { hit: Range; crit: Range | null };
   elementNote(target: Monster): string | null;
 };
@@ -440,6 +458,16 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const chargeLevel = charge ? levelOf(charge.id) || (data.skills.get(charge.id)?.levels?.length ?? 0) : 0;
   const chargePercent = charge ? chosenRow(charge.id)?.damage ?? 100 : 100;
 
+  // 出一招幾毫秒（v0.87）：法師固定 6 階、物理看武器攻速；開了加速、而且手上武器對得上的加速技能有學才快
+  const booster = boosterFor(data, job, weapon.s);
+  const steps = booster && group.booster ? boosterSteps(booster, levelOf(booster.id)) : 0;
+  const baseMs = skillBaseMs(isBasic ? BASIC_ATTACK : shared.skillId, weapon.s, Math.max(1, shared.skillLevel));
+  const tier = Math.min(10, Math.max(0, (magic ? MAGIC_TIER : weapon.spd ?? MAGIC_TIER) - steps));
+  let ms = baseMs === null ? null : actionMs(baseMs, tier);
+  // 龍咆哮放完會自暈，一輪是動作跟自暈取長的
+  if (ms !== null && shared.skillId === DRAGON_ROAR) ms = Math.max(ms, dragonRoarStunMs(Math.max(1, shared.skillLevel)));
+  const speed = ms === null ? null : { ms, tier, boosted: steps > 0 };
+
   const notes: string[] = [];
   if (rule.note) notes.push(rule.note);
   if (rule.pierce) notes.push("穿透的第二隻起每隻少一成（這裡寫第一隻）");
@@ -459,6 +487,7 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     notes,
     warnings,
     levelNeeded,
+    speed,
     elementNote(target) {
       // 白騎士充能看充能的屬性（倍數只寫打弱點／抗性那一段，充能本身的殺傷力 % 另外算）；其他看招式自己的屬性
       const element = charge?.element ?? rule.element;
@@ -503,6 +532,18 @@ export function elementNoteText(element: Element, factor: number | "immune"): st
   return null;
 }
 
+/** 毫秒寫成秒：720 →「0.72」、2000 →「2」 */
+export function secondsText(ms: number): string {
+  return String(Number((ms / 1000).toFixed(2)));
+}
+
+/** 每秒經驗的數字：10 以上取整、以下留一位小數（0.8）；太小寫「不到 0.1」 */
+export function expRateText(value: number): string {
+  if (value >= 10) return Math.round(value).toLocaleString();
+  if (value >= 0.1) return String(Number(value.toFixed(1)));
+  return "不到 0.1";
+}
+
 /** 「要 Lv.60 才拿得到（照樣算）」：結果卡（warnings）跟分頁裡武器下面用同一句 */
 export function levelNeededText(level: number): string {
   return `要 Lv.${level} 才拿得到（照樣算）`;
@@ -529,7 +570,10 @@ export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupC
       kills: killCounts(target.hp, expectedOf(pair), best, pair.use.min),
       accuracy: prepared.magic ? magicSureHitAccuracy(group.level, target) : sureHitAccuracy(group.level, target),
       accuracyKind: prepared.magic ? "magic" : "physical",
+      expPerSec: null,
     };
+    // 每秒經驗（v0.87 使用者選 1A：範圍技能也只算打一隻）
+    if (prepared.speed) vs.expPerSec = expPerSecond(target.exp, vs.kills.avg, prepared.speed.ms);
   }
   const { at: _at, elementNote: _note, ...rest } = prepared;
   return { ...rest, raw, vs, elementNote: target ? prepared.elementNote(target) : null, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };
@@ -582,10 +626,10 @@ function withWeapon(data: CalcData, group: GroupConfig, weapon: GearWeapon): Gro
   return { ...group, weaponId: weapon.id, weaponAtk: null, ammoId: ammo?.id ?? null };
 }
 
-/** 換點法、換等級：能力值、武器、彈藥、技能等級重設成那套那級的預設；其他攻擊、增益、充能留著 */
+/** 換點法、換等級：能力值、武器、彈藥、技能等級重設成那套那級的預設；其他攻擊、增益、充能、開加速留著 */
 export function regroup(data: CalcData, job: number, group: GroupConfig, change: { tab?: string | null; level?: number }): GroupConfig {
   const fresh = defaultGroup(data, job, change.level ?? group.level, change.tab !== undefined ? change.tab : group.tab);
-  return { ...fresh, extra: group.extra, buffs: group.buffs, charge: group.charge };
+  return { ...fresh, extra: group.extra, buffs: group.buffs, charge: group.charge, booster: group.booster };
 }
 
 /**
