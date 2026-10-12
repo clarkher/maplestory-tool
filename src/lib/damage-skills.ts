@@ -10,8 +10,11 @@ import { jobTier } from "./jobs";
 import { jobLineage } from "./planner";
 import type { Skill } from "./types";
 
-/** heal＝群體治癒打不死系（v0.88，自己一條公式，只打得到不死系） */
-export type DamageKind = "normal" | "lucky" | "dragonRoar" | "arrowBomb" | "magic" | "heal";
+/**
+ * knockback＝強弓／強弩（用弓敲人）；heal＝群體治癒打不死系（v0.88，自己一條公式，只打得到不死系）；
+ * bombArrow＝炸彈箭（v0.91：被射中那隻普通弓×50%、周圍最多 5 隻各 x%，爆擊用乘的）
+ */
+export type DamageKind = "normal" | "lucky" | "dragonRoar" | "knockback" | "magic" | "heal" | "bombArrow";
 
 export type SkillRule = {
   /** 一次打幾下（台服說明），沒寫 1；該級有 attackCount 時以它為準（迴旋斬） */
@@ -37,6 +40,10 @@ export const BASIC_ATTACK = 0;
 export const BASIC_RULE: SkillRule = { kind: "normal" };
 /** 群體治癒 */
 export const HEAL = 2301002;
+/** 炸彈箭 */
+export const BOMB_ARROW = 3101005;
+/** 炸彈箭被射中那隻吃普通弓的幾 %（舊版公式彙整、Oddjobs；不看技能等級） */
+export const BOMB_IMPACT_PERCENT = 50;
 /** 群體治癒範圍內最多幾隻怪（舊版：含自己共 6 格） */
 export const HEAL_TARGETS_MAX = 5;
 
@@ -69,8 +76,9 @@ export const SKILL_RULES: Record<number, SkillRule> = {
   // 弓箭手
   3001004: { kind: "normal", crit: "bow" }, // 斷魂箭
   3001005: { kind: "normal", hits: 2, crit: "bow" }, // 二連箭「兩次攻擊」
-  3101003: { kind: "arrowBomb", weapons: ["弓"] }, // 強弓
-  3201003: { kind: "arrowBomb", weapons: ["弩"] }, // 強弩
+  3101003: { kind: "knockback", weapons: ["弓"] }, // 強弓
+  3201003: { kind: "knockback", weapons: ["弩"] }, // 強弩
+  3101005: { kind: "bombArrow", crit: "bow", weapons: ["弓"] }, // 炸彈箭（客戶端 weapon 45＝弓；研究 2026-10-12-炸彈箭研究.md）
   3201005: { kind: "normal", crit: "bow", pierce: true }, // 穿透之箭
   3111003: { kind: "normal", crit: "bow", weapons: ["弓"], note: "火屬性加成兩個來源寫法不同，沒套屬性" }, // 烈火箭
   3111004: { kind: "normal", crit: "bow", weapons: ["弓"] }, // 箭雨
@@ -131,7 +139,6 @@ export const NOT_CALCULATED: Record<number, string> = {
   4111002: "分身追加的傷害沒算",
   1111002: "鬥氣集中的加成各家寫法不同",
   4211004: "分身怎麼算傷害、各打幾下查不到",
-  3101005: "衝擊跟爆炸兩段怎麼算查不到",
   4111004: "傷害看丟出去的楓幣多少，這版沒算",
   4211006: "傷害看引爆的楓幣多少，這版沒算",
 };

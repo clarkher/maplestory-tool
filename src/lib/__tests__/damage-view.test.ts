@@ -6,7 +6,8 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import type { GearData, GearWeapon } from "@/lib/gear";
-import { attackSkillIds, BASIC_ATTACK, HEAL } from "@/lib/damage-skills";
+import { attackSkillIds, BASIC_ATTACK, BOMB_ARROW, HEAL } from "@/lib/damage-skills";
+import { hitRange, rawPanel } from "@/lib/damage";
 import { actionMs, dragonRoarStunMs, SPEED_UNKNOWN } from "@/lib/damage-speed";
 import { gearPlan } from "@/lib/gear-view";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
@@ -29,6 +30,7 @@ import {
   levelPercentText,
   tenMinute,
   tenMinuteExpText,
+  weakFilter,
   killLists,
   levelNoticeText,
   monsterStats,
@@ -952,5 +954,99 @@ describe("10 分鐘經驗、占這一級的 %（v0.89 使用者：每秒經驗�
     expect(levelPercentText(3.46)).toBe("3.5%");
     expect(levelPercentText(0.46)).toBe("0.5%");
     expect(levelPercentText(0.04)).toBe("不到 0.1%");
+  });
+});
+
+describe("名單的「只看怕這個屬性的怪」（v0.90 使用者：有屬性的招式加篩選按鈕）", () => {
+  const choices = monsterChoices(data.monsters, data.maps);
+  const listsFor = (job: number, level: number, skillId: number, patch: Partial<import("@/lib/damage-view").GroupConfig> = {}) => {
+    const state = defaultState(data, job, level, null);
+    const group = { ...state.groups[0], ...patch };
+    return killLists(data, { ...state.shared, skillId, skillLevel: 20 }, group, choices);
+  };
+  it("名單帶出招式的屬性：火焰箭 火、冰錐術 冰、神聖之箭 神聖；雙飛斬、魔靈彈沒有", () => {
+    expect(listsFor(210, 40, 2101004)?.element).toBe("f");
+    expect(listsFor(220, 40, 2201004)?.element).toBe("i");
+    expect(listsFor(230, 40, 2301005)?.element).toBe("h");
+    expect(listsFor(410, 50, 4001344)?.element).toBeNull();
+    expect(listsFor(210, 40, 2001004)?.element).toBeNull();
+  });
+  it("白騎士開烈焰之劍：屬性是火（充能看充能的屬性）", () => {
+    const state = defaultState(data, 121, 80, null);
+    const sword = gear.weapons.find(weapon => weapon.s === "單手劍" && weapon.lv <= 80)!;
+    const group = { ...state.groups[0], weaponId: sword.id, weaponAtk: null, charge: 1211003 };
+    expect(killLists(data, { ...state.shared, skillId: BASIC_ATTACK, skillLevel: 1 }, group, choices)?.element).toBe("f");
+  });
+  it("群體治癒不算屬性（4A 神聖不乘）：沒有按鈕", () => {
+    expect(listsFor(230, 50, HEAL)?.element).toBeNull();
+  });
+  it("weakFilter：四張都只留怕那個屬性的怪，順序不變；沒有屬性原樣回", () => {
+    const lists = listsFor(210, 40, 2101004)!;
+    const weak = weakFilter(lists, true);
+    for (const list of [weak.one, weak.two, weak.nearOne, weak.nearTwo]) for (const entry of list) expect(entry.monster.el?.f, entry.monster.n).toBe("w");
+    expect(weak.one.length + weak.two.length).toBeGreaterThan(0);
+    expect(weak.one.map(entry => entry.monster.id)).toEqual(lists.one.filter(entry => entry.monster.el?.f === "w").map(entry => entry.monster.id));
+    expect(weakFilter(lists, false)).toBe(lists);
+    const none = listsFor(410, 50, 4001344)!;
+    expect(weakFilter(none, true)).toBe(none);
+  });
+});
+
+describe("炸彈箭（v0.91 使用者選 A：主數字跟名單照被射中那隻 50%，周圍另寫一行）", () => {
+  const dragon = data.monsters.find(monster => monster.n === "青龍")!;
+  /** 獵人 50 拿弓、精準之弓 20 級（熟練度 60%）、霸王箭 20 級（爆擊 ×2）、炸彈箭 skillLevel 級 */
+  const hunter = (skillLevel: number) => {
+    const state = defaultState(data, 310, 50, null);
+    const bow = gear.weapons.find(weapon => weapon.s === "弓" && weapon.lv <= 50 && weapon.lv >= 35)!;
+    const group = { ...state.groups[0], weaponId: bow.id, weaponAtk: null, levels: { ...state.groups[0].levels, 3100000: 20, 3000001: 20, 3101005: skillLevel } };
+    return { shared: { ...state.shared, skillId: BOMB_ARROW, skillLevel }, group };
+  };
+  const baseOf = (result: { attack: number }, group: { stats: Record<"STR" | "DEX" | "INT" | "LUK", number> }) => rawPanel("弓", group.stats, result.attack, 0.6)!;
+  it("被射中那隻＝普通弓 × 50%（不看技能等級），一次 1 下", () => {
+    for (const level of [1, 30]) {
+      const { shared, group } = hunter(level);
+      const result = computeGroup(data, shared, group, null);
+      if (!result.ok) throw new Error(result.reason);
+      expect(result.hits).toBe(1);
+      expect(result.raw.hit).toEqual(hitRange({ base: baseOf(result, group), magic: false, modifier: 1, ignoreDefense: false, multiplier: 0.5, charLevel: 50, target: null }));
+    }
+  });
+  it("周圍每隻吃 x%（30 級 130%、20 級 110%），打選的怪一樣扣防禦", () => {
+    const { shared, group } = hunter(30);
+    const result = computeGroup(data, shared, group, dragon);
+    if (!result.ok || !result.splash) throw new Error("沒有周圍那段");
+    expect(result.splash.percent).toBe(130);
+    const target = { lv: dragon.lv ?? 0, pdd: dragon.pdd, mdd: dragon.mdd };
+    expect(result.splash.hit).toEqual(hitRange({ base: baseOf(result, group), magic: false, modifier: 1, ignoreDefense: false, multiplier: 1.3, charLevel: 50, target }));
+    const twenty = hunter(20);
+    const r20 = computeGroup(data, twenty.shared, twenty.group, null);
+    expect(r20.ok && r20.splash?.percent).toBe(110);
+  });
+  it("爆擊用乘的：被射中那隻 50% × 2 ＝ 100%（不是 50%＋100%）", () => {
+    const { shared, group } = hunter(30);
+    const result = computeGroup(data, shared, group, null);
+    if (!result.ok || !result.raw.crit) throw new Error("沒有爆擊");
+    expect(result.raw.crit.hit).toEqual(hitRange({ base: baseOf(result, group), magic: false, modifier: 1, ignoreDefense: false, multiplier: 1, charLevel: 50, target: null }));
+  });
+  it("別的技能沒有周圍那段（splash 是 null）", () => {
+    const state = defaultState(data, 310, 50, null);
+    const result = computeGroup(data, { ...state.shared, skillId: 3001004, skillLevel: 20 }, state.groups[0], null);
+    expect(result.ok && result.splash).toBeNull();
+  });
+  it("名單照被射中那隻算（最低一次＝50% 那段的最低）；出手時間跟普通射箭一樣", () => {
+    const { shared, group } = hunter(30);
+    const lists = killLists(data, shared, group, monsterChoices(data.monsters, data.maps))!;
+    const entry = [...lists.one, ...lists.two][0];
+    const vs = computeGroup(data, shared, group, entry.monster);
+    expect(vs.ok && vs.vs?.use.min).toBe(entry.minUse);
+    const basic = computeGroup(data, { ...shared, skillId: BASIC_ATTACK, skillLevel: 1 }, group, null);
+    const bomb = computeGroup(data, shared, group, null);
+    expect(bomb.ok && basic.ok && bomb.speed?.ms === basic.speed?.ms).toBe(true);
+  });
+  it("看細節寫明各說各話：被射中那隻 50% 還是 130%、終極之弓沒算", () => {
+    const { shared, group } = hunter(30);
+    const result = computeGroup(data, shared, group, null);
+    expect(result.ok && result.notes.join("")).toContain("50%");
+    expect(result.ok && result.notes.join("")).toContain("終極之弓");
   });
 });

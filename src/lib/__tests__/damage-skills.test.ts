@@ -74,7 +74,7 @@ describe("真資料：每個攻擊技能都有處理", () => {
   });
   it("新列為沒算的四個技能，原因照裁定", () => {
     expect(NOT_CALCULATED[4211004]).toBe("分身怎麼算傷害、各打幾下查不到");
-    expect(NOT_CALCULATED[3101005]).toBe("衝擊跟爆炸兩段怎麼算查不到");
+    expect(NOT_CALCULATED[3101005]).toBeUndefined();
     expect(NOT_CALCULATED[4111004]).toBe("傷害看丟出去的楓幣多少，這版沒算");
     expect(NOT_CALCULATED[4211006]).toBe("傷害看引爆的楓幣多少，這版沒算");
     expect(NOT_CALCULATED[2111003]).toBe("致命毒霧的持續傷害怎麼算查不到");
@@ -167,8 +167,10 @@ describe("技能表欄位照研究定案", () => {
   it("強弓、強弩沒有爆擊；烈火箭沒套屬性", () => {
     expect(SKILL_RULES[3101003].crit).toBeUndefined();
     expect(SKILL_RULES[3201003].crit).toBeUndefined();
-    expect(SKILL_RULES[3101003].kind).toBe("arrowBomb");
-    expect(SKILL_RULES[3201003].kind).toBe("arrowBomb");
+    expect(SKILL_RULES[3101003].kind).toBe("knockback");
+    expect(SKILL_RULES[3201003].kind).toBe("knockback");
+    // 炸彈箭（v0.91 使用者選 A）：被射中那隻 50%、周圍吃 x%，限弓
+    expect(SKILL_RULES[3101005]).toEqual({ kind: "bombArrow", crit: "bow", weapons: ["弓"] });
     expect(SKILL_RULES[3111003].element).toBeUndefined();
   });
   it("龍之獻祭無視防禦、落葉斬等級夠才無視", () => {

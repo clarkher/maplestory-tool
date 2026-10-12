@@ -248,7 +248,14 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
   // 兩組都算不出來也要寫選的是哪個技能（不能說「技能一次（1 下）」），幾下是算得出來才有的
   const skillName = state.shared.skillId === BASIC_ATTACK ? "普通攻擊" : data.skills.get(state.shared.skillId)?.n ?? "技能";
   // 群體治癒的數字是每一隻吃到的（範圍內每隻 1 下）
-  const title = first?.ok ? (first.heal ? `${first.name}一次（範圍內 ${first.targets} 隻，每隻 1 下）` : `${first.name}一次（${first.hits} 下）`) : `${skillName}一次`;
+  // 炸彈箭的主數字是被射中那隻（v0.91 使用者選 A），周圍的另寫一行
+  const title = first?.ok
+    ? first.heal
+      ? `${first.name}一次（範圍內 ${first.targets} 隻，每隻 1 下）`
+      : first.splash
+        ? `${first.name}一次（被射中那隻，1 下）`
+        : `${first.name}一次（${first.hits} 下）`
+    : `${skillName}一次`;
   const shown = (result: GroupResult) => (result.ok ? (result.vs ?? result.raw).use : null);
   // 屬性加成（v0.84 使用者選 A）：兩組一樣（同一招、同一隻怪）只寫一次，不一樣（只有一組開充能）就各寫在那組下面
   const notes = results.map(result => (result.ok ? result.elementNote : null));
@@ -298,6 +305,7 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
                     {bits.map((bit, at) => <Fragment key={at}>{at ? "・" : null}{bit}</Fragment>)}
                   </p>
                 ) : null}
+                {result.splash ? <p className="text-[12px] ink-soft">周圍最多 5 隻各吃 {result.splash.percent}%：每隻 {fmt(result.splash.hit)}</p> : null}
                 {/* 10 分鐘經驗（v0.87 每秒經驗，v0.89 使用者改成 10 分鐘＋占這一級升級經驗的 %）：選了怪才有；出手時間查不到的招式照實寫 */}
                 {result.vs ? (
                   result.vs.tenMinute ? (
@@ -340,6 +348,7 @@ function Details({ labels, results, target }: { labels: [string, string]; result
     ["魔攻", ok => (ok.magicPower !== null ? String(ok.magicPower) : null), "legacy"],
     ["總攻擊", ok => (ok.magic ? null : String(ok.attack)), "client"],
     ["每一下（木樁）", ok => fmt(ok.raw.hit), "legacy"],
+    ["周圍每隻", ok => (ok.splash ? `${fmt(ok.splash.hit)}（${ok.splash.percent}%）` : null), "unverified", "炸彈箭爆炸那段（選了怪照那隻怪算）"],
     ["爆擊那一下", ok => (ok.raw.crit && ok.critRate !== null ? `${fmt(ok.raw.crit.hit)}（${Math.round(ok.critRate * 100)}%）` : null), "unverified"],
     ["出一招幾秒", ok => (ok.speed ? `${secondsText(ok.speed.ms)} 秒（${ok.speed.fixed ? "固定" : ok.speed.stun ? "放完自暈" : `${ok.speed.tier} 階`}）` : "查不到"), "unverified", "括號是攻速階，開加速快 2 階；法師固定 6 階、極速詠唱快 1～2 階；龍咆哮放完會自暈；群體治癒固定 0.6 秒"],
   ];

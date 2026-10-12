@@ -5,7 +5,6 @@
  * 測試在 __tests__/damage-view.test.ts（真資料）。
  */
 import {
-  arrowBombBase,
   combineFactors,
   chargeFactor,
   diffPercent,
@@ -15,6 +14,7 @@ import {
   healBase,
   hitRange,
   killCounts,
+  knockbackBase,
   luckySevenBase,
   magicBase,
   magicSureHitAccuracy,
@@ -30,6 +30,7 @@ import {
   attackSkillIds,
   BASIC_ATTACK,
   BASIC_RULE,
+  BOMB_IMPACT_PERCENT,
   BUFFS,
   CHARGES,
   CRIT_SKILL,
@@ -384,6 +385,8 @@ export type GroupResult =
       /** 群體治癒（v0.88）：只打得到不死系、targets＝範圍內幾隻（每秒經驗每一隻都算） */
       heal: boolean;
       targets: number;
+      /** 炸彈箭周圍每隻（v0.91 使用者選 A：另寫一行，選了怪照那隻怪扣防禦）；別的技能 null */
+      splash: { percent: number; hit: Range } | null;
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
@@ -420,7 +423,11 @@ type Prepared = {
   speed: Speed | null;
   heal: boolean;
   targets: number;
-  at(target: Monster | null): { hit: Range; crit: Range | null };
+  /** 炸彈箭周圍那段的攻擊力 %（別的技能 null） */
+  splashPercent: number | null;
+  /** 這一招打出去的屬性（白騎士充能看充能的）；沒有屬性、群體治癒（神聖不乘）是 null */
+  element: Element | null;
+  at(target: Monster | null): { hit: Range; crit: Range | null; splash: Range | null };
   elementNote(target: Monster): string | null;
 };
 
@@ -492,11 +499,14 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     }
   } else if (rule.kind === "lucky") base = luckySevenBase(stats, attack);
   else if (rule.kind === "dragonRoar") base = dragonRoarBase(stats, attack, mastery);
-  else if (rule.kind === "arrowBomb") base = arrowBombBase(stats, attack);
+  else if (rule.kind === "knockback") base = knockbackBase(stats, attack);
   else base = rawPanel(weapon.s, stats, attack, mastery);
   if (!base) return { ok: false, reason: `${weapon.s}的攻擊力公式查不到` };
 
-  const percent = isBasic ? 100 : row.damage ?? 100;
+  // 炸彈箭：主數字是被射中那隻（普通弓×50%，不看技能等級）；周圍那段是 x%（splashPercent）
+  const bomb = rule.kind === "bombArrow";
+  const percent = isBasic ? 100 : bomb ? BOMB_IMPACT_PERCENT : row.damage ?? 100;
+  const splashPercent = bomb ? row.x ?? 0 : null;
   const critKind = rule.crit ?? (isBasic ? (weapon.s === "拳套" ? "throw" : weapon.s === "弓" || weapon.s === "弩" ? "bow" : undefined) : undefined);
   const critFits = critKind === "throw" ? weapon.s === "拳套" : critKind === "bow" ? weapon.s === "弓" || weapon.s === "弩" : false;
   const critId = critKind && critFits ? CRIT_SKILL[critKind] : null;
@@ -528,6 +538,9 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const notes: string[] = [];
   if (rule.note) notes.push(rule.note);
   if (rule.pierce) notes.push("穿透的第二隻起每隻少一成（這裡寫第一隻）");
+  if (bomb) {
+    notes.push(`被射中那隻照舊版算普通弓的 50%（2011 年的攻略寫改版後也是 ${splashPercent}%，台服用哪一版查不到）；周圍最多 5 隻各吃 ${splashPercent}%；爆擊整段乘霸王箭的倍率（滿級 ×2）；終極之弓追加沒算`);
+  }
   if (ammo && ammo.kind !== "飛鏢") notes.push(`${ammo.kind}的攻擊力算進總攻擊只有私服資料，台服沒驗證`);
 
   const finalBase = { min: base.min, max: base.max };
@@ -547,6 +560,8 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
     speed,
     heal,
     targets,
+    splashPercent,
+    element: heal ? null : charge?.element ?? rule.element ?? null,
     elementNote(target) {
       // 群體治癒算不算神聖屬性各說各話（v0.88 使用者選 4A：不乘），打怕神聖的怪寫一行
       if (heal) return target.el?.h === "w" ? HEAL_HOLY_NOTE : null;
@@ -568,7 +583,9 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
       const input = { base: finalBase, magic, modifier, ignoreDefense, charLevel: group.level, target: hitTarget };
       return {
         hit: hitRange({ ...input, multiplier: magic ? 1 : percent / 100 }),
-        crit: crit ? hitRange({ ...input, multiplier: (percent + crit.bonus) / 100 }) : null,
+        // 炸彈箭的爆擊整段乘爆擊倍率（滿級 ×2，三個來源一致），別的技能是攻擊力 % 加上爆擊加成
+        crit: crit ? hitRange({ ...input, multiplier: bomb ? (percent / 100) * ((crit.bonus + 100) / 100) : (percent + crit.bonus) / 100 }) : null,
+        splash: splashPercent !== null ? hitRange({ ...input, multiplier: splashPercent / 100 }) : null,
       };
     },
   };
@@ -653,8 +670,10 @@ export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupC
       vs.tenMinute = tenMinute(vs.expPerSec, group.level, data.expToNext);
     }
   }
-  const { at: _at, elementNote: _note, ...rest } = prepared;
-  return { ...rest, raw, vs, elementNote: target ? prepared.elementNote(target) : null, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };
+  const { at: _at, elementNote: _note, element: _element, splashPercent, ...rest } = prepared;
+  const splashHit = prepared.at(target).splash;
+  const splash = splashPercent !== null && splashHit ? { percent: splashPercent, hit: splashHit } : null;
+  return { ...rest, raw, vs, splash, elementNote: target ? prepared.elementNote(target) : null, expectedUse: vs ? expectedOf(vs) : expectedOf(raw) };
 }
 
 /* ------------------------------------------------------------------ 預設技能、兩組預設 */
@@ -762,7 +781,8 @@ export function sameGroups(groups: [GroupConfig, GroupConfig]): boolean {
 
 /** minUse：最低一次（不爆擊）；midUse：最高跟最低的中間值一次（不爆擊） */
 export type KillEntry = { monster: Monster; v002: boolean; minUse: number; midUse: number };
-export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry[]; nearTwo: KillEntry[] };
+/** element：這一招的屬性（名單上「只看怕這個屬性的怪」按鈕用），沒有屬性是 null */
+export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry[]; nearTwo: KillEntry[]; element: Element | null };
 
 /**
  * 一下打死＝這組用一次選的技能、扣完防禦的最低一次 ≥ HP；兩下＝最低一次×2 ≥ HP、不在一下那張。爆擊不算（要穩穩打死）。
@@ -774,7 +794,7 @@ export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry
 export function killLists(data: CalcData, shared: SharedConfig, group: GroupConfig, choices: MonsterChoice[]): KillLists | null {
   const prepared = prepare(data, shared, group);
   if (!prepared.ok) return null;
-  const lists: KillLists = { one: [], two: [], nearOne: [], nearTwo: [] };
+  const lists: KillLists = { one: [], two: [], nearOne: [], nearTwo: [], element: prepared.element };
   // 群體治癒只打得到不死系（v0.88 使用者：只顯示群體治癒打到的怪）
   for (const { monster, v002 } of prepared.heal ? choices.filter(choice => choice.monster.und) : choices) {
     const { hit } = prepared.at(monster);
@@ -788,7 +808,20 @@ export function killLists(data: CalcData, shared: SharedConfig, group: GroupConf
     else if (entry.minUse * 2 < hp && entry.midUse * 2 >= hp) lists.nearTwo.push(entry);
   }
   const order = (a: KillEntry, b: KillEntry) => (b.monster.lv ?? 0) - (a.monster.lv ?? 0) || b.monster.hp - a.monster.hp || a.monster.id - b.monster.id;
-  return { one: lists.one.sort(order), two: lists.two.sort(order), nearOne: lists.nearOne.sort(order), nearTwo: lists.nearTwo.sort(order) };
+  return { one: lists.one.sort(order), two: lists.two.sort(order), nearOne: lists.nearOne.sort(order), nearTwo: lists.nearTwo.sort(order), element: lists.element };
+}
+
+/** 「只看怕這個屬性的怪」（v0.90）：on 而且招式有屬性時，四張都只留弱那個屬性的怪（順序不變）；否則原樣回 */
+export function weakFilter(lists: KillLists, on: boolean): KillLists {
+  const element = lists.element;
+  if (!on || !element) return lists;
+  const weak = (list: KillEntry[]) => list.filter(entry => entry.monster.el?.[element] === "w");
+  return { ...lists, one: weak(lists.one), two: weak(lists.two), nearOne: weak(lists.nearOne), nearTwo: weak(lists.nearTwo) };
+}
+
+/** 屬性的字：「火屬性」「神聖屬性」（名單按鈕跟結果卡同一套） */
+export function elementWord(element: Element): string {
+  return ELEMENT_WORD[element];
 }
 
 /** 「一般點法比全幸多約 3%」：大的比小的；差距四捨五入後是 0（不到 0.5%）寫「兩組差不多」；有一組算不出來不寫 */

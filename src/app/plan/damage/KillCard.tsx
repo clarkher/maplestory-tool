@@ -6,10 +6,10 @@ import { createPortal } from "react-dom";
 import { CloseIcon } from "@/components/Icons";
 import { Sprite } from "@/components/route/bits";
 import { monsterImage } from "@/lib/data";
-import { killLists, monsterStats, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
+import { elementWord, killLists, monsterStats, weakFilter, type CalcData, type CalcState, type KillEntry, type MonsterChoice } from "@/lib/damage-view";
 import { useVisitState } from "@/lib/visit-state";
 import { magicSureHitAccuracy, sureHitAccuracy } from "@/lib/damage";
-import { HEAL } from "@/lib/damage-skills";
+import { BOMB_ARROW, HEAL } from "@/lib/damage-skills";
 import { isMagicJob } from "@/lib/gear";
 import { accuracyText, Tag } from "./parts";
 
@@ -157,7 +157,15 @@ function Sheet({ entry, kind, hitText, onClose, onPick }: { entry: KillEntry; ki
 export function KillCard({ data, state, active, label, onPick, beforeOpen, choices }: {
   data: CalcData; state: CalcState; active: 0 | 1; label: string; onPick: (monsterId: number) => void; beforeOpen: boolean; choices: MonsterChoice[];
 }) {
-  const lists = useMemo(() => killLists(data, state.shared, state.groups[active], choices), [data, state, active, choices]);
+  const all = useMemo(() => killLists(data, state.shared, state.groups[active], choices), [data, state, active, choices]);
+  // 只看怕這個屬性的怪（v0.90 使用者：有屬性的招式加篩選按鈕）：記在同一筆瀏覽紀錄，換成沒屬性的招式時按鈕不出現、名單照全部
+  const [weakOnly, setWeakOnly] = useVisitState("damage:weak-only", false);
+  const lists = useMemo(() => (all ? weakFilter(all, weakOnly) : null), [all, weakOnly]);
+  const weakCount = useMemo(() => {
+    if (!all?.element) return 0;
+    const weak = weakFilter(all, true);
+    return new Set([...weak.one, ...weak.two, ...weak.nearOne, ...weak.nearTwo].map(entry => entry.monster.id)).size;
+  }, [all]);
   const [selected, setSelected] = useState<{ entry: KillEntry; kind: Kind } | null>(null);
   // 小卡是從哪個圖示點開的：關掉後把焦點還給它（鍵盤、讀屏的人才不會掉到頁首）
   const opener = useRef<HTMLElement | null>(null);
@@ -173,12 +181,23 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
   };
   return (
     <section aria-label="一下、兩下打死的怪" className="space-y-3 rounded-[var(--radius-card)] glass wood-frame p-3.5">
+      {lists?.element ? (
+        <button
+          type="button"
+          aria-pressed={weakOnly}
+          onClick={() => setWeakOnly(value => !value)}
+          className={`rounded-full px-3 py-1.5 text-[13px] font-bold ${weakOnly ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] text-[color:var(--sky)]"}`}
+        >
+          只看怕{elementWord(lists.element)}的怪（{weakCount} 隻）
+        </button>
+      ) : null}
       {lists ? (
         <>
           <Section title="一下打死" storeKey="damage:kill-one" list={lists.one} beforeOpen={beforeOpen} onOpen={open({ hits: "一下", near: false })} />
           <Section title="兩下打死" storeKey="damage:kill-two" list={lists.two} beforeOpen={beforeOpen} onOpen={open({ hits: "兩下", near: false })} />
           <p className="text-[11px] ink-faint">
             {state.shared.skillId === HEAL ? `群體治癒只列不死系、照範圍內 ${state.shared.targets ?? 1} 隻算；` : null}
+            {state.shared.skillId === BOMB_ARROW ? "炸彈箭照被射中那隻（50%）算；" : null}
             照「{label}」算、最低傷害也打得死才算；等級高的排前面。打怪公式是舊版國際服的，經典版沒驗證。
           </p>
           {/* 差一點（2026-10-12 使用者追加，選 B）：中間值打得死、最低打不死的，分一下、兩下兩排 */}
