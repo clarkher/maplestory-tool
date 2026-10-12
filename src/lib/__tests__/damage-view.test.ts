@@ -815,7 +815,17 @@ describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）
     expect(attackSkillIds(data.skills, 230)).toContain(HEAL);
     expect(attackSkillIds(data.skills, 231)).toContain(HEAL);
     expect(attackSkillIds(data.skills, 210)).not.toContain(HEAL);
-    for (const level of [30, 50, 70]) expect(defaultState(data, 230, level, null).shared.skillId).not.toBe(HEAL);
+    for (const job of [230, 231]) {
+      for (const level of [30, 50, 70, 90, 120]) {
+        if (level < 70 && job === 231) continue;
+        expect(defaultState(data, job, level, null).shared.skillId, `${job} ${level}`).not.toBe(HEAL);
+      }
+    }
+    // 120 等群體治癒打木樁一次比預設技能高：上面那條真的擋得到（不是剛好比較低）
+    const high = defaultState(data, 230, 120, null);
+    const healRaw = computeGroup(data, { ...high.shared, skillId: HEAL, skillLevel: 30 }, high.groups[0], null);
+    const picked = computeGroup(data, high.shared, high.groups[0], null);
+    expect(healRaw.ok && picked.ok && healRaw.expectedUse > picked.expectedUse).toBe(true);
   });
   it("打骷髏犬（魔防 190）：每一下 166～747，跟研究算例一樣；一次 1 下、魔攻 260", () => {
     const { shared, group } = cleric();
@@ -869,6 +879,29 @@ describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）
     expect(pick.monster.und).toBe(1);
     expect(pick.v002).toBe(false);
     expect(pick.monster.lv).toBe(57);
+  });
+  it("自動挑不死系跳過王、稀有怪（整張圖最多 3 隻：殭屍蘑菇王、冥界幽靈、厄運死神）；10/15 前跳過 V002（自己組的清單）", () => {
+    for (const level of [56, 65, 70]) {
+      const pick = undeadDefault(choices, level, false);
+      expect(["殭屍蘑菇王", "冥界幽靈", "厄運死神"]).not.toContain(data.monsters.find(monster => monster.id === pick)?.n);
+    }
+    const fake = (id: number, lv: number, v002: boolean, spawns: number) => ({
+      monster: { ...byName("骷髏犬"), id, n: `怪${id}`, lv, sp: [[1, spawns, 0]] as [number, number, number][] },
+      v002,
+    });
+    const list = [fake(1, 40, false, 10), fake(2, 50, true, 10), fake(3, 50, false, 1)];
+    expect(undeadDefault(list, 55, false)).toBe(2);
+    expect(undeadDefault(list, 55, true)).toBe(1);
+    // 全是稀有怪時照樣挑得出來（不回 null）
+    expect(undeadDefault([fake(3, 50, false, 1)], 55, false)).toBe(3);
+  });
+  it("換等級：群體治癒的怪跟著預設怪換到不是不死系時，改挑這一級的不死系", () => {
+    const state = defaultState(data, 230, 40, null);
+    const healed = withSkill(state, { skillId: HEAL, skillLevel: 30 }, choices, false);
+    expect(byName("大幽靈").id).toBe(healed.shared.monsterId);
+    expect(defaultMonster(data, 230, 40)).toBe(healed.shared.monsterId);
+    const next = relevel(data, healed, 50);
+    expect(data.monsters.find(monster => monster.id === next.shared.monsterId)?.und).toBe(1);
   });
   it("withSkill：換成群體治癒、怪不是不死系 → 換怪；本來就是不死系 → 留著；換回別的技能不動怪", () => {
     const state = defaultState(data, 230, 50, null);

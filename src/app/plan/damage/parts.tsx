@@ -208,7 +208,8 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
               value={state.shared.monsterId ?? ""}
               onChange={event => onShared({ monsterId: event.target.value === "" ? null : Number(event.target.value) })}
             >
-              <option value="">不選怪（打木樁）</option>
+              {/* 群體治癒打不到木樁（只打得到不死系，v0.88 使用者：只顯示打得到的怪） */}
+              {state.shared.skillId === HEAL ? null : <option value="">不選怪（打木樁）</option>}
               <MonsterOptions choices={choices} beforeOpen={beforeOpen} />
             </select>
           </Row>
@@ -312,7 +313,8 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
       })}
       {results.some(result => result.ok && result.vs?.expPerSec != null) ? (
         <p className="text-[11px] ink-faint">
-          每秒經驗是理論最快：不含走路、MISS、怪物回生，實際大概再低 1～3 成；{first?.ok && first.heal ? "群體治癒算範圍內每一隻" : "範圍技能也只算打一隻"}。出手時間是國際服經典版玩家整理，台服沒驗證。
+          每秒經驗是理論最快：不含走路、MISS、怪物回生，實際大概再低 1～3 成；
+          {first?.ok && first.heal ? "群體治癒算範圍內每一隻，出一招 0.6 秒是舊版玩家整理，台服沒驗證。" : "範圍技能也只算打一隻。出手時間是國際服經典版玩家整理，台服沒驗證。"}
         </p>
       ) : null}
       {sameGroups(state.groups) ? <p className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-1.5 text-[13px]">兩組一樣，改下面右組的設定來比</p> : diff ? <p className="rounded-lg bg-[color:var(--leaf-wash)] px-2.5 py-1.5 text-[13px] font-bold">{diff}</p> : null}
@@ -616,9 +618,9 @@ export function HowCard({ data, job, level }: { data: CalcData; job: number; lev
         <p><Tag level="client" /> 能力視窗攻擊力：依客戶端計算式整理的公式，還沒跟台服遊戲畫面逐筆對過。</p>
         <p><Tag level="legacy" /> 技能倍率（雙飛斬、魔法、龍咆哮、強弓…）：舊版公式，楓錄、楓憶跟舊版公式彙整寫法一致。</p>
         <p><Tag level="unverified" /> 打怪（防禦、等級差、屬性）、爆擊、命中：舊版國際服的公式，台服經典版沒人實測過，數字可能不準。</p>
-        <p><Tag level="unverified" /> 出一招幾秒、每秒經驗：國際服經典版玩家整理的出手時間（每個技能、每個攻速一張表），台服沒驗證；每秒經驗不含走路、MISS、怪物回生，範圍技能也只算打一隻。海盜、龍之獻祭查不到。</p>
+        <p><Tag level="unverified" /> 出一招幾秒、每秒經驗：國際服經典版玩家整理的出手時間（每個技能、每個攻速一張表），台服沒驗證；每秒經驗不含走路、MISS、怪物回生，範圍技能也只算打一隻（群體治癒算範圍內每一隻）。海盜、龍之獻祭查不到。</p>
         {hasHeal ? (
-          <p><Tag level="unverified" /> 群體治癒打不死系：(智力×1.2＋幸運)×魔攻÷1000×目標倍率×恢復力%，下限把 1.2 換成 0.3；目標倍率＝1.5＋5÷(範圍內隻數＋自己)。舊版玩家整理，台服沒驗證；算不算神聖屬性各說各話，這裡不乘。</p>
+          <p><Tag level="unverified" /> 群體治癒打不死系：(智力×1.2＋幸運)×魔攻÷1000×目標倍率×恢復力%，下限把 1.2 換成 0.3；目標倍率＝1.5＋5÷(範圍內隻數＋自己)；出一招固定 0.6 秒。舊版玩家整理，台服沒驗證；算不算神聖屬性各說各話，這裡不乘。</p>
         ) : null}
         {guided ? null : <p className="font-bold">這個職業還沒有技能點法攻略，技能等級先用最高等級</p>}
         <SourceLinks urls={["https://bobogameguides.com/maplestory-classic/tools/attack-power/", "https://ayumilovemaple.wordpress.com/2009/09/06/maplestory-formula-compilation/", "https://oddjobs.codeberg.page/dmg-calc/", "https://meowdb.com/msclassic/guides/attack-speed-and-animation-times"]} />
