@@ -1,8 +1,6 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import { useBuildChoice } from "@/lib/build-choice";
 import { loadGear, loadGuide, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
@@ -54,11 +52,6 @@ function useGuides(job: number): Record<number, GuideJob | undefined> | null {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-3xl space-y-4 py-3 sm:py-6">
-      <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
-        <Link href="/db" className="hover:text-[color:var(--maple)]">查資料</Link>
-        <ChevronRight size={13} />
-        <span className="text-[color:var(--ink-soft)]">傷害計算機</span>
-      </nav>
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">傷害計算機</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">選武器、能力值、技能，看打一下多痛；兩套並排，直接看差多少。</p>

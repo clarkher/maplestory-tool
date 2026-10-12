@@ -16,6 +16,7 @@ import {
   killCounts,
   luckySevenBase,
   magicBase,
+  magicSureHitAccuracy,
   NO_MASTERY,
   panelRange,
   rawPanel,
@@ -334,7 +335,8 @@ export type GroupResult =
       /** 打木樁 */
       raw: HitPair;
       /** 打選的怪；沒選怪 null */
-      vs: (HitPair & { kills: { avg: number; fastest: number; slowest: number }; accuracy: number | null }) | null;
+      /** accuracy：要不 miss 命中要多少（物理看命中、法師看魔法命中，accuracyKind 分） */
+      vs: (HitPair & { kills: { avg: number; fastest: number; slowest: number }; accuracy: number; accuracyKind: "physical" | "magic" }) | null;
       /** 一次的期望（選了怪用扣完防禦的） */
       expectedUse: number;
     };
@@ -520,7 +522,8 @@ export function computeGroup(data: CalcData, shared: SharedConfig, group: GroupC
     vs = {
       ...pair,
       kills: killCounts(target.hp, expectedOf(pair), best, pair.use.min),
-      accuracy: prepared.magic ? null : sureHitAccuracy(group.level, target),
+      accuracy: prepared.magic ? magicSureHitAccuracy(group.level, target) : sureHitAccuracy(group.level, target),
+      accuracyKind: prepared.magic ? "magic" : "physical",
     };
   }
   const { at: _at, elementNote: _note, ...rest } = prepared;
