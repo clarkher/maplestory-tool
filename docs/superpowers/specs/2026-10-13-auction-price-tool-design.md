@@ -57,8 +57,15 @@
 - 每一筆：伺服器（雪吉拉）、品名、價格、單價、數量、交易日期、屬性（裝備才有）、來源截圖檔名、記錄日期。
 - 去重：同「品名＋價格＋交易日期＋屬性」只留一筆。同一天同價的兩筆會被算成一筆——寧可少算、不灌水。
 - 截圖處理完搬到 `Pictures\Screenshots\已記價\`，留著對帳，不進 repo。
-- 按「收工」才寫進 repo 並 push 備份：存在只放資料的分支 `price-data`，不觸發 Vercel 部署（跟 maple-fx 的 `fx-data` 同一招，照它定案的做法）。
-- 台幣換算讀 maple-fx 的雪吉拉每日收盤匯率（路徑、欄位照它的 spec）。那邊還沒資料 → 台幣欄寫「匯率資料累積中」，不拿別的數字湊。
+- 按「收工」才寫進 repo 並 push 備份：存在只放資料的孤兒分支 `price-data`，不觸發 Vercel 部署。
+  做法跟 maple-fx 的 `fx-data` 一樣（見 `docs/superpowers/specs/2026-10-13-meso-fx-design.md`，分支 feat/meso-fx）：
+  `price-data` 自己帶 `vercel.json` `{"git":{"deploymentEnabled":false}}`；dev／main 那份 `vercel.json` 由 maple-fx 一起加 `"price-data":false`，**這支不改那個檔**。
+  maple-fx 實測擋得住（結果寫在 fx-8591-findings.md）之前不推 `price-data`；擋不住的備案是改放另一個沒接 Vercel 的 repo。
+- 台幣換算讀 maple-fx 的雪吉拉每日匯率：
+  `https://raw.githubusercontent.com/clarkher/maplestory-tool/fx-data/fx/scania/daily.json`，
+  `days[]` 由舊到新、一天一筆，`close` 單位「元／1 億楓幣」→ **台幣 ＝ 楓幣價 × close ÷ 1 億**。
+  用成交那天的 `close`；那天沒抓到（檔案不補值）就用往前最近一天、最多往前 3 天，並標「用 10/12 匯率」；再沒有就寫「沒有那天的匯率」。
+  檔案還沒出現 → 台幣欄寫「匯率資料累積中」，不拿別的數字湊。
 
 ## 結果怎麼看（第 3 段，已核可）
 
@@ -98,7 +105,7 @@
 ## 依賴
 
 - 使用者截兩張「市價」分頁（手套攻擊卷軸10%、黃色雨傘）放 `Pictures\Screenshots`——欄位位置要照真圖定。
-- maple-fx 的每日匯率檔路徑、`price-data` 擋部署的做法。
+- maple-fx（v0.96）：每日匯率檔開始產生、`fx-data` 擋部署實測結果。兩件都會通知這支；沒到之前工具照常能記價，只是台幣欄寫「累積中」、資料先存本機不推。
 
 ## 來源
 
