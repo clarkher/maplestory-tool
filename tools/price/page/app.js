@@ -93,6 +93,7 @@ function renderList(st, rows) {
   const byItem = new Map(rows.map(r => [r.item, r]));
   $("#title").textContent = `${st.server} 查價清單`;
   $("#sub").textContent = `${md(st.today)}（週${WEEK[d.getDay()]}）每天 5 件${d.getDay() === 1 ? "，今天週一多 4 件" : ""}`;
+  $("#watching").textContent = st.shotsDir ? `正在看：${st.shotsDir}` : "";
   const we = $("#watch-error");
   we.hidden = !st.watchError;
   we.textContent = st.watchError ? `截圖資料夾盯不住了，新截圖可能收不到：${st.watchError}（關掉重開這個工具）` : "";
@@ -114,13 +115,20 @@ function renderList(st, rows) {
     });
   }
   setHtml($("#orphans"), st.orphans.map(o => `<p class="warn small">${esc(o.file)}：${esc(o.reason)}</p>`).join(""));
-  $("#fxnote").textContent = st.fx.available ? "台幣用雪吉拉當天匯率換算（8591 賣家開價算的，不是成交價）" : "台幣：匯率資料累積中";
+  $("#fxnote").textContent = st.fx.available ? "台幣用雪吉拉當天匯率換算（8591 賣家開價，少數幾天用參考站），不是成交價" : "台幣：匯率資料累積中";
+}
+
+/** 漲跌寫成字（漲／跌／持平），不用符號 */
+function changeWords(pct) {
+  if (pct == null) return "還沒有上次可比";
+  if (pct === 0) return "持平";
+  return `${pct > 0 ? "漲" : "跌"} ${Math.abs(pct)}%`;
 }
 
 function changeCell(r) {
-  if (r.changePct == null) return "—";
+  if (r.groups || r.changePct == null) return "—"; // 裝備不同屬性混在一起比沒意義，漲跌在明細裡每個屬性各自寫
   if (r.changePct === 0) return "持平";
-  return `<span class="${r.changePct > 0 ? "up" : "down"}">${r.changePct > 0 ? "漲" : "跌"} ${Math.abs(r.changePct)}%</span>`;
+  return `<span class="${r.changePct > 0 ? "up" : "down"}">${changeWords(r.changePct)}</span>`;
 }
 
 function renderTable(rows, fxAvailable) {
@@ -170,7 +178,8 @@ async function renderDetail() {
   const s = d.summary;
   const hasNtd = d.series.some(g => g.points.some(p => p.ntd != null));
   if (unit === "ntd" && !hasNtd) unit = "meso";
-  const groups = s.groups ? `<p>${s.groups.map(g => `${esc(g.key || "沒讀到屬性")}：${fmt(g.median)}（${g.count} 筆）`).join("　")}</p>` : "";
+  // 裝備：每個屬性各自一行（中間價、筆數、比它自己上次的漲跌）
+  const groups = s.groups ? s.groups.map(g => `<p>${esc(g.key || "沒讀到屬性")}：${fmt(g.median)}（${g.count} 筆，${changeWords(g.changePct)}）</p>`).join("") : "";
   const trend = d.series.length
     ? d.series.map(g => `${g.key ? `<p class="small">${esc(g.key)}</p>` : ""}${trendSvg(g.points, d.minTrendDays)}`).join("")
     : `<p class="muted small">累積中（走勢要 ${d.minTrendDays} 天以上，現在 0 天）</p>`;
@@ -186,19 +195,62 @@ async function renderDetail() {
   $("#detail").querySelectorAll("[data-unit]").forEach(b => { b.onclick = () => { unit = b.dataset.unit; showDetail(); }; });
 }
 
+/** 重畫之前記下使用者正在打的字（照這筆的 id）：只記跟畫面上原值不同的欄位，還有「沒存到」的說明跟游標在哪個欄位 */
+function rememberTyping(box) {
+  const typed = {};
+  box.querySelectorAll(".review-card").forEach(card => {
+    const values = {};
+    card.querySelectorAll("[data-k]").forEach(i => { if (i.value !== i.dataset.orig) values[i.dataset.k] = i.value; });
+    const msg = card.querySelector(".card-msg");
+    const note = msg && !msg.hidden ? msg.textContent : "";
+    if (Object.keys(values).length || note) typed[card.dataset.id] = { values, note };
+  });
+  const a = document.activeElement;
+  const focus = a && a.dataset?.k && box.contains(a) ? { id: a.closest(".review-card").dataset.id, k: a.dataset.k, at: a.selectionStart } : null;
+  return { typed, focus };
+}
+
+/** 重畫之後放回去：這筆還在的就把打到一半的字、說明、游標都還給它 */
+function restoreTyping(box, { typed, focus }) {
+  box.querySelectorAll(".review-card").forEach(card => {
+    const keep = typed[card.dataset.id];
+    if (!keep) return;
+    for (const [k, v] of Object.entries(keep.values)) {
+      const input = card.querySelector(`[data-k="${k}"]`);
+      if (input) input.value = v;
+    }
+    if (keep.note) {
+      const msg = card.querySelector(".card-msg");
+      msg.textContent = keep.note;
+      msg.hidden = false;
+    }
+  });
+  if (focus) {
+    const card = [...box.querySelectorAll(".review-card")].find(c => c.dataset.id === focus.id);
+    const input = card?.querySelector(`[data-k="${focus.k}"]`);
+    if (input) {
+      input.focus();
+      try { input.setSelectionRange(focus.at, focus.at); } catch { /* 這種輸入框不支援游標位置就算了 */ }
+    }
+  }
+}
+
 function renderReview(trades) {
   $("#review-sec").hidden = !trades.length;
   const box = $("#review");
   const ids = trades.map(t => t.id).join();
   if (box.dataset.ids === ids) return; // 沒變就不重畫（不然正在打的字會被洗掉）
   box.dataset.ids = ids;
+  const typing = rememberTyping(box); // 清單變了要重畫：正在打的字先記起來，畫完放回去
+  // data-orig＝畫這張卡時的原值：按「照我改的存」只送跟它不一樣的欄位
+  const field = (label, k, v, attrs = "") => `<label>${label} <input data-k="${k}" ${attrs} value="${esc(v ?? "")}" data-orig="${esc(v ?? "")}"></label>`;
   box.innerHTML = trades.map(t => `<div class="review-card" data-id="${esc(t.id)}">
     <strong>${esc(t.item)}</strong> <span class="warn small">${esc(t.flags.join("、"))}</span>
     <canvas data-shot="${esc(t.shot)}" data-box="${esc(JSON.stringify(t.box))}"></canvas>
-    <label>價格 <input data-k="price" inputmode="numeric" value="${esc(t.price ?? "")}"></label>
-    <label>單價 <input data-k="unitPrice" inputmode="numeric" value="${esc(t.unitPrice ?? "")}"></label>
-    <label>數量 <input data-k="qty" inputmode="numeric" value="${esc(t.qty ?? "")}"></label>
-    <label>交易日期 <input data-k="tradedAt" value="${esc(t.tradedAt ?? "")}"></label>
+    ${field("價格", "price", t.price, 'inputmode="numeric"')}
+    ${field("單價", "unitPrice", t.unitPrice, 'inputmode="numeric"')}
+    ${field("數量", "qty", t.qty, 'inputmode="numeric"')}
+    ${field("交易日期", "tradedAt", t.tradedAt)}
     <div class="bar"><button data-act="confirm">數字是對的</button><button data-act="edit">照我改的存</button><button data-act="delete">刪掉這筆</button></div>
     <p class="warn small card-msg" role="status" hidden></p></div>`).join("");
   box.querySelectorAll("canvas").forEach(drawCrop);
@@ -207,10 +259,12 @@ function renderReview(trades) {
     const fail = text => { msg.textContent = text; msg.hidden = false; };
     card.querySelectorAll("[data-act]").forEach(b => {
       b.onclick = async () => {
-        const patch = {};
-        card.querySelectorAll("[data-k]").forEach(i => { if (i.value.trim() !== "") patch[i.dataset.k] = i.dataset.k === "tradedAt" ? i.value.trim() : Number(i.value.replace(/,/g, "")); });
+        const body = { id: card.dataset.id, action: b.dataset.act };
+        if (b.dataset.act === "edit") {
+          body.patch = reviewPatch([...card.querySelectorAll("[data-k]")].map(i => ({ k: i.dataset.k, value: i.value, orig: i.dataset.orig })));
+        }
         try {
-          await api("/api/trade", { id: card.dataset.id, action: b.dataset.act, patch });
+          await api("/api/trade", body);
         } catch (e) {
           // 400 加 ok:false ＝ 本機程式看過這筆、數字不能存；其他（連不上、500）照它說的原因
           return fail(e instanceof ApiError && e.status === 400 && e.data?.ok === false ? SAVE_FAIL : `沒存到：${e.message}`);
@@ -220,6 +274,7 @@ function renderReview(trades) {
       };
     });
   });
+  restoreTyping(box, typing);
 }
 
 function drawCrop(canvas) {

@@ -7,6 +7,7 @@ import http from "node:http";
 import net from "node:net";
 import { createHandler } from "./routes.mjs";
 import { emptyData, addTrades, saveData, loadData } from "./store.mjs";
+import { loadReviewPatch } from "./test-helpers.mjs";
 
 function serve(t, handler) {
   const server = http.createServer(handler);
@@ -47,7 +48,8 @@ function rawRequest(port, text) {
   });
 }
 
-function setup(t, extra = {}) {
+/** stateShots＝session 說「這幾張圖是我記的」；orphanFiles＝session 說「這幾張路過的圖留在原地」（/shot 只給這些，加上資料檔裡有的） */
+function setup(t, extra = {}, { stateShots = [], orphanFiles = [] } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "price-routes-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const dataFile = path.join(dir, "scania.json");
@@ -62,7 +64,11 @@ function setup(t, extra = {}) {
   fs.writeFileSync(path.join(shotsDir, "已記價", "a.png"), "png");
   let current = null;
   const session = {
-    state: () => ({ today: "2026-10-13", current, orphans: [], items: [] }),
+    state: () => ({
+      today: "2026-10-13", current,
+      orphans: orphanFiles.map(file => ({ file, reason: "x" })),
+      items: stateShots.length ? [{ name: "日之鏢", freq: "daily", status: "current", shots: stateShots.map(file => ({ file, status: "ok" })) }] : [],
+    }),
     copyNext: () => (current = "日之鏢"),
     setCurrent: n => {
       if (n !== "日之鏢" && n !== "雷之鏢") throw new Error(`今天的清單裡沒有「${n}」`);
@@ -180,7 +186,7 @@ test("shot 只給已記價裡的檔名；擋路徑穿越", async t => {
 });
 
 test("shot 只給 .png：別的副檔名（就算檔案在）一律 400", async t => {
-  const { handler, shotsDir } = setup(t);
+  const { handler, shotsDir } = setup(t, {}, { stateShots: ["B.PNG"] });
   const get = await serve(t, handler);
   fs.writeFileSync(path.join(shotsDir, "已記價", "notes.txt"), "secret");
   fs.writeFileSync(path.join(shotsDir, "已記價", "x.png.json"), "{}");
@@ -192,7 +198,7 @@ test("shot 只給 .png：別的副檔名（就算檔案在）一律 400", async 
 });
 
 test("shot：搬不進已記價、留在截圖資料夾根目錄的也找得到；兩邊都有先給已記價的", async t => {
-  const { handler, shotsDir } = setup(t);
+  const { handler, shotsDir } = setup(t, {}, { stateShots: ["stuck.png"] });
   const get = await serve(t, handler);
   fs.writeFileSync(path.join(shotsDir, "stuck.png"), "root-copy");
   const stuck = await get("/shot?file=stuck.png");
@@ -203,7 +209,7 @@ test("shot：搬不進已記價、留在截圖資料夾根目錄的也找得到�
 });
 
 test("shot 的路徑是資料夾、不是檔案：404，不是 500", async t => {
-  const { handler, shotsDir } = setup(t);
+  const { handler, shotsDir } = setup(t, {}, { stateShots: ["dir.png"] });
   const get = await serve(t, handler);
   fs.mkdirSync(path.join(shotsDir, "dir.png"));
   assert.equal((await get("/shot?file=dir.png")).status, 404);
@@ -215,13 +221,14 @@ test("頁面跟靜態檔", async t => {
   assert.match((await get("/")).type, /text\/html/);
   assert.match((await get("/app.js")).type, /javascript/);
   assert.match((await get("/style.css")).type, /text\/css/);
+  assert.match((await get("/review-patch.js")).type, /javascript/);
   assert.equal((await get("/nope")).status, 404);
 });
 
 test("壞網址（GET //[）：回 400，工具不會當掉，接著照常回應", async t => {
   const { handler } = setup(t);
   const get = await serve(t, handler);
-  const raw = await rawRequest(get.port, "GET //[ HTTP/1.1\r\nHost: x\r\n\r\n");
+  const raw = await rawRequest(get.port, `GET //[ HTTP/1.1\r\nHost: 127.0.0.1:${get.port}\r\n\r\n`);
   assert.match(raw, /^HTTP\/1\.1 400 /);
   assert.match(raw, /網址不對/);
   assert.equal((await get("/api/state")).status, 200, "壞網址之後伺服器還活著");
@@ -234,8 +241,9 @@ test("handler 不管哪裡丟錯都不會變成沒人接的 rejection（連回�
   process.on("unhandledRejection", onRej);
   t.after(() => process.off("unhandledRejection", onRej));
   const res = { writeHead() { throw new Error("連線已經斷了"); }, end() {}, headersSent: false, destroyed: true };
-  await handler({ url: "//[", method: "GET", on() {} }, res);
-  await handler({ url: "/api/state", method: "GET", on() {} }, res);
+  const me = { headers: { host: "127.0.0.1:9380" }, socket: { localPort: 9380 }, method: "GET", on() {} };
+  await handler({ ...me, url: "//[" }, res);
+  await handler({ ...me, url: "/api/state" }, res);
   await new Promise(r => setTimeout(r, 50));
   assert.deepEqual(rejections, []);
 });
@@ -307,4 +315,120 @@ test("資料檔有變才重讀：沒變不重讀；外面改了、或從 trade �
   // 檔案被刪掉：當成空資料，不要拿舊的
   fs.rmSync(dataFile);
   assert.equal((await get("/api/summary")).json.rows.find(r => r.item === "日之鏢").count, 0);
+});
+
+// ---- 最後整體檢查補的：本機伺服器只認自己人 ----
+
+/** 自己指定 Host 送請求（fetch 不讓改 Host；DNS rebinding 的瀏覽器送出去的是別人的網域名） */
+function hostRequest(port, host, p, { method = "GET", headers = {}, body } = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ host: "127.0.0.1", port, path: p, method, headers: { host, ...headers } }, res => {
+      const chunks = [];
+      res.on("data", c => chunks.push(c));
+      res.on("end", () => resolve({ status: res.statusCode, text: Buffer.concat(chunks).toString("utf8") }));
+    });
+    req.on("error", reject);
+    req.end(body);
+  });
+}
+const JSON_HEAD = { "content-type": "application/json" };
+
+test("Host 不是 localhost／127.0.0.1 加本機埠：403（擋 DNS rebinding），任何路徑都一樣", async t => {
+  const { handler } = setup(t, { publish: () => { throw new Error("不該被呼叫"); } }, { stateShots: ["a.png"] });
+  const get = await serve(t, handler);
+  const port = get.port;
+  for (const host of [`evil.example:${port}`, "evil.example", `localhost:${port + 1}`, "localhost", `127.0.0.1.evil.example:${port}`, `localhost.evil.example:${port}`]) {
+    for (const [method, p] of [["GET", "/api/state"], ["GET", "/"], ["GET", "/shot?file=a.png"], ["GET", "/api/review"], ["POST", "/api/finish"], ["POST", "/api/next"]]) {
+      const r = await hostRequest(port, host, p, { method, headers: method === "POST" ? JSON_HEAD : {}, body: method === "POST" ? "{}" : undefined });
+      assert.equal(r.status, 403, `Host「${host}」${method} ${p}`);
+      assert.match(r.text, /Host/);
+    }
+  }
+  for (const host of [`localhost:${port}`, `127.0.0.1:${port}`, `LOCALHOST:${port}`]) {
+    assert.equal((await hostRequest(port, host, "/api/state")).status, 200, host);
+  }
+});
+
+test("沒有 Host（HTTP/1.0）：403", async t => {
+  const { handler } = setup(t);
+  const get = await serve(t, handler);
+  const raw = await rawRequest(get.port, "GET /api/state HTTP/1.0\r\n\r\n");
+  assert.match(raw, /^HTTP\/1\.[01] 403 /);
+});
+
+test("port 選項指定了就照它比：不是這個埠的 Host 擋掉，是的放行", async t => {
+  const { dataFile, shotsDir } = setup(t);
+  let h;
+  const server = http.createServer((req, res) => h(req, res));
+  await new Promise(r => server.listen(0, "127.0.0.1", r));
+  t.after(() => server.close());
+  const port = server.address().port;
+  const make = p => createHandler({ session: { state: () => ({ today: "x", current: null, orphans: [], items: [] }) }, dataFile, shotsDir, getFx: () => null, publish: () => ({}), port: p });
+  h = make(port);
+  assert.equal((await hostRequest(port, `localhost:${port}`, "/api/state")).status, 200);
+  assert.equal((await hostRequest(port, `127.0.0.1:${port}`, "/api/state")).status, 200);
+  h = make(port + 1); // 設定的埠跟 Host 的埠不同
+  assert.equal((await hostRequest(port, `localhost:${port}`, "/api/state")).status, 403);
+  assert.equal((await hostRequest(port, `localhost:${port + 1}`, "/api/state")).status, 200);
+});
+
+test("POST 不是 application/json：415，而且什麼都沒做（擋跨網站的 text/plain 表單）", async t => {
+  let published = 0;
+  const { handler, dataFile } = setup(t, { publish: () => { published++; return { committed: true, pushed: true, sha: "abc" }; } });
+  const get = await serve(t, handler);
+  const before = fs.readFileSync(dataFile, "utf8");
+  const id = (await get("/api/review")).json.trades[0].id;
+  const post = (p, type, body) => fetch(`http://127.0.0.1:${get.port}${p}`, { method: "POST", headers: type ? { "content-type": type } : {}, body });
+  for (const type of ["text/plain", "text/plain;charset=UTF-8", "application/x-www-form-urlencoded", "multipart/form-data; boundary=x", "application/jsonp", "text/json"]) {
+    for (const p of ["/api/finish", "/api/next", "/api/current", "/api/trade"]) {
+      const res = await post(p, type, JSON.stringify({ id, action: "delete", name: "日之鏢" }));
+      assert.equal(res.status, 415, `${p} 用 ${type}`);
+      assert.match((await res.json()).error, /application\/json/);
+    }
+  }
+  assert.equal((await post("/api/finish", null, Buffer.from("{}"))).status, 415, "沒有 content-type");
+  assert.equal(published, 0, "收工沒被觸發");
+  assert.equal(fs.readFileSync(dataFile, "utf8"), before, "資料沒動");
+  for (const type of ["application/json", "application/json; charset=utf-8", "Application/JSON"]) {
+    assert.equal((await post("/api/next", type, "{}")).status, 200, type);
+  }
+});
+
+test("shot 只給有人記著的檔名：資料檔的 shot、session 的截圖、路過的截圖；沒人記的就算檔案在也 404", async t => {
+  const { handler, shotsDir } = setup(t, {}, { stateShots: ["s1.png"], orphanFiles: ["o1.png"] });
+  const get = await serve(t, handler);
+  fs.writeFileSync(path.join(shotsDir, "已記價", "s1.png"), "s1");
+  fs.writeFileSync(path.join(shotsDir, "o1.png"), "o1");
+  fs.writeFileSync(path.join(shotsDir, "secret.png"), "secret");
+  fs.writeFileSync(path.join(shotsDir, "已記價", "private-photo.png"), "p");
+  assert.equal((await get("/shot?file=a.png")).status, 200, "資料檔裡有這張");
+  assert.equal((await get("/shot?file=s1.png")).status, 200, "session 記著這張");
+  assert.equal((await get("/shot?file=o1.png")).status, 200, "路過的截圖（留在原地）");
+  assert.equal((await get("/shot?file=secret.png")).status, 404, "沒人記著");
+  assert.equal((await get("/shot?file=private-photo.png")).status, 404, "已記價資料夾裡也一樣");
+});
+
+test("state 帶截圖資料夾路徑（頁面上寫「正在看」）", async t => {
+  const { handler, shotsDir } = setup(t);
+  const get = await serve(t, handler);
+  assert.equal((await get("/api/state")).json.shotsDir, shotsDir);
+});
+
+test("頁面送出的只有改過的欄位：只改總價就自動算單價；全部欄位都送的舊寫法會對不上", async t => {
+  const reviewPatch = loadReviewPatch();
+  const { handler } = setup(t);
+  const get = await serve(t, handler);
+  const row = (await get("/api/review")).json.trades[0]; // 價格 99、單價 99、數量 1、被 5 倍旗子標黃
+  const fields = price => [["price", price, row.price], ["unitPrice", row.unitPrice, row.unitPrice], ["qty", row.qty, row.qty], ["tradedAt", row.tradedAt, row.tradedAt]]
+    .map(([k, value, orig]) => ({ k, value: String(value), orig: String(orig) }));
+  // 舊寫法：四個欄位全送 → 單價還是 99，90 ≠ 99 → 對不上
+  const old = await get("/api/trade", { id: row.id, action: "edit", patch: { price: 90, unitPrice: 99, qty: 1, tradedAt: row.tradedAt } });
+  assert.equal(old.status, 400);
+  // 新寫法：只送 price → 單價自動算成 90
+  const patch = reviewPatch(fields("90"));
+  assert.deepEqual(patch, { price: 90 });
+  const res = await get("/api/trade", { id: row.id, action: "edit", patch });
+  assert.equal(res.json.ok, true);
+  const saved = (await get(`/api/item?name=${encodeURIComponent("日之鏢")}`)).json.trades.find(x => x.id === row.id);
+  assert.deepEqual([saved.price, saved.unitPrice, saved.qty, saved.status], [90, 90, 1, "ok"]);
 });

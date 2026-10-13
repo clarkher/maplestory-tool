@@ -8,7 +8,7 @@ import { fxFor, toNtd } from "./fx.mjs";
 import { DONE_DIR } from "./session.mjs";
 
 const PAGE_DIR = path.join(import.meta.dirname, "page");
-const STATIC = { "/": ["index.html", "text/html; charset=utf-8"], "/app.js": ["app.js", "text/javascript; charset=utf-8"], "/style.css": ["style.css", "text/css; charset=utf-8"] };
+const STATIC = { "/": ["index.html", "text/html; charset=utf-8"], "/app.js": ["app.js", "text/javascript; charset=utf-8"], "/style.css": ["style.css", "text/css; charset=utf-8"], "/review-patch.js": ["review-patch.js", "text/javascript; charset=utf-8"] };
 
 const send = (res, status, body, type = "application/json; charset=utf-8") => {
   res.writeHead(status, { "content-type": type, "cache-control": "no-store" });
@@ -74,10 +74,35 @@ const ntdOf = (median, date, days) => {
   return fx ? Math.round(toNtd(median, fx.close) * 10) / 10 : null;
 };
 
-export function createHandler({ session, dataFile, shotsDir, getFx, publish, getWatchError = () => null, readData = loadData }) {
+/**
+ * Host 要是 localhost 或 127.0.0.1 加本機埠。別的網域名一律擋（DNS rebinding：別人的網頁把自己的網域名指到 127.0.0.1，
+ * 瀏覽器就會替它讀本機的截圖、呼叫收工）。port 沒給就用連進來的那個 socket 的本機埠。
+ */
+const hostOk = (req, port) => {
+  const host = String(req.headers?.host ?? "").toLowerCase();
+  const p = port ?? req.socket?.localPort;
+  return p != null && (host === `localhost:${p}` || host === `127.0.0.1:${p}`);
+};
+
+export function createHandler({ session, dataFile, shotsDir, getFx, publish, getWatchError = () => null, readData = loadData, port = null }) {
   const readCached = makeReader(dataFile, readData);
 
+  /** /shot 只給「有人記著」的檔名：資料檔裡的 shot、這次查價記的截圖、路過（略過）的截圖 */
+  const knownShots = () => {
+    const st = session.state();
+    return new Set([
+      ...readCached().trades.map(t => t.shot),
+      ...(st.items ?? []).flatMap(i => (i.shots ?? []).map(s => s.file)),
+      ...(st.orphans ?? []).map(o => o.file),
+    ]);
+  };
+
   async function handle(req, res) {
+    if (!hostOk(req, port)) return send(res, 403, { error: "Host 不對，只接受 localhost 或 127.0.0.1（本機頁面不給別的網域名用）" });
+    // 跨網站的表單只能送 text/plain 這幾種，擋掉它們就不能偷按「收工」、改資料；本機頁面自己的請求都有帶 application/json
+    if (req.method === "POST" && !/^application\/json\s*(;|$)/i.test(String(req.headers?.["content-type"] ?? ""))) {
+      return send(res, 415, { error: "POST 要用 content-type: application/json" });
+    }
     let url;
     try {
       url = new URL(req.url, "http://localhost");
@@ -92,7 +117,7 @@ export function createHandler({ session, dataFile, shotsDir, getFx, publish, get
     if (req.method === "GET" && p === "/api/state") {
       const fx = getFx();
       return send(res, 200, {
-        server: SERVER, ...session.state(),
+        server: SERVER, ...session.state(), shotsDir,
         fx: { available: !!fx?.days?.length, updatedAt: fx?.updatedAt ?? null },
         watchError: getWatchError() ?? null,
       });
@@ -145,6 +170,7 @@ export function createHandler({ session, dataFile, shotsDir, getFx, publish, get
     if (req.method === "GET" && p === "/shot") {
       const file = url.searchParams.get("file") ?? "";
       if (!file || file !== path.basename(file) || /[\\/]/.test(file) || file.includes("..") || !/\.png$/i.test(file)) return send(res, 400, { error: "檔名不對（只給 .png 截圖）" });
+      if (!knownShots().has(file)) return send(res, 404, { error: "找不到這張截圖" });
       const full = findShot(shotsDir, file);
       if (!full) return send(res, 404, { error: "找不到這張截圖" });
       return send(res, 200, fs.readFileSync(full), "image/png");

@@ -225,7 +225,11 @@ node scripts/client/wzjs.mjs "$TEMP/skills.bin" 500 skill/5001005/level
 - 只做雪吉拉；清單 9 件寫在 `tools/price/list.mjs`（改清單要使用者拍板）。
 - 讀圖用 Windows 內建繁中文字辨識（`tools/price/ocr.ps1`，這個檔只能有 ASCII），不用 AI、不用網路；遊戲全螢幕獨佔模式會截到黑畫面，改視窗或無邊框。
 - 環境變數：`PRICE_PORT`（預設 9380）、`PRICE_SHOTS_DIR`（預設 `%USERPROFILE%\Pictures\Screenshots`）、`PRICE_OCR_SCALE`（放大幾倍讀，預設 1）、`PRICE_NO_OPEN`（不自動開瀏覽器）。
-- 讀完的截圖搬到截圖資料夾底下的 `已記價\`，不進 repo。
+- 讀完的截圖搬到截圖資料夾底下的 `已記價\`，不進 repo。不是拍賣市價頁的截圖（路過的 Win+PrtSc）不搬、不算進任何一件，頁面上寫「略過（留在原地）」。
+- 黃色雨傘的漲跌、「跟上次中間價差 5 倍」都只在同一個屬性裡比；價格表那列的「比上次」寫「—」，每個屬性的漲跌在點進去的明細裡。
+- 「要你看一眼」那張卡按「照我改的存」只送你改過的欄位：只改總價就自動算單價。
+- 本機頁面只認 `localhost:埠`、`127.0.0.1:埠` 這兩種 Host（擋 DNS rebinding），POST 要 `content-type: application/json`；
+  `/shot` 只給資料檔裡有、或這次查價記著的截圖檔名。頁面最上面寫「正在看：」是它盯的截圖資料夾。
 - 截圖被防毒或雲端同步鎖住、搬不進「已記價」時會留在原地，頁面那列會註明。
 - 台幣換算讀 maple-fx 的 `fx-data/fx/scania/daily.json`；還沒有就寫「匯率資料累積中」。
 - 過了半夜要關掉重開（「今天」是開工那一刻定的）。

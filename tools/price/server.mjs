@@ -51,7 +51,7 @@ const stopWatch = watchShots(SHOTS_DIR, file => { session.handleShot(file); }, {
 });
 
 const handler = createHandler({
-  session, dataFile, shotsDir: SHOTS_DIR, getFx: () => fx, getWatchError: () => watchError,
+  session, dataFile, shotsDir: SHOTS_DIR, port: PORT, getFx: () => fx, getWatchError: () => watchError,
   publish: () => {
     const n = session.state().items.reduce((sum, i) => sum + i.shots.reduce((a, s) => a + (s.added ?? 0), 0), 0);
     return publishData(dataDir, `資料：${SERVER}拍賣價 ${localDate(new Date())} 新增 ${n} 筆`);
