@@ -19,3 +19,6 @@ scripts/verify/**
 !scripts/verify/*.mjs
 !scripts/verify/README.md
 chrome-profile*/
+
+# 拍賣查價工具的資料：price-data 孤兒分支的 worktree（tools/price/git-data.mjs 建的），不進主分支
+.price-data/

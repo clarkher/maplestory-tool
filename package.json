@@ -14,7 +14,8 @@
     "data:all": "npm run data:artale && npm run data:v83 && npm run data:build && npm run data:guides && npm run data:gear && npm run data:verify",
     "data:v83": "node pipeline/extract-v83-maps.mjs",
     "data:verify": "node pipeline/verify.mjs",
-    "test": "node --test \"pipeline/**/*.test.mjs\" && vitest run",
+    "test": "node --test \"pipeline/**/*.test.mjs\" \"tools/**/*.test.mjs\" && vitest run",
+    "price": "node tools/price/server.mjs",
     "data:guides": "node pipeline/build-guides.mjs",
     "data:gear": "node pipeline/build-gear.mjs",
     "verify:db": "node scripts/verify-db.mjs"
