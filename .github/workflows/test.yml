@@ -1,7 +1,7 @@
 name: 測試
 
 # PR（進 dev 或 main）跟合進 dev 之後自動跑，結果在 PR 頁面下面的檢查：
-#  - 單元測試：npm test（pipeline 的 node:test＋src 的 vitest）。裡面鎖著「資料自動更新 dry-run 絕不開 PR、合進正式機」、
+#  - 單元測試：npm test（pipeline/ 跟 tools/ 底下所有 *.test.mjs 的 node:test＋src 的 vitest；tools/ 是本機拍賣查價工具，v0.97 起）。裡面鎖著「資料自動更新 dry-run 絕不開 PR、合進正式機」、
 #    失敗通知的判斷這類防呆，以前只有有人手動跑才會執行，改壞了也不會被擋
 #  - 建置：next build（型別檢查、編得過）。Vercel 預覽也會建，但它的 log 要登入 Vercel 才看得到；這裡失敗用 gh run view 就看得到原因
 #  - 第一格：在這台機器上建置、開站（next start），無頭 Chrome 跑 scripts/verify/check-first-frame.mjs——站內換頁第一格就是
