@@ -5,7 +5,7 @@ import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
-import { ammoChoices, boosterFor, defaultAmmo, HEAL_ASSUMPTION, levelNeededText, levelPercentText, monsterStats, secondsText, tenMinuteExpText, type TenMinute, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
+import { ammoChoices, boosterFor, defaultAmmo, HEAL_ASSUMPTION, levelNeededText, levelPercentText, monsterStats, secondsText, tenMinuteExpText, tenMinuteText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, HEAL, HEAL_TARGETS_MAX, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
 import { healTargetMultiplier } from "@/lib/damage";
 import type { Range } from "@/lib/damage";
@@ -227,12 +227,6 @@ export function accuracyText(accuracy: number, kind: "physical" | "magic"): stri
   return kind === "magic"
     ? `要不 miss，魔法命中要 ${accuracy.toLocaleString()}（魔法命中＝智力÷10＋幸運÷10）`
     : `要不 miss，命中要 ${accuracy.toLocaleString()}（看能力視窗的命中率）`;
-}
-
-/** 「10 分鐘約 26,400 經驗，Lv.50 升級經驗的 3.7%」；滿等沒有下一級就不寫 % */
-function tenMinuteText(value: TenMinute, level: number): string {
-  const head = `10 分鐘約 ${tenMinuteExpText(value.exp)} 經驗`;
-  return value.percent === null ? head : `${head}，Lv.${level} 升級經驗的 ${levelPercentText(value.percent)}`;
 }
 
 /** 屬性加成那一行（「火屬性打弱點 ×1.5」）：資訊不是警告，用天藍淡底 */
