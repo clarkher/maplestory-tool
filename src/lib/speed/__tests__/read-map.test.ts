@@ -1,5 +1,6 @@
 // src/lib/speed/__tests__/read-map.test.ts
 import fs from "node:fs";
+import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { describe, expect, it } from "vitest";
 import type { MapRecord, TrainingRow } from "@/lib/types";
 import type { Frame } from "../frame";
@@ -113,7 +114,7 @@ describe("小地圖標題", () => {
     expect(readTitle(other, names)!.signature).toBe(clean);
   });
 
-  it("標題那兩行有 ±2 的雜訊：簽章跟乾淨的差不到 12 格（30 次都是）", async () => {
+  it("標題那兩行有 ±2 的雜訊：簽章跟乾淨的差不到 6 格（30 次都是；實測最多 3 格）", async () => {
     const frame = await loadFixture("window-1364.png");
     const clean = readTitle(frame, names)!.signature;
     for (let trial = 0; trial < 30; trial++) {
@@ -126,7 +127,7 @@ describe("小地圖標題", () => {
         }
       }
       const signature = readTitle(noisy, names)!.signature;
-      expect(hammingDistance(signature, clean), `trial ${trial}`).toBeLessThanOrEqual(12);
+      expect(hammingDistance(signature, clean), `trial ${trial}`).toBeLessThanOrEqual(6);
     }
   });
 
@@ -136,7 +137,7 @@ describe("小地圖標題", () => {
     const shorter = cloneFrame(frame);
     const [r, g, b] = pixelAt(frame, 100, 94); // 面板的淺藍
     for (let y = 77; y < 92; y++) for (let x = 106; x < 120; x++) setPixel(shorter, x, y, r, g, b);
-    expect(hammingDistance(readTitle(shorter, names)!.signature, clean)).toBeGreaterThan(24);
+    expect(hammingDistance(readTitle(shorter, names)!.signature, clean)).toBeGreaterThan(10);
   });
 
   it("小地圖收起來（按鈕還在、底下是遊戲場景）：標題那塊蓋上暗的場景，讀不到標題", async () => {
@@ -245,17 +246,17 @@ describe("街道名是空的地圖（雲彩公園、天空階梯、冰原雪域�
 describe("記住的簽章（差幾格也認得）", () => {
   const empty = (signature: string): TitleReading => ({ signature, street: [], name: [] });
 
-  it("差 10 格：還是用記下的地圖", () => {
-    expect(resolveMap(empty(flip(BASE, 0, 10)), maps, trainingIds, { [BASE]: 777 })).toEqual({ mapId: 777, confident: true, choices: [] });
+  it("差 4 格：還是用記下的地圖", () => {
+    expect(resolveMap(empty(flip(BASE, 0, 4)), maps, trainingIds, { [BASE]: 777 })).toEqual({ mapId: 777, confident: true, choices: [] });
   });
 
-  it("差 12 格剛好還算；差 13 格不算", () => {
-    expect(resolveMap(empty(flip(BASE, 0, 12)), maps, trainingIds, { [BASE]: 777 }).mapId).toBe(777);
-    expect(resolveMap(empty(flip(BASE, 0, 13)), maps, trainingIds, { [BASE]: 777 })).toEqual({ mapId: null, confident: false, choices: [] });
+  it("差 6 格剛好還算；差 7 格不算", () => {
+    expect(resolveMap(empty(flip(BASE, 0, 6)), maps, trainingIds, { [BASE]: 777 }).mapId).toBe(777);
+    expect(resolveMap(empty(flip(BASE, 0, 7)), maps, trainingIds, { [BASE]: 777 })).toEqual({ mapId: null, confident: false, choices: [] });
   });
 
   it("好幾筆都在範圍內：取差最少的；一模一樣的永遠先贏", () => {
-    const memory = { [flip(BASE, 0, 8)]: 1, [flip(BASE, 20, 3)]: 2 };
+    const memory = { [flip(BASE, 0, 5)]: 1, [flip(BASE, 20, 2)]: 2 };
     expect(resolveMap(empty(BASE), maps, trainingIds, memory).mapId).toBe(2);
     expect(resolveMap(empty(BASE), maps, trainingIds, { ...memory, [BASE]: 3 }).mapId).toBe(3);
   });
@@ -292,21 +293,23 @@ describe("settleTitle（頁面餵給練功計算當 mapKey 的那個穩定簽章
     expect(feed(start, A, flip(A, 0, 5), flip(A, 0, 9)).key).toBe(flip(A, 0, 9));
   });
 
-  it("候選之間差超過 12 格就重數", () => {
-    expect(feed(start, A, A, flip(A, 0, 13), flip(A, 0, 13)).key).toBeNull();
-    expect(feed(start, A, A, flip(A, 0, 13), flip(A, 0, 13), flip(A, 0, 13)).key).toBe(flip(A, 0, 13));
+  it("候選之間差超過 6 格就重數", () => {
+    expect(feed(start, A, A, flip(A, 0, 7), flip(A, 0, 7)).key).toBeNull();
+    expect(feed(start, A, A, flip(A, 0, 7), flip(A, 0, 7), flip(A, 0, 7)).key).toBe(flip(A, 0, 7));
+    // 差剛好 6 格還算同一個長相
+    expect(feed(start, A, flip(A, 0, 6), A).key).toBe(A);
   });
 
-  it("跟現在的 key 差不到 24 格：key 不動（雜訊、小地圖字被擋一下）", () => {
+  it("跟現在的 key 差不到 10 格：key 不動（雜訊、小地圖字被擋一下）", () => {
     expect(settledA.key).toBe(A);
-    for (const gap of [1, 12, 24]) {
+    for (const gap of [1, 6, 10]) {
       const next = feed(settledA, flip(A, 0, gap), flip(A, 0, gap), flip(A, 0, gap), flip(A, 0, gap));
       expect(next.key, `差 ${gap} 格`).toBe(A);
     }
   });
 
-  it("差超過 24 格才有機會換：25 格要連續 3 張", () => {
-    const far = flip(A, 0, 25);
+  it("差超過 10 格才有機會換：11 格要連續 3 張", () => {
+    const far = flip(A, 0, 11);
     expect(feed(settledA, far, far).key).toBe(A);
     expect(feed(settledA, far, far, far).key).toBe(far);
   });
@@ -337,4 +340,141 @@ describe("settleTitle（頁面餵給練功計算當 mapKey 的那個穩定簽章
     expect(() => settleTitle(frozen, B)).not.toThrow();
     expect(frozen).toEqual({ key: A, candidate: null, streak: 0 });
   });
+});
+
+/**
+ * 只差一個字的相鄰地圖（森林迷宮III／IV、火焰之地Ⅱ／Ⅲ…）：簽章要差得夠遠，settleTitle 才會當成換圖、記住的簽章才不會張冠李戴。
+ * 合成畫面：拿基準截圖，把標題那塊塗成小地圖面板的淺藍，再把兩行字畫上去，其他像素都是基準截圖的。
+ * 兩種畫法：
+ * - 照 public/data/speed-names.json 裡存的字形格子貼出來（不用字型，哪裡都能跑，CI 也跑）
+ * - 用 Windows 的微軟正黑體畫 12px 的字（只在有這個字型的機器跑）
+ */
+const SERIES: [street: string, titles: string[]][] = [
+  ["迷霧森林", ["森林迷宮II", "森林迷宮III", "森林迷宮IV", "森林迷宮V"]],
+  ["戰火之地", ["火焰之地Ⅰ", "火焰之地Ⅱ", "火焰之地Ⅲ", "火焰之地Ⅴ"]],
+  ["冰原雪域", ["冰面Ⅰ", "冰面Ⅱ"]],
+];
+
+function panelOf(base: Frame): [number, number, number] {
+  return pixelAt(base, 100, 94);
+}
+
+function floodTitle(base: Frame): Frame {
+  const out = cloneFrame(base);
+  const [r, g, b] = panelOf(base);
+  for (let y = 56; y < 96; y++) for (let x = 40; x < 125; x++) setPixel(out, x, y, r, g, b);
+  return out;
+}
+
+/** 字形格子（每格是 0～1 的墨量，8 列）雙線性放大成 11px 高貼上去：街道從 (51,63)、地圖名從 (52,79) */
+function renderFromGlyphs(base: Frame, street: string, name: string): Frame {
+  const out = floodTitle(base);
+  const panel = panelOf(base);
+  for (const [text, x0, y0] of [[street, 51, 63], [name, 52, 79]] as const) {
+    const entry = names.titles.find(title => title.text === text);
+    if (!entry) throw new Error(`字形樣板裡沒有「${text}」`);
+    const h = 11;
+    const w = Math.round(entry.aspect * h);
+    const cell = (x: number, y: number) => entry.grid[y * entry.gw + x];
+    for (let py = 0; py < h; py++) {
+      for (let px = 0; px < w; px++) {
+        const gx = ((px + 0.5) / w) * entry.gw - 0.5;
+        const gy = ((py + 0.5) / h) * names.gh - 0.5;
+        const xa = Math.max(0, Math.min(entry.gw - 1, Math.floor(gx)));
+        const ya = Math.max(0, Math.min(names.gh - 1, Math.floor(gy)));
+        const xb = Math.min(entry.gw - 1, xa + 1);
+        const yb = Math.min(names.gh - 1, ya + 1);
+        const fx = Math.min(1, Math.max(0, gx - xa));
+        const fy = Math.min(1, Math.max(0, gy - ya));
+        const top = cell(xa, ya) * (1 - fx) + cell(xb, ya) * fx;
+        const bottom = cell(xa, yb) * (1 - fx) + cell(xb, yb) * fx;
+        const ink = Math.min(1, top * (1 - fy) + bottom * fy);
+        const [r, g, b] = panel.map(value => Math.round(value * (1 - ink) + 34 * ink));
+        setPixel(out, x0 + px, y0 + py, r, g, b);
+      }
+    }
+  }
+  return out;
+}
+
+const MSJH = "C:/Windows/Fonts/msjh.ttc";
+const hasMsjh = fs.existsSync(MSJH) && GlobalFonts.registerFromPath(MSJH, "MsjhForTest");
+
+function renderWithFont(base: Frame, street: string, name: string): Frame {
+  const canvas = createCanvas(base.width, base.height);
+  const context = canvas.getContext("2d");
+  const image = context.createImageData(base.width, base.height);
+  image.data.set(floodTitle(base).data);
+  context.putImageData(image, 0, 0);
+  context.fillStyle = "#222";
+  context.font = '12px "MsjhForTest"';
+  context.textBaseline = "alphabetic";
+  context.fillText(street, 51, 73);
+  context.fillText(name, 51, 89);
+  const { data } = context.getImageData(0, 0, base.width, base.height);
+  return { width: base.width, height: base.height, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length) };
+}
+
+function adjacentMapChecks(render: (base: Frame, street: string, name: string) => Frame) {
+  const sign = async (street: string, name: string) => readTitle(render(await loadFixture("window-1364.png"), street, name), names)!.signature;
+
+  it("同一組裡任兩張圖的簽章都差超過 10 格（不會被當成同一張）", async () => {
+    for (const [street, titles] of SERIES) {
+      const signatures = await Promise.all(titles.map(title => sign(street, title)));
+      for (let i = 0; i < titles.length; i++) {
+        for (let j = i + 1; j < titles.length; j++) {
+          expect(hammingDistance(signatures[i], signatures[j]), `${titles[i]} 跟 ${titles[j]}`).toBeGreaterThan(10);
+        }
+      }
+    }
+  });
+
+  it("森林迷宮III 穩定下來之後換成 IV：連續 3 張 IV 就換 key；III 的雜訊不會換", async () => {
+    const three = await sign("迷霧森林", "森林迷宮III");
+    const four = await sign("迷霧森林", "森林迷宮IV");
+    const settled = [three, three, three].reduce(settleTitle, { key: null, candidate: null, streak: 0 } as TitleSettle);
+    expect(settled.key).toBe(three);
+    const twoFrames = [four, four].reduce(settleTitle, settled);
+    expect(twoFrames.key).toBe(three);
+    const threeFrames = [four, four, four].reduce(settleTitle, settled);
+    expect(threeFrames.key).toBe(four);
+    expect(threeFrames.key).not.toBe(three);
+  });
+
+  it("記住的簽章不會張冠李戴：記了 III，IV 不會被認成 III；兩張都記了各認各的", async () => {
+    const three = await sign("迷霧森林", "森林迷宮III");
+    const four = await sign("迷霧森林", "森林迷宮IV");
+    const blank = (signature: string): TitleReading => ({ signature, street: [], name: [] });
+    expect(resolveMap(blank(four), maps, trainingIds, { [three]: 105040303 })).toEqual({ mapId: null, confident: false, choices: [] });
+    const both = { [three]: 105040303, [four]: 105040304 };
+    expect(resolveMap(blank(three), maps, trainingIds, both).mapId).toBe(105040303);
+    expect(resolveMap(blank(four), maps, trainingIds, both).mapId).toBe(105040304);
+  });
+
+  it("同一張圖有 ±2 的雜訊：還是認得記下的那張（差不到 6 格）", async () => {
+    const base = await loadFixture("window-1364.png");
+    const clean = render(base, "迷霧森林", "森林迷宮III");
+    const remembered = readTitle(clean, names)!.signature;
+    for (let trial = 0; trial < 10; trial++) {
+      const noisy = cloneFrame(clean);
+      const random = seeded(500 + trial);
+      for (let y = 55; y < 96; y++) {
+        for (let x = 40; x < 125; x++) {
+          const i = (y * noisy.width + x) * 4;
+          for (let c = 0; c < 3; c++) noisy.data[i + c] += Math.floor(random() * 5) - 2;
+        }
+      }
+      const signature = readTitle(noisy, names)!.signature;
+      expect(hammingDistance(signature, remembered), `trial ${trial}`).toBeLessThanOrEqual(6);
+      expect(resolveMap({ signature, street: [], name: [] }, maps, trainingIds, { [remembered]: 105040303 }).mapId).toBe(105040303);
+    }
+  });
+}
+
+describe("相鄰的地圖（字形樣板貼出來的標題）", () => {
+  adjacentMapChecks(renderFromGlyphs);
+});
+
+describe.skipIf(!hasMsjh)("相鄰的地圖（微軟正黑體畫出來的標題，只在有這個字型的機器跑）", () => {
+  adjacentMapChecks(renderWithFont);
 });

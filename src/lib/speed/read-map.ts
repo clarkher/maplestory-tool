@@ -174,10 +174,14 @@ export function hammingDistance(a: string, b: string): number {
   return n;
 }
 
-/** 兩個簽章差這麼多格以內算「同一個長相」 */
-const SAME_BITS = 12;
-/** 跟目前的 key 差在這麼多格以內：還是同一張圖，key 不動 */
-const KEEP_BITS = 24;
+/**
+ * 兩個簽章差這麼多格以內算「同一個長相」（記過的簽章比對、換圖候選彼此對得上都用這個）。
+ * 值是量出來的：同一張畫面加 ±2 的雜訊最多差 3 格（±4 也不到 5 格）；只差一個字的相鄰地圖
+ * （森林迷宮III／IV、火焰之地Ⅱ／Ⅲ…）最少差 14 格。擷取的畫面是無損的，一模一樣的畫面簽章就一模一樣，所以抓小不抓大。
+ */
+const SAME_BITS = 6;
+/** 跟目前的 key 差在這麼多格以內：還是同一張圖，key 不動（要小於相鄰地圖最少的 14 格，不然換圖會被當成雜訊吃掉） */
+const KEEP_BITS = 10;
 /** 新的簽章要連續看到這麼多張畫面才換 key */
 const SETTLE_FRAMES = 3;
 
@@ -186,8 +190,8 @@ export type TitleSettle = { key: string | null; candidate: string | null; streak
 /**
  * 把一張張畫面讀到的 signature 穩定成「現在在哪張圖」的 key：頁面每張畫面把 readTitle 的簽章（讀不到給 null）餵進來，
  * 拿回來的 state.key 就是餵給練功計算的 mapKey。初始狀態 { key: null, candidate: null, streak: 0 }。
- * - key 只在「同一個新長相（彼此差 ≤ 12 格）連續 3 張畫面」而且跟目前的 key 差 > 24 格時才換（第一個 key 也要 3 張）。
- * - 跟目前的 key 差 ≤ 24 格：是同一張圖的雜訊，key 不動，換圖的計數歸零。
+ * - key 只在「同一個新長相（彼此差 ≤ 6 格）連續 3 張畫面」而且跟目前的 key 差 > 10 格時才換（第一個 key 也要 3 張）。
+ * - 跟目前的 key 差 ≤ 10 格：是同一張圖的雜訊，key 不動，換圖的計數歸零。
  * - null（讀不到）：計數歸零，key 留著（小地圖被擋一下不算換圖）。
  * 換 key 之後 candidate／streak 歸零。不改傳進來的 state。
  */
@@ -205,7 +209,7 @@ export type MapGuess = { mapId: number | null; confident: boolean; choices: numb
 const MAX_D = 0.16;
 const MIN_GAP = 0.012;
 
-/** 記過的簽章：一模一樣的先用；沒有就找差最少的，差在 12 格以內才算 */
+/** 記過的簽章：一模一樣的先用；沒有就找差最少的，差在 6 格以內才算 */
 function recall(memory: Record<string, number>, signature: string): number | undefined {
   if (Object.prototype.hasOwnProperty.call(memory, signature)) return memory[signature];
   let best: number | undefined;
@@ -221,7 +225,7 @@ function recall(memory: Record<string, number>, signature: string): number | und
 }
 
 /**
- * 標題 → 地圖 id。先看記過的（玩家點選過的長相，差 12 格內都算）；再拿每張有中文名的地圖「街道差＋地圖名差」排。
+ * 標題 → 地圖 id。先看記過的（玩家點選過的長相，差 6 格內都算）；再拿每張有中文名的地圖「街道差＋地圖名差」排。
  * 街道名是空的地圖（雲彩公園、天空階梯、冰原雪域，資料裡沒有街道欄）街道不比，給「這次街道排名裡最小的差」當中立分數。
  * 同一個「街道｜名字」有好幾個 id 時，取有練功資料的那張，都沒有取 id 小的。
  */
