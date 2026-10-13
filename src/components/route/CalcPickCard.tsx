@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { RouteIcon } from "@/components/Icons";
 import { useBuildChoice } from "@/lib/build-choice";
-import { calcPick, goalText, type CalcPick } from "@/lib/calc-pick";
+import { AOE_KILLS, calcPick, goalText, type CalcPick } from "@/lib/calc-pick";
 import { HEAL } from "@/lib/damage-skills";
 import { loadGear, loadSkills, mapName, monsterImage, peekGear, peekSkills } from "@/lib/data";
 import { tenMinuteText } from "@/lib/damage-view";
@@ -16,9 +16,12 @@ import { sessionMemo } from "@/lib/session-memo";
 import type { GuideJob, Skill } from "@/lib/types";
 import { Chip, Sprite } from "./bits";
 
-/** 找不到圖時寫要找的是哪一種圖：「雙飛斬兩下打得死的練功圖」「群體治癒約 5～6 下打得死的不死系練功圖」 */
+/** 群體條件的範圍，寫成「4～8」 */
+const AOE_RANGE = `${AOE_KILLS[0]}～${AOE_KILLS[1]}`;
+
+/** 找不到圖時寫要找的是哪一種圖：「雙飛斬兩下打得死的練功圖」「群體治癒約 4～8 下打得死的不死系練功圖」 */
 function goalPhrase(pick: CalcPick): string {
-  if (pick.mode === "aoe") return `${pick.skillName}約 5～6 下打得死的${pick.skillId === HEAL ? "不死系" : ""}練功圖`;
+  if (pick.mode === "aoe") return `${pick.skillName}約 ${AOE_RANGE} 下打得死的${pick.skillId === HEAL ? "不死系" : ""}練功圖`;
   return `${pick.skillName}兩下打得死的練功圖`;
 }
 
@@ -27,8 +30,8 @@ function goalNote(pick: CalcPick): string {
   if (pick.mode === "single") {
     return pick.goal === "two" ? "單體攻擊先找差一點兩下打得死的怪，這個等級沒有適合的圖，改找穩穩兩下的" : "單體攻擊找差一點兩下打得死的怪";
   }
-  if (pick.skillId === HEAL) return "群體治癒照範圍內只有 1 隻算（怪多每隻分到的會變少），找 5～6 下打得死的不死系";
-  return `${pick.skillName}一次打好幾隻，找 5～6 下打得死的怪`;
+  if (pick.skillId === HEAL) return `群體治癒照範圍內只有 1 隻算（怪多每隻分到的會變少），找 ${AOE_RANGE} 下打得死的不死系`;
+  return `${pick.skillName}一次打好幾隻，找 ${AOE_RANGE} 下打得死的怪`;
 }
 
 type Extra = { gear: GearData; skillList: Skill[] };

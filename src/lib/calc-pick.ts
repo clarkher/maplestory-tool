@@ -1,6 +1,7 @@
 /**
  * 我的路線「照傷害算的推薦」（v0.92，使用者拍板 1A 2A 3A 4A）：用傷害計算機的預設角色、武器 +7（100% 卷 7 張），
- * 單體職業找「差一點兩下」打得死的怪（沒有就穩穩兩下），群體技能找約 5～6 下打死的怪，再挑那隻怪當主力的練功圖、照刷怪效率排。
+ * 單體職業找「差一點兩下」打得死的怪（沒有就穩穩兩下），群體技能找約 4～8 下打死的怪（v0.93 使用者選 B，原本 5～6 下很多等級整段找不到），
+ * 再挑那隻怪當主力的練功圖、照刷怪效率排。
  * 規格 docs/superpowers/specs/2026-10-13-route-calc-pick-design.md；測試 __tests__/calc-pick.test.ts。
  * 圖的篩選跟主推卡（now-plan.ts mainPick）同一套：楓之島照角色、有中文名、不是王圖、通過職業規則、城鎮走得到。
  */
@@ -31,10 +32,10 @@ const CAP_REACH = 5;
 const FAR_HOPS = 8;
 /** 最多列幾張圖（1 張主推＋2 張備案） */
 const MAX_OPTIONS = 3;
-/** 群體條件：約幾次打死在這個範圍（使用者：僧侶 45 打大幽靈約 6 下為基準） */
-const AOE_KILLS: [number, number] = [5, 6];
+/** 群體條件：約幾次打死在這個範圍（使用者：僧侶 45 打大幽靈約 6 下為基準；v0.93 選 B 從 5～6 放寬到 4～8） */
+export const AOE_KILLS: [number, number] = [4, 8];
 
-/** nearTwo＝差一點兩下、two＝穩穩兩下（單體）；fiveSix＝約 5～6 下（群體） */
+/** nearTwo＝差一點兩下、two＝穩穩兩下（單體）；fiveSix＝約 4～8 下（群體，名字沿用 v0.92 的 5～6） */
 export type CalcGoal = "nearTwo" | "two" | "fiveSix";
 
 export type CalcPickOption = {
