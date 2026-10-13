@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { USER_AGENT, fetchAllListings, pageUrl } from "./fetch8591.mjs";
+import { USER_AGENT, fetchAllListings, pageUrl, fetchText } from "./fetch8591.mjs";
 
 /** 假的 8591：每頁 10 筆，給 id 清單組出跟真的一樣格式的頁面 */
 function fakePage(ids) {
@@ -19,7 +19,7 @@ test("網址：雪吉拉、楓幣分頁、firstRow 每頁加 10", () => {
 });
 
 test("User-Agent 老實寫是誰、附 repo 網址，而且全是 ASCII（header 不能放中文）", () => {
-  assert.match(USER_AGENT, /^MapleBook-fx\/1\.0 \(\+https:\/\/github\.com\/clarkher\/maplestory-tool; /);
+  assert.equal(USER_AGENT, "MapleBook-fx/1.0 (+https://github.com/clarkher/maplestory-tool; meso rate, every 4h)");
   assert.match(USER_AGENT, /^[\x20-\x7e]+$/);
 });
 
@@ -52,4 +52,76 @@ test("其中一頁被擋（沒有 __NUXT_DATA__）整次失敗，不拿半套資
     fetchAllListings({ fetchText: async url => (url.endsWith("firstRow=0") ? fakePage([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]) : "請完成驗證"), sleep: async () => {} }),
     /__NUXT_DATA__/,
   );
+});
+
+test("fetchText：403 被擋只打一次、拋錯", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = async () => {
+      calls += 1;
+      return { status: 403, ok: false };
+    };
+    await assert.rejects(
+      fetchText("http://test.local"),
+      /403/,
+    );
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("fetchText：429 被擋只打一次、拋錯", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  try {
+    globalThis.fetch = async () => {
+      calls += 1;
+      return { status: 429, ok: false };
+    };
+    await assert.rejects(
+      fetchText("http://test.local"),
+      /429/,
+    );
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("fetchText：500 重試三次、記錄 sleep [5000, 10000]、拋錯", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  const sleeps = [];
+  try {
+    globalThis.fetch = async () => {
+      calls += 1;
+      return { status: 500, ok: false };
+    };
+    await assert.rejects(
+      fetchText("http://test.local", { sleep: async ms => sleeps.push(ms) }),
+      /500/,
+    );
+    assert.equal(calls, 3);
+    assert.deepEqual(sleeps, [5000, 10000]);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("fetchText：200 回應本文、header 送出 USER_AGENT", async () => {
+  const original = globalThis.fetch;
+  let capturedHeaders = null;
+  try {
+    globalThis.fetch = async (url, options) => {
+      capturedHeaders = options.headers;
+      return { status: 200, ok: true, text: async () => "test body" };
+    };
+    const result = await fetchText("http://test.local", { sleep: async () => {} });
+    assert.equal(result, "test body");
+    assert.equal(capturedHeaders["user-agent"], USER_AGENT);
+  } finally {
+    globalThis.fetch = original;
+  }
 });

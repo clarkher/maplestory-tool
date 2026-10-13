@@ -28,12 +28,13 @@ export async function fetchAllListings({ serverId = SERVERS.雪吉拉, fetchText
   return [...byId.values()];
 }
 
-export async function fetchText(url) {
+export async function fetchText(url, { sleep = defaultSleep } = {}) {
   let lastError;
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    if (attempt > 0) await defaultSleep(5000 * attempt);
+    if (attempt > 0) await sleep(5000 * attempt);
     try {
       const response = await fetch(url, { headers: { "user-agent": USER_AGENT, "accept-language": "zh-TW" }, signal: AbortSignal.timeout(30000) });
+      // 8591 偶爾慢或 5xx，退讓幾秒再試；被擋（403/429）就不重試以免加重負擔
       if (response.status === 403 || response.status === 429) throw Object.assign(new Error(`HTTP ${response.status}（被擋，不重試）`), { blocked: true });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.text();
