@@ -38,3 +38,10 @@ test("保留解析時就有的旗子", () => {
   assert.deepEqual(checkTrade({ ...base, price: null, unitPrice: null, flags: ["這行讀到 3 個數字，分不出價格"] }, { today: TODAY }),
     ["這行讀到 3 個數字，分不出價格"]);
 });
+
+test("交易日期不是真的日期：9/31、13 月、2 月 30 都標出來（不再多報未來／太早）", () => {
+  for (const bad of ["2026-09-31", "2026-13-01", "2026-02-30"]) {
+    assert.deepEqual(checkTrade({ ...base, tradedAt: bad }, { today: TODAY }), ["交易日期不是真的日期"], bad);
+  }
+  assert.deepEqual(checkTrade({ ...base, tradedAt: "2026-09-30" }, { today: TODAY }), [], "9/30 是真的日期");
+});

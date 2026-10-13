@@ -54,7 +54,7 @@ function bestLabel(raw) {
     const n = [...label].length;
     let bestCount = 0, bestRatio = 0;
 
-    // Try lengths n-1, n, n+1 within valid range [1, rawLen]
+    // 拿字尾試 n-1、n、n+1 個字（n＝標籤字數），長度限制在 1 到讀到的字數之間
     for (let len = Math.max(1, n - 1); len <= Math.min(rawLen, n + 1); len++) {
       const tail = [...raw].slice(-len).join("");
       const count = lcs(label, tail);
@@ -68,7 +68,7 @@ function bestLabel(raw) {
     labelScores.push({ label, count: bestCount, ratio: bestRatio, index: i });
   }
 
-  // Sort by: count (desc), ratio (desc), index (asc)
+  // 排序：共同字數多的在前、比例高的在前、一樣就照 ATTR_LABELS 原本的順序
   labelScores.sort((a, b) =>
     b.count !== a.count ? b.count - a.count :
     b.ratio !== a.ratio ? b.ratio - a.ratio :

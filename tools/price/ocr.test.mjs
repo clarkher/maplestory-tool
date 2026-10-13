@@ -150,3 +150,13 @@ test("Windows：辨識本身失敗（圖太寬，放大後超過上限）→ 中
   });
   assert.deepEqual(leftovers(), [], "失敗了也要清掉暫存圖跟結果檔");
 });
+
+test("tools/price 的程式碼裡沒有看不見的字元（BOM、零寬空白、行分隔）；要寫就用跳脫寫法", () => {
+  // 碼位表：零寬空白那一排、行／段分隔、窄空白一帶、字詞連接、BOM
+  const invisible = new Set([0x200b, 0x200c, 0x200d, 0x200e, 0x200f, 0x2028, 0x2029, 0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x202f, 0x2060, 0xfeff]);
+  for (const name of fs.readdirSync(import.meta.dirname).filter(n => /\.(mjs|ps1)$/.test(n))) {
+    const text = fs.readFileSync(path.join(import.meta.dirname, name), "utf8");
+    const bad = [...text].findIndex(ch => invisible.has(ch.codePointAt(0)));
+    assert.equal(bad, -1, `${name} 第 ${bad + 1} 個字是看不見的字元`);
+  }
+});

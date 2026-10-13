@@ -39,3 +39,10 @@ test("fetchFx：檔案還沒有（404）或網路壞掉回 null，正常回 JSON
   assert.equal(j.days.length, 2);
   assert.equal(j.url, FX_URL);
 });
+
+test("匯率檔裡有壞掉的一列（null、數字、沒有 date、date 不是字串）：跳過，不丟錯", () => {
+  const messy = [null, undefined, 5, "x", { close: 1 }, { date: 20261012, close: 9 }, { date: "2026-10-12", close: 3333 }];
+  assert.deepEqual(fxFor("2026-10-12", messy), { close: 3333, date: "2026-10-12", exact: true });
+  assert.equal(fxFor("2026-10-12", [null, 5]), null);
+  assert.equal(fxFor("2026-10-12", "不是陣列"), null);
+});

@@ -23,8 +23,9 @@ export function shiftDate(ymd, delta) {
 
 /** 那天的匯率；那天沒有就往前最近一天，最多往前 3 天 */
 export function fxFor(date, days) {
-  if (!date || !days?.length) return null;
-  const byDate = new Map(days.map(d => [d.date, d]));
+  if (!date || !Array.isArray(days) || !days.length) return null;
+  // 匯率檔裡壞掉的一列（不是物件、沒有字串的 date）跳過，不讓一列壞資料害整頁當掉
+  const byDate = new Map(days.filter(d => d && typeof d === "object" && typeof d.date === "string").map(d => [d.date, d]));
   for (let back = 0; back <= FX_LOOKBACK_DAYS; back++) {
     const d = shiftDate(date, -back);
     const hit = byDate.get(d);

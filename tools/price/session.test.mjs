@@ -4,7 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createSession, DONE_DIR } from "./session.mjs";
-import { loadData } from "./store.mjs";
+import { loadData, saveData, emptyData, addTrades } from "./store.mjs";
+import { waitFor } from "./test-helpers.mjs";
 
 /** 假的辨識：檔名 → 這張圖的文字列 */
 function fakeOcr(byName) {
@@ -18,14 +19,14 @@ function fakeOcr(byName) {
   };
 }
 
-function setup(t, byName) {
+function setup(t, byName, { date = new Date(2026, 9, 13) } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "price-session-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const shots = path.join(dir, "shots");
   fs.mkdirSync(shots);
   const shot = name => { const f = path.join(shots, name); fs.writeFileSync(f, "png"); return f; };
   const dataFile = path.join(dir, "data", "auction", "scania.json");
-  const s = createSession({ date: new Date(2026, 9, 13), dataFile, ocr: fakeOcr(byName), now: () => new Date(2026, 9, 13, 21, 0, 0) });
+  const s = createSession({ date, dataFile, ocr: fakeOcr(byName), now: () => new Date(date.getFullYear(), date.getMonth(), date.getDate(), 21, 0, 0) });
   return { s, shot, shots, dataFile };
 }
 
@@ -106,7 +107,7 @@ test("handleShot 不 await 再按 copyNext，截圖對到該項", async t => {
   const promise = s.state().items[0].shots[0]; // 要 await 才能讀到結果
   const nextName = s.copyNext();
   assert.equal(nextName, "手套攻擊卷軸60%", "copyNext 推進");
-  await new Promise(r => setTimeout(r, 50)); // 等 OCR 完成
+  await waitFor(() => s.state().items[0].shots[0].status !== "reading", 3000, "第一張讀完"); // 等 OCR 完成
   assert.equal(s.state().items[0].shots[0].status, "ok", "第一項已完成");
 });
 
@@ -136,7 +137,7 @@ test("OCR 最多一次一張（不並行）", async t => {
   s.handleShot(shot("a.png"));
   s.handleShot(shot("b.png"));
   s.handleShot(shot("c.png"));
-  await new Promise(r => setTimeout(r, 300)); // 等全部完成
+  await waitFor(() => s.state().items[0].shots.length === 3 && s.state().items[0].shots.every(x => x.status !== "reading"), 3000, "三張都讀完"); // 等全部完成
   assert.equal(maxConcurrency, 1, "最多同時一張");
 });
 
@@ -215,4 +216,41 @@ test("截圖搬檔時名字碰撞：新檔名寫進 shot.file", async t => {
   const shot0 = s.state().items[0].shots[0];
   assert.notEqual(shot0.file, "a.png", "檔名改了");
   assert.ok(fs.existsSync(path.join(doneDir, shot0.file)), "新檔名存在");
+});
+
+// ---- 最後整體檢查補的 ----
+
+const umbrella = (attr, price) => ["黃色雨傘", `魔法攻擊力+${attr}`, price, "2026/10/12"];
+
+test("黃色雨傘的 5 倍檢查只跟同屬性比：+1 的正常價不會被 +5 的高價拉去誤判", async t => {
+  const monday = new Date(2026, 9, 12);
+  const { s, shot, dataFile } = setup(t, {
+    "u.png": [...page, umbrella(1, "100,000"), umbrella(5, "9,000,000")],
+  }, { date: monday });
+  // 前一次（10/10 記的）：+1 賣 10 萬、+5 賣 90 萬；混在一起的中間價是 50 萬
+  const seed = emptyData();
+  const rec = { shot: "old.png", recordedAt: "2026-10-10T21:00:00+08:00", item: "黃色雨傘" };
+  addTrades(seed, [{ tradedAt: "2026-10-09", price: 100_000, unitPrice: 100_000, qty: 1, attrs: { "魔法攻擊力": 1 }, flags: [], box: null }], rec);
+  addTrades(seed, [{ tradedAt: "2026-10-09", price: 900_000, unitPrice: 900_000, qty: 1, attrs: { "魔法攻擊力": 5 }, flags: [], box: null }], rec);
+  saveData(dataFile, seed);
+  s.setCurrent("黃色雨傘");
+  await s.handleShot(shot("u.png"));
+  const added = loadData(dataFile).trades.filter(x => x.shot === "u.png");
+  assert.deepEqual(added.map(x => [x.attrs["魔法攻擊力"], x.status]), [[1, "ok"], [5, "review"]], "+1 的 10 萬跟 +1 上次的 10 萬比，正常；+5 的 900 萬是 +5 上次 90 萬的 10 倍，要看一眼");
+  assert.deepEqual(added[1].flags, ["跟上次中間價差 5 倍以上"]);
+});
+
+test("不是拍賣頁的截圖：不搬、不算這件的圖、記在 orphans（路過的截圖不被吞掉）", async t => {
+  const { s, shot, shots } = setup(t, { "n.png": [["背", "包"]], "a.png": [...page, glove("1,320,000")] });
+  s.copyNext();
+  await s.handleShot(shot("n.png"));
+  let st = s.state();
+  assert.deepEqual(st.items[0].shots, [], "沒算進這件的截圖");
+  assert.equal(st.items[0].status, "current", "這件還是等你截圖，不是變成『重試』");
+  assert.deepEqual(st.orphans, [{ file: "n.png", reason: "這張不是拍賣的市價頁，略過（留在原地）" }]);
+  assert.ok(fs.existsSync(path.join(shots, "n.png")), "留在原地");
+  assert.equal(fs.existsSync(path.join(shots, DONE_DIR, "n.png")), false, "沒搬進已記價");
+  await s.handleShot(shot("a.png"));
+  st = s.state();
+  assert.deepEqual(st.items[0].shots.map(x => [x.file, x.status]), [["a.png", "ok"]], "後面真的市價頁照常記");
 });

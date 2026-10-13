@@ -31,3 +31,12 @@ export function localIso(date) {
   const hh = p2(Math.floor(Math.abs(off) / 60)), mm = p2(Math.abs(off) % 60);
   return `${localDate(date)}T${p2(date.getHours())}:${p2(date.getMinutes())}:${p2(date.getSeconds())}${sign}${hh}:${mm}`;
 }
+
+/** 是不是真的日期（YYYY-MM-DD，而且那天真的存在：2026-09-31、2026-13-01 都不是） */
+export function isRealDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));
+  if (!m) return false;
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const dt = new Date(Date.UTC(y, mo - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === mo - 1 && dt.getUTCDate() === d;
+}

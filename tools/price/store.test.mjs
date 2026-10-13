@@ -188,3 +188,78 @@ test("刪掉沒有 ocrKey 的記錄也記住", () => {
   assert.equal(deleteTrade(d, rec.id), true);
   assert(d.rejected.includes(manualOcrKey), "用 tradeKey() 補上");
 });
+
+// ---- 最後整體檢查補的 ----
+
+const unreadable = (y, o = {}) => t({ price: null, unitPrice: null, qty: null, flags: ["這行讀到 3 個數字，分不出價格"], box: { x: 1, y, w: 3, h: 4 }, ...o });
+
+test("讀不到價格的幾列：同一張圖同一列去重、不同列各算一筆", () => {
+  const d = emptyData();
+  const first = addTrades(d, [unreadable(10), unreadable(40), unreadable(70)], meta);
+  assert.equal(first.added.length, 3, "同一張圖三列都讀不到價格，不能擠成一筆");
+  const again = addTrades(d, [unreadable(10), unreadable(40), unreadable(70)], meta);
+  assert.equal(again.added.length, 0, "同一張圖同一列再來一次是重複");
+  assert.equal(again.skipped, 3);
+  assert.equal(d.trades.length, 3);
+});
+
+test("讀不到價格那筆改過或刪掉：只擋那張圖那一列，新截圖的不被吃掉", () => {
+  const d = emptyData();
+  addTrades(d, [unreadable(10), unreadable(40), unreadable(70)], meta);
+  const [a, b] = d.trades.map(x => x.id);
+  assert.equal(editTrade(d, a, { price: 500, unitPrice: 500, qty: 1 }), true);
+  assert.equal(deleteTrade(d, b), true);
+  // 同一張圖再來一次：改過的、刪掉的都不回來，沒動的那筆還在
+  assert.equal(addTrades(d, [unreadable(10), unreadable(40), unreadable(70)], meta).added.length, 0);
+  // 新的一張截圖讀不到價格的列：照樣記
+  const fresh = addTrades(d, [unreadable(10), unreadable(40)], { ...meta, shot: "b.png" });
+  assert.equal(fresh.added.length, 2, "新截圖的讀不到價格不被舊的拒絕清單吃掉");
+});
+
+test("刪掉：讀到的原值跟改過後的值都記住，不會回來；不重複記", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 7, unitPrice: 7, flags: ["x"] })], meta);
+  const origKey = d.trades[0].ocrKey;
+  assert.equal(editTrade(d, d.trades[0].id, { price: 70, unitPrice: 70 }), true);
+  const editedKey = tradeKey(d.trades[0]);
+  assert.notEqual(origKey, editedKey);
+  assert.equal(deleteTrade(d, d.trades[0].id), true);
+  assert.deepEqual([...d.rejected].sort(), [origKey, editedKey].sort());
+  assert.equal(d.rejected.length, 2, "沒有重複");
+  assert.equal(addTrades(d, [t({ price: 7, unitPrice: 7 })], meta).added.length, 0, "原本讀到的值不回來");
+  assert.equal(addTrades(d, [t({ price: 70, unitPrice: 70 })], meta).added.length, 0, "改過的值也不回來");
+});
+
+test("沒存 ocrKey 的舊資料：改之前的鍵才是『原始讀值』，不是改完以後的鍵", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 7, unitPrice: 7, flags: ["x"] })], meta);
+  const rec = d.trades[0];
+  const before = tradeKey(rec);
+  delete rec.ocrKey;
+  assert.equal(editTrade(d, rec.id, { price: 70, unitPrice: 70 }), true);
+  assert.ok(d.rejected.includes(before), "記的是改之前的鍵");
+  assert.ok(!d.rejected.includes(tradeKey(rec)), "不是改完的鍵");
+  assert.equal(addTrades(d, [t({ price: 7, unitPrice: 7 })], meta).added.length, 0);
+});
+
+test("改日期：不是真的日期（9/31、13 月）不收，記錄不動", () => {
+  const d = emptyData();
+  addTrades(d, [t({ flags: ["x"] })], meta);
+  const id = d.trades[0].id;
+  const before = JSON.parse(JSON.stringify(d.trades[0]));
+  for (const bad of ["2026-09-31", "2026-13-01", "2026-02-30", "2026-00-10", "2026-10-00"]) {
+    assert.equal(editTrade(d, id, { tradedAt: bad }), false, bad);
+  }
+  assert.deepEqual(d.trades[0], before);
+  assert.equal(editTrade(d, id, { tradedAt: "2026-09-30" }), true, "真的日期照樣收");
+});
+
+test("確認：單價×數量跟總價對不上不能按；三個都在而且對得上才行", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 1000, unitPrice: 300, qty: 3, flags: ["單價×數量跟總價對不上"] }), t({ price: 900, unitPrice: 300, qty: 3, flags: ["x"] })], meta);
+  const [bad, good] = d.trades.map(x => x.id);
+  assert.equal(confirmTrade(d, bad), false);
+  assert.equal(d.trades[0].status, "review", "狀態沒動");
+  assert.deepEqual(d.trades[0].flags, ["單價×數量跟總價對不上"], "旗子沒清");
+  assert.equal(confirmTrade(d, good), true);
+});

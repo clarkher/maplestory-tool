@@ -45,7 +45,7 @@ function explain(msg) {
 
 function readJson(file) {
   try {
-    return JSON.parse(fs.readFileSync(file, "utf8").replace(/^﻿/, ""));
+    return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/, ""));
   } catch {
     return null;
   }

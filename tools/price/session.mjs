@@ -1,12 +1,14 @@
 // 一次查價：清單、目前複製的是哪件、每張截圖讀到什麼。截圖一出現就算「剛複製的那件」（照出現順序，不照讀完順序）。
-// 讀圖一張一張排隊（PowerShell 一次開一個）。讀完搬到 已記價\；辨識本身壞掉的留在原地，修好可以重來。
+// 讀圖一張一張排隊（PowerShell 一次開一個）。讀完搬到 已記價\。
+// 留在原地的有兩種：辨識本身壞掉的（status error，頁面寫原因；檔案還在資料夾，要重來就重新截一張）、
+// 不是拍賣市價頁的截圖（路過的 Win+PrtSc，不搬、不算進任何一件，只記在 orphans）。
 import fs from "node:fs";
 import path from "node:path";
 import { todayList, localDate, localIso } from "./list.mjs";
 import { parseShot } from "./parse.mjs";
 import { checkTrade } from "./checks.mjs";
 import { loadData, saveData, addTrades } from "./store.mjs";
-import { summarize } from "./stats.mjs";
+import { prevMedianFor } from "./stats.mjs";
 
 export const DONE_DIR = "已記價";
 
@@ -42,7 +44,15 @@ export function createSession({ date, dataFile, ocr, now = () => new Date(), mov
     try {
       const result = parseShot(await ocr(file), { item: item.name, today });
 
-      // 先搬檔案（所有結果都搬）
+      // 不是拍賣市價頁（使用者隨手按的 Win+PrtSc）：不搬、不算進這件，只在頁面註明「略過」
+      if (result.kind === "not-auction") {
+        const i = item.shots.indexOf(shot);
+        if (i >= 0) item.shots.splice(i, 1);
+        orphans.push({ file: shot.file, reason: `${result.reason}（留在原地）` });
+        return;
+      }
+
+      // 先搬檔案（其餘結果都搬）
       let movedName = shot.file;
       let moveFailed = false;
       try {
@@ -74,8 +84,8 @@ export function createSession({ date, dataFile, ocr, now = () => new Date(), mov
       if (result.kind === "ok") {
         try {
           const data = loadData(dataFile);
-          const prevUnitMedian = summarize(data.trades, item.name, null).median ?? null;
-          const trades = result.trades.map(t => ({ ...t, flags: checkTrade(t, { today, prevUnitMedian }) }));
+          // 每一筆各自跟「上次中間價」比；裝備（黃色雨傘）只跟同屬性的比
+          const trades = result.trades.map(t => ({ ...t, flags: checkTrade(t, { today, prevUnitMedian: prevMedianFor(data.trades, item.name, t.attrs) }) }));
           const { added, skipped } = addTrades(data, trades, { item: item.name, shot: shot.file, recordedAt: localIso(now()) });
           saveData(dataFile, data);
           shot.added = added.length;
