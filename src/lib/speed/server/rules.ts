@@ -99,9 +99,12 @@ export function expPer10(gained: number, sec: number): number {
   return Math.round((gained / sec) * 600);
 }
 
+/** 一個刷怪點多久重生一隻（秒）：0＝預設 7 秒，最少算 5 秒（經驗上限、打幾隻上限都用這個） */
+const respawnSec = (respawn: number): number => Math.max(5, respawn || 7);
+
 /**
  * 這張圖 10 分鐘理論上拿得到的經驗上限（防灌假資料用，故意算寬）：
- * 每隻怪經驗 × 刷怪點 × (600 ÷ 重生秒數)，再 × 3（組隊加成、活動、經驗卷的寬限）。重生秒數 0＝預設 7 秒，最少算 5 秒。
+ * 每隻怪經驗 × 刷怪點 × (600 ÷ 重生秒數)，再 × 3（組隊加成、活動、經驗卷的寬限）。重生秒數照每隻怪實際的（0＝預設 7 秒），最少算 5 秒。
  * 沒有練功資料的圖回 null（算不出上限，toRow 不讓它進排行）。
  */
 export function mapCap(mapId: number, training: TrainingRow[], monsters: Monster[]): number | null {
@@ -109,7 +112,19 @@ export function mapCap(mapId: number, training: TrainingRow[], monsters: Monster
   if (!row) return null;
   const expOf = new Map(monsters.map(monster => [monster.id, monster.exp]));
   let sum = 0;
-  for (const [mobId, spawns, respawn] of row.mobs) sum += (expOf.get(mobId) ?? 0) * spawns * (600 / Math.max(5, respawn || 7));
+  for (const [mobId, spawns, respawn] of row.mobs) sum += (expOf.get(mobId) ?? 0) * spawns * (600 / respawnSec(respawn));
+  return Math.round(sum * LEEWAY);
+}
+
+/**
+ * 這張圖全隊 10 分鐘最多打得到幾隻（防灌組隊榜用，跟經驗上限一樣故意算寬）：
+ * 每個刷怪點 600 秒 ÷ 重生秒數，全部加起來，再 × 3。
+ * 為什麼要另外擋：組隊榜照「全隊打幾隻」排，打幾隻是用自己拿的經驗回推；自己等級很低、隊友等級很高時，
+ * 自己每隻只分到一點點，經驗沒超過上限，回推出來的隻數卻可以大到這張圖不可能打得到。
+ */
+export function mapKillCap(row: TrainingRow): number {
+  let sum = 0;
+  for (const [, spawns, respawn] of row.mobs) sum += spawns * (600 / respawnSec(respawn));
   return Math.round(sum * LEEWAY);
 }
 
@@ -120,12 +135,18 @@ function killsPer10Of(run: RunPayload, per10: number, row: TrainingRow, monsters
   return back ? Math.round(back.kills * 10) / 10 : null;
 }
 
+/**
+ * 一筆紀錄算好要存的欄位。進排行要全部成立：滿 10 分鐘、有地圖、這張圖有經驗上限而且沒超過、真的拿到經驗；
+ * 組隊的另外要算得出「全隊打幾隻」（組隊榜照它排）而且沒超過這張圖打得到的隻數（mapKillCap）。
+ */
 export function toRow(run: RunPayload, cap: number | null, row?: TrainingRow, monsters?: Map<number, Monster>): RunRow {
   const per10 = expPer10(run.expGained, run.durationSec);
-  // 沒有上限（這張圖沒有練功資料，例如亂編的地圖編號）不能進排行：不然灌多少都擋不住
-  const ranked = run.durationSec >= RANK_MIN_SEC && run.mapId !== null && cap !== null && per10 <= cap;
   const killsPer10 = row && monsters ? killsPer10Of(run, per10, row, monsters) : null;
-  return { ...run, expPer10: per10, ranked, partySize: 1 + run.partyLevels.length, killsPer10 };
+  const party = run.partyLevels.length > 0;
+  // 沒有上限（這張圖沒有練功資料，例如亂編的地圖編號）不能進排行：不然灌多少都擋不住
+  const expOk = run.durationSec >= RANK_MIN_SEC && run.mapId !== null && cap !== null && per10 <= cap && run.expGained > 0;
+  const killsOk = !party || (row !== undefined && killsPer10 !== null && killsPer10 <= mapKillCap(row));
+  return { ...run, expPer10: per10, ranked: expOk && killsOk, partySize: 1 + run.partyLevels.length, killsPer10 };
 }
 
 /**

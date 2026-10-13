@@ -1,7 +1,9 @@
 // src/lib/speed/__tests__/rules.test.ts
 import { describe, expect, it } from "vitest";
 import type { Monster, TrainingRow } from "@/lib/types";
-import { checkRun, expPer10, mapCap, toRow, type RunPayload } from "../server/rules";
+import monsterJson from "../../../../public/data/monsters.json";
+import trainingJson from "../../../../public/data/training.json";
+import { checkRun, expPer10, mapCap, mapKillCap, toRow, type RunPayload } from "../server/rules";
 
 const run: RunPayload = {
   mapId: 105040303, mapName: "森林迷宮III", level: 46, job: 220, charId: "芙莉蓮熊芙莉", isPublic: false, partyLevels: [], partyHitter: 0, mode: "auto",
@@ -254,6 +256,12 @@ describe("10 分鐘經驗、上限、進排行", () => {
     expect(toRow(run, 100_000).ranked).toBe(true);
   });
 
+  it("經驗是 0 的不進排行（單練、組隊都一樣）", () => {
+    expect(toRow({ ...run, expGained: 0 }, 200_000).ranked).toBe(false);
+    const monsters = new Map([[10, mob(10, 30, 100)]]);
+    expect(toRow({ ...run, level: 30, expGained: 0, partyLevels: [30], partyHitter: 1 }, 200_000, row([[10, 5, 7]]), monsters).ranked).toBe(false);
+  });
+
   it("沒有上限（這張圖沒有練功資料，例如亂編的地圖編號）不進排行", () => {
     // Task 9 修正第 1 輪、裁決 I3：原本 cap === null 也進排行，亂編 mapId 就能灌出約 1.8e16 的假榜首；
     // 原本這裡寫的是 toRow(run, null).ranked === true，照裁決改成 false。
@@ -304,5 +312,59 @@ describe("組隊人數、全隊打幾隻", () => {
   it("有沒有練功資料都不影響進不進排行", () => {
     expect(toRow(solo, 5_000, row([[10, 5, 7]]), monsters).ranked).toBe(true);
     expect(toRow(solo, 999, row([[10, 5, 7]]), monsters).ranked).toBe(false);
+  });
+});
+
+describe("組隊榜：全隊 10 分鐘打幾隻的上限（10/13 最終審查）", () => {
+  const MAP = 105040303; // 森林迷宮III
+  const monsterList = monsterJson as unknown as Monster[];
+  const trainingRows = trainingJson as unknown as TrainingRow[];
+  const mapRow = trainingRows.find(item => item.m === MAP)!;
+  const monsterById = new Map(monsterList.map(monster => [monster.id, monster]));
+
+  it("上限＝每個刷怪點 600 ÷ 重生秒數（0 當 7 秒、最少 5 秒）加起來 × 3", () => {
+    expect(mapKillCap(row([[10, 20, 0], [11, 1, 10800]]))).toBe(Math.round((20 * (600 / 7) + 1 * (600 / 10800)) * 3));
+    // 重生 3 秒照 5 秒算
+    expect(mapKillCap(row([[10, 2, 3]]))).toBe(Math.round(2 * (600 / 5) * 3));
+    // 森林迷宮III：47 個 7 秒的點＋1 個 3 小時的點 → (4028.6) × 3
+    expect(mapKillCap(mapRow)).toBe(12086);
+  });
+
+  it("審查的例子：森林迷宮III、自己 53 級跟五個 120 級吸經驗，經驗剛好在這張圖的上限 → 回推十幾萬隻，不進排行", () => {
+    const cap = mapCap(MAP, trainingRows, monsterList)!;
+    const leech: RunPayload = { ...run, level: 53, partyLevels: [120, 120, 120, 120, 120], partyHitter: 1, durationSec: 600, expGained: cap };
+    const result = toRow(leech, cap, mapRow, monsterById);
+    // 經驗沒超過上限（以前只看這個，所以會上榜）
+    expect(result.expPer10).toBe(cap);
+    expect(result.killsPer10).toBeGreaterThan(120_000);
+    expect(result.killsPer10).toBeGreaterThan(mapKillCap(mapRow));
+    expect(result.ranked).toBe(false);
+  });
+
+  it("正常的組隊（46 級、隊友 44／47 級打怪，15 分鐘 150,000）照樣進排行", () => {
+    const cap = mapCap(MAP, trainingRows, monsterList)!;
+    const party: RunPayload = { ...run, partyLevels: [44, 47], partyHitter: 2 };
+    const result = toRow(party, cap, mapRow, monsterById);
+    expect(result.killsPer10).not.toBeNull();
+    expect(result.killsPer10!).toBeLessThanOrEqual(mapKillCap(mapRow));
+    expect(result.ranked).toBe(true);
+  });
+
+  it("剛好等於上限還算，多一點就不算", () => {
+    // 7 個 7 秒的點 → 上限 1800 隻；自己 30 級、隊友 30 級打怪，每隻自己拿 44 → 79,200 經驗＝1800 隻
+    const small = row([[10, 7, 7]]);
+    const monsters = new Map([[10, mob(10, 30, 100)]]);
+    const party: RunPayload = { ...run, level: 30, partyLevels: [30], partyHitter: 1, durationSec: 600 };
+    expect(mapKillCap(small)).toBe(1800);
+    expect(toRow({ ...party, expGained: 79_200 }, 999_999, small, monsters)).toMatchObject({ killsPer10: 1800, ranked: true });
+    expect(toRow({ ...party, expGained: 79_245 }, 999_999, small, monsters)).toMatchObject({ killsPer10: 1801, ranked: false });
+  });
+
+  it("組隊卻算不出打幾隻（沒給練功資料、自己吸不到經驗）→ 不進排行；單練不用算打幾隻", () => {
+    const party: RunPayload = { ...run, partyLevels: [44], partyHitter: 1 };
+    expect(toRow(party, 200_000).ranked).toBe(false);
+    const low: RunPayload = { ...run, level: 10, partyLevels: [60], partyHitter: 1, durationSec: 600, expGained: 100 };
+    expect(toRow(low, 999_999, row([[10, 5, 7]]), new Map([[10, mob(10, 100, 100)]]))).toMatchObject({ killsPer10: null, ranked: false });
+    expect(toRow(run, 200_000).ranked).toBe(true);
   });
 });
