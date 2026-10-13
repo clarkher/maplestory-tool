@@ -19,7 +19,7 @@ function moveToDone(file) {
   return path.basename(target);
 }
 
-export function createSession({ date, dataFile, ocr, now = () => new Date() }) {
+export function createSession({ date, dataFile, ocr, now = () => new Date(), move = moveToDone, retryMs = 200 }) {
   const today = localDate(date);
   const items = todayList(date).map(x => ({ ...x, shots: [] }));
   const orphans = [];
@@ -34,24 +34,58 @@ export function createSession({ date, dataFile, ocr, now = () => new Date() }) {
     return "todo";
   };
 
-  async function process(item, shot, file) {
+  async function sleep(ms) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  async function processShot(item, shot, file) {
     try {
       const result = parseShot(await ocr(file), { item: item.name, today });
-      if (result.kind === "ok") {
-        const data = loadData(dataFile);
-        const prevUnitMedian = summarize(data.trades, item.name, null).median ?? null;
-        const trades = result.trades.map(t => ({ ...t, flags: checkTrade(t, { today, prevUnitMedian }) }));
-        shot.file = moveToDone(file);
-        const { added, skipped } = addTrades(data, trades, { item: item.name, shot: shot.file, recordedAt: localIso(now()) });
-        saveData(dataFile, data);
-        shot.added = added.length;
-        shot.skipped = skipped;
-        shot.review = data.trades.filter(t => added.includes(t.id) && t.status === "review").length;
-      } else {
-        shot.file = moveToDone(file);
+
+      // 先搬檔案（所有結果都搬）
+      let movedName = shot.file;
+      let moveFailed = false;
+      try {
+        for (let attempt = 0; attempt < 5; attempt++) {
+          try {
+            movedName = move(file);
+            break;
+          } catch (e) {
+            if (attempt < 4) {
+              await sleep(retryMs);
+            } else {
+              throw e;
+            }
+          }
+        }
+      } catch (e) {
+        moveFailed = true;
+        movedName = path.basename(file);
       }
+
+      shot.file = movedName;
       shot.status = result.kind;
       shot.reason = result.reason;
+      if (moveFailed) {
+        shot.moveFailed = true;
+        shot.reason += (shot.reason ? " " : "") + "（截圖沒搬到已記價，留在原地）";
+      }
+
+      if (result.kind === "ok") {
+        try {
+          const data = loadData(dataFile);
+          const prevUnitMedian = summarize(data.trades, item.name, null).median ?? null;
+          const trades = result.trades.map(t => ({ ...t, flags: checkTrade(t, { today, prevUnitMedian }) }));
+          const { added, skipped } = addTrades(data, trades, { item: item.name, shot: shot.file, recordedAt: localIso(now()) });
+          saveData(dataFile, data);
+          shot.added = added.length;
+          shot.skipped = skipped;
+          shot.review = data.trades.filter(t => added.includes(t.id) && t.status === "review").length;
+        } catch (e) {
+          shot.status = "error";
+          shot.reason = `讀圖成功但存檔失敗：${e.message}`;
+        }
+      }
     } catch (e) {
       shot.status = "error";
       shot.reason = `讀圖失敗：${e.message}`;
@@ -68,12 +102,35 @@ export function createSession({ date, dataFile, ocr, now = () => new Date() }) {
       };
     },
     copyNext() {
+      // 找全部完成的判斷
+      const allDone = items.every(i => i.shots.some(s => s.status === "ok"));
+      if (allDone) {
+        current = null;
+        return null;
+      }
+
+      // 找下一個未完成的項
       const start = current ? items.findIndex(i => i.name === current) + 1 : 0;
       const order = [...items.slice(start), ...items.slice(0, start)];
       const prev = current;
       const next = order.find(i => i.name !== prev && !i.shots.some(s => s.status === "ok")) ?? null;
-      current = next?.name ?? null;
-      return current;
+
+      if (next) {
+        current = next.name;
+        return current;
+      }
+
+      // 沒有其他未完成項，回傳目前項（如果目前項本身未完成）
+      if (current) {
+        const curr = find(current);
+        if (curr && !curr.shots.some(s => s.status === "ok")) {
+          return current;
+        }
+      }
+
+      // 全部完成
+      current = null;
+      return null;
     },
     setCurrent(name) {
       if (!find(name)) throw new Error(`今天的清單裡沒有「${name}」`);
@@ -87,7 +144,7 @@ export function createSession({ date, dataFile, ocr, now = () => new Date() }) {
       }
       const shot = { file: path.basename(file), status: "reading", reason: "", added: 0, skipped: 0, review: 0 };
       item.shots.push(shot);
-      queue = queue.then(() => process(item, shot, file));
+      queue = queue.then(() => processShot(item, shot, file)).catch(() => {});
       return queue;
     },
   };

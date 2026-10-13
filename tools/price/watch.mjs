@@ -3,7 +3,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export function watchShots(dir, onShot, { stableMs = 500 } = {}) {
+export function watchShots(dir, onShot, { stableMs = 500, onError = e => console.error(`截圖資料夾監看出錯：${e.message}`) } = {}) {
+  fs.mkdirSync(dir, { recursive: true });
   const seen = new Set(fs.readdirSync(dir));
   const timers = new Map();
   const settle = (name, lastSize) => {
@@ -21,6 +22,7 @@ export function watchShots(dir, onShot, { stableMs = 500 } = {}) {
     if (!name || !/\.png$/i.test(name) || name.includes(path.sep) || seen.has(name) || timers.has(name)) return;
     settle(name, -1);
   });
+  watcher.on("error", onError);
   return () => {
     watcher.close();
     for (const t of timers.values()) clearTimeout(t);
