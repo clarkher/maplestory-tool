@@ -35,6 +35,11 @@ const nextConfig = {
         source: "/data/gear.json",
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
+      {
+        // 練功測速的名字樣板（手動重產、不跟 meta 的版本號走）：每次回伺服器確認，重產後才不會拿到舊樣板
+        source: "/data/speed-names.json",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
     ];
   },
 };
