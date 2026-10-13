@@ -214,6 +214,22 @@ node scripts/client/wzjs.mjs "$TEMP/skills.bin" 500 skill/5001005/level
 
 推上 `main` 之後 GitHub Actions 會自動重建並部署。
 
+## 拍賣查價工具（本機，v0.97）
+
+自己用的半輔助工具：遊戲裡每一下都是你按，工具只複製品名、讀你的截圖、記價格。設計見 `docs/superpowers/specs/2026-10-13-auction-price-tool-design.md`。
+
+1. 在主 checkout 跑 `npm run price`（第一次會在 `.price-data/` 建 `price-data` 資料分支的工作目錄），瀏覽器自己開 `http://localhost:9380`。
+2. 按「複製下一件」→ 遊戲裡拍賣快速搜尋貼上 → 搜尋 → 切「市價」→ Win+PrtSc。
+3. 黃色的那幾筆對照截圖確認或改；結束前按「收工」（commit＋push 到 `price-data`，那條分支自帶 `vercel.json` 不觸發部署）。
+
+- 只做雪吉拉；清單 9 件寫在 `tools/price/list.mjs`（改清單要使用者拍板）。
+- 讀圖用 Windows 內建繁中文字辨識（`tools/price/ocr.ps1`，這個檔只能有 ASCII），不用 AI、不用網路；遊戲全螢幕獨佔模式會截到黑畫面，改視窗或無邊框。
+- 環境變數：`PRICE_PORT`（預設 9380）、`PRICE_SHOTS_DIR`（預設 `%USERPROFILE%\Pictures\Screenshots`）、`PRICE_OCR_SCALE`（放大幾倍讀，預設 1）、`PRICE_NO_OPEN`（不自動開瀏覽器）。
+- 讀完的截圖搬到截圖資料夾底下的 `已記價\`，不進 repo。
+- 截圖被防毒或雲端同步鎖住、搬不進「已記價」時會留在原地，頁面那列會註明。
+- 台幣換算讀 maple-fx 的 `fx-data/fx/scania/daily.json`；還沒有就寫「匯率資料累積中」。
+- 過了半夜要關掉重開（「今天」是開工那一刻定的）。
+
 ## 自動更新
 
 `.github/workflows/data-refresh.yml`：

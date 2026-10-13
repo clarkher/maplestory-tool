@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>查價清單</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1 id="title">查價清單</h1>
+    <p id="sub" class="muted"></p>
+    <p id="watch-error" class="warn" role="alert" hidden></p>
+  </header>
+
+  <section>
+    <div class="bar">
+      <button id="next" class="primary">複製下一件</button>
+      <span id="toast" class="muted" role="status"></span>
+    </div>
+    <p class="muted small">遊戲裡：拍賣 → 快速搜尋貼上 → 搜尋 → 切「市價」→ Win+PrtSc。一屏放不下就捲下去再截，都算同一件。</p>
+    <ol id="list" class="list"></ol>
+    <div id="orphans"></div>
+  </section>
+
+  <section id="review-sec" hidden>
+    <h2>要你看一眼</h2>
+    <p class="muted small">這幾筆沒過檢查，不算進中間價。對照截圖確認、改數字或刪掉。</p>
+    <div id="review"></div>
+  </section>
+
+  <section>
+    <h2>價格表</h2>
+    <p id="fxnote" class="muted small"></p>
+    <table id="table">
+      <thead><tr><th>品名</th><th class="num">中間價（楓幣）</th><th class="num">台幣</th><th class="num">比上次</th><th class="num">筆數</th><th>最後成交</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="detail" hidden></div>
+  </section>
+
+  <section class="finish">
+    <button id="finish">收工</button>
+    <span id="finish-msg" class="muted" role="status"></span>
+  </section>
+
+  <script src="/app.js"></script>
+</body>
+</html>
