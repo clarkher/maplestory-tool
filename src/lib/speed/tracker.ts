@@ -2,6 +2,7 @@
 /**
  * 練功測速「一段」怎麼算（spec「一段怎麼算」）。純函式：每秒丟一張讀數進來，回新的狀態跟剛收掉的那段。
  * - 自動：經驗一動才開始（那一下不算，起點就是那一刻）；60 秒沒動就停，結束算在最後一次變動；換地圖收掉。
+ *   60 秒沒動在兩個地方都會收：下一張讀數進來時（feed），跟頁面每秒的計時器（tick，畫面完全沒讀數時靠它）。
  * - 手動：按開始到按停止，中間不停、換圖不停；地圖記拿最多經驗的那張。
  * - 升級：上一級剩的＋新一級的；死掉（少了這級升級經驗 1% 以上）照扣；少一點點、跳兩級、等級變少都當認錯丟掉。
  * - 起點要兩張等級一樣的讀數（第一次反推等級可能剛好對錯）。
@@ -107,6 +108,13 @@ function withSample(seg: Segment, sample: Sample, gain: Gain | null): Segment {
 }
 
 export function feed(t: Tracker, sample: Sample, toNext: number[]): Step {
+  // 自動模式：離上一次經驗變動已經 60 秒，先把這段收掉（結束算在最後一次變動），再照常看這張讀數（它可以開新的一段）。
+  // 不能只靠頁面每秒的計時器（tick）：遊戲蓋住瀏覽器時 Chrome 會把計時器拖到很久才跑一次，讀畫面的背景執行緒卻照樣送讀數進來。
+  if (t.mode === "auto" && t.seg && sample.at - t.seg.lastChangeAt >= IDLE_MS) {
+    const idle = tick(t, sample.at);
+    // 收掉之後沒有進行中的那段，這張讀數不會再收掉別的段
+    return { tracker: feed(idle.tracker, sample, toNext).tracker, closed: idle.closed };
+  }
   if (!t.last) {
     if (t.pending && t.pending.level === sample.level) {
       const seg = t.mode === "manual" && t.manualOn && !t.seg ? newSegment("manual", sample, t.manualStartedAt ?? sample.at) : t.seg;
