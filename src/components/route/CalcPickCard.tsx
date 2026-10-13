@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { RouteIcon } from "@/components/Icons";
+import { GoButton } from "@/components/PlanShell";
 import { useBuildChoice } from "@/lib/build-choice";
-import { AOE_KILLS, calcPick, goalText, type CalcPick } from "@/lib/calc-pick";
+import { AOE_TIERS, calcPick, goalText, type CalcPick, type CalcPickRow } from "@/lib/calc-pick";
 import { HEAL } from "@/lib/damage-skills";
 import { loadGear, loadSkills, mapName, monsterImage, peekGear, peekSkills } from "@/lib/data";
 import { tenMinuteText } from "@/lib/damage-view";
-import { formatNumber } from "@/lib/format";
 import { isMagicJob, type GearData } from "@/lib/gear";
 import type { HomeData } from "@/lib/home-data";
 import { useBeforeV002 } from "@/lib/release";
@@ -16,22 +15,49 @@ import { sessionMemo } from "@/lib/session-memo";
 import type { GuideJob, Skill } from "@/lib/types";
 import { Chip, Sprite } from "./bits";
 
-/** 群體條件的範圍，寫成「4～8」 */
-const AOE_RANGE = `${AOE_KILLS[0]}～${AOE_KILLS[1]}`;
+/** 群體三段的總範圍，寫成「2～5」 */
+const AOE_RANGE = `${AOE_TIERS[0][0]}～${AOE_TIERS[AOE_TIERS.length - 1][1]}`;
 
-/** 找不到圖時寫要找的是哪一種圖：「雙飛斬兩下打得死的練功圖」「群體治癒約 4～8 下打得死的不死系練功圖」 */
+/** 找不到圖時寫要找的是哪一種圖：「雙飛斬兩下打得死的練功圖」「群體治癒約 2～5 下打得死的不死系練功圖」 */
 function goalPhrase(pick: CalcPick): string {
   if (pick.mode === "aoe") return `${pick.skillName}約 ${AOE_RANGE} 下打得死的${pick.skillId === HEAL ? "不死系" : ""}練功圖`;
   return `${pick.skillName}兩下打得死的練功圖`;
 }
 
-/** 最下面小字寫找的是哪種怪（跟上面那句對得上：退回穩穩兩下、群體治癒照範圍內 1 隻算都寫出來） */
+/** 最下面小字寫找的是哪種怪（跟上面每一行對得上：穩穩兩下補位、群體治癒照範圍內 1 隻算都寫出來） */
 function goalNote(pick: CalcPick): string {
-  if (pick.mode === "single") {
-    return pick.goal === "two" ? "單體攻擊先找差一點兩下打得死的怪，這個等級沒有適合的圖，改找穩穩兩下的" : "單體攻擊找差一點兩下打得死的怪";
-  }
-  if (pick.skillId === HEAL) return `群體治癒照範圍內只有 1 隻算（怪多每隻分到的會變少），找 ${AOE_RANGE} 下打得死的不死系`;
-  return `${pick.skillName}一次打好幾隻，找 ${AOE_RANGE} 下打得死的怪`;
+  if (pick.mode === "single") return "單體攻擊推三隻：先放差一點兩下打得死的，不夠再用穩穩兩下的補";
+  const tiers = AOE_TIERS.map(([from, to]) => `${from}～${to}`).join("、");
+  if (pick.skillId === HEAL) return `群體治癒照範圍內只有 1 隻算（怪多每隻分到的會變少），${tiers} 下打得死的不死系各推一隻`;
+  return `${pick.skillName}一次打好幾隻，${tiers} 下打得死的怪各推一隻`;
+}
+
+/** 卡上的一行：段落標籤、怪、地圖、怎麼打、10 分鐘經驗、去 */
+function Row({ row, pick, level, maps }: { row: CalcPickRow; pick: CalcPick; level: number; maps: HomeData["maps"] }) {
+  const option = row.option;
+  return (
+    <li className="flex items-center gap-2.5 border-t border-[color:var(--paper-edge)] pt-2.5 first:border-0 first:pt-0">
+      <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[color:var(--paper-deep)]">
+        {option ? <Sprite src={monsterImage(option.lead.id)} size={40} /> : null}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[12px] font-black text-[color:var(--maple)]">{row.label}</p>
+        {option ? (
+          <>
+            <p className="text-[15px] font-black leading-tight">{option.title}</p>
+            <p className="text-[12px] ink-soft">
+              {option.lead.n} Lv{option.lead.lv ?? "?"}×{option.mobs[0]?.[1] ?? 0}・{goalText({ ...pick, goal: row.goal }, option.kills)}
+            </p>
+            {option.tenMinute ? <p className="text-[12px] font-bold text-[color:var(--leaf)]">{tenMinuteText(option.tenMinute, level)}</p> : null}
+            {option.hops && option.town ? <p className="text-[11px] ink-faint">從{mapName(maps, option.town)}走 {option.hops} 張圖{option.boat ? "（要搭船或搭車過去）" : ""}</p> : null}
+          </>
+        ) : (
+          <p className="text-[13px] ink-soft">這個等級沒有合適的圖</p>
+        )}
+      </div>
+      {option ? <GoButton to={option.map} label="去" /> : null}
+    </li>
+  );
 }
 
 type Extra = { gear: GearData; skillList: Skill[] };
@@ -117,9 +143,6 @@ export function CalcPickCard({ job, level, home, guides, guideStatus }: {
       </section>
     );
   }
-  const option = pick.options[0];
-  const others = pick.options.slice(1);
-  const record = option ? home.maps[String(option.map)] : undefined;
 
   return (
     <section aria-label="照傷害算的推薦" className="rounded-[var(--radius-card)] glass wood-frame p-3.5 sm:p-4">
@@ -127,39 +150,10 @@ export function CalcPickCard({ job, level, home, guides, guideStatus }: {
         <h2 className="text-[15px] font-black">照傷害算的推薦</h2>
         <Chip tone="gold">舊版公式，台服沒驗證</Chip>
       </header>
-      {option ? (
-        <div className="mt-2.5 space-y-2">
-          <div className="flex items-center gap-2.5">
-            <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[color:var(--paper-deep)]">
-              <Sprite src={monsterImage(option.lead.id)} size={44} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[18px] font-black leading-tight">{option.title}</h3>
-              <p className="text-[13px] ink-soft">
-                {[record?.st, `${option.lead.n} Lv${option.lead.lv ?? "?"}×${option.mobs[0]?.[1] ?? 0}`].filter(Boolean).join("・")}
-              </p>
-            </div>
-          </div>
-          <p className="text-[14px] font-bold">{goalText(pick, option.kills)}</p>
-          {option.tenMinute ? <p className="text-[13px] font-bold text-[color:var(--leaf)]">{tenMinuteText(option.tenMinute, level)}</p> : null}
-          <p className="text-[12px] ink-soft">
-            清一輪 {formatNumber(option.row.exp1)} 經驗・{option.row.sp} 隻怪
-            {option.hops && option.town ? `・從${mapName(home.maps, option.town)}走 ${option.hops} 張圖${option.boat ? "（要搭船或搭車過去）" : ""}` : null}
-          </p>
-          <Link
-            href={`/go?to=${option.map}`}
-            className="tap-safe flex w-full items-center justify-center gap-1.5 rounded-full border border-[color:var(--sky)] text-[14px] font-bold text-[color:var(--sky)]"
-          >
-            <RouteIcon size={16} />
-            帶我去 {option.title}
-          </Link>
-          {others.length ? (
-            <p className="text-center text-[13px]">
-              <span className="ink-faint">差不多的：</span>
-              <b>{others.map(other => other.title).join("、")}</b>
-            </p>
-          ) : null}
-        </div>
+      {pick.options.length ? (
+        <ul className="mt-2.5 space-y-2.5">
+          {pick.rows.map(row => <Row key={row.label + (row.option?.map ?? "")} row={row} pick={pick} level={level} maps={home.maps} />)}
+        </ul>
       ) : (
         <p className="mt-2 text-[13px] ink-soft">照你的傷害，這個等級找不到{goalPhrase(pick)}，先照上面的推薦練。</p>
       )}
