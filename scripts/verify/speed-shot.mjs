@@ -272,7 +272,7 @@ try {
 
   // 5. 組隊：玩家自己填。勾組隊、填一個 Lv.44 隊友、打怪的人留在「你」
   const ticked = await click(`[...document.querySelectorAll("label")].find(l => l.textContent.trim() === "組隊")?.querySelector("input")`);
-  const mateInput = `document.querySelector('input[aria-label="第 1 個隊友的等級"]')`;
+  const mateInput = `document.querySelector('input[aria-label="隊友等級（第 1 個）"]')`;
   const rowShown = await ev(`return await __waitFor(() => Boolean(${mateInput}), 5000)`);
   record("勾「組隊」後出現一格隊友等級", ticked && rowShown);
   await click(mateInput);

@@ -161,6 +161,36 @@ export function nextHints(
   return { state: { nullRun, cleared: state.cleared }, hints: null };
 }
 
+/** 讀到狀態列之後，小地圖的地圖名這麼久都沒認出長相，就請玩家從清單選（spec「還是不行讓玩家從清單選」） */
+export const BLIND_PICK_MS = 5_000;
+/** since：從哪一張讀數開始「讀到狀態列、小地圖標題還沒認出長相」；ask：已經超過 5 秒、要請玩家從清單選 */
+export type BlindMap = { since: number | null; ask: boolean };
+export const FRESH_BLIND: BlindMap = { since: null, ask: false };
+
+/**
+ * 每張讀數之後，「小地圖標題讀不到」的計時。titleKey 是 settleTitle 穩定下來的長相（null＝還沒有）。
+ * 長相一認出來就歸零（回到正常流程）；還沒有的話，從第一張讀到狀態列的讀數起算，滿 5 秒 ask 變 true。
+ * 中間有幾張沒讀到狀態列（一時被擋住）不重算。
+ */
+export function nextBlind(state: BlindMap, reading: { bar: boolean; titleKey: string | null }, at: number): BlindMap {
+  if (reading.titleKey !== null) return FRESH_BLIND;
+  const since = state.since ?? (reading.bar ? at : null);
+  return { since, ask: since !== null && at - since >= BLIND_PICK_MS };
+}
+
+/**
+ * 這張讀數算在哪張圖（餵給練功計算的 mapKey、mapId）：
+ * - 小地圖標題認得出長相：照正常流程，key 是長相，mapId 是認出來的（或玩家點過、記在這台電腦的）。
+ * - 標題讀不到、玩家從清單選過：key 用 pick:<地圖 id>，只在這次分享有效（沒有長相可以記，不存進這台電腦）。
+ * - 都沒有：讀不到地圖。
+ * 長相之後認出來了就換回正常流程（key 不同，自動模式會當成換圖收掉這段）。
+ */
+export function mapSource(title: { key: string | null; mapId: number | null }, picked: number | null): { key: string | null; mapId: number | null } {
+  if (title.key !== null) return title;
+  if (picked !== null) return { key: `pick:${picked}`, mapId: picked };
+  return { key: null, mapId: null };
+}
+
 /** 存一筆送給 /api/speed/runs 的內容。組隊送其他隊員等級跟誰在打（伺服器自己算隊伍人數，不送 partySize） */
 export function runBody(
   seg: Segment,

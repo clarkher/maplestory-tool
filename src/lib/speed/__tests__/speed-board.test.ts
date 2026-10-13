@@ -22,7 +22,7 @@ describe("練功測速排行卡", () => {
     expect(html).toContain("全隊 52 隻／10 分");
     expect(html).not.toContain("52.4");
     expect(html).toContain("3 人隊");
-    expect(html).toContain("數字是全隊 10 分鐘打幾隻，用隊長填的等級回推。");
+    expect(html).toContain("數字是全隊 10 分鐘打幾隻，用存這段的人填的等級回推。");
   });
 
   it("單練分頁：10 分鐘經驗照千分位；沒公開寫匿名玩家", () => {

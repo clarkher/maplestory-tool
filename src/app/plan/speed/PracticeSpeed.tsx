@@ -19,7 +19,8 @@ import {
   type Mode, type Sample, type Segment, type Step, type Tracker,
 } from "@/lib/speed/tracker";
 import {
-  backCalcLine, jobName, levelPercent, manualControl, nextHints, partySize, runBody, saveNote, splitOnPartyChange, statusLine, type HintState, type SaveOutcome, type SpeedStatus,
+  backCalcLine, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnPartyChange, statusLine,
+  type BlindMap, type HintState, type SaveOutcome, type SpeedStatus,
 } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
 import { MiniWindow, pipSupported } from "./MiniWindow";
@@ -35,12 +36,17 @@ type Data = {
   toNext: number[];
   names: RawSpeedNames;
 };
-/** 小地圖標題穩定後的 key（餵給練功計算當 mapKey），跟這個 key 認出來的地圖 */
-type Place = { settle: TitleSettle; key: string | null; guess: MapGuess | null };
+/**
+ * 小地圖標題穩定後的 key（餵給練功計算當 mapKey），跟這個 key 認出來的地圖；
+ * picked、blind：標題一直讀不到時，玩家從清單選的地圖（這次分享才有效）跟「讀不到多久了」（mapSource、nextBlind）
+ */
+type Place = { settle: TitleSettle; key: string | null; guess: MapGuess | null; picked: number | null; blind: BlindMap };
 
 const CLIENT_VER = "v0.95";
 const FRESH_HINTS: HintState = { nullRun: 0, cleared: false };
-const NO_PLACE: Place = { settle: { key: null, candidate: null, streak: 0 }, key: null, guess: null };
+const NO_PLACE: Place = { settle: { key: null, candidate: null, streak: 0 }, key: null, guess: null, picked: null, blind: FRESH_BLIND };
+/** 標題讀不到、請玩家從清單選時那張卡的第一句 */
+const BLIND_HEADING = "讀不到小地圖的地圖名：從清單選你在哪張圖";
 
 /** 電腦的 Chrome／Edge 才有分享畫面；手機、平板（手指操作）不給 */
 function canShare(): boolean {
@@ -60,7 +66,7 @@ export function PracticeSpeed() {
   const [tracker, setTracker] = useState<Tracker>(() => createTracker("auto"));
   const [lastSaved, setLastSaved] = useState<{ seg: Segment; note: string } | null>(null);
   const [board, setBoard] = useState<BoardState>({ kind: "loading" });
-  /** 存成功一次加 1：排行跟著重抓（沒存到的不用重抓） */
+  /** 最近一次存成功的時間（0＝還沒存過）：排行跟著重抓，網址帶上它跳過 5 分鐘快取（沒存到的不用重抓） */
   const [boardVersion, setBoardVersion] = useState(0);
   const [tab, setTab] = useState<"solo" | "party">("solo");
   const [mini, setMini] = useState(false);
@@ -148,7 +154,7 @@ export function PracticeSpeed() {
       const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; error?: string };
       const ok = response.ok && result.ok === true;
       note({ kind: "response", status: response.status, ok, ranked: result.ranked, error: result.error });
-      if (ok) setBoardVersion(version => version + 1);
+      if (ok) setBoardVersion(Date.now());
     } catch {
       note({ kind: "network" });
     }
@@ -187,14 +193,17 @@ export function PracticeSpeed() {
         guess = key !== null && next.title ? resolveMap(next.title, current.maps, current.trainingIds, readMapMemory()) : null;
         if (key !== null && guess?.mapId != null) knownMaps.current.set(key, guess.mapId);
       }
-      const nextPlace = { settle, key, guess };
+      // 標題一直讀不到（讀到狀態列起 5 秒還沒有長相）：請玩家從清單選；選了就用 pick:<id>
+      const blind = nextBlind(before.blind, { bar: Boolean(next.bar), titleKey: settle.key }, at);
+      const nextPlace = { ...before, settle, key, guess, blind };
       placeRef.current = nextPlace;
-      if (key !== before.key || guess !== before.guess) setPlace(nextPlace);
+      if (key !== before.key || guess !== before.guess || blind.ask !== before.blind.ask) setPlace(nextPlace);
+      const where = mapSource({ key, mapId: guess?.mapId ?? null }, nextPlace.picked);
 
       let accepted = false;
       if (next.exp) {
         const sample: Sample = {
-          at, exp: next.exp.exp, level: next.exp.level, mapKey: key, mapId: guess?.mapId ?? null, job: next.job, party: partySize(settingsRef.current.party),
+          at, exp: next.exp.exp, level: next.exp.level, mapKey: where.key, mapId: where.mapId, job: next.job, party: partySize(settingsRef.current.party),
         };
         const step = feed(trackerRef.current, sample, current.toNext);
         apply(step);
@@ -221,12 +230,13 @@ export function PracticeSpeed() {
     return () => window.clearInterval(timer);
   }, [sharing, apply]);
 
-  const mapId = place.guess?.mapId ?? null;
+  const mapId = mapSource({ key: place.key, mapId: place.guess?.mapId ?? null }, place.picked).mapId;
   useEffect(() => {
     if (mapId === null) return;
     let cancelled = false;
     setBoard({ kind: "loading" });
-    fetch(`/api/speed/board?map=${mapId}`)
+    // 存成功後重抓：帶上存的時間，才不會拿到 5 分鐘快取裡還沒有這筆的排行
+    fetch(`/api/speed/board?map=${mapId}${boardVersion ? `&v=${boardVersion}` : ""}`)
       .then(async response => {
         if (!response.ok) throw new Error(String(response.status));
         const result = (await response.json()) as { open: boolean; solo: BoardRow[]; party: BoardRow[] };
@@ -246,6 +256,9 @@ export function PracticeSpeed() {
     try {
       const handle = await startCapture({ toNext: data.toNext, names: data.names }, onReading);
       capture.current = handle;
+      // 從清單選的圖只在這次分享有效；「標題讀不到多久了」也重算
+      placeRef.current = { ...placeRef.current, picked: null, blind: FRESH_BLIND };
+      setPlace(placeRef.current);
       hintRef.current = FRESH_HINTS;
       sentHints.current = "";
       sendHints(levelHints(trackerRef.current));
@@ -276,6 +289,14 @@ export function PracticeSpeed() {
       knownMaps.current.set(key, id);
     }
     const nextPlace = { ...placeRef.current, guess: { mapId: id, confident: true, choices: [] } };
+    placeRef.current = nextPlace;
+    setPlace(nextPlace);
+  };
+
+  /** 標題讀不到時從清單選：沒有長相可以記，只在這次分享有效（mapSource 用 pick:<id>） */
+  const onPickBlind = (id: number) => {
+    knownMaps.current.set(`pick:${id}`, id);
+    const nextPlace = { ...placeRef.current, picked: id };
     placeRef.current = nextPlace;
     setPlace(nextPlace);
   };
@@ -442,6 +463,10 @@ export function PracticeSpeed() {
           ) : place.key !== null && place.guess ? (
             <Card>
               <MapChoices choices={place.guess.choices} maps={data.maps} onPick={onPickMap} />
+            </Card>
+          ) : sharing && place.blind.ask ? (
+            <Card>
+              <MapChoices choices={[]} maps={data.maps} onPick={onPickBlind} heading={BLIND_HEADING} />
             </Card>
           ) : status === "reading" ? (
             <Card>

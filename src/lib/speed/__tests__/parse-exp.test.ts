@@ -158,7 +158,9 @@ describe("認錯一個數字：不是 null 就是對的（性質測試）", () =
 
   it("提示 [L, L+1]：讀錯的只會是「對上 L+1」，不會對上別級；比例上限 0.5%（實測 68 / 16479 = 0.41%）", () => {
     // 這個殘餘無法在不放寬 PERCENT_TOLERANCE 的前提下消掉：一個數字認錯後，剛好跟 L+1 的經驗表自洽
-    // （例如 818[173%] -> 918[173%] 在 26 等是合法讀數）。呼叫端平常只帶 [L]，升級時要連兩張一致才認。
+    // （例如 818[173%] -> 918[173%] 在 26 等是合法讀數）。呼叫端（tracker.ts 的 levelHints）帶的就是 [L, L+1]：
+    // 這種讀錯看起來像升級一級，大多靠 tracker 擋——一張讀數最多只能多這級升級經驗的 10%（MAX_STEP_SHARE），多太多當認錯丟掉；
+    // 離升級不到 10% 時擋不住，下一張正確的讀數等級變少、對不上，連 10 張就重新起算（MISS_LIMIT）。
     const { total, wrong } = wrongReadings(level => [level, level + 1]);
     expect(total).toBeGreaterThan(15000);
     expect(wrong.filter(w => w.reading.level !== w.trueLevel + 1)).toEqual([]);

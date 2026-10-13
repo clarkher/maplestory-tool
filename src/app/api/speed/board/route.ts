@@ -1,8 +1,14 @@
 // src/app/api/speed/board/route.ts
+import trainingJson from "../../../../../public/data/training.json";
 import { ensureSchema, getSql, speedEnv } from "@/lib/speed/server/db";
 import type { BoardRow } from "@/lib/speed/server/rules";
+import type { TrainingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+/** 有練功資料的圖：只有這些圖的紀錄進得了排行（rules.ts toRow 要有上限），其他圖的排行一定是空的 */
+const TRAINED = new Set((trainingJson as unknown as TrainingRow[]).map(row => row.m));
+const CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" };
 
 type Raw = {
   char_id: string;
@@ -44,6 +50,7 @@ const EMPTY = { open: false, solo: [], party: [] };
 
 /**
  * 一張圖的排行：單練、組隊各前 10。每個角色只留最好的一筆；
+ * 網址只看 map，其他參數（存成功後頁面加的 v=，用來跳過 5 分鐘快取）不管；沒有練功資料的圖不查資料庫，直接回空的。
  * 單練照 10 分鐘經驗排；組隊照「全隊 10 分鐘打幾隻」排（沒算出打幾隻的不上榜）。
  * 掛名要「上榜那一筆」跟「這個角色最新的一筆」都勾公開，兩筆都是才顯示名字，其他寫匿名（10/13 使用者選 B）。
  * 為什麼：沒有登入，任何人都能用別人的角色 ID 送一筆；只看最新一筆的話，別人送一筆公開的就能把你原本不公開的成績翻開。
@@ -55,6 +62,7 @@ export async function GET(request: Request): Promise<Response> {
   if (!Number.isInteger(map) || map <= 0 || map > 999_999_999) return Response.json(EMPTY, { status: 400 });
   const sql = getSql();
   if (!sql) return Response.json(EMPTY);
+  if (!TRAINED.has(map)) return Response.json({ open: true, solo: [], party: [] }, { headers: CACHE });
   try {
     await ensureSchema(sql);
     const env = speedEnv();
@@ -95,7 +103,7 @@ export async function GET(request: Request): Promise<Response> {
     ]);
     return Response.json(
       { open: true, solo: toBoard(solo as Raw[]), party: toBoard(party as Raw[]) },
-      { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" } },
+      { headers: CACHE },
     );
   } catch (error) {
     console.error("speed/board", error);

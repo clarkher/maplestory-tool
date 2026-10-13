@@ -561,6 +561,29 @@ describe("資料庫（假的）：排行", () => {
     for (const query of queries) expect(query.values).toContain("production");
   });
 
+  it("沒有練功資料的圖（永遠進不了排行）：不查資料庫，直接回空的排行", async () => {
+    const { GET } = await load();
+    expect(training.some(item => item.m === 999_999_999)).toBe(false);
+    const response = await GET(get("?map=999999999"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ open: true, solo: [], party: [] });
+    expect(response.headers.get("cache-control")).toBe("public, s-maxage=300, stale-while-revalidate=60");
+    expect(db.calls).toHaveLength(0);
+  });
+
+  it("存成功後頁面加的 v=（跳過快取）不影響查詢：只看 map", async () => {
+    const { GET } = await load();
+    const response = await GET(get("?map=105040303&v=1760349600000&other=x"));
+    expect(response.status).toBe(200);
+    const queries = db.calls.filter(call => call.text.startsWith("WITH"));
+    expect(queries).toHaveLength(2);
+    for (const query of queries) {
+      expect(query.values).toContain(105040303);
+      expect(query.values).not.toContain(1760349600000);
+      expect(query.values).not.toContain("1760349600000");
+    }
+  });
+
   it("資料庫出錯：回 503、排行當沒開、不快取", async () => {
     const { GET } = await load();
     db.reply = () => new Error("timeout");

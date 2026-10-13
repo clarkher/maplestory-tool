@@ -67,7 +67,7 @@ export function PartyCard({ party, selfLevel, onChange }: { party: SpeedParty; s
                     inputMode="numeric"
                     autoComplete="off"
                     placeholder="1～120"
-                    aria-label={`第 ${i + 1} 個隊友的等級`}
+                    aria-label={`隊友等級（第 ${i + 1} 個）`}
                     aria-invalid={invalid}
                     aria-describedby={invalid ? `${group}-bad-${row.id}` : undefined}
                     onChange={event => {

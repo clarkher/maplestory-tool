@@ -113,11 +113,21 @@ export function BigNumber({ label, value, note }: { label: string; value: string
   );
 }
 
-/** 認不出地圖時：候選點一下（記住這個長相），或自己搜 */
-export function MapChoices({ choices, maps, onPick }: { choices: number[]; maps: Record<string, MapRecord>; onPick: (mapId: number) => void }) {
+/** 認不出地圖時：候選點一下（記住這個長相），或自己搜。heading 換第一句（小地圖標題讀不到、選了不會記住的時候） */
+export function MapChoices({
+  choices,
+  maps,
+  onPick,
+  heading = "你在哪張圖？點一次，之後會記住。",
+}: {
+  choices: number[];
+  maps: Record<string, MapRecord>;
+  onPick: (mapId: number) => void;
+  heading?: string;
+}) {
   return (
     <div className="space-y-3">
-      <p className="text-sm font-bold">你在哪張圖？點一次，之後會記住。</p>
+      <p className="text-sm font-bold">{heading}</p>
       {choices.length ? (
         <div className="flex flex-wrap gap-2">
           {choices.map(id => (
@@ -279,7 +289,7 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
           <p className="text-sm ink-soft">這張圖還沒有人練滿 10 分鐘。</p>
         )}
         <p className="mt-3 text-[12px] ink-soft">
-          {tab === "party" ? "數字是全隊 10 分鐘打幾隻，用隊長填的等級回推。" : "數字是 10 分鐘拿到的經驗。"}玩家自己量的，沒有驗證。
+          {tab === "party" ? "數字是全隊 10 分鐘打幾隻，用存這段的人填的等級回推。" : "數字是 10 分鐘拿到的經驗。"}玩家自己量的，沒有驗證。
         </p>
       </div>
     </Card>

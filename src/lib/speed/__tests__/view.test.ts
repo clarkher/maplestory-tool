@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { MemberExp } from "../party-exp";
 import { createTracker, feed, startManual, type Sample, type Segment, type Tracker } from "../tracker";
 import {
-  backCalcLine, draftParty, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnPartyChange,
-  type HintState,
+  backCalcLine, BLIND_PICK_MS, draftParty, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnPartyChange,
+  type BlindMap, type HintState,
 } from "../view";
 
 const exp = (level: number, total: number, hitter = false, effective = true): MemberExp => ({ level, hitter, effective, white: total, bonus: 0, total });
@@ -255,6 +255,54 @@ function segment(patch: Partial<Segment> = {}): Segment {
     startLevel: 46, level: 46, exp: 0, job: 220, party: 1, mapKey: "k", gained: 120_000, levelUps: 0, deaths: 1, byMap: {}, ...patch,
   };
 }
+
+describe("小地圖標題讀不到：從清單選（nextBlind、mapSource）", () => {
+  const feedAll = (readings: { at: number; bar: boolean; titleKey: string | null }[]): BlindMap =>
+    readings.reduce((state, { at, ...reading }) => nextBlind(state, reading, at), FRESH_BLIND);
+
+  it("讀到狀態列起算，滿 5 秒還沒有標題長相才請玩家選", () => {
+    expect(BLIND_PICK_MS).toBe(5000);
+    const frames = (until: number) => Array.from({ length: until / 1000 + 1 }, (_, i) => ({ at: 10_000 + i * 1000, bar: true, titleKey: null }));
+    expect(feedAll(frames(4000))).toEqual({ since: 10_000, ask: false });
+    expect(feedAll(frames(5000))).toEqual({ since: 10_000, ask: true });
+  });
+
+  it("還沒讀到狀態列（不是遊戲畫面）不起算；中間一時讀不到狀態列不重算", () => {
+    let state = nextBlind(FRESH_BLIND, { bar: false, titleKey: null }, 0);
+    expect(state).toEqual({ since: null, ask: false });
+    state = nextBlind(state, { bar: true, titleKey: null }, 1000);
+    state = nextBlind(state, { bar: false, titleKey: null }, 3000);
+    expect(state).toEqual({ since: 1000, ask: false });
+    state = nextBlind(state, { bar: false, titleKey: null }, 6000);
+    expect(state).toEqual({ since: 1000, ask: true });
+  });
+
+  it("標題長相認出來就歸零（回到正常流程），之後又沒有再重新起算", () => {
+    let state: BlindMap = { since: 0, ask: true };
+    state = nextBlind(state, { bar: true, titleKey: "abc" }, 9000);
+    expect(state).toEqual(FRESH_BLIND);
+    state = nextBlind(state, { bar: true, titleKey: null }, 10_000);
+    expect(state).toEqual({ since: 10_000, ask: false });
+  });
+
+  it("標題長相優先；讀不到標題、玩家選過就用 pick:<id>；都沒有是 null", () => {
+    expect(mapSource({ key: "abc", mapId: 105040303 }, 100000000)).toEqual({ key: "abc", mapId: 105040303 });
+    // 長相認出來了、還沒認出是哪張（要玩家點候選）：照正常流程，不拿之前從清單選的
+    expect(mapSource({ key: "abc", mapId: null }, 100000000)).toEqual({ key: "abc", mapId: null });
+    expect(mapSource({ key: null, mapId: null }, 105040303)).toEqual({ key: "pick:105040303", mapId: 105040303 });
+    expect(mapSource({ key: null, mapId: null }, null)).toEqual({ key: null, mapId: null });
+  });
+
+  it("從清單選的那張圖照樣記進練功的那段（地圖 id 存得下來）", () => {
+    const toNextFor46: number[] = [];
+    toNextFor46[46] = 510_420;
+    const source = mapSource({ key: null, mapId: null }, 105040303);
+    const sample = (at: number, exp: number): Sample => ({ at, exp, level: 46, mapKey: source.key, mapId: source.mapId, job: 220, party: 1 });
+    let t: Tracker = createTracker("auto");
+    for (const s of [sample(0, 1000), sample(1000, 1000), sample(2000, 1100), sample(3000, 1300)]) t = feed(t, s, toNextFor46).tracker;
+    expect(t.seg!.byMap).toEqual({ "pick:105040303": { mapId: 105040303, gained: 200 } });
+  });
+});
 
 describe("runBody", () => {
   const base = { charId: "芙莉蓮", isPublic: false, profileJob: 210, clientVer: "v0.95" };
