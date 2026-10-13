@@ -23,6 +23,10 @@ const JOB = "冰雷巫師"; // jobOption(220).name
 const MATE = 44;
 const STATIONARY_MS = 60_000; // 地圖點好之後，同一張畫面再放這麼久，地圖不能變
 const SETTINGS = { charId: "驗收用", isPublic: false, mode: "auto" };
+const CHAR_LINE = `你的角色：${SETTINGS.charId}`; // 存好角色 ID 之後，角色卡收成這一行
+// 靜止的畫面放著、自動模式：狀態列一直是「等經驗一動就開始算」（經驗動了才會是「量中」）；這幾句出現就是停了或認不到
+const ACTIVE_STATUS = /^(等經驗一動就開始算|量中)/;
+const STOPPED_STATUS = /分享停了|認不到遊戲畫面|讀不到經驗|還沒分享畫面/;
 
 const results = { base: BASE, port: PORT, fixture: path.basename(FIXTURE), checks: [] };
 const record = (name, ok, detail) => {
@@ -32,19 +36,19 @@ const record = (name, ok, detail) => {
   return Boolean(ok);
 };
 
-const harness = await start(OUT, PORT);
-const { page, evaluate, ev, navigate, shot, close } = harness;
-await page.send("Page.bringToFront").catch(() => {});
+// Chrome 在下面 try 裡才開（開不起來也要寫得出 results.json、exit 1）；這幾個等 start() 回來才有值，下面的小工具都是用到才讀
+let page, evaluate, ev, navigate, shot, close;
 
 // 整趟 console 的例外、錯誤、警告（hydration 警告、沒接住的例外在這）
 const problems = { exceptions: [], errors: [], warnings: [] };
-page.listeners.add(msg => {
-  if (msg.method === "Runtime.exceptionThrown") problems.exceptions.push(String(msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text).slice(0, 400));
-  if (msg.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(msg.params.type)) {
-    const text = msg.params.args.map(arg => arg.value ?? arg.description).join(" ").slice(0, 400);
-    (msg.params.type === "error" ? problems.errors : problems.warnings).push(text);
-  }
-});
+const watchProblems = () =>
+  page.listeners.add(msg => {
+    if (msg.method === "Runtime.exceptionThrown") problems.exceptions.push(String(msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text).slice(0, 400));
+    if (msg.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(msg.params.type)) {
+      const text = msg.params.args.map(arg => arg.value ?? arg.description).join(" ").slice(0, 400);
+      (msg.params.type === "error" ? problems.errors : problems.warnings).push(text);
+    }
+  });
 
 const viewport = (height = 900) => page.send("Emulation.setDeviceMetricsOverride", { width: 1440, height, deviceScaleFactor: 1, mobile: false });
 
@@ -161,6 +165,9 @@ async function shareAndRead() {
 
 let crashed = null;
 try {
+  ({ page, evaluate, ev, navigate, shot, close } = await start(OUT, PORT));
+  watchProblems();
+  await page.send("Page.bringToFront").catch(() => {});
   await viewport();
 
   // 1. 開頁、塞設定、重新整理
@@ -174,6 +181,7 @@ try {
     return true;
   })()`);
   record("重新整理後載好", await openSpeed());
+  record(`重新整理後，塞進去的設定讀得到（角色卡寫「${CHAR_LINE}」）`, (await bodyText()).includes(CHAR_LINE));
 
   // 導覽列：電腦寬度看得到、亮著
   const nav = await evaluate(`(() => {
@@ -225,10 +233,14 @@ try {
 
   // 從現在起一直看：「你在哪張圖？」有沒有再冒出來、地圖標題有沒有消失（60 秒不能動的檢查）
   await evaluate(`(() => {
-    window.__watch = { reprompt: 0, lostMap: 0, samples: 0 };
+    window.__watch = { reprompt: 0, lostMap: 0, stopped: 0, lastStatus: null, samples: 0 };
     const check = () => {
       if ((document.body.textContent || "").includes("你在哪張圖？")) window.__watch.reprompt++;
       if (![...document.querySelectorAll("h2")].some(h => h.textContent.trim() === ${JSON.stringify(MAP)})) window.__watch.lostMap++;
+      // 分享停了、認不到畫面：狀態列換字、「停止分享」換回「分享遊戲畫面」
+      const status = document.querySelector('[role="status"]')?.textContent.trim() ?? "";
+      const stopButton = [...document.querySelectorAll("button")].some(b => b.textContent.trim() === "停止分享");
+      if (!stopButton || !${ACTIVE_STATUS}.test(status) || ${STOPPED_STATUS}.test(status)) { window.__watch.stopped++; window.__watch.lastStatus = status; }
       window.__watch.samples++;
     };
     new MutationObserver(check).observe(document.body, { childList: true, subtree: true, characterData: true });
@@ -266,7 +278,12 @@ try {
   await click(mateInput);
   await page.send("Input.insertText", { text: String(MATE) });
   await pressEnter(); // 打完按 Enter 才存（離開欄位也會存）
-  const partyLine = /^組隊每隻：你 \+[\d,]+（打）、Lv\.44 \+[\d,]+$/;
+  // 「組隊每隻：你 +47（打）、Lv.44 +30」：打怪的人（你）拿的要比隊友多（多拿 20%）
+  const partyLine = new RegExp(`^組隊每隻：你 \\+([\\d,]+)（打）、Lv\\.${MATE} \\+([\\d,]+)$`);
+  const partyShares = line => {
+    const hit = partyLine.exec(line ?? "");
+    return hit ? { hitter: Number(hit[1].replace(/,/g, "")), mate: Number(hit[2].replace(/,/g, "")) } : null;
+  };
   const withParty = await ev(`return await __waitFor(() => { const h2 = [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === ${JSON.stringify(MAP)}); return Boolean(h2?.closest("section")?.innerText.includes("組隊每隻")); }, 8000)`);
   const after = await monsterCards();
   const saved = JSON.parse(await evaluate(`localStorage.getItem("ms-speed")`));
@@ -274,24 +291,45 @@ try {
   record("「打怪的人」選在「你」", hitterOnMe === true);
   record(
     `勾組隊、填 Lv.${MATE} 隊友後，每張怪物卡都有「組隊每隻」那行（你、Lv.${MATE} 各拿多少）`,
-    withParty && after !== null && after.cards.length > 0 && after.cards.every(card => card.party !== null && partyLine.test(card.party)),
+    withParty && after !== null && after.cards.length > 0 && after.cards.every(card => partyShares(card.party) !== null),
     after?.cards.map(card => `${card.name}：${card.party}`),
   );
-  record("面板最下面標了公式的出處與「台服沒驗證」", /台服沒驗證/.test(after?.sectionText ?? ""));
-  record("組隊設定存進這台電腦（on、隊友 44、打怪的人是自己）", saved.party?.on === true && JSON.stringify(saved.party.others) === `[${MATE}]` && saved.party.hitter === 0, saved.party);
+  record(
+    "每張怪物卡上，打怪的人（你）拿的比隊友多",
+    after !== null &&
+      after.cards.length > 0 &&
+      after.cards.every(card => {
+        const shares = partyShares(card.party);
+        return shares !== null && shares.hitter > shares.mate;
+      }),
+  );
+  // 頁面上這段字：「組隊經驗照玩家整理的公式算（…），台服沒驗證；沒算祈禱、經驗卷。」
+  record("面板最下面寫了「照玩家整理的公式算」、「台服沒驗證」", /照玩家整理的公式算/.test(after?.sectionText ?? "") && /台服沒驗證/.test(after?.sectionText ?? ""));
+  record(`組隊設定存進這台電腦（ms-speed 的 party：on、隊友 ${MATE}、打怪的人是自己）`, saved.party?.on === true && JSON.stringify(saved.party.others) === `[${MATE}]` && saved.party.hitter === 0, saved.party);
   record(`頁面上寫「組隊 2 人」`, (await bodyText()).includes("· 組隊 2 人"));
 
   // 6. 同一張畫面放滿 60 秒：地圖不能變、不能再問「你在哪張圖？」（守住小地圖的長相不隨時間飄）
   const samples = [];
   while (Date.now() - tMap < STATIONARY_MS) {
     await sleep(Math.min(10000, Math.max(0, STATIONARY_MS - (Date.now() - tMap))));
-    samples.push({ s: Math.round((Date.now() - tMap) / 1000), ...(await mapState()), status: await evaluate(`document.querySelector('[role="status"]')?.textContent.trim() ?? null`) });
+    samples.push({
+      s: Math.round((Date.now() - tMap) / 1000),
+      ...(await mapState()),
+      status: await evaluate(`document.querySelector('[role="status"]')?.textContent.trim() ?? null`),
+      stopButton: await evaluate(`Boolean(${BUTTON("停止分享")})`),
+    });
   }
   const watch = await evaluate("window.__watch");
   const finalText = await bodyText();
-  results.stationary = { watch, samples: samples.map(({ s, titles, asking, status }) => ({ s, map: titles.includes(MAP), asking, status })) };
+  results.stationary = { watch, samples: samples.map(({ s, titles, asking, status, stopButton }) => ({ s, map: titles.includes(MAP), asking, status, stopButton })) };
   record(`同一張畫面 ${Math.round((Date.now() - tMap) / 1000)} 秒：地圖面板一直是「${MAP}」、沒有再問「你在哪張圖？」`, watch.reprompt === 0 && watch.lostMap === 0 && samples.every(s => s.titles.includes(MAP) && !s.asking), watch);
-  record("放了這麼久，等級、經驗還讀得到", finalText.includes(READING), results.stationary.samples.at(-1)?.status);
+  // 畫面上讀到的字（Lv.46 …）在分享停了之後還留著，光看那行抓不到「停了」：每一次取樣都要看狀態列跟「停止分享」那顆
+  record(
+    "同一段時間：每一次取樣，狀態列都是還在讀的字（不是「分享停了」「認不到遊戲畫面」），「停止分享」那顆一直在",
+    watch.stopped === 0 && samples.length > 0 && samples.every(sample => sample.stopButton && ACTIVE_STATUS.test(sample.status ?? "") && !STOPPED_STATUS.test(sample.status ?? "")),
+    { stopped: watch.stopped, lastStatus: watch.lastStatus, statuses: [...new Set(samples.map(sample => sample.status))] },
+  );
+  record("放了這麼久，等級、經驗還讀得到", finalText.includes(READING));
 
   // 7. 整頁截圖
   await fullShot("speed.png");
@@ -301,7 +339,8 @@ try {
   if (!auto) {
     const memory = await evaluate(`localStorage.getItem("ms-speed-maps")`);
     record("點選的長相存進這台電腦", memory !== null && Object.values(JSON.parse(memory)).length > 0, memory);
-    await openSpeed();
+    const reloaded = await openSpeed();
+    record("重新整理後載好，角色卡還寫「" + CHAR_LINE + "」", reloaded && (await bodyText()).includes(CHAR_LINE));
     await installFakeStream();
     await shareAndRead();
     const remembered = await ev(`return await __waitFor(() => [...document.querySelectorAll("h2")].some(h => h.textContent.trim() === ${JSON.stringify(MAP)}), 15000)`);
@@ -315,16 +354,22 @@ try {
     await shot("crash.png");
   } catch {}
 } finally {
-  results.problems = problems;
-  results.failedChecks = results.checks.filter(check => !check.ok).map(check => check.name);
-  results.summary = `${results.checks.length - results.failedChecks.length}/${results.checks.length} 項通過`;
-  // 沒接住的例外、console.error 都算沒過：寫在最後，這樣 results.json 一定寫得出去
-  const clean = problems.exceptions.length === 0 && problems.errors.length === 0;
-  if (!crashed) record("整趟沒有沒接住的例外、console.error", clean, clean ? `${problems.warnings.length} 則警告（存在 results.json）` : { exceptions: problems.exceptions, errors: problems.errors });
-  results.failedChecks = results.checks.filter(check => !check.ok).map(check => check.name);
-  results.summary = `${results.checks.length - results.failedChecks.length}/${results.checks.length} 項通過`;
-  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
-  await close();
+  try {
+    results.problems = problems;
+    // 沒接住的例外、console.error 都算沒過：寫在最後，這樣 results.json 一定寫得出去
+    const clean = problems.exceptions.length === 0 && problems.errors.length === 0;
+    if (!crashed) record("整趟沒有沒接住的例外、console.error", clean, clean ? `${problems.warnings.length} 則警告（存在 results.json）` : { exceptions: problems.exceptions, errors: problems.errors });
+    results.failedChecks = results.checks.filter(check => !check.ok).map(check => check.name);
+    results.summary = `${results.checks.length - results.failedChecks.length}/${results.checks.length} 項通過`;
+    fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
+  } finally {
+    // 不管上面怎麼了，Chrome 一定收掉（harness 的 close 最多等 2 秒，再 taskkill）
+    if (close) {
+      try {
+        await close();
+      } catch {}
+    }
+  }
 }
 console.log(`輸出：${OUT}`);
 console.log(results.summary);

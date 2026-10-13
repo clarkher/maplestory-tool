@@ -382,8 +382,10 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
 設計與逐題拍板：`docs/superpowers/specs/2026-10-13-practice-speed-design.md`。
 
 - 認畫面全在瀏覽器（`src/lib/speed/`），畫面不上傳；只有存一筆紀錄時才把角色 ID、等級、職業、地圖、經驗、組隊設定送到 `/api/speed/runs`。
+  另外，地圖認出來（或玩家點選）之後，頁面會向 `/api/speed/board?map=<地圖 id>` 要排行，那張圖的 id 會送到我們的伺服器（只有 id，沒有畫面）。
 - **組隊是玩家自己填的**，不從畫面認（使用者 10/13 拍板）：勾「組隊」、填其他隊員的等級（最多 5 人）、選誰打怪；每張怪物卡多一行「組隊每隻」，
-  並用你量到的經驗回推全隊 10 分鐘打幾隻。公式出處是 Artale 組隊經驗計算機（頁面寫 2026-08-08 實機驗證），**台服沒驗證**，畫面最下面也這樣標；沒算祈禱、經驗卷、活動。
+  並用你量到的經驗回推全隊 10 分鐘打幾隻。公式出處是 Artale 組隊經驗計算機（頁面寫 2026-08-08 實機驗證），**台服沒驗證**，畫面最下面也這樣標，並寫「沒算祈禱、經驗卷」；
+  `src/lib/speed/party-exp.ts` 的註解另外列了活動、多人一起打的輸出比例、怪物等級差懲罰也沒算（一隻怪假設只有一個人打）。
 - **排行掛名規則（隱私 B）**：「上榜那一筆」跟「這個角色最新的一筆」都勾公開才顯示角色 ID，其他一律「匿名玩家」。
   沒登入，任何人都能拿別人的角色 ID 送一筆；這樣別人只能把你藏起來、不能幫你翻開。
 - **字形樣板**：`src/lib/speed/glyphs.json`（EXP 那行的數字）、`public/data/speed-names.json`（職業、街道、地圖名），只存縮成格子的特徵、不存字型本身。
@@ -395,12 +397,17 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
 - **`SPEED_SALT` 正式機上線前一定要設**（Vercel 專案設定的環境變數，隨便一串別人猜不到的字）：網路位址雜湊用它加鹽，沒設就用原始碼裡的預設值，
   有心人拿原始碼反推得出位址。見 `src/app/api/speed/runs/route.ts` 的 TODO。
 - **環境分開**：排行只看同一個環境（`VERCEL_ENV`：`production`／`preview`／`development`），測試機的資料不會出現在正式機。
-- **正式機上線前的檢查**（Neon 建好、測試機＝preview 部署之後做；本機沒有資料庫，這幾項只能在測試機驗）：
-  1. 在測試機各存一筆單練、一筆組隊（頁面上存要一段 ≥ 5 分鐘；沒有遊戲就直接 POST `/api/speed/runs`，body 見 `src/lib/speed/server/rules.ts` 的 `RunPayload`，組隊把 `partyLevels` 填成 `[44]`）。
-  2. 打開 `/api/speed/board?map=<地圖 id>`（例如森林迷宮III 是 `105040303`）：`solo`、`party` 各看得到那一筆；`isPublic` 沒勾的顯示 `name: null`。再打開正式機的同一支，要看不到測試機的資料。
-  3. 等 1 分鐘（同一個位址一分鐘最多存 6 筆，前兩步已經用掉 2 筆），從同一個位址同時送 20 個一樣的 POST：要剛好 **6 個 200、14 個 429**。
-     一次送 20 個的寫法：`node -e 'const body={mapId:105040303,mapName:"森林迷宮III",level:46,job:220,charId:"預檢測試",isPublic:false,partyLevels:[],partyHitter:0,mode:"auto",startedAt:new Date(Date.now()-3600e3).toISOString(),durationSec:600,expGained:5000,levelUps:0,deaths:0,clientVer:"v0.95"};Promise.all(Array.from({length:20},()=>fetch(process.argv[1]+"/api/speed/runs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.status))).then(s=>console.log(s.sort().join(" ")))' <測試機網址>`
-     （這會在測試機留下 6 筆測試紀錄，不會進正式排行，也不能刪——不對線上資料庫跑 DELETE。）
+- **正式機上線前的檢查**（Neon 建好、測試機＝preview 部署之後做；本機沒有資料庫，這幾項只能在測試機驗）。
+  下面 1～3 用同一支指令送 POST（**在 Git Bash 貼**；PowerShell 的引號規則不同，會壞）。三個參數：測試機網址、一次送幾個、隊友等級陣列（單練 `'[]'`、組隊 `'[44]'`）：
+  ```bash
+  node -e 'const [url,count,mates]=process.argv.slice(1);const body={mapId:105040303,mapName:"森林迷宮III",level:46,job:220,charId:"預檢測試",isPublic:false,partyLevels:JSON.parse(mates),partyHitter:0,mode:"auto",startedAt:new Date(Date.now()-3600e3).toISOString(),durationSec:600,expGained:5000,levelUps:0,deaths:0,clientVer:"v0.95"};Promise.all(Array.from({length:Number(count)},()=>fetch(url+"/api/speed/runs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(r=>r.status))).then(s=>console.log(s.sort().join(" ")))' <測試機網址> <次數> '<隊友等級陣列>'
+  ```
+  它送的 body（欄位見 `src/lib/speed/server/rules.ts` 的 `RunPayload`）會進排行：`durationSec` 要 ≥ 600（`RANK_MIN_SEC`，不到 10 分鐘的伺服器收、但 `ranked` 是 false，榜上不會有）、有地圖 id、經驗在這張圖的上限內（`expGained:5000` 遠低於上限）。
+  1. 在測試機各存一筆單練（`<網址> 1 '[]'`）、一筆組隊（`<網址> 1 '[44]'`），都要回 `200`。從頁面存也行，但一段要 **≥ 10 分鐘**：5～10 分鐘的會存，只是「上一段」那行寫「存好了。不到 10 分鐘，不列排行。」，排行上不會有，第 2 步就會看起來像壞了。
+  2. 打開 `/api/speed/board?map=105040303`（森林迷宮III；別的圖換 id）：`solo`、`party` 各看得到那一筆；`isPublic` 沒勾的 `name` 是 `null`。再打開正式機的同一支，要看不到測試機的資料。
+     這支回應有 5 分鐘的 CDN 快取（`s-maxage=300`），剛存完馬上看可能是舊的（頁面裡的排行也一樣）：網址後面隨便加個參數（`&t=1`、`&t=2`…）就會繞過。
+  3. 等**超過 1 分鐘**，讓前兩步存的 2 筆掉出「一分鐘」的計算範圍（同一個位址一分鐘最多存 6 筆），再從同一個位址同時送 20 個（`<網址> 20 '[]'`）：要剛好 **6 個 200、14 個 429**。
+     這會在測試機再留下 6 筆測試紀錄，不會進正式排行，也不能刪——不對線上資料庫跑 DELETE。
   4. 確認正式機設了 `SPEED_SALT`。
 - 驗收：`npx vitest run src/lib/speed`；畫面用 `node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:3095]`（埠 9391，沒過 exit 1；
   做什麼見 [scripts/verify/README.md](scripts/verify/README.md)「練功測速」）。
