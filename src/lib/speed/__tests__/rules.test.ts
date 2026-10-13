@@ -8,6 +8,11 @@ const run: RunPayload = {
   startedAt: "2026-10-13T10:00:00.000Z", durationSec: 900, expGained: 150_000, levelUps: 0, deaths: 0, clientVer: "v0.95",
 };
 
+/** 檢查「開始時間」用的現在：比 run.startedAt 晚 5 分鐘 */
+const NOW = Date.parse("2026-10-13T10:05:00.000Z");
+const MIN = 60_000;
+const DAY = 24 * 3600_000;
+
 function mob(id: number, lv: number | null, exp: number): Monster {
   return { id, n: `怪${id}`, lv, exp, hp: 100, pad: 0, pdd: 0, mad: 0, mdd: 0, acc: 0, eva: 0, spd: 0, maps: [1], drops: [] };
 }
@@ -18,13 +23,13 @@ function row(mobs: [number, number, number][]): TrainingRow {
 
 describe("存一筆的檢查", () => {
   it("正常的過；ID 前後空白去掉", () => {
-    expect(checkRun({ ...run, charId: "  芙莉蓮熊芙莉 " })).toEqual({ ok: true, run });
+    expect(checkRun({ ...run, charId: "  芙莉蓮熊芙莉 " }, NOW)).toEqual({ ok: true, run });
   });
 
   it("組隊的過：其他隊員等級 1～5 個、誰在打怪（0＝自己）", () => {
     const party = { partyLevels: [44, 47, 50, 46, 45], partyHitter: 5 };
-    expect(checkRun({ ...run, ...party })).toEqual({ ok: true, run: { ...run, ...party } });
-    expect(checkRun({ ...run, partyLevels: [44], partyHitter: 0 }).ok).toBe(true);
+    expect(checkRun({ ...run, ...party }, NOW)).toEqual({ ok: true, run: { ...run, ...party } });
+    expect(checkRun({ ...run, partyLevels: [44], partyHitter: 0 }, NOW).ok).toBe(true);
   });
 
   it.each([
@@ -48,14 +53,183 @@ describe("存一筆的檢查", () => {
     [{ mode: "fast" }, "模式"],
     [{ startedAt: "昨天" }, "開始時間"],
   ])("%o 不收（%s）", (patch, word) => {
-    const result = checkRun({ ...run, ...patch });
+    const result = checkRun({ ...run, ...patch }, NOW);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error).toContain(word);
   });
 
   it("不是物件不收", () => {
-    expect(checkRun(null).ok).toBe(false);
-    expect(checkRun("x").ok).toBe(false);
+    expect(checkRun(null, NOW).ok).toBe(false);
+    expect(checkRun("x", NOW).ok).toBe(false);
+  });
+
+  it.each([
+    [{ level: "46" }, "等級"],
+    [{ level: 1e999 }, "等級"],
+    [{ level: null }, "等級"],
+    [{ mapId: 1.5 }, "地圖"],
+    [{ mapId: undefined }, "地圖"],
+    [{ mapId: "105040303" }, "地圖"],
+    [{ mapId: -1 }, "地圖"],
+    [{ job: undefined }, "職業"],
+    [{ job: 1000 }, "職業"],
+    [{ durationSec: "900" }, "時間"],
+    [{ expGained: 1e999 }, "經驗"],
+    [{ expGained: Number.MAX_SAFE_INTEGER + 2 }, "經驗"],
+  ])("型別不對 %o 不收（%s）", (patch, word) => {
+    const result = checkRun({ ...run, ...patch }, NOW);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain(word);
+  });
+
+  it("時間剛好 600 秒的過；上下限剛好的也過", () => {
+    expect(checkRun({ ...run, durationSec: 600 }, NOW).ok).toBe(true);
+    expect(checkRun({ ...run, durationSec: 300 }, NOW).ok).toBe(true);
+    expect(checkRun({ ...run, durationSec: 6 * 3600 }, NOW).ok).toBe(true);
+  });
+
+  it("惡意的內容：多塞的欄位（ranked、expPer10、__proto__）一律丟掉，只留認得的欄位", () => {
+    const extra = JSON.stringify({ ...run, ranked: true, expPer10: 9e15, killsPer10: 1, partySize: 99, id: 7, constructor: { prototype: { polluted: 1 } } });
+    // JSON.parse 會把 "__proto__" 當一般的欄位（不是換掉原型），這就是惡意送來的樣子
+    const body = JSON.parse(`{"__proto__":{"polluted":true},${extra.slice(1)}`);
+    expect(Object.prototype.hasOwnProperty.call(body, "__proto__")).toBe(true);
+    const result = checkRun(body, NOW);
+    expect(result).toEqual({ ok: true, run });
+    if (result.ok) {
+      expect(Object.keys(result.run).sort()).toEqual(Object.keys(run).sort());
+      expect(Object.getPrototypeOf(result.run)).toBe(Object.prototype);
+      expect(Object.prototype.hasOwnProperty.call(result.run, "__proto__")).toBe(false);
+    }
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("惡意的內容：自己說 ranked 沒用，進不進排行伺服器自己算", () => {
+    const result = checkRun({ ...run, expGained: 9e15, ranked: true, expPer10: 1 }, NOW);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(toRow(result.run, 200_000)).toMatchObject({ ranked: false, expPer10: 6e15 });
+  });
+
+  it("partyLevels 是複製出來的，不跟送來的陣列共用", () => {
+    const levels = [44, 47];
+    const result = checkRun({ ...run, partyLevels: levels, partyHitter: 0 }, NOW);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.run.partyLevels).toEqual([44, 47]);
+      expect(result.run.partyLevels).not.toBe(levels);
+    }
+  });
+});
+
+describe("開始時間", () => {
+  const started = (startedAt: unknown) => checkRun({ ...run, startedAt }, NOW);
+
+  it("統一寫成 UTC 的標準格式再存", () => {
+    const result = started("2026-10-13T18:00:00+08:00");
+    expect(result.ok && result.run.startedAt).toBe("2026-10-13T10:00:00.000Z");
+    const loose = started("Tue, 13 Oct 2026 10:00:00 GMT");
+    expect(loose.ok && loose.run.startedAt).toBe("2026-10-13T10:00:00.000Z");
+  });
+
+  it.each(["1", "2026", "0", "+275760-09-13T00:00:00.000Z", "-000001-01-01T00:00:00.000Z", "2026-10-13T10:00:00.000Zjunk", ""])("亂寫的 %j 不收", value => {
+    const result = started(value);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("開始時間");
+  });
+
+  it.each([null, 1760349600000, {}, ["2026-10-13T10:00:00.000Z"]])("不是字串 %j 不收", value => {
+    const result = started(value);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("開始時間");
+  });
+
+  it("只收最近 7 天內、最多比現在晚 5 分鐘", () => {
+    const iso = (ms: number) => new Date(ms).toISOString();
+    expect(started(iso(NOW - 7 * DAY)).ok).toBe(true);
+    expect(started(iso(NOW - 7 * DAY - 1)).ok).toBe(false);
+    expect(started(iso(NOW + 5 * MIN)).ok).toBe(true);
+    expect(started(iso(NOW + 5 * MIN + 1)).ok).toBe(false);
+    const tooOld = started(iso(NOW - 8 * DAY));
+    expect(!tooOld.ok && tooOld.error).toContain("開始時間");
+    const future = started(iso(NOW + 60 * MIN));
+    expect(!future.ok && future.error).toContain("開始時間");
+  });
+
+  it("不帶現在時間就用系統的現在", () => {
+    expect(checkRun({ ...run, startedAt: new Date().toISOString() }).ok).toBe(true);
+    expect(checkRun({ ...run, startedAt: new Date(Date.now() - 8 * DAY).toISOString() }).ok).toBe(false);
+  });
+});
+
+describe("名字跟文字欄位", () => {
+  const check = (patch: Record<string, unknown>) => checkRun({ ...run, ...patch }, NOW);
+
+  it.each([
+    ["零寬空白", "芙莉蓮\u200B熊"],
+    ["全部是零寬空白", "\u200B\u200B\u200B"],
+    ["NUL", "芙莉\u0000蓮熊"],
+    ["換行", "芙莉\n蓮熊"],
+    ["Tab", "芙莉\t蓮熊"],
+    ["雙向控制字元", "芙莉\u202E蓮熊"],
+    ["單獨的代理字元", "芙莉\uD800蓮熊"],
+    ["中間的 BOM", "芙莉\uFEFF蓮熊"],
+  ])("角色 ID 有%s不收", (_name, charId) => {
+    const result = check({ charId });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("角色 ID");
+  });
+
+  it("角色 ID 太長的先擋掉；成對的罕見字照字數算", () => {
+    const result = check({ charId: "a".repeat(49) });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("角色 ID");
+    expect(check({ charId: "一".repeat(12) }).ok).toBe(true);
+    expect(check({ charId: "𠮷".repeat(12) }).ok).toBe(true);
+    expect(check({ charId: "𠮷".repeat(13) }).ok).toBe(false);
+  });
+
+  it("角色 ID 前後的空白去掉；不是字串不收", () => {
+    expect(check({ charId: "\u3000 芙莉蓮熊芙莉 \t" }).ok).toBe(true);
+    // 開頭的 BOM 被 trim 一起去掉（JS 把它當空白），剩下的字沒問題
+    const bom = check({ charId: "\uFEFF芙莉蓮熊芙莉" });
+    expect(bom.ok && bom.run.charId).toBe("芙莉蓮熊芙莉");
+    expect(check({ charId: 12345 }).ok).toBe(false);
+  });
+
+  it("地圖名稱、版本：看不見的控制字元拿掉，不整筆擋掉", () => {
+    const result = check({ mapName: "森林\u200B迷宮\u0000III\u202E", clientVer: "v0.\u200B95\n" });
+    expect(result.ok && result.run.mapName).toBe("森林迷宮III");
+    expect(result.ok && result.run.clientVer).toBe("v0.95");
+  });
+
+  it("地圖名稱照字數（不是 UTF-16 單位）切 40 個字、版本 20 個字，不會切壞成對的字", () => {
+    const result = check({ mapName: "𠮷".repeat(50), clientVer: "𠮷".repeat(30) });
+    expect(result.ok && result.run.mapName).toBe("𠮷".repeat(40));
+    expect(result.ok && result.run.clientVer).toBe("𠮷".repeat(20));
+    // 第 40 個字剛好落在成對的字中間（UTF-16 的第 40 格）也不會留下半個
+    const edge = check({ mapName: "a".repeat(39) + "𠮷𠮷", clientVer: "a".repeat(19) + "𠮷𠮷" });
+    expect(edge.ok && edge.run.mapName).toBe("a".repeat(39) + "𠮷");
+    expect(edge.ok && edge.run.clientVer).toBe("a".repeat(19) + "𠮷");
+    expect(edge.ok && /[\uD800-\uDFFF]/u.test(edge.run.mapName ?? "")).toBe(false);
+    // 原本就夾著單獨的代理字元：拿掉，不留到資料庫
+    const lone = check({ mapName: "森林\uD800迷宮", clientVer: "v\uDC00" });
+    expect(lone.ok && lone.run.mapName).toBe("森林迷宮");
+    expect(lone.ok && lone.run.clientVer).toBe("v");
+  });
+
+  it("地圖名稱不是字串、或拿掉後什麼都不剩 → null；版本不是字串 → 空字串", () => {
+    const blank = check({ mapName: "\u200B\u200B", clientVer: 5 });
+    expect(blank.ok && blank.run.mapName).toBeNull();
+    expect(blank.ok && blank.run.clientVer).toBe("");
+    const number = check({ mapName: 12 });
+    expect(number.ok && number.run.mapName).toBeNull();
+  });
+
+  it("超長的地圖名稱先砍掉再處理，不會拖慢", () => {
+    const begin = Date.now();
+    const result = check({ mapName: "森".repeat(2_000_000), clientVer: "v".repeat(2_000_000) });
+    expect(result.ok && result.run.mapName).toBe("森".repeat(40));
+    expect(result.ok && result.run.clientVer).toBe("v".repeat(20));
+    expect(Date.now() - begin).toBeLessThan(500);
   });
 });
 
@@ -71,12 +245,20 @@ describe("10 分鐘經驗、上限、進排行", () => {
     expect(mapCap(2, training, monsters)).toBeNull();
   });
 
-  it("進排行：滿 10 分鐘、有地圖、沒超過上限", () => {
+  it("進排行：滿 10 分鐘、有地圖、這張圖有練功資料（有上限）、沒超過上限", () => {
     expect(toRow(run, 200_000)).toMatchObject({ expPer10: 100_000, ranked: true });
+    expect(toRow({ ...run, durationSec: 600, expGained: 100_000 }, 200_000)).toMatchObject({ expPer10: 100_000, ranked: true });
     expect(toRow({ ...run, durationSec: 599 }, 200_000).ranked).toBe(false);
     expect(toRow({ ...run, mapId: null }, 200_000).ranked).toBe(false);
     expect(toRow(run, 99_999).ranked).toBe(false);
-    expect(toRow(run, null).ranked).toBe(true);
+    expect(toRow(run, 100_000).ranked).toBe(true);
+  });
+
+  it("沒有上限（這張圖沒有練功資料，例如亂編的地圖編號）不進排行", () => {
+    // Task 9 修正第 1 輪、裁決 I3：原本 cap === null 也進排行，亂編 mapId 就能灌出約 1.8e16 的假榜首；
+    // 原本這裡寫的是 toRow(run, null).ranked === true，照裁決改成 false。
+    expect(toRow(run, null).ranked).toBe(false);
+    expect(toRow({ ...run, mapId: 999_999_999, expGained: Number.MAX_SAFE_INTEGER }, null).ranked).toBe(false);
   });
 });
 

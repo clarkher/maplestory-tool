@@ -67,8 +67,12 @@ beforeEach(() => {
   db.calls.length = 0;
   db.reply = quiet;
   vi.spyOn(console, "error").mockImplementation(() => {});
+  // 存一筆只收最近 7 天內開始的（rules.ts checkRun）：把「現在」固定在 payload.startedAt 後 5 分鐘，測試才不會隔幾天就過期
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-13T10:05:00.000Z"));
 });
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   for (const [key, value] of [["DATABASE_URL", savedEnv.url], ["VERCEL_ENV", savedEnv.vercel]] as const) {
     if (value === undefined) delete process.env[key];
@@ -202,10 +206,12 @@ describe("資料庫（假的）：存一筆", () => {
     expect(row.kills_per_10min).toBe(expected.killsPer10);
   });
 
-  it("沒有練功資料的圖：照存，打幾隻是 null", async () => {
+  it("沒有練功資料的圖：照存，打幾隻是 null，但算不出上限所以不進排行", async () => {
+    // Task 9 修正第 1 輪、裁決 I3：原本這裡預期 ranked: true，亂編的地圖編號會灌上排行，改成不進排行
     const { POST } = await load();
     const response = await POST(post({ ...payload, mapId: 999_999_999, mapName: "不存在的圖" }));
-    expect(await response.json()).toEqual({ ok: true, ranked: true });
+    expect(await response.json()).toEqual({ ok: true, ranked: false });
+    expect(inserted(db.calls).ranked).toBe(false);
     expect(inserted(db.calls).kills_per_10min).toBeNull();
   });
 
