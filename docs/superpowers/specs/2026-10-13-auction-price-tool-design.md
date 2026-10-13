@@ -60,7 +60,8 @@
 - 按「收工」才寫進 repo 並 push 備份：存在只放資料的孤兒分支 `price-data`，不觸發 Vercel 部署。
   做法跟 maple-fx 的 `fx-data` 一樣（見 `docs/superpowers/specs/2026-10-13-meso-fx-design.md`，分支 feat/meso-fx）：
   `price-data` 自己帶 `vercel.json` `{"git":{"deploymentEnabled":false}}`；dev／main 那份 `vercel.json` 由 maple-fx 一起加 `"price-data":false`，**這支不改那個檔**。
-  maple-fx 實測擋得住（結果寫在 fx-8591-findings.md）之前不推 `price-data`；擋不住的備案是改放另一個沒接 Vercel 的 repo。
+  maple-fx 10/13 實測擋得住：孤兒分支自帶那份 `vercel.json`，推上去 3 分半 Vercel 零狀態、零部署（一般分支幾秒就 pending），
+  不靠 dev／main 那份也擋得住（細節在 fx-8591-findings.md「擋部署實測」）。實作時第一次推 `price-data` 照樣看一次 Vercel 狀態。
 - 台幣換算讀 maple-fx 的雪吉拉每日匯率：
   `https://raw.githubusercontent.com/clarkher/maplestory-tool/fx-data/fx/scania/daily.json`，
   `days[]` 由舊到新、一天一筆，`close` 單位「元／1 億楓幣」→ **台幣 ＝ 楓幣價 × close ÷ 1 億**。
@@ -105,7 +106,7 @@
 ## 依賴
 
 - 使用者截兩張「市價」分頁（手套攻擊卷軸10%、黃色雨傘）放 `Pictures\Screenshots`——欄位位置要照真圖定。
-- maple-fx（v0.96）：每日匯率檔開始產生、`fx-data` 擋部署實測結果。兩件都會通知這支；沒到之前工具照常能記價，只是台幣欄寫「累積中」、資料先存本機不推。
+- maple-fx（v0.96）：每日匯率檔開始產生（會通知這支）。沒到之前工具照常能記價，台幣欄寫「匯率資料累積中」。擋部署已實測可用。
 
 ## 來源
 
