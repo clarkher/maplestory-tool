@@ -92,9 +92,10 @@
 
 | 檔案 | 內容 |
 |---|---|
-| `fx/scania/samples.jsonl` | 每次 snapshot 一行：`t`（ISO，+08:00）、`src`（`8591`／`ref`）、`ask100`、`listings`（有效掛單數，參考站時為 null）、`volNtd`、`volMeso`（萬，參考站時為 null） |
+| `fx/scania/samples.jsonl` | 每次 8591 抓成功一行：`t`（ISO，+08:00）、`src`（`8591`）、`ask100`、`listings`（有效掛單數）、`volNtd`、`volMeso`（萬） |
+| `fx/scania/ref-samples.jsonl` | 參考站的市價紀錄：`t`、`ask100`；每天的 K 棒只拿它補「前後 3 小時內沒有自己資料」的空檔 |
 | `fx/scania/state.json` | 算成交用的上一次狀態：`at`、`listings: { id: [sell_count, 單件台幣價, 匯率] }`；`fail8591`（8591 連續失敗次數） |
-| `fx/scania/latest.json` | 最新一次：`t`、`src`、`ask100`、`listings`、`ladder: [[匯率桶下界, 筆數], …]`、`band: [市價區下界, 上界]` |
+| `fx/scania/latest.json` | 最新一次：`t`、`src`、`ask100`、`listings`、`ladder: [[匯率桶下界, 筆數], …]`、`band: [市價區下界, 上界]`（用參考站時 `band` 是 null、`ladder` 用它的分布） |
 | `fx/scania/daily.json` | **給頁面跟拍賣查價工具**（下節） |
 | `README.md` | 這條分支是什麼、誰寫、欄位說明 |
 | `vercel.json` | 關部署 |
@@ -138,10 +139,11 @@
 - `run:` 裡不寫 `${{ }}`（一律 env 傳），跟 data-refresh 同一條規矩；workflow 原文用測試鎖住。
 - **手動觸發從 main 以外的分支，預設不寫入**（`write` 勾了才推 `fx-data`），避免沒審過的分支程式寫壞資料。
 
-### 一次性匯入
+### 參考站的歷史（取代原本的「一次性匯入」）
 
-`pipeline/fx/import-ref-history.mjs`：把參考站 `history[]` 的 `雪吉拉_ask` 轉成 `src: "ref"` 的 samples（時間早於我們第一筆的才收），
-只跑一次，結果跟著第一次 publish 進 `fx-data`。
+每次收集都順便抓參考站 `price.json`，把它 `history[]` 裡比 `ref-samples.jsonl` 最後一筆新的市價接在後面。
+第一次跑就會把它當時留著的 60 筆（10/08 起）全收進來，不用另外寫匯入程式；之後 8591 抓不到的空檔也能用它補。
+
 
 ## 頁面 `/price/fx`
 
@@ -167,7 +169,6 @@
 |---|---|
 | `pipeline/fx/collect.mjs` | 排程進入點：讀狀態 → 抓 → 算 → 寫檔 |
 | `pipeline/fx/lib/*.mjs`＋`*.test.mjs` | 純函式：還原 Nuxt 資料、解析匯率、去離群與市價、成交差額、分桶、每日彙總、參考站轉換 |
-| `pipeline/fx/import-ref-history.mjs` | 一次性匯入 |
 | `pipeline/lib/fx-collect-workflow.test.mjs` | 鎖住 workflow 原文（權限、`${{ }}`、不從別的分支寫入） |
 | `src/app/price/fx/page.tsx`＋元件 | 頁面 |
 | `src/lib/fx/*.ts`＋`*.test.ts` | 頁面用的純函式：單位換算、均線、還要幾天、座標比例 |
