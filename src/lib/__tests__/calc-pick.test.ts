@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { calcPick, goalText, CALC_PICK_PLUS } from "@/lib/calc-pick";
+import { AOE_TIERS, calcPick, goalText, CALC_PICK_PLUS } from "@/lib/calc-pick";
 import { HEAL, isAoeSkill, MOB_COUNT } from "@/lib/damage-skills";
 import { computeGroup, killLists, monsterChoices, type CalcData } from "@/lib/damage-view";
 import { dangerPenalty } from "@/lib/planner";
@@ -54,7 +54,7 @@ describe("單體條件：差一點兩下找不到「圖」就改穩穩兩下（4
   it("盜賊 13：差一點兩下有怪但沒有當主力的圖 → 改穩穩兩下，而且有圖", () => {
     const pick = pickFor(400, 13);
     if (!pick) throw new Error("算不出來");
-    expect(pick.goal).toBe("two");
+    expect(pick.rows.every(row => row.goal === "two")).toBe(true);
     expect(pick.options.length).toBeGreaterThan(0);
     const lists = killLists(data, pick.shared, pick.group, monsterChoices(data.monsters, data.maps))!;
     const two = new Set(lists.two.map(item => item.monster.id));
@@ -63,29 +63,43 @@ describe("單體條件：差一點兩下找不到「圖」就改穩穩兩下（4
 });
 
 describe("calcPick：照傷害算的推薦", () => {
+  it("單體放三隻（v0.94 使用者）：刺客 45 三行、三隻不同的怪，先放差一點兩下的", () => {
+    const pick = pickFor(410, 45)!;
+    expect(pick.rows.length).toBe(3);
+    const leads = pick.rows.map(row => row.option?.lead.id);
+    expect(leads.every(Boolean)).toBe(true);
+    expect(new Set(leads).size).toBe(3);
+    expect(pick.rows[0].goal).toBe("nearTwo");
+    // 差一點兩下的排在穩穩兩下前面
+    const order = pick.rows.map(row => (row.goal === "nearTwo" ? 0 : 1));
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
   it("刺客 45：單體、雙飛斬、差一點兩下；武器 +7；圖上刷怪最多那隻真的差一點兩下打得死", () => {
     const pick = pickFor(410, 45);
     if (!pick) throw new Error("算不出來");
     expect(pick.mode).toBe("single");
     expect(pick.skillId).toBe(4001344);
-    expect(pick.goal).toBe("nearTwo");
+    expect(pick.rows[0].goal).toBe("nearTwo");
     expect(pick.plus).toBe(CALC_PICK_PLUS);
     expect(pick.group.weaponAtk).toBe((pick.weapon.atk ?? 0) + 7);
     expect(pick.options.length).toBeGreaterThan(0);
     expect(pick.options.length).toBeLessThanOrEqual(3);
     const lists = killLists(data, pick.shared, pick.group, monsterChoices(data.monsters, data.maps))!;
     const near = new Set(lists.nearTwo.map(item => item.monster.id));
-    for (const option of pick.options) {
-      expect(near.has(option.lead.id), option.lead.n).toBe(true);
+    const two = new Set(lists.two.map(item => item.monster.id));
+    for (const row of pick.rows) {
+      const option = row.option!;
+      expect((row.goal === "nearTwo" ? near : two).has(option.lead.id), option.lead.n).toBe(true);
       expect(option.row.sp).toBeGreaterThan(3);
       expect(option.lead.lv ?? 0).toBeLessThanOrEqual(50);
       expect(option.hops).toBeDefined();
     }
   });
-  it("排序照刷怪效率（走 8 張圖以上打七折）", () => {
+  it("同一種條件裡照刷怪效率排（走 8 張圖以上打七折）", () => {
     const pick = pickFor(410, 45)!;
-    const score = (option: (typeof pick.options)[number]) => option.row.eff * ((option.hops ?? 0) >= 8 ? 0.7 : 1);
-    for (let index = 1; index < pick.options.length; index += 1) expect(score(pick.options[index - 1])).toBeGreaterThanOrEqual(score(pick.options[index]));
+    const near = pick.rows.filter(row => row.goal === "nearTwo").map(row => row.option!);
+    const score = (option: (typeof near)[number]) => option.row.eff * ((option.hops ?? 0) >= 8 ? 0.7 : 1);
+    for (let index = 1; index < near.length; index += 1) expect(score(near[index - 1])).toBeGreaterThanOrEqual(score(near[index]));
   });
   it("火毒 35：還沒學群體技能 → 單體；法師武器加的是魔攻（木製短杖攻擊、魔攻不同）", () => {
     const pick = pickFor(210, 35)!;
@@ -118,27 +132,32 @@ describe("calcPick：照傷害算的推薦", () => {
       }
     }
   });
-  it("僧侶 45：群體治癒、約 4～8 下（v0.93 使用者選 B 放寬）、只有不死系；基準大幽靈約 6 下", () => {
+  it("群體分三段（v0.94 使用者）：2～3、3～4、4～5 下各一隻、不重複；僧侶 45 群體治癒只有不死系", () => {
+    expect(AOE_TIERS).toEqual([[2, 3], [3, 4], [4, 5]]);
     const pick = pickFor(230, 45);
     if (!pick) throw new Error("算不出來");
     expect(pick.mode).toBe("aoe");
     expect(pick.skillId).toBe(HEAL);
-    expect(pick.goal).toBe("fiveSix");
+    expect(pick.rows.map(row => row.label)).toEqual(["2～3 下", "3～4 下", "4～5 下"]);
+    const used = new Set<number>();
+    pick.rows.forEach((row, index) => {
+      if (!row.option) return;
+      const [low, high] = AOE_TIERS[index];
+      expect(row.option.kills >= low && row.option.kills <= high, `${row.label} ${row.option.lead.n} ${row.option.kills}`).toBe(true);
+      expect(row.option.lead.und, row.option.lead.n).toBe(1);
+      expect(used.has(row.option.lead.id), row.option.lead.n).toBe(false);
+      used.add(row.option.lead.id);
+    });
     expect(pick.options.length).toBeGreaterThan(0);
-    for (const option of pick.options) {
-      expect(option.lead.und, option.lead.n).toBe(1);
-      expect(option.kills).toBeGreaterThanOrEqual(4);
-      expect(option.kills).toBeLessThanOrEqual(8);
-    }
     const ghost = computeGroup(data, pick.shared, pick.group, byName("大幽靈"));
     expect(ghost.ok && ghost.vs?.kills.avg).toBe(6);
   });
-  it("放寬到 4～8 下：原本 5～6 下找不到的僧侶 35、40 現在有圖", () => {
-    for (const level of [35, 40]) {
-      const pick = pickFor(230, level, true);
-      expect(pick?.options.length, `僧侶 ${level}`).toBeGreaterThan(0);
-      for (const option of pick!.options) expect(option.kills >= 4 && option.kills <= 8, `${level} ${option.lead.n} ${option.kills}`).toBe(true);
-    }
+  it("狂戰士 45 三段：至少兩段有圖、每段的下數在範圍裡", () => {
+    const pick = pickFor(110, 45, true)!;
+    expect(pick.rows.filter(row => row.option).length).toBeGreaterThanOrEqual(2);
+    pick.rows.forEach((row, index) => {
+      if (row.option) expect(row.option.kills >= AOE_TIERS[index][0] && row.option.kills <= AOE_TIERS[index][1], row.label).toBe(true);
+    });
   });
   it("狂戰士 45：學了劍氣縱橫 → 群體、用劍氣縱橫", () => {
     const pick = pickFor(110, 45)!;
@@ -150,7 +169,7 @@ describe("calcPick：照傷害算的推薦", () => {
     expect(pick.mode).toBe("aoe");
     expect(pick.skillId).not.toBe(3101003);
   });
-  it("群體條件不挑比角色高 5 級以上的怪", () => {
+  it("不挑比角色高 5 級以上的怪", () => {
     for (const [job, level] of [[110, 45], [230, 45], [220, 40]]) {
       const pick = pickFor(job, level)!;
       for (const option of pick.options) expect(option.lead.lv ?? 0, `${job} ${option.lead.n}`).toBeLessThanOrEqual(level + 5);
@@ -171,7 +190,7 @@ describe("卡上那句", () => {
   it("差一點兩下／穩穩兩下／約 N 下；炸彈箭寫明照被射中那隻算", () => {
     expect(goalText({ goal: "nearTwo", skillName: "雙飛斬", skillId: 4001344 }, 2)).toBe("雙飛斬差一點兩下打死（運氣好兩下）");
     expect(goalText({ goal: "two", skillName: "雙飛斬", skillId: 4001344 }, 2)).toBe("雙飛斬穩穩兩下打死");
-    expect(goalText({ goal: "fiveSix", skillName: "群體治癒", skillId: HEAL }, 6)).toBe("群體治癒約 6 下打死");
-    expect(goalText({ goal: "fiveSix", skillName: "炸彈箭", skillId: 3101005 }, 6)).toBe("炸彈箭約 6 下打死（照被射中那隻算）");
+    expect(goalText({ goal: "aoe", skillName: "群體治癒", skillId: HEAL }, 3)).toBe("群體治癒約 3 下打死");
+    expect(goalText({ goal: "aoe", skillName: "炸彈箭", skillId: 3101005 }, 4)).toBe("炸彈箭約 4 下打死（照被射中那隻算）");
   });
 });
