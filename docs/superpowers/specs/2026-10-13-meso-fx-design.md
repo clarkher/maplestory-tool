@@ -180,13 +180,12 @@
 
 - 分支 `feat/meso-fx`（從 origin/dev）→ PR → dev。commit `v0.96:` 開頭（v0.95 已被練功測速佔走，10/13 查過；commit 前再查一次）。
 - ⚠️ **GitHub 的 schedule 只在預設分支（main）跑**，新 workflow 檔不在 main 上也不能手動觸發。資料收集要真的每 4 小時跑、歷史才不會斷，
-  就得讓「收集」那部分進 main——這要使用者拍板（見最後「待拍板」）。另外加 `push: branches: [dev]`（限 workflow、`pipeline/fx/**` 改動）：
+  就得讓「收集」那部分進 main（使用者 10/13 選 1，見最後一節）。另外加 `push: branches: [dev]`（限 workflow、`pipeline/fx/**` 改動）：
   合進 dev 時跑一次並寫入 `fx-data`（已經 review 過才合進 dev），證明排程能跑。
 - 完成標準：dev 測試機 `/price/fx` 有真的資料點、瀏覽器實際畫出來的截圖、完整網址；排程至少真的跑過一次（附 run 連結）；`fx-data` 推送沒觸發 Vercel。
 - 每輪改動同步更新 README（新增排程、`fx-data` 分支、給拍賣工具的介面）。
 
-## 待拍板
+## 收集先進 main（10/13 使用者選 1）
 
-- **收集那部分要不要先進 main？** GitHub 的排程只在 main 跑。
-  1. 收集（workflow＋`pipeline/fx`＋`vercel.json`，不含任何頁面）在 dev 測過、跑過一次後，**單獨進 main**，當天開始每 4 小時累積——正式站畫面完全不變。
-  2. 等頁面做完、整包一起進 main；在那之前只有合進 dev 時才抓一次，歷史會斷斷續續。
+- GitHub 的排程只在 main 跑，所以分兩段交付：**第一段（收集）測完就單獨進 main**，第二段（頁面）照常進 dev。
+  - 第一段＝workflow＋`pipeline/fx`＋`vercel.json`，不含任何頁面；在 dev 測過、合進 dev 時真的跑過一次後，從 origin/main 開 release 分支只 cherry-pick 這段進 main，當天開始每 4 小時累積，正式站畫面完全不變。
