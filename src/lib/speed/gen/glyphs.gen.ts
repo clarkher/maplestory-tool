@@ -11,10 +11,17 @@ import path from "node:path";
 import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { it } from "vitest";
 import type { Frame } from "../frame";
-import { components, grid, inkMask } from "../ink";
+import { bbox, components, grid, inkMask } from "../ink";
+import { JOB_TEXT } from "../read-job";
 
 const JOB_FONT = "C:/Windows/Fonts/msjh.ttc";
+// 小地圖標題的字型：Task 6 用無損截圖比過再定；還沒有無損截圖前先用微軟正黑體
+const TITLE_FONT = "C:/Windows/Fonts/msjh.ttc";
 const ROOT = process.cwd();
+
+function registerFont(file: string, family: string) {
+  if (!GlobalFonts.registerFromPath(file, family)) throw new Error("找不到字型：" + file);
+}
 
 function render(text: string, family: string, px: number): Frame {
   const canvas = createCanvas(Math.ceil(px * (Array.from(text).length + 2)), px * 2);
@@ -30,9 +37,10 @@ function render(text: string, family: string, px: number): Frame {
 }
 
 const round = (value: number) => Math.round(value * 1000) / 1000;
+const hex = (cells: Float32Array) => Array.from(cells, value => Math.min(15, Math.round(value * 15)).toString(16)).join("");
 
 it("產 glyphs.json", () => {
-  GlobalFonts.registerFromPath(JOB_FONT, "SpeedDigits");
+  registerFont(JOB_FONT, "SpeedDigits");
   const chars = [];
   for (const ch of "0123456789[]%") {
     const frame = render(ch, "SpeedDigits", 96);
@@ -50,4 +58,33 @@ it("產 glyphs.json", () => {
   const zero = chars.find(entry => entry.ch === "0")!.h;
   const out = { font: "Microsoft JhengHei", gw: 8, gh: 12, chars: chars.map(({ h, ...rest }) => ({ ...rest, rh: round(h / zero) })) };
   fs.writeFileSync(path.join(ROOT, "src/lib/speed/glyphs.json"), `${JSON.stringify(out)}\n`);
+});
+
+it("產 speed-names.json", () => {
+  registerFont(JOB_FONT, "SpeedJob");
+  registerFont(TITLE_FONT, "SpeedTitle");
+  const line = (text: string, family: string) => {
+    const frame = render(text, family, 48);
+    const mask = inkMask(frame, { x: 0, y: 0, w: frame.width, h: frame.height }, false, 0.99)!;
+    const box = bbox(mask)!;
+    const gw = 8 * Math.max(1, Array.from(text).length);
+    return [text, round((box.x1 - box.x0) / (box.y1 - box.y0)), hex(grid(mask, box, gw, 8))];
+  };
+  const maps = JSON.parse(fs.readFileSync(path.join(ROOT, "public/data/maps.json"), "utf8")) as Record<string, { zh?: string; st?: string }>;
+  const titles = new Set<string>();
+  for (const record of Object.values(maps)) {
+    if (!record.zh) continue;
+    titles.add(record.zh);
+    if (record.st) titles.add(record.st);
+  }
+  const jobs = JOB_TEXT.flatMap(([, texts]) => texts);
+  const out = {
+    jobFont: "Microsoft JhengHei",
+    titleFont: path.basename(TITLE_FONT),
+    gh: 8,
+    cell: 8,
+    jobs: jobs.map(text => line(text, "SpeedJob")),
+    titles: [...titles].sort().map(text => line(text, "SpeedTitle")),
+  };
+  fs.writeFileSync(path.join(ROOT, "public/data/speed-names.json"), `${JSON.stringify(out)}\n`);
 });

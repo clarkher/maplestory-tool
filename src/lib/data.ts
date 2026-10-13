@@ -5,6 +5,7 @@ import type {
   TrainingRow,
 } from "./types";
 import type { GearData } from "./gear";
+import type { RawSpeedNames } from "./speed/names";
 
 /**
  * 資料檔全部是編譯期產生的靜態 JSON，第一次用到才抓、抓過就留著。
@@ -104,6 +105,8 @@ export const loadTraining = () => load<TrainingRow[]>("training");
 export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
+/** 練功測速的名字樣板（職業、街道、地圖名；本機 npm run speed:glyphs 產） */
+export const loadSpeedNames = () => load<RawSpeedNames>("speed-names");
 /**
  * 裝備卡的資料：一半是玩家攻略（研究檔），研究改了但遊戲資料沒變時 meta 的版本號不會動，
  * 跟 guides/common.json 一樣每次回伺服器確認（next.config 對 /data/gear.json 設 must-revalidate），沒變就 304。
