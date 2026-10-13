@@ -118,7 +118,7 @@ describe("calcPick：照傷害算的推薦", () => {
       }
     }
   });
-  it("僧侶 45：群體治癒、約 5～6 下、只有不死系；基準大幽靈約 6 下", () => {
+  it("僧侶 45：群體治癒、約 4～8 下（v0.93 使用者選 B 放寬）、只有不死系；基準大幽靈約 6 下", () => {
     const pick = pickFor(230, 45);
     if (!pick) throw new Error("算不出來");
     expect(pick.mode).toBe("aoe");
@@ -127,11 +127,18 @@ describe("calcPick：照傷害算的推薦", () => {
     expect(pick.options.length).toBeGreaterThan(0);
     for (const option of pick.options) {
       expect(option.lead.und, option.lead.n).toBe(1);
-      expect(option.kills).toBeGreaterThanOrEqual(5);
-      expect(option.kills).toBeLessThanOrEqual(6);
+      expect(option.kills).toBeGreaterThanOrEqual(4);
+      expect(option.kills).toBeLessThanOrEqual(8);
     }
     const ghost = computeGroup(data, pick.shared, pick.group, byName("大幽靈"));
     expect(ghost.ok && ghost.vs?.kills.avg).toBe(6);
+  });
+  it("放寬到 4～8 下：原本 5～6 下找不到的僧侶 35、40 現在有圖", () => {
+    for (const level of [35, 40]) {
+      const pick = pickFor(230, level, true);
+      expect(pick?.options.length, `僧侶 ${level}`).toBeGreaterThan(0);
+      for (const option of pick!.options) expect(option.kills >= 4 && option.kills <= 8, `${level} ${option.lead.n} ${option.kills}`).toBe(true);
+    }
   });
   it("狂戰士 45：學了劍氣縱橫 → 群體、用劍氣縱橫", () => {
     const pick = pickFor(110, 45)!;
