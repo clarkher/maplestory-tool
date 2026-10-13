@@ -108,3 +108,19 @@ export function toRow(run: RunPayload, cap: number | null, row?: TrainingRow, mo
   const killsPer10 = row && monsters ? killsPer10Of(run, per10, row, monsters) : null;
   return { ...run, expPer10: per10, ranked, partySize: 1 + run.partyLevels.length, killsPer10 };
 }
+
+/**
+ * 排行一列：name 是 null 代表沒公開（畫面寫「匿名玩家」）。
+ * expPer10 是這個人自己 10 分鐘拿的經驗；kills 是回推的全隊 10 分鐘打幾隻（組隊榜照它排；算不出來是 null）。
+ */
+export type BoardRow = {
+  name: string | null;
+  job: number | null;
+  level: number;
+  expPer10: number;
+  minutes: number;
+  date: string;
+  /** 自己＋其他隊員；單練是 1 */
+  partySize: number;
+  kills: number | null;
+};
