@@ -132,3 +132,59 @@ test("沒有交易加進來的話 updatedAt 不動", () => {
   addTrades(d, [t()], newMeta);
   assert.equal(d.updatedAt, first, "加 0 筆時 updatedAt 不改");
 });
+
+test("黃色那幾筆（單價空著）也改得了", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 500, unitPrice: null, qty: 5 })], meta);
+  const id = d.trades[0].id;
+  assert.equal(editTrade(d, id, { price: 600 }), true);
+  assert.equal(d.trades[0].price, 600);
+  assert.equal(d.trades[0].unitPrice, 120, "自動算出 600/5");
+});
+
+test("黃色那幾筆（總價空著）也改得了", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: null, unitPrice: null, qty: 3 })], meta);
+  const id = d.trades[0].id;
+  assert.equal(editTrade(d, id, { unitPrice: 100 }), true);
+  assert.equal(d.trades[0].unitPrice, 100);
+  assert.equal(d.trades[0].price, 300, "自動算出 100*3");
+});
+
+test("黃色那幾筆（數量空著）也改得了", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 100, unitPrice: 70, qty: null })], meta);
+  const id = d.trades[0].id;
+  assert.equal(editTrade(d, id, { price: 70, unitPrice: 70 }), true);
+  assert.equal(d.trades[0].qty, 1, "自動算出 70/70");
+  assert.equal(d.trades[0].price, 70);
+  assert.equal(d.trades[0].unitPrice, 70);
+});
+
+test("黃色那幾筆不一致就真的改不了", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 100, unitPrice: 70, qty: null })], meta);
+  const id = d.trades[0].id;
+  const before = JSON.parse(JSON.stringify(d.trades[0]));
+  assert.equal(editTrade(d, id, { tradedAt: "2026-10-11" }), false, "只改日期但總單價不一致");
+  assert.deepEqual(d.trades[0], before, "記錄完全不變");
+});
+
+test("確認時單價空著的話不能按", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 500, unitPrice: null, qty: 5 })], meta);
+  const id = d.trades[0].id;
+  assert.equal(d.trades[0].status, "ok");
+  assert.equal(confirmTrade(d, id), false, "unitPrice 空著不能確認");
+  assert.equal(d.trades[0].status, "ok", "狀態沒動");
+});
+
+test("刪掉沒有 ocrKey 的記錄也記住", () => {
+  const d = emptyData();
+  addTrades(d, [t({ price: 100, unitPrice: 50, qty: 2 })], meta);
+  const rec = d.trades[0];
+  const manualOcrKey = tradeKey(rec);
+  delete rec.ocrKey;
+  assert.equal(deleteTrade(d, rec.id), true);
+  assert(d.rejected.includes(manualOcrKey), "用 tradeKey() 補上");
+});

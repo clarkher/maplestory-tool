@@ -57,6 +57,8 @@ const byId = (data, id) => data.trades.find(t => t.id === id);
 export function confirmTrade(data, id) {
   const t = byId(data, id);
   if (!t) return false;
+  // Can't confirm if unitPrice is not a positive integer
+  if (!posInt(t.unitPrice)) return false;
   t.status = "ok";
   t.flags = [];
   return true;
@@ -67,7 +69,8 @@ export function deleteTrade(data, id) {
   if (i < 0) return false;
   const rec = data.trades[i];
   if (!data.rejected) data.rejected = [];
-  if (!data.rejected.includes(rec.ocrKey)) data.rejected.push(rec.ocrKey);
+  const ocrKeyToTrack = rec.ocrKey ?? tradeKey(rec);
+  if (!data.rejected.includes(ocrKeyToTrack)) data.rejected.push(ocrKeyToTrack);
   data.trades.splice(i, 1);
   return true;
 }
@@ -80,43 +83,71 @@ export function editTrade(data, id, patch) {
   if (!t) return false;
   if (!data.rejected) data.rejected = [];
 
-  // Build candidate with proposed changes
+  // Step 1: Validate only fields present in patch
+  for (const k of ["price", "unitPrice", "qty"]) {
+    if (k in patch && !posInt(patch[k])) return false;
+  }
+  if ("tradedAt" in patch && !/^\d{4}-\d{2}-\d{2}$/.test(patch.tradedAt)) return false;
+
+  // Step 2: Build candidate with record fields overridden by patch
   const candidate = {
     price: t.price,
     unitPrice: t.unitPrice,
     qty: t.qty,
     tradedAt: t.tradedAt,
   };
+  for (const k of ["price", "unitPrice", "qty", "tradedAt"]) {
+    if (k in patch) candidate[k] = patch[k];
+  }
 
-  // Apply patch to candidate
-  for (const k of ["price", "unitPrice", "qty", "tradedAt"]) if (k in patch) candidate[k] = patch[k];
-
-  // Validate numeric fields
-  for (const k of ["price", "unitPrice", "qty"]) if (!posInt(candidate[k])) return false;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate.tradedAt)) return false;
-
-  // Auto-calculate price or unitPrice if only one is specified
-  if ("price" in patch && !("unitPrice" in patch)) {
-    if (!posInt(candidate.qty)) return false;
+  // Step 3: Auto-fill missing fields in specific order
+  // If price patched, unitPrice not, qty is positive int → unitPrice = price/qty (must be integer)
+  if ("price" in patch && !("unitPrice" in patch) && posInt(candidate.qty)) {
     const calc = candidate.price / candidate.qty;
     if (!Number.isInteger(calc)) return false;
     candidate.unitPrice = calc;
-  } else if ("unitPrice" in patch && !("price" in patch)) {
-    if (!posInt(candidate.qty)) return false;
+  }
+  // If unitPrice patched, price not, qty is positive int → price = unitPrice * qty
+  else if ("unitPrice" in patch && !("price" in patch) && posInt(candidate.qty)) {
     candidate.price = candidate.unitPrice * candidate.qty;
   }
 
-  // Final validation: price, unitPrice, qty all present and consistent
+  // If unitPrice still null/missing and price & qty are positive ints → unitPrice = price / qty
+  if (candidate.unitPrice === null || candidate.unitPrice === undefined) {
+    if (posInt(candidate.price) && posInt(candidate.qty)) {
+      const calc = candidate.price / candidate.qty;
+      if (!Number.isInteger(calc)) return false;
+      candidate.unitPrice = calc;
+    }
+  }
+
+  // If price still null/missing and unitPrice & qty are positive ints → price = unitPrice * qty
+  if (candidate.price === null || candidate.price === undefined) {
+    if (posInt(candidate.unitPrice) && posInt(candidate.qty)) {
+      candidate.price = candidate.unitPrice * candidate.qty;
+    }
+  }
+
+  // If qty still null/missing and price & unitPrice are positive ints → qty = price / unitPrice
+  if (candidate.qty === null || candidate.qty === undefined) {
+    if (posInt(candidate.price) && posInt(candidate.unitPrice)) {
+      const calc = candidate.price / candidate.unitPrice;
+      if (!Number.isInteger(calc)) return false;
+      candidate.qty = calc;
+    }
+  }
+
+  // Step 4: Final check - all must be positive integers and consistent
   if (!posInt(candidate.price) || !posInt(candidate.unitPrice) || !posInt(candidate.qty)) return false;
   if (candidate.unitPrice * candidate.qty !== candidate.price) return false;
 
-  // Check for collision with existing record (different id)
+  // Step 5: Check for collision with existing record
   const newKey = [t.item, candidate.price, candidate.tradedAt, attrKey(t.attrs)].join("|");
   const collision = data.trades.find(tr => tr.id !== id && tradeKey(tr) === newKey);
   if (collision) {
     // Merge: remove edited record and track its original key
-    const originalKey = t.ocrKey;
-    if (!data.rejected.includes(originalKey)) data.rejected.push(originalKey);
+    const ocrKeyToTrack = t.ocrKey ?? tradeKey(t);
+    if (!data.rejected.includes(ocrKeyToTrack)) data.rejected.push(ocrKeyToTrack);
     data.trades.splice(data.trades.indexOf(t), 1);
     return true;
   }
@@ -131,7 +162,8 @@ export function editTrade(data, id, patch) {
   t.edited = true;
 
   // Track that this reading was edited
-  if (!data.rejected.includes(t.ocrKey)) data.rejected.push(t.ocrKey);
+  const ocrKeyToTrack = t.ocrKey ?? tradeKey(t);
+  if (!data.rejected.includes(ocrKeyToTrack)) data.rejected.push(ocrKeyToTrack);
 
   return true;
 }
