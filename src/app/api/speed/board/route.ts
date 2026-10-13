@@ -51,38 +51,39 @@ export async function GET(request: Request): Promise<Response> {
   try {
     await ensureSchema(sql);
     const env = speedEnv();
-    // latest 只查前 10 名的角色（走 env, char_id 索引），不用掃整張表
+    // latest 只查前 10 名的角色（走 env, char_id 索引），不用掃整張表。
+    // 同分的先後固定：先達成的在前、再看 id（第 10 名的切線每次一樣）；最新一筆同一時間時 id 大的算最新。
     const [solo, party] = await Promise.all([
       sql`
         WITH best AS (
-          SELECT DISTINCT ON (char_id) char_id, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
+          SELECT DISTINCT ON (char_id) id, char_id, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
           FROM speed_runs
           WHERE env = ${env} AND map_id = ${map} AND ranked AND party_size = 1
-          ORDER BY char_id, exp_per_10min DESC, created_at
+          ORDER BY char_id, exp_per_10min DESC, created_at, id
         ), leaders AS (
-          SELECT * FROM best ORDER BY exp_per_10min DESC, created_at LIMIT 10
+          SELECT * FROM best ORDER BY exp_per_10min DESC, created_at, id LIMIT 10
         ), latest AS (
           SELECT DISTINCT ON (char_id) char_id, is_public FROM speed_runs
           WHERE env = ${env} AND char_id IN (SELECT char_id FROM leaders)
-          ORDER BY char_id, created_at DESC
+          ORDER BY char_id, created_at DESC, id DESC
         )
         SELECT leaders.*, latest.is_public AS show FROM leaders JOIN latest USING (char_id)
-        ORDER BY leaders.exp_per_10min DESC, leaders.created_at`,
+        ORDER BY leaders.exp_per_10min DESC, leaders.created_at, leaders.id`,
       sql`
         WITH best AS (
-          SELECT DISTINCT ON (char_id) char_id, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
+          SELECT DISTINCT ON (char_id) id, char_id, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
           FROM speed_runs
           WHERE env = ${env} AND map_id = ${map} AND ranked AND party_size > 1 AND kills_per_10min IS NOT NULL
-          ORDER BY char_id, kills_per_10min DESC, created_at
+          ORDER BY char_id, kills_per_10min DESC, created_at, id
         ), leaders AS (
-          SELECT * FROM best ORDER BY kills_per_10min DESC, created_at LIMIT 10
+          SELECT * FROM best ORDER BY kills_per_10min DESC, created_at, id LIMIT 10
         ), latest AS (
           SELECT DISTINCT ON (char_id) char_id, is_public FROM speed_runs
           WHERE env = ${env} AND char_id IN (SELECT char_id FROM leaders)
-          ORDER BY char_id, created_at DESC
+          ORDER BY char_id, created_at DESC, id DESC
         )
         SELECT leaders.*, latest.is_public AS show FROM leaders JOIN latest USING (char_id)
-        ORDER BY leaders.kills_per_10min DESC, leaders.created_at`,
+        ORDER BY leaders.kills_per_10min DESC, leaders.created_at, leaders.id`,
     ]);
     return Response.json(
       { open: true, solo: toBoard(solo as Raw[]), party: toBoard(party as Raw[]) },

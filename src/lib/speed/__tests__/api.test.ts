@@ -6,18 +6,57 @@ import monsterJson from "../../../../public/data/monsters.json";
 import trainingJson from "../../../../public/data/training.json";
 import { mapCap, toRow, type BoardRow, type RunPayload } from "../server/rules";
 
-type Call = { text: string; values: unknown[] };
+type Call = { text: string; values: unknown[]; tx?: number };
 const db = vi.hoisted(() => ({
-  calls: [] as { text: string; values: unknown[] }[],
-  reply: (_text: string, _values: unknown[]): unknown[] | Error => [],
+  /** 實際送到資料庫的每一句（在 transaction 裡的帶 tx 編號）。tagged template 本身是惰性的，只有被 await 或丟進 transaction 才算送出 */
+  calls: [] as { text: string; values: unknown[]; tx?: number }[],
+  txCount: 0,
+  txOptions: [] as unknown[],
+  /** advisory lock 的假實作：同一把鎖同一時間只有一個 transaction 能進，跟 Postgres 的 pg_advisory_xact_lock 一樣 */
+  locks: new Map<string, Promise<void>>(),
+  reply: (_text: string, _values: unknown[]): unknown[] | Error | Promise<unknown[] | Error> => [],
 }));
 
 vi.mock("@neondatabase/serverless", () => ({
-  neon: () => (strings: TemplateStringsArray, ...values: unknown[]) => {
-    const text = strings.join("?").replace(/\s+/g, " ").trim();
-    db.calls.push({ text, values });
-    const result = db.reply(text, values);
-    return result instanceof Error ? Promise.reject(result) : Promise.resolve(result);
+  neon: () => {
+    const normalize = (strings: TemplateStringsArray) => strings.join("?").replace(/\s+/g, " ").trim();
+    const run = async (text: string, values: unknown[], tx?: number): Promise<unknown[]> => {
+      db.calls.push({ text, values, tx });
+      const result = await db.reply(text, values);
+      if (result instanceof Error) throw result;
+      return result;
+    };
+    const sql = (strings: TemplateStringsArray, ...values: unknown[]) => {
+      const text = normalize(strings);
+      return {
+        queryData: { text, values },
+        then: (resolve: (rows: unknown[]) => unknown, reject: (error: unknown) => unknown) => run(text, values).then(resolve, reject),
+      };
+    };
+    sql.transaction = async (queries: { queryData: { text: string; values: unknown[] } }[], options?: unknown) => {
+      const tx = ++db.txCount;
+      db.txOptions.push(options);
+      let release = () => {};
+      try {
+        const results: unknown[][] = [];
+        for (const { text, values } of queries.map(query => query.queryData)) {
+          if (text.includes("pg_advisory_xact_lock")) {
+            const key = String(values[0]);
+            const previous = db.locks.get(key) ?? Promise.resolve();
+            const mine = new Promise<void>(resolve => {
+              release = resolve;
+            });
+            db.locks.set(key, previous.then(() => mine));
+            await previous;
+          }
+          results.push(await run(text, values, tx));
+        }
+        return results;
+      } finally {
+        release();
+      }
+    };
+    return sql;
   },
 }));
 
@@ -40,24 +79,53 @@ const payload: RunPayload = {
 };
 
 function post(body: unknown, headers: Record<string, string> = {}): Request {
-  return new Request("http://x/api/speed/runs", { method: "POST", body: typeof body === "string" ? body : JSON.stringify(body), headers });
+  return new Request("http://x/api/speed/runs", {
+    method: "POST",
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    headers: { "content-type": "application/json", ...headers },
+  });
 }
 
 const get = (query: string) => new Request(`http://x/api/speed/board${query}`);
 
-/** 回覆：計次數的那句回 0（沒送過），其他回空 */
+/** 回覆：INSERT 那句回一列（寫進去了），其他回空 */
 function quiet(text: string): unknown[] {
-  return text.includes("count(*)") ? [{ count: 0 }] : [];
+  return text.startsWith("INSERT") ? [{ id: 1 }] : [];
 }
 
 /** INSERT 那句：欄位名跟參數一一對起來，順序排錯就會對不上 */
-function inserted(calls: Call[]): Record<string, unknown> {
+function insertCall(calls: Call[]): Call {
   const call = calls.find(item => item.text.startsWith("INSERT INTO speed_runs"));
   if (!call) throw new Error("沒有送出 INSERT");
-  const columns = /\(([^)]*)\) VALUES/.exec(call.text)![1].split(",").map(name => name.trim());
-  expect(call.text.split("VALUES")[1].match(/\?/g)).toHaveLength(columns.length);
-  expect(call.values).toHaveLength(columns.length);
+  return call;
+}
+
+function inserted(calls: Call[]): Record<string, unknown> {
+  const call = insertCall(calls);
+  const columns = /\(([^)]*)\) SELECT/.exec(call.text)![1].split(",").map(name => name.trim());
+  // SELECT 的每個位置都要明講型別（INSERT … SELECT 不會幫參數推型別）
+  const selectList = /\) SELECT (.*?) WHERE \(SELECT count/.exec(call.text)![1];
+  expect(selectList.match(/\?::[a-z]+(\[\])?/g)).toHaveLength(columns.length);
+  expect(selectList.match(/\?/g)).toHaveLength(columns.length);
+  // 後面還有兩個參數：這個位址的雜湊、每分鐘上限
+  expect(call.values).toHaveLength(columns.length + 2);
   return Object.fromEntries(columns.map((name, index) => [name, call.values[index]]));
+}
+
+/** 在假的資料庫裡模擬「INSERT 的 WHERE 看到的是這句開始時的資料」：先數、讓出時間給別的請求、再寫入 */
+function simulatedRateLimit(): string[] {
+  const rows: string[] = [];
+  db.reply = async (text, values) => {
+    if (!text.startsWith("INSERT")) return [];
+    const hash = values[values.length - 2] as string;
+    const limit = values[values.length - 1] as number;
+    const seen = rows.filter(item => item === hash).length;
+    await new Promise(resolve => setTimeout(resolve, 1));
+    if (seen >= limit) return [];
+    rows.push(hash);
+    return [{ id: rows.length }];
+  };
+  return rows;
 }
 
 const savedEnv = { url: process.env.DATABASE_URL, vercel: process.env.VERCEL_ENV };
@@ -65,6 +133,9 @@ beforeEach(() => {
   delete process.env.DATABASE_URL;
   delete process.env.VERCEL_ENV;
   db.calls.length = 0;
+  db.txCount = 0;
+  db.txOptions.length = 0;
+  db.locks.clear();
   db.reply = quiet;
   vi.spyOn(console, "error").mockImplementation(() => {});
   // 存一筆只收最近 7 天內開始的（rules.ts checkRun）：把「現在」固定在 payload.startedAt 後 5 分鐘，測試才不會隔幾天就過期
@@ -123,19 +194,31 @@ describe("資料庫（假的）：建表", () => {
     expect(db.calls.slice(1).map(call => call.text).every(text => text.startsWith("CREATE INDEX IF NOT EXISTS"))).toBe(true);
   });
 
+  it("一張表加三個索引放在同一個 transaction 送（一次來回、要嘛全成要嘛全不成）", async () => {
+    const { ensureSchema, getSql } = await load();
+    await ensureSchema(getSql()!);
+    expect(db.calls).toHaveLength(4);
+    expect(db.txCount).toBe(1);
+    expect(db.calls.every(call => call.tx === 1)).toBe(true);
+    expect(db.calls.map(call => call.text.split(" ").slice(0, 2).join(" "))).toEqual(["CREATE TABLE", "CREATE INDEX", "CREATE INDEX", "CREATE INDEX"]);
+  });
+
   it("同一個執行個體只建一次；失敗了下一次會再試", async () => {
     const { ensureSchema, getSql } = await load();
     await Promise.all([ensureSchema(getSql()!), ensureSchema(getSql()!)]);
     await ensureSchema(getSql()!);
     expect(db.calls.filter(call => call.text.startsWith("CREATE TABLE")).length).toBe(1);
+    expect(db.txCount).toBe(1);
 
     const again = await load();
     db.calls.length = 0;
+    db.txCount = 0;
     db.reply = () => new Error("連不上");
     await expect(again.ensureSchema(again.getSql()!)).rejects.toThrow("連不上");
     db.reply = quiet;
     await again.ensureSchema(again.getSql()!);
     expect(db.calls.filter(call => call.text.startsWith("CREATE TABLE")).length).toBe(2);
+    expect(db.txCount).toBe(2);
   });
 
   it("沒有設定 DATABASE_URL 就沒有 sql；環境名稱照 VERCEL_ENV、沒有就 development", async () => {
@@ -161,6 +244,27 @@ describe("資料庫（假的）：存一筆", () => {
     expect(db.calls).toHaveLength(0);
   });
 
+  it.each([
+    ["text/plain;charset=UTF-8", "網頁表單（不用預檢的跨站簡單請求）會是這種"],
+    ["application/x-www-form-urlencoded", "表單"],
+    ["multipart/form-data; boundary=x", "表單"],
+    ["application/jsonp", "長得像但不是"],
+    ["", "沒寫"],
+  ])("Content-Type 是「%s」就算內容是對的 JSON 也回 400 格式不對（%s）、不碰資料庫", async contentType => {
+    const { POST } = await load();
+    const request = new Request("http://x/api/speed/runs", { method: "POST", body: JSON.stringify(payload), headers: contentType ? { "content-type": contentType } : {} });
+    if (!contentType) request.headers.delete("content-type");
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: "格式不對" });
+    expect(db.calls).toHaveLength(0);
+  });
+
+  it.each(["application/json", "application/json; charset=utf-8", "Application/JSON;charset=UTF-8"])("Content-Type 是「%s」可以", async contentType => {
+    const { POST } = await load();
+    expect((await POST(post(payload, { "content-type": contentType }))).status).toBe(200);
+  });
+
   it("欄位不合規則回 400 加原因、不碰資料庫", async () => {
     const { POST } = await load();
     const response = await POST(post({ ...payload, durationSec: 100 }));
@@ -171,14 +275,22 @@ describe("資料庫（假的）：存一筆", () => {
     expect(db.calls).toHaveLength(0);
   });
 
-  it("單練：先建表、再數這個位址這一分鐘送幾次、最後 INSERT；進排行", async () => {
+  it("單練：先建表，再用一個 transaction 送兩句——先鎖這個位址、再「沒超過上限才」INSERT；進排行", async () => {
     const { POST } = await load();
     const response = await POST(post(payload, { "x-forwarded-for": "1.2.3.4" }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true, ranked: true });
-    const texts = db.calls.map(call => call.text);
-    expect(texts[0]).toContain("CREATE TABLE");
-    expect(texts.findIndex(text => text.includes("count(*)"))).toBeLessThan(texts.findIndex(text => text.startsWith("INSERT")));
+    expect(db.calls[0].text).toContain("CREATE TABLE");
+    const writes = db.calls.filter(call => call.tx === 2);
+    expect(db.txCount).toBe(2);
+    expect(writes).toHaveLength(2);
+    expect(writes[0].text).toBe("SELECT pg_advisory_xact_lock(hashtextextended(?::text, 0))");
+    expect(writes[1].text.startsWith("INSERT INTO speed_runs")).toBe(true);
+    expect(writes[1].text).toMatch(/WHERE \(SELECT count\(\*\) FROM speed_runs WHERE ip_hash = \? AND created_at > now\(\) - interval '1 minute'\) < \?::integer RETURNING id$/);
+    // 沒有另外一句先數次數的查詢（那就是會被同時送的請求繞過去的寫法）
+    expect(db.calls.filter(call => call.text.startsWith("SELECT count"))).toHaveLength(0);
+    // 第二句要在第一句拿到鎖之後才開始算：兩句是各自獨立的 statement，READ COMMITTED 下第二句才會看到別人剛 commit 的紀錄
+    expect(db.txOptions[1]).toEqual({ isolationLevel: "ReadCommitted" });
 
     const row = inserted(db.calls);
     expect(row).toMatchObject({
@@ -246,12 +358,15 @@ describe("資料庫（假的）：存一筆", () => {
     expect(inserted(db.calls).env).toBe("preview");
   });
 
-  it("網址只存雜湊：取 x-forwarded-for 第一個、數次數跟 INSERT 用同一個值、原始位址不進資料庫", async () => {
+  it("網址只存雜湊：取 x-forwarded-for 第一個、鎖的鑰匙／上限判斷／INSERT 用同一個值、原始位址不進資料庫", async () => {
     const { POST } = await load();
     await POST(post(payload, { "x-forwarded-for": "1.2.3.4, 10.0.0.1" }));
     const hash = inserted(db.calls).ip_hash as string;
     expect(hash).toMatch(/^[0-9a-f]{32}$/);
-    expect(db.calls.find(call => call.text.includes("count(*)"))!.values).toEqual([hash]);
+    const lock = db.calls.find(call => call.text.includes("pg_advisory_xact_lock"))!;
+    expect(lock.values).toEqual([hash]);
+    const insert = insertCall(db.calls);
+    expect(insert.values.slice(-2)).toEqual([hash, 6]);
     expect(JSON.stringify(db.calls)).not.toContain("1.2.3.4");
 
     db.calls.length = 0;
@@ -262,16 +377,51 @@ describe("資料庫（假的）：存一筆", () => {
     expect(inserted(db.calls).ip_hash).not.toBe(hash);
   });
 
-  it("一分鐘內已經送滿上限回 429、不 INSERT；差一次還可以", async () => {
+  it("雜湊裡混了 UTC 日期：同一天同一個位址一樣、隔天就對不上（紀錄不能跨天認出同一個人）", async () => {
     const { POST } = await load();
-    db.reply = text => (text.includes("count(*)") ? [{ count: 6 }] : []);
+    const hashOf = async () => {
+      db.calls.length = 0;
+      await POST(post(payload, { "x-forwarded-for": "1.2.3.4" }));
+      return inserted(db.calls).ip_hash;
+    };
+    const today = await hashOf();
+    vi.setSystemTime(new Date("2026-10-13T23:59:59.000Z"));
+    expect(await hashOf()).toBe(today);
+    vi.setSystemTime(new Date("2026-10-14T00:00:01.000Z"));
+    const tomorrow = await hashOf();
+    expect(tomorrow).not.toBe(today);
+    expect(tomorrow).toMatch(/^[0-9a-f]{32}$/);
+  });
+
+  it("一分鐘內已經送滿上限：INSERT 沒寫進去（RETURNING 是空的）就回 429；還沒滿就是 200", async () => {
+    const { POST } = await load();
+    db.reply = text => (text.startsWith("INSERT") ? [] : []);
     const response = await POST(post(payload));
     expect(response.status).toBe(429);
     expect(await response.json()).toEqual({ ok: false, error: "送太快了，等一下再存" });
-    expect(db.calls.some(call => call.text.startsWith("INSERT"))).toBe(false);
+    // 兩句都送了（鎖、INSERT），是 INSERT 自己的 WHERE 把它擋掉
+    expect(db.calls.filter(call => call.tx === 2).map(call => call.text.split(" ")[0])).toEqual(["SELECT", "INSERT"]);
 
-    db.reply = text => (text.includes("count(*)") ? [{ count: 5 }] : []);
+    db.reply = quiet;
     expect((await POST(post(payload))).status).toBe(200);
+  });
+
+  it("同時送 100 個：只有上限那幾個寫得進去，其他都 429（鎖住同一個位址、一個一個排隊算）", async () => {
+    const { POST } = await load();
+    const rows = simulatedRateLimit();
+    const responses = await Promise.all(Array.from({ length: 100 }, () => POST(post(payload, { "x-forwarded-for": "1.2.3.4" }))));
+    const statuses = responses.map(response => response.status);
+    expect(statuses.filter(status => status === 200)).toHaveLength(6);
+    expect(statuses.filter(status => status === 429)).toHaveLength(94);
+    expect(rows).toHaveLength(6);
+  });
+
+  it("不同位址同時送互不影響：各自都有自己的 6 次", async () => {
+    const { POST } = await load();
+    const rows = simulatedRateLimit();
+    const responses = await Promise.all(["1.1.1.1", "2.2.2.2"].flatMap(ip => Array.from({ length: 10 }, () => POST(post(payload, { "x-forwarded-for": ip })))));
+    expect(responses.filter(response => response.status === 200)).toHaveLength(12);
+    expect(rows).toHaveLength(12);
   });
 
   it("資料庫出錯：回 500 加中文原因（不漏錯誤內容）、不是一頁空白", async () => {
@@ -345,6 +495,15 @@ describe("資料庫（假的）：排行", () => {
     expect(party.text).toMatch(/ORDER BY char_id, kills_per_10min DESC/);
     expect(party.text).toMatch(/ORDER BY (leaders\.)?kills_per_10min DESC/);
     expect(party.text).toMatch(/LIMIT 10/);
+    // 同分時要有固定的先後（第 10 名的切線不能每次不一樣）：看誰先達成、再看 id；公開與否取最新一筆時同時間也看 id
+    expect(solo.text).toContain("ORDER BY char_id, exp_per_10min DESC, created_at, id");
+    expect(solo.text).toContain("ORDER BY exp_per_10min DESC, created_at, id LIMIT 10");
+    expect(party.text).toContain("ORDER BY char_id, kills_per_10min DESC, created_at, id");
+    expect(party.text).toContain("ORDER BY kills_per_10min DESC, created_at, id LIMIT 10");
+    for (const query of [solo, party]) {
+      expect(query.text).toContain("ORDER BY char_id, created_at DESC, id DESC");
+      expect(query.text).toMatch(/ORDER BY leaders\.(exp|kills)_per_10min DESC, leaders\.created_at, leaders\.id$/);
+    }
     for (const query of [solo, party]) {
       expect(query.text).toContain("ranked");
       expect(query.text).toContain("is_public");
