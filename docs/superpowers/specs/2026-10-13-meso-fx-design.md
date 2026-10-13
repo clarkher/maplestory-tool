@@ -82,7 +82,7 @@
 收資料的頻率（每 4 小時）跟網站部署完全脫鉤：
 
 - 資料放在同一個 repo 的孤兒分支 **`fx-data`**（只有資料，沒有程式），並用 `vercel.json` 的 `git.deploymentEnabled` 關掉這條分支的部署
-  （`fx-data` 分支上放 `{"git":{"deploymentEnabled":false}}`；dev／main 的 `vercel.json` 也寫 `{"git":{"deploymentEnabled":{"fx-data":false}}}`，兩邊都擋）。
+  （`fx-data` 分支上放 `{"git":{"deploymentEnabled":false}}`；dev／main 的 `vercel.json` 也寫 `{"git":{"deploymentEnabled":{"fx-data":false,"price-data":false}}}`，兩邊都擋；`price-data` 是拍賣查價 session 的資料分支，10/13 協調好由這版一起寫，那邊不改這個檔）。
   **第一個工作就是實測**：推一次 `fx-data`，用 commit status／deployments API 確認 Vercel 沒有建置。
   擋不住的備案：資料改放另一個沒接 Vercel 的 repo（deploy key 推送），介面路徑跟著改。
 - 頁面在瀏覽器裡直接讀 `https://raw.githubusercontent.com/clarkher/maplestory-tool/fx-data/fx/scania/…`（repo 是公開的，
