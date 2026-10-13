@@ -7,7 +7,7 @@ import { execFileSync } from "node:child_process";
 export const DATA_BRANCH = "price-data";
 export const VERCEL_JSON = JSON.stringify({ git: { deploymentEnabled: false } }, null, 2) + "\n";
 
-const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+const git = (cwd, ...args) => execFileSync("git", args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 60_000 }).trim();
 
 function mainRoot(cwd) {
   return path.dirname(git(cwd, "rev-parse", "--path-format=absolute", "--git-common-dir"));
@@ -20,13 +20,15 @@ export function ensureDataWorktree(cwd, remote = "origin") {
     try { git(dir, "pull", "-q", "--ff-only", remote, DATA_BRANCH); } catch { /* 沒網路或遠端還沒有：用本機的 */ }
     return dir;
   }
+  // 資料夾被刪掉但 git 還記著這個 worktree：不先清掉，下面的 worktree add 會一直報「missing but already registered」
+  git(root, "worktree", "prune");
   const localHas = (() => { try { git(root, "rev-parse", "--verify", "-q", `refs/heads/${DATA_BRANCH}`); return true; } catch { return false; } })();
   if (localHas) {
     git(root, "worktree", "add", "-q", dir, DATA_BRANCH);
     return dir;
   }
   // 連不上遠端就丟錯：不然會在本機開一條新的孤兒分支，之後跟遠端的推不上去
-  const remoteHas = git(root, "ls-remote", "--heads", remote, DATA_BRANCH) !== "";
+  const remoteHas = git(root, "ls-remote", "--heads", remote, `refs/heads/${DATA_BRANCH}`) !== "";
   if (remoteHas) {
     git(root, "fetch", "-q", remote, `${DATA_BRANCH}:refs/remotes/${remote}/${DATA_BRANCH}`);
     git(root, "worktree", "add", "-q", "--track", "-b", DATA_BRANCH, dir, `${remote}/${DATA_BRANCH}`);
@@ -41,6 +43,8 @@ export function ensureDataWorktree(cwd, remote = "origin") {
 
 /** 收工：有變動就 commit，然後 push；回傳遠端是不是真的收到 */
 export function publishData(dir, message, remote = "origin") {
+  // 拿錯資料夾（例如主 repo）會把別的東西 commit 進去，先擋
+  if (git(dir, "branch", "--show-current") !== DATA_BRANCH) throw new Error(`${dir} 不在 ${DATA_BRANCH} 分支上，不推`);
   git(dir, "add", "-A");
   const changed = git(dir, "status", "--porcelain") !== "";
   if (changed) git(dir, "commit", "-q", "-m", message);

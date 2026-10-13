@@ -69,3 +69,53 @@ test("從 repo 的另一個 worktree 跑也接到主 checkout 底下同一個資
   git(repo, "worktree", "add", "-q", wt, "-b", "feat");
   assert.equal(ensureDataWorktree(wt), path.join(repo, ".price-data"));
 });
+
+test("資料夾被刪掉、本機分支還在：再開一次接得回來，之前 commit 的檔案還在", t => {
+  const { repo } = setup(t);
+  const dir = ensureDataWorktree(repo);
+  fs.writeFileSync(path.join(dir, "a.json"), "1\n");
+  publishData(dir, "資料：先存一份");
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+  const dir2 = ensureDataWorktree(repo);
+  assert.equal(dir2, dir);
+  assert.equal(git(dir2, "branch", "--show-current"), DATA_BRANCH);
+  assert.equal(fs.readFileSync(path.join(dir2, "a.json"), "utf8"), "1\n");
+});
+
+test("離線（遠端連不上）又沒有本機分支：丟錯，不偷偷開一條新的孤兒分支", t => {
+  const { base, repo } = setup(t);
+  git(repo, "remote", "set-url", "origin", path.join(base, "nope.git"));
+  assert.throws(() => ensureDataWorktree(repo));
+  assert.equal(git(repo, "branch", "--list", DATA_BRANCH), "", "不能留下本機分支");
+  assert.equal(fs.existsSync(path.join(repo, ".price-data")), false, "不能留下資料夾");
+});
+
+test("遠端有新資料：再開一次會拉下來", t => {
+  const { base, repo, mk } = setup(t);
+  const dir = ensureDataWorktree(repo);
+  fs.writeFileSync(path.join(dir, "a.json"), "1\n");
+  publishData(dir, "資料：第一台");
+  const repo2 = mk(path.join(base, "repo2"));
+  const dir2 = ensureDataWorktree(repo2);
+  fs.writeFileSync(path.join(dir2, "b.json"), "2\n");
+  publishData(dir2, "資料：第二台");
+  assert.equal(fs.existsSync(path.join(dir, "b.json")), false, "還沒拉之前沒有");
+  assert.equal(ensureDataWorktree(repo), dir);
+  assert.equal(fs.readFileSync(path.join(dir, "b.json"), "utf8"), "2\n");
+});
+
+test("推上去的分支帶著擋部署的 vercel.json", t => {
+  const { repo, remote } = setup(t);
+  const dir = ensureDataWorktree(repo);
+  fs.writeFileSync(path.join(dir, "a.json"), "1\n");
+  publishData(dir, "資料：測試");
+  assert.deepEqual(JSON.parse(git(remote, "show", `${DATA_BRANCH}:vercel.json`)), { git: { deploymentEnabled: false } });
+});
+
+test("publishData 不在 price-data 分支上就不推（拿到主 repo 的資料夾會丟錯）", t => {
+  const { repo, remote } = setup(t);
+  fs.writeFileSync(path.join(repo, "stray.txt"), "不該被 commit\n");
+  assert.throws(() => publishData(repo, "資料：不該成功"), /不在 price-data 分支上，不推/);
+  assert.equal(git(repo, "rev-list", "--count", "HEAD"), "1", "主分支沒多出 commit");
+  assert.equal(git(remote, "branch", "--list", DATA_BRANCH), "", "遠端沒收到");
+});
