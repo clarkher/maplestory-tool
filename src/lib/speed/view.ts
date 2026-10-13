@@ -7,7 +7,7 @@ import { jobOption } from "@/lib/jobs";
 import type { MemberExp } from "./party-exp";
 import type { RunPayload } from "./server/rules";
 import type { SpeedParty } from "./settings";
-import { durationMs, type Segment } from "./tracker";
+import { durationMs, startManual, switchMode, type Mode, type Segment, type Step, type Tracker } from "./tracker";
 
 /** 隊伍最多 6 人：自己＋其他 5 人；等級 1～120（跟 settings.ts、伺服器的檢查一樣） */
 export const MAX_OTHERS = 5;
@@ -56,6 +56,57 @@ export function hitterAfterRemove(hitter: number, removed: number): number {
   const row = removed + 1;
   if (hitter === row) return 0;
   return hitter > row ? hitter - 1 : hitter;
+}
+
+export type SpeedStatus = "idle" | "waiting" | "reading" | "lost";
+
+/**
+ * 手動模式的按鈕：分享中（認得到或一時認不到畫面都算）還沒開始給「開始」；計時中一定給「停止」——
+ * 畫面一張認不到就把「停止」藏起來，玩家會以為已經停了、也沒辦法停。
+ */
+export function manualControl(mode: Mode, manualOn: boolean, sharing: boolean): "start" | "stop" | null {
+  if (mode !== "manual") return null;
+  if (manualOn) return "stop";
+  return sharing ? "start" : null;
+}
+
+/** 控制卡下面那行狀態。手動計時中認不到畫面要寫明「還在計時」，不能看起來像停了 */
+export function statusLine(s: { status: SpeedStatus; bar: boolean; exp: boolean; mode: Mode; manualOn: boolean; running: boolean }): string {
+  if (s.status === "idle") return "還沒分享畫面";
+  if (s.status === "lost") return "分享停了，再按一次「分享遊戲畫面」";
+  const counting = s.mode === "manual" && s.manualOn;
+  const prefix = counting ? "手動計時中，" : "";
+  if (s.status === "waiting" || !s.bar) return `${prefix}認不到遊戲畫面：選楓之谷的視窗、別縮到最小`;
+  if (!s.exp) return `${prefix}讀不到經驗：視窗太小或被擋住，放大一點`;
+  if (s.mode === "manual" && !s.manualOn) return "按「開始」就開始算";
+  if (!s.running) return counting ? "手動計時中" : "等經驗一動就開始算";
+  return "量中";
+}
+
+/** 算經驗、存紀錄實際用到的隊伍：沒勾、勾了但沒填隊友都是單練（null） */
+function effectiveParty(party: SpeedParty): { others: number[]; hitter: number } | null {
+  return party.on && party.others.length ? { others: party.others, hitter: party.hitter } : null;
+}
+
+/**
+ * 兩個組隊設定算起來是不是同一支隊伍（勾不勾、隊友等級、誰在打）。頁面拿它判斷「練到一半換了隊伍」：
+ * 換了就先把這段收掉、照原本的隊伍存，一段紀錄只會有一種隊伍。
+ */
+export function sameParty(a: SpeedParty, b: SpeedParty): boolean {
+  const x = effectiveParty(a);
+  const y = effectiveParty(b);
+  if (!x || !y) return x === y;
+  return x.hitter === y.hitter && x.others.length === y.others.length && x.others.every((level, i) => level === y.others[i]);
+}
+
+/**
+ * 練到一半換了隊伍：先把這段收掉（closed，頁面照原本的隊伍存），一段紀錄只會有一種隊伍。
+ * 自動模式等經驗再動才開新的一段；手動計時中馬上從現在開新的一段，計時不斷。隊伍算起來沒換、或沒在練回 null。
+ */
+export function splitOnPartyChange(t: Tracker, before: SpeedParty, next: SpeedParty, at: number): Step | null {
+  if (!t.seg || sameParty(before, next)) return null;
+  const step = switchMode(t, t.mode, at);
+  return t.mode === "manual" && t.manualOn ? { tracker: startManual(step.tracker, at), closed: step.closed } : step;
 }
 
 /** 練功計算用的隊伍人數：勾了組隊才算隊友 */

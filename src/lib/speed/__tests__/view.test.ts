@@ -1,9 +1,9 @@
 // src/lib/speed/__tests__/view.test.ts
 import { describe, expect, it } from "vitest";
 import type { MemberExp } from "../party-exp";
-import type { Segment } from "../tracker";
+import { createTracker, feed, startManual, type Sample, type Segment, type Tracker } from "../tracker";
 import {
-  backCalcLine, draftParty, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, nextHints, partyKillLine, partyLevel, partySize, runBody, saveNote,
+  backCalcLine, draftParty, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnPartyChange,
   type HintState,
 } from "../view";
 
@@ -73,6 +73,108 @@ describe("hitterAfterRemove", () => {
     expect(hitterAfterRemove(3, 0)).toBe(2);
     expect(hitterAfterRemove(1, 2)).toBe(1);
     expect(hitterAfterRemove(0, 0)).toBe(0);
+  });
+});
+
+describe("manualControl", () => {
+  it("手動模式、分享中（認得到或認不到畫面都算）：還沒開始給「開始」", () => {
+    expect(manualControl("manual", false, true)).toBe("start");
+    expect(manualControl("manual", false, false)).toBeNull();
+  });
+
+  it("手動計時中一定給「停止」（畫面一時認不到也一樣）", () => {
+    expect(manualControl("manual", true, true)).toBe("stop");
+    expect(manualControl("manual", true, false)).toBe("stop");
+  });
+
+  it("自動模式沒有開始／停止", () => {
+    expect(manualControl("auto", false, true)).toBeNull();
+  });
+});
+
+describe("statusLine", () => {
+  const base = { status: "reading" as const, bar: true, exp: true, mode: "auto" as const, manualOn: false, running: false };
+
+  it("還沒分享、分享停了", () => {
+    expect(statusLine({ ...base, status: "idle" })).toBe("還沒分享畫面");
+    expect(statusLine({ ...base, status: "lost" })).toBe("分享停了，再按一次「分享遊戲畫面」");
+  });
+
+  it("認不到畫面、讀不到經驗", () => {
+    expect(statusLine({ ...base, status: "waiting", bar: false, exp: false })).toBe("認不到遊戲畫面：選楓之谷的視窗、別縮到最小");
+    expect(statusLine({ ...base, bar: true, exp: false })).toBe("讀不到經驗：視窗太小或被擋住，放大一點");
+  });
+
+  it("手動計時中認不到畫面：寫明還在計時，不像停了", () => {
+    const counting = { ...base, mode: "manual" as const, manualOn: true, running: true };
+    expect(statusLine({ ...counting, bar: false, exp: false })).toBe("手動計時中，認不到遊戲畫面：選楓之谷的視窗、別縮到最小");
+    expect(statusLine({ ...counting, exp: false })).toBe("手動計時中，讀不到經驗：視窗太小或被擋住，放大一點");
+    expect(statusLine({ ...counting, running: false })).toBe("手動計時中");
+    expect(statusLine(counting)).toBe("量中");
+  });
+
+  it("手動還沒按開始；自動等經驗動", () => {
+    expect(statusLine({ ...base, mode: "manual" })).toBe("按「開始」就開始算");
+    expect(statusLine(base)).toBe("等經驗一動就開始算");
+    expect(statusLine({ ...base, running: true })).toBe("量中");
+  });
+});
+
+describe("sameParty", () => {
+  it("勾不勾、隊友等級、誰在打，有一樣不同就算換了隊伍", () => {
+    expect(sameParty({ on: true, others: [44], hitter: 0 }, { on: true, others: [44], hitter: 0 })).toBe(true);
+    expect(sameParty({ on: true, others: [44], hitter: 0 }, { on: true, others: [44], hitter: 1 })).toBe(false);
+    expect(sameParty({ on: true, others: [44], hitter: 0 }, { on: true, others: [45], hitter: 0 })).toBe(false);
+    expect(sameParty({ on: true, others: [44, 30], hitter: 0 }, { on: true, others: [44], hitter: 0 })).toBe(false);
+    expect(sameParty({ on: true, others: [44], hitter: 0 }, { on: false, others: [44], hitter: 0 })).toBe(false);
+  });
+
+  it("算起來都是單練（沒勾、勾了但沒填隊友）：沒換", () => {
+    expect(sameParty({ on: false, others: [44], hitter: 1 }, { on: false, others: [], hitter: 0 })).toBe(true);
+    expect(sameParty({ on: false, others: [], hitter: 0 }, { on: true, others: [], hitter: 0 })).toBe(true);
+  });
+});
+
+describe("splitOnPartyChange", () => {
+  const solo = { on: false, others: [], hitter: 0 };
+  const duo = { on: true, others: [44], hitter: 0 };
+  const sample = (at: number, exp: number): Sample => ({ at, exp, level: 10, mapKey: "k", mapId: 1, job: null, party: 1 });
+  const toNext: number[] = [];
+  toNext[10] = 100_000;
+  /** 起點兩張一樣的，再一張多 500 */
+  function running(tracker: Tracker): Tracker {
+    let t = tracker;
+    for (const s of [sample(0, 1000), sample(1000, 1000), sample(2000, 1500)]) t = feed(t, s, toNext).tracker;
+    return t;
+  }
+
+  it("自動模式練到一半換隊伍：收掉這段（結束在最後一次變動），起點留著，等經驗再動才開新的一段", () => {
+    const t = running(createTracker("auto"));
+    expect(t.seg?.gained).toBe(0);
+    const t2 = feed(t, sample(3000, 1700), toNext).tracker;
+    const step = splitOnPartyChange(t2, solo, duo, 9000)!;
+    expect(step.closed).toMatchObject({ mode: "auto", startedAt: 2000, gained: 200, endedAt: 3000 });
+    expect(step.tracker.seg).toBeNull();
+    expect(step.tracker.last).toEqual(t2.last);
+    expect(step.tracker.mode).toBe("auto");
+  });
+
+  it("手動計時中換隊伍：收掉這段（結束在現在），馬上從現在開新的一段，計時不斷", () => {
+    const manual = startManual(running(createTracker("manual")), 2500);
+    const t = feed(manual, sample(3000, 1700), toNext).tracker;
+    const step = splitOnPartyChange(t, duo, { ...duo, hitter: 1 }, 9000)!;
+    expect(step.closed).toMatchObject({ mode: "manual", startedAt: 2500, endedAt: 9000, gained: 200 });
+    expect(step.tracker.manualOn).toBe(true);
+    expect(step.tracker.seg).toMatchObject({ mode: "manual", startedAt: 9000, gained: 0 });
+  });
+
+  it("隊伍沒換（算起來一樣）、或沒在練：不切", () => {
+    const t = running(createTracker("auto"));
+    expect(splitOnPartyChange(t, solo, { on: true, others: [], hitter: 0 }, 9000)).toBeNull();
+    expect(splitOnPartyChange(createTracker("auto"), solo, duo, 9000)).toBeNull();
+    const idleManual = running(createTracker("manual"));
+    expect(idleManual.seg).toBeNull();
+    expect(splitOnPartyChange(idleManual, solo, duo, 9000)).toBeNull();
   });
 });
 

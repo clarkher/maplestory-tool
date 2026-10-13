@@ -18,7 +18,9 @@ import {
   createTracker, durationMs, feed, levelHints, mainMap, minutesToLevel, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
   type Mode, type Sample, type Segment, type Step, type Tracker,
 } from "@/lib/speed/tracker";
-import { backCalcLine, jobName, levelPercent, nextHints, partySize, runBody, saveNote, type HintState, type SaveOutcome } from "@/lib/speed/view";
+import {
+  backCalcLine, jobName, levelPercent, manualControl, nextHints, partySize, runBody, saveNote, splitOnPartyChange, statusLine, type HintState, type SaveOutcome, type SpeedStatus,
+} from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
 import { MiniWindow, pipSupported } from "./MiniWindow";
 import { PartyCard } from "./PartyCard";
@@ -33,7 +35,6 @@ type Data = {
   toNext: number[];
   names: RawSpeedNames;
 };
-type Status = "idle" | "waiting" | "reading" | "lost";
 /** 小地圖標題穩定後的 key（餵給練功計算當 mapKey），跟這個 key 認出來的地圖 */
 type Place = { settle: TitleSettle; key: string | null; guess: MapGuess | null };
 
@@ -52,13 +53,15 @@ export function PracticeSpeed() {
   const [support, setSupport] = useState<"checking" | "ok" | "no">("checking");
   const [data, setData] = useState<Data | null>(null);
   const [failed, setFailed] = useState(false);
-  const [status, setStatus] = useState<Status>("idle");
+  const [status, setStatus] = useState<SpeedStatus>("idle");
   const [starting, setStarting] = useState(false);
   const [reading, setReading] = useState<FrameReading | null>(null);
   const [place, setPlace] = useState<Place>(NO_PLACE);
   const [tracker, setTracker] = useState<Tracker>(() => createTracker("auto"));
   const [lastSaved, setLastSaved] = useState<{ seg: Segment; note: string } | null>(null);
   const [board, setBoard] = useState<BoardState>({ kind: "loading" });
+  /** 存成功一次加 1：排行跟著重抓（沒存到的不用重抓） */
+  const [boardVersion, setBoardVersion] = useState(0);
   const [tab, setTab] = useState<"solo" | "party">("solo");
   const [mini, setMini] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -89,7 +92,9 @@ export function PracticeSpeed() {
     setTracker(trackerRef.current);
   }, [settingsLoaded]);
 
+  // 資料只在能用的瀏覽器才載（手機上用不到，不白抓那幾個檔）
   useEffect(() => {
+    if (support !== "ok") return;
     let cancelled = false;
     Promise.all([loadMaps(), loadMonsters(), loadItems(), loadTraining(), loadGuideCommon(), loadSpeedNames()]).then(
       ([maps, monsters, items, training, common, names]) => {
@@ -111,7 +116,7 @@ export function PracticeSpeed() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [support]);
 
   // 離開這頁就停止分享
   useEffect(() => () => capture.current?.stop(), []);
@@ -125,15 +130,15 @@ export function PracticeSpeed() {
     [saveSettings],
   );
 
-  /** 一段收掉了：夠長就存進排行，「上一段」那行寫結果 */
-  const save = useCallback(async (seg: Segment) => {
+  /** 一段收掉了：夠長就存進排行，「上一段」那行寫結果。party 是這段練的時候的隊伍（練到一半換隊伍會先收掉這段） */
+  const save = useCallback(async (seg: Segment, party: SpeedParty) => {
     if (seg.gained <= 0) return;
     const current = dataRef.current;
     const set = settingsRef.current;
     const where = mainMap(seg);
     const mapId = where.mapId ?? (where.key !== null ? knownMaps.current.get(where.key) ?? null : null);
     const body = runBody(seg, { mapId, mapName: mapId !== null && current ? mapName(current.maps, mapId) : null }, {
-      charId: set.charId, isPublic: set.isPublic, party: set.party, profileJob: profileJobRef.current, clientVer: CLIENT_VER,
+      charId: set.charId, isPublic: set.isPublic, party, profileJob: profileJobRef.current, clientVer: CLIENT_VER,
     });
     const note = (outcome: SaveOutcome) => setLastSaved({ seg, note: saveNote(outcome, body) });
     if (!shouldSave(seg)) return note({ kind: "short" });
@@ -141,17 +146,20 @@ export function PracticeSpeed() {
     try {
       const response = await fetch("/api/speed/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; error?: string };
-      note({ kind: "response", status: response.status, ok: response.ok && result.ok === true, ranked: result.ranked, error: result.error });
+      const ok = response.ok && result.ok === true;
+      note({ kind: "response", status: response.status, ok, ranked: result.ranked, error: result.error });
+      if (ok) setBoardVersion(version => version + 1);
     } catch {
       note({ kind: "network" });
     }
   }, []);
 
+  /** 換上新的練功狀態；有收掉的一段就存（隊伍沒給就是現在的隊伍） */
   const apply = useCallback(
-    (step: Step) => {
+    (step: Step, party: SpeedParty = settingsRef.current.party) => {
       trackerRef.current = step.tracker;
       setTracker(step.tracker);
-      if (step.closed) void save(step.closed);
+      if (step.closed) void save(step.closed, party);
     },
     [save],
   );
@@ -199,16 +207,19 @@ export function PracticeSpeed() {
     [apply, sendHints],
   );
 
-  // 每秒：自動模式 1 分鐘沒動就停；畫面上「練了多久」跟著走
+  // 每秒：自動模式 1 分鐘沒動就停；手動計時中畫面上「這段練了」跟著走（只有那時候用得到現在時間，其他時候不重畫）。
+  // 只看「在不在分享」：畫面一下認得到、一下認不到（waiting／reading 來回）不重設計時器
+  const sharing = status === "waiting" || status === "reading";
   useEffect(() => {
-    if (status === "idle") return;
+    if (!sharing) return;
     const timer = window.setInterval(() => {
       const at = Date.now();
-      setNow(at);
-      apply(tick(trackerRef.current, at));
+      const current = trackerRef.current;
+      if (current.mode === "manual" && current.seg) setNow(at);
+      apply(tick(current, at));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [status, apply]);
+  }, [sharing, apply]);
 
   const mapId = place.guess?.mapId ?? null;
   useEffect(() => {
@@ -227,7 +238,7 @@ export function PracticeSpeed() {
     return () => {
       cancelled = true;
     };
-  }, [mapId, lastSaved]);
+  }, [mapId, boardVersion]);
 
   const onStart = async () => {
     if (!data || starting) return;
@@ -270,7 +281,23 @@ export function PracticeSpeed() {
   };
 
   const closeMini = useCallback(() => setMini(false), []);
-  const onParty = useCallback((party: SpeedParty) => updateSettings({ party }), [updateSettings]);
+  /**
+   * 組隊改了：隊伍真的換了（勾不勾、隊友等級、誰在打）而且正在練，就先把這段照原本的隊伍收掉存起來，
+   * 一段紀錄只會有一種隊伍。手動計時中接著開新的一段，計時不斷。
+   */
+  const onParty = useCallback(
+    (next: SpeedParty) => {
+      const before = settingsRef.current.party;
+      const at = Date.now();
+      const split = splitOnPartyChange(trackerRef.current, before, next, at);
+      if (split) {
+        setNow(at);
+        apply(split, before);
+      }
+      updateSettings({ party: next });
+    },
+    [apply, updateSettings],
+  );
 
   const seg = tracker.seg;
   const per10 = seg ? tenMinuteExp(seg) : null;
@@ -288,15 +315,10 @@ export function PracticeSpeed() {
     return backCalcLine(backCalc(per10, mapPartyExp(row, data.monsterById, members).perKill), members.map(member => member.level));
   }, [members, per10, mapId, data]);
 
-  const statusText = useMemo(() => {
-    if (status === "idle") return "還沒分享畫面";
-    if (status === "lost") return "分享停了，再按一次「分享遊戲畫面」";
-    if (status === "waiting" || !reading?.bar) return "認不到遊戲畫面：選楓之谷的視窗、別縮到最小";
-    if (!reading.exp) return "讀不到經驗：視窗太小或被擋住，放大一點";
-    if (tracker.mode === "manual" && !tracker.manualOn) return "按「開始」就開始算";
-    if (!seg) return "等經驗一動就開始算";
-    return "量中";
-  }, [status, reading, tracker, seg]);
+  const statusText = statusLine({
+    status, bar: !!reading?.bar, exp: !!reading?.exp, mode: tracker.mode, manualOn: tracker.manualOn, running: seg !== null,
+  });
+  const manualButton = manualControl(tracker.mode, tracker.manualOn, sharing);
 
   if (support === "no") {
     return (
@@ -326,7 +348,6 @@ export function PracticeSpeed() {
     );
   }
 
-  const sharing = status === "waiting" || status === "reading";
   const percent = reading?.exp ? levelPercent(reading.exp.exp, reading.exp.level, data.toNext) : null;
   const perLevel = per10 !== null && seg && data.toNext[seg.level] ? (per10 / data.toNext[seg.level]) * 100 : null;
   const job = jobName(jobId);
@@ -362,20 +383,22 @@ export function PracticeSpeed() {
                   </button>
                 ))}
               </div>
-              {tracker.mode === "manual" && status === "reading" ? (
-                tracker.manualOn ? (
-                  <button type="button" onClick={() => apply(stopManual(trackerRef.current, Date.now()))} className={BUTTON_LINE}>
-                    停止
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => apply({ tracker: startManual(trackerRef.current, Date.now()), closed: null })}
-                    className="rounded-full bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]"
-                  >
-                    開始
-                  </button>
-                )
+              {manualButton === "stop" ? (
+                <button type="button" onClick={() => apply(stopManual(trackerRef.current, Date.now()))} className={BUTTON_LINE}>
+                  停止
+                </button>
+              ) : manualButton === "start" ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const at = Date.now();
+                    setNow(at);
+                    apply({ tracker: startManual(trackerRef.current, at), closed: null });
+                  }}
+                  className="rounded-full bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]"
+                >
+                  開始
+                </button>
               ) : null}
               {pipSupported() && status !== "idle" ? (
                 <button type="button" onClick={() => setMini(value => !value)} className={BUTTON_LINE}>

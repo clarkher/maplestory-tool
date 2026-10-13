@@ -120,6 +120,10 @@ describe("算出來的數字", () => {
   it("時間的字", () => {
     expect(durationText(12 * 60_000 + 5000)).toBe("12 分");
     expect(durationText(65 * 60_000)).toBe("1 小時 5 分");
+    // 不到 1 分鐘不寫「0 分」（看起來像沒在算）
+    expect(durationText(0)).toBe("不到 1 分");
+    expect(durationText(59_999)).toBe("不到 1 分");
+    expect(durationText(60_000)).toBe("1 分");
     expect(etaText(25.2)).toBe("約 26 分鐘");
     expect(etaText(190)).toBe("約 3 小時 10 分");
     expect(etaText(60 * 30)).toBe("超過 24 小時");

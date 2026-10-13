@@ -1,7 +1,8 @@
 // src/lib/speed/format.ts
-/** 「12 分」「1 小時 5 分」（無條件捨去到分） */
+/** 「12 分」「1 小時 5 分」（無條件捨去到分）；不到 1 分鐘寫「不到 1 分」（「0 分」看起來像沒在算） */
 export function durationText(ms: number): string {
   const minutes = Math.floor(ms / 60_000);
+  if (minutes < 1) return "不到 1 分";
   const hours = Math.floor(minutes / 60);
   return hours ? `${hours} 小時 ${minutes % 60} 分` : `${minutes} 分`;
 }
