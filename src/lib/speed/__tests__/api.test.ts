@@ -451,14 +451,14 @@ describe("資料庫（假的）：排行", () => {
 
   const soloRaw = (patch: Record<string, unknown> = {}) => ({
     char_id: "芙莉蓮熊芙莉", job: 220, level: 46, party_size: 1, exp_per_10min: "100000", kills_per_10min: 1049.6, duration_sec: 905,
-    created_at: new Date("2026-10-13T10:00:00.000Z"), show: true, ...patch,
+    created_at: new Date("2026-10-13T10:00:00.000Z"), best_public: true, latest_public: true, ...patch,
   });
   const partyRaw = (patch: Record<string, unknown> = {}) => ({ ...soloRaw(), party_size: 3, kills_per_10min: 1866.6, ...patch });
 
   it("單練、組隊各一份；成績整理成頁面要的樣子", async () => {
     const { GET } = await load();
     db.reply = text => {
-      if (text.includes("party_size = 1")) return [soloRaw(), soloRaw({ char_id: "小明", show: false, job: null, exp_per_10min: 90000, kills_per_10min: null, duration_sec: 600 })];
+      if (text.includes("party_size = 1")) return [soloRaw(), soloRaw({ char_id: "小明", latest_public: false, job: null, exp_per_10min: 90000, kills_per_10min: null, duration_sec: 600 })];
       if (text.includes("party_size > 1")) return [partyRaw()];
       return [];
     };
@@ -471,6 +471,44 @@ describe("資料庫（假的）：排行", () => {
       { name: null, job: null, level: 46, expPer10: 90000, minutes: 10, date: "2026-10-13", partySize: 1, kills: null },
     ]);
     expect(body.party).toEqual([{ name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 3, kills: 1866.6 }]);
+  });
+
+  // 掛名要「上榜那一筆」跟「這個角色最新的一筆」都勾公開（10/13 使用者選 B）：
+  // 沒有登入，任何人都能用別人的角色 ID 送一筆；這樣別人只能把你藏起來、不能幫你翻開
+  it.each([
+    ["(a) 上榜那筆公開、最新一筆也公開：顯示名字", true, true, "芙莉蓮熊芙莉"],
+    ["(b) 上榜那筆不公開、最新一筆公開（有人用這個 ID 另外送了一筆公開的）：匿名", false, true, null],
+    ["(c) 上榜那筆公開、最新一筆不公開（本人或別人後來藏起來）：匿名", true, false, null],
+    ["(d) 兩筆都不公開：匿名", false, false, null],
+  ])("掛名：%s", async (_label, bestPublic, latestPublic, expectedName) => {
+    const { GET } = await load();
+    db.reply = text => {
+      if (text.includes("party_size = 1")) return [soloRaw({ best_public: bestPublic, latest_public: latestPublic })];
+      if (text.includes("party_size > 1")) return [partyRaw({ best_public: bestPublic, latest_public: latestPublic })];
+      return [];
+    };
+    const body = (await (await GET(get("?map=105040303"))).json()) as { solo: BoardRow[]; party: BoardRow[] };
+    expect(body.solo.map(row => row.name)).toEqual([expectedName]);
+    expect(body.party.map(row => row.name)).toEqual([expectedName]);
+    // 匿名只是不給名字，成績本身照給
+    expect(body.solo[0]).toMatchObject({ level: 46, expPer10: 100000, partySize: 1 });
+    expect(body.party[0]).toMatchObject({ level: 46, kills: 1866.6, partySize: 3 });
+  });
+
+  it("兩種旗標都從資料庫的同一批資料帶出來：上榜那筆的 is_public、最新一筆的 is_public", async () => {
+    const { GET } = await load();
+    await GET(get("?map=105040303"));
+    const queries = db.calls.filter(call => call.text.startsWith("WITH"));
+    expect(queries).toHaveLength(2);
+    for (const query of queries) {
+      // best 那一層把上榜那筆的 is_public 選出來（改名 best_public，跟最新一筆的分開）
+      expect(query.text).toMatch(/SELECT DISTINCT ON \(char_id\) id, char_id, is_public AS best_public, /);
+      // latest 那一層是每個前 10 名角色最新的一筆（created_at DESC, id DESC 取第一筆）
+      expect(query.text).toMatch(/latest AS \( SELECT DISTINCT ON \(char_id\) char_id, is_public FROM speed_runs WHERE env = \? AND char_id IN \(SELECT char_id FROM leaders\) ORDER BY char_id, created_at DESC, id DESC \)/);
+      expect(query.text).toContain("SELECT leaders.*, latest.is_public AS latest_public FROM leaders JOIN latest USING (char_id)");
+      // 不再有單看最新一筆的 show
+      expect(query.text).not.toContain("AS show");
+    }
   });
 
   it("日期用台灣時間算（半夜打的不會算成前一天）；資料庫給字串也行", async () => {
