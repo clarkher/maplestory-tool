@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { ocrImage, normalize } from "./ocr.mjs";
+import { ocrImage, normalize, decodeConsole } from "./ocr.mjs";
 import { squash } from "./match.mjs";
 
 test("normalize：PowerShell 把只有一個元素的陣列攤平時補回來", () => {
@@ -14,13 +14,35 @@ test("normalize：PowerShell 把只有一個元素的陣列攤平時補回來", 
   assert.deepEqual(normalize({ width: 1, height: 1, meanLuma: 0, stdLuma: 0, lines: null }).lines, []);
 });
 
+test("decodeConsole：UTF-8 照讀，繁中主控台（Big5）的位元組也讀得出來", () => {
+  assert.equal(decodeConsole(Buffer.from("錯誤 abc", "utf8")), "錯誤 abc");
+  assert.equal(decodeConsole(Buffer.from([0xa4, 0xa4, 0xa4, 0xe5])), "中文");
+  assert.equal(decodeConsole("已經是字串"), "已經是字串");
+});
+
+test("放大倍數不是正數就直接擋（哪個系統都一樣）", async () => {
+  for (const scale of [0, -1, NaN, Infinity, "2"]) {
+    await assert.rejects(ocrImage("x.png", { scale }), /文字辨識的放大倍數要是正數/, `scale=${String(scale)}`);
+  }
+});
+
+test("非 Windows：直接 reject，講明只能在 Windows 跑", { skip: process.platform === "win32" && "只在非 Windows 驗" }, async () => {
+  await assert.rejects(ocrImage("x.png"), /只能在 Windows/);
+});
+
 const WIN = { skip: process.platform !== "win32" && "文字辨識只在 Windows 跑" };
 
-/** 用系統字型畫一張假的價格圖（10/13 手動驗過的同一招）；腳本要有 BOM，PowerShell 5.1 才讀得對中文 */
+/** 寫一支有 BOM 的 PowerShell 腳本再跑（PowerShell 5.1 沒 BOM 會把中文讀壞） */
+function runPs1(dir, body) {
+  const ps1 = path.join(dir, `gen-${Math.random().toString(36).slice(2)}.ps1`);
+  fs.writeFileSync(ps1, "\uFEFF" + body, "utf8");
+  execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1]);
+}
+
+/** 用系統字型畫一張假的價格圖（10/13 手動驗過的同一招） */
 function makeSynthetic(dir) {
   const png = path.join(dir, "synthetic.png");
-  const ps1 = path.join(dir, "make.ps1");
-  fs.writeFileSync(ps1, "\uFEFF" + `
+  runPs1(dir, `
 Add-Type -AssemblyName System.Drawing
 $bmp = New-Object System.Drawing.Bitmap 520,120
 $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -29,14 +51,34 @@ $f = New-Object System.Drawing.Font("Microsoft JhengHei",11)
 $g.DrawString("市價",$f,[System.Drawing.Brushes]::White,8,8)
 $g.DrawString("手套攻擊卷軸10%     1,320,000     2026/10/12",$f,[System.Drawing.Brushes]::White,8,45)
 $bmp.Save("${png}"); $g.Dispose(); $bmp.Dispose()
-`, "utf8");
-  execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps1]);
+`);
   return png;
 }
 
-test("Windows：讀得出數字跟日期、亮度統計正常", WIN, async t => {
+/** 畫一張純色圖（黑畫面、超大圖用） */
+function makeSolid(dir, name, w, h, rgb = [0, 0, 0]) {
+  const png = path.join(dir, name);
+  runPs1(dir, `
+Add-Type -AssemblyName System.Drawing
+$bmp = New-Object System.Drawing.Bitmap ${w},${h}
+$g = [System.Drawing.Graphics]::FromImage($bmp)
+$g.Clear([System.Drawing.Color]::FromArgb(${rgb.join(",")}))
+$bmp.Save("${png}"); $g.Dispose(); $bmp.Dispose()
+`);
+  return png;
+}
+
+/** 這個行程留在暫存資料夾的辨識檔（結果 json、放大暫存圖）；跑完應該一個都不剩 */
+const leftovers = () => fs.readdirSync(os.tmpdir()).filter(f => f.startsWith(`maplebook-ocr-${process.pid}-`));
+
+function tmpDir(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "price-ocr-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+test("Windows：讀得出數字跟日期、亮度統計正常", WIN, async t => {
+  const dir = tmpDir(t);
   const o = await ocrImage(makeSynthetic(dir));
   assert.equal(o.width, 520);
   const all = squash(o.lines.map(l => l.text).join(" "));
@@ -44,12 +86,67 @@ test("Windows：讀得出數字跟日期、亮度統計正常", WIN, async t => 
   assert.match(all, /2026\/10\/12/);
   assert.ok(o.lines[0].words[0].w > 0);
   assert.ok(o.meanLuma > 30 && o.stdLuma > 1, "不是黑畫面");
+  assert.deepEqual(leftovers(), []);
 });
 
 test("Windows：放大兩倍讀，位置換回原圖座標", WIN, async t => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "price-ocr-"));
-  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const dir = tmpDir(t);
   const o = await ocrImage(makeSynthetic(dir), { scale: 2 });
   const xs = o.lines.flatMap(l => l.words).map(w => w.x + w.w);
+  assert.ok(xs.length > 0, "有讀到字");
   assert.ok(Math.max(...xs) <= 520, "座標不超出原圖寬");
+  assert.deepEqual(leftovers(), [], "放大用的暫存圖要清掉");
+});
+
+test("Windows：純黑的圖讀得完，亮度很低、沒有字", WIN, async t => {
+  const dir = tmpDir(t);
+  const o = await ocrImage(makeSolid(dir, "black.png", 400, 200));
+  assert.equal(o.width, 400);
+  assert.ok(o.meanLuma < 30, `meanLuma=${o.meanLuma}`);
+  assert.ok(o.stdLuma < 6, `stdLuma=${o.stdLuma}`);
+  assert.equal(o.lines.length, 0);
+});
+
+test("Windows：斜線路徑、相對路徑都讀得到", WIN, async t => {
+  const dir = tmpDir(t);
+  const png = makeSynthetic(dir);
+  for (const p of [png.replaceAll(path.sep, "/"), path.relative(process.cwd(), png)]) {
+    const o = await ocrImage(p);
+    assert.match(squash(o.lines.map(l => l.text).join(" ")), /2026\/10\/12/, p);
+  }
+});
+
+test("Windows：找不到圖檔 → 看得懂的中文原因，沒有亂碼", WIN, async t => {
+  const dir = tmpDir(t);
+  await assert.rejects(ocrImage(path.join(dir, "nope.png")), err => {
+    assert.match(err.message, /文字辨識失敗/);
+    assert.match(err.message, /nope\.png/);
+    assert.doesNotMatch(err.message, /\uFFFD/);
+    return true;
+  });
+  assert.deepEqual(leftovers(), []);
+});
+
+test("Windows：不是圖片的檔案 → 講圖檔讀不開，不是「記憶體不足」", WIN, async t => {
+  const dir = tmpDir(t);
+  const fake = path.join(dir, "fake.png");
+  fs.writeFileSync(fake, "這不是圖片", "utf8");
+  await assert.rejects(ocrImage(fake), err => {
+    assert.match(err.message, /^文字辨識失敗：圖檔讀不開/);
+    assert.match(err.message, /fake\.png/);
+    assert.doesNotMatch(err.message, /�|記憶體/);
+    return true;
+  });
+  assert.deepEqual(leftovers(), []);
+});
+
+test("Windows：辨識本身失敗（圖太寬，放大後超過上限）→ 中文原因，放大暫存圖不外漏", WIN, async t => {
+  const dir = tmpDir(t);
+  const png = makeSolid(dir, "wide.png", 5200, 200, [40, 44, 60]);
+  await assert.rejects(ocrImage(png, { scale: 2 }), err => {
+    assert.match(err.message, /^文字辨識失敗：./);
+    assert.doesNotMatch(err.message, /\uFFFD/);
+    return true;
+  });
+  assert.deepEqual(leftovers(), [], "失敗了也要清掉暫存圖跟結果檔");
 });
