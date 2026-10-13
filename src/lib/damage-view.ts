@@ -627,6 +627,12 @@ export function tenMinuteExpText(value: number): string {
   return Math.round(Math.max(0, value)).toLocaleString();
 }
 
+/** 「10 分鐘約 26,250 經驗，Lv.50 升級經驗的 3.7%」；滿等沒有下一級就不寫 %（計算機結果卡、首頁照傷害算的推薦同一句） */
+export function tenMinuteText(value: TenMinute, level: number): string {
+  const head = `10 分鐘約 ${tenMinuteExpText(value.exp)} 經驗`;
+  return value.percent === null ? head : `${head}，Lv.${level} 升級經驗的 ${levelPercentText(value.percent)}`;
+}
+
 /** 占這一級幾 %：10 以上取整、以下一位小數、太小寫「不到 0.1%」 */
 export function levelPercentText(percent: number): string {
   if (percent >= 10) return `${Math.round(percent)}%`;

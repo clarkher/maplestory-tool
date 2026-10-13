@@ -17,6 +17,7 @@ import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
+import { CalcPickCard } from "./CalcPickCard";
 import { CharacterBar } from "./CharacterBar";
 import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
@@ -214,6 +215,9 @@ export function RouteHome() {
           ) : (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
           )}
+
+          {/* 照傷害算的推薦（v0.92 使用者選 1A）：主推卡下面多一張，自己載技能表、裝備表；攻略還在載就等它 */}
+          {profile.job > 0 ? <CalcPickCard job={profile.job} level={profile.level} home={data} guides={guides} guidesReady={guideStatus !== "loading"} /> : null}
 
           {/* 換職業或等級時重新掛載，「還有 N 個任務」的展開狀態不帶到別的角色 */}
           <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} questNames={questNames} />
