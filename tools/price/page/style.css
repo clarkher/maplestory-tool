@@ -34,4 +34,7 @@ tbody tr { cursor: pointer; } tbody tr:hover { background: var(--current); }
 .review-card canvas { max-width: 100%; border: 1px solid var(--line); border-radius: 4px; display: block; margin: 8px 0; }
 .review-card label { margin-right: 12px; } .review-card input { width: 9em; font: inherit; }
 svg text { fill: var(--muted); font-size: 12px; }
-@media (max-width: 600px) { .list .name { min-width: 0; } th:nth-child(5), td:nth-child(5) { display: none; } }
+button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+/* 窄螢幕（手機）：留「筆數」「屬性」，收掉「最後成交」「截圖」。用 class 不用第幾欄，兩張表才不會互相撞 */
+@media (max-width: 600px) { .list .name { min-width: 0; } .hide-narrow { display: none; } }
