@@ -49,7 +49,8 @@ export const PERCENT_TOLERANCE = 0.06;
 
 /**
  * 哪一級「經驗 ÷ 升級要的經驗」跟畫面的 % 對得上。
- * hints：已經知道的等級（現在這級、下一級）。有給就只認裡面的；沒給就要剛好一級對得上才認。
+ * hints：已經知道的等級（現在這級、下一級）。有給就只在裡面找；沒給就在全部等級裡找。
+ * 不管有沒有給，都要「剛好一級」對得上才認：兩級以上都對得上（例如剛升級、經驗很小）分不出來，回 null，不挑較低的。
  */
 export function levelFor(exp: number, percent: number, toNext: number[], hints: number[]): number | null {
   const fits: number[] = [];
@@ -58,23 +59,29 @@ export function levelFor(exp: number, percent: number, toNext: number[], hints: 
     if (!need || exp >= need) continue;
     if (Math.abs((exp / need) * 100 - percent) <= PERCENT_TOLERANCE) fits.push(level);
   }
-  if (hints.length) return fits.find(level => hints.includes(level)) ?? null;
-  return fits.length === 1 ? fits[0] : null;
+  const candidates = hints.length ? fits.filter(level => hints.includes(level)) : fits;
+  return candidates.length === 1 ? candidates[0] : null;
 }
 
 /**
- * readExpText 的字串 → 經驗、%、等級。看最後一組：有「[」照它切；沒有就試最後 4 位、3 位是 %（小數兩位），
- * 哪一種在經驗表對得上就用哪種。都對不上回 null（這一張丟掉，下一秒再讀）。
+ * readExpText 的字串 → 經驗、%、等級。只看最後一組。
+ * 有「[」就只照它切（括號切不出來、或經驗有前導零，就是 null，不改用最後幾位硬湊——硬湊會湊出另一個自洽的錯答案）。
+ * 沒有「[」才試最後 4 位、3 位是 %（小數兩位），哪一種在經驗表對得上就用哪種。
+ * 遊戲不會顯示前導零的經驗，有就丟掉（單獨一個 0 除外）。都對不上回 null（這一張丟掉，下一秒再讀）。
  */
 export function parseExp(text: string, toNext: number[], hints: number[] = []): ExpReading | null {
   const group = text.trim().split(/\s+/).pop() ?? "";
   const tries: Array<[string, string]> = [];
   const bracket = group.indexOf("[");
-  if (bracket > 0) tries.push([group.slice(0, bracket).replace(/\D/g, ""), group.slice(bracket + 1).replace(/\D/g, "")]);
-  const digits = group.replace(/\D/g, "");
-  for (const size of [4, 3]) if (digits.length > size) tries.push([digits.slice(0, -size), digits.slice(-size)]);
+  if (bracket >= 0) {
+    if (bracket > 0) tries.push([group.slice(0, bracket).replace(/\D/g, ""), group.slice(bracket + 1).replace(/\D/g, "")]);
+  } else {
+    const digits = group.replace(/\D/g, "");
+    for (const size of [4, 3]) if (digits.length > size) tries.push([digits.slice(0, -size), digits.slice(-size)]);
+  }
   for (const [expDigits, percentDigits] of tries) {
     if (!expDigits || percentDigits.length < 3 || percentDigits.length > 4 || expDigits.length > 12) continue;
+    if (expDigits.length > 1 && expDigits[0] === "0") continue;
     const exp = Number(expDigits);
     const percent = Number(percentDigits) / 100;
     if (percent >= 100) continue;
