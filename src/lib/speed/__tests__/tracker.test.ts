@@ -1,7 +1,7 @@
 // src/lib/speed/__tests__/tracker.test.ts
 import { describe, expect, it } from "vitest";
 import {
-  createTracker, durationMs, feed, mainMap, MAX_STEP_SHARE, minutesToLevel, MISS_LIMIT, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
+  createTracker, durationMs, feed, mainMap, MAX_DEATH_SHARE, MAX_STEP_SHARE, minutesToLevel, MISS_LIMIT, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
   type Sample, type Tracker,
 } from "../tracker";
 import { durationText, etaText } from "../format";
@@ -228,5 +228,99 @@ describe("擋不合理的跳動、認錯太久自己重來（10/13）", () => {
     expect(next.misses).toBe(0);
     expect(next.last).toBe(t.last);
     expect(next.pending).toBe(t.pending);
+  });
+
+  it("單次大額進帳（打王、任務獎勵，超過一級 10%）：被丟掉、自癒重來後也不補算，不會重複算", () => {
+    // 5100 → 8100（+3000，超過上限 1000），之後停在 8100：每張都對不上，第 10 張丟掉起點，11 張當新起點
+    const jumped = Array.from({ length: MISS_LIMIT }, (_, i) => S(3000 + i * 1000, 8100));
+    let t = run(started(), jumped.slice(0, MISS_LIMIT - 1)).t;
+    expect(t.seg!.gained).toBe(0);
+    t = run(t, jumped.slice(MISS_LIMIT - 1)).t;
+    expect(t.last).toBeNull();
+    expect(t.seg!.gained).toBe(0);
+    t = run(t, [S(13_000, 8100)]).t;
+    expect(t.last).toMatchObject({ exp: 8100 });
+    expect(t.seg!.gained).toBe(0);
+    t = run(t, [S(14_000, 8200)]).t;
+    expect(t.seg).toMatchObject({ gained: 100, exp: 8200 });
+  });
+
+  it("往下掉超過 20%（5200→2200）：當認錯，不扣、不記死亡", () => {
+    const base = run(started(), [S(3000, 5200)]).t;
+    const t = run(base, [S(4000, 2200)]).t;
+    expect(t.seg).toMatchObject({ gained: 100, deaths: 0 });
+    expect(t.last).toMatchObject({ exp: 5200 });
+    expect(t.misses).toBe(1);
+  });
+
+  it("上限常數：往下掉最多算到 20%", () => {
+    expect(MAX_DEATH_SHARE).toBe(0.2);
+  });
+
+  it("真的死掉（掉 10%）：照扣、記一次；剛好 20% 還算死亡、多一點點就當認錯", () => {
+    const base = run(started(), [S(3000, 5200)]).t;
+    const died = run(base, [S(4000, 4200)]).t;
+    expect(died.seg).toMatchObject({ gained: -900, deaths: 1 });
+    expect(died.misses).toBe(0);
+    const edge = run(base, [S(4000, 3200)]).t;
+    expect(edge.seg).toMatchObject({ gained: -1900, deaths: 1 });
+    const over = run(base, [S(4000, 3199)]).t;
+    expect(over.seg).toMatchObject({ gained: 100, deaths: 0 });
+    expect(over.misses).toBe(1);
+  });
+
+  it("連續 10 張都掉 25%：丟掉起點重來，這段的經驗不變，之後接著算", () => {
+    let t = run(started(), [S(3000, 5200)]).t;
+    const drops = Array.from({ length: MISS_LIMIT }, (_, i) => S(4000 + i * 1000, 2700));
+    t = run(t, drops.slice(0, MISS_LIMIT - 1)).t;
+    expect(t.last).toMatchObject({ exp: 5200 });
+    expect(t.seg).toMatchObject({ gained: 100, deaths: 0 });
+    t = run(t, drops.slice(MISS_LIMIT - 1)).t;
+    expect(t.last).toBeNull();
+    expect(t.pending).toMatchObject({ exp: 2700 });
+    expect(t.seg).toMatchObject({ gained: 100, deaths: 0 });
+    t = run(t, [S(14_000, 2700)]).t;
+    expect(t.last).toMatchObject({ exp: 2700 });
+    expect(t.seg).toMatchObject({ gained: 100, deaths: 0 });
+    t = run(t, [S(15_000, 2800)]).t;
+    expect(t.seg).toMatchObject({ gained: 200, deaths: 0 });
+  });
+});
+
+describe("地圖鍵（讀不到的圖不亂記）", () => {
+  const noMap = { mapKey: null, mapId: null };
+
+  it("一開始讀不到地圖的那段，看到第一個有地圖的就補上；之後換別張圖就收掉", () => {
+    let r = run(createTracker("auto"), [S(0, 1000, 10, noMap), S(1000, 1000, 10, noMap), S(2000, 1100, 10, noMap)]);
+    expect(r.t.seg).toMatchObject({ mapKey: null, startedAt: 2000 });
+    r = run(r.t, [S(3000, 1200)]);
+    expect(r.closed).toHaveLength(0);
+    expect(r.t.seg).toMatchObject({ mapKey: "m1", gained: 100 });
+    r = run(r.t, [S(4000, 1300, 10, { mapKey: "m2", mapId: 2 })]);
+    expect(r.closed).toHaveLength(1);
+    expect(r.closed[0]).toMatchObject({ mapKey: "m1", gained: 100 });
+    expect(r.t.seg).toMatchObject({ mapKey: "m2", startedAt: 4000, gained: 0 });
+  });
+
+  it("手動的一段一開始讀不到地圖，也補上第一個有地圖的", () => {
+    let t = run(createTracker("manual"), [S(0, 1000, 10, noMap), S(1000, 1000, 10, noMap)]).t;
+    t = startManual(t, 1500);
+    expect(t.seg!.mapKey).toBeNull();
+    t = run(t, [S(2000, 1100)]).t;
+    expect(t.seg).toMatchObject({ mapKey: "m1", gained: 100 });
+    expect(mainMap(stopManual(t, 3000).closed!)).toEqual({ key: "m1", mapId: 1 });
+  });
+
+  it("讀不到地圖的那幾張，經驗照算但不記到哪張圖（不用 ? 當鍵）", () => {
+    const { t } = run(createTracker("auto"), [S(0, 1000, 10, noMap), S(1000, 1000, 10, noMap), S(2000, 1100, 10, noMap), S(3000, 1200, 10, noMap), S(4000, 1300)]);
+    expect(t.seg!.gained).toBe(200);
+    expect(Object.keys(t.seg!.byMap)).toEqual(["m1"]);
+    expect(t.seg!.byMap.m1).toEqual({ mapId: 1, gained: 100 });
+  });
+
+  it("整段都沒有地圖：byMap 是空的，主要地圖回 null", () => {
+    const { t } = run(createTracker("auto"), [S(0, 1000, 10, noMap), S(1000, 1000, 10, noMap), S(2000, 1100, 10, noMap), S(3000, 1200, 10, noMap)]);
+    expect(t.seg).toMatchObject({ gained: 100, mapKey: null, byMap: {} });
+    expect(mainMap(t.seg!)).toEqual({ key: null, mapId: null });
   });
 });
