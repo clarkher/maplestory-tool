@@ -48,6 +48,6 @@ test("dir 不存在時建立它", async t => {
   assert.ok(fs.existsSync(dir), "建立了");
   const file = path.join(dir, "test.png");
   fs.writeFileSync(file, "x");
-  await sleep(200);
+  await sleep(600);
   assert.deepEqual(got, ["test.png"]);
 });

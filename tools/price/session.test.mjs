@@ -32,7 +32,7 @@ function setup(t, byName) {
 const page = [["市", "價"]];
 const glove = p => ["手", "套", "攻", "擊", "卷", "軸", "10", "%", p, "2026/10/12"];
 
-test("複製下一件照清單順序，查完的跳過，全部查完回 null", async t => {
+test("複製下一件照清單順序，查完的跳過，繞回還沒查的", async t => {
   const { s, shot } = setup(t, { "a.png": [...page, glove("1,320,000")] });
   assert.equal(s.copyNext(), "手套攻擊卷軸10%");
   await s.handleShot(shot("a.png"));
@@ -40,9 +40,6 @@ test("複製下一件照清單順序，查完的跳過，全部查完回 null", 
   for (let i = 0; i < 3; i++) s.copyNext();
   assert.equal(s.state().current, "寵物速度卷軸100%");
   assert.equal(s.copyNext(), "手套攻擊卷軸60%", "繞回去還沒查的，查完的 10% 跳過");
-  // 全部查完回 null（新增 assertion）
-  for (let i = 0; i < 100; i++) if (s.copyNext() === null) break;
-  assert.equal(s.copyNext(), null, "全部查完回 null");
 });
 
 test("截圖對到剛複製那件：存進資料、搬到已記價", async t => {
@@ -144,7 +141,12 @@ test("OCR 最多一次一張（不並行）", async t => {
 });
 
 test("所有件都有 ok 截圖時 copyNext 回 null", async t => {
-  const { s, shot, dataFile } = setup(t, { "a.png": [...page, glove("1,000,000")] });
+  const items = setup(t, {}).s.state().items;
+  const fakeMap = {};
+  for (const item of items) {
+    fakeMap[`${item.name}.png`] = [...page, [item.name, "1,000,000", "2026/10/12"]];
+  }
+  const { s, shot, dataFile } = setup(t, fakeMap);
   for (const item of s.state().items) {
     s.copyNext();
     await s.handleShot(shot(`${item.name}.png`));
@@ -154,21 +156,26 @@ test("所有件都有 ok 截圖時 copyNext 回 null", async t => {
 });
 
 test("只有目前件未完成時 copyNext 回該件", async t => {
-  const { s, shot, dataFile } = setup(t, { "retry.png": [...page, ["讀", "不", "到"]] });
-  // 完成除了手套10%以外的所有項
+  const items = setup(t, {}).s.state().items;
+  const fakeMap = { "retry.png": [...page, ["讀", "不", "到"]] };
+  for (const item of items) {
+    if (item.name !== "手套攻擊卷軸10%") {
+      fakeMap[`${item.name}.png`] = [...page, [item.name, "1,000,000", "2026/10/12"]];
+    }
+  }
+  const { s, shot, dataFile } = setup(t, fakeMap);
   s.copyNext(); // 手套 10%
   await s.handleShot(shot("retry.png")); // 讀不到，手套 10% 仍未完成
   // 把其他所有項都完成
   const allItems = s.state().items;
   for (let i = 1; i < allItems.length; i++) {
     s.copyNext();
-    await s.handleShot(shot(`dummy-${i}.png`));
+    await s.handleShot(shot(`${allItems[i].name}.png`));
   }
   // 現在只有手套 10% 未完成
-  const current = s.state().current;
-  assert.equal(current, "手套攻擊卷軸10%", "當前項應是手套10%");
-  const result = s.copyNext();
-  assert.equal(result, current, "沒有其他未完成項時回本身");
+  assert.equal(s.copyNext(), "手套攻擊卷軸10%", "沒有其他未完成項時回本身");
+  assert.equal(s.copyNext(), "手套攻擊卷軸10%", "再呼一次仍回同項");
+  assert.equal(s.state().current, "手套攻擊卷軸10%", "current 未改變");
 });
 
 test("截圖搬檔失敗時：存成 ok、標 moveFailed、理由加註、檔案留原地、存檔用原檔名", async t => {
