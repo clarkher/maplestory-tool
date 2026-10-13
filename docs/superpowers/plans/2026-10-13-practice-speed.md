@@ -3493,3 +3493,161 @@ Expected: `{ ok: true, ranked: true }`；`/api/speed/board?map=105040303` 的 `s
 - [ ] **Step 7: 刪分支、寫記憶**
 
 刪遠端跟本地 feat 分支。寫記憶 `maplebook-practice-speed.md`（拍板 1～6、等級反推、樣板怎麼重產、資料庫怎麼開、小地圖待無損截圖），MEMORY.md 加一行。
+
+---
+
+## 10/13 改動（使用者中途拍板：組隊改玩家自己填）
+
+spec「10/13 改：組隊改玩家自己填」是這一節的依據。下面幾個 task 的內容**以這一節為準**，跟前面的寫法衝突時照這裡。
+
+### Task 7 改：readFrame 不再讀組隊
+
+- 刪掉 `src/lib/speed/read-party.ts`、`src/lib/speed/__tests__/read-party.test.ts`（`git rm`）。
+- `FrameReading` 拿掉 `party`：`{ bar: boolean; exp: ExpReading | null; job: number | null; title: TitleReading | null }`；`readFrame` 不呼叫 readParty。
+- Task 7 的測試照改：基準截圖不檢查 party；「不是遊戲畫面」那題期望 `{ bar: false, exp: null, job: null, title: null }`。
+
+### Task 8 加：tracker 擋不合理的跳動、認錯太久自己重來
+
+Task 3 的實測：解析經驗時，有提示 [L, L+1] 仍有 0.41% 會把一個數字認錯的讀數當成 L+1 級（等於一秒拿了半級經驗）。tracker 要擋：
+
+```ts
+/** 一張讀數最多只能比上一張多「這級升級經驗的 10%」（隔越久放越寬：每 10 秒多一份）；超過當成認錯 */
+export const MAX_STEP_SHARE = 0.1;
+/** 連續這麼多張對不上（認錯、跳級、太大的跳動），就丟掉起點重來 */
+export const MISS_LIMIT = 10;
+```
+
+- `Tracker` 多一個欄位 `misses: number`（`createTracker` 給 0；`switchMode` 保留 last/pending、misses 歸 0）。
+- `feed`：`gainBetween` 回 null，或 `gain.gain > MAX_STEP_SHARE * (toNext[t.last.level] ?? 0) * Math.max(1, (sample.at - t.last.at) / 10_000)` → 當成一次 miss：`misses + 1`；到 `MISS_LIMIT` 時 `{ ...t, last: null, pending: sample, misses: 0 }`（進行中的那段 `seg` 留著，之後的讀數接著算）；沒到就只更新 misses、其他不動。接受的讀數把 misses 歸 0。
+- 加測試：
+  - 一秒內從 50% 跳到下一級 30%（假的升級）→ 不算、gained 不變；
+  - 99% 升到下一級 0.5% → 照算（真的升級）；
+  - 連續 10 張對不上 → `last` 變 null、下一張跟它同等級的讀數當新起點，`seg.gained` 保留；
+  - 隔 60 秒的一次跳動上限放寬到 6 倍（不會被當成認錯）。
+- 原本 Task 8 的測試都要照樣過（都在上限內，Task 3 檢查過）。
+
+### 新 Task 8b：組隊經驗公式（純函式）
+
+**Files:** Create `src/lib/speed/party-exp.ts`；Test `src/lib/speed/__tests__/party-exp.test.ts`
+
+**Interfaces（Produces）：**
+- `PARTY_BONUS: number[]`（索引＝有效隊員人數，0～6）
+- `type Member = { level: number; hitter: boolean }`
+- `type MemberExp = { level: number; hitter: boolean; effective: boolean; white: number; bonus: number; total: number }`
+- `isEffective(level, hitterLevel, mobLevel): boolean`
+- `killExp(mobExp, mobLevel, members): MemberExp[]`（順序跟 members 一樣）
+- `type MapPartyExp = { perKill: number[]; mobs: Array<{ id: number; spawns: number; exp: MemberExp[] }> }`
+- `mapPartyExp(row: TrainingRow, monsters: Map<number, Monster>, members): MapPartyExp`（perKill[i]＝第 i 個隊員在這張圖平均每隻拿多少，照刷怪點數加權）
+- `backCalc(myPer10, perKill, self = 0): { kills: number; per10: number[] } | null`
+- `membersOf(selfLevel, party: { on: boolean; others: number[]; hitter: number }): Member[]`（沒勾組隊＝只有自己、自己打；hitter 0＝自己，i≥1＝others[i−1]）
+
+```ts
+// src/lib/speed/party-exp.ts
+import type { Monster, TrainingRow } from "@/lib/types";
+
+/**
+ * 組隊經驗（spec「10/13 改」）。出處：Artale 組隊經驗計算機 https://artale-tools.archie-design.app/tools/party-exp-calculator
+ * （頁面寫 2026-08-08 實機驗證；台服沒驗證，畫面要標）。
+ * - 白字：打到的人＝怪經驗×20%＋怪經驗×80%×自己等級÷有效隊員等級加總；吸經驗的人只有後半段
+ * - 黃字＝白字×組隊加成（有效隊員 2～6 人 +10／20／30／40／50%，使用者 10/13 選 A）
+ * - 有效隊員：跟打怪的人等級差 ≤ 5，或自己等級 ≥ 怪物等級 − 5（原文「符合任一條件」，「目標隊員」解讀成打怪的人）
+ * - 沒算：祈禱、經驗卷、活動、多人一起打的輸出比例、怪物等級差懲罰（假設一隻怪只有一個人打）
+ */
+export const PARTY_BONUS = [0, 0, 0.1, 0.2, 0.3, 0.4, 0.5];
+
+export type Member = { level: number; hitter: boolean };
+export type MemberExp = { level: number; hitter: boolean; effective: boolean; white: number; bonus: number; total: number };
+
+export function isEffective(level: number, hitterLevel: number, mobLevel: number): boolean {
+  return Math.abs(level - hitterLevel) <= 5 || level >= mobLevel - 5;
+}
+
+export function killExp(mobExp: number, mobLevel: number, members: Member[]): MemberExp[] {
+  const hitter = members.find(member => member.hitter) ?? members[0];
+  const effective = members.map(member => member.hitter || isEffective(member.level, hitter.level, mobLevel));
+  const count = effective.filter(Boolean).length;
+  const levelSum = members.reduce((sum, member, i) => sum + (effective[i] ? member.level : 0), 0);
+  const bonus = PARTY_BONUS[Math.min(count, PARTY_BONUS.length - 1)] ?? 0;
+  return members.map((member, i) => {
+    const share = effective[i] && levelSum ? 0.8 * (member.level / levelSum) : 0;
+    const white = mobExp * ((member.hitter ? 0.2 : 0) + share);
+    return { level: member.level, hitter: member.hitter, effective: effective[i], white, bonus, total: white * (1 + bonus) };
+  });
+}
+
+export type MapPartyExp = { perKill: number[]; mobs: Array<{ id: number; spawns: number; exp: MemberExp[] }> };
+
+/** 這張圖每隻怪每個隊員拿多少，跟平均每隻（照刷怪點數加權）；沒有經驗資料的怪不算 */
+export function mapPartyExp(row: TrainingRow, monsters: Map<number, Monster>, members: Member[]): MapPartyExp {
+  const mobs: MapPartyExp["mobs"] = [];
+  for (const [id, spawns] of row.mobs) {
+    const monster = monsters.get(id);
+    if (!monster || !monster.exp) continue;
+    mobs.push({ id, spawns, exp: killExp(monster.exp, monster.lv ?? 0, members) });
+  }
+  const totalSpawns = mobs.reduce((sum, mob) => sum + mob.spawns, 0);
+  const perKill = members.map((_, i) => (totalSpawns ? mobs.reduce((sum, mob) => sum + mob.spawns * mob.exp[i].total, 0) / totalSpawns : 0));
+  return { perKill, mobs };
+}
+
+/** 用自己量到的 10 分鐘經驗回推：全隊 10 分鐘打幾隻、每個隊員 10 分鐘各拿多少。自己每隻拿 0（吸不到）時回 null */
+export function backCalc(myPer10: number, perKill: number[], self = 0): { kills: number; per10: number[] } | null {
+  const mine = perKill[self];
+  if (!mine) return null;
+  const kills = myPer10 / mine;
+  return { kills, per10: perKill.map(value => kills * value) };
+}
+
+export function membersOf(selfLevel: number, party: { on: boolean; others: number[]; hitter: number }): Member[] {
+  if (!party.on || !party.others.length) return [{ level: selfLevel, hitter: true }];
+  const hitter = party.hitter >= 0 && party.hitter <= party.others.length ? party.hitter : 0;
+  return [selfLevel, ...party.others].map((level, i) => ({ level, hitter: i === hitter }));
+}
+```
+
+測試（`party-exp.test.ts`）：
+- 單練：`killExp(100, 30, [{ level: 30, hitter: true }])` → total 100、bonus 0。
+- 兩人同級（30、30），怪 30 級、自己打：自己 white = 100×(0.2+0.4) = 60、隊友 40；bonus 0.1 → 66、44。
+- 三人（40 打、38、20），怪 40 級：20 級的跟打的人差 20、20 < 35 → 不是有效隊員：拿 0、不算進加總跟人數；有效 2 人 → bonus 0.1；40 的 white = 100×(0.2+0.8×40/78)。
+- 吸經驗的人等級 ≥ 怪 −5 但跟打的人差很多（打的 70、吸的 36、怪 40）→ 有效。
+- 6 人以上 bonus 0.5；人數索引不會超出。
+- `mapPartyExp`：兩種怪（刷怪點 3、1）→ perKill 是加權平均；沒經驗的怪略過。
+- `backCalc`：myPer10 600、perKill [60, 40] → kills 10、per10 [600, 400]；perKill[0] 是 0 → null。
+- `membersOf`：沒勾組隊 → 只有自己、自己打；hitter 2 → 第二個隊友打；hitter 超出範圍 → 自己打。
+
+Commit：`v0.95: 練功測速——組隊經驗公式（打怪的人、吸經驗的人各拿多少、組隊加成、有效隊員）跟回推全隊打幾隻`
+
+### Task 9 改：存一筆多收組隊資料、伺服器自己算打幾隻
+
+- `RunPayload` 拿掉 `partySize`，改成 `partyLevels: number[]`（其他隊員等級，0～5 個，每個 1～120 的整數）、`partyHitter: number`（0＝自己，i≥1＝partyLevels[i−1]，範圍 0～partyLevels.length）。`checkRun` 照這個驗（錯誤字含「組隊」）。
+- `RunRow` 多 `partySize`（＝1＋partyLevels.length）、`killsPer10: number | null`。
+- `toRow(run, cap, row?: TrainingRow, monsters?: Map<number, Monster>)`：有 row 時用 `mapPartyExp(row, monsters, membersOf(run.level, { on: run.partyLevels.length > 0, others: run.partyLevels, hitter: run.partyHitter }))` 跟 `backCalc(expPer10, perKill)` 算 `killsPer10`（小數一位）；沒 row 或 backCalc 是 null → null。
+- 測試照改：原本 partySize 0／7 的兩題改成 partyLevels 太多（6 個）、等級 0、hitter 超出範圍；加一題 killsPer10：單練、怪經驗 100、10 分鐘 1000 → 10 隻。
+
+### Task 10 改：資料表欄位、組隊排行照打幾隻排
+
+- `speed_runs` 的 `party_size` 留著（＝1＋隊友數），多三欄：`party_levels integer[] NOT NULL DEFAULT '{}'`、`party_hitter integer NOT NULL DEFAULT 0`、`kills_per_10min real`。
+- POST 照 `toRow` 存（傳 training row 跟 monsters Map）。
+- GET：單練照舊（`party_size = 1`、照 `exp_per_10min`）；組隊改成 `party_size > 1 AND kills_per_10min IS NOT NULL`、每個角色留打最多隻那筆、照 `kills_per_10min DESC` 排。
+- `BoardRow` 多 `partySize: number`、`kills: number | null`。
+
+### Task 12 改：本機設定多組隊
+
+- `SpeedSettings` 多 `party: { on: boolean; others: number[]; hitter: number }`，預設 `{ on: false, others: [], hitter: 0 }`；`parseSettings` 驗：others 只留 1～120 的整數、最多 5 個；hitter 超出範圍改 0。測試照加。
+
+### Task 13 改：頁面
+
+- **組隊卡**（放在「你的角色」跟分享按鈕之間）：勾「組隊」→ 第一列「你 Lv.N」（N＝畫面讀到的等級，沒讀到用「我的路線」的等級），下面每個隊友一列「隊友等級」數字欄（最多 5 個，可加可刪）；每列一個「打怪的人」單選。存進 settings.party。沒勾組隊時整張卡只有那個勾選框。
+- tracker 的 `Sample.party` ＝ settings.party.on ? 1 + others.length : 1；`FrameReading` 沒有 party 了。
+- **每隻怪**（MapPanel）：勾組隊時，每隻怪多一行「組隊每隻：你 +X、Lv.a +Y、Lv.b +Z…」（打怪的人後面標「打」，吸不到的寫「吸不到」），用 `killExp`；卡片下面一行小字：「組隊經驗照玩家整理的公式算（打到的人多拿 20%、其他照等級分，加組隊加成），台服沒驗證；沒算祈禱、經驗卷。」
+- **回推**（大數字卡）：勾組隊且有 10 分鐘經驗時多一行：「回推：全隊 10 分鐘約打 N 隻；Lv.a 隊友 10 分鐘約 A、Lv.b 約 B」（`mapPartyExp`＋`backCalc`；這張圖沒有練功資料或 backCalc 是 null 時不出這行）。
+- **排行**：組隊分頁每列顯示「全隊 N 隻／10 分」跟「M 人隊」，照 kills 排；單練分頁照舊。卡片下面的說明照分頁換（組隊：「數字是全隊 10 分鐘打幾隻，用隊長填的等級回推」）。
+- **存一筆**：送 `partyLevels`、`partyHitter`，不送 partySize。
+- 以前 ruling 也在這裡做：
+  - 顯示的 % 用 `exp / toNext[level]` 算，不用畫面認的 %；
+  - 連續 10 張「有狀態列但經驗是 null」→ 送空的提示（`setHints([])`），之後讀到再照 tracker 給；
+  - 地圖：`settleTitle` 穩定後的 key 才當 `mapKey` 給 tracker；地圖記憶、候選照 Task 6 的 `resolveMap`。
+
+### Task 15 改
+
+- speed-shot 拿掉組隊判讀的檢查；改成：勾組隊、填一個 Lv.44 隊友、自己打 → 怪物卡出現「組隊每隻」那行。
