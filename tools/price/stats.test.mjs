@@ -48,3 +48,29 @@ test("series：照交易日期一天一點；可以只看某個屬性", () => {
   assert.deepEqual(series(recs, "日之鏢"), [{ date: "2026-10-10", median: 150, count: 2 }, { date: "2026-10-12", median: 300, count: 1 }]);
   assert.deepEqual(series(recs, "日之鏢", "魔法攻擊力+48"), []);
 });
+
+test("summarize：真實價位下的台幣換算、fxExact、缺日往前", () => {
+  const recs = [
+    r({ u: 134_000_000, t: "2026-10-13", rec: "2026-10-13" }),
+    r({ u: 136_000_000, t: "2026-10-13", rec: "2026-10-13" }),
+  ];
+  const s = summarize(recs, "日之鏢", [{ date: "2026-10-13", close: 3333 }]);
+  assert.equal(s.count, 2);
+  assert.equal(s.median, 135_000_000);
+  assert.equal(s.ntd, 4499.6); // 135_000_000 * 3333 / 1e8 = 4499.55 → 4499.6
+  assert.equal(s.fxExact, true);
+  assert.equal(s.fxDate, "2026-10-13");
+});
+
+test("summarize：lastTradedAt 往前找匯率，fxExact false", () => {
+  const recs = [
+    r({ u: 134_000_000, t: "2026-10-14", rec: "2026-10-13" }),
+    r({ u: 136_000_000, t: "2026-10-14", rec: "2026-10-13" }),
+  ];
+  const s = summarize(recs, "日之鏢", [{ date: "2026-10-12", close: 3333 }]);
+  assert.equal(s.median, 135_000_000);
+  assert.equal(s.lastTradedAt, "2026-10-14");
+  assert.equal(s.ntd, 4499.6); // 135_000_000 * 3333 / 1e8 with 10-12 close
+  assert.equal(s.fxExact, false);
+  assert.equal(s.fxDate, "2026-10-12");
+});

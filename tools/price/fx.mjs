@@ -28,7 +28,7 @@ export function fxFor(date, days) {
   for (let back = 0; back <= FX_LOOKBACK_DAYS; back++) {
     const d = shiftDate(date, -back);
     const hit = byDate.get(d);
-    if (hit && typeof hit.close === "number") return { close: hit.close, date: d, exact: back === 0 };
+    if (hit && Number.isFinite(hit.close) && hit.close > 0) return { close: hit.close, date: d, exact: back === 0 };
   }
   return null;
 }
