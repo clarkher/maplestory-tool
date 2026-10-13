@@ -217,7 +217,7 @@ export function RouteHome() {
           )}
 
           {/* 照傷害算的推薦（v0.92 使用者選 1A）：主推卡下面多一張，自己載技能表、裝備表；攻略還在載就等它 */}
-          {profile.job > 0 ? <CalcPickCard job={profile.job} level={profile.level} home={data} guides={guides} guidesReady={guideStatus !== "loading"} /> : null}
+          {profile.job > 0 ? <CalcPickCard job={profile.job} level={profile.level} home={data} guides={guides} guideStatus={guideStatus} /> : null}
 
           {/* 換職業或等級時重新掛載，「還有 N 個任務」的展開狀態不帶到別的角色 */}
           <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} questNames={questNames} />
