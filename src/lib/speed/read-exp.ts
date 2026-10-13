@@ -40,3 +40,46 @@ export function readExpText(frame: Frame, bar: StatusBar): string {
   }
   return text;
 }
+
+/** 經驗、%、等級。等級不是讀的，是拿經驗跟 % 去經驗表反推的（畫面上的 LV 是小圖，不讀） */
+export type ExpReading = { exp: number; percent: number; level: number };
+
+/** 畫面的 % 是四捨五入到小數兩位；再多留一點給百分位認錯 */
+export const PERCENT_TOLERANCE = 0.06;
+
+/**
+ * 哪一級「經驗 ÷ 升級要的經驗」跟畫面的 % 對得上。
+ * hints：已經知道的等級（現在這級、下一級）。有給就只認裡面的；沒給就要剛好一級對得上才認。
+ */
+export function levelFor(exp: number, percent: number, toNext: number[], hints: number[]): number | null {
+  const fits: number[] = [];
+  for (let level = 1; level < toNext.length; level++) {
+    const need = toNext[level];
+    if (!need || exp >= need) continue;
+    if (Math.abs((exp / need) * 100 - percent) <= PERCENT_TOLERANCE) fits.push(level);
+  }
+  if (hints.length) return fits.find(level => hints.includes(level)) ?? null;
+  return fits.length === 1 ? fits[0] : null;
+}
+
+/**
+ * readExpText 的字串 → 經驗、%、等級。看最後一組：有「[」照它切；沒有就試最後 4 位、3 位是 %（小數兩位），
+ * 哪一種在經驗表對得上就用哪種。都對不上回 null（這一張丟掉，下一秒再讀）。
+ */
+export function parseExp(text: string, toNext: number[], hints: number[] = []): ExpReading | null {
+  const group = text.trim().split(/\s+/).pop() ?? "";
+  const tries: Array<[string, string]> = [];
+  const bracket = group.indexOf("[");
+  if (bracket > 0) tries.push([group.slice(0, bracket).replace(/\D/g, ""), group.slice(bracket + 1).replace(/\D/g, "")]);
+  const digits = group.replace(/\D/g, "");
+  for (const size of [4, 3]) if (digits.length > size) tries.push([digits.slice(0, -size), digits.slice(-size)]);
+  for (const [expDigits, percentDigits] of tries) {
+    if (!expDigits || percentDigits.length < 3 || percentDigits.length > 4 || expDigits.length > 12) continue;
+    const exp = Number(expDigits);
+    const percent = Number(percentDigits) / 100;
+    if (percent >= 100) continue;
+    const level = levelFor(exp, percent, toNext, hints);
+    if (level !== null) return { exp, percent, level };
+  }
+  return null;
+}
