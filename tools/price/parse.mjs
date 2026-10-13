@@ -46,12 +46,37 @@ export function rowsOf(ocr) {
 }
 
 function bestLabel(raw) {
-  let best = null, bestScore = 0;
-  for (const label of ATTR_LABELS) {
-    const score = lcs(label, raw) / Math.max([...label].length, [...raw].length);
-    if (score > bestScore) { best = label; bestScore = score; }
+  const rawLen = [...raw].length;
+  const labelScores = [];
+
+  for (let i = 0; i < ATTR_LABELS.length; i++) {
+    const label = ATTR_LABELS[i];
+    const n = [...label].length;
+    let bestCount = 0, bestRatio = 0;
+
+    // Try lengths n-1, n, n+1 within valid range [1, rawLen]
+    for (let len = Math.max(1, n - 1); len <= Math.min(rawLen, n + 1); len++) {
+      const tail = [...raw].slice(-len).join("");
+      const count = lcs(label, tail);
+      const ratio = count / Math.max(n, len);
+      if (count > bestCount || (count === bestCount && ratio > bestRatio)) {
+        bestCount = count;
+        bestRatio = ratio;
+      }
+    }
+
+    labelScores.push({ label, count: bestCount, ratio: bestRatio, index: i });
   }
-  return bestScore >= 0.6 ? best : null;
+
+  // Sort by: count (desc), ratio (desc), index (asc)
+  labelScores.sort((a, b) =>
+    b.count !== a.count ? b.count - a.count :
+    b.ratio !== a.ratio ? b.ratio - a.ratio :
+    a.index - b.index
+  );
+
+  const best = labelScores[0];
+  return best.ratio >= 0.6 ? best.label : null;
 }
 
 const ATTR_RE = /([^\d\s+,]{1,6})\+(\d+)/g;
@@ -81,16 +106,18 @@ export function parseRow(text, today) {
   if (q) { qty = Number(q[1] ?? q[2]); s = s.replace(q[0], " "); }
 
   const attrs = {};
+  const unrecognized = [];
   for (const m of s.matchAll(ATTR_RE)) {
     const label = bestLabel(m[1]);
     if (label) attrs[label] = Number(m[2]);
+    else unrecognized.push(`${m[1]}+${m[2]}`);
   }
   s = s.replace(ATTR_RE, " ").replace(/\d+%/g, " ");
 
   const nums = (s.match(/\d[\d,]*\d|\d/g) ?? []).map(x => Number(x.replace(/,/g, ""))).filter(n => n > 0);
   if (!nums.length) return null;
 
-  const out = { tradedAt, price: null, unitPrice: null, qty, attrs: Object.keys(attrs).length ? attrs : null, flags: [] };
+  const out = { tradedAt, price: null, unitPrice: null, qty, attrs: Object.keys(attrs).length ? attrs : null, flags: [...unrecognized.map(u => `讀到屬性但認不出是哪一項：${u}`)] };
   if (nums.length === 1) {
     if (qty && qty > 1) { out.price = nums[0]; out.flags.push("有數量但只讀到一個價格"); }
     else { out.price = out.unitPrice = nums[0]; out.qty = 1; }

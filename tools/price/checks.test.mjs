@@ -28,6 +28,12 @@ test("跟上次中間價差 5 倍以上（高或低都算）", () => {
   assert.deepEqual(checkTrade(base, { today: TODAY, prevUnitMedian: null }), []);
 });
 
+test("5 倍邊界條件（含等號）", () => {
+  assert.deepEqual(checkTrade({ ...base, unitPrice: 5000, price: 5000 }, { today: TODAY, prevUnitMedian: 1000 }), ["跟上次中間價差 5 倍以上"]);
+  assert.deepEqual(checkTrade({ ...base, unitPrice: 200, price: 200 }, { today: TODAY, prevUnitMedian: 1000 }), ["跟上次中間價差 5 倍以上"]);
+  assert.deepEqual(checkTrade({ ...base, unitPrice: 4999, price: 4999 }, { today: TODAY, prevUnitMedian: 1000 }), []);
+});
+
 test("保留解析時就有的旗子", () => {
   assert.deepEqual(checkTrade({ ...base, price: null, unitPrice: null, flags: ["這行讀到 3 個數字，分不出價格"] }, { today: TODAY }),
     ["這行讀到 3 個數字，分不出價格"]);

@@ -42,6 +42,31 @@ test("裝備屬性：辨識錯字（魔法攻力）也對到魔法攻擊力", ()
   assert.equal(t.price, 3850000);
 });
 
+test("短屬性名不被品名吃掉：攻擊力", () => {
+  const t = parseRow("黃 色 雨 傘 攻 擊 力 + 5 1,000,000 2026/10/12", TODAY);
+  assert.deepEqual(t.attrs, { "攻擊力": 5 });
+  assert.equal(t.price, 1000000);
+});
+
+test("短屬性名不被品名吃掉：力量", () => {
+  const t = parseRow("黃色雨傘 力量 +5 1,000,000 2026/10/12", TODAY);
+  assert.deepEqual(t.attrs, { "力量": 5 });
+  assert.equal(t.price, 1000000);
+});
+
+test("磨法攻擊力（首字誤讀）還是對到魔法攻擊力", () => {
+  const t = parseRow("黃色雨傘 磨法攻擊力+48 3,850,000 2026/10/11", TODAY);
+  assert.deepEqual(t.attrs, { "魔法攻擊力": 48 });
+  assert.equal(t.price, 3850000);
+});
+
+test("讀到屬性但認不出的話標黃", () => {
+  const t = parseRow("黃色雨傘 嗚嗚+3 1,000,000 2026/10/12", TODAY);
+  assert.equal(t.attrs, null);
+  assert.equal(t.price, 1000000);
+  assert.match(t.flags[0] ?? "", /讀到屬性但認不出是哪一項/);
+});
+
 test("只有月/日：今年；比今天晚就算去年", () => {
   assert.equal(parseRow("雷之鏢 350,000 10/12", TODAY).tradedAt, "2026-10-12");
   assert.equal(parseRow("雷之鏢 350,000 12/30", TODAY).tradedAt, "2025-12-30");

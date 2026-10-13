@@ -7,6 +7,6 @@ export function checkTrade(t, { today, prevUnitMedian = null }) {
   if (t.price != null && t.unitPrice != null && t.qty == null) flags.push("總價不是單價的整數倍");
   if (t.tradedAt > today) flags.push("交易日期在未來");
   if (t.tradedAt < OPEN_DATE) flags.push("交易日期比開服還早");
-  if (prevUnitMedian && t.unitPrice && (t.unitPrice > prevUnitMedian * 5 || t.unitPrice * 5 < prevUnitMedian)) flags.push("跟上次中間價差 5 倍以上");
+  if (prevUnitMedian && t.unitPrice && (t.unitPrice >= prevUnitMedian * 5 || t.unitPrice * 5 <= prevUnitMedian)) flags.push("跟上次中間價差 5 倍以上");
   return flags;
 }
