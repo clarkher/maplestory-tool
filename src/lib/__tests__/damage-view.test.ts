@@ -42,6 +42,7 @@ import {
   sameGroups,
   secondsText,
   undeadDefault,
+  withMonster,
   withSkill,
   skillLevelsAt,
   weaponChoices,
@@ -1048,5 +1049,14 @@ describe("炸彈箭（v0.91 使用者選 A：主數字跟名單照被射中那�
     const result = computeGroup(data, shared, group, null);
     expect(result.ok && result.notes.join("")).toContain("50%");
     expect(result.ok && result.notes.join("")).toContain("終極之弓");
+  });
+});
+
+describe("網址帶 ?mob= 先選好怪（v0.95 練功測速連過來）", () => {
+  it("選單裡有的怪就換成它，沒有的照預設", () => {
+    const base = defaultState(data, 410, 50, null);
+    const target = monsterChoices(data.monsters, data.maps).find(choice => choice.monster.id !== base.shared.monsterId)!.monster.id;
+    expect(withMonster(base, data, target).shared.monsterId).toBe(target);
+    expect(withMonster(base, data, 999999999).shared.monsterId).toBe(base.shared.monsterId);
   });
 });

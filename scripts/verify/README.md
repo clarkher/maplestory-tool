@@ -19,13 +19,14 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，
+- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
   first-frame 會印 PASS／FAIL，但一律 exit 0。check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
+  speed-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
 - 測試機實測時間（2026-10-07）：first-frame 的 nav 段 25 秒、scroll-proof 45 秒、crossdoc（plain）75 秒、
   after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
   gear-source-shot 三個角色 13 秒。
@@ -391,6 +392,39 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 角色用 localStorage `ms-profile` 帶入，sessionStorage 每次清掉（計算機的設定記在瀏覽紀錄，不清會沿用上一個角色的）。
 「看細節」是受控的 `<details>`（展開狀態記在瀏覽紀錄），所以腳本用點 `<summary>` 的方式展開（直接改 `open` 屬性 React 不一定認），`detailsOpen` 記有沒有真的展開；
 `consoleProblems` 是整趟 console 的錯誤、警告（hydration 警告、沒接住的例外）。
+
+### 練功測速
+
+#### `speed-shot.mjs`：用測試截圖當假的分享畫面，跑一次練功測速頁（v0.95，埠 9391）
+
+```bash
+node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:3095] [DevTools 埠，預設 9391]
+```
+
+- 網址用 `localhost`，不要用 `127.0.0.1`（`next dev` 對 127.0.0.1 的互動不理）。視窗 1440×900，桌機寬度。
+- 頁面在非正式機時認 `window.__speedTestStream`（`src/lib/speed/capture.ts`）：腳本把 `src/lib/speed/__fixtures__/window-1364.png` 畫到 canvas、`captureStream` 塞進去，
+  不用真的開遊戲、也不會跳出選視窗的對話框。按「分享遊戲畫面」、滑鼠點擊、打字都走 DevTools 的 `Input`，不是直接呼叫 `click()`。
+- 檢查（任何一項沒過 exit 1，每項的結果寫在 `results.json` 的 `checks`，量到的字在 `detail`）：
+  1. 頁面載入、重新整理後載好，塞進去的設定讀得到（角色卡寫「你的角色：驗收用」）；導覽列的「練功測速」在電腦寬度看得到、而且是亮著的那顆。
+  2. 讀到「Lv.46 · 經驗 406,947（79.73%）」（% 是經驗 ÷ 46 級升級要的經驗算的）、職業「冰雷巫師」、沒勾組隊時寫「單練」。
+  3. 地圖：自動認成「森林迷宮III」，或問「你在哪張圖？」。基準截圖是有損壓縮，認不出是預期，而且候選五個裡通常沒有森林迷宮III
+     （`results.json` 的 `mapState` 記是哪一種、候選是哪些）——沒有就用「找不到就搜尋」打字選；候選裡剛好有就直接點。選好後地圖面板的標題要是「森林迷宮III」。
+  4. 地圖面板：風獨眼獸、猴子、黑曜石巨人在，每隻有等級、HP、經驗、刷怪點；有掉寶標籤；沒勾組隊時沒有「組隊每隻」；
+     「這張圖的實測排行」出現，寫「排行還沒開」（本機沒有 `DATABASE_URL`；有資料庫時是名單或「還沒有人練滿 10 分鐘」），卡在「載入中」或「連不上」都算沒過
+     （dev 第一次呼叫排行 API 要先編譯，最多等 1 分鐘）。地圖面板一出現，頁面就向 `/api/speed/board?map=<地圖 id>` 要排行，所以這一步會把那張圖的 id 送到被測的伺服器。
+  5. 組隊（玩家自己填）：勾「組隊」→ 出現隊友等級欄 → 填 44 按 Enter → 「打怪的人」留在「你」→ 每張怪物卡都出現
+     「組隊每隻：你 +N（打）、Lv.44 +M」，而且打怪的人（你）拿的比隊友多；面板最下面寫「照玩家整理的公式算」「台服沒驗證」；
+     `ms-speed` 的 `party` 存了 `{ on: true, others: [44], hitter: 0 }`；頁面寫「組隊 2 人」。
+  6. **不動 60 秒**：地圖點好之後同一張畫面再放 60 秒，地圖面板一直是「森林迷宮III」、不能再問「你在哪張圖？」（頁面裡掛 MutationObserver 逐次看，不是只在最後看一眼）。
+     同一段時間每一次取樣（頁面裡的觀察器加上每 10 秒一次的取樣）都要看狀態列還是「等經驗一動就開始算」那類還在讀的字、「停止分享」那顆還在，
+     不能出現「分享停了」「認不到遊戲畫面」——畫面上的「Lv.46 · 經驗 …」那行在分享停了之後還會留著，光看它抓不到停了。最後等級經驗也還讀得到。守的是小地圖標題的長相不隨時間飄、讀畫面沒有中途停掉。
+  7. 整頁截圖 `speed.png`；玩家點過地圖的話，重新整理再分享一次，要直接認成這張圖、不再問，角色卡還寫「你的角色：驗收用」（驗證「點一次之後會記住」，`ms-speed-maps`）。
+  8. 整趟沒有沒接住的例外、`console.error`（警告只記在 `results.json` 的 `problems.warnings`，不判）。
+- 輸出：`speed.png`（整頁）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`problems`）；出錯時另存 `crash.png`。
+- 耗時：本機 dev server 約 80 秒（60 秒是不動檢查）；dev 第一次編譯 `/plan/speed` 跟排行 API 另加（頁面最多等 2 分半）。
+  `--webpack` 的 dev server：`npx next dev --webpack -p 3095`；也可以 `npm run build && npx next start -p 3095`。
+- 量不到的：經驗會不會跟著動、自動停、存進排行——畫面是靜止的，靠 `tracker.test.ts` 跟真人玩一段。真的存進資料庫要在有 Neon 的測試機上手動驗（見根目錄 README「練功測速」的上線前檢查）。
+- 假畫面用的是 `window-1364.png`（repo 公開，截圖裡隊友的名字已打馬賽克）；字形樣板、名單換了，這支的「讀到 Lv.46」那幾項要一起看。
 
 ### 沒收進來的
 
