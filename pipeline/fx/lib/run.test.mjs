@@ -60,6 +60,9 @@ test("8591 失敗：不寫 8591 樣本、狀態保留、連續失敗次數 +1、
   assert.match(result.error8591, /403/);
   assert.equal(read(second, "samples.jsonl"), read(first, "samples.jsonl"));
   assert.deepEqual(readJson(second, "state.json").listings, readJson(first, "state.json").listings);
+  assert.equal(read(second, "ref-samples.jsonl"), read(first, "ref-samples.jsonl"));
+  const daily = readJson(second, "daily.json");
+  assert.ok(daily.days.some(d => d.date === "2026-10-12"));
   const latest = readJson(second, "latest.json");
   assert.deepEqual([latest.src, latest.ask100, latest.listings, latest.band], ["ref", 320, 82, null]);
 });
@@ -71,8 +74,12 @@ test("8591 有效掛單不到 20 筆也當失敗（多半是被擋或改版）",
 });
 
 test("參考站掛了但 8591 正常：照常寫，參考站檔案維持原樣", async () => {
-  const result = await runCollect({ dataDir: tmp(), outDir: tmp(), get8591: async () => listings(), getRef: async () => { throw new Error("timeout"); }, log: quiet });
+  const out = tmp();
+  const result = await runCollect({ dataDir: tmp(), outDir: out, get8591: async () => listings(), getRef: async () => { throw new Error("timeout"); }, log: quiet });
   assert.deepEqual([result.ok8591, result.okRef], [true, false]);
+  assert.equal(read(out, "ref-samples.jsonl"), "");
+  const latest = readJson(out, "latest.json");
+  assert.equal(latest.src, "8591");
 });
 
 test("兩個都失敗就丟錯（workflow 那步會紅、notify 開 issue），不寫任何檔", async () => {
@@ -82,4 +89,30 @@ test("兩個都失敗就丟錯（workflow 那步會紅、notify 開 issue），�
     /兩個來源都失敗/,
   );
   assert.equal(fs.existsSync(path.join(out, DIR)), false);
+});
+
+test("連續失敗次數：1 → 2 → 歸零（8591 fail → 8591 fail → 8591 success）", async () => {
+  const first = tmp();
+  const result1 = await runCollect({ dataDir: tmp(), outDir: first, now: new Date("2026-10-13T08:00:00Z"), get8591: async () => { throw new Error("fail 1"); }, getRef: async () => refJson, log: quiet });
+  assert.equal(result1.fail8591, 1);
+  assert.equal(readJson(first, "state.json").fail8591, 1);
+
+  const second = tmp();
+  const result2 = await runCollect({ dataDir: first, outDir: second, now: new Date("2026-10-13T09:00:00Z"), get8591: async () => { throw new Error("fail 2"); }, getRef: async () => refJson, log: quiet });
+  assert.equal(result2.fail8591, 2);
+  assert.equal(readJson(second, "state.json").fail8591, 2);
+
+  const third = tmp();
+  const result3 = await runCollect({ dataDir: second, outDir: third, now: new Date("2026-10-13T10:00:00Z"), get8591: async () => listings(), getRef: async () => refJson, log: quiet });
+  assert.equal(result3.fail8591, 0);
+  assert.equal(readJson(third, "state.json").fail8591, 0);
+});
+
+test("輸出檔不含標題（【100元）", async () => {
+  const out = tmp();
+  await runCollect({ dataDir: tmp(), outDir: out, now: new Date("2026-10-13T08:17:00Z"), get8591: async () => listings(), getRef: async () => refJson, log: quiet });
+  for (const filename of FILES) {
+    const content = read(out, filename);
+    assert.equal(content.includes("【100元"), false, `${filename} 不該含有標題`);
+  }
 });
