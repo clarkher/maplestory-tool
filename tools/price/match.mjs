@@ -21,13 +21,15 @@ export function lcs(a, b) {
 
 export const NAME_THRESHOLD = 0.7;
 
-/** text 是不是在講 expected 這件：數字整段都要出現、中文對上七成。回 0（不是）或 0.7～1 的分數。 */
+/** text 是不是在講 expected 這件：數字（10%、60% 等）一定要一樣、中文字（數字以外的字）對上七成。回 0（不是）或 0.7～1 的分數。 */
 export function nameScore(expected, text) {
   const e = squash(expected), t = squash(text);
   if (!e || !t) return 0;
   const tDigits = new Set(t.match(/\d+%?/g) ?? []);
   for (const d of e.match(/\d+%?/g) ?? []) if (!tDigits.has(d)) return 0;
-  const score = lcs(e, t) / [...e].length;
+  const core = e.replace(/\d+%?/g, "");
+  if (core === "") return 1;
+  const score = lcs(core, t) / [...core].length;
   return score >= NAME_THRESHOLD ? score : 0;
 }
 

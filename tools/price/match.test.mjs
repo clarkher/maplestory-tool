@@ -29,3 +29,15 @@ test("bestNameScore 取最像的那行；空的回 0", () => {
   assert.equal(bestNameScore("黃色雨傘", []), 0);
   assert.equal(nameScore("", "abc"), 0);
 });
+
+test("敏捷卷軸跟攻擊卷軸要分開：中文字不一樣", () => {
+  assert.equal(nameScore("手套攻擊卷軸10%", "手套敏捷卷軸10% 500,000"), 0);
+});
+
+test("防禦卷軸跟攻擊卷軸要分開：中文字不一樣", () => {
+  assert.equal(nameScore("手套攻擊卷軸10%", "手套防禦力卷軸10% 500,000"), 0);
+});
+
+test("10% 跟 100% 一定要一樣", () => {
+  assert.equal(nameScore("手套攻擊卷軸10%", "手套攻擊卷軸100% 500,000"), 0);
+});
