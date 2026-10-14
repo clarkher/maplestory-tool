@@ -1,12 +1,17 @@
 /**
  * fx-collect.yml 的 notify job 中開／更新／關 issue 的流程邏輯。
  * 注入 call、repo、assignee、reason、runUrl、action、now（Date）。
- * 回傳簡短字串描述執行結果：「created」、「updated」、「closed」、「nothing」。
+ * 回傳簡短中文字串描述執行結果：「開了新的」、「更新了」、「關掉了」、「沒有要動的」。
  */
+import { taipeiIso } from "./daily.mjs";
 import { LABEL } from "./notify-decide.mjs";
 
+// 「最後一次」那一行：判斷有沒有跟替換用同一個規則（只認行首），不然句子中間出現這幾個字會判成有、卻換不到
+const LAST_LINE = /^最後一次：.*$/m;
+
 export async function notifyIssue({ action, reason, call, repo, runUrl, assignee, now }) {
-  const stamp = now.toISOString();
+  // 台灣時間，跟頁面、資料檔的時間一致（人在看 issue，不用自己換算 UTC）
+  const stamp = taipeiIso(now);
   const lastLine = `最後一次：${stamp}，${reason}（${runUrl}）`;
 
   // 為什麼是 per_page=1：最多只需要找一張標了「匯率收集失敗」的開著的 issue
@@ -16,11 +21,10 @@ export async function notifyIssue({ action, reason, call, repo, runUrl, assignee
   if (action === "open") {
     if (issue) {
       // 已經有開著的：只改「最後一次」那行，不留言洗版
-      const newBody = (issue.body ?? "").includes("最後一次：")
-        ? (issue.body ?? "").replace(/^最後一次：.*$/m, () => lastLine)
-        : (issue.body ?? "") + `\n\n${lastLine}`;
+      const oldBody = issue.body ?? "";
+      const newBody = LAST_LINE.test(oldBody) ? oldBody.replace(LAST_LINE, () => lastLine) : `${oldBody}\n\n${lastLine}`;
       await call("PATCH", `/repos/${repo}/issues/${issue.number}`, { body: newBody });
-      return "updated";
+      return "更新了";
     } else {
       // 沒有開著的：先建 label（容忍「已存在」的 422 error），再開 issue
       try {
@@ -35,17 +39,17 @@ export async function notifyIssue({ action, reason, call, repo, runUrl, assignee
         assignees: assignee ? [assignee] : [],
         body: `${reason}\n\n${lastLine}\n\n資料分支：fx-data；排程：.github/workflows/fx-collect.yml。恢復正常會自動關這張。`,
       });
-      return "created";
+      return "開了新的";
     }
   } else if (action === "close") {
     if (issue) {
       // 恢復了：留言並關掉
       await call("POST", `/repos/${repo}/issues/${issue.number}/comments`, { body: `恢復了：${reason}（${runUrl}）` });
       await call("PATCH", `/repos/${repo}/issues/${issue.number}`, { state: "closed" });
-      return "closed";
+      return "關掉了";
     }
     // 沒有開著的 issue：什麼都不做
-    return "nothing";
+    return "沒有要動的";
   }
-  return "nothing";
+  return "沒有要動的";
 }

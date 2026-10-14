@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
-// 直接讀 workflow 原文：寫入權限只在 publish、run 裡不准 ${{ }}、別的分支手動跑預設不寫入、8591 不會被打太兇
+// 直接讀 workflow 原文：寫入權限只在 publish、run 裡不准 ${{ }}、別的分支手動跑預設不寫入、不准再連 8591（只讀參考站）
 const FILE = path.join(import.meta.dirname, "../../.github/workflows/fx-collect.yml");
 const WORKFLOW = fs.existsSync(FILE) ? fs.readFileSync(FILE, "utf8").replace(/\r\n/g, "\n") : "";
 const CODE = WORKFLOW.replace(/(^|[ \t])#.*$/gm, "").replace(/[ \t]+$/gm, "").replace(/^\n/gm, "");
@@ -90,4 +90,24 @@ test("手動跑的 write 預設 false；上傳、下載的 artifact 名稱一樣
   assert.match(CODE, /\n {6}write:\n(?: {8}.*\n)* {8}default: false\n/);
   const names = [...CODE.matchAll(/\n {10}name: (fx-[\w-]+)\n/g)].map(match => match[1]);
   assert.deepEqual(names, ["fx-out", "fx-out"]);
+});
+
+test("fx-data 分支「真的不存在」才從空的開始：ls-remote --exit-code 0＝有、2＝沒有、其他（網路錯）整個失敗；publish 的 ls-remote 在 token header 設好之後", () => {
+  const collect = jobBlock("collect");
+  const publish = jobBlock("publish");
+  for (const block of [collect, publish]) {
+    assert.match(block, /ls-remote --exit-code --heads/);
+    assert.match(block, /FOUND=\$\?/);
+    assert.match(block, /\[ "\$FOUND" = 2 \]/);
+    assert.match(block, /else\n\s+echo "查 fx-data 失敗（ls-remote 結束碼 \$FOUND）"\n\s+exit 1\n/);
+  }
+  // 舊寫法是 if 直接接指令：任何失敗（包括網路錯）都會被當成「沒有分支」
+  assert.doesNotMatch(CODE, /if git (?:-C "\$WORK" )?(?:ls-remote|fetch)/);
+  assert.ok(publish.indexOf("ls-remote") > publish.indexOf("extraheader"), "publish 的 ls-remote 要在 extraheader 設好之後");
+});
+
+test("沒有新的市價就不推：只有 latest.json、daily.json 變了（抓取時間）不算有變", () => {
+  const publish = jobBlock("publish");
+  assert.ok(publish.includes(`git -C "$WORK" diff --cached --quiet -- . ':!fx/scania/latest.json' ':!fx/scania/daily.json'`));
+  assert.ok(publish.indexOf("diff --cached --quiet") < publish.indexOf("git -C \"$WORK\" commit"), "要先判斷再 commit");
 });

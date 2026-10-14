@@ -15,7 +15,9 @@ const { action, reason } = decide({
   publishResult: env.PUBLISH_RESULT,
   ageHours: env.AGE_HOURS ?? "",
 });
-console.log(`${action}：${reason}`);
+// action 是程式用的英文代號；Actions 的 log 給人看，印中文
+const ACTION_ZH = { open: "要開 issue", close: "要關 issue", none: "不動" };
+console.log(`${ACTION_ZH[action] ?? action}：${reason}`);
 if (action === "none") process.exit(0);
 
 const api = env.GITHUB_API_URL ?? "https://api.github.com";
@@ -38,5 +40,4 @@ const result = await notifyIssue({
   assignee: env.ASSIGNEE,
   now: new Date(),
 });
-console.log(`${result}：${action === "open" ? "issue opened/updated" : "issue closed/nothing"}`);
-
+console.log(`${ACTION_ZH[action] ?? action}：${reason}（${result}）`);

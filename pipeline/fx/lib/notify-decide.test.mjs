@@ -21,15 +21,26 @@ test("推不上 fx-data：開 issue", () => {
   assert.match(result.reason, /fx-data/);
 });
 
-test("參考站 12 小時以上沒更新（可能停了）：開 issue", () => {
+test("fx-data 12 小時以上沒有新的市價（參考站停了，或格式、口徑改了）：開 issue", () => {
   const result = decide({ ...base, ageHours: "12" });
   assert.equal(result.action, "open");
   assert.match(result.reason, /12 小時/);
+  assert.match(result.reason, /fx-data/);
+  assert.match(result.reason, /格式、口徑改了/);
 });
 
-test("不寫入的測試跑法、被取消的：什麼都不做", () => {
+test("不寫入的測試跑法：什麼都不做（就算 collect 失敗或被取消）", () => {
   assert.equal(decide({ ...base, write: "false", collectResult: "failure" }).action, "none");
-  assert.equal(decide({ ...base, collectResult: "cancelled", publishResult: "skipped" }).action, "none");
+  assert.equal(decide({ ...base, write: "false", collectResult: "cancelled", publishResult: "skipped" }).action, "none");
+});
+
+test("collect 或 publish 超過 timeout-minutes 被中止（cancelled）：開 issue，不能靜靜過去", () => {
+  const collect = decide({ ...base, collectResult: "cancelled", publishResult: "skipped", ageHours: "" });
+  assert.equal(collect.action, "open");
+  assert.match(collect.reason, /時間上限/);
+  const publish = decide({ ...base, publishResult: "cancelled" });
+  assert.equal(publish.action, "open");
+  assert.match(publish.reason, /時間上限/);
 });
 
 test("ageHours 讀不到：不動 issue（不要誤關）", () => {

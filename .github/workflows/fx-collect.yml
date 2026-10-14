@@ -9,8 +9,9 @@ name: 楓幣匯率收集
 #
 # 三個 job，寫入權限只在 publish：
 #  - collect：唯讀。clone fx-data（公開 repo，不用 token）讀舊的紀錄、抓參考站、算好三個檔存 artifact
-#  - publish：檢查 artifact（pipeline/fx/publish.mjs）後推上 fx-data。只在 main（排程）、dev（合進 dev 時）或手動勾 write 時跑
-#  - notify：參考站抓不到、推不上、參考站 12 小時以上沒更新 → 開 issue（label「匯率收集失敗」）；恢復自動關
+#  - publish：檢查 artifact（pipeline/fx/publish.mjs）後推上 fx-data。只在 main（排程）、dev（合進 dev 時）或手動勾 write 時跑；
+#    沒有新的市價（只有抓取時間變了）就不推，不留空 commit
+#  - notify：參考站抓不到、推不上、job 超過時間上限被中止、fx-data 12 小時以上沒有新的市價 → 開 issue（label「匯率收集失敗」）；恢復自動關
 
 on:
   schedule:
@@ -57,8 +58,16 @@ jobs:
       - name: 取出 fx-data（第一次還沒有這條分支就從空的開始）
         run: |
           mkdir -p "$RUNNER_TEMP/fx-data"
-          if git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPOSITORY.git" fx-data > /dev/null; then
+          # ls-remote --exit-code：0＝有這條分支、2＝沒有；其他（網路錯）要整個失敗，不能當成沒有分支從空的開始
+          FOUND=0
+          git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPOSITORY.git" fx-data > /dev/null || FOUND=$?
+          if [ "$FOUND" = 0 ]; then
             git clone -q --depth 1 --branch fx-data "https://github.com/$GITHUB_REPOSITORY.git" "$RUNNER_TEMP/fx-data"
+          elif [ "$FOUND" = 2 ]; then
+            echo "還沒有 fx-data 分支，從空的開始"
+          else
+            echo "查 fx-data 失敗（ls-remote 結束碼 $FOUND）"
+            exit 1
           fi
 
       - name: 抓參考站、算好新檔
@@ -109,17 +118,25 @@ jobs:
           AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
           echo "::add-mask::$AUTH"
           git -C "$WORK" config http.https://github.com/.extraheader "AUTHORIZATION: basic $AUTH"
-          if git -C "$WORK" fetch -q --depth 1 origin fx-data; then
+          # ls-remote --exit-code：0＝有這條分支、2＝沒有；其他（網路錯、權限）要整個失敗，不能當成沒有分支而推出一條新的孤兒分支
+          FOUND=0
+          git -C "$WORK" ls-remote --exit-code --heads origin fx-data > /dev/null || FOUND=$?
+          if [ "$FOUND" = 0 ]; then
+            git -C "$WORK" fetch -q --depth 1 origin fx-data
             git -C "$WORK" checkout -q -B fx-data FETCH_HEAD
-          else
+          elif [ "$FOUND" = 2 ]; then
             git -C "$WORK" symbolic-ref HEAD refs/heads/fx-data
+          else
+            echo "查 fx-data 失敗（ls-remote 結束碼 $FOUND）"
+            exit 1
           fi
           node repo/pipeline/fx/publish.mjs "$RUNNER_TEMP/fx-out" "$WORK" repo/pipeline/fx/branch-files
           git -C "$WORK" config user.name "maplestory-tool bot"
           git -C "$WORK" config user.email "actions@github.com"
           git -C "$WORK" add -A
-          if git -C "$WORK" diff --cached --quiet; then
-            echo "內容沒變，不用推"
+          # 只有 latest.json、daily.json 的抓取時間變了＝沒有新的市價，不推（不然每 2 小時一個空 commit）
+          if git -C "$WORK" diff --cached --quiet -- . ':!fx/scania/latest.json' ':!fx/scania/daily.json'; then
+            echo "沒有新的市價，不用推"
             exit 0
           fi
           git -C "$WORK" commit -q -m "fx: 雪吉拉 $(date -u +%Y-%m-%dT%H:%MZ)"

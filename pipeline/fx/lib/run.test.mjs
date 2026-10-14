@@ -66,3 +66,30 @@ test("參考站抓不到或格式不對就丟錯（workflow 紅、notify 開 iss
   await assert.rejects(runCollect({ dataDir: tmp(), outDir: out, getRef: async () => ({ servers: {} }) }), /格式不對/);
   assert.equal(fs.existsSync(path.join(out, DIR)), false);
 });
+
+test("參考站還在更新但歷史口徑改了（m=4）：一筆都接不上，ageHours 照我們最後一筆算、會一直變大", async () => {
+  const first = tmp();
+  await runCollect({ dataDir: tmp(), outDir: first, now: new Date("2026-10-13T08:17:00Z"), getRef: async () => FIRST });
+  const second = tmp();
+  // 參考站的 t 是新的，但歷史列的口徑標記 m 變成 4，我們只收 m=3，所以一筆都接不上
+  const changed = refJson("2026-10-14T10:40:00+08:00", [{ t: "2026-10-14T08:40:00+08:00", m: 4, 雪吉拉_ask: 300 }, { t: "2026-10-14T10:40:00+08:00", m: 4, 雪吉拉_ask: 310 }]);
+  const result = await runCollect({ dataDir: first, outDir: second, now: new Date("2026-10-14T02:41:00Z"), getRef: async () => changed });
+  assert.equal(result.added, 0);
+  assert.equal(result.ageHours, 20);
+});
+
+test("ref-samples 最後一筆時間壞掉就丟錯，不要默默接不上", async () => {
+  const data = tmp();
+  fs.mkdirSync(path.join(data, DIR), { recursive: true });
+  fs.writeFileSync(path.join(data, DIR, "ref-samples.jsonl"), '{"t":"2026-10-12T20:40:00+08:00","ask100":330}\n{"t":"壞掉","ask100":300}\n');
+  const out = tmp();
+  await assert.rejects(runCollect({ dataDir: data, outDir: out, now: new Date("2026-10-13T08:17:00Z"), getRef: async () => FIRST }), /時間讀不懂/);
+  assert.equal(fs.existsSync(path.join(out, DIR)), false);
+});
+
+test("第一次跑、參考站的歷史一筆都收不進來：丟錯、不寫檔（不要留一個空的 ref-samples.jsonl）", async () => {
+  const out = tmp();
+  const changed = refJson("2026-10-14T10:40:00+08:00", [{ t: "2026-10-14T10:40:00+08:00", m: 4, 雪吉拉_ask: 310 }]);
+  await assert.rejects(runCollect({ dataDir: tmp(), outDir: out, now: new Date("2026-10-14T02:41:00Z"), getRef: async () => changed }), /沒有任何可用的市價/);
+  assert.equal(fs.existsSync(path.join(out, DIR)), false);
+});
