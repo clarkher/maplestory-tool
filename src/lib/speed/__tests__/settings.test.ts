@@ -1,6 +1,6 @@
 // src/lib/speed/__tests__/settings.test.ts
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DEFAULT_SETTINGS, parseSettings, readMapMemory, rememberMap } from "../settings";
+import { DEFAULT_SETTINGS, forgetMap, parseSettings, readMapMemory, rememberMap } from "../settings";
 
 describe("練功測速的本機設定", () => {
   it("沒存過、存壞了都用預設：沒 ID、不公開、自動、沒組隊", () => {
@@ -134,6 +134,27 @@ describe("點選過的地圖記憶（存在這台電腦）", () => {
     expect(readMapMemory()).toEqual({});
     vi.stubGlobal("window", { localStorage: fakeStorage({ "ms-speed-maps": JSON.stringify({ a: 100010000, b: "2", c: null, d: 3.5, e: Number.MAX_VALUE, f: true }) }) });
     expect(readMapMemory()).toEqual({ a: 100010000 });
+  });
+
+  it("「不是這張圖」：forgetMap 清掉這個長相（差幾格的也算）記住的地圖，別的留著；之後記新的照常", () => {
+    const look = "01".repeat(96);
+    const near = `1${look.slice(1)}`;
+    const other = "10".repeat(96);
+    const storage = fakeStorage({ "ms-speed-maps": JSON.stringify({ [near]: 105040302, [other]: 101000000 }) });
+    vi.stubGlobal("window", { localStorage: storage });
+    forgetMap(look);
+    expect(readMapMemory()).toEqual({ [other]: 101000000 });
+    rememberMap(look, 105040303);
+    expect(readMapMemory()).toEqual({ [other]: 101000000, [look]: 105040303 });
+  });
+
+  it("forgetMap：瀏覽器不讓用 localStorage 也不炸", () => {
+    vi.stubGlobal("window", {
+      get localStorage(): never {
+        throw new Error("denied");
+      },
+    });
+    expect(() => forgetMap("0101")).not.toThrow();
   });
 
   it("壞掉的記憶上再記一筆，會把壞的洗掉、新的留下", () => {

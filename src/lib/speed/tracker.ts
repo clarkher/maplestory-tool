@@ -8,9 +8,15 @@
  * - 起點要兩張等級一樣的讀數（第一次反推等級可能剛好對錯）。
  * - 擋認錯（10/13）：讀數偶爾會把一個數字認錯（約 0.4% 會變成「一秒拿半級」），所以一張讀數比上一張多太多、
  *   或往下掉太多（超過這級升級經驗 20%）也當認錯丟掉；連續認錯太久就丟掉起點重來（進行中的那段留著，新起點接著算）。
+ * - 10/14：自動模式先點選（pick:<id>）、之後認出同一張圖的標題長相，不算換圖；低等時單張上限至少放到 stepFloor；
+ *   玩家說「不是這張圖」用 dropMap。
  */
 export type Mode = "auto" | "manual";
-export type Sample = { at: number; exp: number; level: number; mapKey: string | null; mapId: number | null; job: number | null; party: number };
+/**
+ * 一張讀數。stepFloor（選填）：這張讀數比上一張最多可以多多少的下限（頁面給「這張圖經驗最高的怪 × 3 ×（1＋組隊加成）」）。
+ * 低等時這級的一成比打一隻怪還少，沒有它的話每一隻都會被當成認錯；地圖不知道時不給。
+ */
+export type Sample = { at: number; exp: number; level: number; mapKey: string | null; mapId: number | null; job: number | null; party: number; stepFloor?: number };
 export type Segment = {
   mode: Mode;
   startedAt: number;
@@ -22,6 +28,8 @@ export type Segment = {
   job: number | null;
   party: number;
   mapKey: string | null;
+  /** mapKey 認出來的地圖 id（還不知道是 null）；自動模式拿它判斷 key 換了是不是同一張圖 */
+  mapId: number | null;
   gained: number;
   levelUps: number;
   deaths: number;
@@ -51,6 +59,7 @@ const DEATH_SHARE = 0.01;
 export const MAX_DEATH_SHARE = 0.2;
 /**
  * 一張讀數最多只能比上一張多「這級升級經驗的 10%」（隔越久放越寬：每 10 秒多一份）；超過當成認錯。
+ * 讀數有給 stepFloor 時，上限至少是 stepFloor（一樣隔越久放越寬）：max(10% × 這級升級經驗, stepFloor) × 放寬倍數。
  * 注意：真的單次大額進帳（打王、任務獎勵，超過一級 10%）也會被當認錯丟掉，
  * 連續對不上自癒、重新起算後也不補算——是「丟掉」，不會重複算。
  */
@@ -85,13 +94,15 @@ function gainBetween(prev: Sample, next: Sample, toNext: number[]): Gain | null 
 function newSegment(mode: Mode, from: Sample, at: number): Segment {
   return {
     mode, startedAt: at, endedAt: at, lastChangeAt: at, startLevel: from.level, level: from.level, exp: from.exp,
-    job: from.job, party: from.party, mapKey: from.mapKey, gained: 0, levelUps: 0, deaths: 0, byMap: {},
+    job: from.job, party: from.party, mapKey: from.mapKey, mapId: from.mapId, gained: 0, levelUps: 0, deaths: 0, byMap: {},
   };
 }
 
 function withSample(seg: Segment, sample: Sample, gain: Gain | null): Segment {
-  // 一開始讀不到地圖的那段，看到第一個有地圖的就補上
-  const next: Segment = { ...seg, level: sample.level, exp: sample.exp, job: sample.job ?? seg.job, party: Math.max(seg.party, sample.party), mapKey: seg.mapKey ?? sample.mapKey };
+  // 一開始讀不到地圖的那段，看到第一個有地圖的就補上；這段的 key 一開始還不知道是哪張圖，認出來（或玩家選了）就補上 id
+  const mapKey = seg.mapKey ?? sample.mapKey;
+  const mapId = sample.mapKey !== null && sample.mapKey === mapKey ? seg.mapId ?? sample.mapId : seg.mapId;
+  const next: Segment = { ...seg, level: sample.level, exp: sample.exp, job: sample.job ?? seg.job, party: Math.max(seg.party, sample.party), mapKey, mapId };
   if (!gain || gain.gain === 0) return next;
   // 讀不到地圖的那一張，經驗照算，但不記到哪張圖
   const key = sample.mapKey;
@@ -123,7 +134,7 @@ export function feed(t: Tracker, sample: Sample, toNext: number[]): Step {
     return { tracker: { ...t, pending: sample }, closed: null };
   }
   const gain = gainBetween(t.last, sample, toNext);
-  const limit = MAX_STEP_SHARE * levelNeed(toNext, t.last.level) * Math.max(1, (sample.at - t.last.at) / STEP_RELAX_MS);
+  const limit = Math.max(MAX_STEP_SHARE * levelNeed(toNext, t.last.level), sample.stepFloor ?? 0) * Math.max(1, (sample.at - t.last.at) / STEP_RELAX_MS);
   if (!gain || gain.gain > limit) {
     const misses = t.misses + 1;
     // 認錯太久：丟掉起點，這張當候選，下一張同等級的再當新起點；進行中的那段留著
@@ -134,8 +145,12 @@ export function feed(t: Tracker, sample: Sample, toNext: number[]): Step {
   let closed: Segment | null = null;
   if (t.mode === "auto") {
     if (seg && sample.mapKey && seg.mapKey && sample.mapKey !== seg.mapKey) {
-      closed = seg;
-      seg = null;
+      // key 換了但認出來是同一張圖（先從清單選 pick:<id>，之後讀到標題長相、對到同一個 id）：不算換圖，換成新的 key 繼續
+      if (seg.mapId !== null && seg.mapId === sample.mapId) seg = { ...seg, mapKey: sample.mapKey };
+      else {
+        closed = seg;
+        seg = null;
+      }
     }
     if (!seg) {
       if (gain.gain > 0) seg = newSegment("auto", sample, sample.at);
@@ -144,6 +159,26 @@ export function feed(t: Tracker, sample: Sample, toNext: number[]): Step {
     seg = withSample(seg ?? newSegment("manual", t.last, t.manualStartedAt ?? sample.at), sample, gain);
   }
   return { tracker: { ...t, last: sample, seg, misses: 0 }, closed };
+}
+
+/**
+ * 玩家按「不是這張圖」（10/14 使用者授權 A）：這段裡記在 key 的經驗，地圖改成「不知道」（mapId null）。
+ * - 自動模式：照換圖處理，收掉這段（結束在最後一次變動）；起點留著，經驗再動開新的一段。
+ *   收掉的這段沒有地圖（存了也不列排行），不會掛在認錯的那張圖上。
+ * - 手動模式：這段不停。玩家選了新的圖，之後同一個 key 帶新的地圖 id 進來，整個 key 記成新的圖
+ *   （withSample 的「還不知道才補上」）；換了 key 的（從清單重選 pick:<id>）之後的經驗記到新的 key。
+ * 沒在練：什麼都不變。
+ */
+export function dropMap(t: Tracker, key: string): Step {
+  if (!t.seg) return { tracker: t, closed: null };
+  const slot = t.seg.byMap[key];
+  const seg: Segment = {
+    ...t.seg,
+    mapId: t.seg.mapKey === key ? null : t.seg.mapId,
+    byMap: slot ? { ...t.seg.byMap, [key]: { ...slot, mapId: null } } : t.seg.byMap,
+  };
+  if (t.mode === "auto") return { tracker: { ...t, seg: null }, closed: { ...seg, endedAt: seg.lastChangeAt } };
+  return { tracker: { ...t, seg }, closed: null };
 }
 
 export function tick(t: Tracker, now: number): Step {

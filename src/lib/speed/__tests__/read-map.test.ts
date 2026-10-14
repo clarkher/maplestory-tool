@@ -4,7 +4,7 @@ import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { describe, expect, it } from "vitest";
 import type { MapRecord, TrainingRow } from "@/lib/types";
 import type { Frame } from "../frame";
-import { findMapButton, hammingDistance, readTitle, resolveMap, settleTitle, titleBoxes, type TitleReading, type TitleSettle } from "../read-map";
+import { findMapButton, forgetLook, hammingDistance, readTitle, resolveMap, settleTitle, titleBoxes, type TitleReading, type TitleSettle } from "../read-map";
 import { parseNames } from "../names";
 import { loadFixture } from "./fixture";
 
@@ -263,6 +263,23 @@ describe("記住的簽章（差幾格也認得）", () => {
 
   it("長度不一樣（別的版本的簽章）：不算相近", () => {
     expect(resolveMap(empty(BASE), maps, trainingIds, { [BASE.slice(2)]: 9 }).mapId).toBeNull();
+  });
+});
+
+describe("「不是這張圖」：forgetLook 清掉這個長相的記憶（10/14）", () => {
+  const empty = (signature: string): TitleReading => ({ signature, street: [], name: [] });
+
+  it("一模一樣、跟差 6 格內的（recall 會認成同一個長相的）都清掉；差 7 格以上、長度不同的留著；不改傳進來的", () => {
+    const memory = { [BASE]: 1, [flip(BASE, 0, 6)]: 2, [flip(BASE, 0, 7)]: 3, [BASE.slice(2)]: 4 };
+    const before = { ...memory };
+    expect(forgetLook(memory, BASE)).toEqual({ [flip(BASE, 0, 7)]: 3, [BASE.slice(2)]: 4 });
+    expect(memory).toEqual(before);
+  });
+
+  it("記憶裡存的是差幾格的長相（現在的 key 不在記憶裡）也清得掉：清完 resolveMap 不再認成那張", () => {
+    const memory = { [flip(BASE, 10, 4)]: 777 };
+    expect(resolveMap(empty(BASE), maps, trainingIds, memory).mapId).toBe(777);
+    expect(resolveMap(empty(BASE), maps, trainingIds, forgetLook(memory, BASE)).mapId).toBeNull();
   });
 });
 

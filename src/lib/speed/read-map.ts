@@ -225,6 +225,14 @@ function recall(memory: Record<string, number>, signature: string): number | und
 }
 
 /**
+ * 「不是這張圖」（10/14）：記憶裡拿掉這個長相記住的地圖——一模一樣的、跟差 6 格內的（recall 會認成同一個長相的）都拿掉，
+ * 不然記憶裡存的是差幾格的長相時，下次又被認回認錯的那張。回新的一份，不改傳進來的。
+ */
+export function forgetLook(memory: Record<string, number>, signature: string): Record<string, number> {
+  return Object.fromEntries(Object.entries(memory).filter(([known]) => hammingDistance(known, signature) > SAME_BITS));
+}
+
+/**
  * 標題 → 地圖 id。先看記過的（玩家點選過的長相，差 6 格內都算）；再拿每張有中文名的地圖「街道差＋地圖名差」排。
  * 街道名是空的地圖（雲彩公園、天空階梯、冰原雪域，資料裡沒有街道欄）街道不比，給「這次街道排名裡最小的差」當中立分數。
  * 同一個「街道｜名字」有好幾個 id 時，取有練功資料的那張，都沒有取 id 小的。

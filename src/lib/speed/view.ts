@@ -4,8 +4,10 @@
  */
 import { formatNumber } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
-import type { MemberExp } from "./party-exp";
-import type { RunPayload } from "./server/rules";
+import type { Monster, TrainingRow } from "@/lib/types";
+import { killExp, type Member, type MemberExp } from "./party-exp";
+import type { MapGuess } from "./read-map";
+import type { BoardRow, RunPayload } from "./server/rules";
 import type { SpeedParty } from "./settings";
 import { durationMs, startManual, switchMode, type Mode, type Segment, type Step, type Tracker } from "./tracker";
 
@@ -189,6 +191,57 @@ export function mapSource(title: { key: string | null; mapId: number | null }, p
   if (title.key !== null) return title;
   if (picked !== null) return { key: `pick:${picked}`, mapId: picked };
   return { key: null, mapId: null };
+}
+
+/**
+ * 地圖面板「不是這張圖」（10/14 使用者授權 A）之後，地圖那欄跟練功計算怎麼變（跟 mapSource 一樣，標題長相優先）：
+ * - 標題認得出長相（自動認的、之前點選記住的）：不認這張了（mapId null），列候選請玩家重選；
+ *   fresh 是不看記憶重新排的候選（記住的長相 resolveMap 不給候選），拿掉認錯的那張。
+ *   forget：要清掉這個長相記在這台電腦的地圖（選了新的再記）。
+ * - 標題讀不到、從清單選的：拿掉選的那張，回到「從清單選」那張卡。
+ * dropKey：練功計算裡要改成「不知道地圖」的 key（tracker 的 dropMap）；沒有可改的回 null。
+ */
+export function notThisMap(
+  place: { key: string | null; guess: MapGuess | null; picked: number | null },
+  fresh: number[],
+): { guess: MapGuess | null; picked: number | null; forget: string | null; dropKey: string | null } {
+  if (place.key !== null) {
+    const wrong = place.guess?.mapId ?? null;
+    return { guess: { mapId: null, confident: false, choices: fresh.filter(id => id !== wrong) }, picked: place.picked, forget: place.key, dropKey: place.key };
+  }
+  if (place.picked !== null) return { guess: place.guess, picked: null, forget: null, dropKey: `pick:${place.picked}` };
+  return { guess: place.guess, picked: place.picked, forget: null, dropKey: null };
+}
+
+/**
+ * 低等時一張讀數最多可以多多少（tracker 的 stepFloor，10/14）：這張圖經驗最高的怪 × 3 隻 ×（1＋組隊加成）。
+ * 組隊加成照那隻怪的有效隊員數（killExp 的 bonus）；members 是 null＝單練，沒有加成。
+ * 沒有這張圖的練功資料、或這張圖的怪都沒有經驗資料：回 undefined（不給，照這級一成算）。
+ */
+export function mapStepFloor(row: TrainingRow | undefined, monsters: Map<number, Monster>, members: Member[] | null): number | undefined {
+  let best = 0;
+  for (const [id] of row?.mobs ?? []) {
+    const monster = monsters.get(id);
+    if (!monster?.exp) continue;
+    const bonus = members ? (killExp(monster.exp, monster.lv ?? 0, members)[0]?.bonus ?? 0) : 0;
+    best = Math.max(best, monster.exp * (1 + bonus));
+  }
+  return best > 0 ? 3 * best : undefined;
+}
+
+export type BoardState = { kind: "loading" } | { kind: "error" } | { kind: "ok"; open: boolean; solo: BoardRow[]; party: BoardRow[] };
+
+/**
+ * 排行卡名單那格的一句話；這個分頁有名單回 null。trained：這張圖在 training.json 有練功資料。
+ * 沒有練功資料的圖伺服器不查資料庫、一定是空的，寫「沒有練功資料，不列排行」，不寫「還沒有人練滿」。
+ * 沒有資料庫（open 是 false）時照舊寫「排行還沒開」。
+ */
+export function boardNote(board: BoardState, tab: "solo" | "party", trained: boolean): string | null {
+  if (board.kind === "loading") return "載入中…";
+  if (board.kind === "error") return "排行暫時連不上，等一下再過來。";
+  if (!board.open) return "排行還沒開。";
+  if (board[tab].length) return null;
+  return trained ? "這張圖還沒有人練滿 10 分鐘。" : "這張圖沒有練功資料，不列排行。";
 }
 
 /** 存一筆送給 /api/speed/runs 的內容。組隊送其他隊員等級跟誰在打（伺服器自己算隊伍人數，不送 partySize） */

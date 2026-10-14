@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { forgetLook } from "./read-map";
 
 /**
  * 存在這台電腦（localStorage）：
@@ -104,4 +105,9 @@ export function readMapMemory(): Record<string, number> {
 
 export function rememberMap(signature: string, mapId: number) {
   write(MAP_KEY, JSON.stringify({ ...readMapMemory(), [signature]: mapId }));
+}
+
+/** 玩家按「不是這張圖」：清掉這個長相（差一點點的也算，read-map.ts 的 forgetLook）記住的地圖；選了新的再用 rememberMap 記 */
+export function forgetMap(signature: string) {
+  write(MAP_KEY, JSON.stringify(forgetLook(readMapMemory(), signature)));
 }

@@ -1,10 +1,11 @@
 // src/lib/speed/__tests__/view.test.ts
 import { describe, expect, it } from "vitest";
+import type { Monster, TrainingRow } from "@/lib/types";
 import type { MemberExp } from "../party-exp";
 import { createTracker, feed, startManual, type Sample, type Segment, type Tracker } from "../tracker";
 import {
-  backCalcLine, BLIND_PICK_MS, draftParty, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnPartyChange,
-  type BlindMap, type HintState,
+  backCalcLine, BLIND_PICK_MS, boardNote, draftParty, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, mapStepFloor, nextBlind, nextHints, notThisMap, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnPartyChange,
+  type BlindMap, type BoardState, type HintState,
 } from "../view";
 
 const exp = (level: number, total: number, hitter = false, effective = true): MemberExp => ({ level, hitter, effective, white: total, bonus: 0, total });
@@ -252,7 +253,7 @@ describe("nextHints", () => {
 function segment(patch: Partial<Segment> = {}): Segment {
   return {
     mode: "auto", startedAt: Date.parse("2026-10-13T08:00:00.000Z"), endedAt: 0, lastChangeAt: Date.parse("2026-10-13T08:12:00.400Z"),
-    startLevel: 46, level: 46, exp: 0, job: 220, party: 1, mapKey: "k", gained: 120_000, levelUps: 0, deaths: 1, byMap: {}, ...patch,
+    startLevel: 46, level: 46, exp: 0, job: 220, party: 1, mapKey: "k", mapId: null, gained: 120_000, levelUps: 0, deaths: 1, byMap: {}, ...patch,
   };
 }
 
@@ -354,5 +355,80 @@ describe("saveNote", () => {
     expect(saveNote({ kind: "noId" }, ranked)).toBe("沒填角色 ID，這段沒存進排行。");
     expect(saveNote({ kind: "short" }, ranked)).toBe("不到 5 分鐘，沒存。");
     expect(saveNote({ kind: "network" }, ranked)).toBe("沒存到：網路不通，等一下再過來。");
+  });
+});
+
+describe("不是這張圖：notThisMap（10/14 使用者授權 A）", () => {
+  it("自動認出來的：不認這張了（mapId null），候選照重新排的、拿掉認錯的那張；清掉這個長相的記憶、這個 key 的經驗改成不知道地圖", () => {
+    const place = { key: "abc", guess: { mapId: 5, confident: true, choices: [5, 6, 7] }, picked: null };
+    expect(notThisMap(place, [5, 6, 7])).toEqual({ guess: { mapId: null, confident: false, choices: [6, 7] }, picked: null, forget: "abc", dropKey: "abc" });
+  });
+
+  it("之前點選記住的（resolveMap 回的候選是空的）：用不看記憶重新排的候選", () => {
+    const place = { key: "abc", guess: { mapId: 5, confident: true, choices: [] }, picked: null };
+    expect(notThisMap(place, [8, 5, 9])).toEqual({ guess: { mapId: null, confident: false, choices: [8, 9] }, picked: null, forget: "abc", dropKey: "abc" });
+  });
+
+  it("標題長相認得出來時，之前從清單選的不管（照正常流程）", () => {
+    const place = { key: "abc", guess: { mapId: 5, confident: true, choices: [] }, picked: 9 };
+    expect(notThisMap(place, [])).toMatchObject({ picked: 9, forget: "abc", dropKey: "abc" });
+  });
+
+  it("標題讀不到、從清單選的：拿掉選的那張，回到「從清單選」；沒有長相可以清", () => {
+    const place = { key: null, guess: null, picked: 9 };
+    expect(notThisMap(place, [])).toEqual({ guess: null, picked: null, forget: null, dropKey: "pick:9" });
+  });
+
+  it("沒有認出也沒選：什麼都不變", () => {
+    const place = { key: null, guess: null, picked: null };
+    expect(notThisMap(place, [])).toEqual({ guess: null, picked: null, forget: null, dropKey: null });
+  });
+});
+
+describe("排行卡那句：boardNote", () => {
+  const ok = (rows: number, open = true): BoardState => ({ kind: "ok", open, solo: Array.from({ length: rows }, () => ({}) as never), party: [] });
+
+  it("載入中、連不上、排行還沒開", () => {
+    expect(boardNote({ kind: "loading" }, "solo", true)).toBe("載入中…");
+    expect(boardNote({ kind: "error" }, "solo", true)).toBe("排行暫時連不上，等一下再過來。");
+    expect(boardNote(ok(0, false), "solo", true)).toBe("排行還沒開。");
+    // 沒有資料庫時，不管有沒有練功資料都是「排行還沒開」
+    expect(boardNote(ok(0, false), "solo", false)).toBe("排行還沒開。");
+  });
+
+  it("有名單：不出這句", () => {
+    expect(boardNote(ok(3), "solo", true)).toBeNull();
+  });
+
+  it("空的：有練功資料寫「還沒有人練滿 10 分鐘」，沒有練功資料寫「沒有練功資料，不列排行」", () => {
+    expect(boardNote(ok(0), "solo", true)).toBe("這張圖還沒有人練滿 10 分鐘。");
+    expect(boardNote(ok(0), "party", true)).toBe("這張圖還沒有人練滿 10 分鐘。");
+    expect(boardNote(ok(0), "solo", false)).toBe("這張圖沒有練功資料，不列排行。");
+  });
+
+  it("看的是現在這個分頁：單練有名單、組隊空的", () => {
+    expect(boardNote(ok(2), "party", true)).toBe("這張圖還沒有人練滿 10 分鐘。");
+  });
+});
+
+describe("低等的單張上限：mapStepFloor（10/14）", () => {
+  const monster = (id: number, exp: number, lv: number) => ({ id, n: `怪${id}`, lv, exp }) as Monster;
+  const monsters = new Map([monster(1, 10, 6), monster(2, 26, 15), monster(3, 0, 4)].map(m => [m.id, m]));
+  const row = { m: 104040002, mobs: [[1, 24, 0], [2, 14, 0], [3, 5, 0], [99, 3, 0]] } as unknown as TrainingRow;
+
+  it("單練：這張圖經驗最高的怪 × 3", () => {
+    expect(mapStepFloor(row, monsters, null)).toBe(78);
+  });
+
+  it("組隊：再乘（1＋組隊加成），加成照這隻怪的有效隊員數", () => {
+    // Lv5 打、Lv8 隊友：差 3 級，兩個都有效 → +10%
+    expect(mapStepFloor(row, monsters, [{ level: 5, hitter: true }, { level: 8, hitter: false }])).toBeCloseTo(26 * 1.1 * 3);
+    // Lv30 打、Lv5 隊友：差 25 級、5 級也沒到怪物等級 −5 → 只有自己有效，沒有加成
+    expect(mapStepFloor(row, monsters, [{ level: 30, hitter: true }, { level: 5, hitter: false }])).toBe(78);
+  });
+
+  it("沒有這張圖的練功資料、或這張圖的怪都沒有經驗資料：不給", () => {
+    expect(mapStepFloor(undefined, monsters, null)).toBeUndefined();
+    expect(mapStepFloor({ ...row, mobs: [[3, 5, 0], [99, 1, 0]] } as TrainingRow, monsters, null)).toBeUndefined();
   });
 });

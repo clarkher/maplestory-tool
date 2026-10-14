@@ -1,7 +1,7 @@
 // src/lib/speed/__tests__/tracker.test.ts
 import { describe, expect, it } from "vitest";
 import {
-  createTracker, durationMs, feed, mainMap, MAX_DEATH_SHARE, MAX_STEP_SHARE, minutesToLevel, MISS_LIMIT, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
+  createTracker, dropMap, durationMs, feed, mainMap, MAX_DEATH_SHARE, MAX_STEP_SHARE, minutesToLevel, MISS_LIMIT, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
   type Sample, type Tracker,
 } from "../tracker";
 import { durationText, etaText } from "../format";
@@ -371,5 +371,124 @@ describe("地圖鍵（讀不到的圖不亂記）", () => {
     const { t } = run(createTracker("auto"), [S(0, 1000, 10, noMap), S(1000, 1000, 10, noMap), S(2000, 1100, 10, noMap), S(3000, 1200, 10, noMap)]);
     expect(t.seg).toMatchObject({ gained: 100, mapKey: null, byMap: {} });
     expect(mainMap(t.seg!)).toEqual({ key: null, mapId: null });
+  });
+});
+
+describe("先點選、之後認出同一張圖不切段（10/14）", () => {
+  const picked = { mapKey: "pick:105040303", mapId: 105040303 };
+  const titled = { mapKey: "abc", mapId: 105040303 };
+
+  it("自動：pick:<id> 之後讀到真的標題長相、對到同一張圖：不收掉，換成新的 key 繼續同一段", () => {
+    const { t, closed } = run(createTracker("auto"), [
+      S(0, 1000, 10, picked), S(1000, 1000, 10, picked), S(2000, 1100, 10, picked), S(3000, 1200, 10, picked), S(4000, 1300, 10, titled), S(5000, 1400, 10, titled),
+    ]);
+    expect(closed).toHaveLength(0);
+    expect(t.seg).toMatchObject({ startedAt: 2000, gained: 300, mapKey: "abc", mapId: 105040303 });
+    expect(mainMap(t.seg!).mapId).toBe(105040303);
+  });
+
+  it("這段剛開始（還沒記到哪張圖）就換成標題長相：一樣不切", () => {
+    const { t, closed } = run(createTracker("auto"), [S(0, 1000, 10, picked), S(1000, 1000, 10, picked), S(2000, 1100, 10, picked), S(3000, 1200, 10, titled)]);
+    expect(closed).toHaveLength(0);
+    expect(t.seg).toMatchObject({ startedAt: 2000, gained: 100, mapKey: "abc" });
+  });
+
+  it("地圖 id 不一樣：照換圖收掉", () => {
+    const { t, closed } = run(createTracker("auto"), [
+      S(0, 1000, 10, picked), S(1000, 1000, 10, picked), S(2000, 1100, 10, picked), S(3000, 1200, 10, picked), S(4000, 1300, 10, { mapKey: "abc", mapId: 105040302 }),
+    ]);
+    expect(closed).toHaveLength(1);
+    expect(closed[0]).toMatchObject({ mapKey: "pick:105040303", gained: 100 });
+    expect(t.seg).toMatchObject({ mapKey: "abc", startedAt: 4000, gained: 0 });
+  });
+
+  it("新的長相還沒認出是哪張圖（mapId null）：照換圖收掉（兩邊都要有地圖 id 才算同一張）", () => {
+    const { closed } = run(createTracker("auto"), [
+      S(0, 1000, 10, picked), S(1000, 1000, 10, picked), S(2000, 1100, 10, picked), S(3000, 1200, 10, picked), S(4000, 1300, 10, { mapKey: "abc", mapId: null }),
+    ]);
+    expect(closed).toHaveLength(1);
+  });
+});
+
+describe("低等也量得到：stepFloor（10/14）", () => {
+  // 真的經驗表：5 級升級要 135（一成是 13.5）；46 級要 510,420
+  const real: number[] = [0, 15, 34, 57, 92, 135, 372];
+  real[46] = 510_420;
+  const feedAll = (t: Tracker, samples: Sample[]) => samples.reduce((acc, sample) => feed(acc, sample, real).tracker, t);
+  const L5 = (at: number, exp: number, extra: Partial<Sample> = {}) => S(at, exp, 5, extra);
+  const started = (extra: Partial<Sample> = {}) => feedAll(createTracker("auto"), [L5(0, 10, extra), L5(1000, 10, extra), L5(2000, 15, extra)]);
+
+  it("Lv5 一秒打一隻綠菇菇（+26，超過這級一成）：沒有 stepFloor 照舊當認錯", () => {
+    const t = feedAll(started(), [L5(3000, 41)]);
+    expect(t.seg!.gained).toBe(0);
+    expect(t.misses).toBe(1);
+  });
+
+  it("有 stepFloor（這張圖經驗最高的怪 × 3）照算", () => {
+    const floor = { stepFloor: 3 * 26 };
+    const t = feedAll(started(floor), [L5(3000, 41, floor), L5(4000, 119, floor)]);
+    expect(t.seg!.gained).toBe(26 + 78);
+    expect(t.misses).toBe(0);
+    // 超過 stepFloor 還是擋
+    expect(feedAll(t, [L5(5000, 198, floor)]).misses).toBe(1);
+  });
+
+  it("stepFloor 也跟著隔多久放寬（隔 20 秒放 2 倍）", () => {
+    const floor = { stepFloor: 78 };
+    const t = feedAll(started(floor), [L5(22_000, 15 + 156, floor)]);
+    expect(t.seg!.gained).toBe(156);
+  });
+
+  it("一般等級：假的升級（46 級 50% 一秒跳到 47 級，多半級）照樣擋，stepFloor 遠小於這級一成", () => {
+    const floor = { stepFloor: 3 * 1200 };
+    const base = feedAll(createTracker("auto"), [S(0, 255_000, 46, floor), S(1000, 255_000, 46, floor), S(2000, 255_100, 46, floor)]);
+    const t = feedAll(base, [S(3000, 5000, 47, floor)]);
+    expect(t.seg).toMatchObject({ gained: 0, levelUps: 0, level: 46 });
+    expect(t.misses).toBe(1);
+  });
+});
+
+describe("不是這張圖：dropMap（10/14）", () => {
+  const K = { mapKey: "abc", mapId: 105040302 };
+
+  it("自動：收掉這段（結束在最後一次變動），收掉的這段記在這個 key 的地圖改成不知道；起點留著，經驗再動開新的一段", () => {
+    const { t } = run(createTracker("auto"), [S(0, 1000, 10, K), S(1000, 1000, 10, K), S(2000, 1100, 10, K), S(3000, 1300, 10, K)]);
+    const step = dropMap(t, "abc");
+    expect(step.closed).toMatchObject({ startedAt: 2000, endedAt: 3000, gained: 200, mapId: null, byMap: { abc: { mapId: null, gained: 200 } } });
+    expect(mainMap(step.closed!)).toEqual({ key: "abc", mapId: null });
+    expect(step.tracker.seg).toBeNull();
+    expect(step.tracker.last).toBe(t.last);
+    // 玩家選了新的圖：同一個長相帶新的地圖 id，經驗一動開新的一段，記成新的圖
+    const again = run(step.tracker, [S(10_000, 1400, 10, { mapKey: "abc", mapId: null }), S(11_000, 1500, 10, { mapKey: "abc", mapId: 105040303 }), S(12_000, 1600, 10, { mapKey: "abc", mapId: 105040303 })]);
+    expect(again.closed).toHaveLength(0);
+    expect(again.t.seg).toMatchObject({ startedAt: 10_000, gained: 200, mapId: 105040303 });
+    expect(mainMap(again.t.seg!)).toEqual({ key: "abc", mapId: 105040303 });
+  });
+
+  it("手動：這段不停；這個 key 記的經驗改成不知道，選了新的圖之後整個 key 記成新的圖", () => {
+    let t = startManual(run(createTracker("manual"), [S(0, 1000, 10, K), S(1000, 1000, 10, K)]).t, 1000);
+    t = run(t, [S(2000, 1300, 10, K)]).t;
+    const step = dropMap(t, "abc");
+    expect(step.closed).toBeNull();
+    expect(step.tracker.seg).toMatchObject({ mode: "manual", startedAt: 1000, gained: 300, byMap: { abc: { mapId: null, gained: 300 } } });
+    t = run(step.tracker, [S(4000, 1400, 10, { mapKey: "abc", mapId: null }), S(5000, 1500, 10, { mapKey: "abc", mapId: 105040303 })]).t;
+    expect(t.seg).toMatchObject({ gained: 500, byMap: { abc: { mapId: 105040303, gained: 500 } } });
+    expect(mainMap(stopManual(t, 6000).closed!)).toEqual({ key: "abc", mapId: 105040303 });
+  });
+
+  it("手動、從清單選的（pick:W → 重選 pick:N）：之前的經驗不知道地圖，之後的記成 N", () => {
+    const W = { mapKey: "pick:1", mapId: 1 };
+    const N = { mapKey: "pick:2", mapId: 2 };
+    let t = startManual(run(createTracker("manual"), [S(0, 1000, 10, W), S(1000, 1000, 10, W)]).t, 1000);
+    t = run(t, [S(2000, 1100, 10, W)]).t;
+    t = dropMap(t, "pick:1").tracker;
+    t = run(t, [S(4000, 1150, 10, { mapKey: null, mapId: null }), S(5000, 1400, 10, N)]).t;
+    expect(t.seg!.byMap).toEqual({ "pick:1": { mapId: null, gained: 100 }, "pick:2": { mapId: 2, gained: 250 } });
+    expect(mainMap(t.seg!)).toEqual({ key: "pick:2", mapId: 2 });
+  });
+
+  it("沒在練：什麼都不變", () => {
+    const t = run(createTracker("auto"), [S(0, 1000, 10, K), S(1000, 1000, 10, K)]).t;
+    expect(dropMap(t, "abc")).toEqual({ tracker: t, closed: null });
   });
 });
