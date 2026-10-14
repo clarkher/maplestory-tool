@@ -1,7 +1,7 @@
 /**
  * publish job 推上 fx-data 之前檢查 collect 產的 artifact：collect 跑過外站的內容，publish 只當資料收。
- * 只准 fx/scania/ 底下那五個一般檔案（不能有連結、隱藏檔、多的檔），每個都讀得懂，
- * 兩個 .jsonl 必須是舊內容原封不動接上新的（歷史只會變長）。全部用 readFileSync＋JSON.parse，不 require、不 import。
+ * 只准 fx/scania/ 底下那三個一般檔案（不能有連結、隱藏檔、多的檔），每個都讀得懂，
+ * .jsonl 必須是舊內容原封不動接上新的（歷史只會變長）。全部用 readFileSync＋JSON.parse，不 require、不 import。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -39,9 +39,8 @@ export function checkArtifact(outDir, branchDir) {
     const oldFile = path.join(branchDir, DIR, name);
     if (fs.existsSync(oldFile) && !text.startsWith(fs.readFileSync(oldFile, "utf8"))) throw new Error(`${name} 只能接在後面，舊的內容被改了`);
   }
-  parse("state.json", read("state.json"));
   const latest = parse("latest.json", read("latest.json"));
-  if (!(typeof latest?.ask100 === "number" && latest.ask100 > 0)) throw new Error("latest.json 的 ask100 不是正數");
+  if (!(Number.isFinite(latest?.ask100) && latest.ask100 > 0)) throw new Error("latest.json 的 ask100 不是有限的正數");
   const daily = parse("daily.json", read("daily.json"));
   if (!Array.isArray(daily?.days)) throw new Error("daily.json 沒有 days 陣列");
 }
