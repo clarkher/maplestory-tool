@@ -1,16 +1,17 @@
 /**
  * 楓幣匯率收集要不要開／關 issue（fx-collect.yml 的 notify job）。
- * 開：兩個來源都失敗（collect 紅）、推不上 fx-data、8591 連續 3 次抓不到（12 小時，正在靠參考站撐）。
- * 關：8591 正常而且推上去了。不寫入的測試跑法不通知。
+ * 開：參考站抓不到或格式變了（collect 紅）、推不上 fx-data、參考站 12 小時以上沒更新
+ *     （它每 2 小時更新一次，停了頁面就一直是舊數字）。
+ * 關：抓到了、推上去了、資料不舊。不寫入的測試跑法不通知。
  */
 export const LABEL = "匯率收集失敗";
-export const FAIL_LIMIT = 3;
+export const STALE_HOURS = 12;
 
-export function decide({ write, collectResult, publishResult, ok8591, fail8591 }) {
+export function decide({ write, collectResult, publishResult, ageHours }) {
   if (write !== "true") return { action: "none", reason: "測試跑法（沒有寫入），不通知" };
-  if (collectResult === "failure") return { action: "open", reason: "8591 跟參考站兩個來源都失敗（或程式出錯），這一輪沒有資料" };
+  if (collectResult === "failure") return { action: "open", reason: "參考站的 price.json 抓不到或格式變了，這一輪沒有資料" };
   if (publishResult === "failure") return { action: "open", reason: "資料算好了但推不上 fx-data 分支" };
-  if (ok8591 === "false" && Number(fail8591) >= FAIL_LIMIT) return { action: "open", reason: `8591 連續 ${fail8591} 次抓不到（可能被擋或改版），現在靠參考站的數字` };
-  if (ok8591 === "true" && publishResult === "success") return { action: "close", reason: "8591 恢復正常" };
+  if (Number(ageHours) >= STALE_HOURS) return { action: "open", reason: `參考站已經 ${ageHours} 小時沒更新（可能停了），頁面上的匯率會一直是舊的` };
+  if (collectResult === "success" && publishResult === "success") return { action: "close", reason: "恢復正常" };
   return { action: "none", reason: "沒有要通知的" };
 }

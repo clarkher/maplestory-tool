@@ -24,7 +24,7 @@ export async function notifyIssue({ action, reason, call, repo, runUrl, assignee
     } else {
       // 沒有開著的：先建 label（容忍「已存在」的 422 error），再開 issue
       try {
-        await call("POST", `/repos/${repo}/labels`, { name: LABEL, color: "d73a4a", description: "楓幣匯率收集（fx-collect.yml）失敗時自動開的，8591 恢復會自動關" });
+        await call("POST", `/repos/${repo}/labels`, { name: LABEL, color: "d73a4a", description: "楓幣匯率收集（fx-collect.yml）失敗時自動開的，恢復正常會自動關" });
       } catch (err) {
         // 為什麼容忍 422：label 已存在時 GitHub API 回 422；其他 error（403、500 等）就應該拋出來
         if (!err.message.includes("HTTP 422")) throw err;
@@ -33,7 +33,7 @@ export async function notifyIssue({ action, reason, call, repo, runUrl, assignee
         title: "楓幣匯率收集失敗",
         labels: [LABEL],
         assignees: assignee ? [assignee] : [],
-        body: `${reason}\n\n${lastLine}\n\n資料分支：fx-data；排程：.github/workflows/fx-collect.yml。8591 恢復正常會自動關這張。`,
+        body: `${reason}\n\n${lastLine}\n\n資料分支：fx-data；排程：.github/workflows/fx-collect.yml。恢復正常會自動關這張。`,
       });
       return "created";
     }

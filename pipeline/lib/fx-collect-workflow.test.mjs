@@ -34,9 +34,9 @@ function runBlocks() {
 
 const WRITE_CONDITION = "github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || inputs.write";
 
-test("每 4 小時跑一次（台灣 08:17 起），可以手動跑，合進 dev 時改到收集程式也跑一次", () => {
+test("每 2 小時跑一次（台灣 00:55 起），可以手動跑，合進 dev 時改到收集程式也跑一次", () => {
   assert.ok(WORKFLOW, ".github/workflows/fx-collect.yml 要存在");
-  assert.match(CODE, /\n {2}schedule:\n {4}- cron: "17 \*\/4 \* \* \*"\n/);
+  assert.match(CODE, /\n {2}schedule:\n {4}- cron: "55 \*\/2 \* \* \*"\n/);
   assert.match(CODE, /\n {2}workflow_dispatch:\n/);
   assert.match(CODE, /\n {2}push:\n {4}branches: \[dev\]\n {4}paths:\n/);
   assert.doesNotMatch(CODE, /pull_request/);
@@ -61,6 +61,7 @@ test("publish 只在 collect 成功、而且是 main／dev 或手動勾了 write
   const pushStep = publish.slice(publish.indexOf("publish.mjs"));
   assert.ok(publish.includes("node repo/pipeline/fx/publish.mjs"), "要先跑 publish.mjs 檢查");
   assert.match(pushStep, /\bgit (?:-C \S+ )?push\b/, "git push 要在 publish.mjs 之後");
+  assert.doesNotMatch(publish.slice(0, publish.indexOf("publish.mjs")), /\bgit (?:-C \S+ )?push\b/, "publish.mjs 之前不准推");
 });
 
 test("notify 有 issues: write、沒有 contents: write，成功失敗都跑", () => {
@@ -69,6 +70,8 @@ test("notify 有 issues: write、沒有 contents: write，成功失敗都跑", (
   assert.doesNotMatch(notify, /contents: write/);
   assert.match(notify, /if: \$\{\{ !cancelled\(\) \}\}/);
   assert.match(notify, /node pipeline\/fx\/notify\.mjs/);
+  assert.match(notify, /AGE_HOURS: \$\{\{ needs\.collect\.outputs\.ageHours \}\}/);
+  assert.doesNotMatch(CODE, /OK_8591|FAIL_8591|8591\.com\.tw/);
 });
 
 test("run 裡不准有 ${{ }}（上游、外站的字串會被當指令執行），一律用 env 傳", () => {
@@ -79,4 +82,10 @@ test("run 裡不准有 ${{ }}（上游、外站的字串會被當指令執行）
 
 test("寫入條件只定義在 env.WRITE 與 publish 的 if，兩處一樣", () => {
   assert.ok(CODE.includes(`WRITE: \${{ (${WRITE_CONDITION}) && 'true' || 'false' }}`));
+});
+
+test("手動跑的 write 預設 false；上傳、下載的 artifact 名稱一樣", () => {
+  assert.match(CODE, /\n {6}write:\n(?: {8}.*\n)* {8}default: false\n/);
+  const names = [...CODE.matchAll(/\n {10}name: (fx-[\w-]+)\n/g)].map(match => match[1]);
+  assert.deepEqual(names, ["fx-out", "fx-out"]);
 });
