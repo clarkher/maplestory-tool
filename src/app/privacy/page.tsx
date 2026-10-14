@@ -10,7 +10,7 @@ export default function Page() {
   return (
     <article className="prose-page space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">隱私權政策</h1>
-      <p className="ink-soft">最後更新：2026 年 10 月 13 日</p>
+      <p className="ink-soft">最後更新：2026 年 10 月 14 日</p>
 
       <Block title="我們不需要你的帳號">
         本站不提供註冊、不需要登入，也沒有任何帳號系統。你不用給我們電子郵件、電話或任何個人身分資料（練功測速的角色 ID 是遊戲裡的名字，不是帳號，填不填由你）。
@@ -19,7 +19,7 @@ export default function Page() {
       <Block title="存在你自己瀏覽器裡的東西">
         <p>
           你填的等級與職業、你在任務頁按「我做完了」的任務、「帶我去」上次選的出發點，以及白天／夜晚配色的選擇，只存在你自己裝置的 localStorage 裡，不會送到我們的伺服器。
-          只有一個例外：練功測速認不出畫面上的職業時，存一筆紀錄會帶上你在「我的路線」選的職業。
+          只有一個例外：練功測速認不出畫面上的職業時，存一筆紀錄會帶上你在本站選的職業。
         </p>
         <p className="mt-2">
           練功測速的角色 ID、公開與否、自動／手動、組隊設定、你點選過的地圖，也記在你自己的裝置裡。
@@ -35,7 +35,7 @@ export default function Page() {
         </p>
         <ul className="mt-2 list-inside list-disc space-y-1">
           <li>你填的：角色 ID、要不要公開、組隊時隊友的等級跟誰在打怪。</li>
-          <li>從畫面認出來的：等級、職業（認不出來時用你在「我的路線」選的）、地圖（認不出來時用你點選的）、拿到的經驗。</li>
+          <li>從畫面認出來的：等級、職業（認不出來時用你在本站選的職業）、地圖（認不出來時用你點選的）、拿到的經驗。</li>
           <li>其他：練了多久、開始時間、自動或手動、升了幾級、死了幾次、頁面版本，以及照這些算出來的 10 分鐘經驗、全隊 10 分鐘打幾隻。</li>
         </ul>
         <p className="mt-2">拿來做每張地圖的實測排行、改進練功推薦。</p>
