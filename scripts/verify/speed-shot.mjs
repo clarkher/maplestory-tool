@@ -1,10 +1,11 @@
-// 練功測速（/plan/speed，v0.95）驗收：用測試截圖當假的分享畫面，從頭跑一遍，任何一項沒過 exit 1
+// 練功測速（/plan/speed，v0.95；v0.96 加單欄置中、掉寶收起來、組隊說明、「不是這張圖」）驗收：用測試截圖當假的分享畫面，從頭跑一遍，任何一項沒過 exit 1
 // 用法：node scripts/verify/speed-shot.mjs [輸出資料夾] [網址，預設 http://localhost:3095] [DevTools 埠，預設 9391]
 //   例：node scripts/verify/speed-shot.mjs "$TEMP/speed-shot" http://localhost:3095
 // 網址用 localhost，不要用 127.0.0.1（next dev 對 127.0.0.1 的互動不理）。
 // 假的分享畫面：頁面在非正式機會先看 window.__speedTestStream；腳本把 src/lib/speed/__fixtures__/window-1364.png
 // 畫進 canvas、captureStream 塞進去，不用真的開遊戲、也不會跳出選視窗的對話框。
-// 輸出：speed.png（整頁，1440 寬）、speed-choices.png（認不出地圖、列出候選的時候）、results.json（每一項檢查的結果＋量到的字）
+// 輸出：speed-setup.png（還沒分享、單欄置中）、speed.png（整頁，1440 寬）、speed-choices.png（認不出地圖、列出候選的時候）、
+//   speed-drops.png（地圖面板，展開一隻怪的掉寶）、speed-rechoose.png（按「不是這張圖」之後的候選）、results.json（每一項檢查的結果＋量到的字）
 // 量不到的（靠 tracker.test.ts 跟真人玩）：經驗會不會跟著動、自動停、存進排行——假畫面是靜止的。
 import fs from "node:fs";
 import path from "node:path";
@@ -18,6 +19,8 @@ const PORT = chromePort(9391, process.argv[4]);
 const FIXTURE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../src/lib/speed/__fixtures__/window-1364.png");
 
 const MAP = "森林迷宮III"; // 基準截圖的小地圖標題；截圖是有損壓縮，多半認不出來，要玩家點一次
+const MAP_ID = 105040303; // 森林迷宮III 的地圖 id（maps.json）
+const OTHER = "森林迷宮IV"; // 「不是這張圖」之後改選的圖（候選是空的才用搜尋找它）
 const READING = "Lv.46 · 經驗 406,947（79.73%）"; // 基準截圖上的等級、經驗；% 是經驗 ÷ 46 級升級要的經驗算的
 const JOB = "冰雷巫師"; // jobOption(220).name
 const MATE = 44;
@@ -65,9 +68,12 @@ async function until(expression, ms = 30000) {
   return false;
 }
 
-/** 在頁面裡找一個元素（寫成一段會回傳元素的程式），捲到中間，回傳中心座標 */
+/**
+ * 在頁面裡找一個元素（寫成一段會回傳元素的程式），捲到中間，回傳中心座標。
+ * 捲動要用 instant：全站開了平滑捲動，平滑捲的話這裡量到的是還沒捲過去的位置，滑鼠會點歪（v0.96 的「不是這張圖」就是這樣點空）
+ */
 const centerOf = finder =>
-  evaluate(`(() => { const el = (${finder}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  evaluate(`(() => { const el = (${finder}); if (!el) return null; el.scrollIntoView({ block: "center", behavior: "instant" }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
 
 /** 真的用滑鼠點（走 DevTools 的 Input，不是 el.click()），找不到元素回 false */
 async function click(finder) {
@@ -127,6 +133,24 @@ const monsterCards = () =>
     };
   })()`);
 
+/** 截一個元素（整頁拉到跟頁面一樣高再照元素的框裁）；找不到回 false */
+async function elementShot(file, finder) {
+  const height = await evaluate("Math.ceil(document.documentElement.scrollHeight)");
+  await viewport(height);
+  await sleep(500);
+  await ev(`await __waitFor(() => [...document.images].every(img => img.complete), 8000); await __sleep(300);`);
+  const box = await evaluate(`(() => { const el = (${finder}); if (!el) return null; const r = el.getBoundingClientRect(); return { x: r.left, y: r.top + scrollY, width: r.width, height: r.height }; })()`);
+  if (box) {
+    const r = await page.send("Page.captureScreenshot", { format: "png", clip: { ...box, scale: 1 } });
+    fs.writeFileSync(path.join(OUT, file), Buffer.from(r.data, "base64"));
+  }
+  await viewport();
+  return Boolean(box);
+}
+
+/** 地圖面板（標題是 name 的那張 section） */
+const PANEL = name => `[...document.querySelectorAll("h2")].find(h => h.textContent.trim() === ${JSON.stringify(name)})?.closest("section")`;
+
 /** 把基準截圖畫進 canvas，captureStream 當成假的分享畫面（頁面按分享時會拿它） */
 async function installFakeStream() {
   const base64 = fs.readFileSync(FIXTURE).toString("base64");
@@ -182,6 +206,22 @@ try {
   })()`);
   record("重新整理後載好", await openSpeed());
   record(`重新整理後，塞進去的設定讀得到（角色卡寫「${CHAR_LINE}」）`, (await bodyText()).includes(CHAR_LINE));
+
+  // 還沒分享：右欄沒東西，整頁收成單欄、置中（v0.96，不留半頁空白）。量頁首那塊（Shell）跟「分享遊戲畫面」那張卡
+  const setup = await evaluate(`(() => {
+    const shell = [...document.querySelectorAll("h1")].find(h => h.textContent.trim() === "練功測速")?.closest("header")?.parentElement;
+    const card = ${BUTTON("分享遊戲畫面")}?.closest("section");
+    if (!shell || !card) return null;
+    const s = shell.getBoundingClientRect();
+    const c = card.getBoundingClientRect();
+    return { viewport: innerWidth, shellWidth: Math.round(s.width), left: Math.round(s.left), right: Math.round(innerWidth - s.right), cardWidth: Math.round(c.width) };
+  })()`);
+  record(
+    "還沒分享：單欄置中（內容寬 ≤ 672、左右留白一樣，分享那張卡跟內容一樣寬，不是兩欄）",
+    setup !== null && setup.shellWidth <= 672 && Math.abs(setup.left - setup.right) <= 2 && setup.cardWidth >= setup.shellWidth - 2,
+    setup,
+  );
+  await fullShot("speed-setup.png");
 
   // 導覽列：電腦寬度看得到、亮著
   const nav = await evaluate(`(() => {
@@ -252,11 +292,30 @@ try {
   const before = await monsterCards();
   const names = before?.cards.map(card => card.name) ?? [];
   record("怪物卡：風獨眼獸、猴子、黑曜石巨人都在，每張有等級、HP、經驗、刷怪點", ["風獨眼獸", "猴子", "黑曜石巨人"].every(name => names.includes(name)) && before.cards.every(card => /Lv\.\d+ · HP [\d,]+ · 經驗 [\d,]+ · 刷怪點 \d+ 個/.test(card.info)), before?.cards);
-  const drops = await evaluate(`(() => {
-    const h2 = [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === ${JSON.stringify(MAP)});
-    return h2?.closest("section")?.querySelectorAll('a[href^="/db/items?id="]').length ?? 0;
+  record("地圖名旁邊有「不是這張圖」", await evaluate(`Boolean([...(${PANEL(MAP)})?.querySelectorAll("button") ?? []].find(b => b.textContent.trim() === "不是這張圖"))`));
+  // 掉寶預設收起來（v0.96）：每隻怪一顆「掉寶 N 樣」（aria-expanded=false），道具標籤一個都沒畫；按第一顆才展開
+  const dropButtons = `[...(${PANEL(MAP)})?.querySelectorAll("button[aria-expanded]") ?? []].filter(b => /^掉寶 [\\d,]+ 樣$/.test(b.textContent.trim()))`;
+  const dropLinks = `(${PANEL(MAP)})?.querySelectorAll('a[href^="/db/items?id="]').length ?? 0`;
+  const collapsed = await evaluate(`(() => { const buttons = ${dropButtons}; return { buttons: buttons.map(b => b.textContent.trim() + "／" + b.getAttribute("aria-expanded")), links: ${dropLinks} }; })()`);
+  record(
+    "掉寶預設收起來：每隻怪一顆「掉寶 N 樣」（aria-expanded=false），道具標籤一個都沒畫",
+    collapsed.buttons.length > 0 && collapsed.buttons.every(text => text.endsWith("／false")) && collapsed.links === 0,
+    collapsed,
+  );
+  await click(`(${dropButtons})[0]`);
+  const opened = await ev(`return await __waitFor(() => (${dropLinks}) > 0, 5000)`);
+  const expanded = await evaluate(`(() => {
+    const button = (${dropButtons})[0];
+    const list = button && document.getElementById(button.getAttribute("aria-controls"));
+    return { expanded: button?.getAttribute("aria-expanded") ?? null, listLinks: list?.querySelectorAll('a[href^="/db/items?id="]').length ?? 0, label: button?.textContent.trim() ?? null };
   })()`);
-  record("怪物掉寶有列出來（連到道具頁的小標籤）", drops > 0, `${drops} 個`);
+  const wanted = Number(/掉寶 ([\d,]+) 樣/.exec(expanded.label ?? "")?.[1].replace(/,/g, "") ?? -1);
+  record(
+    "按「掉寶 N 樣」展開：aria-expanded 變 true，aria-controls 指的清單裡剛好 N 個連到道具頁的標籤",
+    opened && expanded.expanded === "true" && expanded.listLinks === wanted,
+    expanded,
+  );
+  record("地圖面板截圖（展開一隻怪的掉寶）", await elementShot("speed-drops.png", PANEL(MAP)));
   record("沒勾組隊時，怪物卡沒有「組隊每隻」", before !== null && before.cards.length > 0 && before.cards.every(card => card.party === null));
   // 排行是頁面另外向 /api/speed/board 要的：dev 模式第一次呼叫要先編譯那支 API，最多等 1 分鐘離開「載入中」
   const boardText = `(() => { const h2 = [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === "這張圖的實測排行"); return h2 ? h2.closest("section").innerText : null; })()`;
@@ -307,6 +366,7 @@ try {
   record("面板最下面寫了「照玩家整理的公式算」、「台服沒驗證」", /照玩家整理的公式算/.test(after?.sectionText ?? "") && /台服沒驗證/.test(after?.sectionText ?? ""));
   record(`組隊設定存進這台電腦（ms-speed 的 party：on、隊友 ${MATE}、打怪的人是自己）`, saved.party?.on === true && JSON.stringify(saved.party.others) === `[${MATE}]` && saved.party.hitter === 0, saved.party);
   record(`頁面上寫「組隊 2 人」`, (await bodyText()).includes("· 組隊 2 人"));
+  record("組隊卡最下面寫「練到一半改隊伍，會從改的那一刻重新算一段（不到 5 分鐘的那段不存）。」", (await bodyText()).includes("練到一半改隊伍，會從改的那一刻重新算一段（不到 5 分鐘的那段不存）。"));
 
   // 6. 同一張畫面放滿 60 秒：地圖不能變、不能再問「你在哪張圖？」（守住小地圖的長相不隨時間飄）
   const samples = [];
@@ -335,6 +395,31 @@ try {
   await fullShot("speed.png");
   results.screenshot = path.join(OUT, "speed.png");
 
+  // 7b. 小浮窗跟著換白天／夜晚（v0.96）：開小浮窗（無頭 Chrome 也開得出子母畫面視窗，頁面用 documentPictureInPicture.window 拿得到），
+  // 按頁首的配色鈕切到夜晚再切回白天，浮窗的 html data-theme 要跟著換；收起小浮窗後浮窗關掉
+  const pipTheme = `(() => { const w = window.documentPictureInPicture?.window; return w ? w.document.documentElement.getAttribute("data-theme") : null; })()`;
+  const mainTheme = `document.documentElement.getAttribute("data-theme")`;
+  const themeButton = `document.querySelector('header button[aria-label^="切換為"]')`;
+  if (await evaluate(`"documentPictureInPicture" in window`)) {
+    await click(BUTTON("小浮窗"));
+    const pipOpened = await ev(`return await __waitFor(() => Boolean(window.documentPictureInPicture?.window?.document.body.textContent.includes("10 分鐘經驗")), 8000)`);
+    const themes = [{ main: await evaluate(mainTheme), pip: await evaluate(pipTheme) }];
+    for (let i = 0; i < 2; i++) {
+      await click(themeButton);
+      await sleep(500);
+      themes.push({ main: await evaluate(mainTheme), pip: await evaluate(pipTheme) });
+    }
+    await click(BUTTON("收起小浮窗"));
+    await sleep(800);
+    const pipClosed = await evaluate(`!window.documentPictureInPicture?.window`);
+    results.pipThemes = themes;
+    record(
+      "小浮窗跟著主頁換白天／夜晚（開的時候一樣、切夜晚跟著變夜晚、切回來跟著變回來），收起小浮窗後浮窗關掉",
+      pipOpened && pipClosed && new Set(themes.map(t => t.main)).size === 2 && themes.every(t => t.pip === t.main),
+      { pipOpened, pipClosed, themes },
+    );
+  } else record("小浮窗跟著換白天／夜晚（這個 Chrome 沒有子母畫面視窗，量不到）", false);
+
   // 8. 點選過的地圖有記住：重新整理、再分享一次，不問就直接認成這張圖（只有玩家點過才有這步）
   if (!auto) {
     const memory = await evaluate(`localStorage.getItem("ms-speed-maps")`);
@@ -347,6 +432,39 @@ try {
     const again = await mapState();
     record("重新整理再分享：直接認成這張圖，不再問", remembered && !again.asking, again.titles);
   }
+
+  // 9. 「不是這張圖」（v0.96，10/14 使用者授權 A）：按了列候選（不含認錯的那張）＋搜尋，選別張 → 面板換成新圖、記住新圖，重新整理再分享還是新圖
+  const wrongClicked = await click(`[...(${PANEL(MAP)})?.querySelectorAll("button") ?? []].find(b => b.textContent.trim() === "不是這張圖")`);
+  const reasked = await ev(`return await __waitFor(() => document.body.innerText.includes("你在哪張圖？"), 8000)`);
+  const rechoose = await mapState();
+  results.rechoose = { candidates: rechoose.candidates, titles: rechoose.titles };
+  record(`按「不是這張圖」：地圖面板收掉，改問「你在哪張圖？」，候選裡沒有認錯的「${MAP}」`, wrongClicked && reasked && !rechoose.titles.includes(MAP) && !rechoose.candidates.includes(MAP), results.rechoose);
+  await viewport(1100);
+  await shot("speed-rechoose.png");
+  await viewport();
+  const memoryAfterWrong = await evaluate(`localStorage.getItem("ms-speed-maps")`);
+  record(`記住的「${MAP}」從這台電腦清掉了`, !Object.values(JSON.parse(memoryAfterWrong ?? "{}")).includes(MAP_ID), memoryAfterWrong);
+  // 選別張：候選有就點第一個，沒有就搜尋
+  let other = rechoose.candidates[0] ?? null;
+  if (other) await click(BUTTON(other));
+  else {
+    other = OTHER;
+    await click(`document.querySelector('input[aria-label="找不到就搜尋"], input[aria-label="搜尋地圖"]')`);
+    await page.send("Input.insertText", { text: other });
+    await ev(`return await __waitFor(() => [...document.querySelectorAll("ul.absolute button")].some(b => b.querySelector("span.font-bold")?.textContent.trim() === ${JSON.stringify(other)}), 15000)`);
+    await click(`[...document.querySelectorAll("ul.absolute button")].find(b => b.querySelector("span.font-bold")?.textContent.trim() === ${JSON.stringify(other)})`);
+  }
+  results.rechoose.picked = other;
+  const switched = await ev(`return await __waitFor(() => [...document.querySelectorAll("h2")].some(h => h.textContent.trim() === ${JSON.stringify(other)}), 10000)`);
+  record(`選「${other}」：地圖面板換成「${other}」`, switched, (await mapState()).titles);
+  const memoryAfterPick = JSON.parse((await evaluate(`localStorage.getItem("ms-speed-maps")`)) ?? "{}");
+  record("選了就記住新的（這台電腦記的地圖換成新選的）", Object.values(memoryAfterPick).length > 0 && !Object.values(memoryAfterPick).includes(MAP_ID), memoryAfterPick);
+  const reloadedAgain = await openSpeed();
+  await installFakeStream();
+  await shareAndRead();
+  const rememberedOther = await ev(`return await __waitFor(() => [...document.querySelectorAll("h2")].some(h => h.textContent.trim() === ${JSON.stringify(other)}), 15000)`);
+  const afterReload = await mapState();
+  record(`重新整理再分享：直接認成新選的「${other}」，不再問、也不是「${MAP}」`, reloadedAgain && rememberedOther && !afterReload.asking && !afterReload.titles.includes(MAP), afterReload.titles);
 } catch (error) {
   crashed = error;
   record("腳本跑到一半出錯", false, String(error?.stack ?? error).slice(0, 600));

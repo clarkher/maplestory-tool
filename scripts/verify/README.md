@@ -395,7 +395,7 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 
 ### 練功測速
 
-#### `speed-shot.mjs`：用測試截圖當假的分享畫面，跑一次練功測速頁（v0.95，埠 9391）
+#### `speed-shot.mjs`：用測試截圖當假的分享畫面，跑一次練功測速頁（v0.95；v0.96 加單欄、掉寶、組隊說明、小浮窗配色、「不是這張圖」，埠 9391）
 
 ```bash
 node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:3095] [DevTools 埠，預設 9391]
@@ -406,22 +406,31 @@ node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:30
   不用真的開遊戲、也不會跳出選視窗的對話框。按「分享遊戲畫面」、滑鼠點擊、打字都走 DevTools 的 `Input`，不是直接呼叫 `click()`。
 - 檢查（任何一項沒過 exit 1，每項的結果寫在 `results.json` 的 `checks`，量到的字在 `detail`）：
   1. 頁面載入、重新整理後載好，塞進去的設定讀得到（角色卡寫「你的角色：驗收用」）；導覽列的「練功測速」在電腦寬度看得到、而且是亮著的那顆。
+     還沒分享時右欄沒東西：整頁收成單欄置中（內容寬 ≤ 672、左右留白一樣、分享那張卡跟內容一樣寬），截 `speed-setup.png`（v0.96）。
   2. 讀到「Lv.46 · 經驗 406,947（79.73%）」（% 是經驗 ÷ 46 級升級要的經驗算的）、職業「冰雷巫師」、沒勾組隊時寫「單練」。
   3. 地圖：自動認成「森林迷宮III」，或問「你在哪張圖？」。基準截圖是有損壓縮，認不出是預期，而且候選五個裡通常沒有森林迷宮III
      （`results.json` 的 `mapState` 記是哪一種、候選是哪些）——沒有就用「找不到就搜尋」打字選；候選裡剛好有就直接點。選好後地圖面板的標題要是「森林迷宮III」。
-  4. 地圖面板：風獨眼獸、猴子、黑曜石巨人在，每隻有等級、HP、經驗、刷怪點；有掉寶標籤；沒勾組隊時沒有「組隊每隻」；
+  4. 地圖面板：風獨眼獸、猴子、黑曜石巨人在，每隻有等級、HP、經驗、刷怪點；地圖名旁有「不是這張圖」；
+     掉寶預設收起來（v0.96）：每隻怪一顆「掉寶 N 樣」（`aria-expanded=false`），道具標籤一個都沒畫；按第一顆後 `aria-expanded=true`、
+     `aria-controls` 指的清單裡剛好 N 個道具標籤，截地圖面板 `speed-drops.png`；沒勾組隊時沒有「組隊每隻」；
      「這張圖的實測排行」出現，寫「排行還沒開」（本機沒有 `DATABASE_URL`；有資料庫時是名單或「還沒有人練滿 10 分鐘」），卡在「載入中」或「連不上」都算沒過
      （dev 第一次呼叫排行 API 要先編譯，最多等 1 分鐘）。地圖面板一出現，頁面就向 `/api/speed/board?map=<地圖 id>` 要排行，所以這一步會把那張圖的 id 送到被測的伺服器。
   5. 組隊（玩家自己填）：勾「組隊」→ 出現隊友等級欄 → 填 44 按 Enter → 「打怪的人」留在「你」→ 每張怪物卡都出現
      「組隊每隻：你 +N（打）、Lv.44 +M」，而且打怪的人（你）拿的比隊友多；面板最下面寫「照玩家整理的公式算」「台服沒驗證」；
-     `ms-speed` 的 `party` 存了 `{ on: true, others: [44], hitter: 0 }`；頁面寫「組隊 2 人」。
+     `ms-speed` 的 `party` 存了 `{ on: true, others: [44], hitter: 0 }`；頁面寫「組隊 2 人」；組隊卡最下面寫「練到一半改隊伍，會從改的那一刻重新算一段（不到 5 分鐘的那段不存）。」（v0.96）。
   6. **不動 60 秒**：地圖點好之後同一張畫面再放 60 秒，地圖面板一直是「森林迷宮III」、不能再問「你在哪張圖？」（頁面裡掛 MutationObserver 逐次看，不是只在最後看一眼）。
      同一段時間每一次取樣（頁面裡的觀察器加上每 10 秒一次的取樣）都要看狀態列還是「等經驗一動就開始算」那類還在讀的字、「停止分享」那顆還在，
      不能出現「分享停了」「認不到遊戲畫面」——畫面上的「Lv.46 · 經驗 …」那行在分享停了之後還會留著，光看它抓不到停了。最後等級經驗也還讀得到。守的是小地圖標題的長相不隨時間飄、讀畫面沒有中途停掉。
-  7. 整頁截圖 `speed.png`；玩家點過地圖的話，重新整理再分享一次，要直接認成這張圖、不再問，角色卡還寫「你的角色：驗收用」（驗證「點一次之後會記住」，`ms-speed-maps`）。
-  8. 整趟沒有沒接住的例外、`console.error`（警告只記在 `results.json` 的 `problems.warnings`，不判）。
-- 輸出：`speed.png`（整頁）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`problems`）；出錯時另存 `crash.png`。
-- 耗時：本機 dev server 約 80 秒（60 秒是不動檢查）；dev 第一次編譯 `/plan/speed` 跟排行 API 另加（頁面最多等 2 分半）。
+  7. 整頁截圖 `speed.png`。接著開「小浮窗」（無頭 Chrome 也開得出子母畫面視窗，頁面用 `documentPictureInPicture.window` 拿得到），
+     按頁首的配色鈕切夜晚再切回白天，浮窗 html 的 `data-theme` 每次都要跟主頁一樣，收起小浮窗後浮窗關掉（v0.96）。
+     玩家點過地圖的話，重新整理再分享一次，要直接認成這張圖、不再問，角色卡還寫「你的角色：驗收用」（驗證「點一次之後會記住」，`ms-speed-maps`）。
+  8. 「不是這張圖」（v0.96）：按了地圖面板收掉、改問「你在哪張圖？」，候選裡沒有森林迷宮III，`ms-speed-maps` 裡記的森林迷宮III 清掉，截 `speed-rechoose.png`；
+     點第一個候選（沒有候選就搜尋「森林迷宮IV」）→ 面板換成那張、記住新的；重新整理再分享，直接認成新選的那張。
+  9. 整趟沒有沒接住的例外、`console.error`（警告只記在 `results.json` 的 `problems.warnings`，不判）。
+- 輸出：`speed-setup.png`（還沒分享）、`speed.png`（整頁）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`speed-drops.png`（地圖面板，展開一隻怪的掉寶）、
+  `speed-rechoose.png`（按「不是這張圖」之後）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`pipThemes`、`rechoose`、`problems`）；出錯時另存 `crash.png`。
+- **點之前捲動要用 instant**：全站開了平滑捲動，`scrollIntoView` 平滑捲的話馬上量到的是還沒捲過去的位置，滑鼠會點歪（v0.96 的「不是這張圖」就這樣點空過）。腳本的 `centerOf` 已經改成 `behavior: "instant"`。
+- 耗時：本機 dev server 約 100 秒（60 秒是不動檢查；v0.96 多一次重新整理再分享）；dev 第一次編譯 `/plan/speed` 跟排行 API 另加（頁面最多等 2 分半）。
   `--webpack` 的 dev server：`npx next dev --webpack -p 3095`；也可以 `npm run build && npx next start -p 3095`。
 - 量不到的：經驗會不會跟著動、自動停、存進排行——畫面是靜止的，靠 `tracker.test.ts` 跟真人玩一段。真的存進資料庫要在有 Neon 的測試機上手動驗（見根目錄 README「練功測速」的上線前檢查）。
 - 假畫面用的是 `window-1364.png`（repo 公開，截圖裡隊友的名字已打馬賽克）；字形樣板、名單換了，這支的「讀到 Lv.46」那幾項要一起看。
