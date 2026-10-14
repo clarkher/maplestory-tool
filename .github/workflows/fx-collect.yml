@@ -1,0 +1,170 @@
+name: 楓幣匯率收集
+
+# 每 2 小時抓一次參考站 maple-classic-wiki.pages.dev 的 price.json（它每 2 小時整理一次 8591 公開掛單的雪吉拉市價），
+# 把新的市價接進孤兒分支 fx-data（參考站只留最近 60 筆，我們存全部），重算最新一筆與每日 K 棒。
+# 頁面跟拍賣查價工具直接讀 raw.githubusercontent.com 上的 fx-data，所以資料更新不用部署；
+# fx-data 自己帶 vercel.json 關掉部署（根目錄的 vercel.json 也擋），不吃 Vercel 每天的部署額度。
+# 不直接抓 8591：它的服務條款禁止爬蟲，2026-10-13 實測也會擋老實寫身分的程式，使用者 10/14 拍板不繞過。
+# 設計：docs/superpowers/specs/2026-10-13-meso-fx-design.md（「10/14 改版」那節）
+#
+# 三個 job，寫入權限只在 publish：
+#  - collect：唯讀。clone fx-data（公開 repo，不用 token）讀舊的紀錄、抓參考站、算好三個檔存 artifact
+#  - publish：檢查 artifact（pipeline/fx/publish.mjs）後推上 fx-data。只在 main（排程）、dev（合進 dev 時）或手動勾 write 時跑；
+#    沒有新的市價（只有抓取時間變了）就不推，不留空 commit
+#  - notify：參考站抓不到、推不上、job 超過時間上限被中止、fx-data 12 小時以上沒有新的市價 → 開 issue（label「匯率收集失敗」）；恢復自動關
+
+on:
+  schedule:
+    # 台灣時間 00:55 起每 2 小時（參考站在偶數整點 :41 左右更新，晚一點再抓）
+    - cron: "55 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      write:
+        description: "從 main、dev 以外的分支手動跑時，要不要真的推上 fx-data（main、dev 一律推）"
+        type: boolean
+        default: false
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/fx-collect.yml"
+      - "pipeline/fx/**"
+
+env:
+  WRITE: ${{ (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || inputs.write) && 'true' || 'false' }}
+
+concurrency:
+  group: fx-collect
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    # 只抓一個 JSON，平常幾秒
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      ageHours: ${{ steps.collect.outputs.ageHours }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: pipeline/fx
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 取出 fx-data（第一次還沒有這條分支就從空的開始）
+        run: |
+          mkdir -p "$RUNNER_TEMP/fx-data"
+          # ls-remote --exit-code：0＝有這條分支、2＝沒有；其他（網路錯）要整個失敗，不能當成沒有分支從空的開始
+          FOUND=0
+          git ls-remote --exit-code --heads "https://github.com/$GITHUB_REPOSITORY.git" fx-data > /dev/null || FOUND=$?
+          if [ "$FOUND" = 0 ]; then
+            git clone -q --depth 1 --branch fx-data "https://github.com/$GITHUB_REPOSITORY.git" "$RUNNER_TEMP/fx-data"
+          elif [ "$FOUND" = 2 ]; then
+            echo "還沒有 fx-data 分支，從空的開始"
+          else
+            echo "查 fx-data 失敗（ls-remote 結束碼 $FOUND）"
+            exit 1
+          fi
+
+      - name: 抓參考站、算好新檔
+        id: collect
+        run: node pipeline/fx/collect.mjs "$RUNNER_TEMP/fx-data" "$RUNNER_TEMP/fx-out"
+
+      - name: 存下算好的檔
+        uses: actions/upload-artifact@v4
+        with:
+          name: fx-out
+          path: ${{ runner.temp }}/fx-out
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: collect
+    # job 的 if 讀不到 env，寫入條件照抄開頭 WRITE 那一個（測試會比對）
+    if: needs.collect.result == 'success' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || inputs.write)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # 推 fx-data
+    steps:
+      # 只拿 publish.mjs 跟分支說明，token 不留在 .git（推 fx-data 在另一個資料夾，自己帶 header）
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: pipeline/fx
+          path: repo
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 下載算好的檔
+        uses: actions/download-artifact@v4
+        with:
+          name: fx-out
+          path: ${{ runner.temp }}/fx-out
+
+      - name: 檢查後推上 fx-data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          WORK="$RUNNER_TEMP/fx-branch"
+          git init -q "$WORK"
+          git -C "$WORK" remote add origin "https://github.com/$GITHUB_REPOSITORY.git"
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$AUTH"
+          git -C "$WORK" config http.https://github.com/.extraheader "AUTHORIZATION: basic $AUTH"
+          # ls-remote --exit-code：0＝有這條分支、2＝沒有；其他（網路錯、權限）要整個失敗，不能當成沒有分支而推出一條新的孤兒分支
+          FOUND=0
+          git -C "$WORK" ls-remote --exit-code --heads origin fx-data > /dev/null || FOUND=$?
+          if [ "$FOUND" = 0 ]; then
+            git -C "$WORK" fetch -q --depth 1 origin fx-data
+            git -C "$WORK" checkout -q -B fx-data FETCH_HEAD
+          elif [ "$FOUND" = 2 ]; then
+            git -C "$WORK" symbolic-ref HEAD refs/heads/fx-data
+          else
+            echo "查 fx-data 失敗（ls-remote 結束碼 $FOUND）"
+            exit 1
+          fi
+          node repo/pipeline/fx/publish.mjs "$RUNNER_TEMP/fx-out" "$WORK" repo/pipeline/fx/branch-files
+          git -C "$WORK" config user.name "maplestory-tool bot"
+          git -C "$WORK" config user.email "actions@github.com"
+          git -C "$WORK" add -A
+          # 只有 latest.json、daily.json 的抓取時間變了＝沒有新的市價，不推（不然每 2 小時一個空 commit）
+          if git -C "$WORK" diff --cached --quiet -- . ':!fx/scania/latest.json' ':!fx/scania/daily.json'; then
+            echo "沒有新的市價，不用推"
+            exit 0
+          fi
+          git -C "$WORK" commit -q -m "fx: 雪吉拉 $(date -u +%Y-%m-%dT%H:%MZ)"
+          git -C "$WORK" push -q origin fx-data
+
+  notify:
+    needs: [collect, publish]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # 拿 pipeline/fx/notify.mjs
+      issues: write # 開、改、關 issue，建 label
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: pipeline/fx
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 失敗開 issue、恢復關 issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COLLECT_RESULT: ${{ needs.collect.result }}
+          PUBLISH_RESULT: ${{ needs.publish.result }}
+          AGE_HOURS: ${{ needs.collect.outputs.ageHours }}
+          ASSIGNEE: ${{ github.repository_owner }}
+        run: node pipeline/fx/notify.mjs
