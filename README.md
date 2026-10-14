@@ -283,6 +283,25 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
 所以資料 commit 進 `main` 之後不需要另外下指令。
 注意別在本機用還沒 `git pull` 的工作樹跑 `vercel deploy --prod`，那會把新的部署蓋回舊資料。
 
+## 楓幣匯率收集
+
+`.github/workflows/fx-collect.yml`（workflow「楓幣匯率收集」）每 2 小時（台灣 00:55 起）抓一次參考站
+[maple-classic-wiki.pages.dev/price](https://maple-classic-wiki.pages.dev/price) 的 `data/price.json`——它每 2 小時整理一次
+8591《新楓之谷：經典版》公開掛單的雪吉拉市價（排除代練與引流單、MAD 去離群、最便宜四分之一的中位數）。
+比 `fx-data` 新的市價接進孤兒分支 **`fx-data`**（參考站只留最近 60 筆，這裡存全部），重算最新一筆與每日 K 棒。
+設計：`docs/superpowers/specs/2026-10-13-meso-fx-design.md`（「10/14 改版」那節）。
+
+- **不直接抓 8591**：它的服務條款禁止爬蟲，2026-10-13 實測也會擋老實寫身分的程式（403），使用者 10/14 拍板不繞過。
+- **不吃部署額度**：`fx-data` 自己帶 `vercel.json` 關掉部署，根目錄 `vercel.json` 也擋 `fx-data`、`price-data`（拍賣查價的資料分支）。
+  頁面直接讀 raw.githubusercontent.com，資料更新不用部署。
+- **每日匯率（給拍賣查價工具）**：https://raw.githubusercontent.com/clarkher/maplestory-tool/fx-data/fx/scania/daily.json
+  ——`days[]` 每天一筆，`close`＝1 億楓幣幾元（當天最後一筆），`closeMesoPerNtd`＝1 元換幾萬楓幣，
+  `listings`＝當天最後一次記到的雪吉拉掛單數（沒記到是 null）。
+- **程式**：`pipeline/fx/collect.mjs`（進入點）、`pipeline/fx/lib/*.mjs`（純函式，`node --test "pipeline/fx/lib/*.test.mjs"`）。
+  本機試跑：`node pipeline/fx/collect.mjs <空資料夾> <輸出資料夾>`。
+- **手動跑**：`gh workflow run fx-collect.yml --ref <分支>`（workflow 要先在 main 上才叫得動）；main、dev 以外的分支要加 `-f write=true` 才會推上 `fx-data`。
+- **失敗通知**：參考站抓不到或格式變了、推不上 `fx-data`、或參考站 12 小時以上沒更新，開 issue（label「匯率收集失敗」）；恢復正常自動關。
+
 ## 10/15 開機後自動重新部署
 
 `.github/workflows/v002-open.yml`＋`scripts/v002-open.mjs`，台灣時間 10/14 12:07～10/16 07:52，每小時的 07、22、37、52 分跑一次
