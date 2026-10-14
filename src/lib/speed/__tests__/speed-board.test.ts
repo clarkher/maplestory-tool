@@ -11,9 +11,9 @@ import type { BoardRow } from "../server/rules";
 
 const row = (patch: Partial<BoardRow>): BoardRow => ({ name: null, job: 220, level: 46, expPer10: 20_000, minutes: 12, date: "2026-10-13", partySize: 1, kills: null, ...patch });
 
-function render(tab: "solo" | "party", rows: BoardRow[]) {
+function render(tab: "solo" | "party", rows: BoardRow[], trained = true) {
   const board = { kind: "ok" as const, open: true, solo: tab === "solo" ? rows : [], party: tab === "party" ? rows : [] };
-  return renderToString(createElement(Leaderboard, { board, tab, onTab: () => {} })).replace(/<!-- -->/g, "");
+  return renderToString(createElement(Leaderboard, { board, tab, onTab: () => {}, trained })).replace(/<!-- -->/g, "");
 }
 
 describe("練功測速排行卡", () => {
@@ -30,6 +30,13 @@ describe("練功測速排行卡", () => {
     expect(html).toContain("123,456");
     expect(html).toContain("匿名玩家");
     expect(html).toContain("冰雷巫師 Lv.46");
+  });
+
+  it("空的：有練功資料寫「還沒有人練滿 10 分鐘」，沒有練功資料寫「這張圖沒有練功資料，不列排行。」（10/14）", () => {
+    expect(render("solo", [])).toContain("這張圖還沒有人練滿 10 分鐘。");
+    const untrained = render("solo", [], false);
+    expect(untrained).toContain("這張圖沒有練功資料，不列排行。");
+    expect(untrained).not.toContain("還沒有人練滿");
   });
 
   it("分頁對應 tabpanel：選中的分頁 id ＝ tabpanel 的 aria-labelledby，分頁的 aria-controls 指向 tabpanel", () => {

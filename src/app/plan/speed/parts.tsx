@@ -9,10 +9,11 @@ import { itemImage, mapName, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 import { monsterDrops } from "@/lib/monster-view";
 import { killExp, type Member } from "@/lib/speed/party-exp";
-import type { BoardRow } from "@/lib/speed/server/rules";
 import type { SpeedSettings } from "@/lib/speed/settings";
-import { jobName, partyKillLine } from "@/lib/speed/view";
+import { boardNote, jobName, partyKillLine, type BoardState } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
+
+export type { BoardState };
 
 export const BUTTON_MAIN = "rounded-full bg-[color:var(--maple)] px-4 py-2 font-bold text-[color:var(--on-accent)] disabled:opacity-60";
 export const BUTTON_LINE = "rounded-full border border-[color:var(--paper-edge)] px-3 py-1.5 text-sm font-bold hover:bg-[color:var(--maple-wash)]";
@@ -142,9 +143,50 @@ export function MapChoices({
   );
 }
 
+/** 一隻怪的掉寶（10/14）：預設收起來，按「掉寶 N 樣」展開／收起；展開狀態只在這次瀏覽記（元件 state），收起來時不畫清單 */
+function MobDrops({ shown, items }: { shown: number[]; items: Map<number, Item> }) {
+  const [open, setOpen] = useState(false);
+  const listId = useId();
+  return (
+    <>
+      <div className="mt-2">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={listId}
+          onClick={() => setOpen(value => !value)}
+          className="inline-flex items-center gap-1 rounded-full border border-[color:var(--paper-edge)] px-2.5 py-0.5 text-[12px] font-bold hover:bg-[color:var(--maple-wash)]"
+        >
+          掉寶 {formatNumber(shown.length)} 樣
+          <svg aria-hidden="true" viewBox="0 0 10 10" className={`size-2.5 transition-transform ${open ? "rotate-180" : ""}`}>
+            <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      </div>
+      {open ? (
+        <ul id={listId} className="mt-2 flex flex-wrap gap-1.5">
+          {shown.map(itemId => (
+            <li key={itemId}>
+              <Link
+                href={`/db/items?id=${itemId}`}
+                className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2 text-[12px] font-bold transition-colors hover:bg-[color:var(--maple-wash)]"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={itemImage(itemId)} alt="" width={18} height={18} loading="lazy" className="size-[18px] object-contain" />
+                {items.get(itemId)?.n}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </>
+  );
+}
+
 /**
- * 偵測到的地圖：名字、帶我去、這張圖的怪（等級、HP、經驗、刷怪點、掉寶、算傷害）。
+ * 偵測到的地圖：名字、「不是這張圖」、帶我去、這張圖的怪（等級、HP、經驗、刷怪點、掉寶、算傷害）。
  * party 有給（勾了組隊、有隊友、知道自己等級）時，每隻怪多一行「組隊每隻」，卡片最下面標公式的出處。
+ * onWrong：玩家按「不是這張圖」（10/14 使用者授權 A，頁面清掉記憶、列候選重選）；頁面要給固定的函式，memo 才擋得住。
  * 包成 memo：頁面每秒讀一張畫面就重畫一次，這張卡（一張圖上百個掉寶）的 props 沒變就整張跳過。
  */
 export const MapPanel = memo(function MapPanel({
@@ -154,6 +196,7 @@ export const MapPanel = memo(function MapPanel({
   items,
   training,
   party,
+  onWrong,
 }: {
   mapId: number;
   maps: Record<string, MapRecord>;
@@ -161,6 +204,7 @@ export const MapPanel = memo(function MapPanel({
   items: Map<number, Item>;
   training: TrainingRow[];
   party: Member[] | null;
+  onWrong: () => void;
 }) {
   const row = training.find(item => item.m === mapId);
   const mobs = (row?.mobs ?? []).flatMap(([id, spawns]) => {
@@ -173,7 +217,12 @@ export const MapPanel = memo(function MapPanel({
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="min-w-0">
           {maps[String(mapId)]?.st ? <p className="text-[13px] ink-soft">{maps[String(mapId)].st}</p> : null}
-          <h2 className="text-lg font-black">{name}</h2>
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <h2 className="text-lg font-black">{name}</h2>
+            <button type="button" onClick={onWrong} className="text-[13px] font-bold text-[color:var(--sky)] hover:underline">
+              不是這張圖
+            </button>
+          </div>
         </div>
         <GoButton to={mapId} place={name} />
       </div>
@@ -197,22 +246,7 @@ export const MapPanel = memo(function MapPanel({
                   </Link>
                 </div>
                 {party && monster.exp ? <p className="mt-2 text-[13px] font-bold">{partyKillLine(killExp(monster.exp, monster.lv ?? 0, party))}</p> : null}
-                {shown.length ? (
-                  <ul className="mt-2 flex flex-wrap gap-1.5">
-                    {shown.map(itemId => (
-                      <li key={itemId}>
-                        <Link
-                          href={`/db/items?id=${itemId}`}
-                          className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2 text-[12px] font-bold transition-colors hover:bg-[color:var(--maple-wash)]"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={itemImage(itemId)} alt="" width={18} height={18} loading="lazy" className="size-[18px] object-contain" />
-                          {items.get(itemId)?.n}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
+                {shown.length ? <MobDrops shown={shown} items={items} /> : null}
               </li>
             );
           })}
@@ -229,11 +263,23 @@ export const MapPanel = memo(function MapPanel({
   );
 });
 
-export type BoardState = { kind: "loading" } | { kind: "error" } | { kind: "ok"; open: boolean; solo: BoardRow[]; party: BoardRow[] };
-
-/** 一張圖的排行：單練照 10 分鐘經驗、組隊照全隊 10 分鐘打幾隻，各前 10 名（memo：每秒重畫時 props 沒變就跳過） */
-export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { board: BoardState; tab: "solo" | "party"; onTab: (tab: "solo" | "party") => void }) {
+/**
+ * 一張圖的排行：單練照 10 分鐘經驗、組隊照全隊 10 分鐘打幾隻，各前 10 名（memo：每秒重畫時 props 沒變就跳過）。
+ * trained：這張圖有練功資料；沒有的話名單一定是空的，寫「這張圖沒有練功資料，不列排行。」（boardNote）
+ */
+export const Leaderboard = memo(function Leaderboard({
+  board,
+  tab,
+  onTab,
+  trained,
+}: {
+  board: BoardState;
+  tab: "solo" | "party";
+  onTab: (tab: "solo" | "party") => void;
+  trained: boolean;
+}) {
   const rows = board.kind === "ok" ? board[tab] : [];
+  const note = boardNote(board, tab, trained);
   const ids = useId();
   const tabId = (key: "solo" | "party") => `${ids}-tab-${key}`;
   const panelId = `${ids}-panel`;
@@ -256,13 +302,9 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
         ))}
       </div>
       <div id={panelId} role="tabpanel" aria-labelledby={tabId(tab)}>
-        {board.kind === "loading" ? (
-          <p className="text-sm ink-soft">載入中…</p>
-        ) : board.kind === "error" ? (
-          <p className="text-sm ink-soft">排行暫時連不上，等一下再過來。</p>
-        ) : !board.open ? (
-          <p className="text-sm ink-soft">排行還沒開。</p>
-        ) : rows.length ? (
+        {note !== null ? (
+          <p className="text-sm ink-soft">{note}</p>
+        ) : (
           <ol className="space-y-1.5">
             {rows.map((row, index) => {
               const job = jobName(row.job);
@@ -285,8 +327,6 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
               );
             })}
           </ol>
-        ) : (
-          <p className="text-sm ink-soft">這張圖還沒有人練滿 10 分鐘。</p>
         )}
         <p className="mt-3 text-[12px] ink-soft">
           {tab === "party" ? "數字是全隊 10 分鐘打幾隻，用存這段的人填的等級回推。" : "數字是 10 分鐘拿到的經驗。"}玩家自己量的，沒有驗證。

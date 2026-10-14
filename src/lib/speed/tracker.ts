@@ -162,20 +162,22 @@ export function feed(t: Tracker, sample: Sample, toNext: number[]): Step {
 }
 
 /**
- * 玩家按「不是這張圖」（10/14 使用者授權 A）：這段裡記在 key 的經驗，地圖改成「不知道」（mapId null）。
+ * 玩家按「不是這張圖」（10/14 使用者授權 A）：這段裡記在 key 的經驗，地圖改成「不知道」（mapId null）；
+ * 同一張認錯的圖記在別的 key 上的（先從清單選 pick:<id>、之後認出長相換了 key）一起改。
  * - 自動模式：照換圖處理，收掉這段（結束在最後一次變動）；起點留著，經驗再動開新的一段。
  *   收掉的這段沒有地圖（存了也不列排行），不會掛在認錯的那張圖上。
  * - 手動模式：這段不停。玩家選了新的圖，之後同一個 key 帶新的地圖 id 進來，整個 key 記成新的圖
- *   （withSample 的「還不知道才補上」）；換了 key 的（從清單重選 pick:<id>）之後的經驗記到新的 key。
+ *   （withSample 的「還不知道才補上」）；換了 key 的（從清單重選 pick:<id>）之後的經驗記到新的 key。別張圖記的不動。
  * 沒在練：什麼都不變。
  */
 export function dropMap(t: Tracker, key: string): Step {
   if (!t.seg) return { tracker: t, closed: null };
-  const slot = t.seg.byMap[key];
+  const wrong = t.seg.byMap[key]?.mapId ?? (t.seg.mapKey === key ? t.seg.mapId : null);
+  const dropped = (slotKey: string, mapId: number | null) => slotKey === key || (wrong !== null && mapId === wrong);
   const seg: Segment = {
     ...t.seg,
-    mapId: t.seg.mapKey === key ? null : t.seg.mapId,
-    byMap: slot ? { ...t.seg.byMap, [key]: { ...slot, mapId: null } } : t.seg.byMap,
+    mapId: t.seg.mapKey !== null && dropped(t.seg.mapKey, t.seg.mapId) ? null : t.seg.mapId,
+    byMap: Object.fromEntries(Object.entries(t.seg.byMap).map(([slotKey, slot]) => [slotKey, dropped(slotKey, slot.mapId) ? { ...slot, mapId: null } : slot])),
   };
   if (t.mode === "auto") return { tracker: { ...t, seg: null }, closed: { ...seg, endedAt: seg.lastChangeAt } };
   return { tracker: { ...t, seg }, closed: null };

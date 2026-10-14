@@ -487,6 +487,22 @@ describe("不是這張圖：dropMap（10/14）", () => {
     expect(mainMap(t.seg!)).toEqual({ key: "pick:2", mapId: 2 });
   });
 
+  it("同一張認錯的圖記在別的 key 上（先從清單選 pick:<id>、之後認出長相換了 key）：一起改成不知道，收掉的這段不會掛在認錯的圖上", () => {
+    const picked = { mapKey: "pick:105040302", mapId: 105040302 };
+    const { t } = run(createTracker("auto"), [S(0, 1000, 10, picked), S(1000, 1000, 10, picked), S(2000, 1100, 10, picked), S(3000, 1400, 10, picked), S(4000, 1500, 10, K)]);
+    expect(t.seg!.byMap).toEqual({ "pick:105040302": { mapId: 105040302, gained: 300 }, abc: { mapId: 105040302, gained: 100 } });
+    const step = dropMap(t, "abc");
+    expect(step.closed!.byMap).toEqual({ "pick:105040302": { mapId: null, gained: 300 }, abc: { mapId: null, gained: 100 } });
+    expect(mainMap(step.closed!).mapId).toBeNull();
+  });
+
+  it("手動：別張圖（地圖 id 不同）記的經驗不動", () => {
+    const M = { mapKey: "xyz", mapId: 1 };
+    let t = startManual(run(createTracker("manual"), [S(0, 1000, 10, M), S(1000, 1000, 10, M)]).t, 1000);
+    t = run(t, [S(2000, 1100, 10, M), S(3000, 1300, 10, K)]).t;
+    expect(dropMap(t, "abc").tracker.seg!.byMap).toEqual({ xyz: { mapId: 1, gained: 100 }, abc: { mapId: null, gained: 200 } });
+  });
+
   it("沒在練：什麼都不變", () => {
     const t = run(createTracker("auto"), [S(0, 1000, 10, K), S(1000, 1000, 10, K)]).t;
     expect(dropMap(t, "abc")).toEqual({ tracker: t, closed: null });

@@ -103,6 +103,8 @@ export function PartyCard({ party, selfLevel, onChange }: { party: SpeedParty; s
               加一個隊友
             </button>
           ) : null}
+          {/* 一段紀錄只會有一種隊伍（頁面的 onParty、splitOnPartyChange）：先講清楚，玩家才不會以為改了隊伍時間被吃掉 */}
+          <p className="text-[12px] leading-relaxed ink-soft">練到一半改隊伍，會從改的那一刻重新算一段（不到 5 分鐘的那段不存）。</p>
         </div>
       ) : null}
     </Card>

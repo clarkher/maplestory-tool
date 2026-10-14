@@ -11,15 +11,15 @@ import { durationText, etaText } from "@/lib/speed/format";
 import type { RawSpeedNames } from "@/lib/speed/names";
 import { backCalc, mapPartyExp, membersOf } from "@/lib/speed/party-exp";
 import type { FrameReading } from "@/lib/speed/read-frame";
-import { resolveMap, settleTitle, type MapGuess, type TitleSettle } from "@/lib/speed/read-map";
+import { resolveMap, settleTitle, type MapGuess, type TitleReading, type TitleSettle } from "@/lib/speed/read-map";
 import type { BoardRow } from "@/lib/speed/server/rules";
-import { readMapMemory, rememberMap, useSpeedSettings, type SpeedParty, type SpeedSettings } from "@/lib/speed/settings";
+import { forgetMap, readMapMemory, rememberMap, useSpeedSettings, type SpeedParty, type SpeedSettings } from "@/lib/speed/settings";
 import {
-  createTracker, durationMs, feed, levelHints, mainMap, minutesToLevel, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
+  createTracker, dropMap, durationMs, feed, levelHints, mainMap, minutesToLevel, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
   type Mode, type Sample, type Segment, type Step, type Tracker,
 } from "@/lib/speed/tracker";
 import {
-  backCalcLine, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnPartyChange, statusLine,
+  backCalcLine, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, mapStepFloor, nextBlind, nextHints, notThisMap, partySize, runBody, saveNote, splitOnPartyChange, statusLine,
   type BlindMap, type HintState, type SaveOutcome, type SpeedStatus,
 } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
@@ -38,13 +38,14 @@ type Data = {
 };
 /**
  * 小地圖標題穩定後的 key（餵給練功計算當 mapKey），跟這個 key 認出來的地圖；
+ * title：認這個 key 時讀到的標題（玩家按「不是這張圖」時，不看記憶重新排候選用）；
  * picked、blind：標題一直讀不到時，玩家從清單選的地圖（這次分享才有效）跟「讀不到多久了」（mapSource、nextBlind）
  */
-type Place = { settle: TitleSettle; key: string | null; guess: MapGuess | null; picked: number | null; blind: BlindMap };
+type Place = { settle: TitleSettle; key: string | null; title: TitleReading | null; guess: MapGuess | null; picked: number | null; blind: BlindMap };
 
-const CLIENT_VER = "v0.95";
+const CLIENT_VER = "v0.96";
 const FRESH_HINTS: HintState = { nullRun: 0, cleared: false };
-const NO_PLACE: Place = { settle: { key: null, candidate: null, streak: 0 }, key: null, guess: null, picked: null, blind: FRESH_BLIND };
+const NO_PLACE: Place = { settle: { key: null, candidate: null, streak: 0 }, key: null, title: null, guess: null, picked: null, blind: FRESH_BLIND };
 /** 標題讀不到、請玩家從清單選時那張卡的第一句 */
 const BLIND_HEADING = "讀不到小地圖的地圖名：從清單選你在哪張圖";
 
@@ -187,23 +188,28 @@ export function PracticeSpeed() {
       // 地圖：標題的長相連續幾張一樣才算換圖（settleTitle）；換了才重新認是哪張圖
       const before = placeRef.current;
       const settle = settleTitle(before.settle, next.title?.signature ?? null);
-      let { key, guess } = before;
+      let { key, title, guess } = before;
       if (settle.key !== key) {
         key = settle.key;
+        title = key !== null ? next.title : null;
         guess = key !== null && next.title ? resolveMap(next.title, current.maps, current.trainingIds, readMapMemory()) : null;
         if (key !== null && guess?.mapId != null) knownMaps.current.set(key, guess.mapId);
       }
       // 標題一直讀不到（讀到狀態列起 5 秒還沒有長相）：請玩家從清單選；選了就用 pick:<id>
       const blind = nextBlind(before.blind, { bar: Boolean(next.bar), titleKey: settle.key }, at);
-      const nextPlace = { ...before, settle, key, guess, blind };
+      const nextPlace = { ...before, settle, key, title, guess, blind };
       placeRef.current = nextPlace;
       if (key !== before.key || guess !== before.guess || blind.ask !== before.blind.ask) setPlace(nextPlace);
       const where = mapSource({ key, mapId: guess?.mapId ?? null }, nextPlace.picked);
 
       let accepted = false;
       if (next.exp) {
+        const party = settingsRef.current.party;
+        // 低等時單張上限至少放到「這張圖經驗最高的怪 × 3 ×（1＋組隊加成）」；地圖不知道（或沒有練功資料）不給
+        const row = where.mapId !== null ? current.training.find(item => item.m === where.mapId) : undefined;
+        const stepFloor = mapStepFloor(row, current.monsterById, party.on && party.others.length ? membersOf(next.exp.level, party) : null);
         const sample: Sample = {
-          at, exp: next.exp.exp, level: next.exp.level, mapKey: where.key, mapId: where.mapId, job: next.job, party: partySize(settingsRef.current.party),
+          at, exp: next.exp.exp, level: next.exp.level, mapKey: where.key, mapId: where.mapId, job: next.job, party: partySize(party), stepFloor,
         };
         const step = feed(trackerRef.current, sample, current.toNext);
         apply(step);
@@ -293,6 +299,29 @@ export function PracticeSpeed() {
     setPlace(nextPlace);
   };
 
+  /**
+   * 地圖面板「不是這張圖」（10/14 使用者授權 A，notThisMap）：
+   * - 標題認得出長相：清掉這個長相記在這台電腦的地圖，列候選＋搜尋請玩家重選（onPickMap 記住新的）。
+   * - 從清單選的：回到「從清單選」那張卡重選。
+   * 練功計算裡這個 key 的經驗改成「不知道地圖」（dropMap）：自動模式照換圖收掉這段（存的話不列排行，不掛在認錯的圖上），
+   * 新圖經驗一動開新的一段；手動模式這段不停，選了新的圖之後記成新的圖。
+   * 收掉的這段在 apply 裡馬上存：knownMaps 先拿掉認錯的那張，存的時候才不會補回去。
+   */
+  const onWrongMap = useCallback(() => {
+    const current = dataRef.current;
+    const before = placeRef.current;
+    const fresh = before.key !== null && before.title && current ? resolveMap(before.title, current.maps, current.trainingIds, {}).choices : [];
+    const change = notThisMap(before, fresh);
+    if (change.forget !== null) forgetMap(change.forget);
+    if (change.dropKey !== null) {
+      knownMaps.current.delete(change.dropKey);
+      apply(dropMap(trackerRef.current, change.dropKey));
+    }
+    const nextPlace = { ...before, guess: change.guess, picked: change.picked };
+    placeRef.current = nextPlace;
+    setPlace(nextPlace);
+  }, [apply]);
+
   /** 標題讀不到時從清單選：沒有長相可以記，只在這次分享有效（mapSource 用 pick:<id>） */
   const onPickBlind = (id: number) => {
     knownMaps.current.set(`pick:${id}`, id);
@@ -373,9 +402,30 @@ export function PracticeSpeed() {
   const perLevel = per10 !== null && seg && data.toNext[seg.level] ? (per10 / data.toNext[seg.level]) * 100 : null;
   const job = jobName(jobId);
 
+  // 右欄：地圖面板＋排行、候選、從清單選、認不到在哪張圖；都沒有（還沒分享）時整頁收成單欄置中，不留半頁空白
+  const side =
+    mapId !== null ? (
+      <>
+        <MapPanel mapId={mapId} maps={data.maps} monsterById={data.monsterById} items={data.items} training={data.training} party={members} onWrong={onWrongMap} />
+        <Leaderboard board={board} tab={tab} onTab={setTab} trained={data.trainingIds.has(mapId)} />
+      </>
+    ) : place.key !== null && place.guess ? (
+      <Card>
+        <MapChoices choices={place.guess.choices} maps={data.maps} onPick={onPickMap} />
+      </Card>
+    ) : sharing && place.blind.ask ? (
+      <Card>
+        <MapChoices choices={[]} maps={data.maps} onPick={onPickBlind} heading={BLIND_HEADING} />
+      </Card>
+    ) : status === "reading" ? (
+      <Card>
+        <p className="text-sm ink-soft">{reading?.title ? "正在認地圖…" : "認不到在哪張圖：把小地圖打開。"}</p>
+      </Card>
+    ) : null;
+
   return (
-    <Shell>
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+    <Shell wide={side !== null}>
+      <div className={side !== null ? "grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]" : undefined}>
         <div className="space-y-4">
           <CharacterCard settings={settings} onSave={updateSettings} />
           <PartyCard party={party} selfLevel={selfLevel} onChange={onParty} />
@@ -454,26 +504,7 @@ export function PracticeSpeed() {
           </Card>
         </div>
 
-        <div className="space-y-4">
-          {mapId !== null ? (
-            <>
-              <MapPanel mapId={mapId} maps={data.maps} monsterById={data.monsterById} items={data.items} training={data.training} party={members} />
-              <Leaderboard board={board} tab={tab} onTab={setTab} />
-            </>
-          ) : place.key !== null && place.guess ? (
-            <Card>
-              <MapChoices choices={place.guess.choices} maps={data.maps} onPick={onPickMap} />
-            </Card>
-          ) : sharing && place.blind.ask ? (
-            <Card>
-              <MapChoices choices={[]} maps={data.maps} onPick={onPickBlind} heading={BLIND_HEADING} />
-            </Card>
-          ) : status === "reading" ? (
-            <Card>
-              <p className="text-sm ink-soft">{reading?.title ? "正在認地圖…" : "認不到在哪張圖：把小地圖打開。"}</p>
-            </Card>
-          ) : null}
-        </div>
+        {side !== null ? <div className="space-y-4">{side}</div> : null}
       </div>
       <Disclaimer />
       <MiniWindow open={mini} onClose={closeMini}>
@@ -488,9 +519,10 @@ export function PracticeSpeed() {
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+/** wide：右欄有東西（兩欄）才放寬；只有一欄（還沒分享、手機、載入中）時收窄置中（10/14） */
+function Shell({ wide = false, children }: { wide?: boolean; children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-5xl space-y-4 py-3 sm:py-6">
+    <div className={`mx-auto ${wide ? "max-w-5xl" : "max-w-2xl"} space-y-4 py-3 sm:py-6`}>
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">練功測速</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">分享遊戲畫面，自動算 10 分鐘拿多少經驗、還要多久升級；看每張圖別人練得多快。</p>
