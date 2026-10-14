@@ -31,3 +31,10 @@ test("不寫入的測試跑法、被取消的：什麼都不做", () => {
   assert.equal(decide({ ...base, write: "false", collectResult: "failure" }).action, "none");
   assert.equal(decide({ ...base, collectResult: "cancelled", publishResult: "skipped" }).action, "none");
 });
+
+test("ageHours 讀不到：不動 issue（不要誤關）", () => {
+  assert.equal(decide({ ...base, ageHours: "" }).action, "none");
+  assert.equal(decide({ ...base, ageHours: "NaN" }).action, "none");
+  // 但 collect 失敗時即使 ageHours 空的也要開 issue
+  assert.equal(decide({ ...base, collectResult: "failure", publishResult: "skipped", ageHours: "" }).action, "open");
+});

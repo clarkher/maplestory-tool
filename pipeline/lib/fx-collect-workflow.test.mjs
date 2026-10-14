@@ -62,6 +62,8 @@ test("publish 只在 collect 成功、而且是 main／dev 或手動勾了 write
   assert.ok(publish.includes("node repo/pipeline/fx/publish.mjs"), "要先跑 publish.mjs 檢查");
   assert.match(pushStep, /\bgit (?:-C \S+ )?push\b/, "git push 要在 publish.mjs 之後");
   assert.doesNotMatch(publish.slice(0, publish.indexOf("publish.mjs")), /\bgit (?:-C \S+ )?push\b/, "publish.mjs 之前不准推");
+  const mask = publish.indexOf('echo "::add-mask::$AUTH"');
+  assert.ok(mask !== -1 && mask < publish.indexOf("extraheader"), "AUTH 要先遮掉再寫進 git 設定");
 });
 
 test("notify 有 issues: write、沒有 contents: write，成功失敗都跑", () => {
