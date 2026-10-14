@@ -34,8 +34,31 @@ function copyStyles(target: Document) {
   }
 }
 
+/** 白天／夜晚掛在 html 的這兩個屬性上（layout.tsx、SiteHeader 改的是 data-theme） */
+const THEME_ATTRS = ["class", "data-theme"];
+
+/**
+ * 主頁的白天／夜晚抄到小浮窗（10/14）：一開就抄 from（主頁的 html）的 class、data-theme 到 to（小浮窗的 html），
+ * 之後主頁換了（MutationObserver 只看這兩個屬性）跟著換，主頁拿掉的屬性浮窗也拿掉。回傳斷開監看的函式（關浮窗時呼叫）。
+ * Observer 讓測試換成假的（測試跑在 node，沒有 DOM）。
+ */
+export function watchTheme(from: Element, to: Element, Observer: typeof MutationObserver = MutationObserver): () => void {
+  const copy = () => {
+    for (const name of THEME_ATTRS) {
+      const value = from.getAttribute(name);
+      if (value === null) to.removeAttribute(name);
+      else to.setAttribute(name, value);
+    }
+  };
+  copy();
+  const observer = new Observer(copy);
+  observer.observe(from, { attributes: true, attributeFilter: THEME_ATTRS });
+  return () => observer.disconnect();
+}
+
 /**
  * 蓋在遊戲上面的小視窗：開一個子母畫面視窗、把這頁的樣式抄過去、內容用 portal 畫進去。
+ * 開著的時候主頁換白天／夜晚，浮窗跟著換（watchTheme）。
  * open 變 false 或玩家自己關掉視窗都會收；onClose 讓頁面把按鈕狀態改回來（開不起來也會呼叫）。
  */
 export function MiniWindow({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
@@ -44,6 +67,7 @@ export function MiniWindow({ open, onClose, children }: { open: boolean; onClose
     if (!open) return;
     let closed = false;
     let win: Window | null = null;
+    let stopTheme: (() => void) | null = null;
     (window as unknown as { documentPictureInPicture: PipApi }).documentPictureInPicture.requestWindow({ width: 280, height: 150 }).then(
       created => {
         if (closed) {
@@ -53,11 +77,13 @@ export function MiniWindow({ open, onClose, children }: { open: boolean; onClose
         win = created;
         copyStyles(created.document);
         created.document.documentElement.lang = document.documentElement.lang;
-        created.document.documentElement.dataset.theme = document.documentElement.dataset.theme ?? "";
+        stopTheme = watchTheme(document.documentElement, created.document.documentElement);
         // 字型變數（next/font）掛在 body 的 class 上，抄過去才是同一套字
         created.document.body.className = document.body.className;
         created.document.title = "練功測速";
         created.addEventListener("pagehide", () => {
+          stopTheme?.();
+          stopTheme = null;
           setPip(null);
           onClose();
         });
@@ -67,6 +93,8 @@ export function MiniWindow({ open, onClose, children }: { open: boolean; onClose
     );
     return () => {
       closed = true;
+      stopTheme?.();
+      stopTheme = null;
       win?.close();
       setPip(null);
     };
