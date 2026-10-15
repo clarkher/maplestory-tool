@@ -45,9 +45,9 @@ describe("真資料：V002 判斷", () => {
     expect(isV002Monster(slime!, maps)).toBe(false);
   });
 
-  it("Lv.100 以上的任務共 30 個，全部判定為 V002", () => {
+  it("Lv.100 以上的任務全部判定為 V002（上游 2.0.0 拿掉了四轉任務 6900～6945，現在 0 個；以前 30 個）", () => {
     const highLv = quests.filter(q => (q.minLv ?? 0) > 100);
-    expect(highLv.length).toBe(30);
+    expect(highLv.length).toBe(0);
     for (const quest of highLv) expect(isV002Quest(quest, maps), quest.n).toBe(true);
   });
 

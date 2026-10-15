@@ -62,6 +62,20 @@ function main() {
     [skill.desc, TOKEN.test(skill.formula ?? "") ? "" : skill.formula, ...Object.values(skill.levelText ?? {})].some(text => text?.includes("#")),
   );
   check("技能卡上的字沒有「#」（說明、效果、每一級的原文）", leaked.length === 0, leaked.slice(0, 5).map(skill => `${skill.id} ${skill.n}`).join("、"));
+
+  // 傷害計算機要用的欄位（熟練度 M、物理攻擊力 damage、魔攻 mad）：前一版每一級都有的，這一版也要每一級都有。
+  // 2026-10-15 上游 2.0.0 漏抽熟練度，36 個技能整列數值不見、計算機算錯，上面那條「#」抓不到（沒數值的級數不放原文）。
+  // 前一版＝data/upstream-fallback/skills.json（buildSkills 拿它補漏抽的欄位，見 lib/skill-fallback.mjs）；補不回來的就擋下自動更新
+  const CALC_FIELDS = ["M", "damage", "mad"];
+  const before = readJson(path.join(import.meta.dirname, "..", "data", "upstream-fallback", "skills.json"), { skills: {} }).skills;
+  const lostCalc = (skills ?? []).flatMap(skill => {
+    const prev = before[skill.id];
+    if (!prev || prev.levels.length !== skill.levels?.length) return [];
+    const fields = CALC_FIELDS.filter(field => prev.levels.every(values => field in values));
+    const missing = fields.filter(field => skill.levels.some(values => !(field in (values ?? {}))));
+    return missing.length ? [`${skill.id} ${skill.n}（${missing.join("、")}）`] : [];
+  });
+  check("傷害計算機要的技能數值沒有少（熟練度、攻擊力、魔攻）", lostCalc.length === 0, lostCalc.length ? lostCalc.slice(0, 8).join("、") : `${Object.keys(before).length} 個技能比過`);
   check("地圖數量合理", Object.keys(maps ?? {}).length >= 5000, `${Object.keys(maps ?? {}).length} 張`);
 
   const edges = Object.values(graph ?? {}).reduce((sum, list) => sum + list.length, 0);

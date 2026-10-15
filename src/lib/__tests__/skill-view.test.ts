@@ -155,9 +155,9 @@ describe("真資料：skills.json 每個技能的效果與各等級數值", () =
     }
   });
 
-  it("神匠之魂、怪物騎乘、肥肥／木妖／綠水靈的弱點攻擊：遊戲資料沒有分等級的資料，回 noLevels（宇宙衝鋒、宇宙光束 v0.78 起到期不列）", () => {
+  it("神匠之魂、怪物騎乘、肥肥／木妖／綠水靈的弱點攻擊：遊戲資料只有 1 級空的數值列，回 noValues（上游 2.0.0 前連 levels 都沒有、回 noLevels；宇宙衝鋒、宇宙光束 v0.78 起到期不列）", () => {
     for (const id of [1003, 1004, 9000, 9001, 9002]) {
-      expect(skillLevels(byId(id)), `${id} ${byId(id).n}`).toEqual({ kind: "noLevels" });
+      expect(skillLevels(byId(id)), `${id} ${byId(id).n}`).toEqual({ kind: "noValues" });
     }
   });
 
@@ -181,30 +181,37 @@ describe("真資料：skills.json 每個技能的效果與各等級數值", () =
     expect(skillEffect(byId(1005))).toEqual({ label: "效果", text: "消耗MP 30，在40分鐘內提升物理攻擊力與魔法攻擊力4%" });
   });
 
-  it("槍連擊：30 級一級一列放遊戲原文（第 1 級、第 30 級照抄上游），效果行是滿級那一句", () => {
+  it("槍連擊：上游 2.0.0 起有每一級數值，30 級一級一列放數字（以前只有原文），效果行是滿級那一句", () => {
     const levels = skillLevels(byId(1311001));
-    expect(levels.kind).toBe("text");
-    if (levels.kind !== "text") return;
+    expect(levels.kind).toBe("table");
+    if (levels.kind !== "table") return;
     expect(levels.rows).toHaveLength(30);
-    expect(levels.rows[0]).toBe("消耗MP10, 攻擊力55%, 對一名怪物兩次攻擊");
-    expect(levels.rows[29]).toBe("消耗MP24, 攻擊力170%, 對三名怪物三次攻擊");
-    expect(skillEffect(byId(1311001))).toEqual({ label: "滿級效果（30 級）", text: "消耗MP24, 攻擊力170%, 對三名怪物三次攻擊" });
+    expect(levels.rows[0]).toEqual([10, 55, 1, 2]);
+    expect(levels.rows[29]).toEqual([24, 170, 3, 3]);
+    expect(skillEffect(byId(1311001))).toEqual({ label: "滿級效果（30 級）", text: "消耗MP24, 攻擊力170%, 對3名怪物攻擊3次" });
   });
 
-  it("矛連擊、極速詠唱（火毒、冰雷）、分身術、蓄能激發：每一級都有原文可列（上游 values 是空的；衝鋒 v0.78 起用客戶端的數值，見下面）", () => {
-    const expected: Array<[number, number]> = [
+  it("矛連擊、分身術 2.0.0 起有數值（一級一列放數字）；蓄能激發仍然只有原文，每一級都有原文可列", () => {
+    for (const [id, count] of [
       [1311002, 30],
-      [2111005, 20],
-      [2211005, 20],
       [4211004, 30],
-      [5110001, 40],
-    ];
-    for (const [id, count] of expected) {
+    ] as const) {
       const levels = skillLevels(byId(id));
-      expect(levels.kind, `${id} ${byId(id).n}`).toBe("text");
-      if (levels.kind !== "text") continue;
-      expect(levels.rows, `${id} ${byId(id).n}`).toHaveLength(count);
-      expect(levels.rows.every(text => typeof text === "string" && text.length > 0), `${id} ${byId(id).n}`).toBe(true);
+      expect(levels.kind, `${id} ${byId(id).n}`).toBe("table");
+      if (levels.kind === "table") expect(levels.rows, `${id} ${byId(id).n}`).toHaveLength(count);
+    }
+    const charge = skillLevels(byId(5110001));
+    expect(charge.kind).toBe("text");
+    if (charge.kind !== "text") return;
+    expect(charge.rows).toHaveLength(40);
+    expect(charge.rows.every(text => typeof text === "string" && text.length > 0)).toBe(true);
+  });
+
+  it("極速詠唱（火毒、冰雷）：2.0.0 的原文留著沒換掉的「#absX」又沒有數值，卡片不放每一級（不編），只剩說明", () => {
+    for (const id of [2111005, 2211005]) {
+      expect(skillLevels(byId(id)).kind, `${id} ${byId(id).n}`).toBe("noLevels");
+      expect(skillEffect(byId(id)), `${id} ${byId(id).n}`).toBeNull();
+      expect(byId(id).desc).toBeTruthy();
     }
   });
 
@@ -213,13 +220,14 @@ describe("真資料：skills.json 每個技能的效果與各等級數值", () =
     expect(skillEffect(byId(2000000))).toEqual({ label: "效果", text: "增加一定量的MP的恢復量" });
   });
 
-  it("隱身術：20 級整列沒數值，那一列放遊戲原文；效果行是滿級那一句", () => {
+  it("隱身術：上游 2.0.0 起 20 級也有數值（移動速度 0，以前整列空的、放原文「移動速度 正常」），效果行是滿級那一句", () => {
     const levels = skillLevels(byId(4001003));
     expect(levels.kind).toBe("table");
     if (levels.kind !== "table") return;
     expect(levels.rows).toHaveLength(20);
-    expect(levels.rowText).toEqual({ 20: "消耗MP5, 隱身200秒，移動速度 正常" });
-    expect(skillEffect(byId(4001003))).toEqual({ label: "滿級效果（20 級）", text: "消耗MP5, 隱身200秒，移動速度 正常" });
+    expect(levels.rows[19]).toEqual([5, 200, 0]);
+    expect(levels.rowText).toBeUndefined();
+    expect(skillEffect(byId(4001003))).toEqual({ label: "滿級效果（20 級）", text: "消耗MP5, 隱身200秒，移動速度0" });
   });
 
   it("劍氣縱橫：效果行是「滿級效果（20 級）：消耗HP16和MP14, 攻擊力130%」；說明開頭的最高等級、尾巴的「所需技能…#」都拆出去了", () => {
@@ -230,9 +238,19 @@ describe("真資料：skills.json 每個技能的效果與各等級數值", () =
   it("效果樣板有 #代號的技能，每一個都換得到滿級原文（沒有一個整行不見）", () => {
     const withToken = skills.filter(skill => /#[A-Za-z]/.test(skill.formula ?? ""));
     expect(withToken.length).toBeGreaterThan(190);
-    for (const skill of withToken) {
-      expect(skillEffect(skill), `${skill.id} ${skill.n}`).not.toBeNull();
-    }
+    // 上游 2.0.0 原文留著沒換掉的代號、又沒有數值、前一版也補不回來的（盾防精通、強化盾代號從 #x 改名 #xSubHun；
+    // 極速詠唱 #absX；神聖祈禱、致命暗襲這版改了數字，看不到的隊員經驗、額外殺傷力不拿舊的猜，見 pipeline/lib/skill-fallback.mjs）：
+    // 卡片不放效果行、不編。多了別的就是上游又壞了新的，要看一下
+    const missing = withToken.filter(skill => skillEffect(skill) === null).map(skill => `${skill.id} ${skill.n}`);
+    expect(missing).toEqual([
+      "1110001 盾防精通",
+      "1210001 盾防精通",
+      "2111005 極速詠唱",
+      "2211005 極速詠唱",
+      "2311003 神聖祈禱",
+      "4210000 強化盾",
+      "5110000 致命暗襲",
+    ]);
   });
 
   it("卡片上任何一段字（說明、效果、每一級的原文）都不會有「#」", () => {
@@ -273,7 +291,9 @@ describe("真資料：說明、所需技能、到期的活動技能（v0.78）",
       if (tag) expect(Number(tag[1]), `${skill.id} ${skill.n}`).not.toBe(skill.max);
     }
     expect(byId(12).desc?.startsWith("[等級上限：12]")).toBe(true);
-    expect(byId(9000).desc?.startsWith("[等級上限 : 1]")).toBe(true);
+    // 弱點攻擊 2.0.0 起上游給了上限 1 級，跟說明的「[等級上限 : 1]」一樣，拿掉
+    expect(byId(9000).max).toBe(1);
+    expect(byId(9000).desc).toBe("給予肥肥150%的傷害。");
   });
 
   it("說明沒有韓文（19 個坐騎技能的韓文說明不列，效果行是中文）", () => {
@@ -418,7 +438,8 @@ describe("真資料：衝鋒用台服客戶端的每一級數值、壞掉的技�
     ]);
     expect(levels.rows[0]).toEqual([14, 12, 1, 4]);
     expect(levels.rows[9]).toEqual([5, 30, 10, 20]);
-    expect(skillEffect(byId(5001005))).toEqual({ label: "滿級效果（10 級）", text: "消耗MP 5，持續時間為20秒" });
+    // 上游 2.0.0 起自己也有每一級數值（跟客戶端一樣），滿級原文也補上了移動速度、跳躍力
+    expect(skillEffect(byId(5001005))).toEqual({ label: "滿級效果（10 級）", text: "消耗MP 5，移動速度+30，跳躍力+10，持續時間20秒" });
   });
 
   it("客戶端也沒有每一級數字的魔力淨化照舊寫「沒有每一級的數字」（不編）", () => {
@@ -491,7 +512,9 @@ describe("code review 修正：全形百分比、圖示放自己的資料夾（v
   it("樣板裡寫全形「％」的（盾防精通「盾牌的物理防禦力增加#x％」）表頭一樣補「（%）」", () => {
     const result = skillLevels({ formula: "盾牌的物理防禦力增加#x％", labels: { x: "物理防禦力" }, levels: [{ x: 20 }] });
     expect(result.kind === "table" && result.fields).toEqual([{ key: "x", label: "物理防禦力", unit: "%" }]);
-    expect(skillLevels(byId(1110001)).kind === "table" && (skillLevels(byId(1110001)) as { fields: { unit?: string }[] }).fields[0].unit).toBe("%");
+    // 真資料：盾防精通 2.0.0 起沒數值了，改看龍之獻祭「按攻擊力#x％減少HP」
+    const sacrifice = skillLevels(byId(1311005));
+    expect(sacrifice.kind === "table" && sacrifice.fields.find(field => field.key === "x")?.unit).toBe("%");
   });
 
   it("向下跳躍的圖示放在 public/skill-icons/（上游同步不會蓋掉、也不會被刪），跟皇家騎士團版 10001006 逐位元組一樣", () => {
