@@ -19,6 +19,7 @@ import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { officialName } from "./lib/map-names.mjs";
 import { shopRows } from "./lib/shops.mjs";
+import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
@@ -307,6 +308,12 @@ function buildMaps(v83, zhNames, regions, msio) {
     };
     for (const field of Object.keys(record)) if (record[field] === undefined) delete record[field];
     records[id] = record;
+  }
+  // 沒中文名的店內／車站圖（天空之城武器店、冰原雪域雜貨店…）跟著回城的城鎮標開放日：上游 2.0.0 起商店資料給了這幾張圖名字，
+  // 道具卡「哪裡買得到」、裝備卡「去哪拿」改指到店內這張圖，它沒開放日的話會被當成舊地區，
+  // 狼牙又改推冰原雪域斯考特的店（違反 10/07 拍板的「先推舊地區」）。2026-10-15 補了 35 張，上面都沒有怪
+  for (const record of Object.values(records)) {
+    if (!record.o && !record.zh && record.ret !== undefined && records[record.ret]?.o) record.o = records[record.ret].o;
   }
   return { records };
 }
@@ -716,6 +723,18 @@ function buildSkills(artale, allJobs) {
   const clientSkills = readJson(path.join(ROOT, "data", "client", "skills.json"), { skills: {} }).skills;
   // 台服客戶端每個技能的所需技能（id → 等級）：遊戲說明有 20 個名字寫錯，照 id 接連結（scripts/client/skill-req.mjs 抽的）
   const clientReq = readJson(path.join(ROOT, "data", "client", "skill-req.json"), { req: {} }).req;
+  // 上游漏抽的欄位用前一版站上的數值補（2.0.0 漏了熟練度 #M，36 個技能整列不見）：說明對得上才補，見 lib/skill-fallback.mjs
+  const fallback = readJson(path.join(ROOT, "data", "upstream-fallback", "skills.json"), { skills: {} });
+  const filledSkills = [];
+  const changedSkills = [];
+  const mismatchSkills = [];
+  const fillLost = skill => {
+    const out = fillLostFields(skill, fallback.skills[skill.id]);
+    if (out.filled) filledSkills.push(`${skill.id} ${skill.name}（${out.filled.join("、")}）`);
+    if (out.changed) changedSkills.push(`${skill.id} ${skill.name}（${out.changed.join("、")}）`);
+    if (out.mismatch) mismatchSkills.push(`${skill.id} ${skill.name}：${out.mismatch}`);
+    return out.labels ? { ...skill, levels: out.levels, valueLabels: out.labels } : skill;
+  };
   const list = (artale.skills || [])
     // 只收經典版實際存在的職業（見 lib/classic-jobs.mjs）：客戶端資料另外還有皇家騎士團、
     // 狂狼勇士、龍魔導士、影武者，經典版沒有這些職業，列出來查資料頁的職業選單會選得到
@@ -728,6 +747,7 @@ function buildSkills(artale, allJobs) {
       const end = expiredOn(skill.description);
       return !end || end >= TODAY;
     })
+    .map(fillLost)
     .map(skill => ({
       skill,
       ...splitPrereq(cleanSkillDesc(skill.description, skill.maxLevel ?? undefined)),
@@ -758,6 +778,13 @@ function buildSkills(artale, allJobs) {
   // 說明是韓文、建置時拿掉的有幾個（2026-10-08 是 19 個坐騎）：數字突然變多代表上游換了語系，要看一下
   const korean = (artale.skills || []).filter(skill => list.some(item => item.id === Number(skill.id)) && /\p{Script=Hangul}/u.test(skill.description || ""));
   if (korean.length) console.log(`[skills] 說明是韓文、沒有列的：${korean.length} 個（效果行照列中文）`);
+  if (filledSkills.length) {
+    console.log(`[skills] 上游漏抽的欄位用前一版（skills-data.js ${fallback.gameVersion}）補：${filledSkills.length} 個（${filledSkills.join("、")}）`);
+  }
+  // 漏抽、這一版又改了數字（說明的數字跟前一版不一樣）：只收說明看得到的數字，看不到的欄位留空
+  if (changedSkills.length) console.log(`[skills] 上游漏抽、這一版改了數字，只照說明讀：${changedSkills.length} 個（${changedSkills.join("、")}）`);
+  // 說明對不上樣板：整個不動；傷害計算機要的欄位還缺的話 verify.mjs 會擋下來
+  if (mismatchSkills.length) console.warn(`[skills] 上游漏抽、說明也對不上樣板，沒補的：${mismatchSkills.length} 個（${mismatchSkills.join("；")}）`);
   return { list };
 }
 
