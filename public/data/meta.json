@@ -1,36 +1,36 @@
 {
   "gameVersion": "2.0.0",
-  "dataGeneratedAt": "2026-10-15T15:27:53+08:00",
-  "dataGeneratedAtText": "2026-10-15 15:27:53 GMT+8",
+  "dataGeneratedAt": "2026-10-15T22:04:30+08:00",
+  "dataGeneratedAtText": "2026-10-15 22:04:30 GMT+8",
   "ingest": {
     "origin": "upstream",
-    "ref": "local-sparse",
-    "fetchedAt": "2026-10-15T09:21:01.542Z"
+    "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
+    "fetchedAt": "2026-10-15T17:09:45.437Z"
   },
   "parts": {
     "data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00"
     },
     "items-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00"
     },
     "quests-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00"
     },
     "skills-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00"
     },
     "maps-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00"
     },
     "worldmaps-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00"
     }
   },
   "mapSource": {
@@ -81,7 +81,7 @@
     "quests": 526,
     "skills": 238,
     "maps": 5884,
-    "mapsWithChineseName": 380,
+    "mapsWithChineseName": 381,
     "portalEdges": 4041,
     "towns": 343,
     "regions": 40,
@@ -94,5 +94,5 @@
     "monstersWithoutSpawnData": 21,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-15T09:30:35.739Z"
+  "builtAt": "2026-10-15T17:09:56.571Z"
 }
