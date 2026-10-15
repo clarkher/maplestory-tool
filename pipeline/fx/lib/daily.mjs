@@ -1,5 +1,6 @@
 /**
- * 每天一根 K 棒（台灣時間 00:00–24:00），資料是參考站每 2 小時一筆的市價（ref-samples.jsonl 的列：{ t, ask100, listings? }）。
+ * 每天一根 K 棒（台灣時間 00:00–24:00），資料是參考站每 2 小時一筆的市價（ref-samples.jsonl 的列：{ t, ask100, listings?, src? }）。
+ * src: "manual" 是人手動補的一筆（參考站停更時用），照樣算進開高低收；當天的 source 是 ref（沒有手動的）、manual（全是手動的）、mixed（混著）。
  * 價格先換成「1 億楓幣幾元」才取開高低收：ask100 越大楓幣越便宜，直接取最高最低會倒過來。
  * 掛單數只有我們抓到的那幾刻才有（參考站的歷史沒記），取當天最後一筆有記的。
  * 壞掉的列（市價不是有限正數、時間讀不懂）跳過，不讓一筆壞資料把整天變成 NaN。
@@ -31,6 +32,7 @@ export function dailyBars(rows) {
   // 照時間排過才分組，Map 的順序就是日期由舊到新
   return [...byDate].map(([date, day]) => {
     const values = day.map(row => perYi(row.ask100));
+    const manualCount = day.filter(row => row.src === "manual").length;
     return {
       date,
       open: values[0],
@@ -40,7 +42,7 @@ export function dailyBars(rows) {
       closeMesoPerNtd: round2(day.at(-1).ask100 / 100),
       listings: day.filter(row => Number.isInteger(row.listings)).at(-1)?.listings ?? null,
       samples: day.length,
-      source: "ref",
+      source: manualCount === 0 ? "ref" : manualCount === day.length ? "manual" : "mixed",
     };
   });
 }

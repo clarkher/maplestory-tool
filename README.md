@@ -302,6 +302,11 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
   本機試跑：`node pipeline/fx/collect.mjs <空資料夾> <輸出資料夾>`。
 - **手動跑**：`gh workflow run fx-collect.yml --ref <分支>`（workflow 要先在 main 上才叫得動）；main、dev 以外的分支要加 `-f write=true` 才會推上 `fx-data`。
 - **失敗通知**：參考站抓不到或格式變了、推不上 `fx-data`、或參考站 12 小時以上沒更新，開 issue（label「匯率收集失敗」）；恢復正常自動關。
+- **手動補一筆**（參考站停更時的備援）：到 [Actions 頁面](https://github.com/clarkher/maplestory-tool/actions/workflows/fx-collect.yml) 按 Run workflow（分支 main），在「手動補一筆」填 100 元換幾萬楓幣（10～2000）；
+  或 `gh workflow run fx-collect.yml --ref main -f manual=300`。有填的話參考站抓不到也不算失敗，會在 `ref-samples.jsonl` 接一筆 `{ t: 現在, ask100, src: "manual" }`（要比最後一筆新才接；
+  填錯格式 workflow 會紅並說明）。每日 K 棒照算，`daily.json` 的 `days[].source` 變成 `ref`／`manual`／`mixed`（給拍賣查價讀 `close` 不受影響）；
+  最新一筆是手動的，`latest.json` 的 `src` 是 `manual`、沒有掛單數與價位分布，頁面更新時間那行寫「手動輸入」、當天讀數標「含手動輸入」。
+  「匯率收集失敗」的 issue 內文也寫了這個做法。
 
 ## 10/15 開機後自動重新部署
 

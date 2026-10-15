@@ -23,7 +23,7 @@ test("第一次跑（空資料夾）：參考站歷史全收、當下那筆補�
     { t: "2026-10-12T20:40:00+08:00", ask100: 330 },
     { t: "2026-10-13T14:40:59+08:00", ask100: 300, listings: 82 },
   ]);
-  assert.deepEqual(readJson(out, "latest.json"), { t: "2026-10-13T14:40:59+08:00", fetchedAt: "2026-10-13T16:17:00+08:00", ask100: 300, listings: 82, ladder: [[250, 2], [300, 5]] });
+  assert.deepEqual(readJson(out, "latest.json"), { t: "2026-10-13T14:40:59+08:00", fetchedAt: "2026-10-13T16:17:00+08:00", ask100: 300, listings: 82, ladder: [[250, 2], [300, 5]], src: "ref" });
   const daily = readJson(out, "daily.json");
   assert.deepEqual([daily.server, daily.unit, daily.source, daily.updatedAt], ["雪吉拉", "元／1 億楓幣", "https://maple-classic-wiki.pages.dev/price", "2026-10-13T16:17:00+08:00"]);
   assert.deepEqual(daily.days.map(d => [d.date, d.close, d.listings, d.source]), [["2026-10-12", 3030.3, null, "ref"], ["2026-10-13", 3333.3, 82, "ref"]]);
@@ -92,4 +92,93 @@ test("第一次跑、參考站的歷史一筆都收不進來：丟錯、不寫�
   const changed = refJson("2026-10-14T10:40:00+08:00", [{ t: "2026-10-14T10:40:00+08:00", m: 4, 雪吉拉_ask: 310 }]);
   await assert.rejects(runCollect({ dataDir: tmp(), outDir: out, now: new Date("2026-10-14T02:41:00Z"), getRef: async () => changed }), /沒有任何可用的市價/);
   assert.equal(fs.existsSync(path.join(out, DIR)), false);
+});
+
+// ---------- 手動補一筆（v0.99） ----------
+
+const NOW = new Date("2026-10-13T08:17:00Z"); // 台灣 2026-10-13 16:17:00
+const MANUAL_T = "2026-10-13T16:17:00+08:00";
+
+test("手動補一筆（參考站正常）：接在參考站新資料後面，latest 是手動的（沒有掛單數與價位分布），當天 source 是 mixed", async () => {
+  const out = tmp();
+  const result = await runCollect({ dataDir: tmp(), outDir: out, now: NOW, getRef: async () => FIRST, manualAsk100: 280 });
+  assert.deepEqual(lines(out, "ref-samples.jsonl"), [
+    { t: "2026-10-12T20:40:00+08:00", ask100: 330 },
+    { t: "2026-10-13T14:40:59+08:00", ask100: 300, listings: 82 },
+    { t: MANUAL_T, ask100: 280, src: "manual" },
+  ]);
+  assert.deepEqual(readJson(out, "latest.json"), { t: MANUAL_T, fetchedAt: MANUAL_T, ask100: 280, listings: null, ladder: [], src: "manual" });
+  const days = readJson(out, "daily.json").days;
+  assert.deepEqual(days.map(d => [d.date, d.samples, d.source]), [["2026-10-12", 1, "ref"], ["2026-10-13", 2, "mixed"]]);
+  assert.equal(days[1].close, 3571.4);
+  assert.deepEqual(result, { t: MANUAL_T, ask100: 280, added: 2, ageHours: 0, manualAdded: true });
+});
+
+test("手動補一筆、參考站抓不到：不丟錯，照樣寫進去；舊資料原封不動", async () => {
+  const first = tmp();
+  await runCollect({ dataDir: tmp(), outDir: first, now: new Date("2026-10-13T07:00:00Z"), getRef: async () => FIRST });
+  const out = tmp();
+  const result = await runCollect({ dataDir: first, outDir: out, now: NOW, getRef: async () => { throw new Error("HTTP 503"); }, manualAsk100: 290 });
+  assert.ok(read(out, "ref-samples.jsonl").startsWith(read(first, "ref-samples.jsonl")));
+  assert.deepEqual(lines(out, "ref-samples.jsonl").slice(2), [{ t: MANUAL_T, ask100: 290, src: "manual" }]);
+  assert.deepEqual(readJson(out, "latest.json"), { t: MANUAL_T, fetchedAt: MANUAL_T, ask100: 290, listings: null, ladder: [], src: "manual" });
+  assert.equal(result.added, 0);
+  assert.equal(result.manualAdded, true);
+  assert.equal(result.ageHours, 0);
+});
+
+test("手動補一筆、參考站格式壞了：一樣不丟錯", async () => {
+  const out = tmp();
+  const result = await runCollect({ dataDir: tmp(), outDir: out, now: NOW, getRef: async () => ({ servers: {} }), manualAsk100: 290 });
+  assert.deepEqual(lines(out, "ref-samples.jsonl"), [{ t: MANUAL_T, ask100: 290, src: "manual" }]);
+  assert.equal(readJson(out, "daily.json").days[0].source, "manual");
+  assert.equal(result.manualAdded, true);
+});
+
+test("手動補一筆、值不合法：先丟錯、不連參考站、不寫檔", async () => {
+  const out = tmp();
+  let called = 0;
+  const getRef = async () => { called += 1; return FIRST; };
+  await assert.rejects(runCollect({ dataDir: tmp(), outDir: out, now: NOW, getRef, manualAsk100: "abc" }), /手動補一筆/);
+  await assert.rejects(runCollect({ dataDir: tmp(), outDir: out, now: NOW, getRef, manualAsk100: 5000 }), /10～2000/);
+  assert.equal(called, 0);
+  assert.equal(fs.existsSync(path.join(out, DIR)), false);
+});
+
+test("手動補一筆沒填（空字串、null）：跟平常一樣，latest 標 src ref，結果沒有 manualAdded", async () => {
+  const out = tmp();
+  const result = await runCollect({ dataDir: tmp(), outDir: out, now: NOW, getRef: async () => FIRST, manualAsk100: "" });
+  assert.equal(readJson(out, "latest.json").src, "ref");
+  assert.equal("manualAdded" in result, false);
+  assert.equal(lines(out, "ref-samples.jsonl").some(row => "src" in row), false, "參考站的列不加 src");
+});
+
+test("手動這一筆的時間不比最後一筆新：不寫進去、manualAdded false（latest 照參考站）", async () => {
+  const data = tmp();
+  fs.mkdirSync(path.join(data, DIR), { recursive: true });
+  fs.writeFileSync(path.join(data, DIR, "ref-samples.jsonl"), `{"t":"${MANUAL_T}","ask100":330}\n`);
+  const out = tmp();
+  const result = await runCollect({ dataDir: data, outDir: out, now: NOW, getRef: async () => FIRST, manualAsk100: 280 });
+  assert.equal(result.manualAdded, false);
+  assert.equal(lines(out, "ref-samples.jsonl").some(row => row.src === "manual"), false);
+  assert.equal(readJson(out, "latest.json").src, "ref");
+});
+
+test("手動這一筆不比最後一筆新、參考站又抓不到：丟錯（不要默默沒寫）", async () => {
+  const data = tmp();
+  fs.mkdirSync(path.join(data, DIR), { recursive: true });
+  fs.writeFileSync(path.join(data, DIR, "ref-samples.jsonl"), `{"t":"${MANUAL_T}","ask100":330}\n`);
+  const out = tmp();
+  await assert.rejects(runCollect({ dataDir: data, outDir: out, now: NOW, getRef: async () => { throw new Error("HTTP 503"); }, manualAsk100: 280 }), /不比最後一筆新/);
+  assert.equal(fs.existsSync(path.join(out, DIR)), false);
+});
+
+test("手動寫過之後，下一輪平常的收集接得上：參考站新的列接在手動那筆後面，latest 回到參考站", async () => {
+  const first = tmp();
+  await runCollect({ dataDir: tmp(), outDir: first, now: NOW, getRef: async () => FIRST, manualAsk100: 280 });
+  const next = refJson("2026-10-13T18:40:00+08:00", [h("2026-10-13T14:40:59+08:00", 300), h("2026-10-13T18:40:00+08:00", 305)], 305, 79);
+  const out = tmp();
+  await runCollect({ dataDir: first, outDir: out, now: new Date("2026-10-13T11:00:00Z"), getRef: async () => next });
+  assert.deepEqual(lines(out, "ref-samples.jsonl").slice(3), [{ t: "2026-10-13T18:40:00+08:00", ask100: 305, listings: 79 }]);
+  assert.deepEqual(readJson(out, "latest.json"), { t: "2026-10-13T18:40:00+08:00", fetchedAt: "2026-10-13T19:00:00+08:00", ask100: 305, listings: 79, ladder: [[250, 2], [300, 5]], src: "ref" });
 });

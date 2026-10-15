@@ -9,6 +9,9 @@ import { LABEL } from "./notify-decide.mjs";
 // 「最後一次」那一行：判斷有沒有跟替換用同一個規則（只認行首），不然句子中間出現這幾個字會判成有、卻換不到
 const LAST_LINE = /^最後一次：.*$/m;
 
+// 參考站停更時的備援：手動補一筆（只放在新開的 issue 內文，已開著的 issue 只改「最後一次」那行）
+const MANUAL_HOWTO = "參考站停更時可以手動補一筆：到 https://github.com/clarkher/maplestory-tool/actions/workflows/fx-collect.yml 按 Run workflow（分支 main），在「手動補一筆」填 100 元換幾萬楓幣。";
+
 export async function notifyIssue({ action, reason, call, repo, runUrl, assignee, now }) {
   // 台灣時間，跟頁面、資料檔的時間一致（人在看 issue，不用自己換算 UTC）
   const stamp = taipeiIso(now);
@@ -37,7 +40,7 @@ export async function notifyIssue({ action, reason, call, repo, runUrl, assignee
         title: "楓幣匯率收集失敗",
         labels: [LABEL],
         assignees: assignee ? [assignee] : [],
-        body: `${reason}\n\n${lastLine}\n\n資料分支：fx-data；排程：.github/workflows/fx-collect.yml。恢復正常會自動關這張。`,
+        body: `${reason}\n\n${lastLine}\n\n資料分支：fx-data；排程：.github/workflows/fx-collect.yml。恢復正常會自動關這張。\n\n${MANUAL_HOWTO}`,
       });
       return "開了新的";
     }
