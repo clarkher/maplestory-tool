@@ -53,6 +53,22 @@
   --on-accent: #fff;
 
   --grid-line: rgb(138 90 50 / 0.07);
+
+  /*
+    楓幣匯率頁（/price/fx）：台灣習慣紅漲綠跌，不拿楓葉橘、葉綠當漲跌色。
+    線／K 棒用亮一點的，字用壓深一階的（在卡片與圖區底上都過 AA）。
+  */
+  --fx-up: #e22a19;
+  --fx-down: #25855b;
+  --fx-up-text: #c41f10;
+  --fx-down-text: #1f7550;
+  --fx-grid: rgb(109 89 67 / 0.14);
+  --fx-cross: rgb(44 32 21 / 0.55);
+  --fx-ma5: #05638c;
+  --fx-ma20: #835400;
+  --fx-panel: #f1e5d1;
+  --fx-surface: #fbf5ea;
+  --fx-market: rgb(184 134 42 / 0.2);
 }
 
 :root[data-theme="dark"] {
@@ -93,6 +109,19 @@
   --on-accent: #1a1209;
 
   --grid-line: rgb(255 210 160 / 0.05);
+
+  /* 楓幣匯率頁的漲跌色（夜晚版） */
+  --fx-up: #f53f2d;
+  --fx-down: #389469;
+  --fx-up-text: #ff7a68;
+  --fx-down-text: #5cbf8f;
+  --fx-grid: rgb(246 234 217 / 0.1);
+  --fx-cross: rgb(246 234 217 / 0.6);
+  --fx-ma5: #6cb8e0;
+  --fx-ma20: #e6b453;
+  --fx-panel: #0e0b07;
+  --fx-surface: #16110c;
+  --fx-market: rgb(230 180 83 / 0.2);
 }
 
 /*

@@ -20,4 +20,8 @@ describe("導覽列哪一顆亮", () => {
     expect(activeNav("/plan/damage")).toBe("算傷害");
     expect(activeNav("/plan/farm")).toBe("查資料");
   });
+
+  it("楓幣匯率頁（v0.98）從查資料的「行情」區進去，/price 開頭亮「查資料」", () => {
+    expect(activeNav("/price/fx")).toBe("查資料");
+  });
 });

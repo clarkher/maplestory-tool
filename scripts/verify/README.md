@@ -392,6 +392,22 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 「看細節」是受控的 `<details>`（展開狀態記在瀏覽紀錄），所以腳本用點 `<summary>` 的方式展開（直接改 `open` 屬性 React 不一定認），`detailsOpen` 記有沒有真的展開；
 `consoleProblems` 是整趟 console 的錯誤、警告（hydration 警告、沒接住的例外）。
 
+### 楓幣匯率
+
+#### `fx-shot.mjs`：楓幣匯率頁 `/price/fx` 截圖（v0.98，埠 9481）
+
+```bash
+node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3000] [DevTools 埠，預設 9481]
+```
+
+- 四張整頁截圖：手機 390、桌機 1280、手機深色、`?broken=1`（讀不到資料的畫面）。手機是 2 倍解析度，視窗拉到整頁高度再截，一張圖看到底。
+- 頁面網址帶 `?pin=<日期>`，十字線停在那天。日期是腳本先讀 `daily.json` 挑出來的（資料裡倒數第 4 天，讀不到資料才用 2026-10-12）。圖只畫最近 N 天（N ＝ 圖寬 ÷ 10 無條件捨去、最少 7 天，手機約 30 天、桌機更多），太舊的日子會被擠出圖外，所以不能寫死日期。`?pin`、`?broken` 只給驗收用，頁面上不提；頁面是靜態的，這兩個參數是載入後在瀏覽器裡讀的。
+- 頁面讀的是 raw.githubusercontent.com 上 `fx-data` 分支的真資料，要連得到網路；沒有假資料可塞，所以報價、K 棒會隨資料更新而變，不是逐像素比對用的。
+- 每張印一行 PASS／FAIL：頁面載好（`data-fx-ready="1"`）、沒有橫向捲動、`<html data-theme>` 跟要截的主題一樣（深色那張一定要是 `dark`）、讀數（`data-fx-readout`）開頭是 pin 那天（例如 `10/12`）；`?broken=1` 那張要看到「讀不到匯率資料」。但一律 exit 0，截圖要自己打開看。
+- 輸出：`fx-390.png`、`fx-1280.png`、`fx-390-dark.png`、`fx-broken-390.png`、`results.json`（每張的寬、高、`scrollWidth`／`innerWidth`、`data-theme`、讀數開頭、頁面開頭的字）。
+- 耗時：本機 dev server（已編譯過）約 27～36 秒（2026-10-15 量到兩次：36 秒、27 秒）。
+- 網址用 `localhost`，不要用 `127.0.0.1`。
+
 ### 沒收進來的
 
 - `db-verify.mjs`：已被 `scripts/verify-db.mjs`（`npm run verify:db`）取代。M1–M19、D1–D3 都在，還多了 N1–N13、D4。
