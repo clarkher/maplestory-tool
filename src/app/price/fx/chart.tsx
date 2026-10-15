@@ -74,13 +74,23 @@ function usePointer(count: number, frame: ReturnType<typeof xFrame>, setActive: 
   };
 }
 
-function keyNav(active: number | null, count: number, setActive: (index: number | null) => void) {
+function keyNav(active: number | null, count: number, setActive: (index: number | null) => void, onMove: (index: number) => void) {
   return (event: KeyboardEvent<SVGSVGElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
     const from = active ?? count - 1;
-    setActive(Math.min(count - 1, Math.max(0, from + (event.key === "ArrowLeft" ? -1 : 1))));
+    const next = Math.min(count - 1, Math.max(0, from + (event.key === "ArrowLeft" ? -1 : 1)));
+    setActive(next);
+    onMove(next);
   };
+}
+
+/** 給讀螢幕軟體念的一句話：「10/14（三）收 3,704 元，漲 370 元」 */
+function daySummary(days: Day[], index: number) {
+  const { md, week } = dayLabel(days[index].date);
+  const change = dayChange(days, index);
+  const tail = !change ? "，第一天" : change.dir === "flat" ? "，持平" : `，${dirWord(change.dir)} ${fmtYuan(Math.abs(change.diff))} 元`;
+  return `${md}（${week}）收 ${fmtYuan(days[index].close)} 元${tail}`;
 }
 
 export type KChartProps = {
@@ -106,6 +116,7 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
   const ticks = niceTicks(lo, hi, 4).filter(tick => tick >= lo && tick <= hi && Math.abs(y(tick) - y(last.close)) >= 11);
   const body = Math.max(3, Math.min(18, frame.slot * 0.56));
   const pointer = usePointer(days.length, frame, setActive, rest);
+  const [said, setSaid] = useState("");
   const line = (series: (number | null)[]) =>
     series.map((value, index) => (value === null ? null : `${frame.x(index).toFixed(1)},${y(value).toFixed(1)}`)).filter(Boolean).join(" ");
 
@@ -118,8 +129,9 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
         role="img"
         aria-label={label}
         tabIndex={0}
-        className="block touch-pan-y select-none outline-none focus-visible:outline-2"
-        onKeyDown={keyNav(active, days.length, setActive)}
+        className="block touch-pan-y select-none"
+        onKeyDown={keyNav(active, days.length, setActive, index => setSaid(daySummary(days, index)))}
+        onBlur={() => setActive(rest)}
         {...pointer}
       >
         {ticks.map(tick => (
@@ -167,6 +179,8 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
           <text x={width - 4} y={y(last.close) + 4} textAnchor="end" fontSize={11} fontWeight={700} fill="var(--paper)" className="tabular-nums">{fmtYuan(last.close)}</text>
         </g>
       </svg>
+      {/* 用左右鍵換天時，讀螢幕軟體會念出換到哪天（滑鼠、手指不念） */}
+      <p className="sr-only" aria-live="polite">{said}</p>
     </div>
   );
 }

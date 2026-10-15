@@ -133,7 +133,7 @@ function Board({ m }: { m: Model }) {
         <section className="rounded-2xl border border-[color:var(--paper-edge)] bg-[color:var(--fx-panel)] p-3 [--fx-surface-local:var(--fx-panel)]">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-[14px] font-black">日 K<span className="ml-1.5 text-[12px] font-normal ink-soft">元／1 億楓幣</span></h2>
-            <span className="text-[11px] ink-faint">按住圖左右滑看每一天</span>
+            <span className="text-[11px] ink-faint">按住圖左右滑，或用左右鍵，看每一天</span>
           </div>
           <div className="mt-2 rounded-xl border border-[color:var(--paper-edge)] px-2.5 py-2">
             <DayReadout days={m.days} index={shown} />
