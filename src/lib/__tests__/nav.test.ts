@@ -26,4 +26,8 @@ describe("導覽列哪一顆亮", () => {
     expect(NAV.find(item => item.label === "練功測速")).toMatchObject({ href: "/plan/speed", desktopOnly: true });
     expect(NAV.filter(item => item.desktopOnly).map(item => item.label)).toEqual(["練功測速"]);
   });
+
+  it("楓幣匯率頁（v0.98）從查資料的「行情」區進去，/price 開頭亮「查資料」", () => {
+    expect(activeNav("/price/fx")).toBe("查資料");
+  });
 });

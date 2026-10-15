@@ -291,6 +291,7 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
 比 `fx-data` 新的市價接進孤兒分支 **`fx-data`**（參考站只留最近 60 筆，這裡存全部），重算最新一筆與每日 K 棒。
 設計：`docs/superpowers/specs/2026-10-13-meso-fx-design.md`（「10/14 改版」那節）。
 
+- **頁面**：`/price/fx`（「楓幣匯率」：雪吉拉 1 億楓幣多少台幣、每天走勢）。驗收截圖：`node scripts/verify/fx-shot.mjs <輸出> <網址>`。
 - **不直接抓 8591**：它的服務條款禁止爬蟲，2026-10-13 實測也會擋老實寫身分的程式（403），使用者 10/14 拍板不繞過。
 - **不吃部署額度**：`fx-data` 自己帶 `vercel.json` 關掉部署，根目錄 `vercel.json` 也擋 `fx-data`、`price-data`（拍賣查價的資料分支）。
   頁面直接讀 raw.githubusercontent.com，資料更新不用部署。

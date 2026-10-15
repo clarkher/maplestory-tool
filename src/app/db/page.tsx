@@ -24,6 +24,10 @@ const TOOLS = [
   { href: "/guide", title: "月妙、超綠組隊圖解", lead: "種子怎麼種、答題表、跳桶位置", image: "/assets/npcs/1012112.png" },
 ];
 
+const MARKET = [
+  { href: "/price/fx", title: "楓幣匯率", lead: "雪吉拉 1 億楓幣現在值多少台幣、每天怎麼變", image: "/assets/meso/bag.png" },
+];
+
 export default function Page() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-4 sm:py-8">
@@ -55,6 +59,25 @@ export default function Page() {
         <h2 className="px-1 text-sm font-bold ink-soft">排行與規劃</h2>
         <ul className="space-y-2">
           {TOOLS.map(entry => (
+            <li key={entry.href}>
+              <Link href={entry.href} className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-3 transition-transform hover:-translate-y-0.5">
+                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[color:var(--paper-deep)]">
+                  <Sprite src={entry.image} size={34} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block font-bold">{entry.title}</span>
+                  <span className="block text-[13px] leading-snug ink-soft">{entry.lead}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-label="行情" className="space-y-2">
+        <h2 className="px-1 text-sm font-bold ink-soft">行情</h2>
+        <ul className="space-y-2">
+          {MARKET.map(entry => (
             <li key={entry.href}>
               <Link href={entry.href} className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-3 transition-transform hover:-translate-y-0.5">
                 <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[color:var(--paper-deep)]">
