@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
-  candleDir, dayChange, dayLabel, dirWord, fmtPct, fmtWan, fmtYuan, niceTicks, priceDomain, sourceText, wanPerNtd,
+  candleDir, dayChange, dayLabel, dirWord, fmtPct, fmtWan, fmtYuan, niceTicks, priceDomain, wanPerNtd,
   type Day, type Direction,
 } from "@/lib/fx/fx";
 
@@ -60,12 +60,12 @@ function dateTicks(days: Day[], slot: number) {
   return days.map((day, index) => ({ index, label: dayLabel(day.date).md })).filter(({ index }) => (days.length - 1 - index) % step === 0);
 }
 
-/** 圖上的指標事件：手指或滑鼠找最近的一天，離開就回到預設那天 */
-function usePointer(count: number, frame: ReturnType<typeof xFrame>, setActive: (index: number | null) => void, rest: number | null) {
+/** 圖上的指標事件：手指或滑鼠找最近的一天（count 是圖上畫的天數，start 是第一天在全部天數裡的位置，active／rest 都用全部天數的索引），離開就回到預設那天 */
+function usePointer(count: number, start: number, frame: ReturnType<typeof xFrame>, setActive: (index: number | null) => void, rest: number | null) {
   const pick = (event: PointerEvent<SVGSVGElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
     const index = Math.floor((event.clientX - rect.left - frame.left) / frame.slot);
-    setActive(Math.min(count - 1, Math.max(0, index)));
+    setActive(start + Math.min(count - 1, Math.max(0, index)));
   };
   return {
     onPointerMove: pick,
@@ -74,12 +74,12 @@ function usePointer(count: number, frame: ReturnType<typeof xFrame>, setActive: 
   };
 }
 
-function keyNav(active: number | null, count: number, setActive: (index: number | null) => void, onMove: (index: number) => void) {
+function keyNav(active: number | null, start: number, total: number, setActive: (index: number | null) => void, onMove: (index: number) => void) {
   return (event: KeyboardEvent<SVGSVGElement>) => {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
     event.preventDefault();
-    const from = active ?? count - 1;
-    const next = Math.min(count - 1, Math.max(0, from + (event.key === "ArrowLeft" ? -1 : 1)));
+    const from = active ?? total - 1;
+    const next = Math.min(total - 1, Math.max(start, from + (event.key === "ArrowLeft" ? -1 : 1)));
     setActive(next);
     onMove(next);
   };
@@ -93,10 +93,12 @@ function daySummary(days: Day[], index: number) {
   return `${md}（${week}）收 ${fmtYuan(days[index].close)} 元${tail}`;
 }
 
+/** days、ma5、ma20 是全部天數（均線要用全部天數算）；start 是圖從第幾天開始畫；active、rest 也是全部天數的索引 */
 export type KChartProps = {
   days: Day[];
   ma5: (number | null)[];
   ma20: (number | null)[];
+  start: number;
   width: number;
   height?: number;
   active: number | null;
@@ -105,7 +107,9 @@ export type KChartProps = {
   label: string;
 };
 
-export function KChart({ days, ma5, ma20, width, height = 220, active, setActive, rest, label }: KChartProps) {
+export function KChart({ days: allDays, ma5: allMa5, ma20: allMa20, start, width, height = 220, active: allActive, setActive, rest, label }: KChartProps) {
+  const days = allDays.slice(start), ma5 = allMa5.slice(start), ma20 = allMa20.slice(start);
+  const active = allActive !== null && allActive >= start ? allActive - start : null;
   const frame = xFrame(width, days.length);
   const top = 10, bottom = 24;
   const plotH = height - top - bottom;
@@ -115,7 +119,7 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
   // 最後收盤價的標籤貼在右邊刻度上（高 18）：太靠近它的刻度不畫，免得數字疊在一起
   const ticks = niceTicks(lo, hi, 4).filter(tick => tick >= lo && tick <= hi && Math.abs(y(tick) - y(last.close)) >= 11);
   const body = Math.max(3, Math.min(18, frame.slot * 0.56));
-  const pointer = usePointer(days.length, frame, setActive, rest);
+  const pointer = usePointer(days.length, start, frame, setActive, rest);
   const [said, setSaid] = useState("");
   const line = (series: (number | null)[]) =>
     series.map((value, index) => (value === null ? null : `${frame.x(index).toFixed(1)},${y(value).toFixed(1)}`)).filter(Boolean).join(" ");
@@ -127,10 +131,10 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
         width={width}
         height={height}
         role="img"
-        aria-label={label}
+        aria-label={`${label}，可用左右鍵換天`}
         tabIndex={0}
         className="block touch-pan-y select-none"
-        onKeyDown={keyNav(active, days.length, setActive, index => setSaid(daySummary(days, index)))}
+        onKeyDown={keyNav(allActive, start, allDays.length, setActive, index => setSaid(daySummary(allDays, index)))}
         onBlur={() => setActive(rest)}
         {...pointer}
       >
@@ -153,7 +157,7 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
           return (
             <g key={day.date} opacity={active === null || active === index ? 1 : 0.55}>
               <line x1={cx} x2={cx} y1={y(day.high)} y2={y(day.low)} stroke={color} strokeWidth={1.25} />
-              {/* 漲、跌都是實心；一整天沒變（開＝收）是灰色短橫線 */}
+              {/* 漲、跌都是實心；收盤跟開盤一樣是灰色短橫線 */}
               {dir === "flat" || bodyH < 2 ? (
                 <rect x={cx - body / 2} y={yc - 1} width={body} height={2} rx={1} fill={color} />
               ) : (
@@ -186,14 +190,18 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
 }
 
 /** 掛單數：每天收盤時的筆數。有記到的天數不到 2 天就照實說「累積中」，不畫線 */
-export function ListingsChart({ days, width, height = 76, active, setActive, rest, label }: { days: Day[]; width: number; height?: number; active: number | null; setActive: (index: number | null) => void; rest: number | null; label: string }) {
+export function ListingsChart({ days: allDays, start, width, height = 76, active: allActive, setActive, rest, label }: { days: Day[]; start: number; width: number; height?: number; active: number | null; setActive: (index: number | null) => void; rest: number | null; label: string }) {
+  const days = allDays.slice(start);
+  const active = allActive !== null && allActive >= start ? allActive - start : null;
   const frame = xFrame(width, days.length);
   const top = 16, bottom = 20;
   const plotH = height - top - bottom;
   const values = days.map(day => day.listings);
   const known = values.filter((v): v is number => v !== null);
   const max = Math.max(1, ...known);
-  const pointer = usePointer(days.length, frame, setActive, rest);
+  const pointer = usePointer(days.length, start, frame, setActive, rest);
+  // 每天的位子夠寬（24px 以上）才每根柱子都寫筆數；不夠寬就只寫選到的那天和最後一天，免得數字疊在一起
+  const allLabels = frame.slot >= 24;
   const bar = Math.max(3, Math.min(18, frame.slot * 0.56));
   const firstKnown = days.findIndex(day => day.listings !== null);
   if (!width) return <div style={{ height }} />;
@@ -216,7 +224,9 @@ export function ListingsChart({ days, width, height = 76, active, setActive, res
           return (
             <g key={day.date}>
               <path d={`M${cx - bar / 2} ${top + plotH} V${top + plotH - h + 4} q0 -4 4 -4 H${cx + bar / 2 - 4} q4 0 4 4 V${top + plotH} Z`} fill="var(--fx-ma5)" />
-              <text x={cx} y={top + plotH - h - 4} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--ink-soft)" className="tabular-nums">{day.listings}</text>
+              {(allLabels || index === active || index === days.length - 1) && (
+                <text x={cx} y={top + plotH - h - 4} textAnchor="middle" fontSize={11} fontWeight={700} fill="var(--ink-soft)" className="tabular-nums">{day.listings}</text>
+              )}
             </g>
           );
         })}
@@ -234,20 +244,20 @@ export function ListingsChart({ days, width, height = 76, active, setActive, res
   );
 }
 
-/** 某一天的完整讀數：一排格子（手機 3 欄、桌機 6 欄），每格上面元／億、下面萬／元，加收盤掛單與來源 */
+/** 某一天的完整讀數：一排格子（手機 3 欄、桌機 5 欄），每格上面元／億、下面萬／元，加收盤掛單 */
 export function DayReadout({ days, index }: { days: Day[]; index: number }) {
   const day = days[index];
   const change = dayChange(days, index);
   const { md, week } = dayLabel(day.date);
   const rows: [string, number][] = [["開", day.open], ["高", day.high], ["低", day.low], ["收", day.close]];
   return (
-    <div className="text-[12px] leading-snug">
+    <div className="text-[12px] leading-snug" data-fx-readout>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <b className="whitespace-nowrap text-[13px]">{md}（{week}）</b>
         {change ? <Change {...change} size={9} className="whitespace-nowrap text-[12px]" /> : <span className="ink-faint">第一天</span>}
         <span className="w-full text-[11px] ink-faint sm:ml-auto sm:w-auto">每格上面是 1 億楓幣幾元、下面是 1 元換幾萬</span>
       </div>
-      <dl className="mt-1.5 grid grid-cols-3 gap-x-3 gap-y-1.5 tabular-nums sm:grid-cols-6">
+      <dl className="mt-1.5 grid grid-cols-3 gap-x-3 gap-y-1.5 tabular-nums sm:grid-cols-5">
         {rows.map(([name, value]) => (
           <div key={name}>
             <dt className="text-[11px] ink-faint">{name}</dt>
@@ -258,10 +268,6 @@ export function DayReadout({ days, index }: { days: Day[]; index: number }) {
         <div>
           <dt className="text-[11px] ink-faint">收盤掛單</dt>
           <dd className="font-bold">{day.listings === null ? "沒記到" : `${day.listings} 筆`}</dd>
-        </div>
-        <div>
-          <dt className="text-[11px] ink-faint">來源</dt>
-          <dd>{sourceText(day.source)}</dd>
         </div>
       </dl>
     </div>

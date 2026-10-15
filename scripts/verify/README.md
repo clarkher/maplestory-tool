@@ -431,14 +431,14 @@ node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:30
 #### `fx-shot.mjs`：楓幣匯率頁 `/price/fx` 截圖（v0.98，埠 9481）
 
 ```bash
-node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3471] [DevTools 埠，預設 9481]
+node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3000] [DevTools 埠，預設 9481]
 ```
 
 - 四張整頁截圖：手機 390、桌機 1280、手機深色、`?broken=1`（讀不到資料的畫面）。手機是 2 倍解析度，視窗拉到整頁高度再截，一張圖看到底。
-- 頁面網址帶 `?pin=2026-10-12`，十字線固定停在那天，前後兩次截圖才能比；資料裡沒有那天（資料每天往後長，10/12 總有一天會被擠出窗口）就不固定，截圖前先確認十字線真的在那天。`?pin`、`?broken` 只給驗收用，頁面上不提。
+- 頁面網址帶 `?pin=<日期>`，十字線停在那天。日期是腳本先讀 `daily.json` 挑出來的（資料裡倒數第 4 天，讀不到資料才用 2026-10-12）。圖只畫最近 N 天（N ＝ 圖寬 ÷ 10 無條件捨去、最少 7 天，手機約 30 天、桌機更多），太舊的日子會被擠出圖外，所以不能寫死日期。`?pin`、`?broken` 只給驗收用，頁面上不提；頁面是靜態的，這兩個參數是載入後在瀏覽器裡讀的。
 - 頁面讀的是 raw.githubusercontent.com 上 `fx-data` 分支的真資料，要連得到網路；沒有假資料可塞，所以報價、K 棒會隨資料更新而變，不是逐像素比對用的。
-- 每張印一行 PASS／FAIL：頁面載好（`data-fx-ready="1"`）、沒有橫向捲動；`?broken=1` 那張要看到「讀不到匯率資料」。但一律 exit 0，截圖要自己打開看。
-- 輸出：`fx-390.png`、`fx-1280.png`、`fx-390-dark.png`、`fx-broken-390.png`、`results.json`（每張的寬、高、`scrollWidth`／`innerWidth`、頁面開頭的字）。
+- 每張印一行 PASS／FAIL：頁面載好（`data-fx-ready="1"`）、沒有橫向捲動、`<html data-theme>` 跟要截的主題一樣（深色那張一定要是 `dark`）、讀數（`data-fx-readout`）開頭是 pin 那天（例如 `10/12`）；`?broken=1` 那張要看到「讀不到匯率資料」。但一律 exit 0，截圖要自己打開看。
+- 輸出：`fx-390.png`、`fx-1280.png`、`fx-390-dark.png`、`fx-broken-390.png`、`results.json`（每張的寬、高、`scrollWidth`／`innerWidth`、`data-theme`、讀數開頭、頁面開頭的字）。
 - 耗時：本機 dev server（已編譯過）約 27～36 秒（2026-10-15 量到兩次：36 秒、27 秒）。
 - 網址用 `localhost`，不要用 `127.0.0.1`。
 

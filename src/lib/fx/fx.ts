@@ -92,7 +92,6 @@ export type Quote = {
   prev: Day | null; // 前一天收盤
   diffYuan: number; // 整數元
   pct: number;
-  diffWan: number; // 1 元換的萬數差（正＝多換）
   dir: Direction; // 楓幣的方向：up＝1 億楓幣值更多台幣
 };
 
@@ -103,12 +102,11 @@ export function quoteOf({ daily, latest }: FxData): Quote {
   const prev = daily.days.filter(day => day.date < today).at(-1) ?? null;
   const diffYuan = prev ? Math.round(yuan - prev.close) : 0;
   const pct = prev ? ((yuan - prev.close) / prev.close) * 100 : 0;
-  const diffWan = prev ? round2(wan - prev.closeMesoPerNtd) : 0;
   const dir: Direction = diffYuan > 0 ? "up" : diffYuan < 0 ? "down" : "flat";
-  return { yuan, wan, ask100: latest.ask100, prev, diffYuan, pct, diffWan, dir };
+  return { yuan, wan, ask100: latest.ask100, prev, diffYuan, pct, dir };
 }
 
-/** 一天的 K 棒顏色：收比開高＝漲（紅），低＝跌（綠），一樣＝平（K 棒全部實心，靠顏色與文字分） */
+/** 一天的 K 棒顏色：收比開高＝漲（紅），低＝跌（綠），收盤跟開盤一樣＝平（K 棒全部實心，靠顏色與文字分） */
 export function candleDir(day: Day): Direction {
   const diff = round1(day.close - day.open);
   return diff > 0 ? "up" : diff < 0 ? "down" : "flat";
@@ -206,23 +204,30 @@ export const listingDays = (days: Day[]) => days.map((day, index) => ({ day, ind
 export const REF_SITE = "https://maple-classic-wiki.pages.dev/price";
 export const REF_NAME = "maple-classic-wiki.pages.dev";
 
-export const sourceText = (source: string) => (source === "ref" ? "8591 開價（參考站整理）" : "8591 開價");
-
 // ---------- 給版面用的小工具 ----------
 
 export const fmtInt = (value: number) => Math.round(value).toLocaleString("zh-TW");
 
-/** 價位分布前 keep 格（楓幣最便宜的先），其餘併成一列 */
-export function ladderHead(latest: Latest, keep: number) {
+/** 委賣檔位表單獨列出的最低價位：100 元換 200 萬以上的每一格都列，不到的併成一列 */
+export const LADDER_CUT = 200;
+
+/** 委賣檔位：100 元換 200 萬以上的每個有掛單的價位單獨列（便宜的先），不到 200 萬的併成一列「更貴的」 */
+export function ladderBook(latest: Latest) {
   const rows = ladderRows(latest);
-  const head = rows.slice(0, keep);
-  const rest = rows.slice(keep);
+  const head = rows.filter(row => row.lo >= LADDER_CUT);
+  const rest = rows.filter(row => row.lo < LADDER_CUT);
   return {
     head,
     rest: rest.length
       ? { count: rest.reduce((sum, row) => sum + row.count, 0), loMin: Math.min(...rest.map(row => row.lo)), loMax: Math.max(...rest.map(row => row.lo)) + BUCKET - 1 }
       : null,
   };
+}
+
+/** 圖最多畫幾天：每天至少 10px 寬，最少 7 天；回傳要從第幾天開始畫（天數不夠就是 0） */
+export function visibleWindow(total: number, plotWidth: number) {
+  const count = Math.max(7, Math.floor(plotWidth / 10));
+  return Math.max(0, total - count);
 }
 
 /** 跟前一天比的字：前一天剛好是昨天就說「昨天」，不然寫日期 */

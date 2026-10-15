@@ -8,11 +8,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/price/fx" },
 };
 
-type Search = Record<string, string | string[] | undefined>;
-
-/** ?pin=2026-10-12 讓十字線停在那天、?broken=1 看讀不到資料的畫面：只給驗收用，頁面上不提 */
-export default async function Page({ searchParams }: { searchParams: Promise<Search> }) {
-  const query = await searchParams;
-  const pin = typeof query.pin === "string" ? query.pin : null;
-  return <FxPage pin={pin} broken={query.broken === "1"} />;
+/** 靜態頁：?pin=、?broken=1 是驗收用的，由 FxPage 在瀏覽器裡讀網址（不在這裡讀，免得整頁變動態） */
+export default function Page() {
+  return <FxPage />;
 }

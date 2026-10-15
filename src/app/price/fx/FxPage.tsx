@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import {
-  daysUntil, fmtInt, fmtWan, fmtYuan, freshnessOf, ladderHead, ladderRows, ladderTotal, loadFx, movingAverage, pinIndex, prevWord,
-  quoteOf, REF_NAME, REF_SITE,
+  daysUntil, fmtInt, fmtWan, fmtYuan, freshnessOf, ladderBook, ladderTotal, loadFx, movingAverage, pinIndex, prevWord,
+  quoteOf, REF_NAME, REF_SITE, visibleWindow,
   type Day, type Freshness, type FxData, type LadderRow, type Quote,
 } from "@/lib/fx/fx";
-import { Change, DayReadout, KChart, ListingsChart, MaLegend, useWidth } from "./chart";
+import { Change, DayReadout, KChart, ListingsChart, MaLegend, useWidth, xFrame } from "./chart";
 
 type Model = {
   fx: FxData;
@@ -16,9 +16,7 @@ type Model = {
   ma20: (number | null)[];
   need5: number;
   need20: number;
-  fresh: Freshness;
   total: number;
-  hasMarket: boolean;
   pin: number | null;
 };
 
@@ -32,9 +30,7 @@ function build(fx: FxData, pin: string | null): Model {
     ma20: movingAverage(days, 20),
     need5: daysUntil(days, 5),
     need20: daysUntil(days, 20),
-    fresh: freshnessOf(fx.latest),
     total: ladderTotal(fx.latest),
-    hasMarket: ladderRows(fx.latest).some(row => row.market),
     pin: pinIndex(days, pin),
   };
 }
@@ -45,7 +41,7 @@ function UpdateLine({ fresh, className = "" }: { fresh: Freshness; className?: s
     <p className={`text-[12px] leading-relaxed ${fresh.stale ? "font-bold text-[color:var(--maple)]" : "ink-soft"} ${className}`}>
       {fresh.text}・8591 賣家開價（
       <a href={REF_SITE} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2">{REF_NAME}</a>
-      整理），不是成交價
+      {" "}整理），不是成交價
     </p>
   );
 }
@@ -65,18 +61,21 @@ function HowItWorks({ className = "" }: { className?: string }) {
   );
 }
 
-export function FxPage({ pin, broken }: { pin: string | null; broken: boolean }) {
+/** ?pin=2026-10-12 讓十字線停在那天、?broken=1 看讀不到資料的畫面：只給驗收用，頁面上不提。在瀏覽器裡讀網址，頁面才能維持靜態 */
+export function FxPage() {
   const [state, setState] = useState<{ model: Model } | { error: true } | null>(null);
 
   useEffect(() => {
     let alive = true;
-    loadFx(broken)
+    const query = new URLSearchParams(window.location.search);
+    const pin = query.get("pin");
+    loadFx(query.get("broken") === "1")
       .then(fx => alive && setState({ model: build(fx, pin) }))
       .catch(() => alive && setState({ error: true }));
     return () => {
       alive = false;
     };
-  }, [broken, pin]);
+  }, []);
 
   return (
     <div data-fx-ready={state ? "1" : "0"}>
@@ -98,9 +97,18 @@ export function FxPage({ pin, broken }: { pin: string | null; broken: boolean })
 function Board({ m }: { m: Model }) {
   const [active, setActive] = useState<number | null>(m.pin);
   const [ref, width] = useWidth<HTMLDivElement>();
-  const shown = active ?? m.days.length - 1;
+  // 更新時間每 5 分鐘重算一次：頁面開著開著，「最後更新」會自己走，超過 12 小時變成沒更新的警告
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 5 * 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const fresh = freshnessOf(m.fx.latest, now);
+  // 圖只畫最近 N 天（每天至少 10px）；均線已經用全部天數算好了，這裡只決定從哪天開始畫
+  const start = visibleWindow(m.days.length, xFrame(width, 1).plotW);
+  const shown = active !== null && active >= start ? active : m.days.length - 1;
   const word = prevWord(m.quote, m.fx.latest);
-  const book = ladderHead(m.fx.latest, 10);
+  const book = ladderBook(m.fx.latest);
   const maxCount = Math.max(...book.head.map(row => row.count), 1);
 
   return (
@@ -126,7 +134,7 @@ function Board({ m }: { m: Model }) {
             <Change dir={m.quote.dir} diff={m.quote.diffYuan} pct={m.quote.pct} />
             {m.quote.prev && <span className="ink-soft">跟{word}收盤 {fmtYuan(m.quote.prev.close)} 元比</span>}
           </div>
-          <UpdateLine fresh={m.fresh} className="mt-2 border-t border-[color:var(--paper-edge)] pt-2" />
+          <UpdateLine fresh={fresh} className="mt-2 border-t border-[color:var(--paper-edge)] pt-2" />
         </section>
 
         {/* 圖區：比頁面深一階 */}
@@ -140,11 +148,11 @@ function Board({ m }: { m: Model }) {
           </div>
           <MaLegend ma5={m.ma5} ma20={m.ma20} need5={m.need5} need20={m.need20} index={shown} className="mt-2.5 px-0.5" />
           <div ref={ref} className="mt-1">
-            <KChart days={m.days} ma5={m.ma5} ma20={m.ma20} width={width} height={230} active={active} setActive={setActive} rest={m.pin} label="雪吉拉楓幣日 K 線" />
+            <KChart days={m.days} ma5={m.ma5} ma20={m.ma20} start={start} width={width} height={230} active={active} setActive={setActive} rest={m.pin} label="雪吉拉楓幣日 K 線" />
           </div>
           <CandleLegend />
           <h3 className="mt-2 border-t border-[color:var(--paper-edge)] pt-2 text-[12px] font-bold ink-soft">收盤掛單數（筆）</h3>
-          <ListingsChart days={m.days} width={width} active={active} setActive={setActive} rest={m.pin} label="每天收盤時的掛單數" />
+          <ListingsChart days={m.days} start={start} width={width} active={active} setActive={setActive} rest={m.pin} label="每天收盤時的掛單數" />
         </section>
       </div>
 
@@ -165,12 +173,12 @@ function Board({ m }: { m: Model }) {
             {book.head.map(row => <BookRow key={row.lo} row={row} max={maxCount} />)}
             {book.rest && (
               <div className="mt-0.5 grid grid-cols-[minmax(0,1fr)_3rem] gap-2 border-t border-[color:var(--paper-edge)] px-1.5 py-1.5 ink-soft">
-                <span>更貴的（100 元換 {book.rest.loMin}～{book.rest.loMax} 萬）</span>
+                <span>更貴的（100 元換不到 200 萬）</span>
                 <span className="text-right font-bold">{book.rest.count}</span>
               </div>
             )}
           </div>
-          {m.hasMarket && <p className="mt-2 text-[12px] ink-soft">標「市價」的那一格：現在的市價 100 元換 {fmtInt(m.quote.ask100)} 萬，落在這裡。</p>}
+          {book.head.some(row => row.market) && <p className="mt-2 text-[12px] ink-soft">標「市價」的那一格：現在的市價 100 元換 {fmtInt(m.quote.ask100)} 萬，落在這裡。</p>}
         </section>
 
         <section className="rounded-2xl glass-solid p-3.5">
@@ -196,7 +204,7 @@ function CandleLegend() {
       </span>
       <span className="inline-flex items-center gap-1.5">
         <svg width="12" height="4" viewBox="0 0 12 4" aria-hidden className="shrink-0"><rect x="0" y="1" width="12" height="2" rx="1" fill="var(--ink-soft)" /></svg>
-        灰色短橫＝一整天沒變
+        灰色短橫＝收盤跟開盤一樣
       </span>
     </p>
   );

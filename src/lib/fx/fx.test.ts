@@ -4,9 +4,9 @@
  */
 import { describe, expect, it } from "vitest";
 import {
-  candleDir, dayChange, dayLabel, daysUntil, dirWord, fmtInt, fmtPct, fmtWan, fmtYuan, freshnessOf, ladderHead, ladderRows,
-  ladderTotal, listingDays, movingAverage, niceTicks, pinIndex, perYi, prevWord, priceDomain, quoteOf, sourceText, taipeiDate,
-  wanPerNtd, type Day, type FxData, type Latest,
+  candleDir, dayChange, dayLabel, daysUntil, dirWord, fmtInt, fmtPct, fmtWan, fmtYuan, freshnessOf, ladderBook, ladderRows,
+  ladderTotal, listingDays, movingAverage, niceTicks, pinIndex, perYi, prevWord, priceDomain, quoteOf, taipeiDate,
+  visibleWindow, wanPerNtd, type Day, type FxData, type Latest,
 } from "@/lib/fx/fx";
 
 function day(date: string, open: number, close: number, extra: Partial<Day> = {}): Day {
@@ -101,7 +101,6 @@ describe("quoteOf", () => {
     expect(quote.prev?.date).toBe("2026-10-13");
     expect(quote.diffYuan).toBe(-7); // round(3333.3 - 3340)
     expect(quote.pct).toBeCloseTo((-6.7 / 3340) * 100, 9);
-    expect(quote.diffWan).toBe(0.01); // 3 - 2.99
     expect(quote.dir).toBe("down");
   });
   it("只有今天一天：沒有前一天，沒有漲跌", () => {
@@ -109,7 +108,6 @@ describe("quoteOf", () => {
     expect(quote.prev).toBeNull();
     expect(quote.diffYuan).toBe(0);
     expect(quote.pct).toBe(0);
-    expect(quote.diffWan).toBe(0);
     expect(quote.dir).toBe("flat");
   });
   it("楓幣漲價（100 元換得更少）→ dir up", () => {
@@ -176,14 +174,35 @@ describe("掛單檔位", () => {
   it("ladderTotal 加總", () => {
     expect(ladderTotal(latest)).toBe(17);
   });
-  it("ladderHead：留前 keep 格，其餘（換不到那麼多的、更貴的）併成一列，筆數加總", () => {
-    const { head, rest } = ladderHead(latest, 2);
-    expect(head.map(r => r.lo)).toEqual([310, 300]);
-    expect(rest).toEqual({ count: 12, loMin: 180, loMax: 299 }); // 5 + 7；loMax = 290 + 9
+  it("ladderBook：200 萬以上的每一格都單獨列，不到 200 萬的併成一列，筆數加總", () => {
+    const { head, rest } = ladderBook(latest);
+    expect(head.map(r => r.lo)).toEqual([310, 300, 290]);
+    expect(rest).toEqual({ count: 7, loMin: 180, loMax: 189 });
     expect(head.reduce((s, r) => s + r.count, 0) + rest!.count).toBe(ladderTotal(latest));
   });
-  it("ladderHead：檔位不超過 keep 就沒有合併列", () => {
-    expect(ladderHead(latest, 4).rest).toBeNull();
+  it("ladderBook：200～209 這一格留在清單，190～199 才併進「更貴的」", () => {
+    const edge = latestOf("2026-10-14T04:00:00Z", 305, [[300, 3], [200, 4], [190, 5], [120, 6]]);
+    const { head, rest } = ladderBook(edge);
+    expect(head.map(r => [r.lo, r.count])).toEqual([[300, 3], [200, 4]]);
+    expect(rest).toEqual({ count: 11, loMin: 120, loMax: 199 }); // 5 + 6；loMax = 190 + 9
+  });
+  it("ladderBook：超過 10 格也全部列出來（不再只留前 10 格）", () => {
+    const many = latestOf("2026-10-14T04:00:00Z", 305, Array.from({ length: 14 }, (_, i) => [200 + i * 10, i + 1] as [number, number]));
+    expect(ladderBook(many).head).toHaveLength(14);
+    expect(ladderBook(many).rest).toBeNull();
+  });
+  it("ladderBook：都在 200 萬以上就沒有合併列；都不到就沒有單獨列", () => {
+    expect(ladderBook(latestOf("2026-10-14T04:00:00Z", 305, [[300, 1], [250, 2]])).rest).toBeNull();
+    const low = ladderBook(latestOf("2026-10-14T04:00:00Z", 150, [[150, 1], [100, 2]]));
+    expect(low.head).toEqual([]);
+    expect(low.rest).toEqual({ count: 3, loMin: 100, loMax: 159 });
+  });
+  it("ladderBook：市價那一格被合併掉時 head 裡沒有 market", () => {
+    const low = ladderBook(latestOf("2026-10-14T04:00:00Z", 150, [[300, 1], [150, 2]]));
+    expect(low.head.some(r => r.market)).toBe(false);
+  });
+  it("ladderBook：沒有掛單資料", () => {
+    expect(ladderBook(latestOf("2026-10-14T04:00:00Z", 305))).toEqual({ head: [], rest: null });
   });
 });
 
@@ -216,6 +235,24 @@ describe("圖的座標", () => {
   });
 });
 
+describe("visibleWindow：圖只畫最近 N 天", () => {
+  it("N ＝ 每天至少 10px：寬 300 → 30 天，天數比 N 少就從頭畫", () => {
+    expect(visibleWindow(60, 300)).toBe(30);
+    expect(visibleWindow(30, 300)).toBe(0);
+    expect(visibleWindow(8, 300)).toBe(0);
+  });
+  it("N 無條件捨去：寬 305 → 30 天", () => {
+    expect(visibleWindow(60, 305)).toBe(30);
+    expect(visibleWindow(60, 309)).toBe(30);
+    expect(visibleWindow(60, 310)).toBe(29);
+  });
+  it("再窄也至少畫 7 天", () => {
+    expect(visibleWindow(20, 40)).toBe(13);
+    expect(visibleWindow(20, 0)).toBe(13);
+    expect(visibleWindow(5, 40)).toBe(0);
+  });
+});
+
 describe("其他小工具", () => {
   it("pinIndex：找得到回索引；沒給或沒這天回 null", () => {
     expect(pinIndex(SEVEN, "2026-10-12")).toBe(2);
@@ -225,9 +262,5 @@ describe("其他小工具", () => {
   it("listingDays：只留有記到掛單數的日子，並帶原本的索引", () => {
     const days = [day("2026-10-12", 1, 1, { listings: 40 }), day("2026-10-13", 1, 1), day("2026-10-14", 1, 1, { listings: 0 })];
     expect(listingDays(days).map(({ day: d, index }) => [d.date, index])).toEqual([["2026-10-12", 0], ["2026-10-14", 2]]);
-  });
-  it("sourceText", () => {
-    expect(sourceText("ref")).toBe("8591 開價（參考站整理）");
-    expect(sourceText("8591")).toBe("8591 開價");
   });
 });
