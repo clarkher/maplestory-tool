@@ -42,3 +42,18 @@ test("每日：市價壞掉（0、字串）或時間壞掉的列跳過，不讓�
 test("每日：沒有資料就是空陣列", () => {
   assert.deepEqual(dailyBars([]), []);
 });
+
+test("每日 source：沒有手動的天是 ref、全是手動的天是 manual、混著的天是 mixed；手動的列照樣算進開高低收", () => {
+  const manual = (t, ask100) => ({ t, ask100, src: "manual" });
+  const days = dailyBars([
+    row("2026-10-12T08:00:00+08:00", 300),
+    row("2026-10-12T10:00:00+08:00", 310),
+    manual("2026-10-13T08:00:00+08:00", 280),
+    manual("2026-10-13T10:00:00+08:00", 290),
+    row("2026-10-14T08:00:00+08:00", 300, 80),
+    manual("2026-10-14T10:00:00+08:00", 250),
+  ]);
+  assert.deepEqual(days.map(d => [d.date, d.source, d.samples]), [["2026-10-12", "ref", 2], ["2026-10-13", "manual", 2], ["2026-10-14", "mixed", 2]]);
+  assert.equal(days[2].close, 4000);
+  assert.equal(days[2].listings, 80);
+});

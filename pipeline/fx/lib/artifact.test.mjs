@@ -62,3 +62,14 @@ test("installArtifact：三個檔＋分支說明、vercel.json 放進工作目�
   assert.equal(fs.readFileSync(path.join(branch, "vercel.json"), "utf8"), '{"git":{"deploymentEnabled":false}}');
   assert.equal(fs.readFileSync(path.join(branch, "fx/scania/daily.json"), "utf8"), good()["fx/scania/daily.json"]);
 });
+
+test("jsonl 裡有手動補的列（src: manual、沒有掛單數）也通過；手動的 latest（沒有 listings、ladder 空）也通過", () => {
+  const manualLine = '{"t":"2026-10-13T16:17:00+08:00","ask100":280,"src":"manual"}\n';
+  const files = {
+    ...good(),
+    "fx/scania/ref-samples.jsonl": `${OLD_LINE}{"t":"2026-10-13T14:40:59+08:00","ask100":300,"listings":82}\n${manualLine}`,
+    "fx/scania/latest.json": '{"t":"2026-10-13T16:17:00+08:00","fetchedAt":"2026-10-13T16:17:00+08:00","ask100":280,"listings":null,"ladder":[],"src":"manual"}',
+  };
+  const branch = write(tmp(), { "fx/scania/ref-samples.jsonl": OLD_LINE });
+  assert.doesNotThrow(() => checkArtifact(write(tmp(), files), branch));
+});

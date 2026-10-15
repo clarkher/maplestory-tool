@@ -111,3 +111,24 @@ test("沒有新的市價就不推：只有 latest.json、daily.json 變了（抓
   assert.ok(publish.includes(`git -C "$WORK" diff --cached --quiet -- . ':!fx/scania/latest.json' ':!fx/scania/daily.json'`));
   assert.ok(publish.indexOf("diff --cached --quiet") < publish.indexOf("git -C \"$WORK\" commit"), "要先判斷再 commit");
 });
+
+test("手動補一筆：workflow_dispatch 有 manual 輸入（字串、預設空），只用 env 傳給收集那一步，不寫進 run:", () => {
+  assert.match(CODE, /\n {6}manual:\n(?: {8}.*\n)*? {8}type: string\n(?: {8}.*\n)*? {8}default: ""\n/);
+  assert.match(CODE, /\n {6}manual:\n {8}description: "手動補一筆：100 元換幾萬楓幣（10～2000），只在參考站停更時用；不要用 Re-run（會再補一筆）"\n/);
+  const collect = jobBlock("collect");
+  const step = collect.slice(collect.indexOf("name: 抓參考站、算好新檔"), collect.indexOf("name: 存下算好的檔"));
+  assert.match(step, /\n {8}env:\n {10}MANUAL_ASK100: \$\{\{ inputs\.manual \}\}\n/);
+  assert.match(step, /node pipeline\/fx\/collect\.mjs/);
+  assert.ok(step.indexOf("env:") < step.indexOf("run:"), "env 要在 run 之前");
+  assert.equal(CODE.match(/inputs\.manual/g)?.length, 1, "inputs.manual 只在 env 出現一次");
+});
+
+test("手動補完不誤關 issue：collect 把 manualAdded 當 job output 交給 notify 的 MANUAL_ADDED", () => {
+  const collect = jobBlock("collect");
+  assert.match(collect, /\n {6}manualAdded: \$\{\{ steps\.collect\.outputs\.manualAdded \}\}\n/);
+  assert.match(jobBlock("notify"), /\n {10}MANUAL_ADDED: \$\{\{ needs\.collect\.outputs\.manualAdded \}\}\n/);
+});
+
+test("manual 輸入的說明提醒不要用 Re-run（會再補一筆）", () => {
+  assert.match(CODE, /\n {6}manual:\n {8}description: "[^"\n]*不要用 Re-run（會再補一筆）"\n/);
+});
