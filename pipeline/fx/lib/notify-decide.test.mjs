@@ -49,3 +49,19 @@ test("ageHours 讀不到：不動 issue（不要誤關）", () => {
   // 但 collect 失敗時即使 ageHours 空的也要開 issue
   assert.equal(decide({ ...base, collectResult: "failure", publishResult: "skipped", ageHours: "" }).action, "open");
 });
+
+test("這輪是手動補的（manualAdded=true）、collect 跟 publish 都成功：不動 issue（參考站還沒恢復，不能因為 ageHours 剛歸零就關）", () => {
+  const result = decide({ ...base, ageHours: "0", manualAdded: "true" });
+  assert.deepEqual(result, { action: "none", reason: "這輪是手動補的，參考站還沒恢復前不關 issue" });
+});
+
+test("manualAdded 不是 true（false、空、沒給）照平常判斷", () => {
+  for (const manualAdded of ["false", "", undefined]) assert.equal(decide({ ...base, manualAdded }).action, "close", String(manualAdded));
+});
+
+test("手動補的那一輪如果 collect 或 publish 失敗、被取消、或不寫入：照平常的規則（失敗還是要開 issue）", () => {
+  assert.equal(decide({ ...base, manualAdded: "true", publishResult: "failure" }).action, "open");
+  assert.equal(decide({ ...base, manualAdded: "true", collectResult: "failure", publishResult: "skipped", ageHours: "" }).action, "open");
+  assert.equal(decide({ ...base, manualAdded: "true", publishResult: "cancelled" }).action, "open");
+  assert.equal(decide({ ...base, manualAdded: "true", write: "false" }).reason, "測試跑法（沒有寫入），不通知");
+});
