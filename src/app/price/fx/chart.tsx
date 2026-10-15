@@ -101,12 +101,13 @@ export function KChart({ days, ma5, ma20, width, height = 220, active, setActive
   const plotH = height - top - bottom;
   const [lo, hi] = priceDomain(days, [ma5, ma20]);
   const y = (value: number) => top + ((hi - value) / (hi - lo)) * plotH;
-  const ticks = niceTicks(lo, hi, 4).filter(tick => tick >= lo && tick <= hi);
+  const last = days.at(-1)!;
+  // 最後收盤價的標籤貼在右邊刻度上（高 18）：太靠近它的刻度不畫，免得數字疊在一起
+  const ticks = niceTicks(lo, hi, 4).filter(tick => tick >= lo && tick <= hi && Math.abs(y(tick) - y(last.close)) >= 11);
   const body = Math.max(3, Math.min(18, frame.slot * 0.56));
   const pointer = usePointer(days.length, frame, setActive, rest);
   const line = (series: (number | null)[]) =>
     series.map((value, index) => (value === null ? null : `${frame.x(index).toFixed(1)},${y(value).toFixed(1)}`)).filter(Boolean).join(" ");
-  const last = days.at(-1)!;
 
   if (!width) return <div style={{ height }} />;
   return (
@@ -186,7 +187,14 @@ export function ListingsChart({ days, width, height = 76, active, setActive, res
     <div className="relative" style={{ height }}>
       <svg width={width} height={height} role="img" aria-label={label} className="block touch-pan-y select-none" {...pointer}>
         <line x1={frame.left} x2={frame.left + frame.plotW} y1={top + plotH} y2={top + plotH} stroke="var(--fx-grid)" strokeWidth={1} />
-        {active !== null && known.length >= 2 && <line x1={frame.x(active)} x2={frame.x(active)} y1={2} y2={top + plotH} stroke="var(--fx-cross)" strokeWidth={1} />}
+        {/* 十字線只畫到數字下面（柱頂），不穿過那天的筆數 */}
+        {active !== null && known.length >= 2 && (
+          <line
+            x1={frame.x(active)} x2={frame.x(active)}
+            y1={days[active].listings === null ? 2 : top + plotH - Math.max(2, ((days[active].listings ?? 0) / max) * plotH)}
+            y2={top + plotH} stroke="var(--fx-cross)" strokeWidth={1}
+          />
+        )}
         {days.map((day, index) => {
           if (day.listings === null) return null;
           const h = Math.max(2, (day.listings / max) * plotH);
