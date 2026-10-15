@@ -124,7 +124,8 @@ describe("真資料：哪裡買得到", () => {
     const { groups } = shopGroups(items.find(item => item.id === 2000000)!, opensLater);
     const places = groups[0].places;
     expect(places[0].later).toBe(false);
-    expect(places.filter(place => place.later).map(place => place.place).sort()).toEqual(["冰原雪域", "天空之城"]);
+    // 上游 2.0.0 起商店資料給了店內那張圖名字（以前只寫城鎮名「冰原雪域」「天空之城」）
+    expect(places.filter(place => place.later).map(place => place.place).sort()).toEqual(["冰原雪域雜貨店", "天空之城雜貨店"]);
     expect(places.slice(-2).every(place => place.later)).toBe(true);
   });
 
@@ -161,7 +162,8 @@ describe("真資料：哪裡買得到", () => {
     const rows = items.flatMap(item => item.sp ?? []).filter(row => row.m !== undefined && ["WorldMap020", "WorldMap021"].includes(maps[String(row.m)]?.rg ?? ""));
     expect(rows.length).toBeGreaterThan(300);
     expect(rows.filter(row => !isV002Map(maps[String(row.m)])).map(row => `${row.p} ${row.n}`)).toEqual([]);
-    const named = items.flatMap(item => item.sp ?? []).filter(row => row.p === "天空之城" || row.p === "冰原雪域");
+    // 店內那張圖沒中文名的（天空之城武器店、冰原雪域雜貨店…，2.0.0 起上游給了店名）跟著城鎮標開放日，也要在裡面
+    const named = items.flatMap(item => item.sp ?? []).filter(row => /^(?:天空之城|冰原雪域)/.test(row.p));
     expect(named.length).toBeGreaterThan(0);
     expect(named.every(row => rows.includes(row))).toBe(true);
   });

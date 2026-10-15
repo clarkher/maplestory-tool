@@ -195,13 +195,13 @@ describe("怪物", () => {
   const choiceOf = (id: number | null) => (id === null ? undefined : choiceById.get(id));
   const beforeOpen = { ...data, beforeOpen: true };
 
-  it("還沒開（10/15 前）：預設怪不是只在 V002 才有的怪（刺客 56 原本排第一的野狼只在 V002）", () => {
+  it("還沒開（10/15 前）：預設怪不是只在 V002 才有的怪（刺客 79 開放後排第一的只在 V002；上游 2.0.0 前是刺客 56 的野狼）", () => {
     // 開放後照排行第一名，不擋
-    expect(defaultMonster(data, 410, 56)).toBe(5130104);
-    expect(choiceOf(5130104)?.v002).toBe(true);
-    const id = defaultMonster(beforeOpen, 410, 56);
+    const after = defaultMonster(data, 410, 79);
+    expect(choiceOf(after)?.v002).toBe(true);
+    const id = defaultMonster(beforeOpen, 410, 79);
     expect(id).not.toBeNull();
-    expect(id).not.toBe(5130104);
+    expect(id).not.toBe(after);
     expect(choiceOf(id)?.v002).toBe(false);
   });
   it("跳過王圖（刷怪點 3 個以下）：刺客 92 原本排第一的是巴洛古那張王圖", () => {
