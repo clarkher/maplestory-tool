@@ -197,10 +197,16 @@ describe("小地圖標題", () => {
 });
 
 describe("街道名是空的地圖（雲彩公園、天空階梯、冰原雪域）", () => {
-  it("資料裡這幾張真的沒有街道名，而且是練功地圖", () => {
+  // 上游 2.0.0（2026-10-15）起雲彩公園、天空階梯、冰雪山丘有街道名了（天空之城、艾納斯島），
+  // 下面照 2.0.0 前的樣子（街道空白）測「街道不用比」這條規則——現在還有別的練功圖街道是空的
+  const emptyStreet = (id: number) => ({ ...maps[String(id)], st: "" });
+  const oldMaps: Record<string, MapRecord> = { ...maps, 200010000: emptyStreet(200010000), 200010200: emptyStreet(200010200), 211000200: emptyStreet(211000200) };
+
+  it("資料裡現在還有街道名是空的練功地圖（有中文名）；雲彩公園Ⅰ、冰雪山丘 2.0.0 起有街道名", () => {
+    const empty = [...trainingIds].filter(id => maps[String(id)]?.zh && !maps[String(id)].st);
+    expect(empty.length).toBeGreaterThan(0);
     for (const id of [200010000, 211000200]) {
-      expect(maps[String(id)].zh).not.toBe("");
-      expect(maps[String(id)].st).toBe("");
+      expect(maps[String(id)].st).not.toBe("");
       expect(trainingIds.has(id)).toBe(true);
     }
   });
@@ -211,7 +217,7 @@ describe("街道名是空的地圖（雲彩公園、天空階梯、冰原雪域�
       street: [{ text: "迷霧森林", d: 0.02 }, { text: "黃金海岸", d: 0.09 }],
       name: [{ text: "雲彩公園Ⅰ", d: 0.03 }, { text: "森林迷宮III", d: 0.08 }, { text: "天空階梯Ⅰ", d: 0.095 }],
     };
-    const guess = resolveMap(title, maps, trainingIds, {});
+    const guess = resolveMap(title, oldMaps, trainingIds, {});
     expect(guess.mapId).toBe(200010000);
     expect(guess.confident).toBe(true);
     expect(guess.choices[0]).toBe(200010000);
@@ -224,7 +230,7 @@ describe("街道名是空的地圖（雲彩公園、天空階梯、冰原雪域�
       street: [{ text: "雪人之谷", d: 0.05 }, { text: "迷霧森林", d: 0.06 }],
       name: [{ text: "冰雪山丘", d: 0.02 }, { text: "森林迷宮III", d: 0.07 }],
     };
-    const guess = resolveMap(title, maps, trainingIds, {});
+    const guess = resolveMap(title, oldMaps, trainingIds, {});
     expect(guess.mapId).toBe(211000200);
     expect(guess.confident).toBe(true);
     expect(guess.choices).toContain(211000200);
@@ -236,7 +242,7 @@ describe("街道名是空的地圖（雲彩公園、天空階梯、冰原雪域�
       street: [{ text: "迷霧森林", d: 0.02 }],
       name: [{ text: "雲彩公園Ⅰ", d: 0.03 }, { text: "天空階梯Ⅰ", d: 0.031 }],
     };
-    const guess = resolveMap(title, maps, trainingIds, {});
+    const guess = resolveMap(title, oldMaps, trainingIds, {});
     expect(guess.confident).toBe(false);
     expect(guess.mapId).toBeNull();
     expect(guess.choices).toEqual(expect.arrayContaining([200010000, 200010200]));
