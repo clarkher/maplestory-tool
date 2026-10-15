@@ -2,9 +2,9 @@
  * 楓幣匯率頁的純函式（src/lib/fx/fx.ts，v0.98）：手做小資料，期望值都是手算的。
  * 規格 docs/superpowers/specs/2026-10-13-meso-fx-design.md。
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  candleDir, dayChange, dayLabel, daysUntil, dirWord, fmtInt, fmtPct, fmtWan, fmtYuan, freshnessOf, ladderBook, ladderRows,
+  candleDir, dayChange, hasManualInput, isManualLatest, ladderNote, loadFx, dayLabel, daysUntil, dirWord, fmtInt, fmtPct, fmtWan, fmtYuan, freshnessOf, ladderBook, ladderRows,
   ladderTotal, listingDays, movingAverage, niceTicks, pinIndex, perYi, prevWord, priceDomain, quoteOf, taipeiDate,
   visibleWindow, wanPerNtd, type Day, type FxData, type Latest,
 } from "@/lib/fx/fx";
@@ -262,5 +262,49 @@ describe("其他小工具", () => {
   it("listingDays：只留有記到掛單數的日子，並帶原本的索引", () => {
     const days = [day("2026-10-12", 1, 1, { listings: 40 }), day("2026-10-13", 1, 1), day("2026-10-14", 1, 1, { listings: 0 })];
     expect(listingDays(days).map(({ day: d, index }) => [d.date, index])).toEqual([["2026-10-12", 0], ["2026-10-14", 2]]);
+  });
+});
+
+describe("手動補一筆（10/15 備援）", () => {
+  const MANUAL_T = "2026-10-14T08:00:00+08:00";
+  const manualLatest = { t: MANUAL_T, fetchedAt: MANUAL_T, ask100: 280, listings: null, ladder: [] as [number, number][], src: "manual" as const };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("isManualLatest：只有 src 是 manual 才算；舊資料沒有 src 當作參考站", () => {
+    expect(isManualLatest(manualLatest)).toBe(true);
+    expect(isManualLatest({ ...manualLatest, src: "ref" })).toBe(false);
+    expect(isManualLatest(latestOf(MANUAL_T, 300))).toBe(false);
+  });
+
+  it("hasManualInput：那天 source 是 manual 或 mixed 才標；ref 與舊資料不標", () => {
+    expect(hasManualInput(day("2026-10-14", 1, 1, { source: "manual" }))).toBe(true);
+    expect(hasManualInput(day("2026-10-14", 1, 1, { source: "mixed" }))).toBe(true);
+    expect(hasManualInput(day("2026-10-14", 1, 1, { source: "ref" }))).toBe(false);
+    expect(hasManualInput(day("2026-10-14", 1, 1, { source: "" }))).toBe(false);
+  });
+
+  it("ladderNote：有價位分布不說話；沒有的話，手動輸入的那筆照實說，其他情況說沒有資料", () => {
+    expect(ladderNote(latestOf(MANUAL_T, 300, [[300, 5]]))).toBeNull();
+    expect(ladderNote(manualLatest)).toBe("這一筆是手動輸入，沒有掛單價位");
+    expect(ladderNote(latestOf(MANUAL_T, 300, []))).toBe("這次沒有拿到掛單價位");
+  });
+
+  it("手動的 latest（沒有掛單數、價位分布是空的）讀得進來，src 與每天的 source 都留著；報價與更新時間照常算", async () => {
+    const days = [day("2026-10-13", 3300, 3300), day("2026-10-14", 3333.3, 3571.4, { source: "mixed" })];
+    const body = { "daily.json": { server: "雪吉拉", unit: "元／1 億楓幣", source: "x", updatedAt: MANUAL_T, days }, "latest.json": manualLatest };
+    vi.stubGlobal("fetch", async (url: string) => {
+      const name = url.split("/").pop() as keyof typeof body;
+      return { ok: true, status: 200, json: async () => body[name] };
+    });
+    const fx = await loadFx();
+    expect(fx.latest.src).toBe("manual");
+    expect(fx.latest.ladder).toEqual([]);
+    expect(fx.latest.listings).toBeNull();
+    expect(fx.daily.days.map(d => d.source)).toEqual(["ref", "mixed"]);
+    expect(quoteOf(fx).yuan).toBe(3571.4);
+    expect(ladderBook(fx.latest)).toEqual({ head: [], rest: null });
+    expect(ladderTotal(fx.latest)).toBe(0);
+    expect(freshnessOf(fx.latest, Date.parse(MANUAL_T) + 30 * 60_000).text).toBe("最後更新 30 分鐘前");
   });
 });

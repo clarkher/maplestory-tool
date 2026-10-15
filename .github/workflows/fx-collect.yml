@@ -5,7 +5,8 @@ name: 楓幣匯率收集
 # 頁面跟拍賣查價工具直接讀 raw.githubusercontent.com 上的 fx-data，所以資料更新不用部署；
 # fx-data 自己帶 vercel.json 關掉部署（根目錄的 vercel.json 也擋），不吃 Vercel 每天的部署額度。
 # 不直接抓 8591：它的服務條款禁止爬蟲，2026-10-13 實測也會擋老實寫身分的程式，使用者 10/14 拍板不繞過。
-# 設計：docs/superpowers/specs/2026-10-13-meso-fx-design.md（「10/14 改版」那節）
+# 參考站停更時可以手動補一筆：手動觸發時在 manual 填「100 元換幾萬楓幣」（10～2000），collect 會把它接進 ref-samples.jsonl（src: "manual"）。
+# 設計：docs/superpowers/specs/2026-10-13-meso-fx-design.md（「10/14 改版」「10/15 備援」那兩節）
 #
 # 三個 job，寫入權限只在 publish：
 #  - collect：唯讀。clone fx-data（公開 repo，不用 token）讀舊的紀錄、抓參考站、算好三個檔存 artifact
@@ -23,6 +24,10 @@ on:
         description: "從 main、dev 以外的分支手動跑時，要不要真的推上 fx-data（main、dev 一律推）"
         type: boolean
         default: false
+      manual:
+        description: "手動補一筆：100 元換幾萬楓幣（10～2000），只在參考站停更時用；不要用 Re-run（會再補一筆）"
+        type: string
+        default: ""
   push:
     branches: [dev]
     paths:
@@ -45,6 +50,7 @@ jobs:
       contents: read
     outputs:
       ageHours: ${{ steps.collect.outputs.ageHours }}
+      manualAdded: ${{ steps.collect.outputs.manualAdded }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,6 +78,9 @@ jobs:
 
       - name: 抓參考站、算好新檔
         id: collect
+        env:
+          # 手動補一筆（沒填是空字串）：用 env 傳，不把輸入直接寫進 run
+          MANUAL_ASK100: ${{ inputs.manual }}
         run: node pipeline/fx/collect.mjs "$RUNNER_TEMP/fx-data" "$RUNNER_TEMP/fx-out"
 
       - name: 存下算好的檔
@@ -166,5 +175,6 @@ jobs:
           COLLECT_RESULT: ${{ needs.collect.result }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
           AGE_HOURS: ${{ needs.collect.outputs.ageHours }}
+          MANUAL_ADDED: ${{ needs.collect.outputs.manualAdded }}
           ASSIGNEE: ${{ github.repository_owner }}
         run: node pipeline/fx/notify.mjs

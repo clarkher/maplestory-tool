@@ -4,11 +4,14 @@
  *   node pipeline/fx/collect.mjs <fx-data 分支的 checkout（第一次可以是空資料夾）> <輸出資料夾>
  *
  * 抓參考站 price.json，把 fx/scania/ 的三個檔寫到輸出資料夾（不動 fx-data 那份）。抓不到或格式不對就 exit 1。
- * 有 GITHUB_OUTPUT 時寫 ageHours（參考站上一次更新離現在幾小時）給 notify。
+ * 環境變數 MANUAL_ASK100（選填）：手動補一筆，100 元換幾萬楓幣（10～2000）；有填的話參考站抓不到也不算失敗，
+ * 照樣把這一筆接進去（參考站停更時用）。
+ * 有 GITHUB_OUTPUT 時寫 ageHours（我們存的最後一筆離現在幾小時）與 manualAdded（這輪有沒有手動補）給 notify。
  * 本機試跑：輸出資料夾給 scratchpad，跑完看 fx/scania/latest.json。
  */
 import fs from "node:fs";
 import { REF_URL, USER_AGENT } from "./lib/ref.mjs";
+import { githubOutputLines, parseManual } from "./lib/manual.mjs";
 import { runCollect } from "./lib/run.mjs";
 
 const [dataDir, outDir] = process.argv.slice(2);
@@ -50,6 +53,8 @@ async function getRef() {
   return JSON.parse(text);
 }
 
-const result = await runCollect({ dataDir, outDir, getRef });
+// 手動補一筆：workflow 的 manual 輸入經 MANUAL_ASK100 傳進來（沒填是空字串）；填錯在這裡就紅，不連參考站
+const manualAsk100 = parseManual(process.env.MANUAL_ASK100);
+const result = await runCollect({ dataDir, outDir, getRef, manualAsk100 });
 console.log(JSON.stringify(result));
-if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `ageHours=${result.ageHours}\n`);
+if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, githubOutputLines(result));

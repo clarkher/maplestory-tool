@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import {
-  candleDir, dayChange, dayLabel, dirWord, fmtPct, fmtWan, fmtYuan, niceTicks, priceDomain, wanPerNtd,
+  candleDir, dayChange, dayLabel, dirWord, fmtPct, hasManualInput, fmtWan, fmtYuan, niceTicks, priceDomain, wanPerNtd,
   type Day, type Direction,
 } from "@/lib/fx/fx";
 
@@ -254,6 +254,7 @@ export function DayReadout({ days, index }: { days: Day[]; index: number }) {
     <div className="text-[12px] leading-snug" data-fx-readout>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
         <b className="whitespace-nowrap text-[13px]">{md}（{week}）</b>
+        {hasManualInput(day) && <span className="whitespace-nowrap rounded border border-[color:var(--paper-edge)] px-1 text-[11px] ink-soft" data-fx-manual-day>含手動輸入</span>}
         {change ? <Change {...change} size={9} className="whitespace-nowrap text-[12px]" /> : <span className="ink-faint">第一天</span>}
         <span className="w-full text-[11px] ink-faint sm:ml-auto sm:w-auto">每格上面是 1 億楓幣幾元、下面是 1 元換幾萬</span>
       </div>

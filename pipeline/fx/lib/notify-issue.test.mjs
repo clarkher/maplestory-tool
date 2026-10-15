@@ -224,3 +224,21 @@ test("(g) 「最後一次：」出現在句子中間、不是行首：不算有�
 
   assert.equal(recorder.requests[1].body.body, `有人手寫：上次的最後一次：昨天\n\n其他資訊\n\n最後一次：${STAMP}，${reason}（${runUrl}）`);
 });
+
+test("(h) 新開的 issue 內文寫怎麼手動補一筆（Actions 頁面網址＋要填什麼）；已開著的 issue 只改最後一次那行，不重複加", async () => {
+  const HOWTO = "參考站停更時可以手動補一筆：到 https://github.com/clarkher/maplestory-tool/actions/workflows/fx-collect.yml 按 Run workflow（分支 main），在「手動補一筆」填 100 元換幾萬楓幣。";
+  const recorder = new FakeCallRecorder();
+  recorder.recordResponse(`GET /repos/${repo}/issues?state=open&labels=${encodeURIComponent("匯率收集失敗")}&per_page=1`, []);
+  recorder.recordResponse(`POST /repos/${repo}/labels`, {});
+  recorder.recordResponse(`POST /repos/${repo}/issues`, { number: 42 });
+  await notifyIssue({ action: "open", reason, call: recorder.call.bind(recorder), repo, runUrl, assignee, now });
+  const body = recorder.requests[2].body.body;
+  assert.ok(body.includes(HOWTO), "內文要有手動補一筆的做法");
+  assert.ok(body.includes(`最後一次：${STAMP}，${reason}（${runUrl}）`), "最後一次那行還在");
+
+  const again = new FakeCallRecorder();
+  again.recordResponse(`GET /repos/${repo}/issues?state=open&labels=${encodeURIComponent("匯率收集失敗")}&per_page=1`, [{ number: 42, body }]);
+  again.recordResponse(`PATCH /repos/${repo}/issues/42`, {});
+  await notifyIssue({ action: "open", reason: "又失敗", call: again.call.bind(again), repo, runUrl, assignee, now });
+  assert.equal(again.requests[1].body.body.split("手動補一筆").length, body.split("手動補一筆").length, "手動補一筆的說明不重複");
+});

@@ -14,11 +14,13 @@ export type Day = {
   closeMesoPerNtd: number;
   listings: number | null;
   samples: number;
-  source: string;
+  /** ref＝只有參考站的資料、manual＝全是手動補的、mixed＝混著（舊資料可能沒有） */
+  source: "ref" | "manual" | "mixed" | string;
 };
 
 export type Daily = { server: string; unit: string; source: string; updatedAt: string; days: Day[] };
-export type Latest = { t: string; fetchedAt: string; ask100: number; listings: number | null; ladder: [number, number][] };
+/** src：manual＝人手動補的一筆（沒有掛單數與價位分布）；沒有這欄（舊資料）或 ref＝參考站 */
+export type Latest = { t: string; fetchedAt: string; ask100: number; listings: number | null; ladder: [number, number][]; src?: "ref" | "manual" };
 export type FxData = { daily: Daily; latest: Latest };
 
 const isNum = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
@@ -132,6 +134,20 @@ export function freshnessOf(latest: Latest, now = Date.now()): Freshness {
   if (hours >= 12) return { text: `已經 ${hours >= 48 ? `${Math.floor(hours / 24)} 天` : `${hours} 小時`}沒更新（最後一筆 ${at}）`, stale: true, hours, at };
   const ago = minutes < 1 ? "剛剛" : minutes < 60 ? `${minutes} 分鐘前` : `${hours} 小時前`;
   return { text: `最後更新 ${ago}`, stale: false, hours, at };
+}
+
+// ---------- 手動補一筆 ----------
+
+/** 最新一筆是人手動補的（參考站停更時） */
+export const isManualLatest = (latest: Latest) => latest.src === "manual";
+
+/** 那天的資料含手動補的（全是手動或混著） */
+export const hasManualInput = (day: Day) => day.source === "manual" || day.source === "mixed";
+
+/** 沒有價位分布時委賣檔位那張卡要說的話；有價位分布回 null */
+export function ladderNote(latest: Latest): string | null {
+  if (latest.ladder.length) return null;
+  return isManualLatest(latest) ? "這一筆是手動輸入，沒有掛單價位" : "這次沒有拿到掛單價位";
 }
 
 // ---------- 價位分布 ----------
