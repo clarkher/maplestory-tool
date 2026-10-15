@@ -141,10 +141,11 @@ describe("每一級說明裡的攻擊力與下數", () => {
       }
     }
   });
-  it("矛連擊 12 級照台服說明原文 100%（跟前後比像是上游筆誤，不自己改數字）", () => {
+  it("矛連擊 12 級：上游 2.0.0 起有每一級數值、12 級是 108%（以前只有說明原文寫 100%，跟前後對不上；不自己改數字，照遊戲資料）", () => {
     const spear = skills.get(1311002)!;
-    expect(spear.levelText!["12"]).toContain("攻擊力100%");
-    expect(skillRow(spear, 12, SKILL_RULES[1311002]).damage).toBe(100);
+    expect(skillRow(spear, 11, SKILL_RULES[1311002]).damage).toBe(104);
+    expect(skillRow(spear, 12, SKILL_RULES[1311002]).damage).toBe(108);
+    expect(skillRow(spear, 13, SKILL_RULES[1311002]).damage).toBe(112);
   });
   it("skillRow：一般技能就是該級那一列、沒有技能或 0 級是空列、超過最高級取最後一級", () => {
     const sharp = skills.get(4001344)!;
@@ -157,9 +158,10 @@ describe("每一級說明裡的攻擊力與下數", () => {
     const spear = skills.get(1311001)!;
     expect(skillRow(spear, 999, SKILL_RULES[1311001])).toEqual(skillRow(spear, 30, SKILL_RULES[1311001]));
   });
-  it("skillRow：沒標 fromText 的技能不去解析說明", () => {
-    const spear = skills.get(1311001)!;
-    expect(skillRow(spear, 30, { kind: "normal" })).toEqual({});
+  it("skillRow：沒標 fromText 的技能不去解析說明（上游 2.0.0 起槍連擊有數值了，改用只有原文的假技能）", () => {
+    const textOnly = { id: 1, n: "只有原文", job: 130, levels: [{}], levelText: { 1: "消耗MP10, 攻擊力55%, 對一名怪物兩次攻擊" } } as unknown as Skill;
+    expect(skillRow(textOnly, 1, { kind: "normal" })).toEqual({});
+    expect(skillRow(textOnly, 1, { kind: "normal", fromText: true }).damage).toBe(55);
   });
 });
 
