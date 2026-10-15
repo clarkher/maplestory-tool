@@ -12,7 +12,13 @@ export function parseManual(input) {
   if (text === "") return null;
   const value = /^\d+(\.\d+)?$/.test(text) ? Number(text) : Number.NaN;
   if (!Number.isFinite(value) || value < MANUAL_MIN || value > MANUAL_MAX) {
-    throw new Error(`手動補一筆要填 100 元換幾萬楓幣，是 ${MANUAL_MIN}～${MANUAL_MAX} 的數字（例如 300），收到「${input}」`);
+    throw new Error(`手動補一筆要填 100 元換幾萬楓幣，是 ${MANUAL_MIN}～${MANUAL_MAX} 的數字（例如 300），收到 ${JSON.stringify(String(input))}`);
   }
   return value;
 }
+
+/**
+ * collect.mjs 寫給 GITHUB_OUTPUT 的內容：ageHours 給 notify 判斷停更；manualAdded 讓 notify 知道這輪是手動補的
+ * （手動補完 ageHours 會歸零，不能因此把「參考站停更」的 issue 關掉）。平常的輪（沒有手動）一律是 false。
+ */
+export const githubOutputLines = result => [`ageHours=${result.ageHours}`, `manualAdded=${result.manualAdded === true}`, ""].join("\n");

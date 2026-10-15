@@ -182,3 +182,46 @@ test("手動寫過之後，下一輪平常的收集接得上：參考站新的�
   assert.deepEqual(lines(out, "ref-samples.jsonl").slice(3), [{ t: "2026-10-13T18:40:00+08:00", ask100: 305, listings: 79 }]);
   assert.deepEqual(readJson(out, "latest.json"), { t: "2026-10-13T18:40:00+08:00", fetchedAt: "2026-10-13T19:00:00+08:00", ask100: 305, listings: 79, ladder: [[250, 2], [300, 5]], src: "ref" });
 });
+
+// ---------- 審查修正：手動列不擋參考站舊資料補回來 ----------
+
+test("參考站停更期間手動補一筆，之後參考站恢復、回補比手動那筆更早的列：照樣接上、進每日；ageHours 與 latest 看時間最大的那筆", async () => {
+  const first = tmp();
+  await runCollect({ dataDir: tmp(), outDir: first, now: new Date("2026-10-13T07:00:00Z"), getRef: async () => FIRST });
+  const afterManual = tmp();
+  await runCollect({ dataDir: first, outDir: afterManual, now: NOW, getRef: async () => { throw new Error("HTTP 503"); }, manualAsk100: 280 });
+  // 參考站恢復：歷史裡有 15:40（比手動那筆 16:17 早、比最後一筆參考站列 14:40:59 新）
+  const back = refJson("2026-10-13T15:40:00+08:00", [h("2026-10-13T14:40:59+08:00", 300), h("2026-10-13T15:40:00+08:00", 305)], 305, 79);
+  const out = tmp();
+  const result = await runCollect({ dataDir: afterManual, outDir: out, now: new Date("2026-10-13T08:30:00Z"), getRef: async () => back });
+  assert.ok(read(out, "ref-samples.jsonl").startsWith(read(afterManual, "ref-samples.jsonl")), "檔案只變長");
+  assert.deepEqual(lines(out, "ref-samples.jsonl").slice(3), [{ t: "2026-10-13T15:40:00+08:00", ask100: 305, listings: 79 }]);
+  assert.equal(result.added, 1);
+  const day = readJson(out, "daily.json").days.at(-1);
+  assert.deepEqual([day.date, day.samples, day.source, day.close], ["2026-10-13", 3, "mixed", 3571.4]);
+  assert.equal(result.ageHours, 0.2, "16:17 到 16:30，不是檔案最後一列（15:40）算的 0.8");
+  assert.deepEqual(readJson(out, "latest.json"), { t: MANUAL_T, fetchedAt: "2026-10-13T16:30:00+08:00", ask100: 280, listings: null, ladder: [], src: "manual" });
+});
+
+test("手動那筆要比「任何一種列裡時間最大的」嚴格新，不是只比檔案最後一列", async () => {
+  const data = tmp();
+  fs.mkdirSync(path.join(data, DIR), { recursive: true });
+  // 檔案最後一列是 15:00，但前面有一筆 16:00 的手動
+  fs.writeFileSync(path.join(data, DIR, "ref-samples.jsonl"), '{"t":"2026-10-13T16:00:00+08:00","ask100":280,"src":"manual"}\n{"t":"2026-10-13T15:00:00+08:00","ask100":300}\n');
+  const out = tmp();
+  const result = await runCollect({ dataDir: data, outDir: out, now: new Date("2026-10-13T07:30:00Z"), getRef: async () => FIRST, manualAsk100: 290 });
+  assert.equal(result.manualAdded, false);
+  assert.equal(lines(out, "ref-samples.jsonl").length, 2);
+  assert.equal(readJson(out, "latest.json").ask100, 280, "最新的是 16:00 那筆手動");
+});
+
+test("參考站列的比新舊只看參考站自己的列：手動列的時間比較晚也不擋", async () => {
+  const data = tmp();
+  fs.mkdirSync(path.join(data, DIR), { recursive: true });
+  fs.writeFileSync(path.join(data, DIR, "ref-samples.jsonl"), '{"t":"2026-10-13T14:00:00+08:00","ask100":300}\n{"t":"2026-10-13T18:00:00+08:00","ask100":280,"src":"manual"}\n');
+  const out = tmp();
+  const ref = refJson("2026-10-13T16:00:00+08:00", [h("2026-10-13T16:00:00+08:00", 310)], 310, 70);
+  const result = await runCollect({ dataDir: data, outDir: out, now: new Date("2026-10-13T11:00:00Z"), getRef: async () => ref });
+  assert.equal(result.added, 1);
+  assert.equal(result.t, "2026-10-13T18:00:00+08:00");
+});

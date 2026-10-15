@@ -7,12 +7,14 @@
 export const LABEL = "匯率收集失敗";
 export const STALE_HOURS = 12;
 
-export function decide({ write, collectResult, publishResult, ageHours }) {
+export function decide({ write, collectResult, publishResult, ageHours, manualAdded }) {
   if (write !== "true") return { action: "none", reason: "測試跑法（沒有寫入），不通知" };
   if (collectResult === "failure") return { action: "open", reason: "參考站的 price.json 抓不到或格式變了，這一輪沒有資料" };
   if (publishResult === "failure") return { action: "open", reason: "資料算好了但推不上 fx-data 分支" };
   // notify 只在整個 workflow 沒被取消時跑（!cancelled()），所以這裡看到 cancelled 就是 job 撞到 timeout-minutes 被中止
   if (collectResult === "cancelled" || publishResult === "cancelled") return { action: "open", reason: "收集或推送超過時間上限被中止，這一輪沒有資料" };
+  // 手動補一筆（參考站停更時）：補完最後一筆就是剛剛，ageHours 歸零，但參考站還沒恢復——不關 issue，下一輪排程也不會因此再開一張
+  if (manualAdded === "true" && collectResult === "success" && publishResult === "success") return { action: "none", reason: "這輪是手動補的，參考站還沒恢復前不關 issue" };
   const age = Number(ageHours);
   if (ageHours === "" || ageHours === undefined || !Number.isFinite(age)) return { action: "none", reason: "不知道參考站多久沒更新（ageHours 讀不到），先不動 issue" };
   if (age >= STALE_HOURS) return { action: "open", reason: `fx-data 已經 ${ageHours} 小時沒有新的市價（參考站停了，或它的格式、口徑改了），頁面上的匯率會一直是舊的` };

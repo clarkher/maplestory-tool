@@ -25,7 +25,7 @@ on:
         type: boolean
         default: false
       manual:
-        description: "手動補一筆：100 元換幾萬楓幣（10～2000），只在參考站停更時用"
+        description: "手動補一筆：100 元換幾萬楓幣（10～2000），只在參考站停更時用；不要用 Re-run（會再補一筆）"
         type: string
         default: ""
   push:
@@ -50,6 +50,7 @@ jobs:
       contents: read
     outputs:
       ageHours: ${{ steps.collect.outputs.ageHours }}
+      manualAdded: ${{ steps.collect.outputs.manualAdded }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -174,5 +175,6 @@ jobs:
           COLLECT_RESULT: ${{ needs.collect.result }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
           AGE_HOURS: ${{ needs.collect.outputs.ageHours }}
+          MANUAL_ADDED: ${{ needs.collect.outputs.manualAdded }}
           ASSIGNEE: ${{ github.repository_owner }}
         run: node pipeline/fx/notify.mjs

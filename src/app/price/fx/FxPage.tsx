@@ -63,6 +63,7 @@ function HowItWorks({ className = "" }: { className?: string }) {
         <a href={REF_SITE} target="_blank" rel="noreferrer" className="font-bold text-[color:var(--sky)] underline underline-offset-2">{REF_NAME}</a>{" "}
         每 2 小時整理一次；我們每 2 小時記一次，一天的第一筆、最高、最低、最後一筆就是那天的開高低收。
       </li>
+      <li><b>參考站停更時：</b>我們可能手動補一筆，那一筆會標「手動輸入」，當天的讀數會寫「含手動輸入」。</li>
       <li><b>換算：</b>1 億楓幣幾元 ＝ 1,000,000 ÷ 100 元換到的萬數；1 元換幾萬 ＝ 100 元換到的萬數 ÷ 100。</li>
     </ul>
   );
