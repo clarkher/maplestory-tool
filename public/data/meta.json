@@ -1,36 +1,36 @@
 {
-  "gameVersion": "2.0.0",
-  "dataGeneratedAt": "2026-10-15T15:27:53+08:00",
-  "dataGeneratedAtText": "2026-10-15 15:27:53 GMT+8",
+  "gameVersion": "1.15.2",
+  "dataGeneratedAt": "2026-09-24T11:25:10+08:00",
+  "dataGeneratedAtText": "2026-09-24 11:25:10 GMT+8",
   "ingest": {
     "origin": "upstream",
     "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-10-15T09:09:52.182Z"
+    "fetchedAt": "2026-10-05T06:09:14.266Z"
   },
   "parts": {
     "data.js": {
-      "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "gameVersion": "1.15.1",
+      "generatedAt": "2026-09-16T10:34:10+08:00"
     },
     "items-data.js": {
-      "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "gameVersion": "1.15.2",
+      "generatedAt": "2026-09-24T11:25:10+08:00"
     },
     "quests-data.js": {
-      "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "gameVersion": "1.15.2",
+      "generatedAt": "2026-09-21T11:41:01+08:00"
     },
     "skills-data.js": {
-      "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "gameVersion": "1.15.1",
+      "generatedAt": "2026-09-16T10:34:10+08:00"
     },
     "maps-data.js": {
-      "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "gameVersion": "1.15.2",
+      "generatedAt": "2026-09-21T11:41:01+08:00"
     },
     "worldmaps-data.js": {
-      "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T15:27:53+08:00"
+      "gameVersion": "1.15.1",
+      "generatedAt": "2026-09-16T10:34:10+08:00"
     }
   },
   "mapSource": {
@@ -66,8 +66,8 @@
     "日本": 1
   },
   "spawnSource": {
-    "client": 274,
-    "v83": 8
+    "client": 207,
+    "v83": 71
   },
   "assumptions": {
     "defaultRespawnSeconds": 7,
@@ -76,23 +76,23 @@
     "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
   },
   "counts": {
-    "monsters": 129,
-    "items": 14082,
-    "quests": 526,
+    "monsters": 125,
+    "items": 12968,
+    "quests": 436,
     "skills": 238,
-    "maps": 5884,
-    "mapsWithChineseName": 380,
+    "maps": 5878,
+    "mapsWithChineseName": 360,
     "portalEdges": 4041,
     "towns": 343,
     "regions": 40,
-    "walkableAreas": 4047,
-    "trainingMaps": 279,
-    "farmableItems": 1426
+    "walkableAreas": 4041,
+    "trainingMaps": 276,
+    "farmableItems": 1411
   },
   "coverage": {
-    "monstersWithSpawnData": 108,
-    "monstersWithoutSpawnData": 21,
+    "monstersWithSpawnData": 106,
+    "monstersWithoutSpawnData": 19,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-15T09:10:07.703Z"
+  "builtAt": "2026-10-08T09:24:09.771Z"
 }
