@@ -5,6 +5,7 @@ import type {
   TrainingRow,
 } from "./types";
 import type { GearData } from "./gear";
+import type { RawSpeedNames } from "./speed/names";
 
 /**
  * 資料檔全部是編譯期產生的靜態 JSON，第一次用到才抓、抓過就留著。
@@ -104,6 +105,30 @@ export const loadTraining = () => load<TrainingRow[]>("training");
 export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
+/**
+ * 練功測速的名字樣板（職業、街道、地圖名；本機 npm run speed:glyphs 產）。
+ * 檔案是手動重產的、不跟 meta 的建置時間走，掛版本號 + 長快取會一直拿到舊樣板，
+ * 所以跟 gear.json 一樣每次回伺服器確認（next.config 設 must-revalidate），沒變就 304。
+ */
+let speedNamesPromise: Promise<RawSpeedNames> | null = null;
+export function loadSpeedNames(): Promise<RawSpeedNames> {
+  if (!speedNamesPromise) {
+    speedNamesPromise = fetch("/data/speed-names.json", { cache: "no-cache" })
+      .then(response => {
+        if (!response.ok) throw new Error(`載入名字樣板失敗（${response.status}）`);
+        return response.json() as Promise<RawSpeedNames>;
+      })
+      .then(names => {
+        ready.set("speed-names", names);
+        return names;
+      });
+    // 載失敗不要記住，下次再試
+    speedNamesPromise.catch(() => {
+      speedNamesPromise = null;
+    });
+  }
+  return speedNamesPromise;
+}
 /**
  * 裝備卡的資料：一半是玩家攻略（研究檔），研究改了但遊戲資料沒變時 meta 的版本號不會動，
  * 跟 guides/common.json 一樣每次回伺服器確認（next.config 對 /data/gear.json 設 must-revalidate），沒變就 304。

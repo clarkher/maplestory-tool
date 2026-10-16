@@ -15,6 +15,7 @@ import {
   levelNoticeText,
   parseState,
   relevel,
+  withMonster,
   withSkill,
   type CalcData,
   type CalcState,
@@ -117,7 +118,11 @@ export function DamageCalculator() {
 
   const state: CalcState | null = useMemo(() => {
     if (pendingJob !== null || !data || job <= 0) return null;
-    return savedState ?? defaultState(data, job, startLevel, buildTab);
+    if (savedState) return savedState;
+    const fresh = defaultState(data, job, startLevel, buildTab);
+    // 練功測速的「算傷害」帶 ?mob=：這次瀏覽還沒動過計算機時先選好那隻怪（資料在瀏覽器載完才算，讀得到網址）
+    const mob = Number(new URLSearchParams(window.location.search).get("mob"));
+    return mob ? withMonster(fresh, data, mob) : fresh;
   }, [pendingJob, data, job, savedState, startLevel, buildTab]);
 
   // 怪物選單、打的怪、兩組的結果：每次按 −／＋ 都會重畫，不重算（選單要重排一百多隻怪，兩組要各算一遍）

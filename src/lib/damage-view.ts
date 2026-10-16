@@ -779,6 +779,12 @@ export function withSkill(state: CalcState, patch: Partial<SharedConfig>, choice
   return { ...state, shared };
 }
 
+/** 網址帶 ?mob=<id>（練功測速的怪物卡連過來）：選單裡有這隻就換成它，沒有就照原本的 */
+export function withMonster(state: CalcState, data: CalcData, mobId: number): CalcState {
+  const ok = monsterChoices(data.monsters, data.maps).some(choice => choice.monster.id === mobId);
+  return ok ? { ...state, shared: { ...state.shared, monsterId: mobId } } : state;
+}
+
 export function sameGroups(groups: [GroupConfig, GroupConfig]): boolean {
   return JSON.stringify(groups[0]) === JSON.stringify(groups[1]);
 }
