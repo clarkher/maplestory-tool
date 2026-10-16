@@ -44,6 +44,30 @@ describe("parseExp", () => {
     expect(parseExp("649 4069477973%", toNext)).toEqual({ exp: 406947, percent: 79.73, level: 46 });
   });
 
+  // 視窗放大 1.1 倍時 % 的斜線只有 1 格寬、被抹到最淡，會被認成別的字；1.5 倍時最後的 ] 偶爾被認成 1（2026-10-17 量的）
+  it("百分比後面多認出字：只取到 %；% 也沒認出來時，有提示才先試前 4 位、再試前 3 位，用經驗表挑對的", () => {
+    expect(parseExp("%P 406947[7973%1", toNext)).toEqual({ exp: 406947, percent: 79.73, level: 46 });
+    expect(parseExp("%P 406947[79733]", toNext, [46, 47])).toEqual({ exp: 406947, percent: 79.73, level: 46 });
+    const exp = Math.floor(toNext[30] * 0.0518);
+    const percent = Math.floor((exp / toNext[30]) * 10000) / 100;
+    const digits = percent.toFixed(2).replace(".", "");
+    expect(digits).toHaveLength(3);
+    expect(parseExp(`${exp}[${digits}4]`, toNext, [30, 31])).toEqual({ exp, percent, level: 30 });
+    expect(parseExp(`${exp}[${digits}%1`, toNext, [30, 31])).toEqual({ exp, percent, level: 30 });
+  });
+
+  it("還不知道等級（沒提示）時 % 一定要認得出來：沒有 % 就 null，不硬試", () => {
+    expect(parseExp("%P 406947[79733]", toNext)).toBeNull();
+    expect(parseExp("%P 406947[7973]", toNext)).toBeNull();
+    expect(parseExp("4069477973", toNext)).toBeNull();
+    // 審查找到的：% 認成 33、沒提示，以前會先試 4 位讀成 14 等 4.13%（真的是 26 等 0.41%）
+    expect(parseExp("223[04133]", toNext)).toBeNull();
+  });
+
+  it("沒有 [ 時 % 取最後一個（EXP 字樣常被認成 %）", () => {
+    expect(parseExp("%P4069477973%", toNext)).toEqual({ exp: 406947, percent: 79.73, level: 46 });
+  });
+
   it("認錯的回 null", () => {
     expect(parseExp("648 406947[7073%", toNext)).toBeNull();
     expect(parseExp("", toNext)).toBeNull();
@@ -124,12 +148,16 @@ describe("認錯一個數字：不是 null 就是對的（性質測試）", () =
     return { level, exp, text: screenText(exp, level) };
   });
 
-  /** 把每個案例的每一種單一數字認錯都丟進 parseExp，回傳讀出來卻不對的（等級不對，或經驗差超過 % 容許的 0.0007 倍升級經驗） */
-  function wrongReadings(hintsFor: (level: number) => number[]) {
+  /**
+   * 把每個案例的每一種單一數字認錯都丟進 parseExp，回傳讀出來卻不對的（等級不對，或經驗差超過 % 容許的 0.0007 倍升級經驗）。
+   * percentAs：另外把 % 換成這串數字（視窗放大 1.1 倍左右 % 會被認成 3、33；2026-10-17 審查補的）。
+   */
+  function wrongReadings(hintsFor: (level: number) => number[], percentAs?: string) {
     const wrong: Array<{ text: string; bad: string; trueLevel: number; reading: ExpReading }> = [];
     let total = 0;
     for (const { level, exp, text } of cases) {
-      for (const bad of singleDigitSubstitutions(text)) {
+      for (const sub of singleDigitSubstitutions(text)) {
+        const bad = percentAs === undefined ? sub : sub.replace("%", percentAs);
         total++;
         const reading = parseExp(bad, toNext, hintsFor(level));
         if (reading && (reading.level !== level || Math.abs(reading.exp - exp) > 0.0007 * toNext[level])) {
@@ -171,5 +199,19 @@ describe("認錯一個數字：不是 null 就是對的（性質測試）", () =
     const { total, wrong } = wrongReadings(() => []);
     expect(total).toBeGreaterThan(15000);
     expect(wrong.length).toBeLessThanOrEqual(Math.floor(total * 0.03));
+  });
+
+  // % 被認成數字：沒提示時一律 null（試前 4、3 位的話讀錯率 25%）；有提示時才試，提示 [L] 0 個錯、[L, L+1] 跟有 % 時同一個上限
+  it.each(["3", "33", "1"])("%% 被認成「%s」：沒提示一律讀不到（0 個錯）", percentAs => {
+    const { total, wrong } = wrongReadings(() => [], percentAs);
+    expect(total).toBeGreaterThan(15000);
+    expect(wrong).toEqual([]);
+  });
+
+  it.each(["3", "33", "1"])("%% 被認成「%s」：提示 [L] 0 個錯；提示 [L, L+1] 讀錯只會對上 L+1、上限 0.5%%", percentAs => {
+    expect(wrongReadings(level => [level], percentAs).wrong).toEqual([]);
+    const { total, wrong } = wrongReadings(level => [level, level + 1], percentAs);
+    expect(wrong.filter(w => w.reading.level !== w.trueLevel + 1)).toEqual([]);
+    expect(wrong.length).toBeLessThanOrEqual(Math.floor(total * 0.005));
   });
 });

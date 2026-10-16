@@ -402,6 +402,15 @@ node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:30
 ```
 
 - 網址用 `localhost`，不要用 `127.0.0.1`（`next dev` 對 127.0.0.1 的互動不理）。視窗 1440×900，桌機寬度。
+- **換一張畫面**（v1.05）：基準截圖的經驗 406947 剛好沒有 1、2、5、8，測不出數字認錯。先產一張經驗換掉的假畫面，再用環境變數指定：
+  ```bash
+  SPEED_EXP=46:251836 npx vitest run -c vitest.gen.config.ts painted
+  ```
+  ```bash
+  SPEED_FIXTURE="$TEMP/speed-painted-46-251836.png" SPEED_READING="Lv.46 · 經驗 251,836（49.34%）" node scripts/verify/speed-shot.mjs
+  ```
+  等級用 46：組隊那幾項照 46 等寫（隊友 44 要在 5 級內才吸得到），換別的等級那幾項會照公式變「吸不到」。
+  2026-10-17 量：改之前的測試機 21/28（整段「讀不到經驗」）、改之後 28/28。「重新整理再分享：直接認成這張圖」時好時壞（改之前的測試機也會沒過），是小地圖記憶那段，跟數字無關。
 - 頁面在非正式機時認 `window.__speedTestStream`（`src/lib/speed/capture.ts`）：腳本把 `src/lib/speed/__fixtures__/window-1364.png` 畫到 canvas、`captureStream` 塞進去，
   不用真的開遊戲、也不會跳出選視窗的對話框。按「分享遊戲畫面」、滑鼠點擊、打字都走 DevTools 的 `Input`，不是直接呼叫 `click()`。
 - 檢查（任何一項沒過 exit 1，每項的結果寫在 `results.json` 的 `checks`，量到的字在 `detail`）：
