@@ -10,6 +10,7 @@ import path from "node:path";
 import { readJson } from "./lib/http.mjs";
 import { WEAPON_TYPES } from "./lib/gear.mjs";
 import { HELD_BACK_MAPS, OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
+import { officialNoteStatus, OFFICIAL_SKILL_NOTES } from "./lib/official-skill-notes.mjs";
 
 const OUT = path.resolve(import.meta.dirname, "..", "public", "data");
 
@@ -63,6 +64,14 @@ function main() {
     [skill.desc, TOKEN.test(skill.formula ?? "") ? "" : skill.formula, ...Object.values(skill.levelText ?? {})].some(text => text?.includes("#")),
   );
   check("技能卡上的字沒有「#」（說明、效果、每一級的原文）", leaked.length === 0, leaked.slice(0, 5).map(skill => `${skill.id} ${skill.n}`).join("、"));
+
+  // 官方公告改了、遊戲說明還沒跟上的那行（脫離戰場 1.5 秒）：要嘛卡片有這行，要嘛說明已經是新數字；
+  // 兩個都不是＝上游換了說明的寫法，這行默默不見、說明其實還是舊的（lib/official-skill-notes.mjs）
+  const lostNotes = Object.keys(OFFICIAL_SKILL_NOTES).map(Number).filter(id => {
+    const skill = (skills ?? []).find(entry => entry.id === id);
+    return !skill || (!skill.note && officialNoteStatus(id, skill.desc) !== "fixed");
+  });
+  check("官方公告改了的技能，卡片有那一行或說明已經改好", lostNotes.length === 0, lostNotes.length ? lostNotes.join("、") : `${Object.keys(OFFICIAL_SKILL_NOTES).length} 個`);
 
   // 傷害計算機要用的欄位（熟練度 M、物理攻擊力 damage、魔攻 mad）：前一版每一級都有的，這一版也要每一級都有。
   // 2026-10-15 上游 2.0.0 漏抽熟練度，36 個技能整列數值不見、計算機算錯，上面那條「#」抓不到（沒數值的級數不放原文）。
@@ -191,6 +200,11 @@ function main() {
 
   const priced = (items ?? []).filter(item => item.price).length;
   check("道具有商店價格的筆數", priced >= 300, `${priced} 個`);
+
+  // 女神手鐲的「去哪拿」要有女神的痕跡組隊任務（2026-10-16 使用者選 7）。上游 2.0.0 22:04 版起道具來源自己有列 1203
+  // （說明寫羽翼 40 個＋溫莉好感兌換），任務獎勵欄沒列手鐲——不要自己補進任務獎勵，那會變成每次通關都給
+  const bracelet = (items ?? []).find(item => item.id === 1082232);
+  check("女神手鐲的來源有女神的痕跡（任務 1203）", Boolean(bracelet?.qr?.includes("1203")), bracelet ? `qr：${(bracelet.qr ?? []).join("、") || "（空）"}` : "女神手鐲不在 items.json");
 
   // gear.json（能力值＋裝備＋衝卷卡）：2026-10-07 加上 NPC 合成來源後是武器 232 把、卷軸 106 種，
   // 下限抓實際數 ×0.8 取整，跟著遊戲資料變動留一點空間，掉太多代表解析壞了

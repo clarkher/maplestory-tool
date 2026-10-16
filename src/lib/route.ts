@@ -192,12 +192,27 @@ export function boatNote(start: number, reach: Set<number>, island: boolean): Bo
 export type GoNote = "island" | "port" | "region";
 
 /** 天空之城、冰原雪域這兩座城鎮：回城點是它們的圖（雲彩公園、天空之城塔、廢礦…）都算「天空之城那一帶」 */
-const AIRSHIP_TOWNS = new Set([200000000, 211000000]);
+const ORBIS = 200000000;
+const EL_NATH = 211000000;
+const AIRSHIP_TOWNS = new Set([ORBIS, EL_NATH]);
+/** 沒有回城點的圖（雪人之谷、雅典娜禁地…）照地圖標記認（code review）：天空之城這側、冰原雪域那側 */
+const ORBIS_MARKS = new Set(["Orbis", "GoddessTower"]);
+const EL_NATH_MARKS = new Set(["ElNath", "ElNathDungeon"]);
+
+/** 這張圖在天空之城那一帶的哪一側：orbis（天空之城、女神塔）、elnath（冰原雪域、廢礦，要再穿過天空之城塔），不在就 undefined */
+function airshipSide(mapId: number, maps: Record<string, MapRecord>): "orbis" | "elnath" | undefined {
+  const record = maps[String(mapId)];
+  const town = AIRSHIP_TOWNS.has(mapId) ? mapId : record?.ret;
+  if (town === ORBIS) return "orbis";
+  if (town === EL_NATH) return "elnath";
+  if (record?.mk && ORBIS_MARKS.has(record.mk)) return "orbis";
+  if (record?.mk && EL_NATH_MARKS.has(record.mk)) return "elnath";
+  return undefined;
+}
 
 /** 這張圖在天空之城那一帶（跟維多利亞島之間要搭飛船） */
 export function isAirshipArea(mapId: number, maps: Record<string, MapRecord>): boolean {
-  const ret = maps[String(mapId)]?.ret;
-  return AIRSHIP_TOWNS.has(mapId) || (ret !== undefined && AIRSHIP_TOWNS.has(ret));
+  return airshipSide(mapId, maps) !== undefined;
 }
 
 /**
@@ -206,19 +221,22 @@ export function isAirshipArea(mapId: number, maps: Record<string, MapRecord>): b
  * 其他（開船前幾分鐘能上船、票價）沒有官方數字，不寫（2026-10-16 使用者選 6）
  */
 const AIRSHIP_TEXT =
-  "天空之城跟維多利亞島之間要搭飛船：魔法森林碼頭跟天空之城之間雙向，每 15 分鐘一班（魔法森林這邊找碼頭的售票員買船票）；冰原雪域從天空之城穿過天空之城塔走過去。";
+  "魔法森林碼頭跟天空之城之間雙向，每 15 分鐘一班（魔法森林這邊找碼頭的售票員買船票）；冰原雪域從天空之城穿過天空之城塔走過去。";
 
 /** 提示的字（from：起點的名字，跨區那句要用；airship：那一段在天空之城那一帶，isAirshipArea） */
 export function goNoteText(note: GoNote, from: string, airship = false): string {
   if (note === "island") return "你還在楓之島的話，要先搭船到維多利亞港，再照下面的路線走。";
   if (note === "port") return "你還在楓之島的話，搭船就會到維多利亞港。";
-  if (airship) return `${from}跟維多利亞島的城鎮之間沒有傳送門。${AIRSHIP_TEXT}`;
+  if (airship) return `${from}跟維多利亞島之間要搭飛船：${AIRSHIP_TEXT}`;
   return `${from}跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。`;
 }
 
 /** 主推卡「從 X 走 N 張圖」後面括號那句：出發的城鎮要自己過去（now-plan townRoute 的 boat） */
 export function boatText(town: number, maps: Record<string, MapRecord>): string {
-  if (isAirshipArea(town, maps)) return "從魔法森林碼頭搭飛船過去，每 15 分鐘一班";
+  const side = airshipSide(town, maps);
+  if (side === "orbis") return "從魔法森林碼頭搭飛船過去，每 15 分鐘一班";
+  // 飛船只到天空之城，冰原雪域那側還要穿過天空之城塔（code review）
+  if (side === "elnath") return "從魔法森林碼頭搭飛船到天空之城（每 15 分鐘一班），再穿過天空之城塔過去";
   return `${maps[String(town)]?.zh || "那裡"}要搭船或搭車過去`;
 }
 
@@ -227,10 +245,17 @@ export function boatText(town: number, maps: Record<string, MapRecord>): string 
  * - 目的地在楓之島、起點不在：只說「楓之島跟維多利亞島之間沒有傳送門。」——離開楓之島就回不去，不叫人搭車（round 4，persona 第三輪三-5）
  * - 其他：跨大陸要搭船或計程車；起點在楓之島寫「搭船」、其他寫「搭車」，再從下面的城鎮按鈕重算路線
  */
-export function crossAreaText(from: number, to: number, airship = false): string {
+export function crossAreaText(from: number, to: number, airship?: { from: boolean; to: boolean }): string {
   if (isIslandMap(to) && !isIslandMap(from)) return "楓之島跟維多利亞島之間沒有傳送門。";
-  // 一邊在天空之城那一帶（呼叫端用 isAirshipArea 判斷）：寫怎麼搭飛船
-  if (airship) return `這兩張圖不在同一個可步行區域。${AIRSHIP_TEXT}到了再從下面挑一個當地城鎮重算路線。`;
+  // 兩邊都在天空之城那一帶卻走不到：不是跨大陸，是傳送門資料少了中間那段，不叫人搭飛船或搭車（code review）
+  if (airship?.from && airship.to) {
+    return "這兩張圖都在天空之城、冰原雪域那一帶，但我們的傳送門資料少了中間這一段，算不出路線。先在遊戲裡走過去，再從下面挑一個當地城鎮重算路線。";
+  }
+  // 一邊在天空之城那一帶、一邊不在（呼叫端用 isAirshipArea 判斷）：寫怎麼搭飛船；從楓之島出發的先說搭船到維多利亞港
+  if (airship && airship.from !== airship.to) {
+    const island = isIslandMap(from) ? "你在楓之島的話先搭船到維多利亞港。" : "";
+    return `這兩張圖不在同一個可步行區域。${island}天空之城那一帶跟維多利亞島之間要搭飛船：${AIRSHIP_TEXT}到了再從下面挑一個當地城鎮重算路線。`;
+  }
   return `這兩張圖不在同一個可步行區域。楓之谷跨大陸要搭船或計程車，那一段沒有傳送門資料，所以我們不會編一條路線給你。先在遊戲裡${isIslandMap(from) ? "搭船" : "搭車"}過去，再從下面挑一個當地城鎮重算路線。`;
 }
 

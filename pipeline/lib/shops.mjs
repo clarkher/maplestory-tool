@@ -19,6 +19,8 @@
  * 現在每張圖各自判斷上面三條規則，已開放的每一張都各列一筆。
  */
 
+import { HELD_BACK_MAPS } from "./map-names.mjs";
+
 /** 上游的貨幣：「點數」是商城的樂豆點，其他是楓幣 */
 const CASH_CURRENCY = "點數";
 /** NPC 商店的舊版來源 */
@@ -76,6 +78,8 @@ function shopPlaces(shop, openRegions, mapRecords) {
   const places = [];
   for (const map of maps) {
     const id = Number(map.id);
+    // 地區開了、官方還沒開的圖（廢礦後半部）：跟建置的地圖中文名同一份擋住清單
+    if (HELD_BACK_MAPS.has(id)) continue;
     if (!map.unnamed && map.name && (!map.regionName || openRegions.includes(map.regionName))) {
       places.push({ place: map.name, mapId: id });
       continue;
