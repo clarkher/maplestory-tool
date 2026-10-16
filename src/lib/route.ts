@@ -8,7 +8,11 @@ export type RouteStep = {
   /** 傳送門在上一張圖的座標，用來在小地圖上標出口 */
   x?: number;
   y?: number;
+  /** 靠 NPC 傳送、要幾等以上才放行的那一步才有（冰雪峽谷Ⅱ的傑夫） */
+  minLevel?: number;
 };
+
+type Link = { map: number; via: string; x: number; y: number; minLevel?: number };
 
 export type RoutePlan =
   | { ok: true; steps: RouteStep[]; hops: number }
@@ -19,25 +23,28 @@ export type RoutePlan =
 /**
  * 傳送門最短路線。地圖數只有幾千、邊四千條，BFS 在瀏覽器裡是瞬間的事，
  * 不需要預先算好所有路線塞進檔案。
+ * level：給了就不走等級不夠的 NPC 傳送（主推、首頁「去」照玩家等級算）；不給（/go 查路線）就照走，那一步帶著門檻讓畫面寫出來。
  */
 export function findRoute(
   graph: Record<string, PortalEdge[]>,
   from: number,
   to: number,
+  level?: number,
 ): RoutePlan {
   if (!Number.isFinite(from) || !Number.isFinite(to)) return { ok: false, reason: "unknown-map" };
   if (from === to) return { ok: true, steps: [{ map: from, via: "" }], hops: 0 };
 
-  const previous = new Map<number, { map: number; via: string; x: number; y: number }>();
+  const previous = new Map<number, Link>();
   const visited = new Set<number>([from]);
   const queue: number[] = [from];
 
   for (let head = 0; head < queue.length; head += 1) {
     const current = queue[head];
-    for (const [next, name, x, y] of graph[String(current)] || []) {
+    for (const [next, name, x, y, minLevel] of graph[String(current)] || []) {
       if (visited.has(next)) continue;
+      if (level !== undefined && minLevel !== undefined && level < minLevel) continue;
       visited.add(next);
-      previous.set(next, { map: current, via: name, x, y });
+      previous.set(next, minLevel === undefined ? { map: current, via: name, x, y } : { map: current, via: name, x, y, minLevel });
       if (next === to) return { ok: true, steps: buildSteps(previous, from, to), hops: countHops(previous, from, to) };
       queue.push(next);
     }
@@ -51,17 +58,15 @@ export function findRoute(
   };
 }
 
-function buildSteps(
-  previous: Map<number, { map: number; via: string; x: number; y: number }>,
-  from: number,
-  to: number,
-): RouteStep[] {
+function buildSteps(previous: Map<number, Link>, from: number, to: number): RouteStep[] {
   const steps: RouteStep[] = [];
   let cursor = to;
   while (cursor !== from) {
     const link = previous.get(cursor);
     if (!link) break;
-    steps.push({ map: cursor, via: link.via, x: link.x, y: link.y });
+    const step: RouteStep = { map: cursor, via: link.via, x: link.x, y: link.y };
+    if (link.minLevel !== undefined) step.minLevel = link.minLevel;
+    steps.push(step);
     cursor = link.map;
   }
   steps.push({ map: from, via: "" });
@@ -69,7 +74,7 @@ function buildSteps(
 }
 
 function countHops(
-  previous: Map<number, { map: number; via: string; x: number; y: number }>,
+  previous: Map<number, Link>,
   from: number,
   to: number,
 ): number {
@@ -82,6 +87,11 @@ function countHops(
     cursor = link.map;
   }
   return hops;
+}
+
+/** 等級不夠走到這張圖（maps.json 的 g：要過 NPC 傳送，冰雪峽谷Ⅱ的傑夫後面 50 等）；給沒載傳送門圖的頁面用（打怪練功） */
+export function belowGate(record: MapRecord | undefined, level: number): boolean {
+  return record?.g !== undefined && level < record.g;
 }
 
 export function reachableFrom(graph: Record<string, PortalEdge[]>, start: number): number[] {

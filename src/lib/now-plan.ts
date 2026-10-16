@@ -714,7 +714,7 @@ export function namedMobsFirst(mobs: Array<[number, number]>, named: number[]): 
 
 /**
  * 從最近的城鎮走到這張圖：幾張圖、哪個城鎮、那個城鎮要不要自己搭船或搭車（跟 /go 同一套）。
- * 城鎮走不到就是空的，不給「帶我去」。
+ * 城鎮走不到就是空的，不給「帶我去」。給了等級，等級不夠的 NPC 傳送（冰雪峽谷Ⅱ的傑夫，50 等）也算走不到。
  */
 export function townRoute(
   map: number,
@@ -722,11 +722,33 @@ export function townRoute(
   maps: Record<string, MapRecord>,
   nearestTown: Record<string, [number, number]>,
   island = false,
+  level?: number,
 ): { town?: number; hops?: number; boat?: boolean } {
   const town = suggestStart(graph, maps, nearestTown, map);
   if (!town) return {};
-  const route = findRoute(graph, town, map);
+  const route = findRoute(graph, town, map, level);
   return route.ok ? { town, hops: route.hops, boat: boatNote(town, victoriaReach(graph), island) === "region" } : {};
+}
+
+/**
+ * 升級路線「去」的條件（首頁 RouteHome 跟真資料測試共用同一支）：城鎮走得到、等級夠過 NPC 傳送（傑夫 50 等）。
+ * 同一張圖、同一個等級只算一次。
+ */
+export function goChecker(
+  graph: Record<string, PortalEdge[]>,
+  maps: Record<string, MapRecord>,
+  nearestTown: Record<string, [number, number]>,
+): (map: number, level: number) => boolean {
+  const cache = new Map<string, boolean>();
+  return (map, level) => {
+    const key = `${map}:${level}`;
+    let ok = cache.get(key);
+    if (ok === undefined) {
+      ok = townRoute(map, graph, maps, nearestTown, false, level).hops !== undefined;
+      cache.set(key, ok);
+    }
+    return ok;
+  };
 }
 
 /** 攻略段落的排序：跨 15 級以上的排後面 → 單人優先 → 台服實測優先 → 越窄越前面 */
@@ -776,9 +798,11 @@ export function mainPick(args: {
   const fitOf = (map: number) => jobFit(stage, level, mobsOf(map), index);
   const routes = new Map<number, { town?: number; hops?: number; boat?: boolean }>();
   const route = (map: number) => {
-    if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown, island));
+    if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown, island, level));
     return routes.get(map) as { town?: number; hops?: number; boat?: boolean };
   };
+  // 等級不夠過 NPC 傳送的圖（49 等以下的尖銳的絕壁～廢棄礦坑Ⅳ，要找傑夫）：攻略寫到也不推（2026-10-16 使用者拍板 A）
+  const levelLocked = (map: number) => route(map).hops === undefined && townRoute(map, graph, maps, nearestTown, island).hops !== undefined;
   // 這張圖上最高等的怪幾等（卡上的怪、封頂提示都用這個寫法）
   const topMobLevel = (map: number): number | undefined => {
     const levels = mobsOf(map).map(([id]) => index.get(id)?.lv ?? 0).filter(value => value > 0);
@@ -803,7 +827,7 @@ export function mainPick(args: {
   const stale: TrainOption[] = [];
   const segments = guide ? trainingForBand({ from: level, to: level + 1 }, guide.train) : [];
   for (const segment of [...segments].sort(byGuidePreference)) {
-    if (segment.pq || segment.map === null || !reachable(segment.map)) continue;
+    if (segment.pq || segment.map === null || !reachable(segment.map) || levelLocked(segment.map)) continue;
     const map = segment.map;
     const fit = fitOf(map);
     if (!fit.ok) continue;

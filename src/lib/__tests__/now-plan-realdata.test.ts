@@ -12,7 +12,7 @@ import { COMMON_ROUTE } from "@/lib/guide-data";
 import { jobFit } from "@/lib/job-rules";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import {
-  BOSS_SPAWN_MAX, CEILING_GAP, bandQuests, canGo, effectiveLevels, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
+  BOSS_SPAWN_MAX, CEILING_GAP, bandQuests, canGo, effectiveLevels, goChecker, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
   type BandQuest, type Ceiling, type LongRunTask, type MainPick, type NowQuest,
 } from "@/lib/now-plan";
 import { LEVEL_CAP } from "@/lib/profile";
@@ -34,6 +34,8 @@ type Combo = {
   longRun: LongRunTask[];
   /** 升級路線你在的那一段：標籤、練功第一列、能用的攻略列數、是不是全被擋 */
   active: { label?: string; first?: TrainRow; usable: number; blocked: boolean };
+  /** 升級路線你在的那段每一列（含替代）給了「去」的地圖 */
+  activeGo: number[];
   /** 升級路線每一段的必解（你在的那段照畫面一樣扣掉先解列過的段），activeIndex 是你在的那段 */
   mustDo: BandQuest[][];
   activeIndex: number;
@@ -90,11 +92,8 @@ beforeAll(() => {
   // 這張圖上最高等的怪幾等（卡片「黑格里芬 Lv73」、封頂提示都是這種寫法）
   const topMobLevel = (map: number | null) => (map === null ? 0 : Math.max(0, ...(spawns.get(map) ?? []).map(([id]) => monsterLevels.get(id) ?? 0)));
   openTop = Math.max(...timelineTraining.filter(row => maps[String(row.m)]?.zh && row.sp > BOSS_SPAWN_MAX).map(row => row.lv));
-  const routes = new Map<number, boolean>();
-  const canWalk = (map: number) => {
-    if (!routes.has(map)) routes.set(map, townRoute(map, graph, maps, nearestTown).hops !== undefined);
-    return routes.get(map) as boolean;
-  };
+  // 跟首頁 RouteHome 同一支（城鎮走得到、等級夠過傑夫）
+  const canWalk = goChecker(graph, maps, nearestTown);
   // 能練的最高圖，這裡自己算、不讀 timeline 的結果：開放的練功圖（有中文名、不在楓之島、不是王圖）裡，
   // 職業規則過（那一段實際那一轉、參考等級）、城鎮走得到的最高地圖等級；同一組（那一轉、參考等級）只算一次
   const openRows = timelineTraining.filter(row => maps[String(row.m)]?.zh && row.sp > BOSS_SPAWN_MAX);
@@ -102,7 +101,7 @@ beforeAll(() => {
   const capLevel = (stage: number, reference: number): number | undefined => {
     const key = `${stage}:${reference}`;
     if (!capCache.has(key)) {
-      const levels = openRows.filter(row => jobFit(stage, reference, spawns.get(row.m) ?? [], monsterIndex).ok && canWalk(row.m)).map(row => row.lv);
+      const levels = openRows.filter(row => jobFit(stage, reference, spawns.get(row.m) ?? [], monsterIndex).ok && canWalk(row.m, reference)).map(row => row.lv);
       capCache.set(key, levels.length ? Math.max(...levels) : undefined);
     }
     return capCache.get(key);
@@ -154,6 +153,7 @@ beforeAll(() => {
           usable: timeline.plans[timeline.activeIndex].usable,
           blocked: timeline.plans[timeline.activeIndex].blocked,
         },
+        activeGo: [...timeline.plans[timeline.activeIndex].rows, ...timeline.plans[timeline.activeIndex].fallback].flatMap(row => (row.go === undefined ? [] : [row.go])),
         mustDo,
         activeIndex: timeline.activeIndex,
         later: bands.map((_, index) => (index + 1 < bands.length ? laterMaterials({ next: plain[index + 1], listed: [...todo, ...mustDo[index]], monsters }) : [])),
@@ -488,5 +488,45 @@ describe("真資料：首頁每個組合", () => {
       return todo && item.firstPart !== todo.lastPart + 1 ? [`${combo.tag}：「${item.title}」先解第 ${todo.firstPart}–${todo.lastPart} 段、必解第 ${item.firstPart}–${item.lastPart} 段`] : [];
     }));
     expectNone("你在的那一段沒接在先解的下一段", bad);
+  });
+});
+
+describe("真資料：冰雪峽谷Ⅱ的傑夫（NPC 傳送到尖銳的絕壁Ⅰ，v1.04 使用者拍板 A：照 50 等算）", () => {
+  const SIXTEEN = [
+    211040300, 211040400, // 尖銳的絕壁Ⅰ、Ⅱ
+    211040500, 211040600, 211040800, 211040900, 211041000, // 狼的領土Ⅰ～Ⅴ
+    211040700, // 危險的絕壁
+    211041100, 211041200, 211041300, 211041400, // 亡者之林Ⅰ～Ⅳ
+    211041500, 211041600, 211041700, 211041800, // 廢棄礦坑Ⅰ～Ⅳ
+  ];
+  const walkable = (map: number, level?: number) => townRoute(map, graph, maps, nearestTown, false, level).hops !== undefined;
+  /** 只有過傑夫才到得了的練功圖：不看等級走得到、49 等走不到 */
+  let gated: number[] = [];
+  beforeAll(() => {
+    gated = read<TrainingRow[]>("training.json").map(row => row.m).filter(map => walkable(map) && !walkable(map, 49));
+  });
+  const picked = (combo: Combo): number[] =>
+    combo.pick?.kind === "map" ? [combo.pick.option.map, combo.pick.alt?.map ?? 0]
+      : combo.pick?.kind === "pq" ? [combo.pick.alt?.map ?? 0] : [];
+
+  it("尖銳的絕壁到廢棄礦坑Ⅳ 16 張：從冰原雪域走得到，但要 50 等（49 等沒有城鎮路線）", () => {
+    expect([...gated].sort()).toEqual([...SIXTEEN].sort());
+    expect(SIXTEEN.filter(map => !walkable(map, 50))).toEqual([]);
+    expect(townRoute(211040300, graph, maps, nearestTown, false, 50).town).toBe(211000000);
+  });
+
+  it("maps.json 標了要 50 等的練功圖就是這 16 張（打怪練功頁照它擋）", () => {
+    const marked = read<TrainingRow[]>("training.json").map(row => row.m).filter(map => maps[String(map)]?.g !== undefined);
+    expect([...marked].sort()).toEqual([...SIXTEEN].sort());
+    expect(SIXTEEN.filter(map => maps[String(map)]?.g !== 50)).toEqual([]);
+  });
+
+  it("49 等以下的主推跟備案都不推這 16 張", () => {
+    expectNone("49 等以下推到要找傑夫的圖", combos.filter(combo => combo.level < 50 && picked(combo).some(map => gated.includes(map))).map(combo => combo.tag));
+  });
+
+  it("49 等以下，升級路線你在的那段不給「去」到這 16 張；50 等起給得出來（以前整區走不到，從來不給）", () => {
+    expectNone("49 等以下的「去」帶到要找傑夫的圖", combos.filter(combo => combo.level < 50 && combo.activeGo.some(map => gated.includes(map))).map(combo => combo.tag));
+    expect(combos.some(combo => combo.level >= 50 && combo.activeGo.some(map => gated.includes(map)))).toBe(true);
   });
 });

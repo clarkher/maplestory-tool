@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAIN_TOWNS, VICTORIA_PORT, boatNote, boatText, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, isAirshipArea, suggestStart, townChips,
+  MAIN_TOWNS, VICTORIA_PORT, belowGate, boatNote, boatText, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, isAirshipArea, suggestStart, townChips,
   townsTitle, victoriaReach,
 } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
@@ -403,5 +403,56 @@ describe("楓之島的城鎮按鈕（round 3 最後一輪）", () => {
   it("跟目的地同名、但不是目的地那張的不給（不會排出「菇菇村 → 菇菇村 共 1 段」）", () => {
     expect(townChips(maps, graph, MUSHROOM_TWO, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([PERRY, AMHERST]);
     expect(townChips(maps, graph, MUSHROOM_TWO)).toEqual([PERRY, AMHERST]);
+  });
+});
+
+describe("NPC 傳送（冰雪峽谷Ⅱ最上面的傑夫送到尖銳的絕壁Ⅰ，v1.04 使用者拍板 A：照 50 等算）", () => {
+  const EL_NATH = 211000000;
+  const VALLEY = 211040200;
+  const CLIFF = 211040300;
+  const WOLF = 211040500;
+  const graph: Record<string, PortalEdge[]> = {
+    [EL_NATH]: [[VALLEY, "east00", 900, 0]],
+    [VALLEY]: [[EL_NATH, "west00", 0, 0], [CLIFF, "npc:傑夫:最上面", -29, -2585, 50]],
+    [CLIFF]: [[VALLEY, "under00", -349, 453], [WOLF, "top00", 548, -1673]],
+    [WOLF]: [[CLIFF, "under00", 0, 0]],
+  };
+
+  it("沒給等級（/go 查路線）照樣走得到，傑夫那一步帶著幾等以上", () => {
+    const route = findRoute(graph, EL_NATH, WOLF);
+    expect(route.ok).toBe(true);
+    if (!route.ok) return;
+    expect(route.steps.map(step => step.map)).toEqual([EL_NATH, VALLEY, CLIFF, WOLF]);
+    expect(route.steps[2]).toEqual({ map: CLIFF, via: "npc:傑夫:最上面", x: -29, y: -2585, minLevel: 50 });
+  });
+
+  it("一般傳送門那一步不帶等級", () => {
+    const route = findRoute(graph, EL_NATH, WOLF);
+    if (!route.ok) throw new Error("走不到");
+    expect(route.steps[1]).not.toHaveProperty("minLevel");
+    expect(route.steps[3]).not.toHaveProperty("minLevel");
+  });
+
+  it("給了等級：49 等過不了傑夫（後面整區都走不到），50 等可以", () => {
+    expect(findRoute(graph, EL_NATH, CLIFF, 49).ok).toBe(false);
+    expect(findRoute(graph, EL_NATH, WOLF, 49).ok).toBe(false);
+    expect(findRoute(graph, EL_NATH, CLIFF, 50).ok).toBe(true);
+    expect(findRoute(graph, EL_NATH, WOLF, 120).ok).toBe(true);
+  });
+
+  it("往回走不用找傑夫，不看等級", () => {
+    expect(findRoute(graph, WOLF, EL_NATH, 30).ok).toBe(true);
+  });
+});
+
+describe("這張圖等級夠不夠走得到（maps.json 的 g，打怪練功頁用，v1.04）", () => {
+  it("有標 50：49 等不夠、50 等夠", () => {
+    expect(belowGate({ zh: "尖銳的絕壁Ⅰ", st: "", g: 50 }, 49)).toBe(true);
+    expect(belowGate({ zh: "尖銳的絕壁Ⅰ", st: "", g: 50 }, 50)).toBe(false);
+  });
+
+  it("沒標（不用過 NPC）、查不到的圖：不擋", () => {
+    expect(belowGate({ zh: "冰雪峽谷Ⅱ", st: "" }, 1)).toBe(false);
+    expect(belowGate(undefined, 1)).toBe(false);
   });
 });

@@ -19,10 +19,15 @@ export type MapRecord = {
   mm?: 1;
   /** V002 才放行的地圖才有：開放日（YYYY-MM-DD，目前只有 "2026-10-15"），過了這天 src/lib/release.ts 判定已開放 */
   o?: string;
+  /** 要幾等才走得到（要過 NPC 傳送才到得了的圖才有，冰雪峽谷Ⅱ的傑夫後面是 50；pipeline/lib/npc-warps.mjs gateLevels） */
+  g?: number;
 };
 
-/** [目標地圖, 傳送門名稱, x, y] */
-export type PortalEdge = [number, string, number, number];
+/**
+ * [目標地圖, 傳送門名稱, x, y, 幾等以上才放行]。
+ * 靠 NPC 傳送的路（pipeline/lib/npc-warps.mjs）名稱是 `npc:<NPC 名>:<站的位置>`、座標是 NPC 站的地方，第 5 個是等級門檻（沒有就不限）
+ */
+export type PortalEdge = [number, string, number, number, number?];
 
 export type Monster = {
   id: number;
