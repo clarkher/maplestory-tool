@@ -148,7 +148,7 @@ jobs:
       - name: 全套測試（含首頁每個組合的真資料檢查）
         if: steps.check.outputs.changed == 'true'
         run: |
-          node --test "pipeline/**/*.test.mjs"
+          node --test --test-reporter=spec "pipeline/**/*.test.mjs"
           npx vitest run --reporter=default
 
       - name: 建置一次確保網站編得過

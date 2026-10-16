@@ -295,7 +295,8 @@ test("refresh、publish 都有時間上限：卡住不會一直佔著到 6 小�
 test("拿新資料跑全套測試（pipeline＋vitest 全部，不是只跑首頁那一支）；vitest 用預設的輸出格式：不加 GitHub 標註，失敗時錯誤訊息最後幾行才看得到測試名與摘要", () => {
   // 2026-10-15 只跑 now-plan-realdata：上游 2.0.0 漏抽熟練度、傷害計算機算錯照樣合進正式機（#129），dev 的完整測試才抓到（使用者 10/16 選 5）
   const block = stepBlock("全套測試（含首頁每個組合的真資料檢查）");
-  assert.match(block, /node --test "pipeline\/\*\*\/\*\.test\.mjs"/);
+  // --test-reporter=spec：Actions 上 node --test 預設是 TAP，失敗時通知 issue 的「最後 30 行」只剩統計、看不到哪支壞（code review）
+  assert.match(block, /node --test --test-reporter=spec "pipeline\/\*\*\/\*\.test\.mjs"/);
   assert.match(block, /npx vitest run --reporter=default\s*$/m);
   assert.doesNotMatch(block, /now-plan-realdata/);
 });

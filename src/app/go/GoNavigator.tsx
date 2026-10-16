@@ -398,7 +398,7 @@ function CrossAreaNotice({
             {mapName(maps, from)} 走不到 {mapName(maps, to)}
           </p>
           {/* 目的地在楓之島、起點不在：只說沒有傳送門，不叫人搭車（route.ts crossAreaText） */}
-          <p className="mt-1 ink-soft">{crossAreaText(from, to, isAirshipArea(from, maps) !== isAirshipArea(to, maps))}</p>
+          <p className="mt-1 ink-soft">{crossAreaText(from, to, { from: isAirshipArea(from, maps), to: isAirshipArea(to, maps) })}</p>
         </div>
       </div>
 

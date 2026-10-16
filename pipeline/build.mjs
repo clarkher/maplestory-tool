@@ -20,7 +20,6 @@ import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
 import { shopRows } from "./lib/shops.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
-import { applyTextRewards } from "./lib/text-rewards.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
@@ -106,9 +105,6 @@ function main() {
   const twTable = twSpawns(artale.maps);
   const spawnTable = mergeSpawns(twTable, v83.maps);
   const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
-  // 任務說明寫明、上游獎勵欄沒列的獎勵（女神的痕跡 → 女神手鐲），見 lib/text-rewards.mjs
-  const textRewards = applyTextRewards(artale);
-  if (textRewards.length) console.log(`[quests] 照任務說明補的獎勵：${textRewards.join("、")}`);
   const items = buildItems(artale, monsters, maps);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);

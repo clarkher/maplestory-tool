@@ -232,6 +232,18 @@ describe("天空之城那一帶要搭飛船（官方 10/15【內容擴充】：�
     for (const id of [PERION, FLORINA, 999]) expect(isAirshipArea(id, maps), String(id)).toBe(false);
   });
 
+  it("沒有回城點的圖照地圖標記認（雪人之谷 ElNath、雅典娜禁地 GoddessTower 都算；code review）", () => {
+    const more: Record<string, MapRecord> = {
+      ...maps,
+      "211040101": { zh: "雪人之谷", st: "艾納斯島", mk: "ElNath" },
+      "920010000": { zh: "雅典娜禁地<岔路>", st: "隱密之地", mk: "GoddessTower" },
+      "100000000": { zh: "弓箭手村", st: "", mk: "Henesys" },
+    };
+    expect(isAirshipArea(211040101, more)).toBe(true);
+    expect(isAirshipArea(920010000, more)).toBe(true);
+    expect(isAirshipArea(100000000, more)).toBe(false);
+  });
+
   it("起點那段要自己過去的提示：天空之城那一帶寫飛船、班距、在哪買票；其他照舊", () => {
     const text = goNoteText("region", "天空之城", true);
     expect(text).toContain("魔法森林碼頭");
@@ -241,16 +253,33 @@ describe("天空之城那一帶要搭飛船（官方 10/15【內容擴充】：�
     expect(goNoteText("region", "黃金海灘", false)).toBe("黃金海灘跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。");
   });
 
-  it("走不到的說明：一邊在天空之城那一帶就寫搭飛船，不叫人搭車；沒標的照舊", () => {
-    const text = crossAreaText(PERION, 200010000, true);
+  it("走不到的說明：一邊在天空之城那一帶、一邊不在，寫搭飛船，不叫人搭車；都不在的照舊", () => {
+    const text = crossAreaText(PERION, 200010000, { from: false, to: true });
     expect(text).toContain("這兩張圖不在同一個可步行區域");
     expect(text).toContain("魔法森林碼頭");
     expect(text).not.toContain("搭車");
-    expect(crossAreaText(PERION, FLORINA, false)).toContain("先在遊戲裡搭車過去");
+    expect(crossAreaText(200010000, PERION, { from: true, to: false })).toContain("魔法森林碼頭");
+    expect(crossAreaText(PERION, FLORINA, { from: false, to: false })).toContain("先在遊戲裡搭車過去");
+    expect(crossAreaText(PERION, FLORINA)).toContain("先在遊戲裡搭車過去");
   });
 
-  it("主推卡「從 X 走 N 張圖」後面那句：天空之城那一帶寫搭飛船，其他照舊寫搭船或搭車", () => {
+  it("從楓之島出發去天空之城那一帶：先說搭船到維多利亞港，再說飛船（code review）", () => {
+    const text = crossAreaText(RAINBOW, 200010000, { from: false, to: true });
+    expect(text).toContain("先搭船到維多利亞港");
+    expect(text).toContain("魔法森林碼頭");
+  });
+
+  it("兩邊都在天空之城那一帶卻走不到：不說跨大陸、不叫人搭飛船，照實說傳送門資料少了這一段（code review）", () => {
+    const text = crossAreaText(211000000, 211040300, { from: true, to: true });
+    expect(text).toContain("傳送門資料少了中間這一段");
+    expect(text).not.toContain("飛船");
+    expect(text).not.toContain("搭車");
+  });
+
+  it("主推卡「從 X 走 N 張圖」後面那句：天空之城這側寫搭飛船，冰原雪域那側多寫穿過天空之城塔，其他照舊寫搭船或搭車", () => {
     expect(boatText(200000000, maps)).toBe("從魔法森林碼頭搭飛船過去，每 15 分鐘一班");
+    expect(boatText(211000000, maps)).toBe("從魔法森林碼頭搭飛船到天空之城（每 15 分鐘一班），再穿過天空之城塔過去");
+    expect(boatText(211040300, maps)).toBe("從魔法森林碼頭搭飛船到天空之城（每 15 分鐘一班），再穿過天空之城塔過去");
     expect(boatText(110000000, maps)).toBe("黃金海灘要搭船或搭車過去");
   });
 });
