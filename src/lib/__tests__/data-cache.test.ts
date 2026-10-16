@@ -103,3 +103,26 @@ describe("首頁的攻略跟裝備卡也一樣（換頁回首頁不先放骨架�
     expect(data.peekGear()).toBeNull();
   });
 });
+
+describe("練功測速的名字樣板（手動重產，不跟 meta 版本號走）", () => {
+  const names = { jobFont: "x", titleFont: "y", gh: 8, cell: 8, jobs: [], titles: [] };
+
+  it("每次回伺服器確認（no-cache、網址不帶版本號、不先抓 meta），同一次瀏覽只抓一次", async () => {
+    const fake = stubFetch({ "/data/speed-names.json": names });
+    const [a, b] = await Promise.all([data.loadSpeedNames(), data.loadSpeedNames()]);
+    expect(a).toEqual(names);
+    expect(b).toBe(a);
+    expect(await data.loadSpeedNames()).toBe(a);
+    expect(fake.mock.calls).toHaveLength(1);
+    expect(fake.mock.calls[0][0]).toBe("/data/speed-names.json");
+    expect((fake.mock.calls[0] as unknown[])[1]).toEqual({ cache: "no-cache" });
+  });
+
+  it("載入失敗不記住，下次再試", async () => {
+    stubFetch({});
+    await expect(data.loadSpeedNames()).rejects.toThrow("載入名字樣板失敗（404）");
+    const fake = stubFetch({ "/data/speed-names.json": names });
+    expect(await data.loadSpeedNames()).toEqual(names);
+    expect(requestsTo(fake, "/data/speed-names.json")).toBe(1);
+  });
+});

@@ -4,7 +4,12 @@ process.env.MAPLEBOOK_BUILD_TIME ??= String(Date.now());
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  env: { MAPLEBOOK_BUILD_TIME: process.env.MAPLEBOOK_BUILD_TIME },
+  env: {
+    MAPLEBOOK_BUILD_TIME: process.env.MAPLEBOOK_BUILD_TIME,
+    // 練功測速的驗收掛勾（window.__speedTestStream）只在非正式機有效：建置時 Vercel 一定有 VERCEL_ENV，
+    // 寫死進程式，不靠專案設定有沒有打開「自動公開系統環境變數」（沒打開的話正式機上是空的，掛勾就會開著）
+    NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV ?? "",
+  },
   reactStrictMode: true,
   images: { unoptimized: true },
   async headers() {
@@ -33,6 +38,11 @@ const nextConfig = {
       {
         // 裝備卡（一半是玩家攻略，研究改了 meta 版本號不會動）：每次回伺服器確認
         source: "/data/gear.json",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
+        // 練功測速的名字樣板（手動重產、不跟 meta 的版本號走）：每次回伺服器確認，重產後才不會拿到舊樣板
+        source: "/data/speed-names.json",
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
     ];
