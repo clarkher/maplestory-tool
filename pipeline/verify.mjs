@@ -9,7 +9,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { readJson } from "./lib/http.mjs";
 import { WEAPON_TYPES } from "./lib/gear.mjs";
-import { OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
+import { HELD_BACK_MAPS, OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
+import { NPC_WARPS } from "./lib/npc-warps.mjs";
+import { officialNoteStatus, OFFICIAL_SKILL_NOTES } from "./lib/official-skill-notes.mjs";
 
 const OUT = path.resolve(import.meta.dirname, "..", "public", "data");
 
@@ -25,7 +27,8 @@ const notes = [];
  */
 const REGION_SENTINELS = {
   冰原雪域: [200020000 /* 雲彩公園Ⅱ */, 200080200 /* 天空之城塔<20層> */, 211040100 /* 冰雪峽谷Ⅰ */],
-  廢礦: [211041500 /* 廢棄礦坑Ⅰ */, 280030000 /* 殘暴炎魔祭壇 */],
+  // 殘暴炎魔祭壇 2026-10-16 起擋著（官方只開前半部，lib/map-names.mjs 的 HELD_BACK_MAPS），代表圖改用尖銳的絕壁Ⅰ
+  廢礦: [211041500 /* 廢棄礦坑Ⅰ */, 211040300 /* 尖銳的絕壁Ⅰ */],
   日本: [800020400 /* 江戶村 彎曲地獄路 */],
 };
 
@@ -62,6 +65,14 @@ function main() {
     [skill.desc, TOKEN.test(skill.formula ?? "") ? "" : skill.formula, ...Object.values(skill.levelText ?? {})].some(text => text?.includes("#")),
   );
   check("技能卡上的字沒有「#」（說明、效果、每一級的原文）", leaked.length === 0, leaked.slice(0, 5).map(skill => `${skill.id} ${skill.n}`).join("、"));
+
+  // 官方公告改了、遊戲說明還沒跟上的那行（脫離戰場 1.5 秒）：要嘛卡片有這行，要嘛說明已經是新數字；
+  // 兩個都不是＝上游換了說明的寫法，這行默默不見、說明其實還是舊的（lib/official-skill-notes.mjs）
+  const lostNotes = Object.keys(OFFICIAL_SKILL_NOTES).map(Number).filter(id => {
+    const skill = (skills ?? []).find(entry => entry.id === id);
+    return !skill || (!skill.note && officialNoteStatus(id, skill.desc) !== "fixed");
+  });
+  check("官方公告改了的技能，卡片有那一行或說明已經改好", lostNotes.length === 0, lostNotes.length ? lostNotes.join("、") : `${Object.keys(OFFICIAL_SKILL_NOTES).length} 個`);
 
   // 傷害計算機要用的欄位（熟練度 M、物理攻擊力 damage、魔攻 mad）：前一版每一級都有的，這一版也要每一級都有。
   // 2026-10-15 上游 2.0.0 漏抽熟練度，36 個技能整列數值不見、計算機算錯，上面那條「#」抓不到（沒數值的級數不放原文）。
@@ -118,6 +129,11 @@ function main() {
   }
 
   // 官方公告過、但客戶端還沒補中文名的城鎮（Task 10b 補缺表）：要用公告的地名，不是空白或別的字
+  // 地區開了、官方還沒開的圖（廢礦後半部）不准帶中文名上站、不准進練功推薦
+  const trainingIds = new Set((training ?? []).map(row => row.m));
+  const leakedHeld = [...HELD_BACK_MAPS].filter(([id]) => maps?.[String(id)]?.zh || trainingIds.has(id)).map(([id, name]) => `${id} ${name}`);
+  check("官方還沒開的圖沒有上站（廢礦後半部）", leakedHeld.length === 0, leakedHeld.length ? `漏進來：${leakedHeld.join("、")}` : `${HELD_BACK_MAPS.size} 張都擋著`);
+
   for (const [id, entry] of Object.entries(OFFICIAL_MAP_NAMES)) {
     check(`補缺的城鎮有官方地名：${entry.name}`, maps?.[id]?.zh === entry.name, `地圖 ${id} 目前是「${maps?.[id]?.zh ?? ""}」`);
   }
@@ -139,6 +155,28 @@ function main() {
   // 多段路線：勇士之村 → 奇幻村
   check("多段路線走得通", routeExists(graph, 102000000, 105040300, 12),
     "勇士之村 → 奇幻村");
+
+  // 已開放的練功圖都要有城鎮走得到（不管等級）：v1.01 code review 第 5 項——冰雪峽谷Ⅱ往上是 NPC 傑夫送，傳送門資料沒有，
+  // 尖銳的絕壁到廢棄礦坑Ⅳ 16 張整區走不到，主推不推、首頁不給帶我去，建置照樣綠（lib/npc-warps.mjs 補上）。
+  // 下面這幾張傳送門本來就走不到（2026-10-16 查過）：組隊任務的關卡、地鐵三號線工地的車庫、隱藏地圖
+  const NOT_BY_PORTAL = new Set([
+    103000804, 103000805, // 組隊訓練場<最後階段>、<獎金地點>
+    910340500, 910340600, // 第一次同行<最後的關隘>、<獎勵>
+    103000902, 103000905, 103000909, // 三號線1～3號車庫
+    910010200, 912000000, // 肥肥村莊、秘密場所
+  ]);
+  const fromTowns = reachableFromTowns(graph, maps);
+  const stranded = (training ?? []).filter(row => !fromTowns.has(row.m) && !NOT_BY_PORTAL.has(row.m)).map(row => `${row.m} ${maps[String(row.m)]?.zh ?? ""}`);
+  check("已開放的練功圖都有城鎮走得到", stranded.length === 0,
+    stranded.length ? `走不到：${stranded.slice(0, 8).join("、")}${stranded.length > 8 ? ` 等 ${stranded.length} 張` : ""}` : `${(training?.length ?? 0) - NOT_BY_PORTAL.size} 張`);
+
+  // 有等級門檻的 NPC 傳送（傑夫 50 等）：傳送門圖裡那條要帶著門檻、送到的那張圖要標等級（maps.json 的 g）。
+  // 上游哪天補上同兩張圖的真門，傑夫那條會被門蓋掉、門檻跟著不見，路線照樣通、上面那條擋不到（code review）
+  const lostGates = NPC_WARPS.filter(warp => warp.minLevel !== undefined).filter(warp => {
+    const edge = (graph?.[String(warp.from)] ?? []).find(([to]) => to === warp.to);
+    return edge?.[4] !== warp.minLevel || maps?.[String(warp.to)]?.g !== warp.minLevel;
+  }).map(warp => `${warp.from}→${warp.to}`);
+  check("NPC 傳送的等級門檻還在（傳送門圖跟地圖的等級都有）", lostGates.length === 0, lostGates.length ? `不見了：${lostGates.join("、")}` : `${NPC_WARPS.length} 條`);
 
   const monsterIds = new Set((monsters ?? []).map(monster => monster.id));
   const badDrop = (items ?? []).filter(item => item.dm?.some(id => !monsterIds.has(id))).length;
@@ -185,6 +223,11 @@ function main() {
 
   const priced = (items ?? []).filter(item => item.price).length;
   check("道具有商店價格的筆數", priced >= 300, `${priced} 個`);
+
+  // 女神手鐲的「去哪拿」要有女神的痕跡組隊任務（2026-10-16 使用者選 7）。上游 2.0.0 22:04 版起道具來源自己有列 1203
+  // （說明寫羽翼 40 個＋溫莉好感兌換），任務獎勵欄沒列手鐲——不要自己補進任務獎勵，那會變成每次通關都給
+  const bracelet = (items ?? []).find(item => item.id === 1082232);
+  check("女神手鐲的來源有女神的痕跡（任務 1203）", Boolean(bracelet?.qr?.includes("1203")), bracelet ? `qr：${(bracelet.qr ?? []).join("、") || "（空）"}` : "女神手鐲不在 items.json");
 
   // gear.json（能力值＋裝備＋衝卷卡）：2026-10-07 加上 NPC 合成來源後是武器 232 把、卷軸 106 種，
   // 下限抓實際數 ×0.8 取整，跟著遊戲資料變動留一點空間，掉太多代表解析壞了
@@ -243,6 +286,26 @@ function routeExists(graph, from, to, maxHops) {
     frontier = next;
   }
   return false;
+}
+
+/** 從所有有中文名的城鎮出發、走傳送門（含 NPC 傳送，不看等級）到得了的圖 */
+function reachableFromTowns(graph, maps) {
+  const seen = new Set();
+  const queue = [];
+  for (const [id, record] of Object.entries(maps ?? {})) {
+    if (record.t && record.zh) {
+      seen.add(Number(id));
+      queue.push(Number(id));
+    }
+  }
+  for (let head = 0; head < queue.length; head += 1) {
+    for (const [target] of graph?.[String(queue[head])] || []) {
+      if (seen.has(target)) continue;
+      seen.add(target);
+      queue.push(target);
+    }
+  }
+  return seen;
 }
 
 main();

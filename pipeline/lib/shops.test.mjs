@@ -39,6 +39,11 @@ test("還沒開放的城鎮（水世界）的店不列，玩家去不了", () =>
   assert.equal(shopRows([shop], context), undefined);
 });
 
+test("地區開了、但官方還沒開的圖（廢礦後半部，map-names.mjs 的 HELD_BACK_MAPS）的店也不列", () => {
+  const shop = npcShop({ maps: [{ id: 211042200, name: "試煉的洞穴3", unnamed: false, regionName: "廢礦" }] });
+  assert.equal(shopRows([shop], { ...context, openRegions: [...context.openRegions, "廢礦"] }), undefined);
+});
+
 test("有名字但地區還沒開放的店也不列", () => {
   const shop = npcShop({ maps: [{ id: 220000001, name: "玩具城武器店", unnamed: false, regionName: "玩具城" }] });
   assert.equal(shopRows([shop], context), undefined);

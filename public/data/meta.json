@@ -4,8 +4,8 @@
   "dataGeneratedAtText": "2026-10-15 22:04:30 GMT+8",
   "ingest": {
     "origin": "upstream",
-    "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-10-15T17:09:45.437Z"
+    "ref": "local-sparse",
+    "fetchedAt": "2026-10-16T00:56:05.889Z"
   },
   "parts": {
     "data.js": {
@@ -63,11 +63,12 @@
     "note": "客戶端資產含未開放內容，本站只保留已開放的部分：地圖要有中文名而且所在地區已開放，任務與職業以等級上限與轉職階段判斷。"
   },
   "heldBackRegions": {
+    "廢礦（官方只開前半部）": 7,
     "日本": 1
   },
   "spawnSource": {
     "client": 274,
-    "v83": 8
+    "v83": 2
   },
   "assumptions": {
     "defaultRespawnSeconds": 7,
@@ -76,23 +77,23 @@
     "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
   },
   "counts": {
-    "monsters": 129,
+    "monsters": 115,
     "items": 14082,
     "quests": 526,
     "skills": 238,
     "maps": 5884,
-    "mapsWithChineseName": 381,
-    "portalEdges": 4041,
+    "mapsWithChineseName": 375,
+    "portalEdges": 4042,
     "towns": 343,
     "regions": 40,
-    "walkableAreas": 4047,
-    "trainingMaps": 279,
-    "farmableItems": 1426
+    "walkableAreas": 4046,
+    "trainingMaps": 273,
+    "farmableItems": 1391
   },
   "coverage": {
-    "monstersWithSpawnData": 108,
-    "monstersWithoutSpawnData": 21,
+    "monstersWithSpawnData": 104,
+    "monstersWithoutSpawnData": 11,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-15T17:09:56.571Z"
+  "builtAt": "2026-10-16T08:46:37.195Z"
 }

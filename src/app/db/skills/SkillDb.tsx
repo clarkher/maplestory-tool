@@ -211,6 +211,16 @@ function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
         </p>
       ) : null}
 
+      {/* 官方公告改了、遊戲說明還沒跟上（脫離戰場冷卻 1.5 秒，2026-10-16 使用者選 3A） */}
+      {skill.note ? (
+        <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-sm">
+          {skill.note.t}
+          <a href={skill.note.s} target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline decoration-[color:var(--paper-edge)] underline-offset-4">
+            看公告
+          </a>
+        </p>
+      ) : null}
+
       {levels.kind === "table" ? (
         <Section title="各等級數值" extra={`${levels.rows.length} 級`}>
           {reachNote}

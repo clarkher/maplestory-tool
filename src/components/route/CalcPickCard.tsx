@@ -11,6 +11,7 @@ import { tenMinuteText } from "@/lib/damage-view";
 import { isMagicJob, type GearData } from "@/lib/gear";
 import type { HomeData } from "@/lib/home-data";
 import { useBeforeV002 } from "@/lib/release";
+import { boatText } from "@/lib/route";
 import { sessionMemo } from "@/lib/session-memo";
 import type { GuideJob, Skill } from "@/lib/types";
 import { Chip, Sprite } from "./bits";
@@ -49,7 +50,7 @@ function Row({ row, pick, level, maps }: { row: CalcPickRow; pick: CalcPick; lev
               {option.lead.n} Lv{option.lead.lv ?? "?"}×{option.mobs[0]?.[1] ?? 0}・{goalText({ ...pick, goal: row.goal }, option.kills)}
             </p>
             {option.tenMinute ? <p className="text-[12px] font-bold text-[color:var(--leaf)]">{tenMinuteText(option.tenMinute, level)}</p> : null}
-            {option.hops && option.town ? <p className="text-[11px] ink-faint">從{mapName(maps, option.town)}走 {option.hops} 張圖{option.boat ? "（要搭船或搭車過去）" : ""}</p> : null}
+            {option.hops && option.town ? <p className="text-[11px] ink-faint">從{mapName(maps, option.town)}走 {option.hops} 張圖{option.boat ? `（${boatText(option.town, maps)}）` : ""}</p> : null}
           </>
         ) : (
           <p className="text-[13px] ink-soft">這個等級沒有合適的圖</p>

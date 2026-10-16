@@ -12,9 +12,27 @@
  * 之後要加新的一筆，先確認真的有公告，不要用猜的。
  */
 export const OFFICIAL_MAP_NAMES = {
+  // 去天空之城的飛船從這裡出發（官方 10/15【內容擴充】：「透過魔法森林碼頭的售票員購買船票，搭乘每15分鐘一班的飛船」）
+  101000300: { name: "魔法森林碼頭", source: "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209" },
   200000000: { name: "天空之城", source: "https://maplestoryclassic.beanfun.com/bulletin?Bid=83849" },
   211000000: { name: "冰原雪域", source: "https://maplestoryclassic.beanfun.com/bulletin?Bid=83849" },
 };
+
+/**
+ * 地區算已開放、但官方還沒開的圖（id → 名字）：建置時不給中文名，跟未開放地區同一套——練功、地圖、只出現在這些圖的怪都不會上站。
+ * V002 公告只開「冰原雪域（含廢棄礦坑前半部）」，沒寫前半部到哪（https://maplestoryclassic.beanfun.com/bulletin?Bid=83952）。
+ * 2026-10-16 使用者拍板 2B：試煉的洞穴 1～3（含洞穴裡的小洞穴）、火山那段（火山通道、火山的氣息、殘暴炎魔祭壇）先擋，
+ * 有實測說進得去再拿掉。
+ */
+export const HELD_BACK_MAPS = new Map([
+  [211042000, "試煉的洞穴1"],
+  [211042100, "試煉的洞穴2"],
+  [211042101, "洞穴裡的小洞穴"],
+  [211042200, "試煉的洞穴3"],
+  [211041900, "火山通道"],
+  [280020000, "火山的氣息<第1階段>"],
+  [280030000, "殘暴炎魔祭壇"],
+]);
 
 /**
  * 地圖的中文名：客戶端有名字就一律用客戶端的——改版後玩家實際看到的以它為準，

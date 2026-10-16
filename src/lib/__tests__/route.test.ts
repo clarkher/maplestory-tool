@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAIN_TOWNS, VICTORIA_PORT, boatNote, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, suggestStart, townChips, townsTitle,
-  victoriaReach,
+  MAIN_TOWNS, VICTORIA_PORT, belowGate, boatNote, boatText, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, isAirshipArea, suggestStart, townChips,
+  townsTitle, victoriaReach,
 } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 
@@ -217,6 +217,73 @@ describe("走不到（跨區）時的說明（round 4）", () => {
   });
 });
 
+describe("天空之城那一帶要搭飛船（官方 10/15【內容擴充】：魔法森林碼頭的售票員買船票，每 15 分鐘一班；2026-10-16 使用者選 6）", () => {
+  const maps: Record<string, MapRecord> = {
+    "200000000": { zh: "天空之城", st: "", ret: 200000000 },
+    "200010000": { zh: "雲彩公園Ⅰ", st: "天空之城", ret: 200000000 },
+    "211000000": { zh: "冰原雪域", st: "", ret: 211000000 },
+    "211040300": { zh: "尖銳的絕壁Ⅰ", st: "廢棄礦坑", ret: 211000000 },
+    "102000000": { zh: "勇士之村", st: "", ret: 102000000 },
+    "110000000": { zh: "黃金海灘", st: "", ret: 110000000 },
+  };
+
+  it("天空之城、冰原雪域本身，跟回城點是它們的圖（雲彩公園、廢礦）都算；維多利亞島、黃金海灘不算", () => {
+    for (const id of [200000000, 200010000, 211000000, 211040300]) expect(isAirshipArea(id, maps), String(id)).toBe(true);
+    for (const id of [PERION, FLORINA, 999]) expect(isAirshipArea(id, maps), String(id)).toBe(false);
+  });
+
+  it("沒有回城點的圖照地圖標記認（雪人之谷 ElNath、雅典娜禁地 GoddessTower 都算；code review）", () => {
+    const more: Record<string, MapRecord> = {
+      ...maps,
+      "211040101": { zh: "雪人之谷", st: "艾納斯島", mk: "ElNath" },
+      "920010000": { zh: "雅典娜禁地<岔路>", st: "隱密之地", mk: "GoddessTower" },
+      "100000000": { zh: "弓箭手村", st: "", mk: "Henesys" },
+    };
+    expect(isAirshipArea(211040101, more)).toBe(true);
+    expect(isAirshipArea(920010000, more)).toBe(true);
+    expect(isAirshipArea(100000000, more)).toBe(false);
+  });
+
+  it("起點那段要自己過去的提示：天空之城那一帶寫飛船、班距、在哪買票；其他照舊", () => {
+    const text = goNoteText("region", "天空之城", true);
+    expect(text).toContain("魔法森林碼頭");
+    expect(text).toContain("每 15 分鐘一班");
+    expect(text).toContain("售票員");
+    expect(text).not.toContain("搭船或搭車");
+    expect(goNoteText("region", "黃金海灘", false)).toBe("黃金海灘跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。");
+  });
+
+  it("走不到的說明：一邊在天空之城那一帶、一邊不在，寫搭飛船，不叫人搭車；都不在的照舊", () => {
+    const text = crossAreaText(PERION, 200010000, { from: false, to: true });
+    expect(text).toContain("這兩張圖不在同一個可步行區域");
+    expect(text).toContain("魔法森林碼頭");
+    expect(text).not.toContain("搭車");
+    expect(crossAreaText(200010000, PERION, { from: true, to: false })).toContain("魔法森林碼頭");
+    expect(crossAreaText(PERION, FLORINA, { from: false, to: false })).toContain("先在遊戲裡搭車過去");
+    expect(crossAreaText(PERION, FLORINA)).toContain("先在遊戲裡搭車過去");
+  });
+
+  it("從楓之島出發去天空之城那一帶：先說搭船到維多利亞港，再說飛船（code review）", () => {
+    const text = crossAreaText(RAINBOW, 200010000, { from: false, to: true });
+    expect(text).toContain("先搭船到維多利亞港");
+    expect(text).toContain("魔法森林碼頭");
+  });
+
+  it("兩邊都在天空之城那一帶卻走不到：不說跨大陸、不叫人搭飛船，照實說傳送門資料少了這一段（code review）", () => {
+    const text = crossAreaText(211000000, 211040300, { from: true, to: true });
+    expect(text).toContain("傳送門資料少了中間這一段");
+    expect(text).not.toContain("飛船");
+    expect(text).not.toContain("搭車");
+  });
+
+  it("主推卡「從 X 走 N 張圖」後面那句：天空之城這側寫搭飛船，冰原雪域那側多寫穿過天空之城塔，其他照舊寫搭船或搭車", () => {
+    expect(boatText(200000000, maps)).toBe("從魔法森林碼頭搭飛船過去，每 15 分鐘一班");
+    expect(boatText(211000000, maps)).toBe("從魔法森林碼頭搭飛船到天空之城（每 15 分鐘一班），再穿過天空之城塔過去");
+    expect(boatText(211040300, maps)).toBe("從魔法森林碼頭搭飛船到天空之城（每 15 分鐘一班），再穿過天空之城塔過去");
+    expect(boatText(110000000, maps)).toBe("黃金海灘要搭船或搭車過去");
+  });
+});
+
 describe("城鎮按鈕（跨區、問起點時；round 3 B2／F）", () => {
   const HENESYS = 100000000;
   const HOUSE = 100000001;
@@ -336,5 +403,56 @@ describe("楓之島的城鎮按鈕（round 3 最後一輪）", () => {
   it("跟目的地同名、但不是目的地那張的不給（不會排出「菇菇村 → 菇菇村 共 1 段」）", () => {
     expect(townChips(maps, graph, MUSHROOM_TWO, { first: MAIN_TOWNS, exceptTarget: true })).toEqual([PERRY, AMHERST]);
     expect(townChips(maps, graph, MUSHROOM_TWO)).toEqual([PERRY, AMHERST]);
+  });
+});
+
+describe("NPC 傳送（冰雪峽谷Ⅱ最上面的傑夫送到尖銳的絕壁Ⅰ，v1.04 使用者拍板 A：照 50 等算）", () => {
+  const EL_NATH = 211000000;
+  const VALLEY = 211040200;
+  const CLIFF = 211040300;
+  const WOLF = 211040500;
+  const graph: Record<string, PortalEdge[]> = {
+    [EL_NATH]: [[VALLEY, "east00", 900, 0]],
+    [VALLEY]: [[EL_NATH, "west00", 0, 0], [CLIFF, "npc:傑夫:最上面", -29, -2585, 50]],
+    [CLIFF]: [[VALLEY, "under00", -349, 453], [WOLF, "top00", 548, -1673]],
+    [WOLF]: [[CLIFF, "under00", 0, 0]],
+  };
+
+  it("沒給等級（/go 查路線）照樣走得到，傑夫那一步帶著幾等以上", () => {
+    const route = findRoute(graph, EL_NATH, WOLF);
+    expect(route.ok).toBe(true);
+    if (!route.ok) return;
+    expect(route.steps.map(step => step.map)).toEqual([EL_NATH, VALLEY, CLIFF, WOLF]);
+    expect(route.steps[2]).toEqual({ map: CLIFF, via: "npc:傑夫:最上面", x: -29, y: -2585, minLevel: 50 });
+  });
+
+  it("一般傳送門那一步不帶等級", () => {
+    const route = findRoute(graph, EL_NATH, WOLF);
+    if (!route.ok) throw new Error("走不到");
+    expect(route.steps[1]).not.toHaveProperty("minLevel");
+    expect(route.steps[3]).not.toHaveProperty("minLevel");
+  });
+
+  it("給了等級：49 等過不了傑夫（後面整區都走不到），50 等可以", () => {
+    expect(findRoute(graph, EL_NATH, CLIFF, 49).ok).toBe(false);
+    expect(findRoute(graph, EL_NATH, WOLF, 49).ok).toBe(false);
+    expect(findRoute(graph, EL_NATH, CLIFF, 50).ok).toBe(true);
+    expect(findRoute(graph, EL_NATH, WOLF, 120).ok).toBe(true);
+  });
+
+  it("往回走不用找傑夫，不看等級", () => {
+    expect(findRoute(graph, WOLF, EL_NATH, 30).ok).toBe(true);
+  });
+});
+
+describe("這張圖等級夠不夠走得到（maps.json 的 g，打怪練功頁用，v1.04）", () => {
+  it("有標 50：49 等不夠、50 等夠", () => {
+    expect(belowGate({ zh: "尖銳的絕壁Ⅰ", st: "", g: 50 }, 49)).toBe(true);
+    expect(belowGate({ zh: "尖銳的絕壁Ⅰ", st: "", g: 50 }, 50)).toBe(false);
+  });
+
+  it("沒標（不用過 NPC）、查不到的圖：不擋", () => {
+    expect(belowGate({ zh: "冰雪峽谷Ⅱ", st: "" }, 1)).toBe(false);
+    expect(belowGate(undefined, 1)).toBe(false);
   });
 });

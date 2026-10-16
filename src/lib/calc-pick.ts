@@ -145,7 +145,7 @@ export function calcPick(args: {
       const lead = mobs[0] ? index.get(mobs[0][0]) : undefined;
       if (!lead || !targets.has(lead.id)) continue;
       if (!jobFit(stage, level, mobs, index).ok) continue;
-      const route = townRoute(row.m, graph, data.maps, nearestTown, island);
+      const route = townRoute(row.m, graph, data.maps, nearestTown, island, level);
       if (route.hops === undefined) continue;
       found.push({ option: { map: row.m, title: record.zh, row, mobs, lead, ...route }, score: row.eff * (route.hops >= FAR_HOPS ? 0.7 : 1) });
     }
