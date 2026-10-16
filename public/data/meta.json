@@ -83,10 +83,10 @@
     "skills": 238,
     "maps": 5884,
     "mapsWithChineseName": 375,
-    "portalEdges": 4041,
+    "portalEdges": 4042,
     "towns": 343,
     "regions": 40,
-    "walkableAreas": 4047,
+    "walkableAreas": 4046,
     "trainingMaps": 273,
     "farmableItems": 1391
   },
@@ -95,5 +95,5 @@
     "monstersWithoutSpawnData": 11,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-16T01:23:11.168Z"
+  "builtAt": "2026-10-16T08:46:37.195Z"
 }
