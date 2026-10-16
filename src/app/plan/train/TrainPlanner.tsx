@@ -12,6 +12,7 @@ import {
 import { respawnText } from "@/lib/format";
 import { useProfile } from "@/lib/profile";
 import { planTraining, relativeIndex, requiredAccuracy } from "@/lib/planner";
+import { belowGate } from "@/lib/route";
 import type { MapRecord, Meta, Monster, TrainingRow } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 
@@ -41,10 +42,11 @@ export function TrainPlanner() {
     [monsters],
   );
 
+  // 等級不夠走到的圖（49 等以下的尖銳的絕壁～廢棄礦坑Ⅳ，要找傑夫 50 等）不列（2026-10-16 使用者拍板 A）
   const picks = useMemo(() => {
-    if (!training || !monsterIndex.size || profile.level <= 0) return [];
-    return planTraining(profile, training, monsterIndex, 24);
-  }, [training, monsterIndex, profile]);
+    if (!training || !maps || !monsterIndex.size || profile.level <= 0) return [];
+    return planTraining(profile, training.filter(row => !belowGate(maps[String(row.m)], profile.level)), monsterIndex, 24);
+  }, [training, maps, monsterIndex, profile]);
 
   const index = useMemo(() => relativeIndex(picks), [picks]);
   const ready = Boolean(maps && monsters && training);

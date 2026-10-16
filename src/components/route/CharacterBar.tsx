@@ -54,7 +54,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
         ? `${option?.line} · 三轉`
         : tier === 2
           ? profile.level >= THIRD_JOB_LEVEL
-            ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等${beforeOpen ? "可以三轉（10/15 開放）" : "可以三轉了（照舊版）"}`
+            ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等${beforeOpen ? "可以三轉（10/15 開放）" : "可以三轉了（到冰原雪域的長老公館）"}`
             : `${option?.line} · 二轉`
           : profile.level >= SECOND_JOB_LEVEL ? `一轉 · ${SECOND_JOB_LEVEL} 等可以二轉了` : "一轉";
 
@@ -196,7 +196,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
 
           <div>
             <p className="mb-1.5 text-sm font-bold">
-              職業 <span className="text-xs font-normal ink-faint">法師 8 等、其他 10 等轉職；二轉 30 等起；三轉先照舊版 70 等（等開機公告確認）</span>
+              職業 <span className="text-xs font-normal ink-faint">法師 8 等、其他 10 等轉職；二轉 30 等起；三轉 70 等（到冰原雪域的長老公館）</span>
             </p>
             {/* 先選一轉（系別），下面只列這一系的二轉，每個二轉右邊接它的三轉（刺客 → 暗殺者）；
                 2026-10-06 使用者：三排全列「不好找也不直覺、不曉得是從哪個職業二轉的」 */}

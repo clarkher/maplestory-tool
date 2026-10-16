@@ -139,13 +139,17 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/verify.mjs
 
-      # 拿新資料把首頁每個職業 × 等級跑一次：主推都有、組隊任務在遊戲等級限制內、帶我去走得到、
-      # 封頂提示不自相矛盾、多升一級主推圖不會掉超過 10 級、長線沒有做不動的任務、先解沒有同名兩行。壞了就不開 PR
+      # 拿新資料跑全套測試（跟 PR 的「單元測試」同一套：pipeline 的 node --test＋vitest 全部）：首頁每個職業 × 等級
+      # （主推都有、組隊任務在遊戲等級限制內、帶我去走得到…）、傷害計算機、技能卡、道具「哪裡買得到」都拿新資料驗。壞了就不開 PR。
+      # 2026-10-15 只跑首頁那一支（now-plan-realdata）：上游 2.0.0 漏抽熟練度、計算機算錯照樣合進正式機（#129），
+      # dev 的完整測試才抓到 29 項紅（使用者 10/16 選 5 改成全套）
       # --reporter=default：vitest 在 GitHub Actions 上預設會在摘要之後再印一串標註，失敗一多，
       # 通知 issue 裡「錯誤訊息最後 30 行」就只剩標註、看不到哪個組合壞了
-      - name: 首頁每個組合跑一次真資料檢查
+      - name: 全套測試（含首頁每個組合的真資料檢查）
         if: steps.check.outputs.changed == 'true'
-        run: npx vitest run --reporter=default src/lib/__tests__/now-plan-realdata.test.ts
+        run: |
+          node --test --test-reporter=spec "pipeline/**/*.test.mjs"
+          npx vitest run --reporter=default
 
       - name: 建置一次確保網站編得過
         if: steps.check.outputs.changed == 'true'
@@ -232,9 +236,9 @@ jobs:
             git push origin --delete "$BRANCH"
           fi
           git push -u origin "$BRANCH"
-          # refresh 的 verify.mjs、首頁真資料檢查、next build 全過才會走到這裡，PR 開了就直接合
+          # refresh 的 verify.mjs、全套測試、next build 全過才會走到這裡，PR 開了就直接合
           gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）" \
-            --body "自動資料更新。verify.mjs 與首頁真資料檢查全數通過、next build 成功。合併後 Vercel 會自動部署。" \
+            --body "自動資料更新。verify.mjs 與全套測試全數通過、next build 成功。合併後 Vercel 會自動部署。" \
             --base main --head "$BRANCH"
           gh pr merge "$BRANCH" --squash --delete-branch --admin
 

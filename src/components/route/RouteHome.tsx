@@ -10,12 +10,13 @@ import {
   cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, settleGuides, type GuideState, type HomeData,
 } from "@/lib/home-data";
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
-import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
+import { effectiveLevels, goChecker, longRunNow, mainPick, nowQuests, pqJustClosed } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
 import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
+import { goddessPqNote } from "@/lib/v002-notes";
 import { useVisitState } from "@/lib/visit-state";
 import { CalcPickCard } from "./CalcPickCard";
 import { CharacterBar } from "./CharacterBar";
@@ -40,6 +41,7 @@ export function RouteHome() {
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
+  const goddess = goddessPqNote(profile.level);
   const [data, setData] = useState<HomeData | null>(peekHomeData);
   const [guideState, setGuideState] = useState<GuideState>(() => ({ job: profile.job, ...guidesFor(profile.job, new Map()) }));
   const [error, setError] = useState<string | null>(null);
@@ -103,15 +105,11 @@ export function RouteHome() {
   // 先解展開任務細節時，「要先完成」寫前置任務的名字
   const questNames = useMemo(() => new Map((data?.quests ?? []).map(quest => [quest.id, quest.n])), [data]);
 
-  // 城鎮走得到才給「去」（跟主推卡的「帶我去」同一個條件）；同一張圖只算一次
-  const canGo = useMemo(() => {
-    const cache = new Map<number, boolean>();
-    return (map: number) => {
-      if (!data) return false;
-      if (!cache.has(map)) cache.set(map, townRoute(map, data.graph, data.maps, data.nearestTown).hops !== undefined);
-      return cache.get(map) as boolean;
-    };
-  }, [data]);
+  // 城鎮走得到才給「去」（跟主推卡的「帶我去」同一個條件，等級不夠過傑夫的不給；真資料測試用同一支 goChecker）
+  const canGo = useMemo(
+    () => (data ? goChecker(data.graph, data.maps, data.nearestTown) : () => false),
+    [data],
+  );
   // 這一轉的攻略還在載入（主推卡放骨架）；升級路線也先不照主推寫標籤，免得先寫一張遊戲資料的圖又換掉
   const guideLoading = stage > 0 && !stageGuide && guideStatus === "loading";
 
@@ -215,6 +213,16 @@ export function RouteHome() {
           ) : (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
           )}
+
+          {/* 女神的痕跡（v1.01 使用者選 1A）：只放官方確定的地點、人數、獎勵，沒有攻略所以不當主推 */}
+          {goddess ? (
+            <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">
+              {goddess.text}
+              <Link href={goddess.quest} className="ml-1 font-bold underline decoration-[color:var(--paper-edge)] underline-offset-4">
+                看任務
+              </Link>
+            </p>
+          ) : null}
 
           {/* 照傷害算的推薦（v0.92 使用者選 1A）：主推卡下面多一張，自己載技能表、裝備表；攻略還在載就等它 */}
           {profile.job > 0 ? <CalcPickCard job={profile.job} level={profile.level} home={data} guides={guides} guideStatus={guideStatus} /> : null}

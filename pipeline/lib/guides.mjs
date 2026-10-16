@@ -123,7 +123,7 @@ export function normalizeReward(raw, itemIds, questName = "") {
   };
 }
 
-/** 三轉的等級：先照舊版 70 等（跟 src/lib/jobs.ts THIRD_JOB_LEVEL 同一個數字） */
+/** 三轉的等級：官方 10/15 公告 70 等（跟 src/lib/jobs.ts THIRD_JOB_LEVEL 同一個數字） */
 export const THIRD_JOB_LEVEL = 70;
 
 /**

@@ -194,3 +194,12 @@ describe("卡上那句", () => {
     expect(goalText({ goal: "aoe", skillName: "炸彈箭", skillId: 3101005 }, 4)).toBe("炸彈箭約 4 下打死（照被射中那隻算）");
   });
 });
+
+describe("要找傑夫（50 等，參考舊版）才進得去的圖（v1.04 使用者拍板 A）", () => {
+  it("法師 46～49 等不推廢棄礦坑Ⅳ（不看等級的話會推）", () => {
+    for (let level = 46; level <= 49; level += 1) {
+      const maps = (pickFor(200, level)?.options ?? []).map(option => option.map);
+      expect(maps, `法師 ${level}`).not.toContain(211041800);
+    }
+  });
+});

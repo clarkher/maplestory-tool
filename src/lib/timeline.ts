@@ -68,8 +68,8 @@ export type TimelineInput = {
   pqs: GuidePq[];
   /** 主推卡；你在的那一段照它寫標籤、排第一列 */
   pick?: MainPick;
-  /** 城鎮走得到（跟主推卡的「帶我去」同一個條件） */
-  canGo: (map: number) => boolean;
+  /** 城鎮走得到（跟主推卡的「帶我去」同一個條件）；level：這段查哪個等級，等級不夠過 NPC 傳送（傑夫 50 等）就走不到 */
+  canGo: (map: number, level: number) => boolean;
 };
 
 /** 主推卡的答案：地圖名、組隊任務名，轉職卡就是「轉職」 */
@@ -104,7 +104,11 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
   const { job, level, guides, monsterIndex, spawns, maps, training, pqs, pick, canGo } = input;
   const { stage, guide } = bandGuide(guides, job, band);
   const island = onIsland(job, level);
-  const goTo = (map: number | null) => (map !== null && canGo(map) && (island || !isIslandMap(map)) ? map : undefined);
+  // 查哪個等級：你在的這段用你現在的等級（跟 warnOf／fitLevel 同一套），其他段用段落中點；
+  // 中點不超過等級上限前一級（原本寫死 99，100–120 那段的中點 110 會被砍成 99，查出來整段是空的）。
+  // 「去」照你到那段時的等級：往後的段落用中點，回頭看比你低的段落用你現在的等級（95 等看 40–50 段，過得了傑夫）
+  const middle = active ? level : Math.min(LEVEL_CAP - 1, Math.round((band.from + band.to - 1) / 2));
+  const goTo = (map: number | null) => (map !== null && canGo(map, Math.max(level, middle)) && (island || !isIslandMap(map)) ? map : undefined);
   const mobsOn = (map: number) => (spawns.get(map) ?? []).map(([id]) => id);
 
   // 先判斷職業規則（你在的這段用現在等級），同一張圖併成一組，再挑要列的（湊滿 3 張能用的就停）
@@ -159,16 +163,13 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
 
   // 遊戲資料替代：沒有能用的攻略時才放；王圖（刷怪點 3 個以下）、楓之島、上面已經列的圖都不放
   const listedMaps = new Set(rows.map(entry => entry.map));
-  // 查哪個等級：你在的這段用你現在的等級（跟 warnOf／fitLevel 同一套），其他段用段落中點；
-  // 中點不超過等級上限前一級（原本寫死 99，100–120 那段的中點 110 會被砍成 99，查出來整段是空的）
-  const middle = active ? level : Math.min(LEVEL_CAP - 1, Math.round((band.from + band.to - 1) / 2));
   const needData = !usable && !isIslandBand(band);
   const open = training.filter(entry => !isIslandMap(entry.m) && maps[String(entry.m)]?.zh && entry.sp > BOSS_SPAWN_MAX);
   const fits = (map: number) => jobFit(stage, middle, spawns.get(map) ?? [], monsterIndex).ok;
   const pickData = (query: number): Array<{ row: TrainingRow; lead?: Monster }> =>
     planTraining({ level: query, job: stage }, open.filter(entry => !listedMaps.has(entry.m)), monsterIndex, 8).filter(entry => fits(entry.row.m));
   // 能練的最高圖（跟主推卡同一套：職業規則、不是王圖、城鎮走得到，同等級先看效率高的）
-  const cap = needData ? open.filter(entry => fits(entry.m) && canGo(entry.m)).sort((a, b) => b.lv - a.lv || b.eff - a.eff)[0] : undefined;
+  const cap = needData ? open.filter(entry => fits(entry.m) && canGo(entry.m, middle)).sort((a, b) => b.lv - a.lv || b.eff - a.eff)[0] : undefined;
   let picked = needData ? pickData(middle).slice(0, FALLBACK_COUNT) : [];
   // 段落比所有開放的練功圖高太多（V002 的 100–120、沒有攻略的 90–100）：照中點每張圖都低太多、查出來是空的，
   // 畫面只剩一句「以下是遊戲資料推算」——改列能練的最高圖（主推卡在這些等級推的就是它），再接從它的等級查到的圖

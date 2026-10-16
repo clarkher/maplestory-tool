@@ -17,8 +17,10 @@ import path from "node:path";
 import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
-import { officialName } from "./lib/map-names.mjs";
+import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
+import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopRows } from "./lib/shops.mjs";
+import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
@@ -97,7 +99,10 @@ function main() {
   const { names: zhNames, heldBack } = collectChineseMapNames(artale);
   const regions = buildRegions(v83);
   const maps = buildMaps(v83, zhNames, regions, msio);
-  const graph = buildGraph(v83, maps);
+  const graph = buildGraph(v83, maps, artale.maps);
+  // 要過 NPC 傳送（傑夫 50 等）才走得到的圖記幾等（maps.json 的 g）：沒載傳送門圖的頁面（打怪練功）照它擋
+  const namedTowns = Object.entries(maps.records).filter(([, record]) => record.t && record.zh).map(([id]) => Number(id));
+  for (const [id, level] of Object.entries(gateLevels(graph.edges, namedTowns))) if (maps.records[id]) maps.records[id].g = level;
   const components = labelComponents(graph, maps);
   const nearestTown = computeNearestTowns(maps, graph, v83);
   const canonItem = itemAliases(artale);
@@ -225,6 +230,11 @@ function collectChineseMapNames(artale) {
     if (!entry || entry.unnamed) return;
     const id = Number(entry.id);
     if (!Number.isFinite(id) || zh.has(id)) return;
+    // 地區開了、但官方還沒開的圖（廢礦後半部，lib/map-names.mjs 的 HELD_BACK_MAPS）一樣不給中文名
+    if (HELD_BACK_MAPS.has(id)) {
+      held.set(id, "廢礦（官方只開前半部）");
+      return;
+    }
     // 上游還沒分類的圖（regionName 空白）照舊放行，有分類的要在已開放清單裡
     if (entry.regionName && !RELEASE.mapRegions.includes(entry.regionName)) {
       held.set(id, entry.regionName);
@@ -321,13 +331,14 @@ function buildMaps(v83, zhNames, regions, msio) {
 /**
  * 傳送門圖。走得過去的門原則上走得回來，所以一般傳送門（pt 2、3）建成雙向；
  * 只有腳本型／單向門保持有向，避免規劃出走不通的路。
+ * 靠 NPC 傳送的路（lib/npc-warps.mjs，冰雪峽谷Ⅱ的傑夫）最後補、單向；同兩張圖已經有門就用門。
  */
-function buildGraph(v83, maps) {
+function buildGraph(v83, maps, upstreamMaps) {
   const edges = {};
-  const addEdge = (from, to, name, x, y) => {
+  const addEdge = (from, to, name, x, y, minLevel) => {
     const list = (edges[from] ||= []);
     if (list.some(edge => edge[0] === to)) return;
-    list.push([to, name, x, y]);
+    list.push(minLevel === undefined ? [to, name, x, y] : [to, name, x, y, minLevel]);
   };
 
   for (const [key, raw] of Object.entries(v83.maps)) {
@@ -338,6 +349,9 @@ function buildGraph(v83, maps) {
       // pt 2/3 是玩家走進去的一般門，反向必然存在；其餘（腳本、隱藏）不臆測
       if (type === 2 || type === 3) addEdge(to, from, targetName || "", 0, 0);
     }
+  }
+  for (const [from, [to, name, x, y, minLevel]] of npcWarpEdges(upstreamMaps)) {
+    if (maps.records[from] && maps.records[to]) addEdge(from, to, name, x, y, minLevel);
   }
   return { edges };
 }
@@ -765,6 +779,8 @@ function buildSkills(artale, allJobs) {
     // 說明尾巴的「所需技能：魔天一擊1等級以上」拆成 req，卡片另外列一行、做成連結（id 下面 linkPrereqs 接）
     desc,
     req,
+    // 官方公告改了、遊戲說明還沒跟上的（脫離戰場冷卻 1.5 秒）：卡片多一行，見 lib/official-skill-notes.mjs
+    note: officialSkillNote(Number(skill.id), skill.description),
     formula: skill.formula || undefined,
     labels: labels || skill.valueLabels || undefined,
     levels: (levels || []).map(level => level.values || {}),

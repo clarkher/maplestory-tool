@@ -75,7 +75,7 @@ const BY_ID = new Map(JOB_OPTIONS.map(job => [job.id, job]));
 
 /** 二轉開放的等級 */
 export const SECOND_JOB_LEVEL = 30;
-/** 三轉的等級：先照舊版 70 等，開機公告出來確認；要改只改這個常數（pipeline/lib/guides.mjs 有同一個數字） */
+/** 三轉的等級：官方 10/15 公告「完成二轉且等級達到 70 級」（冰原雪域的長老公館）；要改只改這個常數（pipeline/lib/guides.mjs 有同一個數字） */
 export const THIRD_JOB_LEVEL = 70;
 
 export function baseJob(job: number): number {

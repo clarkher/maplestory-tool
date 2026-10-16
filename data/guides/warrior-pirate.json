@@ -1240,9 +1240,10 @@
           ]
         },
         {
-          "text": "70 等以後拿到的點數是三轉技能點，點進二轉技能等三轉開放要洗回來或就只能這樣；板上建議 70 後不要再動技能點。",
+          "text": "70 等以後拿到的點數是三轉技能點，三轉前別點進二轉技能；板上建議 70 後不要再動技能點。10/15 改版官方已把 71 等以上角色的技能點重置，上線要重新點。",
           "sources": [
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1794"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1794",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=83939"
           ]
         }
       ]
@@ -2025,10 +2026,11 @@
           ]
         },
         {
-          "text": "降魔咒在經典版實測是降怪物物攻／物防 20%（不是舊版的固定 -20），對野王有效；有玩家計算炎魔三階碰撞傷害可從 9,331 降到 5,971，但也有人認為「碰得起的本來就碰得起」只是舒適度技能。",
+          "text": "降魔咒在經典版實測是降怪物物攻／物防 20%（不是舊版的固定 -20），對野王有效；有玩家計算炎魔三階碰撞傷害可從 9,331 降到 5,971，但也有人認為「碰得起的本來就碰得起」只是舒適度技能。10/15 官方調整（滿級）：改成 50% 機率、80 秒內物攻物防 -20%，另外 8 秒內命中率 -20%；上面的實測是改版前。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1179",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1295",
+            "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20210"
           ]
         },
         {
@@ -2966,10 +2968,11 @@
           ]
         },
         {
-          "text": "70 等三轉轉職條件（舊版）：打武術教練，會召喚月牛並使用法術，多帶萬能藥；70 等敏 80 左右可命中。經典版尚未開放三轉（2026-10-15 才開）。",
+          "text": "70 等三轉轉職條件（舊版）：打武術教練，會召喚月牛並使用法術，多帶萬能藥；70 等敏 80 左右可命中。經典版 10/15 開放三轉（官方：完成二轉、70 等到冰原雪域的長老公館），經典版的流程還沒有台服整理，上面是舊版。",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277",
-            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html"
+            "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
+            "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209"
           ]
         }
       ]
@@ -3439,7 +3442,7 @@
               "lv": 7
             }
           ],
-          "why": "舊版打手／槍手攻略的 10~18 等單練點，綠水靈弱、不會爆走；槍手雙子星傷害飄（常打個位數、怪近身會改普攻打 1），所以要卡點遠距離射。獸皇：精通指虎點滿前別用指虎，15 等皮包、20 等公事包、25 等通通樂等通用武器 AD 都高過同級指虎。",
+          "why": "舊版打手／槍手攻略的 10~18 等單練點，綠水靈弱、不會爆走；槍手雙子星傷害飄（常打個位數），所以要卡點遠距離射。獸皇：精通指虎點滿前別用指虎，15 等皮包、20 等公事包、25 等通通樂等通用武器 AD 都高過同級指虎。",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3975",
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3495",
@@ -3593,7 +3596,7 @@
           ]
         },
         {
-          "text": "板上普遍說法：海盜雙職在經典版「又苦又牢」——打手命中比劍士低、手短、推怪技能有僵直；槍手雙子星傷害極飄、不會爆擊、有近身改普攻的「強弓機制」。玩的人少，2026-08 開服一週後多篇勸退文。",
+          "text": "板上普遍說法：海盜雙職在經典版「又苦又牢」——打手命中比劍士低、手短、推怪技能有僵直；槍手雙子星傷害極飄、不會爆擊。玩的人少，2026-08 開服一週後多篇勸退文。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=286",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=559",
@@ -3605,6 +3608,12 @@
           "text": "初心者技能：疾風之步 3→團隊治癒 2→嫩寶丟擲術 1（打月妙拉怪才需要嫩寶）；疾風之步「會用一輩子」。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=820"
+          ]
+        },
+        {
+          "text": "10/15 官方平衡調整：拿火槍時普通攻擊和技能不會再因為離怪太近改用近身打擊；雙子星攻擊滿級殺傷力 80%→110%、攻擊距離變長。上面板上的評價是改版前。",
+          "sources": [
+            "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20210"
           ]
         }
       ]
@@ -5025,13 +5034,19 @@
           ]
         },
         {
-          "text": "板上評價：一、二轉槍手「牢中牢」——雙子星兩發常打個位數、47 等武器過六卷一槍不到 400、有近身改普攻的強弓機制、散射只打 3 隻；要遠程「一定玩獵人」。練槍手需要龐大的熱情。",
+          "text": "板上評價：一、二轉槍手「牢中牢」——雙子星兩發常打個位數、47 等武器過六卷一槍不到 400、散射只打 3 隻；要遠程「一定玩獵人」。練槍手需要龐大的熱情。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=239",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=264",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=559",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1629",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774"
+          ]
+        },
+        {
+          "text": "10/15 官方平衡調整：拿火槍時普通攻擊和技能不會再因為離怪太近改用近身打擊；雙子星攻擊滿級殺傷力 80%→110%、攻擊距離變長；脫離戰場再次使用等待時間 3 秒→1.5 秒。上面板上的評價是改版前。",
+          "sources": [
+            "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20210"
           ]
         }
       ]

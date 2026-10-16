@@ -354,3 +354,22 @@ describe("升級路線的去", () => {
     expect(left.plans[left.activeIndex].rows[0].go).toBeUndefined();
   });
 });
+
+describe("「去」照等級（要找傑夫才進得去的圖，v1.04 使用者拍板 A）", () => {
+  // 沼澤地Ⅲ改成 60 等才走得到
+  const gate = (map: number, level: number) => map !== SWAMP && map !== STAGE ? true : map === SWAMP && level >= 60;
+  const swampGuide = guide(320, [segment({ from: 40, to: 50, map: SWAMP, name: "沼澤地Ⅲ", mobs: [4] })]);
+  const swampRow = (level: number) => {
+    const { plans } = timelinePlans(input({ job: 320, level, guides: new Map([[320, swampGuide]]), canGo: gate }));
+    return plans.find(plan => plan.band.from === 40)?.rows.find(entry => entry.map === SWAMP);
+  };
+
+  it("你在的那段照你現在的等級：45 等不給去", () => {
+    expect(swampRow(45)).toBeDefined();
+    expect(swampRow(45)?.go).toBeUndefined();
+  });
+
+  it("回頭看比你低的段落照你現在的等級（95 等看 40–50 段，中點 45 但你已經 95 等）：給去", () => {
+    expect(swampRow(95)?.go).toBe(SWAMP);
+  });
+});
