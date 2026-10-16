@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readJson } from "./lib/http.mjs";
 import { WEAPON_TYPES } from "./lib/gear.mjs";
-import { OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
+import { HELD_BACK_MAPS, OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
 
 const OUT = path.resolve(import.meta.dirname, "..", "public", "data");
 
@@ -25,7 +25,8 @@ const notes = [];
  */
 const REGION_SENTINELS = {
   冰原雪域: [200020000 /* 雲彩公園Ⅱ */, 200080200 /* 天空之城塔<20層> */, 211040100 /* 冰雪峽谷Ⅰ */],
-  廢礦: [211041500 /* 廢棄礦坑Ⅰ */, 280030000 /* 殘暴炎魔祭壇 */],
+  // 殘暴炎魔祭壇 2026-10-16 起擋著（官方只開前半部，lib/map-names.mjs 的 HELD_BACK_MAPS），代表圖改用尖銳的絕壁Ⅰ
+  廢礦: [211041500 /* 廢棄礦坑Ⅰ */, 211040300 /* 尖銳的絕壁Ⅰ */],
   日本: [800020400 /* 江戶村 彎曲地獄路 */],
 };
 
@@ -118,6 +119,11 @@ function main() {
   }
 
   // 官方公告過、但客戶端還沒補中文名的城鎮（Task 10b 補缺表）：要用公告的地名，不是空白或別的字
+  // 地區開了、官方還沒開的圖（廢礦後半部）不准帶中文名上站、不准進練功推薦
+  const trainingIds = new Set((training ?? []).map(row => row.m));
+  const leakedHeld = [...HELD_BACK_MAPS].filter(([id]) => maps?.[String(id)]?.zh || trainingIds.has(id)).map(([id, name]) => `${id} ${name}`);
+  check("官方還沒開的圖沒有上站（廢礦後半部）", leakedHeld.length === 0, leakedHeld.length ? `漏進來：${leakedHeld.join("、")}` : `${HELD_BACK_MAPS.size} 張都擋著`);
+
   for (const [id, entry] of Object.entries(OFFICIAL_MAP_NAMES)) {
     check(`補缺的城鎮有官方地名：${entry.name}`, maps?.[id]?.zh === entry.name, `地圖 ${id} 目前是「${maps?.[id]?.zh ?? ""}」`);
   }

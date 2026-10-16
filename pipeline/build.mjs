@@ -17,8 +17,10 @@ import path from "node:path";
 import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
-import { officialName } from "./lib/map-names.mjs";
+import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
 import { shopRows } from "./lib/shops.mjs";
+import { officialSkillNote } from "./lib/official-skill-notes.mjs";
+import { applyTextRewards } from "./lib/text-rewards.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
@@ -104,6 +106,9 @@ function main() {
   const twTable = twSpawns(artale.maps);
   const spawnTable = mergeSpawns(twTable, v83.maps);
   const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
+  // 任務說明寫明、上游獎勵欄沒列的獎勵（女神的痕跡 → 女神手鐲），見 lib/text-rewards.mjs
+  const textRewards = applyTextRewards(artale);
+  if (textRewards.length) console.log(`[quests] 照任務說明補的獎勵：${textRewards.join("、")}`);
   const items = buildItems(artale, monsters, maps);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
@@ -225,6 +230,11 @@ function collectChineseMapNames(artale) {
     if (!entry || entry.unnamed) return;
     const id = Number(entry.id);
     if (!Number.isFinite(id) || zh.has(id)) return;
+    // 地區開了、但官方還沒開的圖（廢礦後半部，lib/map-names.mjs 的 HELD_BACK_MAPS）一樣不給中文名
+    if (HELD_BACK_MAPS.has(id)) {
+      held.set(id, "廢礦（官方只開前半部）");
+      return;
+    }
     // 上游還沒分類的圖（regionName 空白）照舊放行，有分類的要在已開放清單裡
     if (entry.regionName && !RELEASE.mapRegions.includes(entry.regionName)) {
       held.set(id, entry.regionName);
@@ -765,6 +775,8 @@ function buildSkills(artale, allJobs) {
     // 說明尾巴的「所需技能：魔天一擊1等級以上」拆成 req，卡片另外列一行、做成連結（id 下面 linkPrereqs 接）
     desc,
     req,
+    // 官方公告改了、遊戲說明還沒跟上的（脫離戰場冷卻 1.5 秒）：卡片多一行，見 lib/official-skill-notes.mjs
+    note: officialSkillNote(Number(skill.id), skill.description),
     formula: skill.formula || undefined,
     labels: labels || skill.valueLabels || undefined,
     levels: (levels || []).map(level => level.values || {}),

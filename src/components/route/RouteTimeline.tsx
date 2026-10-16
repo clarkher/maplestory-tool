@@ -198,7 +198,7 @@ function BandDetail({ plan, next, context, active, memoryKey }: { plan: BandPlan
         <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
           {beforeOpen
             ? "還沒三轉：三轉 10/15 開放，轉完按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。"
-            : "還沒三轉：三轉後按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。"}
+            : "還沒三轉：完成二轉、70 等到冰原雪域的長老公館三轉；轉完按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。"}
         </p>
       ) : null}
 

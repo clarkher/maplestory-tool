@@ -14,7 +14,7 @@ import { portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import {
-  MAIN_TOWNS, VICTORIA_PORT, crossAreaText, findRoute, goNoteText, goStart, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep,
+  MAIN_TOWNS, VICTORIA_PORT, crossAreaText, findRoute, goNoteText, goStart, isAirshipArea, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep,
   type StartChoice,
 } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
@@ -165,7 +165,7 @@ export function GoNavigator() {
           ) : choice?.kind === "ask" ? (
             <section className="space-y-3">
               {/* 跨區那句這時講的是目的地（黃金海灘本身跟維多利亞島之間沒有傳送門） */}
-              <GoNotes notes={notes} from={mapName(maps!, target)} />
+              <GoNotes notes={notes} from={mapName(maps!, target)} airship={isAirshipArea(target, maps!)} />
               {/* 城鎮捷徑：按了就是自己選的起點（記下來、不再提島上的事）。一顆都給不出來、上面又已經說了怎麼過去時，
                   不放空的問句（上面的「從哪裡出發」照樣可以自己選） */}
               {askTowns.length || !notes.length ? (
@@ -201,14 +201,14 @@ export function GoNavigator() {
 }
 
 /** 路線上面要自己搭船的那段（route.ts goStart）；我們沒有船班資料，只照實說、不編路線。from：起點的名字（跨區那句用） */
-function GoNotes({ notes, from, className = "" }: { notes: GoNote[]; from: string; className?: string }) {
+function GoNotes({ notes, from, airship = false, className = "" }: { notes: GoNote[]; from: string; airship?: boolean; className?: string }) {
   if (!notes.length) return null;
   return (
     <div className={`flex items-start gap-2.5 rounded-xl bg-[color:var(--gold-wash)] px-3.5 py-2.5 ${className}`}>
       <BoatIcon size={18} className="mt-0.5 shrink-0 text-[color:var(--gold)]" />
       <div className="space-y-1">
         {notes.map(note => (
-          <p key={note} className="text-sm font-bold leading-relaxed">{goNoteText(note, from)}</p>
+          <p key={note} className="text-sm font-bold leading-relaxed">{goNoteText(note, from, airship)}</p>
         ))}
       </div>
     </div>
@@ -230,7 +230,7 @@ function RouteList({
 }) {
   return (
     <section aria-label="路線">
-      <GoNotes notes={notes} from={mapName(maps, steps[0]?.map)} className="mb-3" />
+      <GoNotes notes={notes} from={mapName(maps, steps[0]?.map)} airship={steps[0] !== undefined && isAirshipArea(steps[0].map, maps)} className="mb-3" />
       <div className="mb-3 flex items-center gap-2 rounded-xl bg-[color:var(--leaf-wash)] px-3.5 py-2.5">
         <RouteIcon size={18} className="shrink-0 text-[color:var(--leaf)]" />
         <p className="text-sm font-bold">
@@ -398,7 +398,7 @@ function CrossAreaNotice({
             {mapName(maps, from)} 走不到 {mapName(maps, to)}
           </p>
           {/* 目的地在楓之島、起點不在：只說沒有傳送門，不叫人搭車（route.ts crossAreaText） */}
-          <p className="mt-1 ink-soft">{crossAreaText(from, to)}</p>
+          <p className="mt-1 ink-soft">{crossAreaText(from, to, isAirshipArea(from, maps) !== isAirshipArea(to, maps))}</p>
         </div>
       </div>
 

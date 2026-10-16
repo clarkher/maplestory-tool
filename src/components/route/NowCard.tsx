@@ -11,6 +11,7 @@ import { jobOption } from "@/lib/jobs";
 import { advanceTitle, altPrefix, canGo, ceilingText, pqClosedText, type MainPick, type TrainOption } from "@/lib/now-plan";
 import { LEVEL_CAP } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
+import { boatText } from "@/lib/route";
 import type { GuidePq, MapRecord, Monster } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 import { Chip, SourceTag, Sprite } from "./bits";
@@ -150,7 +151,7 @@ function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { 
           {option.row ? `清一輪 ${formatNumber(option.row.exp1)} 經驗・${option.row.sp} 隻怪` : null}
           {option.row && option.hops ? "・" : null}
           {option.hops && option.town
-            ? `從${mapName(maps, option.town)}走 ${option.hops} 張圖${option.boat ? `（${mapName(maps, option.town)}要搭船或搭車過去）` : ""}`
+            ? `從${mapName(maps, option.town)}走 ${option.hops} 張圖${option.boat ? `（${boatText(option.town, maps)}）` : ""}`
             : null}
           {option.source === "data" ? <span className="block ink-faint">照遊戲資料排，還沒有玩家實測</span> : null}
         </p>
