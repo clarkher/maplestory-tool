@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  daysUntil, fmtInt, fmtWan, fmtYuan, freshnessOf, ladderBook, ladderTotal, loadFx, movingAverage, pinIndex, prevWord,
+  daysUntil, fmtInt, fmtWan, fmtYuan, freshnessOf, isManualLatest, ladderBook, ladderNote, ladderTotal, loadFx, movingAverage, pinIndex, prevWord,
   quoteOf, REF_NAME, REF_SITE, visibleWindow,
   type Day, type Freshness, type FxData, type LadderRow, type Quote,
 } from "@/lib/fx/fx";
@@ -35,8 +35,15 @@ function build(fx: FxData, pin: string | null): Model {
   };
 }
 
-/** 「最後更新…・8591 賣家開價（參考站整理），不是成交價」：超過 12 小時照實寫 */
-function UpdateLine({ fresh, className = "" }: { fresh: Freshness; className?: string }) {
+/** 「最後更新…・8591 賣家開價（參考站整理），不是成交價」：超過 12 小時照實寫；最新一筆是手動補的就只寫「手動輸入」 */
+function UpdateLine({ fresh, manual, className = "" }: { fresh: Freshness; manual: boolean; className?: string }) {
+  if (manual) {
+    return (
+      <p className={`text-[12px] leading-relaxed ${fresh.stale ? "font-bold text-[color:var(--maple)]" : "ink-soft"} ${className}`}>
+        {fresh.text}・手動輸入
+      </p>
+    );
+  }
   return (
     <p className={`text-[12px] leading-relaxed ${fresh.stale ? "font-bold text-[color:var(--maple)]" : "ink-soft"} ${className}`}>
       {fresh.text}・8591 賣家開價（
@@ -56,6 +63,7 @@ function HowItWorks({ className = "" }: { className?: string }) {
         <a href={REF_SITE} target="_blank" rel="noreferrer" className="font-bold text-[color:var(--sky)] underline underline-offset-2">{REF_NAME}</a>{" "}
         每 2 小時整理一次；我們每 2 小時記一次，一天的第一筆、最高、最低、最後一筆就是那天的開高低收。
       </li>
+      <li><b>參考站停更時：</b>我們可能手動補一筆，那一筆會標「手動輸入」，當天的讀數會寫「含手動輸入」。</li>
       <li><b>換算：</b>1 億楓幣幾元 ＝ 1,000,000 ÷ 100 元換到的萬數；1 元換幾萬 ＝ 100 元換到的萬數 ÷ 100。</li>
     </ul>
   );
@@ -109,6 +117,7 @@ function Board({ m }: { m: Model }) {
   const shown = active !== null && active >= start ? active : m.days.length - 1;
   const word = prevWord(m.quote, m.fx.latest);
   const book = ladderBook(m.fx.latest);
+  const bookNote = ladderNote(m.fx.latest);
   const maxCount = Math.max(...book.head.map(row => row.count), 1);
 
   return (
@@ -134,7 +143,7 @@ function Board({ m }: { m: Model }) {
             <Change dir={m.quote.dir} diff={m.quote.diffYuan} pct={m.quote.pct} />
             {m.quote.prev && <span className="ink-soft">跟{word}收盤 {fmtYuan(m.quote.prev.close)} 元比</span>}
           </div>
-          <UpdateLine fresh={fresh} className="mt-2 border-t border-[color:var(--paper-edge)] pt-2" />
+          <UpdateLine fresh={fresh} manual={isManualLatest(m.fx.latest)} className="mt-2 border-t border-[color:var(--paper-edge)] pt-2" />
         </section>
 
         {/* 圖區：比頁面深一階 */}
@@ -161,24 +170,30 @@ function Board({ m }: { m: Model }) {
         <section className="rounded-2xl glass-solid p-3.5">
           <div className="flex items-baseline justify-between">
             <h2 className="text-[15px] font-black">委賣檔位</h2>
-            <span className="text-[12px] ink-soft">現在 {fmtInt(m.total)} 筆掛單</span>
+            {!bookNote && <span className="text-[12px] ink-soft">現在 {fmtInt(m.total)} 筆掛單</span>}
           </div>
-          <p className="mt-0.5 text-[12px] ink-faint">由上往下：楓幣由便宜到貴</p>
-          <div className="mt-2 text-[13px] tabular-nums">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_3rem] gap-2 px-1.5 py-1 text-[11px] ink-faint">
-              <span>100 元換</span>
-              <span className="text-right">1 億楓幣約</span>
-              <span className="text-right">筆數</span>
-            </div>
-            {book.head.map(row => <BookRow key={row.lo} row={row} max={maxCount} />)}
-            {book.rest && (
-              <div className="mt-0.5 grid grid-cols-[minmax(0,1fr)_3rem] gap-2 border-t border-[color:var(--paper-edge)] px-1.5 py-1.5 ink-soft">
-                <span>更貴的（100 元換不到 200 萬）</span>
-                <span className="text-right font-bold">{book.rest.count}</span>
+          {bookNote ? (
+            <p className="mt-2 rounded-xl border border-[color:var(--paper-edge)] px-3 py-4 text-center text-[13px] ink-soft" data-fx-ladder-note>{bookNote}</p>
+          ) : (
+            <>
+              <p className="mt-0.5 text-[12px] ink-faint">由上往下：楓幣由便宜到貴</p>
+              <div className="mt-2 text-[13px] tabular-nums">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto_3rem] gap-2 px-1.5 py-1 text-[11px] ink-faint">
+                  <span>100 元換</span>
+                  <span className="text-right">1 億楓幣約</span>
+                  <span className="text-right">筆數</span>
+                </div>
+                {book.head.map(row => <BookRow key={row.lo} row={row} max={maxCount} />)}
+                {book.rest && (
+                  <div className="mt-0.5 grid grid-cols-[minmax(0,1fr)_3rem] gap-2 border-t border-[color:var(--paper-edge)] px-1.5 py-1.5 ink-soft">
+                    <span>更貴的（100 元換不到 200 萬）</span>
+                    <span className="text-right font-bold">{book.rest.count}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-          {book.head.some(row => row.market) && <p className="mt-2 text-[12px] ink-soft">標「市價」的那一格：現在的市價 100 元換 {fmtInt(m.quote.ask100)} 萬，落在這裡。</p>}
+              {book.head.some(row => row.market) && <p className="mt-2 text-[12px] ink-soft">標「市價」的那一格：現在的市價 100 元換 {fmtInt(m.quote.ask100)} 萬，落在這裡。</p>}
+            </>
+          )}
         </section>
 
         <section className="rounded-2xl glass-solid p-3.5">
