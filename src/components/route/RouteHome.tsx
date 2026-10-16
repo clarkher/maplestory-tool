@@ -16,6 +16,7 @@ import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
+import { goddessPqNote } from "@/lib/v002-notes";
 import { useVisitState } from "@/lib/visit-state";
 import { CalcPickCard } from "./CalcPickCard";
 import { CharacterBar } from "./CharacterBar";
@@ -40,6 +41,7 @@ export function RouteHome() {
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
+  const goddess = goddessPqNote(profile.level);
   const [data, setData] = useState<HomeData | null>(peekHomeData);
   const [guideState, setGuideState] = useState<GuideState>(() => ({ job: profile.job, ...guidesFor(profile.job, new Map()) }));
   const [error, setError] = useState<string | null>(null);
@@ -215,6 +217,16 @@ export function RouteHome() {
           ) : (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
           )}
+
+          {/* 女神的痕跡（v1.01 使用者選 1A）：只放官方確定的地點、人數、獎勵，沒有攻略所以不當主推 */}
+          {goddess ? (
+            <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">
+              {goddess.text}
+              <Link href={goddess.quest} className="ml-1 font-bold underline decoration-[color:var(--paper-edge)] underline-offset-4">
+                看任務
+              </Link>
+            </p>
+          ) : null}
 
           {/* 照傷害算的推薦（v0.92 使用者選 1A）：主推卡下面多一張，自己載技能表、裝備表；攻略還在載就等它 */}
           {profile.job > 0 ? <CalcPickCard job={profile.job} level={profile.level} home={data} guides={guides} guideStatus={guideStatus} /> : null}

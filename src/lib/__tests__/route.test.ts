@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAIN_TOWNS, VICTORIA_PORT, boatNote, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, suggestStart, townChips, townsTitle,
-  victoriaReach,
+  MAIN_TOWNS, VICTORIA_PORT, boatNote, boatText, crossAreaText, defaultStart, findRoute, goNoteText, goStart, hubTowns, isAirshipArea, suggestStart, townChips,
+  townsTitle, victoriaReach,
 } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 
@@ -214,6 +214,44 @@ describe("走不到（跨區）時的說明（round 4）", () => {
     expect(crossAreaText(RAINBOW, PERION)).toContain("先在遊戲裡搭船過去");
     expect(crossAreaText(PERION, FLORINA)).toContain("先在遊戲裡搭車過去");
     expect(crossAreaText(PERION, FLORINA)).toContain("這兩張圖不在同一個可步行區域");
+  });
+});
+
+describe("天空之城那一帶要搭飛船（官方 10/15【內容擴充】：魔法森林碼頭的售票員買船票，每 15 分鐘一班；2026-10-16 使用者選 6）", () => {
+  const maps: Record<string, MapRecord> = {
+    "200000000": { zh: "天空之城", st: "", ret: 200000000 },
+    "200010000": { zh: "雲彩公園Ⅰ", st: "天空之城", ret: 200000000 },
+    "211000000": { zh: "冰原雪域", st: "", ret: 211000000 },
+    "211040300": { zh: "尖銳的絕壁Ⅰ", st: "廢棄礦坑", ret: 211000000 },
+    "102000000": { zh: "勇士之村", st: "", ret: 102000000 },
+    "110000000": { zh: "黃金海灘", st: "", ret: 110000000 },
+  };
+
+  it("天空之城、冰原雪域本身，跟回城點是它們的圖（雲彩公園、廢礦）都算；維多利亞島、黃金海灘不算", () => {
+    for (const id of [200000000, 200010000, 211000000, 211040300]) expect(isAirshipArea(id, maps), String(id)).toBe(true);
+    for (const id of [PERION, FLORINA, 999]) expect(isAirshipArea(id, maps), String(id)).toBe(false);
+  });
+
+  it("起點那段要自己過去的提示：天空之城那一帶寫飛船、班距、在哪買票；其他照舊", () => {
+    const text = goNoteText("region", "天空之城", true);
+    expect(text).toContain("魔法森林碼頭");
+    expect(text).toContain("每 15 分鐘一班");
+    expect(text).toContain("售票員");
+    expect(text).not.toContain("搭船或搭車");
+    expect(goNoteText("region", "黃金海灘", false)).toBe("黃金海灘跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。");
+  });
+
+  it("走不到的說明：一邊在天空之城那一帶就寫搭飛船，不叫人搭車；沒標的照舊", () => {
+    const text = crossAreaText(PERION, 200010000, true);
+    expect(text).toContain("這兩張圖不在同一個可步行區域");
+    expect(text).toContain("魔法森林碼頭");
+    expect(text).not.toContain("搭車");
+    expect(crossAreaText(PERION, FLORINA, false)).toContain("先在遊戲裡搭車過去");
+  });
+
+  it("主推卡「從 X 走 N 張圖」後面那句：天空之城那一帶寫搭飛船，其他照舊寫搭船或搭車", () => {
+    expect(boatText(200000000, maps)).toBe("從魔法森林碼頭搭飛船過去，每 15 分鐘一班");
+    expect(boatText(110000000, maps)).toBe("黃金海灘要搭船或搭車過去");
   });
 });
 

@@ -157,6 +157,8 @@ export type Skill = {
    * 客戶端沒寫的退回找同一條職業線裡名字完全一樣的那個。都找不到就沒有 id、只列名字（2026-10-08 v0.80 起 0 個）
    */
   req?: { name: string; level: number; id?: number }[];
+  /** 官方公告改了、遊戲說明還沒跟上的（脫離戰場冷卻 1.5 秒）：t 是卡片那一行、s 是官方出處（pipeline/lib/official-skill-notes.mjs） */
+  note?: { t: string; s: string };
 };
 
 export type Job = {

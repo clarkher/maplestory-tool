@@ -191,11 +191,35 @@ export function boatNote(start: number, reach: Set<number>, island: boolean): Bo
  */
 export type GoNote = "island" | "port" | "region";
 
-/** 提示的字（from：起點的名字，跨區那句要用） */
-export function goNoteText(note: GoNote, from: string): string {
+/** 天空之城、冰原雪域這兩座城鎮：回城點是它們的圖（雲彩公園、天空之城塔、廢礦…）都算「天空之城那一帶」 */
+const AIRSHIP_TOWNS = new Set([200000000, 211000000]);
+
+/** 這張圖在天空之城那一帶（跟維多利亞島之間要搭飛船） */
+export function isAirshipArea(mapId: number, maps: Record<string, MapRecord>): boolean {
+  const ret = maps[String(mapId)]?.ret;
+  return AIRSHIP_TOWNS.has(mapId) || (ret !== undefined && AIRSHIP_TOWNS.has(ret));
+}
+
+/**
+ * 飛船怎麼搭：官方 10/15【內容擴充】只寫了「魔法森林與天空之城間的雙向航班」「魔法森林碼頭的售票員購買船票」
+ * 「每15分鐘一班」「穿越天空之城塔即可抵達冰原雪域」（https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209），
+ * 其他（開船前幾分鐘能上船、票價）沒有官方數字，不寫（2026-10-16 使用者選 6）
+ */
+const AIRSHIP_TEXT =
+  "天空之城跟維多利亞島之間要搭飛船：魔法森林碼頭跟天空之城之間雙向，每 15 分鐘一班（魔法森林這邊找碼頭的售票員買船票）；冰原雪域從天空之城穿過天空之城塔走過去。";
+
+/** 提示的字（from：起點的名字，跨區那句要用；airship：那一段在天空之城那一帶，isAirshipArea） */
+export function goNoteText(note: GoNote, from: string, airship = false): string {
   if (note === "island") return "你還在楓之島的話，要先搭船到維多利亞港，再照下面的路線走。";
   if (note === "port") return "你還在楓之島的話，搭船就會到維多利亞港。";
+  if (airship) return `${from}跟維多利亞島的城鎮之間沒有傳送門。${AIRSHIP_TEXT}`;
   return `${from}跟維多利亞島的城鎮之間沒有傳送門，這段要自己搭船或搭車過去。`;
+}
+
+/** 主推卡「從 X 走 N 張圖」後面括號那句：出發的城鎮要自己過去（now-plan townRoute 的 boat） */
+export function boatText(town: number, maps: Record<string, MapRecord>): string {
+  if (isAirshipArea(town, maps)) return "從魔法森林碼頭搭飛船過去，每 15 分鐘一班";
+  return `${maps[String(town)]?.zh || "那裡"}要搭船或搭車過去`;
 }
 
 /**
@@ -203,8 +227,10 @@ export function goNoteText(note: GoNote, from: string): string {
  * - 目的地在楓之島、起點不在：只說「楓之島跟維多利亞島之間沒有傳送門。」——離開楓之島就回不去，不叫人搭車（round 4，persona 第三輪三-5）
  * - 其他：跨大陸要搭船或計程車；起點在楓之島寫「搭船」、其他寫「搭車」，再從下面的城鎮按鈕重算路線
  */
-export function crossAreaText(from: number, to: number): string {
+export function crossAreaText(from: number, to: number, airship = false): string {
   if (isIslandMap(to) && !isIslandMap(from)) return "楓之島跟維多利亞島之間沒有傳送門。";
+  // 一邊在天空之城那一帶（呼叫端用 isAirshipArea 判斷）：寫怎麼搭飛船
+  if (airship) return `這兩張圖不在同一個可步行區域。${AIRSHIP_TEXT}到了再從下面挑一個當地城鎮重算路線。`;
   return `這兩張圖不在同一個可步行區域。楓之谷跨大陸要搭船或計程車，那一段沒有傳送門資料，所以我們不會編一條路線給你。先在遊戲裡${isIslandMap(from) ? "搭船" : "搭車"}過去，再從下面挑一個當地城鎮重算路線。`;
 }
 
