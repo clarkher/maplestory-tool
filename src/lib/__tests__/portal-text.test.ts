@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { portalDirection, portalSentence } from "@/lib/portal-text";
+import { npcLevelNote, npcSentence, npcWarp, portalDirection, portalSentence } from "@/lib/portal-text";
 
 const spread: Array<[number, number]> = [[-1400, 0], [-700, 0], [0, 0], [700, 0], [1400, 0], [0, -600]];
 
@@ -61,5 +61,25 @@ describe("傳送門句子", () => {
     expect(portalSentence("下面")).toBe("從上一張圖下面的傳送門進來");
     expect(portalSentence("中間")).toBe("從上一張圖中間的傳送門進來");
     expect(portalSentence(null)).toBe("從上一張圖的傳送門進來");
+  });
+});
+
+describe("NPC 傳送那一步（冰雪峽谷Ⅱ的傑夫，v1.04 使用者拍板 A）", () => {
+  it("認得出 npc:名字:站的位置", () => {
+    expect(npcWarp("npc:傑夫:最上面")).toEqual({ npc: "傑夫", spot: "最上面" });
+  });
+
+  it("一般傳送門、空字串都不是", () => {
+    expect(npcWarp("top00")).toBeNull();
+    expect(npcWarp("")).toBeNull();
+    expect(npcWarp("npc:")).toBeNull();
+  });
+
+  it("那一步的字：跟上一張圖最上面的傑夫說話，他會送你進來", () => {
+    expect(npcSentence({ npc: "傑夫", spot: "最上面" })).toBe("跟上一張圖最上面的傑夫說話，他會送你進來");
+  });
+
+  it("有等級門檻再加一行：傑夫只讓 50 等以上的人進去，參考舊版資料", () => {
+    expect(npcLevelNote("傑夫", 50)).toBe("（傑夫只讓 50 等以上的人進去，參考舊版資料）");
   });
 });

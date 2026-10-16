@@ -10,7 +10,7 @@ import {
   cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, settleGuides, type GuideState, type HomeData,
 } from "@/lib/home-data";
 import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob, stageJob } from "@/lib/jobs";
-import { effectiveLevels, longRunNow, mainPick, nowQuests, pqJustClosed, townRoute } from "@/lib/now-plan";
+import { effectiveLevels, goChecker, longRunNow, mainPick, nowQuests, pqJustClosed } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
 import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
@@ -105,15 +105,11 @@ export function RouteHome() {
   // 先解展開任務細節時，「要先完成」寫前置任務的名字
   const questNames = useMemo(() => new Map((data?.quests ?? []).map(quest => [quest.id, quest.n])), [data]);
 
-  // 城鎮走得到才給「去」（跟主推卡的「帶我去」同一個條件）；同一張圖只算一次
-  const canGo = useMemo(() => {
-    const cache = new Map<number, boolean>();
-    return (map: number) => {
-      if (!data) return false;
-      if (!cache.has(map)) cache.set(map, townRoute(map, data.graph, data.maps, data.nearestTown).hops !== undefined);
-      return cache.get(map) as boolean;
-    };
-  }, [data]);
+  // 城鎮走得到才給「去」（跟主推卡的「帶我去」同一個條件，等級不夠過傑夫的不給；真資料測試用同一支 goChecker）
+  const canGo = useMemo(
+    () => (data ? goChecker(data.graph, data.maps, data.nearestTown) : () => false),
+    [data],
+  );
   // 這一轉的攻略還在載入（主推卡放骨架）；升級路線也先不照主推寫標籤，免得先寫一張遊戲資料的圖又換掉
   const guideLoading = stage > 0 && !stageGuide && guideStatus === "loading";
 

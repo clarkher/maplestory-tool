@@ -440,3 +440,32 @@ describe("主推卡的文字規則", () => {
     expect(advanceTitle(37)).toBe("Lv.37・可以轉職了");
   });
 });
+
+describe("要找 NPC（傑夫）才進得去的圖：等級不夠不推（v1.04 使用者拍板 A）", () => {
+  // 效率最好的普通圖改成要從不死圖找傑夫送過去、50 等才放行
+  const gated: Record<string, PortalEdge[]> = {
+    ...graph,
+    [UNDEAD_MAP]: [[PLAIN_MAP, "npc:傑夫:最上面", 0, -2000, 50], [TOWN, "west00", 0, 0]],
+  };
+  const gatedBase = { ...base, graph: gated };
+
+  it("49 等：遊戲資料不推（主推、備案都不是它）", () => {
+    const pick = mainPick({ ...gatedBase, level: 49, job: 100 });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect([pick.option.map, pick.alt?.map]).not.toContain(PLAIN_MAP);
+    expect(pick.option.map).toBe(UNDEAD_MAP);
+  });
+
+  it("49 等：攻略寫到它也不推", () => {
+    const guide = guideWith([segment({ map: PLAIN_MAP, name: "普通圖" })]);
+    const pick = mainPick({ ...gatedBase, level: 49, job: 100, guide });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect([pick.option.map, pick.alt?.map]).not.toContain(PLAIN_MAP);
+  });
+
+  it("50 等：照常推，附從城鎮走幾張圖", () => {
+    const pick = mainPick({ ...gatedBase, level: 50, job: 100 });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.option).toMatchObject({ map: PLAIN_MAP, town: TOWN, hops: 2 });
+  });
+});

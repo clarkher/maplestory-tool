@@ -10,7 +10,7 @@ import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
 import { Chip } from "@/components/route/bits";
 import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage, peekGraph, peekMaps, peekNearestTown } from "@/lib/data";
 import { normalizeJob } from "@/lib/jobs";
-import { portalDirection, portalSentence } from "@/lib/portal-text";
+import { npcLevelNote, npcSentence, npcWarp, portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
 import { useBeforeV002 } from "@/lib/release";
 import {
@@ -279,7 +279,11 @@ function RouteCard({
   const isEnd = index === total - 1;
   const unnamed = !record?.zh;
   const previousEdges = previous !== undefined ? graph[String(previous)] ?? [] : [];
-  const direction = portalDirection(step.via, step.x, step.y, previousEdges.map(([, , px, py]) => [px, py] as [number, number]));
+  // 靠 NPC 傳送的那一步（冰雪峽谷Ⅱ的傑夫）寫找誰說話，不寫傳送門
+  const warp = npcWarp(step.via);
+  // 左右上下拿上一張圖的傳送門當基準，NPC 站的位置不算（code review）
+  const doors = previousEdges.filter(([, via]) => !npcWarp(via)).map(([, , px, py]) => [px, py] as [number, number]);
+  const direction = warp ? null : portalDirection(step.via, step.x, step.y, doors);
 
   return (
     <li className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
@@ -307,7 +311,10 @@ function RouteCard({
           {isStart ? (
             <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點</p>
           ) : (
-            <p className="mt-0.5 text-sm ink-soft">{portalSentence(direction)}</p>
+            <>
+              <p className="mt-0.5 text-sm ink-soft">{warp ? npcSentence(warp) : portalSentence(direction)}</p>
+              {warp && step.minLevel !== undefined ? <p className="mt-0.5 text-sm ink-soft">{npcLevelNote(warp.npc, step.minLevel)}</p> : null}
+            </>
           )}
           {isEnd && !isStart ? (
             <p className="mt-0.5 text-sm font-bold text-[color:var(--maple)]">到了</p>

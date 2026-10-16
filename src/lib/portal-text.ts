@@ -40,6 +40,22 @@ export function portalDirection(
   return "中間";
 }
 
+/** 靠 NPC 傳送的那一步（傳送門名稱 `npc:<NPC 名>:<站的位置>`，pipeline/lib/npc-warps.mjs）；一般傳送門回 null */
+export function npcWarp(via: string): { npc: string; spot: string } | null {
+  const [kind, npc, spot] = via.split(":");
+  return kind === "npc" && npc ? { npc, spot: spot ?? "" } : null;
+}
+
+/** 跟上一張圖最上面的傑夫說話，他會送你進來 */
+export function npcSentence({ npc, spot }: { npc: string; spot: string }): string {
+  return `跟上一張圖${spot}的${npc}說話，他會送你進來`;
+}
+
+/** 等級門檻那一行。台服查不到門檻，數字是舊版的（2026-10-16 使用者拍板 A），台服確認後改 npc-warps.mjs 跟這句 */
+export function npcLevelNote(npc: string, minLevel: number): string {
+  return `（${npc}只讓 ${minLevel} 等以上的人進去，參考舊版資料）`;
+}
+
 /** 左邊／右邊／上面／下面／中間都是同一句；看不出來就只說傳送門 */
 export function portalSentence(direction: string | null): string {
   if (!direction) return "從上一張圖的傳送門進來";

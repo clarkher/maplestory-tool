@@ -41,8 +41,8 @@ type Context = {
   effective: Map<string, number>;
   /** 主推卡：你在的這一段照它寫標籤、排第一列（攻略還在載入時不給，免得標籤先寫一張又換掉） */
   pick?: MainPick;
-  /** 城鎮走得到（跟主推卡的「帶我去」同一個條件），不然「去」點進去只會找不到起點 */
-  canGo: (map: number) => boolean;
+  /** 城鎮走得到（跟主推卡的「帶我去」同一個條件），不然「去」點進去只會找不到起點；level：那一段查哪個等級（等級不夠過傑夫就不給） */
+  canGo: (map: number, level: number) => boolean;
 };
 
 /** 升級路線：1→120 一條路，你在哪一段就展開哪一段，其他段點開看。 */

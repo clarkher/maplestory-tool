@@ -18,6 +18,7 @@ import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
+import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopRows } from "./lib/shops.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
@@ -98,7 +99,10 @@ function main() {
   const { names: zhNames, heldBack } = collectChineseMapNames(artale);
   const regions = buildRegions(v83);
   const maps = buildMaps(v83, zhNames, regions, msio);
-  const graph = buildGraph(v83, maps);
+  const graph = buildGraph(v83, maps, artale.maps);
+  // 要過 NPC 傳送（傑夫 50 等）才走得到的圖記幾等（maps.json 的 g）：沒載傳送門圖的頁面（打怪練功）照它擋
+  const namedTowns = Object.entries(maps.records).filter(([, record]) => record.t && record.zh).map(([id]) => Number(id));
+  for (const [id, level] of Object.entries(gateLevels(graph.edges, namedTowns))) if (maps.records[id]) maps.records[id].g = level;
   const components = labelComponents(graph, maps);
   const nearestTown = computeNearestTowns(maps, graph, v83);
   const canonItem = itemAliases(artale);
@@ -327,13 +331,14 @@ function buildMaps(v83, zhNames, regions, msio) {
 /**
  * 傳送門圖。走得過去的門原則上走得回來，所以一般傳送門（pt 2、3）建成雙向；
  * 只有腳本型／單向門保持有向，避免規劃出走不通的路。
+ * 靠 NPC 傳送的路（lib/npc-warps.mjs，冰雪峽谷Ⅱ的傑夫）最後補、單向；同兩張圖已經有門就用門。
  */
-function buildGraph(v83, maps) {
+function buildGraph(v83, maps, upstreamMaps) {
   const edges = {};
-  const addEdge = (from, to, name, x, y) => {
+  const addEdge = (from, to, name, x, y, minLevel) => {
     const list = (edges[from] ||= []);
     if (list.some(edge => edge[0] === to)) return;
-    list.push([to, name, x, y]);
+    list.push(minLevel === undefined ? [to, name, x, y] : [to, name, x, y, minLevel]);
   };
 
   for (const [key, raw] of Object.entries(v83.maps)) {
@@ -344,6 +349,9 @@ function buildGraph(v83, maps) {
       // pt 2/3 是玩家走進去的一般門，反向必然存在；其餘（腳本、隱藏）不臆測
       if (type === 2 || type === 3) addEdge(to, from, targetName || "", 0, 0);
     }
+  }
+  for (const [from, [to, name, x, y, minLevel]] of npcWarpEdges(upstreamMaps)) {
+    if (maps.records[from] && maps.records[to]) addEdge(from, to, name, x, y, minLevel);
   }
   return { edges };
 }

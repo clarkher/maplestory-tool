@@ -10,6 +10,7 @@ import path from "node:path";
 import { readJson } from "./lib/http.mjs";
 import { WEAPON_TYPES } from "./lib/gear.mjs";
 import { HELD_BACK_MAPS, OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
+import { NPC_WARPS } from "./lib/npc-warps.mjs";
 import { officialNoteStatus, OFFICIAL_SKILL_NOTES } from "./lib/official-skill-notes.mjs";
 
 const OUT = path.resolve(import.meta.dirname, "..", "public", "data");
@@ -155,6 +156,28 @@ function main() {
   check("多段路線走得通", routeExists(graph, 102000000, 105040300, 12),
     "勇士之村 → 奇幻村");
 
+  // 已開放的練功圖都要有城鎮走得到（不管等級）：v1.01 code review 第 5 項——冰雪峽谷Ⅱ往上是 NPC 傑夫送，傳送門資料沒有，
+  // 尖銳的絕壁到廢棄礦坑Ⅳ 16 張整區走不到，主推不推、首頁不給帶我去，建置照樣綠（lib/npc-warps.mjs 補上）。
+  // 下面這幾張傳送門本來就走不到（2026-10-16 查過）：組隊任務的關卡、地鐵三號線工地的車庫、隱藏地圖
+  const NOT_BY_PORTAL = new Set([
+    103000804, 103000805, // 組隊訓練場<最後階段>、<獎金地點>
+    910340500, 910340600, // 第一次同行<最後的關隘>、<獎勵>
+    103000902, 103000905, 103000909, // 三號線1～3號車庫
+    910010200, 912000000, // 肥肥村莊、秘密場所
+  ]);
+  const fromTowns = reachableFromTowns(graph, maps);
+  const stranded = (training ?? []).filter(row => !fromTowns.has(row.m) && !NOT_BY_PORTAL.has(row.m)).map(row => `${row.m} ${maps[String(row.m)]?.zh ?? ""}`);
+  check("已開放的練功圖都有城鎮走得到", stranded.length === 0,
+    stranded.length ? `走不到：${stranded.slice(0, 8).join("、")}${stranded.length > 8 ? ` 等 ${stranded.length} 張` : ""}` : `${(training?.length ?? 0) - NOT_BY_PORTAL.size} 張`);
+
+  // 有等級門檻的 NPC 傳送（傑夫 50 等）：傳送門圖裡那條要帶著門檻、送到的那張圖要標等級（maps.json 的 g）。
+  // 上游哪天補上同兩張圖的真門，傑夫那條會被門蓋掉、門檻跟著不見，路線照樣通、上面那條擋不到（code review）
+  const lostGates = NPC_WARPS.filter(warp => warp.minLevel !== undefined).filter(warp => {
+    const edge = (graph?.[String(warp.from)] ?? []).find(([to]) => to === warp.to);
+    return edge?.[4] !== warp.minLevel || maps?.[String(warp.to)]?.g !== warp.minLevel;
+  }).map(warp => `${warp.from}→${warp.to}`);
+  check("NPC 傳送的等級門檻還在（傳送門圖跟地圖的等級都有）", lostGates.length === 0, lostGates.length ? `不見了：${lostGates.join("、")}` : `${NPC_WARPS.length} 條`);
+
   const monsterIds = new Set((monsters ?? []).map(monster => monster.id));
   const badDrop = (items ?? []).filter(item => item.dm?.some(id => !monsterIds.has(id))).length;
   check("道具的掉落來源都指得到怪", badDrop === 0, `${badDrop} 個道具有壞掉的來源`);
@@ -263,6 +286,26 @@ function routeExists(graph, from, to, maxHops) {
     frontier = next;
   }
   return false;
+}
+
+/** 從所有有中文名的城鎮出發、走傳送門（含 NPC 傳送，不看等級）到得了的圖 */
+function reachableFromTowns(graph, maps) {
+  const seen = new Set();
+  const queue = [];
+  for (const [id, record] of Object.entries(maps ?? {})) {
+    if (record.t && record.zh) {
+      seen.add(Number(id));
+      queue.push(Number(id));
+    }
+  }
+  for (let head = 0; head < queue.length; head += 1) {
+    for (const [target] of graph?.[String(queue[head])] || []) {
+      if (seen.has(target)) continue;
+      seen.add(target);
+      queue.push(target);
+    }
+  }
+  return seen;
 }
 
 main();
