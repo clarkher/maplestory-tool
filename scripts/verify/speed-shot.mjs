@@ -66,9 +66,13 @@ async function until(expression, ms = 30000) {
   return false;
 }
 
-/** 在頁面裡找一個元素（寫成一段會回傳元素的程式），捲到中間，回傳中心座標 */
+/**
+ * 在頁面裡找一個元素（寫成一段會回傳元素的程式），捲到中間，回傳中心座標。
+ * 一定要 behavior: "instant"：全站 html 是平滑捲動，不寫就是邊滑邊量，量到的是捲之前的位置，
+ * 滑鼠按下去時按鈕已經滑走了（第 8 步組隊那格把「分享遊戲畫面」推到中線以下、要捲 84px；2026-10-17 改前 5 次點空 4 次）。
+ */
 const centerOf = finder =>
-  evaluate(`(() => { const el = (${finder}); if (!el) return null; el.scrollIntoView({ block: "center" }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  evaluate(`(() => { const el = (${finder}); if (!el) return null; el.scrollIntoView({ block: "center", behavior: "instant" }); const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
 
 /** 真的用滑鼠點（走 DevTools 的 Input，不是 el.click()），找不到元素回 false */
 async function click(finder) {
@@ -343,10 +347,15 @@ try {
     const reloaded = await openSpeed();
     record("重新整理後載好，角色卡還寫「" + CHAR_LINE + "」", reloaded && (await bodyText()).includes(CHAR_LINE));
     await installFakeStream();
-    await shareAndRead();
+    const readAgain = await shareAndRead();
     const remembered = await ev(`return await __waitFor(() => [...document.querySelectorAll("h2")].some(h => h.textContent.trim() === ${JSON.stringify(MAP)}), 15000)`);
     const again = await mapState();
-    record("重新整理再分享：直接認成這張圖，不再問", remembered && !again.asking, again.titles);
+    // 沒過時分得出是哪一種：分享根本沒開始（read 沒讀到）、還是開始了但又問一次（asking）
+    record("重新整理再分享：直接認成這張圖，不再問", remembered && !again.asking, {
+      read: readAgain === null ? "沒讀到等級經驗（分享沒開始？）" : `${Math.round(readAgain / 1000)} 秒後讀到`,
+      asking: again.asking,
+      titles: again.titles,
+    });
   }
 } catch (error) {
   crashed = error;

@@ -428,6 +428,7 @@ node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:30
      同一段時間每一次取樣（頁面裡的觀察器加上每 10 秒一次的取樣）都要看狀態列還是「等經驗一動就開始算」那類還在讀的字、「停止分享」那顆還在，
      不能出現「分享停了」「認不到遊戲畫面」——畫面上的「Lv.46 · 經驗 …」那行在分享停了之後還會留著，光看它抓不到停了。最後等級經驗也還讀得到。守的是小地圖標題的長相不隨時間飄、讀畫面沒有中途停掉。
   7. 整頁截圖 `speed.png`；玩家點過地圖的話，重新整理再分享一次，要直接認成這張圖、不再問，角色卡還寫「你的角色：驗收用」（驗證「點一次之後會記住」，`ms-speed-maps`）。
+     沒過時看 `detail`：`read` 沒讀到＝分享根本沒開始（多半是沒點中按鈕），`asking: true`＝開始了但記住的長相沒對上。
   8. 整趟沒有沒接住的例外、`console.error`（警告只記在 `results.json` 的 `problems.warnings`，不判）。
 - 輸出：`speed.png`（整頁）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`problems`）；出錯時另存 `crash.png`。
 - 耗時：本機 dev server 約 80 秒（60 秒是不動檢查）；dev 第一次編譯 `/plan/speed` 跟排行 API 另加（頁面最多等 2 分半）。
@@ -487,6 +488,9 @@ node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3000]
   再跳過去，DevTools 呼叫也要設等待上限（gear-source-shot 的 `send` 每個最多 60 秒）。
 - **剛開的 Chrome 停在 `about:blank`，再 `Page.navigate` 到 `about:blank` 不會有 load 事件**，沒設逾時會一直等下去。
   第一頁直接導到要量的網址。
+- **用滑鼠點之前捲過去，`scrollIntoView` 一定要帶 `behavior: "instant"`**：全站 `html` 是平滑捲動，不帶就是邊滑邊量，
+  量到捲之前的座標，按下去時按鈕已經滑走、點到旁邊的區塊，什麼都沒發生也不報錯。speed-shot 第 8 步「重新整理再分享」
+  時好時壞就是這個（v1.06 修；組隊那格把按鈕推到中線以下才要捲，所以只有那一步會中）。
 - **手機觸控點長頁面底部的輸入框可能點不到**：點完檢查 `activeElement`，沒點中就 `el.focus()`（border-* 的 `tap`）。
 - **改前／改後要用每個 commit 固定的部署網址**，不要拿 dev 測試機當改前（它一小時會被合好幾次）。
   `gh api "repos/clarkher/maplestory-tool/deployments?sha=<完整 sha>"` 拿 id，
