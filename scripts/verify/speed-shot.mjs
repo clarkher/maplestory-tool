@@ -15,10 +15,11 @@ import { sleep, start } from "./harness.mjs";
 const OUT = outDir(process.argv[2], "speed-shot");
 const BASE = (process.argv[3] ?? "http://localhost:3095").replace(/\/$/, "");
 const PORT = chromePort(9391, process.argv[4]);
-const FIXTURE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../src/lib/speed/__fixtures__/window-1364.png");
+// 換別張畫面：SPEED_FIXTURE＝PNG 路徑、SPEED_READING＝頁面上應該讀到的那一行（用 src/lib/speed/gen/painted.gen.ts 產，經驗換成有 1、2、5、8 的）
+const FIXTURE = process.env.SPEED_FIXTURE ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../src/lib/speed/__fixtures__/window-1364.png");
 
 const MAP = "森林迷宮III"; // 基準截圖的小地圖標題；截圖是有損壓縮，多半認不出來，要玩家點一次
-const READING = "Lv.46 · 經驗 406,947（79.73%）"; // 基準截圖上的等級、經驗；% 是經驗 ÷ 46 級升級要的經驗算的
+const READING = process.env.SPEED_READING ?? "Lv.46 · 經驗 406,947（79.73%）"; // 基準截圖上的等級、經驗；% 是經驗 ÷ 46 級升級要的經驗算的
 const JOB = "冰雷巫師"; // jobOption(220).name
 const MATE = 44;
 const STATIONARY_MS = 60_000; // 地圖點好之後，同一張畫面再放這麼久，地圖不能變

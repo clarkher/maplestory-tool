@@ -443,8 +443,13 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
 - **排行掛名規則（隱私 B）**：「上榜那一筆」跟「這個角色最新的一筆」都勾公開才顯示角色 ID，其他一律「匿名玩家」。
   沒登入，任何人都能拿別人的角色 ID 送一筆；這樣別人只能把你藏起來、不能幫你翻開。
 - **字形樣板**：`src/lib/speed/glyphs.json`（EXP 那行的數字）、`public/data/speed-names.json`（職業、街道、地圖名），只存縮成格子的特徵、不存字型本身。
-  `public/data/maps.json` 多了新地圖名，要在 Windows 上重跑 `npm run speed:glyphs`（要微軟正黑體 `C:/Windows/Fonts/msjh.ttc`；CI 不跑），
+  EXP 那行用**遊戲自己的點陣字**（`src/lib/speed/status-font.ts`，從客戶端 `UI/StatusBar/number` 抽的，v1.05），照 1～2 倍縮放、不同對齊各模擬一份；
+  只重產數字樣板：`npx vitest run -c vitest.gen.config.ts -t "產 glyphs.json"`（不用字型）。v1.05 以前數字樣板是微軟正黑體，1、3、5 會認錯，經驗幾乎都讀不出來。
+  `public/data/maps.json` 多了新地圖名，要在 Windows 上重跑 `npm run speed:glyphs`（職業、地圖名要微軟正黑體 `C:/Windows/Fonts/msjh.ttc`；CI 不跑），
   沒重跑的新圖頁面會請玩家點選一次。
+- **讀得到的視窗大小**（v1.05 量的，11 組經驗×每個倍率）：原尺寸、1.2～2.5 倍全部讀得到；1.05～1.15 倍約 8～9 成讀得到
+  （字跟字中間 1 格的空隙被抹掉黏在一起、% 的細斜線被認成數字），比原尺寸小的更少。讀不到的那張丟掉、頁面請玩家把視窗放大，
+  **不會讀錯**（`read-frame.test.ts`「讀不到可以，讀錯不行」）。還不知道等級時 % 一定要認得出來才算（`parseExp`），防止起步就鎖錯等級。
 - **資料庫**：Vercel 專案頁 Storage → Create Database → Neon（免費方案），Vercel 自動放 `DATABASE_URL`（本機不用設）。
   表在第一次呼叫 API 時自動建（`src/lib/speed/server/db.ts`，只有 `CREATE … IF NOT EXISTS`，不跑 DELETE／UPDATE）。
   沒設 `DATABASE_URL` 時頁面照樣能量，存的時候寫「排行還沒開」。
