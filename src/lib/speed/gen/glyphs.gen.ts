@@ -1,7 +1,8 @@
 // src/lib/speed/gen/glyphs.gen.ts
 /**
- * 產練功測速的字形樣板（本機跑：npm run speed:glyphs，要 Windows 的字型）。
- * - src/lib/speed/glyphs.json：EXP 那行的字（0–9、[、]、%），微軟正黑體
+ * 產練功測速的字形樣板（本機跑：npm run speed:glyphs，要 Windows 的字型；只重產數字用 -t "產 glyphs.json"，不用字型）。
+ * - src/lib/speed/glyphs.json：EXP 那行的字（0–9、[、]、%、/），用遊戲自己的點陣字（status-font.ts，從客戶端抽的）。
+ *   2026-10-17 以前是微軟正黑體，跟遊戲的字長得不一樣，1 被認成 ]、3 跟 5 被認成 8，經驗幾乎都讀不出來。
  * - public/data/speed-names.json：職業名（微軟正黑體）、小地圖的街道名跟地圖名（TITLE_FONT）
  * 只存縮成格子的特徵（每字 8×12、每行高 8 格），不存字型本身。
  * 地圖資料（public/data/maps.json）多了新地圖名就要重跑，不然新圖認不到（頁面會改請玩家點選）。
@@ -11,8 +12,9 @@ import path from "node:path";
 import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { it } from "vitest";
 import type { Frame } from "../frame";
-import { bbox, components, grid, inkMask } from "../ink";
+import { bbox, grid, inkMask } from "../ink";
 import { JOB_TEXT } from "../read-job";
+import { buildStatusTemplates } from "./status-templates";
 
 const JOB_FONT = "C:/Windows/Fonts/msjh.ttc";
 // 小地圖標題的字型：Task 6 用無損截圖比過再定；還沒有無損截圖前先用微軟正黑體
@@ -40,23 +42,7 @@ const round = (value: number) => Math.round(value * 1000) / 1000;
 const hex = (cells: Float32Array) => Array.from(cells, value => Math.min(15, Math.round(value * 15)).toString(16)).join("");
 
 it("產 glyphs.json", () => {
-  registerFont(JOB_FONT, "SpeedDigits");
-  const chars = [];
-  for (const ch of "0123456789[]%") {
-    const frame = render(ch, "SpeedDigits", 96);
-    const mask = inkMask(frame, { x: 0, y: 0, w: frame.width, h: frame.height })!;
-    const parts = components(mask, 0, mask.h);
-    const box = {
-      x0: Math.min(...parts.map(part => part.x0)),
-      x1: Math.max(...parts.map(part => part.x1)),
-      y0: Math.min(...parts.map(part => part.y0)),
-      y1: Math.max(...parts.map(part => part.y1)),
-      n: 0,
-    };
-    chars.push({ ch, aspect: round((box.x1 - box.x0) / (box.y1 - box.y0)), h: box.y1 - box.y0, grid: Array.from(grid(mask, box, 8, 12), round) });
-  }
-  const zero = chars.find(entry => entry.ch === "0")!.h;
-  const out = { font: "Microsoft JhengHei", gw: 8, gh: 12, chars: chars.map(({ h, ...rest }) => ({ ...rest, rh: round(h / zero) })) };
+  const out = { font: "遊戲狀態列點陣字（客戶端 UI/StatusBar/number），照 1～2 倍縮放模擬", gw: 8, gh: 12, chars: buildStatusTemplates() };
   fs.writeFileSync(path.join(ROOT, "src/lib/speed/glyphs.json"), `${JSON.stringify(out)}\n`);
 });
 
