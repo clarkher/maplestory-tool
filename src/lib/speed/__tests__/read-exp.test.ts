@@ -3,7 +3,7 @@ import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 import { findStatusBar } from "../status-bar";
 import { parseExp, readExpText } from "../read-exp";
-import { loadFixture, paintExpLine, scaleFrame } from "./fixture";
+import { loadFixture, onScene, paintExpLine, scaleFrame } from "./fixture";
 
 const toNext: number[] = JSON.parse(fs.readFileSync("public/data/guides/common.json", "utf8")).expTable.toNext;
 
@@ -39,6 +39,44 @@ describe("找狀態列", () => {
     expect(Math.max(hp, mp, exp)).toBeLessThanOrEqual(Math.min(hp, mp, exp) * 1.1);
     expect(bar!.hp[1]).toBeLessThanOrEqual(bar!.mp[0]);
     expect(bar!.mp[1]).toBeLessThan(bar!.exp[0]);
+  });
+
+  // 2026-10-18 使用者回報修好字型後「還是一直讀不到」：遊戲開 1920×1080，狀態列不放大、置中，左右是亮色磚地。
+  // 以前從最左邊數「前三段亮的」當 HP、MP、EXP，左邊的磚地被當成 HP、MP。
+  it.each([
+    ["1920×1080，兩邊是亮色磚地", 1920, 1080, false],
+    ["1920×1080，下面兩成還有一大片藍天（藍色比 MP 條多）", 1920, 1080, true],
+    ["2560×1440", 2560, 1440, false],
+    ["3840×2160", 3840, 2160, true],
+  ] as const)("%s：狀態列置中也找得到，EXP 條在正確位置", async (_, width, height, sky) => {
+    const base = await loadFixture("window-1364.png");
+    const frame = onScene(base, width, height, { sky });
+    const bar = findStatusBar(frame)!;
+    expect(bar).not.toBeNull();
+    const left = Math.floor((width - base.width) / 2);
+    expect(Math.abs(bar.exp[0] - (left + 809))).toBeLessThanOrEqual(2);
+    expect(Math.abs(bar.exp[1] - (left + 976))).toBeLessThanOrEqual(2);
+    expect(bar.bottom - bar.top).toBe(18);
+    expect(bar.scale).toBeCloseTo(1, 1);
+  });
+
+  it.each([1.25, 1.5])("1920×1080 置中的畫面再放大 %s 倍也找得到", async scale => {
+    const base = await loadFixture("window-1364.png");
+    const frame = scaleFrame(onScene(base, 1920, 1080, { sky: true }), scale);
+    const bar = findStatusBar(frame)!;
+    expect(bar).not.toBeNull();
+    expect(Math.abs(bar.scale / scale - 1)).toBeLessThan(0.05);
+    expect(Math.abs(bar.exp[0] - (Math.floor((1920 - base.width) / 2) + 809) * scale)).toBeLessThanOrEqual(3);
+  });
+
+  // 使用者傳來的截圖是縮小再壓縮過的，條上下 1 格的黑框糊成 50～70，以前會一路量到畫面頂端
+  it("畫面糊掉（縮成一半再放大回來）黑框不明顯：條高還是正常，不會量成整個畫面", async () => {
+    const base = await loadFixture("window-1364.png");
+    const frame = scaleFrame(scaleFrame(onScene(base, 1920, 1080), 0.52), 1 / 0.52);
+    const bar = findStatusBar(frame)!;
+    expect(bar).not.toBeNull();
+    expect(bar.bottom - bar.top).toBeGreaterThanOrEqual(14);
+    expect(bar.bottom - bar.top).toBeLessThanOrEqual(26);
   });
 
   it("全黑畫面找不到", () => {
