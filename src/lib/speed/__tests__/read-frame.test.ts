@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { parseNames } from "../names";
 import { readFrame } from "../read-frame";
 import { findStatusBar } from "../status-bar";
-import { loadFixture, paintExpLine, scaleFrame } from "./fixture";
+import { loadFixture, onScene, paintExpLine, scaleFrame } from "./fixture";
 
 const init = {
   toNext: JSON.parse(fs.readFileSync("public/data/guides/common.json", "utf8")).expTable.toNext as number[],
@@ -62,9 +62,33 @@ describe("一張畫面全部讀完", () => {
     },
   );
 
+  // 2026-10-18「還是一直讀不到」：使用者的遊戲是 1920×1080，狀態列置中、兩邊是場景
+  it.each([
+    [1920, 1080, false, 46, 406947],
+    [1920, 1080, true, 52, 581250],
+    [2560, 1440, true, 68, 1258312],
+  ] as const)("%s×%s 狀態列置中（藍天 %s）：%s 等、經驗 %s 讀得出經驗跟等級、職業", async (width, height, sky, level, exp) => {
+    const base = await loadFixture("window-1364.png");
+    const percent = Math.floor((exp / init.toNext[level]) * 10000) / 100;
+    const text = `${exp}[${percent.toFixed(2)}%]`;
+    const source = exp === 406947 ? base : paintExpLine(base, findStatusBar(base)!, text);
+    const reading = readFrame(onScene(source, width, height, { sky }), init, []);
+    expect(reading.bar).toBe(true);
+    expect(reading.exp).toMatchObject({ exp, level });
+    expect(reading.job).toBe(220);
+  });
+
   it("不是遊戲畫面：什麼都沒有", () => {
     const frame = { width: 640, height: 360, data: new Uint8ClampedArray(640 * 360 * 4).fill(255) };
     expect(readFrame(frame, init, [])).toEqual({ bar: false, exp: null, job: null, title: null });
+  });
+
+  it("一張 1920×1080（狀態列置中、下面還有一大片藍天，要多試好幾列）讀完也要在 150ms 內", async () => {
+    const frame = onScene(await loadFixture("window-1364.png"), 1920, 1080, { sky: true });
+    readFrame(frame, init, []);
+    const start = performance.now();
+    readFrame(frame, init, [46, 47]);
+    expect(performance.now() - start).toBeLessThan(150);
   });
 
   it("一張 1364×799 讀完要在 150ms 內（每秒讀一張，不能吃電腦）", async () => {
