@@ -14,7 +14,7 @@ import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
 import { useBeforeV002 } from "@/lib/release";
-import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-planner";
+import { type Band, isIslandBand, onIsland, recFromPlayers, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
@@ -384,7 +384,7 @@ function MustDoRow({ item, memoryKey }: { item: BandQuest; memoryKey: string }) 
         Lv.{item.level} 起
         {item.rec ? (
           <button type="button" onClick={() => setOpen(value => !value)} className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 font-bold text-[color:var(--gold)]">
-            玩家推薦{open ? "" : "・為什麼"}
+            {recFromPlayers(item.rec) ? "玩家推薦" : "遊戲資料"}{open ? "" : "・為什麼"}
           </button>
         ) : null}
       </p>

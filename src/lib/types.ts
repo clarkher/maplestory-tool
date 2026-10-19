@@ -313,7 +313,8 @@ export type GuideMustDo = {
   name: string;
   lv: string;
   why: string;
-  v: Verified;
+  /** 推薦從哪來：玩家攻略（tw／community／legacy），或 data＝只有遊戲資料、還沒有玩家回報（畫面標「遊戲資料」） */
+  v: Verified | "data";
   s: string[];
   reward?: GuideReward;
 };

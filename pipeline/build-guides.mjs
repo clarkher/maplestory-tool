@@ -6,6 +6,7 @@
  * 輸入：
  *   data/guides/{warrior-pirate,magician,archer-thief}.json  各職業的點法、練功點、注意事項（每條附出處）
  *   data/guides/quests-exp.json                              升級經驗表、必解／不值得解任務
+ *                                                            （必解的 verified 多一種 data：只有遊戲資料、還沒有玩家回報，畫面標「遊戲資料」）
  *   data/guides/pq.json                                      組隊任務表（入口地圖、對應的遊戲任務、比對字）
  *   public/data/{skills,maps,monsters,quests,meta}.json      站內遊戲資料，用來驗證 id、組隊任務的等級限制
  *
@@ -179,6 +180,7 @@ function main() {
     mustDo: questResearch.mustDo
       .filter(entry => keepQuest(entry, "必解"))
       .map(entry => {
+        if (!["tw", "community", "legacy", "data"].includes(entry.verified)) throw new Error(`必解「${entry.questName}」：verified 只能是 tw／community／legacy／data，寫的是 ${entry.verified}`);
         const { reward, dropped } = normalizeReward(entry.reward, itemIds, entry.questName);
         for (const id of dropped) warnings.push(`必解「${entry.questName}」：獎勵道具 ${id} 不在站內資料，拿掉`);
         return {
