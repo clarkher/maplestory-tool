@@ -355,7 +355,7 @@ function TrainRowItem({
         )}
         {row.go !== undefined ? (
           <GoButton to={row.go} label="去" />
-        ) : row.pq ? (
+        ) : row.pq?.guide ? (
           <Link href={row.pq.guide} className="tap-safe inline-flex shrink-0 items-center rounded-full bg-[color:var(--sky)] px-3 text-[13px] font-bold text-[color:var(--on-accent)]">
             圖解
           </Link>

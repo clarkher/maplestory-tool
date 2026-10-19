@@ -302,8 +302,9 @@ export type GuideReward = { label: string; items: number[]; permanent?: boolean 
 /**
  * 組隊任務：入口地圖、圖解連結、各職業打它的等級範圍（從攻略的組隊段落整理，build 時已裁進遊戲任務的等級限制）。
  * quest 是對應的遊戲任務 id（月妙的年糕 1200、第一次同行 1201）。
+ * guide 是懶人包圖解的連結（月妙、超綠才有）；why 是大卡上的一句說明（女神組隊：經驗比打野圖慢）。
  */
-export type GuidePq = { key: string; name: string; quest?: string; entrance: number; guide: string; byJob: Record<string, [number, number]> };
+export type GuidePq = { key: string; name: string; quest?: string; entrance: number; guide?: string; why?: string; byJob: Record<string, [number, number]> };
 
 export type GuideMustDo = {
   q: string;

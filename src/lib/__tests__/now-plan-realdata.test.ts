@@ -380,10 +380,12 @@ describe("真資料：首頁每個組合", () => {
     expectNone("你在這一段跟主推卡不一樣", bad);
   });
 
-  it("看打法連到懶人包裡那個組隊任務自己的段落（/guide#pq-月妙、超綠）", () => {
+  it("看打法連到懶人包裡那個組隊任務自己的段落（/guide#pq-月妙、超綠）；沒有圖解的要有一句說明", () => {
     const pqs = read<GuideCommon>("guides/common.json").pq ?? [];
     const sections = new Set(COMMON_ROUTE.flatMap(step => (step.pq ? [`/guide#pq-${step.pq}`] : [])));
-    const bad = pqs.filter(pq => pq.guide !== `/guide#pq-${pq.key}` || !sections.has(pq.guide)).map(pq => `${pq.name}：${pq.guide}`);
+    const bad = pqs
+      .filter(pq => (pq.guide !== undefined ? pq.guide !== `/guide#pq-${pq.key}` || !sections.has(pq.guide) : !pq.why))
+      .map(pq => `${pq.name}：${pq.guide ?? "沒有圖解也沒有說明"}`);
     expectNone("看打法連不到該組隊任務的段落", bad);
   });
 
