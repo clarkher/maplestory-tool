@@ -20,6 +20,7 @@ import { findRoute, suggestStart } from "@/lib/route";
 import { type Band, bandsFor, isIslandBand, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
 import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
+import { GODDESS_PQ, goddessNoteFor } from "@/lib/v002-notes";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const read = <T,>(name: string): T => JSON.parse(fs.readFileSync(`${DATA}${name}`, "utf8")) as T;
@@ -212,6 +213,20 @@ describe("真資料：首頁每個組合", () => {
     expectNone("組隊任務範圍超出遊戲限制", bad);
   });
 
+  it("女神的痕跡：主推是它的組合不再多放一行舊提示；其他 51～70 等的組合照舊放（v1.08）", () => {
+    const goddessCombos = combos.filter(combo => combo.pick?.kind === "pq" && combo.pick.pq.quest === GODDESS_PQ.quest);
+    // 劍士三職、刺客、俠盜、僧侶 51～70 主推它：至少有這幾條職業線
+    expect(new Set(goddessCombos.map(combo => combo.job)).size).toBeGreaterThanOrEqual(6);
+    const bad = combos.flatMap(combo => {
+      const note = goddessNoteFor(combo.level, combo.pick);
+      const isGoddessPick = goddessCombos.includes(combo);
+      const inRange = combo.level >= GODDESS_PQ.minLv && combo.level <= GODDESS_PQ.maxLv;
+      const shouldShow = inRange && !isGoddessPick;
+      return Boolean(note) === shouldShow ? [] : [`${combo.tag}：${note ? "放了" : "沒放"}女神提示`];
+    });
+    expectNone("女神提示跟主推卡重複或漏放", bad);
+  });
+
   it("主推卡給「帶我去」時，/go 真的找得到從城鎮走過去的路", () => {
     const bad = combos.flatMap(combo => {
       if (combo.pick?.kind !== "map" || !canGo(combo.pick.option)) return [];
@@ -380,10 +395,12 @@ describe("真資料：首頁每個組合", () => {
     expectNone("你在這一段跟主推卡不一樣", bad);
   });
 
-  it("看打法連到懶人包裡那個組隊任務自己的段落（/guide#pq-月妙、超綠）", () => {
+  it("看打法連到懶人包裡那個組隊任務自己的段落（/guide#pq-月妙、超綠）；沒有圖解的要有一句說明", () => {
     const pqs = read<GuideCommon>("guides/common.json").pq ?? [];
     const sections = new Set(COMMON_ROUTE.flatMap(step => (step.pq ? [`/guide#pq-${step.pq}`] : [])));
-    const bad = pqs.filter(pq => pq.guide !== `/guide#pq-${pq.key}` || !sections.has(pq.guide)).map(pq => `${pq.name}：${pq.guide}`);
+    const bad = pqs
+      .filter(pq => (pq.guide !== undefined ? pq.guide !== `/guide#pq-${pq.key}` || !sections.has(pq.guide) : !pq.why))
+      .map(pq => `${pq.name}：${pq.guide ?? "沒有圖解也沒有說明"}`);
     expectNone("看打法連不到該組隊任務的段落", bad);
   });
 

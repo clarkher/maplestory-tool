@@ -184,21 +184,24 @@ function PqCard({ pick, level, jobName, maps, routable }: Common & { pick: Extra
         <div>
           <h2 className="text-[22px] font-black leading-tight">{pq.name}</h2>
           <p className="text-[13px] ink-soft">{writer}玩家推薦 {levelRange(window[0], window[1])} 打這個，入口在{mapName(maps, pq.entrance)}</p>
+          {pq.why ? <p className="mt-1 text-[13px] leading-relaxed">{pq.why}</p> : null}
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Chip tone="sky">組隊</Chip>
           <SourceTag kind="guide" />
         </div>
-        <span className="grid grid-cols-[1fr_auto] gap-2">
+        <span className={pq.guide ? "grid grid-cols-[1fr_auto] gap-2" : "grid grid-cols-1"}>
           {routable.has(pq.entrance) ? (
             <Link href={`/go?to=${pq.entrance}`} className="tap-safe flex items-center justify-center gap-1.5 rounded-full bg-[color:var(--maple)] text-[15px] font-black text-[color:var(--on-accent)] shadow-sm">
               <RouteIcon size={17} />
               帶我去入口
             </Link>
           ) : <span />}
-          <Link href={pq.guide} className="tap-safe flex items-center justify-center rounded-full border border-[color:var(--sky)] px-4 text-[14px] font-bold text-[color:var(--sky)]">
-            看打法
-          </Link>
+          {pq.guide ? (
+            <Link href={pq.guide} className="tap-safe flex items-center justify-center rounded-full border border-[color:var(--sky)] px-4 text-[14px] font-bold text-[color:var(--sky)]">
+              看打法
+            </Link>
+          ) : null}
         </span>
         <AltLine alt={alt} prefix="人多時：" />
       </div>

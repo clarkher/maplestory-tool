@@ -279,6 +279,8 @@ export type GuideTrain = {
   s: string[];
   /** 這個組隊段落對應的組隊任務（pq.json 的 key）；不是組隊任務就沒有 */
   pq?: string;
+  /** 台服 10/15 改版後有人在這個等級實際這樣練（例：祭司 80 打殭屍）：主推不套「比參考等級低 10 級以上算過期」 */
+  current?: true;
 };
 
 export type GuideJob = {
@@ -302,8 +304,9 @@ export type GuideReward = { label: string; items: number[]; permanent?: boolean 
 /**
  * 組隊任務：入口地圖、圖解連結、各職業打它的等級範圍（從攻略的組隊段落整理，build 時已裁進遊戲任務的等級限制）。
  * quest 是對應的遊戲任務 id（月妙的年糕 1200、第一次同行 1201）。
+ * guide 是懶人包圖解的連結（月妙、超綠才有）；why 是大卡上的一句說明（女神組隊：經驗比打野圖慢）。
  */
-export type GuidePq = { key: string; name: string; quest?: string; entrance: number; guide: string; byJob: Record<string, [number, number]> };
+export type GuidePq = { key: string; name: string; quest?: string; entrance: number; guide?: string; why?: string; byJob: Record<string, [number, number]> };
 
 export type GuideMustDo = {
   q: string;
@@ -312,13 +315,16 @@ export type GuideMustDo = {
   name: string;
   lv: string;
   why: string;
-  v: Verified;
+  /** 推薦從哪來：玩家攻略（tw／community／legacy），或 data＝只有遊戲資料、還沒有玩家回報（畫面標「遊戲資料」） */
+  v: Verified | "data";
   s: string[];
   reward?: GuideReward;
 };
 
 export type GuideCommon = {
   researchedAt: string;
+  /** 依改版補過內容的日期（有才有），頁尾寫「依改版更新」 */
+  updatedAt?: string;
   builtAt: string;
   expTable: {
     /** toNext[n] = 從 Lv.n 升到 n+1 要的經驗；toNext[0] 不用 */

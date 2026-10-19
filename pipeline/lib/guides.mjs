@@ -71,9 +71,15 @@ export function pqKeyOf(pqList, segment) {
  * 範圍裁進任務的 [minLv, maxLv]（沒有上限用 levelCap），裁完變空的整筆拿掉，每一筆都列警告。
  * trainByJob: Map<jobId, Array<{ from, to, kind, name }>>
  * quests: Map<任務 id, { minLv?, maxLv? }>，對應 pq.json 每筆的 quest
+ * guide（懶人包圖解）跟 why（大卡上的一句說明）研究檔有才帶。
  */
 export function pqWindows(pqList, trainByJob, { quests = new Map(), levelCap = Infinity, warn = () => {} } = {}) {
-  const result = pqList.map(pq => ({ key: pq.key, name: pq.name, quest: pq.quest, entrance: pq.entrance, guide: pq.guide, byJob: {} }));
+  const result = pqList.map(pq => ({
+    key: pq.key, name: pq.name, quest: pq.quest, entrance: pq.entrance,
+    ...(pq.guide ? { guide: pq.guide } : {}),
+    ...(pq.why ? { why: pq.why } : {}),
+    byJob: {},
+  }));
   for (const [job, segments] of trainByJob) {
     for (const segment of segments) {
       const key = pqKeyOf(pqList, segment);

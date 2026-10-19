@@ -14,7 +14,7 @@ import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
 import { useBeforeV002 } from "@/lib/release";
-import { type Band, isIslandBand, onIsland, spawnIndex } from "@/lib/route-planner";
+import { type Band, isIslandBand, onIsland, recFromPlayers, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
@@ -355,7 +355,7 @@ function TrainRowItem({
         )}
         {row.go !== undefined ? (
           <GoButton to={row.go} label="去" />
-        ) : row.pq ? (
+        ) : row.pq?.guide ? (
           <Link href={row.pq.guide} className="tap-safe inline-flex shrink-0 items-center rounded-full bg-[color:var(--sky)] px-3 text-[13px] font-bold text-[color:var(--on-accent)]">
             圖解
           </Link>
@@ -383,8 +383,8 @@ function MustDoRow({ item, memoryKey }: { item: BandQuest; memoryKey: string }) 
       <p className="flex flex-wrap items-center gap-1.5 text-[11px] ink-faint">
         Lv.{item.level} 起
         {item.rec ? (
-          <button type="button" onClick={() => setOpen(value => !value)} className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 font-bold text-[color:var(--gold)]">
-            玩家推薦{open ? "" : "・為什麼"}
+          <button type="button" onClick={() => setOpen(value => !value)} className={`rounded-full px-2 py-0.5 font-bold ${recFromPlayers(item.rec) ? "bg-[color:var(--gold-wash)] text-[color:var(--gold)]" : "bg-[color:var(--sky-wash)] text-[color:var(--sky)]"}`}>
+            {recFromPlayers(item.rec) ? "玩家推薦" : "遊戲資料"}{open ? "" : "・為什麼"}
           </button>
         ) : null}
       </p>
