@@ -16,7 +16,7 @@ import { sessionMemo } from "@/lib/session-memo";
 import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
-import { goddessPqNote } from "@/lib/v002-notes";
+import { goddessNoteFor } from "@/lib/v002-notes";
 import { useVisitState } from "@/lib/visit-state";
 import { CalcPickCard } from "./CalcPickCard";
 import { CharacterBar } from "./CharacterBar";
@@ -41,7 +41,6 @@ export function RouteHome() {
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
-  const goddess = goddessPqNote(profile.level);
   const [data, setData] = useState<HomeData | null>(peekHomeData);
   const [guideState, setGuideState] = useState<GuideState>(() => ({ job: profile.job, ...guidesFor(profile.job, new Map()) }));
   const [error, setError] = useState<string | null>(null);
@@ -158,6 +157,9 @@ export function RouteHome() {
     });
   }, [data, ready, effective, profile, stageGuide]);
 
+  // 女神的痕跡那一行：主推已經是女神組隊就不放（跟主推卡拿同一個 pick；攻略還在載時主推卡是骨架，這行也先不放）
+  const goddess = plan && !guideLoading ? goddessNoteFor(profile.level, plan.pick) : null;
+
   if (error) {
     return <p className="py-10 text-center text-sm ink-soft">資料讀取失敗：{error}。重新整理一次試試。</p>;
   }
@@ -214,7 +216,7 @@ export function RouteHome() {
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
           )}
 
-          {/* 女神的痕跡（v1.01 使用者選 1A）：只放官方確定的地點、人數、獎勵，沒有攻略所以不當主推 */}
+          {/* 女神的痕跡（v1.01 使用者選 1A）：官方確定的地點、人數、獎勵；v1.08 起 51～70 等有些職業主推就是它，那時這行不放 */}
           {goddess ? (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">
               {goddess.text}
@@ -273,7 +275,7 @@ export function RouteHome() {
 
           <p className="px-1 pt-2 text-[12px] leading-relaxed ink-faint">
             遊戲資料：版本 {data.meta.gameVersion ?? "—"}（{data.meta.dataGeneratedAtText?.slice(0, 10) ?? "—"}）；
-            點法、練功點與必解任務整理自巴哈姆特、波波攻略島、楓錄等玩家攻略（{data.common.researchedAt}），每一條都附出處。
+            點法、練功點與必解任務整理自巴哈姆特、波波攻略島、楓錄等玩家攻略（{data.common.researchedAt}{data.common.updatedAt ? `，${data.common.updatedAt} 依改版更新` : ""}），玩家攻略每一條都附出處；標「遊戲資料」的是照遊戲資料推算。
             想看全部地圖或任務，去
             <Link href="/db" className="mx-1 font-bold text-[color:var(--sky)]">查資料</Link>。
           </p>

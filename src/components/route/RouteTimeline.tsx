@@ -383,7 +383,7 @@ function MustDoRow({ item, memoryKey }: { item: BandQuest; memoryKey: string }) 
       <p className="flex flex-wrap items-center gap-1.5 text-[11px] ink-faint">
         Lv.{item.level} 起
         {item.rec ? (
-          <button type="button" onClick={() => setOpen(value => !value)} className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 font-bold text-[color:var(--gold)]">
+          <button type="button" onClick={() => setOpen(value => !value)} className={`rounded-full px-2 py-0.5 font-bold ${recFromPlayers(item.rec) ? "bg-[color:var(--gold-wash)] text-[color:var(--gold)]" : "bg-[color:var(--sky-wash)] text-[color:var(--sky)]"}`}>
             {recFromPlayers(item.rec) ? "玩家推薦" : "遊戲資料"}{open ? "" : "・為什麼"}
           </button>
         ) : null}

@@ -321,6 +321,8 @@ export type GuideMustDo = {
 
 export type GuideCommon = {
   researchedAt: string;
+  /** 依改版補過內容的日期（有才有），頁尾寫「依改版更新」 */
+  updatedAt?: string;
   builtAt: string;
   expTable: {
     /** toNext[n] = 從 Lv.n 升到 n+1 要的經驗；toNext[0] 不用 */

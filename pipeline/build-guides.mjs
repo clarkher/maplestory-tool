@@ -170,6 +170,8 @@ function main() {
 
   const common = {
     researchedAt: questResearch.researchedAt || researchedAt,
+    // 依改版補過的日期（有才寫）：首頁頁尾「依改版更新」
+    ...(questResearch.updatedAt ? { updatedAt: questResearch.updatedAt } : {}),
     builtAt: new Date().toISOString(),
     expTable: {
       toNext,
