@@ -569,7 +569,7 @@ export function longRunTasks(quests: Quest[], monsters: Monster[], min = LONG_RU
 export const BOSS_SPAWN_MAX = 3;
 /** 從最近城鎮要走這麼多張圖以上，排序打七折 */
 const FAR_HOPS = 8;
-/** 攻略圖比參考等級（現在等級與能練的最高圖取小）低這麼多級以上算過期，排在遊戲資料後面 */
+/** 攻略圖比參考等級（現在等級與能練的最高圖取小）低這麼多級以上算過期，排在遊戲資料後面（研究檔標了 current 的段落不算） */
 const STALE_GAP = 10;
 /** 現在等級比能練的最高圖高這麼多級以上才加封頂提示（升級路線的段落提示也用這個門檻） */
 export const CEILING_GAP = 10;
@@ -843,7 +843,7 @@ export function mainPick(args: {
       level: levelOf(map),
       ...route(map),
     };
-    (isStale(map) ? stale : fresh).push(option);
+    (isStale(map) && !segment.current ? stale : fresh).push(option);
   }
 
   // 遊戲資料：攻略已經寫到的圖不重複；城鎮走不到的不推（帶我去會找不到起點）；走 8 張圖以上打七折

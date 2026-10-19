@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { LEVEL_CAP } from "@/lib/profile";
 import {
   bandOf, bandsFor, fitLevel, groupQuests, isIslandMap, levelFraction, longRunQuests, onIsland, prepMaterials,
-  questReachable, segmentsToShow, trainingForBand,
+  questReachable, recFromPlayers, segmentsToShow, trainingForBand,
 } from "@/lib/route-planner";
 import { stepsBetween } from "@/lib/skill-plan";
-import type { GuideBuild, GuideTrain, Monster, Quest } from "@/lib/types";
+import type { GuideBuild, GuideMustDo, GuideTrain, Monster, Quest } from "@/lib/types";
 
 const monster = (id: number, drops: number[] = []): Monster =>
   ({ id, n: `怪${id}`, lv: 30, exp: 1, hp: 1, pad: 0, pdd: 0, mad: 0, mdd: 0, acc: 0, eva: 0, spd: 0, maps: [], drops }) as Monster;
@@ -189,5 +189,17 @@ describe("接不接得到", () => {
     expect(onIsland(200, 8)).toBe(false);
     expect(isIslandMap(40000)).toBe(true);
     expect(isIslandMap(100000000)).toBe(false);
+  });
+});
+
+const mustDoRec = (v: GuideMustDo["v"]): GuideMustDo => ({ q: "3113", chain: [], name: "女神的寵物（艾利傑）", lv: "83", why: "", v, s: [] });
+
+describe("recFromPlayers：必解推薦是不是玩家攻略", () => {
+  it("台服實測、社群整理、舊版經驗都是玩家攻略", () => {
+    expect((["tw", "community", "legacy"] as const).map(v => recFromPlayers(mustDoRec(v)))).toEqual([true, true, true]);
+  });
+
+  it("遊戲資料推出來的（還沒有玩家回報）不是", () => {
+    expect(recFromPlayers(mustDoRec("data"))).toBe(false);
   });
 });

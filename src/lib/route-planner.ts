@@ -238,3 +238,8 @@ export function mustDoIndex(common: GuideCommon): Map<string, GuideMustDo> {
   }
   return index;
 }
+
+/** 這筆必解推薦是不是玩家攻略；data＝研究時只有遊戲資料、還沒有玩家回報（V002 的大任務） */
+export function recFromPlayers(rec: GuideMustDo): boolean {
+  return rec.v !== "data";
+}

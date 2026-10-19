@@ -308,6 +308,26 @@ describe("主推大卡：能練的最高圖、過期攻略、封頂", () => {
     expect(pick.ceiling).toBeUndefined();
   });
 
+  it("攻略段落標了 current（台服改版後有人在這個等級實際這樣練）就不算過期，照樣排第一（祭司 80 打殭屍）", () => {
+    const zombie = 300000020;
+    const fresh = 300000021;
+    const top = 300000022;
+    const guide = guideWith([segment({ map: zombie, name: "殭屍圖", from: 70, to: 85, current: true })]);
+    const pick = mainPick({ ...world([{ id: zombie, lv: 57, eff: 100 }, { id: fresh, lv: 73, eff: 500 }, { id: top, lv: 73, eff: 50 }]), level: 80, job: 231, guide });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.option).toMatchObject({ map: zombie, source: "guide" });
+  });
+
+  it("沒標 current 的同一段照舊算過期（其他職業規則不變）", () => {
+    const zombie = 300000023;
+    const fresh = 300000024;
+    const top = 300000025;
+    const guide = guideWith([segment({ map: zombie, name: "殭屍圖", from: 70, to: 85 })]);
+    const pick = mainPick({ ...world([{ id: zombie, lv: 57, eff: 100 }, { id: fresh, lv: 73, eff: 500 }, { id: top, lv: 73, eff: 50 }]), level: 80, job: 231, guide });
+    if (pick?.kind !== "map") throw new Error("應該是練功圖");
+    expect(pick.option).toMatchObject({ source: "data" });
+  });
+
   it("Lv.90 沒有攻略段落、遊戲資料也排不出來時，主推能練的最高圖，封頂說這張已經是最好的", () => {
     const low = 300000008;
     const top = 300000009;
