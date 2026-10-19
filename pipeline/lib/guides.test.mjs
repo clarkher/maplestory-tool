@@ -150,3 +150,17 @@ test("三轉攻略檔繼承二轉 70 等以上的練功段與無攻略段", () =
   assert.equal(outputs.get("310.json").train.length, 2);
   assert.equal(outputs.get("300.json").train.length, 1);
 });
+
+test("組隊任務：研究檔有 why 就帶出去，沒有 guide 就不帶（女神組隊沒有懶人包圖解）", () => {
+  const pqList = [
+    { key: "moon", name: "月妙組隊任務", quest: "1200", match: "月妙", entrance: 100000200, guide: "/guide#pq-moon" },
+    { key: "goddess", name: "女神組隊任務", quest: "1203", match: "女神", entrance: 200080101, why: "經驗比打野圖慢一點" },
+  ];
+  const trainByJob = new Map([[410, [{ from: 51, to: 70, kind: "party", name: "女神組隊任務（天空之城 疑問之塔）" }]]]);
+  const [moon, goddess] = pqWindows(pqList, trainByJob);
+  assert.equal(moon.guide, "/guide#pq-moon");
+  assert.equal("why" in moon, false);
+  assert.equal("guide" in goddess, false);
+  assert.equal(goddess.why, "經驗比打野圖慢一點");
+  assert.deepEqual(goddess.byJob, { 410: [51, 70] });
+});

@@ -9,7 +9,8 @@ import { formatNumber } from "@/lib/format";
 import { normalizeJob } from "@/lib/jobs";
 import { npcGoTarget, partsText, type NowQuest } from "@/lib/now-plan";
 import { useStoredProfile } from "@/lib/profile";
-import type { MapRecord } from "@/lib/types";
+import { recFromPlayers } from "@/lib/route-planner";
+import type { MapRecord, Verified } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 import { PartsText, SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 
@@ -107,7 +108,7 @@ function TodoRow({ item, routable, maps, questNames, memoryKey }: RowProps) {
         </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-1.5">
-        {item.rec ? <SourceTag kind="guide" verified={item.rec.v} /> : <SourceTag kind="data" />}
+        {item.rec && recFromPlayers(item.rec) ? <SourceTag kind="guide" verified={item.rec.v as Verified} /> : <SourceTag kind="data" />}
         <span className="flex items-center gap-3">
           {item.rec ? (
             <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="text-[12px] font-bold text-[color:var(--sky)]">
