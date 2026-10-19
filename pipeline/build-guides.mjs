@@ -131,6 +131,7 @@ function main() {
           v: segment.verified,
           s: segment.sources,
           pq: pqKeyOf(pqResearch.pq, { kind: segment.kind, name: segment.mapName }),
+          ...(segment.current ? { current: true } : {}),
         };
       });
 

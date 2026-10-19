@@ -279,6 +279,8 @@ export type GuideTrain = {
   s: string[];
   /** 這個組隊段落對應的組隊任務（pq.json 的 key）；不是組隊任務就沒有 */
   pq?: string;
+  /** 台服 10/15 改版後有人在這個等級實際這樣練（例：祭司 80 打殭屍）：主推不套「比參考等級低 10 級以上算過期」 */
+  current?: true;
 };
 
 export type GuideJob = {

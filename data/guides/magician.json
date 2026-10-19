@@ -3312,7 +3312,8 @@
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2270",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
           ],
-          "verified": "tw"
+          "verified": "tw",
+          "current": true
         }
       ],
       "notes": [
