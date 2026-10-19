@@ -5047,30 +5047,6 @@
           "verified": "tw"
         },
         {
-          "levelFrom": 70,
-          "levelTo": 100,
-          "kind": "party",
-          "mapName": "龍族之地 混種石巨人",
-          "mapId": 105090310,
-          "mobs": [
-            {
-              "name": "混種石巨人",
-              "id": 5150000,
-              "lv": 59
-            },
-            {
-              "name": "冰獨眼獸",
-              "id": 4230100,
-              "lv": 40
-            }
-          ],
-          "why": "噗貓：目前版本終盤練等地圖，只要能兩刀混種石巨人就能來，經驗高達 6.5 萬。",
-          "sources": [
-            "https://home.gamer.com.tw/artwork.php?sn=6375411"
-          ],
-          "verified": "tw"
-        },
-        {
           "levelFrom": 55,
           "levelTo": 70,
           "kind": "solo",
@@ -6440,7 +6416,7 @@
       "jobId": 310,
       "levelFrom": 51,
       "levelTo": 70,
-      "place": "天空之城 女神之塔洗經驗團、雲彩公園 日月光精靈",
+      "place": "天空之城 雲彩公園 日月光精靈",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=2296",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=2997",
@@ -6472,7 +6448,7 @@
       "jobId": 320,
       "levelFrom": 51,
       "levelTo": 70,
-      "place": "冰原雪域 冰面Ⅰ／Ⅱ、結冰平原 野狼、小雪球、雪吉拉、冰雪峽谷",
+      "place": "冰原雪域 冰面Ⅰ／Ⅱ、結冰的平原 野狼、小雪球、雪吉拉、冰雪峽谷",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12533&sn=549",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12533&sn=861",
@@ -6493,7 +6469,7 @@
       "jobId": 320,
       "levelFrom": 65,
       "levelTo": 80,
-      "place": "殭屍（礦山殭屍）、藍獅、維京、地球防衛總部 外星人／機器人",
+      "place": "殭屍（礦山殭屍）、地球防衛總部 外星人／機器人",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12533&sn=909",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12533&sn=861",
@@ -6522,7 +6498,7 @@
       "jobId": 410,
       "levelFrom": 31,
       "levelTo": 51,
-      "place": "天空之城 幼獅、玩具城 發條熊／玩具熊、101 組隊任務、愛塔 41F 機器章魚、妖魔",
+      "place": "天空之城 幼獨角獅、玩具城 發條熊／玩具熊、101 組隊任務、愛塔 41F 機器章魚、妖魔",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12553&sn=954",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12553&sn=1016",
@@ -6534,7 +6510,7 @@
       "jobId": 410,
       "levelFrom": 50,
       "levelTo": 70,
-      "place": "雲彩公園Ⅳ～Ⅵ 蝴蝶精、星光／月光／日光精靈；冰原雪域 小雪球、野狼；女神之塔",
+      "place": "雲彩公園Ⅳ～Ⅵ 星光／月光／日光精靈；冰原雪域 小雪球、野狼",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12553&sn=219",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12553&sn=954",
@@ -6566,7 +6542,7 @@
       "jobId": 420,
       "levelFrom": 30,
       "levelTo": 70,
-      "place": "小石球、褐色／粉紅發條熊、幼獅、利提、妖魔、鼬鼠、發條貓熊、玩具 PT、馬提安、紅色機器人、月光、小雪球、野狼、日光、雪吉拉、殭屍、礦山殭屍",
+      "place": "小石球、褐色／粉紅發條熊、幼獨角獅、利堤、妖魔、鼬鼠、發條貓熊、玩具 PT、馬提安、紅色機器人、月光、小雪球、野狼、日光、雪吉拉、殭屍、礦山殭屍",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12555&sn=676",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12555&sn=677"
