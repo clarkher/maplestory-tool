@@ -3003,6 +3003,21 @@
           "why": "2026-10-03 研究時，僧侶 94 等以上找不到台服練功回報。",
           "sources": [],
           "verified": "community"
+        },
+        {
+          "levelFrom": 51,
+          "levelTo": 70,
+          "kind": "party",
+          "mapName": "女神組隊任務（天空之城 疑問之塔）",
+          "mapId": null,
+          "mobs": [],
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；58 等一場大約 8～9% 經驗、熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
+            "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+          ],
+          "verified": "community"
         }
       ],
       "notes": [
