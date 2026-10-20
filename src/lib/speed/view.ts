@@ -105,6 +105,20 @@ export function sameParty(a: SpeedParty, b: SpeedParty): boolean {
  */
 export function splitOnPartyChange(t: Tracker, before: SpeedParty, next: SpeedParty, at: number): Step | null {
   if (!t.seg || sameParty(before, next)) return null;
+  return cutSegment(t, at);
+}
+
+/**
+ * 練到一半換了角色 ID（原本有填、改成別的或清掉）：先把這段收掉，頁面照原本的 ID 存，排行才不會掛錯名
+ * （A 練完回頁面改填 B、登入 B，60 秒內做完的話自動模式那段還沒收）。原本沒填、現在補填：照舊算進這段。ID 沒變、沒在練回 null。
+ */
+export function splitOnIdChange(t: Tracker, before: string | null, next: string | null, at: number): Step | null {
+  if (!t.seg || before === null || before === next) return null;
+  return cutSegment(t, at);
+}
+
+/** 收掉進行中的這段：自動模式等經驗再動才開新的一段；手動計時中馬上從現在開新的一段，計時不斷 */
+function cutSegment(t: Tracker, at: number): Step {
   const step = switchMode(t, t.mode, at);
   return t.mode === "manual" && t.manualOn ? { tracker: startManual(step.tracker, at), closed: step.closed } : step;
 }
