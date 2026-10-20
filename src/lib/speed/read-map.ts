@@ -10,13 +10,13 @@ const isOrange = (r: number, g: number, b: number) => r > 200 && g > 130 && g < 
 /**
  * 小地圖右上角的橘色「地圖」按鈕：畫面左上三成裡的橘色連通塊，左右相鄰（6px 內）、上下重疊的併在一起，
  * 寬至少是高的 2.5 倍才算（視窗標題列的楓葉圖示是方的）。基準截圖 x 82–118、y 39–50。
- * 回最左邊那個；場景裡也可能有一樣形狀的橘色長條（全螢幕時左上三成有一大片場景），要全部候選用 mapButtons。
+ * 回最上面那個；場景裡也可能有一樣形狀的橘色長條（全螢幕時左上三成有一大片場景），要全部候選用 mapButtons。
  */
 export function findMapButton(frame: Frame): Area | null {
   return mapButtons(frame)[0] ?? null;
 }
 
-/** 長得像「地圖」按鈕的橘色長條，從左到右；locateTitle 逐個試，下面接著小地圖面板的才是 */
+/** 長得像「地圖」按鈕的橘色長條，由上往下；locateTitle 逐個試，下面接著小地圖面板的才是 */
 export function mapButtons(frame: Frame): Area[] {
   const w = Math.floor(frame.width * 0.3);
   const h = Math.floor(frame.height * 0.3);
@@ -58,7 +58,10 @@ export function mapButtons(frame: Frame): Area[] {
       near.y1 = Math.max(near.y1, blob.y1);
     } else merged.push({ ...blob });
   }
-  return merged.filter(group => group.y1 - group.y0 >= 6 && (group.x1 - group.x0) >= 2.5 * (group.y1 - group.y0));
+  // 由上往下試（同高再由左往右）：小地圖一定在畫面最上面，場景裡的橘色長條都在它下面
+  return merged
+    .filter(group => group.y1 - group.y0 >= 6 && (group.x1 - group.x0) >= 2.5 * (group.y1 - group.y0))
+    .sort((a, b) => a.y0 - b.y0 || a.x0 - b.x0);
 }
 
 export type TitleReading = { signature: string; street: Ranked[]; name: Ranked[] };

@@ -19,7 +19,7 @@ import {
   type Mode, type Sample, type Segment, type Step, type Tracker,
 } from "@/lib/speed/tracker";
 import {
-  backCalcLine, couponMinutes, couponNote, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnPartyChange, statusLine,
+  backCalcLine, couponMinutes, couponNote, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnIdChange, splitOnPartyChange, statusLine,
   type BlindMap, type Coupon, type HintState, type SaveOutcome, type SpeedStatus,
 } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
@@ -151,8 +151,11 @@ export function PracticeSpeed() {
     [saveSettings],
   );
 
-  /** 一段收掉了：夠長就存進排行，「上一段」那行寫結果。party 是這段練的時候的隊伍（練到一半換隊伍會先收掉這段） */
-  const save = useCallback(async (seg: Segment, party: SpeedParty) => {
+  /**
+   * 一段收掉了：夠長就存進排行，「上一段」那行寫結果。party、charId 是這段練的時候的隊伍跟角色 ID
+   * （練到一半換隊伍、改 ID 會先收掉這段，照原本的存）
+   */
+  const save = useCallback(async (seg: Segment, party: SpeedParty, charId: string | null) => {
     if (seg.gained <= 0) return;
     const current = dataRef.current;
     const set = settingsRef.current;
@@ -160,7 +163,7 @@ export function PracticeSpeed() {
     const mapId = where.mapId ?? (where.key !== null ? knownMaps.current.get(where.key) ?? null : null);
     // 沒填角色 ID 也存（2026-10-20 使用者：超過 10 分鐘都要記），伺服器存成匿名
     const body = runBody(seg, { mapId, mapName: mapId !== null && current ? mapName(current.maps, mapId) : null }, {
-      charId: charIdRef.current, isPublic: set.isPublic, party, profileJob: profileJobRef.current, clientVer: CLIENT_VER,
+      charId, isPublic: set.isPublic, party, profileJob: profileJobRef.current, clientVer: CLIENT_VER,
     });
     const note = (outcome: SaveOutcome) => setLastSaved({ seg, note: saveNote(outcome, body) });
     if (!shouldSave(seg)) return note({ kind: "short" });
@@ -172,7 +175,10 @@ export function PracticeSpeed() {
       if (ok) setBoardVersion(Date.now());
       // 存好了就問有沒有開加倍券（先當沒開存，勾了再改同一筆）
       if (ok && result.id && result.token) {
-        const pending: PendingCoupon = { id: result.id, token: result.token, startedAt: seg.startedAt, minutes: couponMinutes(seg), duration: durationText(durationMs(seg)), gained: seg.gained };
+        const pending: PendingCoupon = {
+          id: result.id, token: result.token, startedAt: seg.startedAt, minutes: couponMinutes(seg), duration: durationText(durationMs(seg)), gained: seg.gained,
+          run: { durationSec: body.durationSec, mapId: body.mapId, charId: body.charId },
+        };
         setCoupons(queue => [...queue, pending]);
       }
     } catch {
@@ -182,18 +188,18 @@ export function PracticeSpeed() {
 
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_VERCEL_ENV === "production") return;
-    window.__speedTestSave = seg => void save(seg, settingsRef.current.party);
+    window.__speedTestSave = seg => void save(seg, settingsRef.current.party, charIdRef.current);
     return () => {
       delete window.__speedTestSave;
     };
   }, [save]);
 
-  /** 換上新的練功狀態；有收掉的一段就存（隊伍沒給就是現在的隊伍） */
+  /** 換上新的練功狀態；有收掉的一段就存（隊伍、角色 ID 沒給就是現在的） */
   const apply = useCallback(
-    (step: Step, party: SpeedParty = settingsRef.current.party) => {
+    (step: Step, party: SpeedParty = settingsRef.current.party, charId: string | null = charIdRef.current) => {
       trackerRef.current = step.tracker;
       setTracker(step.tracker);
-      if (step.closed) void save(step.closed, party);
+      if (step.closed) void save(step.closed, party, charId);
     },
     [save],
   );
@@ -339,6 +345,13 @@ export function PracticeSpeed() {
 
   /** 角色 ID 對話框按下去：ID 只記在這次開著的頁面；公開與否、要不要再問記在電腦裡。start＝接著開始分享（還在玩家點擊的當下） */
   const onIdConfirm = (choice: IdChoice, start: boolean) => {
+    // 練到一半改成別的 ID：先把這段照原本的 ID 收掉存（原本沒填、現在補填的照舊算進這段）
+    const at = Date.now();
+    const split = splitOnIdChange(trackerRef.current, charIdRef.current, choice.charId, at);
+    if (split) {
+      setNow(at);
+      apply(split, settingsRef.current.party, charIdRef.current);
+    }
     charIdRef.current = choice.charId;
     setCharId(choice.charId);
     updateSettings({ isPublic: choice.isPublic, askId: choice.askId });
@@ -347,27 +360,27 @@ export function PracticeSpeed() {
   };
 
   /** 補填加倍券：改同一筆（伺服器重算實際的 10 分鐘經驗、排行）；回錯誤訊息，null＝好了 */
-  const onCoupon = async (coupon: Coupon): Promise<string | null> => {
-    const pending = coupons[0];
-    if (!pending) return null;
+  const onCoupon = async (pending: PendingCoupon, coupon: Coupon): Promise<string | null> => {
     try {
       const response = await fetch("/api/speed/runs", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: pending.id, token: pending.token, coupon }),
       });
-      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; expPer10?: number; error?: string };
+      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; expPer10?: number; error?: string };
       const ok = response.ok && result.ok === true;
       if (!ok) return couponNote({ ok: false, error: result.error ?? "等一下再過來" }, coupon);
-      // 「上一段」那行是同一段才補上回推的速度（排隊問的是更早的段就不動）
-      setLastSaved(last => (last && last.seg.startedAt === pending.startedAt ? { ...last, note: `${last.note}${couponNote({ ok: true, expPer10: result.expPer10 }, coupon)}` } : last));
+      // 「上一段」那行是同一段才換：進不進排行照伺服器重算的（扣掉加倍後組隊隻數可能變成在上限內），再補上回推的速度；排隊問的是更早的段就不動
+      const note = `${saveNote({ kind: "response", status: response.status, ok: true, ranked: result.ranked }, pending.run)}${couponNote({ ok: true, expPer10: result.expPer10 }, coupon)}`;
+      setLastSaved(last => (last && last.seg.startedAt === pending.startedAt ? { ...last, note } : last));
       setBoardVersion(Date.now());
       return null;
     } catch {
       return couponNote({ ok: false }, coupon);
     }
   };
-  const closeCoupon = () => setCoupons(queue => queue.slice(1));
+  /** 問完一段就從排隊裡拿掉那一段（照 id，不是拿掉第一個：送出中又按關掉不會多拿掉後面那段） */
+  const closeCoupon = (id: string) => setCoupons(queue => queue.filter(item => item.id !== id));
   /**
    * 組隊改了：隊伍真的換了（勾不勾、隊友等級、誰在打）而且正在練，就先把這段照原本的隊伍收掉存起來，
    * 一段紀錄只會有一種隊伍。手動計時中接著開新的一段，計時不斷。

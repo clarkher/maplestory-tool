@@ -429,7 +429,7 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
   EXP 那行用**遊戲自己的點陣字**（`src/lib/speed/status-font.ts`，從客戶端 `UI/StatusBar/number` 抽的，v1.05），照 1～2 倍縮放、不同對齊各模擬一份；
   只重產數字樣板：`npx vitest run -c vitest.gen.config.ts -t "產 glyphs.json"`（不用字型）。v1.05 以前數字樣板是微軟正黑體，1、3、5 會認錯，經驗幾乎都讀不出來。
   `public/data/maps.json` 多了新地圖名，要在 Windows 上重跑 `npm run speed:glyphs`（職業要微軟正黑體 `C:/Windows/Fonts/msjh.ttc`、地圖名要微軟正黑體粗體 `msjhbd.ttc`；CI 不跑產樣板），
-  沒重跑的話 `read-map.test.ts`「maps.json 每張有中文名的圖，地圖名跟街道名都有樣板」會紅（10/15 新地圖就是這樣漏掉 21 張練功圖，v1.10 補）。
+  沒重跑的話 `read-map.test.ts`「maps.json 每張有中文名的圖，地圖名跟街道名都有樣板」會紅（10/15 新地圖就是這樣漏掉 21 張練功圖，v1.10 補）；資料自動更新時跳過這一項（`data-refresh.yml` 設 `SPEED_NAMES_MAY_LAG`，Linux 產不了樣板，不能卡住道具、怪物的更新），下一個進 dev 的 PR 會紅、提醒去重產。
 - **小地圖標題**（v1.10）：小地圖的寬度跟著地圖走，「地圖」按鈕貼右緣、地圖名靠左（緊接在地圖圖示後面）。地圖名的範圍從按鈕下面的面板條往左走到面板左緣、跳過圖示框才開始讀
   （以前從按鈕往左只看 35px，只有很窄的小地圖讀得到，2026-10-20 使用者「地圖全部都沒有抓到」）。遊戲的標題是粗體白字＋右下 1 格陰影，讀的時候抓白字，樣板也照這個畫法產（13px）；
   無損的基準截圖直接認出森林迷宮Ⅲ，放大過的視窗第一候選是對的、要點一次（點過的長相記在這台電腦）。

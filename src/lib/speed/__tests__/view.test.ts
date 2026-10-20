@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MemberExp } from "../party-exp";
 import { createTracker, feed, startManual, type Sample, type Segment, type Tracker } from "../tracker";
 import {
-  backCalcLine, BLIND_PICK_MS, checkCharId, couponMinutes, couponNote, draftParty, parseCoupon, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnPartyChange,
+  backCalcLine, BLIND_PICK_MS, checkCharId, couponMinutes, couponNote, draftParty, parseCoupon, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnIdChange, splitOnPartyChange,
   type BlindMap, type HintState,
 } from "../view";
 
@@ -175,6 +175,41 @@ describe("splitOnPartyChange", () => {
     const idleManual = running(createTracker("manual"));
     expect(idleManual.seg).toBeNull();
     expect(splitOnPartyChange(idleManual, solo, duo, 9000)).toBeNull();
+  });
+});
+
+// 審查 10/20：A 練完回頁面按「改」填 B、登入 B，60 秒內做完的話 A 那一段會掛 B 的名字存
+describe("splitOnIdChange", () => {
+  const sample = (at: number, exp: number): Sample => ({ at, exp, level: 10, mapKey: "k", mapId: 1, job: null, party: 1 });
+  const toNext: number[] = [];
+  toNext[10] = 100_000;
+  function running(tracker: Tracker): Tracker {
+    let t = tracker;
+    for (const s of [sample(0, 1000), sample(1000, 1000), sample(2000, 1500), sample(3000, 1700)]) t = feed(t, s, toNext).tracker;
+    return t;
+  }
+
+  it("原本有填、改成別的 ID 或清掉：先把這段收掉（照原本的 ID 存）", () => {
+    const t = running(createTracker("auto"));
+    for (const next of ["乙", null]) {
+      const step = splitOnIdChange(t, "甲", next, 9000)!;
+      expect(step.closed).toMatchObject({ mode: "auto", startedAt: 2000, endedAt: 3000, gained: 200 });
+      expect(step.tracker.seg).toBeNull();
+    }
+  });
+
+  it("手動計時中改 ID：收掉這段，從現在開新的一段，計時不斷", () => {
+    const t = feed(startManual(running(createTracker("manual")), 2500), sample(4000, 1900), toNext).tracker;
+    const step = splitOnIdChange(t, "甲", "乙", 9000)!;
+    expect(step.closed).toMatchObject({ mode: "manual", startedAt: 2500, endedAt: 9000 });
+    expect(step.tracker.seg).toMatchObject({ mode: "manual", startedAt: 9000, gained: 0 });
+  });
+
+  it("原本沒填、現在補填：算進這段（不切）；ID 沒變、沒在練也不切", () => {
+    const t = running(createTracker("auto"));
+    expect(splitOnIdChange(t, null, "乙", 9000)).toBeNull();
+    expect(splitOnIdChange(t, "甲", "甲", 9000)).toBeNull();
+    expect(splitOnIdChange(createTracker("auto"), "甲", "乙", 9000)).toBeNull();
   });
 });
 

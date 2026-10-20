@@ -15,6 +15,7 @@ const SECOND = "rounded-full px-3 py-2 text-sm font-bold ink-soft hover:bg-[colo
  * open 由頁面控制；Esc 不讓瀏覽器自己關（不然 open 跟畫面對不起來），交給 onCancel。
  */
 function Modal({ open, labelledBy, onCancel, children }: { open: boolean; labelledBy: string; onCancel: () => void; children: React.ReactNode }) {
+  // 瀏覽器有時會自己關（上一次 Esc 之後頁面沒再被點過，下一次 Esc 攔不住）：關掉時頁面還以為開著，就當成 onCancel，狀態才對得起來
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const dialog = ref.current;
@@ -29,6 +30,9 @@ function Modal({ open, labelledBy, onCancel, children }: { open: boolean; labell
       onCancel={event => {
         event.preventDefault();
         onCancel();
+      }}
+      onClose={() => {
+        if (open) onCancel();
       }}
       className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-5 text-[color:var(--ink)] shadow-[var(--glass-shadow)] backdrop:bg-[rgb(0_0_0/0.45)]"
     >
@@ -147,7 +151,16 @@ function IdForm({
 }
 
 /** 一段存好、等玩家說有沒有開加倍券的：id、token 是伺服器給的（改同一筆用） */
-export type PendingCoupon = { id: string; token: string; startedAt: number; minutes: number; duration: string; gained: number };
+export type PendingCoupon = {
+  id: string;
+  token: string;
+  startedAt: number;
+  minutes: number;
+  duration: string;
+  gained: number;
+  /** 存的時候送出去的（補填後重寫「上一段」那句用） */
+  run: { durationSec: number; mapId: number | null; charId: string | null };
+};
 
 /**
  * 一段存好就跳出來問「有沒有開加倍券」（2026-10-20 使用者）：這段已經先當沒開存了，勾了才送去改同一筆。
@@ -159,12 +172,12 @@ export function CouponDialog({
   onClose,
 }: {
   pending: PendingCoupon | null;
-  onSubmit: (coupon: Coupon) => Promise<string | null>;
-  onClose: () => void;
+  onSubmit: (pending: PendingCoupon, coupon: Coupon) => Promise<string | null>;
+  onClose: (id: string) => void;
 }) {
   const ids = useId();
   return (
-    <Modal open={pending !== null} labelledBy={`${ids}-title`} onCancel={onClose}>
+    <Modal open={pending !== null} labelledBy={`${ids}-title`} onCancel={() => pending && onClose(pending.id)}>
       {pending ? <CouponForm key={pending.id} pending={pending} titleId={`${ids}-title`} onSubmit={onSubmit} onClose={onClose} /> : null}
     </Modal>
   );
@@ -178,8 +191,8 @@ function CouponForm({
 }: {
   pending: PendingCoupon;
   titleId: string;
-  onSubmit: (coupon: Coupon) => Promise<string | null>;
-  onClose: () => void;
+  onSubmit: (pending: PendingCoupon, coupon: Coupon) => Promise<string | null>;
+  onClose: (id: string) => void;
 }) {
   const [on, setOn] = useState(false);
   const [mult, setMult] = useState("1.5");
@@ -198,14 +211,14 @@ function CouponForm({
           return;
         }
         if (!parsed.coupon) {
-          onClose();
+          onClose(pending.id);
           return;
         }
         setBusy(true);
-        const failed = await onSubmit(parsed.coupon);
+        const failed = await onSubmit(pending, parsed.coupon);
         setBusy(false);
         if (failed) setError(failed);
-        else onClose();
+        else onClose(pending.id);
       }}
     >
       <h2 id={titleId} className="text-lg font-black">
@@ -257,7 +270,7 @@ function CouponForm({
       ) : null}
       <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
         {on ? (
-          <button type="button" onClick={onClose} className={SECOND}>
+          <button type="button" onClick={() => onClose(pending.id)} disabled={busy} className={SECOND}>
             先不填
           </button>
         ) : null}
