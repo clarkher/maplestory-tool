@@ -19,13 +19,14 @@ import {
   type Mode, type Sample, type Segment, type Step, type Tracker,
 } from "@/lib/speed/tracker";
 import {
-  backCalcLine, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnPartyChange, statusLine,
-  type BlindMap, type HintState, type SaveOutcome, type SpeedStatus,
+  backCalcLine, couponMinutes, couponNote, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnIdChange, splitOnPartyChange, statusLine,
+  type BlindMap, type Coupon, type HintState, type SaveOutcome, type SpeedStatus,
 } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
+import { CouponDialog, IdDialog, type IdChoice, type PendingCoupon } from "./Dialogs";
 import { MiniWindow, pipSupported } from "./MiniWindow";
 import { PartyCard } from "./PartyCard";
-import { BigNumber, BUTTON_LINE, BUTTON_MAIN, Card, CharacterCard, Disclaimer, Leaderboard, MapChoices, MapPanel, type BoardState } from "./parts";
+import { BigNumber, BUTTON_LINE, BUTTON_MAIN, Card, Disclaimer, Leaderboard, MapChoices, MapPanel, type BoardState } from "./parts";
 
 type Data = {
   maps: Record<string, MapRecord>;
@@ -42,7 +43,14 @@ type Data = {
  */
 type Place = { settle: TitleSettle; key: string | null; guess: MapGuess | null; picked: number | null; blind: BlindMap };
 
-const CLIENT_VER = "v0.95";
+declare global {
+  interface Window {
+    /** 驗收腳本用（正式機不掛）：直接丟一段進來存。假的分享畫面是靜止的，等不到真的一段，量不到「存好跳加倍券」 */
+    __speedTestSave?: (seg: Segment) => void;
+  }
+}
+
+const CLIENT_VER = "v1.10";
 const FRESH_HINTS: HintState = { nullRun: 0, cleared: false };
 const NO_PLACE: Place = { settle: { key: null, candidate: null, streak: 0 }, key: null, guess: null, picked: null, blind: FRESH_BLIND };
 /** 標題讀不到、請玩家從清單選時那張卡的第一句 */
@@ -71,6 +79,12 @@ export function PracticeSpeed() {
   const [tab, setTab] = useState<"solo" | "party">("solo");
   const [mini, setMini] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  /** 這次分享填的角色 ID（null＝沒填，存成匿名）：只記在這次開著的頁面，不存電腦（一個人會練很多隻） */
+  const [charId, setCharId] = useState<string | null>(null);
+  /** 問角色 ID 的對話框：start＝按分享時問（按了就開始分享）、edit＝從控制卡那行打開來改 */
+  const [idDialog, setIdDialog] = useState<"start" | "edit" | null>(null);
+  /** 存好、等玩家說有沒有開加倍券的段（排隊，一次問一段） */
+  const [coupons, setCoupons] = useState<PendingCoupon[]>([]);
 
   const capture = useRef<CaptureHandle | null>(null);
   // 讀畫面的回呼在按「分享」那一刻就交出去了，之後不會換：裡面用到的東西都走 ref，才不會拿到舊的
@@ -79,6 +93,7 @@ export function PracticeSpeed() {
   const dataRef = useRef(data);
   const settingsRef = useRef(settings);
   const profileJobRef = useRef(profile.job);
+  const charIdRef = useRef(charId);
   const placeRef = useRef(place);
   const hintRef = useRef(FRESH_HINTS);
   const sentHints = useRef("");
@@ -136,36 +151,55 @@ export function PracticeSpeed() {
     [saveSettings],
   );
 
-  /** 一段收掉了：夠長就存進排行，「上一段」那行寫結果。party 是這段練的時候的隊伍（練到一半換隊伍會先收掉這段） */
-  const save = useCallback(async (seg: Segment, party: SpeedParty) => {
+  /**
+   * 一段收掉了：夠長就存進排行，「上一段」那行寫結果。party、charId 是這段練的時候的隊伍跟角色 ID
+   * （練到一半換隊伍、改 ID 會先收掉這段，照原本的存）
+   */
+  const save = useCallback(async (seg: Segment, party: SpeedParty, charId: string | null) => {
     if (seg.gained <= 0) return;
     const current = dataRef.current;
     const set = settingsRef.current;
     const where = mainMap(seg);
     const mapId = where.mapId ?? (where.key !== null ? knownMaps.current.get(where.key) ?? null : null);
+    // 沒填角色 ID 也存（2026-10-20 使用者：超過 10 分鐘都要記），伺服器存成匿名
     const body = runBody(seg, { mapId, mapName: mapId !== null && current ? mapName(current.maps, mapId) : null }, {
-      charId: set.charId, isPublic: set.isPublic, party, profileJob: profileJobRef.current, clientVer: CLIENT_VER,
+      charId, isPublic: set.isPublic, party, profileJob: profileJobRef.current, clientVer: CLIENT_VER,
     });
     const note = (outcome: SaveOutcome) => setLastSaved({ seg, note: saveNote(outcome, body) });
     if (!shouldSave(seg)) return note({ kind: "short" });
-    if (!set.charId) return note({ kind: "noId" });
     try {
       const response = await fetch("/api/speed/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; error?: string };
+      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; error?: string; id?: string; token?: string };
       const ok = response.ok && result.ok === true;
       note({ kind: "response", status: response.status, ok, ranked: result.ranked, error: result.error });
       if (ok) setBoardVersion(Date.now());
+      // 存好了就問有沒有開加倍券（先當沒開存，勾了再改同一筆）
+      if (ok && result.id && result.token) {
+        const pending: PendingCoupon = {
+          id: result.id, token: result.token, startedAt: seg.startedAt, minutes: couponMinutes(seg), duration: durationText(durationMs(seg)), gained: seg.gained,
+          run: { durationSec: body.durationSec, mapId: body.mapId, charId: body.charId },
+        };
+        setCoupons(queue => [...queue, pending]);
+      }
     } catch {
       note({ kind: "network" });
     }
   }, []);
 
-  /** 換上新的練功狀態；有收掉的一段就存（隊伍沒給就是現在的隊伍） */
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_VERCEL_ENV === "production") return;
+    window.__speedTestSave = seg => void save(seg, settingsRef.current.party, charIdRef.current);
+    return () => {
+      delete window.__speedTestSave;
+    };
+  }, [save]);
+
+  /** 換上新的練功狀態；有收掉的一段就存（隊伍、角色 ID 沒給就是現在的） */
   const apply = useCallback(
-    (step: Step, party: SpeedParty = settingsRef.current.party) => {
+    (step: Step, party: SpeedParty = settingsRef.current.party, charId: string | null = charIdRef.current) => {
       trackerRef.current = step.tracker;
       setTracker(step.tracker);
-      if (step.closed) void save(step.closed, party);
+      if (step.closed) void save(step.closed, party, charId);
     },
     [save],
   );
@@ -302,6 +336,51 @@ export function PracticeSpeed() {
   };
 
   const closeMini = useCallback(() => setMini(false), []);
+
+  /** 按「分享遊戲畫面」：要問角色 ID 就先跳對話框（對話框的按鈕再開始分享），玩家勾過「下次不要再問我」就直接開始 */
+  const onShareClick = () => {
+    if (settingsRef.current.askId) setIdDialog("start");
+    else void onStart();
+  };
+
+  /** 角色 ID 對話框按下去：ID 只記在這次開著的頁面；公開與否、要不要再問記在電腦裡。start＝接著開始分享（還在玩家點擊的當下） */
+  const onIdConfirm = (choice: IdChoice, start: boolean) => {
+    // 練到一半改成別的 ID：先把這段照原本的 ID 收掉存（原本沒填、現在補填的照舊算進這段）
+    const at = Date.now();
+    const split = splitOnIdChange(trackerRef.current, charIdRef.current, choice.charId, at);
+    if (split) {
+      setNow(at);
+      apply(split, settingsRef.current.party, charIdRef.current);
+    }
+    charIdRef.current = choice.charId;
+    setCharId(choice.charId);
+    updateSettings({ isPublic: choice.isPublic, askId: choice.askId });
+    setIdDialog(null);
+    if (start) void onStart();
+  };
+
+  /** 補填加倍券：改同一筆（伺服器重算實際的 10 分鐘經驗、排行）；回錯誤訊息，null＝好了 */
+  const onCoupon = async (pending: PendingCoupon, coupon: Coupon): Promise<string | null> => {
+    try {
+      const response = await fetch("/api/speed/runs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pending.id, token: pending.token, coupon }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; expPer10?: number; error?: string };
+      const ok = response.ok && result.ok === true;
+      if (!ok) return couponNote({ ok: false, error: result.error ?? "等一下再過來" }, coupon);
+      // 「上一段」那行是同一段才換：進不進排行照伺服器重算的（扣掉加倍後組隊隻數可能變成在上限內），再補上回推的速度；排隊問的是更早的段就不動
+      const note = `${saveNote({ kind: "response", status: response.status, ok: true, ranked: result.ranked }, pending.run)}${couponNote({ ok: true, expPer10: result.expPer10 }, coupon)}`;
+      setLastSaved(last => (last && last.seg.startedAt === pending.startedAt ? { ...last, note } : last));
+      setBoardVersion(Date.now());
+      return null;
+    } catch {
+      return couponNote({ ok: false }, coupon);
+    }
+  };
+  /** 問完一段就從排隊裡拿掉那一段（照 id，不是拿掉第一個：送出中又按關掉不會多拿掉後面那段） */
+  const closeCoupon = (id: string) => setCoupons(queue => queue.filter(item => item.id !== id));
   /**
    * 組隊改了：隊伍真的換了（勾不勾、隊友等級、誰在打）而且正在練，就先把這段照原本的隊伍收掉存起來，
    * 一段紀錄只會有一種隊伍。手動計時中接著開新的一段，計時不斷。
@@ -377,7 +456,6 @@ export function PracticeSpeed() {
     <Shell>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-4">
-          <CharacterCard settings={settings} onSave={updateSettings} />
           <PartyCard party={party} selfLevel={selfLevel} onChange={onParty} />
           <Card>
             <div className="flex flex-wrap items-center gap-2">
@@ -386,7 +464,7 @@ export function PracticeSpeed() {
                   停止分享
                 </button>
               ) : (
-                <button type="button" onClick={onStart} disabled={starting} className={BUTTON_MAIN}>
+                <button type="button" onClick={onShareClick} disabled={starting} className={BUTTON_MAIN}>
                   分享遊戲畫面
                 </button>
               )}
@@ -430,6 +508,19 @@ export function PracticeSpeed() {
             <p className="mt-2 text-sm ink-soft" role="status">
               {statusText}
               {tracker.mode === "auto" ? "（自動：經驗 1 分鐘沒動就停）" : "（手動：按停止才停）"}
+            </p>
+            <p className="mt-1.5 text-sm">
+              {charId ? (
+                <>
+                  <span className="font-bold">這次的角色：{charId}</span>
+                  <span className="ink-soft">（{settings.isPublic ? "排行顯示這個 ID" : "排行寫匿名玩家"}）</span>
+                </>
+              ) : (
+                <span className="ink-soft">這次沒填角色 ID，排行寫匿名玩家。</span>
+              )}{" "}
+              <button type="button" onClick={() => setIdDialog("edit")} className="font-bold text-[color:var(--sky)] hover:underline">
+                {charId ? "改" : "填角色 ID"}
+              </button>
             </p>
           </Card>
 
@@ -476,6 +567,8 @@ export function PracticeSpeed() {
         </div>
       </div>
       <Disclaimer />
+      <IdDialog mode={idDialog} initial={{ charId, isPublic: settings.isPublic, askId: settings.askId }} onConfirm={onIdConfirm} onClose={() => setIdDialog(null)} />
+      <CouponDialog pending={idDialog === null ? coupons[0] ?? null : null} onSubmit={onCoupon} onClose={closeCoupon} />
       <MiniWindow open={mini} onClose={closeMini}>
         <div className="space-y-1 p-3">
           <p className="text-[12px] font-bold ink-soft">10 分鐘經驗</p>

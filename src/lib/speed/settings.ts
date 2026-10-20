@@ -5,12 +5,13 @@ import { useCallback, useEffect, useState } from "react";
 
 /**
  * 存在這台電腦（localStorage）：
- * - 角色 ID、排行顯不顯示 ID（預設不顯示）、自動／手動
+ * - 排行顯不顯示角色 ID（預設不顯示）、按分享時要不要問角色 ID（askId，預設問；玩家勾「下次不要再問我」就是 false）、自動／手動
+ * - 角色 ID 本身不存（2026-10-20 使用者：一個人會練很多隻，每次分享時填，只用這次填的）；以前存的 charId 不讀
  * - 組隊：玩家自己填的（on＝有沒有開、others＝其他隊員的等級、hitter＝誰在打：0＝自己，1～＝others 的第幾位）
  */
 export type SpeedParty = { on: boolean; others: number[]; hitter: number };
-export type SpeedSettings = { charId: string; isPublic: boolean; mode: "auto" | "manual"; party: SpeedParty };
-export const DEFAULT_SETTINGS: SpeedSettings = { charId: "", isPublic: false, mode: "auto", party: { on: false, others: [], hitter: 0 } };
+export type SpeedSettings = { isPublic: boolean; askId: boolean; mode: "auto" | "manual"; party: SpeedParty };
+export const DEFAULT_SETTINGS: SpeedSettings = { isPublic: false, askId: true, mode: "auto", party: { on: false, others: [], hitter: 0 } };
 
 const KEY = "ms-speed";
 const MAP_KEY = "ms-speed-maps";
@@ -46,8 +47,8 @@ export function parseSettings(raw: string | null): SpeedSettings {
     const value: unknown = JSON.parse(raw);
     if (!isRecord(value)) return defaults();
     return {
-      charId: typeof value.charId === "string" ? value.charId : "",
       isPublic: value.isPublic === true,
+      askId: value.askId !== false,
       mode: value.mode === "manual" ? "manual" : "auto",
       party: parseParty(value.party),
     };
