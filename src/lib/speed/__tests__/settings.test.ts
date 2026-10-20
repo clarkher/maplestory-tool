@@ -3,24 +3,32 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS, parseSettings, readMapMemory, rememberMap } from "../settings";
 
 describe("練功測速的本機設定", () => {
-  it("沒存過、存壞了都用預設：沒 ID、不公開、自動、沒組隊", () => {
+  it("沒存過、存壞了都用預設：不公開、按分享時問角色 ID、自動、沒組隊", () => {
     expect(parseSettings(null)).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings("{壞")).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings("null")).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings("[]")).toEqual(DEFAULT_SETTINGS);
-    expect(DEFAULT_SETTINGS).toEqual({ charId: "", isPublic: false, mode: "auto", party: { on: false, others: [], hitter: 0 } });
+    expect(DEFAULT_SETTINGS).toEqual({ isPublic: false, askId: true, mode: "auto", party: { on: false, others: [], hitter: 0 } });
   });
 
   it("存過的照用；欄位不對的換成預設", () => {
-    const saved = { charId: "芙莉蓮", isPublic: true, mode: "manual", party: { on: true, others: [60, 70], hitter: 1 } };
+    const saved = { isPublic: true, askId: false, mode: "manual", party: { on: true, others: [60, 70], hitter: 1 } };
     expect(parseSettings(JSON.stringify(saved))).toEqual(saved);
-    expect(parseSettings(JSON.stringify({ charId: 3, isPublic: "y", mode: "fast" }))).toEqual(DEFAULT_SETTINGS);
+    expect(parseSettings(JSON.stringify({ isPublic: "y", askId: "no", mode: "fast" }))).toEqual(DEFAULT_SETTINGS);
+  });
+
+  // 2026-10-20 使用者：角色 ID 不要記（一個人會練很多隻），按分享時問；以前存在這台電腦的 ID 不再讀
+  it("以前存的角色 ID 不讀、不留", () => {
+    const old = parseSettings(JSON.stringify({ charId: "芙莉蓮", isPublic: true, mode: "auto" }));
+    expect("charId" in old).toBe(false);
+    expect(old.isPublic).toBe(true);
+    expect(old.askId).toBe(true);
   });
 
   it("舊版存的（沒有組隊欄位）照樣能讀，組隊用預設", () => {
     expect(parseSettings(JSON.stringify({ charId: "芙莉蓮", isPublic: true, mode: "manual" }))).toEqual({
-      charId: "芙莉蓮",
       isPublic: true,
+      askId: true,
       mode: "manual",
       party: { on: false, others: [], hitter: 0 },
     });
@@ -86,9 +94,9 @@ describe("組隊設定的驗證（逐欄位）", () => {
   });
 
   it("組隊欄位壞掉不影響其他欄位", () => {
-    expect(parseSettings(JSON.stringify({ charId: "芙莉蓮", isPublic: true, mode: "manual", party: "壞" }))).toEqual({
-      charId: "芙莉蓮",
+    expect(parseSettings(JSON.stringify({ isPublic: true, askId: false, mode: "manual", party: "壞" }))).toEqual({
       isPublic: true,
+      askId: false,
       mode: "manual",
       party: { on: false, others: [], hitter: 0 },
     });

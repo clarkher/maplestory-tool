@@ -86,6 +86,49 @@ export function onScene(frame: Frame, width: number, height: number, options: { 
 }
 
 /**
+ * 基準截圖的小地圖（森林迷宮Ⅲ，寬 120）加寬 extra 格，模擬比較寬的地圖（2026-10-18 使用者在天空之城的小地圖約 220 寬）：
+ * 小地圖的寬度跟著地圖走，標頭的「－」「＋」「地圖」三顆按鈕貼著右緣往右移；標題（街道、地圖名）靠左、留在原地，面板往右補寬。
+ * 基準截圖量的：標頭（y ≤ 50）在 x 50 是「小地圖」字樣跟按鈕中間的白條；標題那塊（y 51～95）面板 x 3～118、x 4 那一欄整欄是面板色；
+ * 下面（y ≥ 96）是小地圖本體，補 x 117 那一欄。右邊框跟場景整塊往右推（畫面寬不變，最右邊推出去的丟掉）。
+ */
+export function widenMinimap(frame: Frame, extra: number): Frame {
+  const { width, height } = frame;
+  const data = new Uint8ClampedArray(frame.data);
+  const at = (x: number, y: number) => (y * width + x) * 4;
+  for (let y = 0; y < Math.min(height, 240); y++) {
+    const header = y <= 50;
+    const split = header ? 50 : 118;
+    const filler = header ? 51 : y <= 95 ? 4 : 117;
+    for (let x = split; x < width; x++) {
+      const from = x < split + extra ? at(filler, y) : at(x - extra, y);
+      data.set(frame.data.subarray(from, from + 4), at(x, y));
+    }
+  }
+  return { width, height, data };
+}
+
+/**
+ * 1920×1080 全螢幕：場景（onScene，狀態列置中貼在最下面）＋左上角貼加寬過的小地圖（全螢幕沒有視窗標題列，小地圖從 y 0 開始），
+ * 小地圖下面的場景裡再放一條橘色長條（寬 40、高 12，比按鈕還長）：findMapButton 從左邊數會先數到它。
+ * 小地圖＝基準截圖 x 0～(121 + extra)、y 31～231 那塊（加寬後）。
+ */
+export function fullScreenWithMinimap(frame: Frame, extra: number): Frame {
+  const scene = onScene(frame, 1920, 1080);
+  const wide = widenMinimap(frame, extra);
+  const data = new Uint8ClampedArray(scene.data);
+  const top = 31;
+  const w = 121 + extra;
+  for (let y = 0; y < 200; y++) {
+    const from = ((top + y) * wide.width) * 4;
+    data.set(wide.data.subarray(from, from + w * 4), (y * scene.width) * 4);
+  }
+  for (let y = 250; y < 262; y++) {
+    for (let x = 20; x < 60; x++) data.set([235, 160, 40, 255], (y * scene.width + x) * 4);
+  }
+  return { width: scene.width, height: scene.height, data };
+}
+
+/**
  * 在 1 倍的基準截圖上把 EXP 後面那串字換掉：「EXP」字樣右邊整塊塗成每一列的底色，再用遊戲的點陣字（STATUS_FONT）一個一個畫上去，
  * 字跟字隔 1 格（跟遊戲一樣）。基準截圖的經驗剛好沒有 8，要測全部數字只能這樣畫。
  * 位置照基準截圖量的：數字從 EXP 條左緣往右 30 格開始、上緣在條上方 12 格。

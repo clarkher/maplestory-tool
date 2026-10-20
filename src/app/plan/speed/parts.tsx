@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useId, useState } from "react";
+import { memo, useId } from "react";
 import { GoButton } from "@/components/PlanShell";
 import { MapPicker } from "@/components/MapPicker";
 import { itemImage, mapName, monsterImage } from "@/lib/data";
@@ -10,7 +10,6 @@ import { formatNumber } from "@/lib/format";
 import { monsterDrops } from "@/lib/monster-view";
 import { killExp, type Member } from "@/lib/speed/party-exp";
 import type { BoardRow } from "@/lib/speed/server/rules";
-import type { SpeedSettings } from "@/lib/speed/settings";
 import { jobName, partyKillLine } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
 
@@ -23,83 +22,6 @@ export function Card({ title, children }: { title?: string; children: React.Reac
       {title ? <h2 className="mb-3 text-lg font-black">{title}</h2> : null}
       {children}
     </section>
-  );
-}
-
-/** 角色 ID、要不要在排行顯示：第一次用要填；填過收成一行，按「改」再打開 */
-export function CharacterCard({ settings, onSave }: { settings: SpeedSettings; onSave: (patch: Pick<SpeedSettings, "charId" | "isPublic">) => void }) {
-  const [editing, setEditing] = useState(!settings.charId);
-  const [error, setError] = useState<string | null>(null);
-  const errorId = useId();
-  if (!editing && settings.charId) {
-    return (
-      <Card>
-        <div className="flex items-center justify-between gap-3">
-          <p className="min-w-0 text-sm">
-            <span className="font-bold">你的角色：{settings.charId}</span>
-            <span className="ink-soft"> · {settings.isPublic ? "排行顯示這個 ID" : "排行顯示「匿名玩家」"}</span>
-          </p>
-          <button type="button" onClick={() => setEditing(true)} className="shrink-0 text-sm font-bold text-[color:var(--sky)] hover:underline">
-            改
-          </button>
-        </div>
-      </Card>
-    );
-  }
-  return (
-    <Card title="你的角色">
-      <form
-        className="space-y-3"
-        onSubmit={event => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          const charId = String(data.get("charId") ?? "").trim();
-          const length = Array.from(charId).length;
-          if (length < 2 || length > 12) {
-            setError("角色 ID 要 2～12 個字。");
-            return;
-          }
-          setError(null);
-          onSave({ charId, isPublic: data.get("isPublic") === "on" });
-          setEditing(false);
-        }}
-      >
-        <label className="block text-sm font-bold">
-          角色 ID
-          <input
-            name="charId"
-            defaultValue={settings.charId}
-            required
-            maxLength={12}
-            autoComplete="off"
-            aria-invalid={error !== null}
-            aria-describedby={error ? errorId : undefined}
-            className="mt-1 block w-full rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 py-2 text-base font-normal outline-none focus:border-[color:var(--maple)]"
-          />
-        </label>
-        {/* 讀螢幕軟體要唸得出來：role=alert 一出現就唸，欄位用 aria-describedby 指過來 */}
-        {error ? (
-          <p id={errorId} role="alert" className="text-[13px] font-bold text-[color:var(--maple)]">
-            {error}
-          </p>
-        ) : null}
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" name="isPublic" defaultChecked={settings.isPublic} className="size-4 accent-[color:var(--maple)]" />
-          排行榜顯示我的 ID（不勾就顯示「匿名玩家」）
-        </label>
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="submit" className={`${BUTTON_MAIN} text-sm`}>
-            存起來
-          </button>
-          {settings.charId ? (
-            <button type="button" onClick={() => setEditing(false)} className="text-sm font-bold ink-soft hover:underline">
-              取消
-            </button>
-          ) : null}
-          <span className="text-[13px] ink-soft">存在這台電腦，下次不用再填。</span>
-        </div>
-      </form>
-    </Card>
   );
 }
 
@@ -289,7 +211,7 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
           <p className="text-sm ink-soft">這張圖還沒有人練滿 10 分鐘。</p>
         )}
         <p className="mt-3 text-[12px] ink-soft">
-          {tab === "party" ? "數字是全隊 10 分鐘打幾隻，用存這段的人填的等級回推。" : "數字是 10 分鐘拿到的經驗。"}玩家自己量的，沒有驗證。
+          {tab === "party" ? "數字是全隊 10 分鐘打幾隻，用存這段的人填的等級回推（有開加倍券的已經扣掉）。" : "數字是 10 分鐘拿到的經驗（有開加倍券的已經扣掉）。"}玩家自己量的，沒有驗證。
         </p>
       </div>
     </Card>

@@ -145,8 +145,11 @@ jobs:
       # dev 的完整測試才抓到 29 項紅（使用者 10/16 選 5 改成全套）
       # --reporter=default：vitest 在 GitHub Actions 上預設會在摘要之後再印一串標註，失敗一多，
       # 通知 issue 裡「錯誤訊息最後 30 行」就只剩標註、看不到哪個組合壞了
+      # SPEED_NAMES_MAY_LAG：練功測速的地圖名樣板要在 Windows 產（微軟正黑體），新地圖還沒有樣板不擋自動更新（v1.10，read-map.test.ts 那一項跳過）
       - name: 全套測試（含首頁每個組合的真資料檢查）
         if: steps.check.outputs.changed == 'true'
+        env:
+          SPEED_NAMES_MAY_LAG: "1"
         run: |
           node --test --test-reporter=spec "pipeline/**/*.test.mjs"
           npx vitest run --reporter=default

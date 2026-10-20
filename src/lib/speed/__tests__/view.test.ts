@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MemberExp } from "../party-exp";
 import { createTracker, feed, startManual, type Sample, type Segment, type Tracker } from "../tracker";
 import {
-  backCalcLine, BLIND_PICK_MS, draftParty, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnPartyChange,
+  backCalcLine, BLIND_PICK_MS, checkCharId, couponMinutes, couponNote, draftParty, parseCoupon, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnIdChange, splitOnPartyChange,
   type BlindMap, type HintState,
 } from "../view";
 
@@ -178,6 +178,41 @@ describe("splitOnPartyChange", () => {
   });
 });
 
+// 審查 10/20：A 練完回頁面按「改」填 B、登入 B，60 秒內做完的話 A 那一段會掛 B 的名字存
+describe("splitOnIdChange", () => {
+  const sample = (at: number, exp: number): Sample => ({ at, exp, level: 10, mapKey: "k", mapId: 1, job: null, party: 1 });
+  const toNext: number[] = [];
+  toNext[10] = 100_000;
+  function running(tracker: Tracker): Tracker {
+    let t = tracker;
+    for (const s of [sample(0, 1000), sample(1000, 1000), sample(2000, 1500), sample(3000, 1700)]) t = feed(t, s, toNext).tracker;
+    return t;
+  }
+
+  it("原本有填、改成別的 ID 或清掉：先把這段收掉（照原本的 ID 存）", () => {
+    const t = running(createTracker("auto"));
+    for (const next of ["乙", null]) {
+      const step = splitOnIdChange(t, "甲", next, 9000)!;
+      expect(step.closed).toMatchObject({ mode: "auto", startedAt: 2000, endedAt: 3000, gained: 200 });
+      expect(step.tracker.seg).toBeNull();
+    }
+  });
+
+  it("手動計時中改 ID：收掉這段，從現在開新的一段，計時不斷", () => {
+    const t = feed(startManual(running(createTracker("manual")), 2500), sample(4000, 1900), toNext).tracker;
+    const step = splitOnIdChange(t, "甲", "乙", 9000)!;
+    expect(step.closed).toMatchObject({ mode: "manual", startedAt: 2500, endedAt: 9000 });
+    expect(step.tracker.seg).toMatchObject({ mode: "manual", startedAt: 9000, gained: 0 });
+  });
+
+  it("原本沒填、現在補填：算進這段（不切）；ID 沒變、沒在練也不切", () => {
+    const t = running(createTracker("auto"));
+    expect(splitOnIdChange(t, null, "乙", 9000)).toBeNull();
+    expect(splitOnIdChange(t, "甲", "甲", 9000)).toBeNull();
+    expect(splitOnIdChange(createTracker("auto"), "甲", "乙", 9000)).toBeNull();
+  });
+});
+
 describe("partySize", () => {
   it("勾了組隊＝自己＋隊友數；沒勾＝1", () => {
     expect(partySize({ on: true, others: [44, 30], hitter: 0 })).toBe(3);
@@ -321,6 +356,10 @@ describe("runBody", () => {
     expect("partySize" in body).toBe(false);
   });
 
+  it("沒填角色 ID：送 null（伺服器照樣存，排行寫匿名玩家）", () => {
+    expect(runBody(segment(), { mapId: 101, mapName: "森林迷宮III" }, { ...base, charId: null, party: { on: false, others: [], hitter: 0 } }).charId).toBeNull();
+  });
+
   it("畫面沒認出職業：用「我的路線」選的；那邊也沒選就是 null", () => {
     expect(runBody(segment({ job: null }), { mapId: null, mapName: null }, { ...base, party: { on: false, others: [], hitter: 0 } }).job).toBe(210);
     expect(runBody(segment({ job: null }), { mapId: null, mapName: null }, { ...base, profileJob: -1, party: { on: false, others: [], hitter: 0 } }).job).toBeNull();
@@ -328,12 +367,12 @@ describe("runBody", () => {
 });
 
 describe("saveNote", () => {
-  const ranked = { durationSec: 900, mapId: 101 };
+  const ranked = { durationSec: 900, mapId: 101, charId: "芙莉蓮" };
 
   it("存好了：進排行、或寫出為什麼不進", () => {
     expect(saveNote({ kind: "response", status: 200, ok: true, ranked: true }, ranked)).toBe("存好了，已列入這張圖的排行。");
-    expect(saveNote({ kind: "response", status: 200, ok: true, ranked: false }, { durationSec: 400, mapId: 101 })).toBe("存好了。不到 10 分鐘，不列排行。");
-    expect(saveNote({ kind: "response", status: 200, ok: true, ranked: false }, { durationSec: 900, mapId: null })).toBe("存好了。認不出地圖，不列排行。");
+    expect(saveNote({ kind: "response", status: 200, ok: true, ranked: false }, { durationSec: 400, mapId: 101, charId: "芙莉蓮" })).toBe("存好了。不到 10 分鐘，不列排行。");
+    expect(saveNote({ kind: "response", status: 200, ok: true, ranked: false }, { durationSec: 900, mapId: null, charId: "芙莉蓮" })).toBe("存好了。認不出地圖，不列排行。");
     expect(saveNote({ kind: "response", status: 200, ok: true, ranked: false }, ranked)).toBe("存好了。這張圖不列排行（不是練功地圖，或超過這張圖打得到的上限）。");
   });
 
@@ -350,9 +389,68 @@ describe("saveNote", () => {
     expect(saveNote({ kind: "response", status: 500, ok: false }, ranked)).toBe("沒存到：等一下再過來。");
   });
 
-  it("沒填角色 ID、不到 5 分鐘、網路不通", () => {
-    expect(saveNote({ kind: "noId" }, ranked)).toBe("沒填角色 ID，這段沒存進排行。");
+  // 2026-10-20 使用者：超過 10 分鐘都要記，不管有沒有 ID
+  it("沒填角色 ID 一樣存；進了排行寫明名字是匿名玩家", () => {
+    const anon = { ...ranked, charId: null };
+    expect(saveNote({ kind: "response", status: 200, ok: true, ranked: true }, anon)).toBe("存好了，已列入這張圖的排行（沒填角色 ID，名字寫匿名玩家）。");
+    expect(saveNote({ kind: "response", status: 200, ok: true, ranked: false }, { ...anon, durationSec: 400 })).toBe("存好了。不到 10 分鐘，不列排行。");
+  });
+
+  it("不到 5 分鐘、網路不通", () => {
     expect(saveNote({ kind: "short" }, ranked)).toBe("不到 5 分鐘，沒存。");
     expect(saveNote({ kind: "network" }, ranked)).toBe("沒存到：網路不通，等一下再過來。");
+  });
+});
+
+
+describe("checkCharId（按分享時填的角色 ID）", () => {
+  it("空白、沒填：不填（null）", () => {
+    expect(checkCharId("")).toEqual({ ok: true, charId: null });
+    expect(checkCharId("   ")).toEqual({ ok: true, charId: null });
+  });
+
+  it("2～12 個字（照字數，不是 UTF-16 單位），前後空白拿掉", () => {
+    expect(checkCharId(" 芙莉蓮熊芙莉 ")).toEqual({ ok: true, charId: "芙莉蓮熊芙莉" });
+    expect(checkCharId("ab")).toEqual({ ok: true, charId: "ab" });
+    expect(checkCharId("一二三四五六七八九十一二")).toEqual({ ok: true, charId: "一二三四五六七八九十一二" });
+    expect(checkCharId("𠀀𠀀")).toEqual({ ok: true, charId: "𠀀𠀀" });
+  });
+
+  it("1 個字、超過 12 個字、看不見的字元：錯誤訊息", () => {
+    expect(checkCharId("芙")).toEqual({ ok: false, error: "角色 ID 要 2～12 個字。" });
+    expect(checkCharId("一二三四五六七八九十一二三")).toEqual({ ok: false, error: "角色 ID 要 2～12 個字。" });
+    expect(checkCharId(`芙${String.fromCharCode(0x200b)}莉`)).toEqual({ ok: false, error: "角色 ID 不能有看不見的字元。" });
+  });
+});
+
+describe("加倍券", () => {
+  it("有開的分鐘最多＝這段的分鐘數（無條件進位，跟伺服器一樣用四捨五入到秒的時間算）；最少 1", () => {
+    expect(couponMinutes(segment())).toBe(12);
+    expect(couponMinutes(segment({ lastChangeAt: Date.parse("2026-10-13T08:12:30.400Z") }))).toBe(13);
+    expect(couponMinutes(segment({ lastChangeAt: Date.parse("2026-10-13T08:00:20Z") }))).toBe(1);
+  });
+
+  it("沒勾：沒開（null）；勾了：倍率 1.10～3.00、最多兩位小數，分鐘 1～這段的分鐘數", () => {
+    expect(parseCoupon(false, "abc", "", 12)).toEqual({ ok: true, coupon: null });
+    expect(parseCoupon(true, "1.5", "12", 12)).toEqual({ ok: true, coupon: { mult: 1.5, minutes: 12 } });
+    expect(parseCoupon(true, " 1.15 ", "3", 12)).toEqual({ ok: true, coupon: { mult: 1.15, minutes: 3 } });
+    expect(parseCoupon(true, "3", "1", 12)).toEqual({ ok: true, coupon: { mult: 3, minutes: 1 } });
+    expect(parseCoupon(true, "1.1", "12", 12)).toEqual({ ok: true, coupon: { mult: 1.1, minutes: 12 } });
+  });
+
+  it("倍率、分鐘不合：寫哪裡不對", () => {
+    for (const mult of ["1.09", "3.01", "1.155", "", "x", "1.", "-2"]) {
+      expect(parseCoupon(true, mult, "12", 12), mult).toEqual({ ok: false, error: "倍率要 1.10～3.00。" });
+    }
+    for (const minutes of ["0", "13", "1.5", "", "-1"]) {
+      expect(parseCoupon(true, "1.5", minutes, 12), minutes).toEqual({ ok: false, error: "有開的分鐘要 1～12。" });
+    }
+  });
+
+  it("補填之後那句：存好寫實際的 10 分鐘經驗；改成沒開寫回到原本的；沒存到照伺服器的話", () => {
+    expect(couponNote({ ok: true, expPer10: 80_000 }, { mult: 1.5, minutes: 12 })).toBe("加倍券記好了：扣掉加倍，實際 10 分鐘 80,000 經驗。");
+    expect(couponNote({ ok: true, expPer10: 100_000 }, null)).toBe("記成沒開加倍券。");
+    expect(couponNote({ ok: false, error: "找不到這筆紀錄（超過一天就不能改了）" }, { mult: 1.5, minutes: 12 })).toBe("加倍券沒記到：找不到這筆紀錄（超過一天就不能改了）。");
+    expect(couponNote({ ok: false }, { mult: 1.5, minutes: 12 })).toBe("加倍券沒記到：網路不通，等一下再過來。");
   });
 });

@@ -4,9 +4,9 @@ import { createCanvas, GlobalFonts } from "@napi-rs/canvas";
 import { describe, expect, it } from "vitest";
 import type { MapRecord, TrainingRow } from "@/lib/types";
 import type { Frame } from "../frame";
-import { findMapButton, hammingDistance, readTitle, resolveMap, settleTitle, titleBoxes, type TitleReading, type TitleSettle } from "../read-map";
+import { findMapButton, hammingDistance, mapButtons, readTitle, resolveMap, settleTitle, titleBoxes, type TitleReading, type TitleSettle } from "../read-map";
 import { parseNames } from "../names";
-import { loadFixture } from "./fixture";
+import { fullScreenWithMinimap, loadFixture, scaleFrame, widenMinimap } from "./fixture";
 
 const names = parseNames(JSON.parse(fs.readFileSync("public/data/speed-names.json", "utf8")));
 const maps: Record<string, MapRecord> = JSON.parse(fs.readFileSync("public/data/maps.json", "utf8"));
@@ -114,7 +114,7 @@ describe("小地圖標題", () => {
     expect(readTitle(other, names)!.signature).toBe(clean);
   });
 
-  it("標題那兩行有 ±2 的雜訊：簽章跟乾淨的差不到 6 格（30 次都是；實測最多 3 格）", async () => {
+  it("標題那兩行有 ±2 的雜訊：簽章跟乾淨的差不到 6 格（30 次都是；2026-10-20 改抓白字後實測最多 4 格）", async () => {
     const frame = await loadFixture("window-1364.png");
     const clean = readTitle(frame, names)!.signature;
     for (let trial = 0; trial < 30; trial++) {
@@ -166,6 +166,40 @@ describe("小地圖標題", () => {
     expect(readTitle(flat, names)).toBeNull();
   });
 
+  // 2026-10-20 使用者「地圖全部都沒抓到」：地圖名的範圍原本是從按鈕往左 35px，小地圖一寬（地圖名靠左、按鈕靠右），字就整個落在範圍外
+  it.each([40, 100, 200])("小地圖寬 %s 格（按鈕往右推、地圖名留在左邊）：讀得到，簽章跟原本一樣、認得出森林迷宮Ⅲ", async extra => {
+    const frame = await loadFixture("window-1364.png");
+    const clean = readTitle(frame, names)!.signature;
+    const wide = widenMinimap(frame, extra);
+    expect(findMapButton(wide)!.x0).toBeCloseTo(82 + extra, -1);
+    const reading = readTitle(wide, names);
+    expect(reading).not.toBeNull();
+    expect(hammingDistance(reading!.signature, clean)).toBeLessThanOrEqual(6);
+    const guess = resolveMap(reading!, maps, trainingIds, {});
+    expect(guess).toMatchObject({ mapId: 105040303, confident: true });
+  });
+
+  // 放大過的畫面字被抹糊（樣板是 13px 清楚的字），還不到自動認的把握，但第一個候選是對的（玩家點一下就記住）
+  it.each([1.25, 1.5, 2])("小地圖加寬 100 格再放大 %s 倍：讀得到，第一個候選是森林迷宮Ⅲ", async scale => {
+    const frame = scaleFrame(widenMinimap(await loadFixture("window-1364.png"), 100), scale);
+    const reading = readTitle(frame, names);
+    expect(reading).not.toBeNull();
+    expect(resolveMap(reading!, maps, trainingIds, {}).choices[0]).toBe(105040303);
+  });
+
+  it("1920×1080 全螢幕（小地圖貼左上角、加寬 100 格，下面場景有一條比按鈕還長的橘色長條）：跳過長條，讀得到地圖名", async () => {
+    const frame = fullScreenWithMinimap(await loadFixture("window-1364.png"), 100);
+    // 候選由上往下試：小地圖的按鈕（y 8 上下）排在場景的橘色長條（y 250）前面
+    expect(mapButtons(frame).map(button => button.y0)).toEqual([8, 250]);
+    const reading = readTitle(frame, names);
+    expect(reading).not.toBeNull();
+    expect(resolveMap(reading!, maps, trainingIds, {})).toMatchObject({ mapId: 105040303, confident: true });
+    // 地圖名的框在小地圖的標題那兩行（全螢幕沒有視窗標題列，比基準截圖高 31 格），不在橘色長條那裡
+    const boxes = titleBoxes(frame)!;
+    expect(boxes.street.y0).toBeGreaterThanOrEqual(62 - 31);
+    expect(boxes.name.y1).toBeLessThanOrEqual(91 - 31);
+  });
+
   it("記過的簽章直接用記下的地圖", () => {
     const title: TitleReading = { signature: "abc", street: [], name: [] };
     expect(resolveMap(title, maps, trainingIds, { abc: 105040303 })).toEqual({ mapId: 105040303, confident: true, choices: [] });
@@ -193,6 +227,23 @@ describe("小地圖標題", () => {
     const guess = resolveMap(title, maps, trainingIds, {});
     expect(guess.confident).toBe(false);
     expect(guess.choices).toEqual(expect.arrayContaining([105040303, 105040302]));
+  });
+});
+
+describe("地圖名樣板（public/data/speed-names.json）", () => {
+  // 10/15 遊戲資料 2.0.0 加了天空之城、艾納斯島等新圖，樣板沒重產，那些圖永遠認不到。
+  // 紅了就在 Windows 跑 npm run speed:glyphs（要微軟正黑體）重產 speed-names.json。
+  // 資料自動更新（data-refresh.yml 設 SPEED_NAMES_MAY_LAG）時跳過：CI 是 Linux 產不了樣板，不能為了這個卡住道具、怪物的更新；
+  // 沒樣板的新圖頁面會請玩家點一次，下一個進 dev 的 PR 這項會紅，提醒有人去重產
+  it.skipIf(process.env.SPEED_NAMES_MAY_LAG === "1")("maps.json 每張有中文名的圖，地圖名跟街道名都有樣板", () => {
+    const have = new Set(names.titles.map(title => title.text));
+    const missing = new Set<string>();
+    for (const record of Object.values(maps)) {
+      if (!record.zh) continue;
+      if (!have.has(record.zh)) missing.add(record.zh);
+      if (record.st && !have.has(record.st)) missing.add(record.st);
+    }
+    expect([...missing]).toEqual([]);
   });
 });
 
@@ -306,16 +357,16 @@ describe("settleTitle（頁面餵給練功計算當 mapKey 的那個穩定簽章
     expect(feed(start, A, flip(A, 0, 6), A).key).toBe(A);
   });
 
-  it("跟現在的 key 差不到 10 格：key 不動（雜訊、小地圖字被擋一下）", () => {
+  it("跟現在的 key 差不到 7 格：key 不動（雜訊、小地圖字被擋一下）", () => {
     expect(settledA.key).toBe(A);
-    for (const gap of [1, 6, 10]) {
+    for (const gap of [1, 6, 7]) {
       const next = feed(settledA, flip(A, 0, gap), flip(A, 0, gap), flip(A, 0, gap), flip(A, 0, gap));
       expect(next.key, `差 ${gap} 格`).toBe(A);
     }
   });
 
-  it("差超過 10 格才有機會換：11 格要連續 3 張", () => {
-    const far = flip(A, 0, 11);
+  it("差超過 7 格才有機會換：8 格要連續 3 張", () => {
+    const far = flip(A, 0, 8);
     expect(feed(settledA, far, far).key).toBe(A);
     expect(feed(settledA, far, far, far).key).toBe(far);
   });
@@ -350,10 +401,10 @@ describe("settleTitle（頁面餵給練功計算當 mapKey 的那個穩定簽章
 
 /**
  * 只差一個字的相鄰地圖（森林迷宮III／IV、火焰之地Ⅱ／Ⅲ…）：簽章要差得夠遠，settleTitle 才會當成換圖、記住的簽章才不會張冠李戴。
- * 合成畫面：拿基準截圖，把標題那塊塗成小地圖面板的淺藍，再把兩行字畫上去，其他像素都是基準截圖的。
+ * 合成畫面：拿基準截圖，把標題那塊塗成小地圖面板的淺藍，再把兩行字照遊戲的畫法（白字）畫上去，其他像素都是基準截圖的。
  * 兩種畫法：
  * - 照 public/data/speed-names.json 裡存的字形格子貼出來（不用字型，哪裡都能跑，CI 也跑）
- * - 用 Windows 的微軟正黑體畫 12px 的字（只在有這個字型的機器跑）
+ * - 用 Windows 的微軟正黑體粗體畫 13px 的白字＋右下 1 格陰影（只在有這個字型的機器跑）
  */
 const SERIES: [street: string, titles: string[]][] = [
   ["迷霧森林", ["森林迷宮II", "森林迷宮III", "森林迷宮IV", "森林迷宮V"]],
@@ -395,7 +446,7 @@ function renderFromGlyphs(base: Frame, street: string, name: string): Frame {
         const top = cell(xa, ya) * (1 - fx) + cell(xb, ya) * fx;
         const bottom = cell(xa, yb) * (1 - fx) + cell(xb, yb) * fx;
         const ink = Math.min(1, top * (1 - fy) + bottom * fy);
-        const [r, g, b] = panel.map(value => Math.round(value * (1 - ink) + 34 * ink));
+        const [r, g, b] = panel.map(value => Math.round(value * (1 - ink) + 255 * ink));
         setPixel(out, x0 + px, y0 + py, r, g, b);
       }
     }
@@ -403,7 +454,7 @@ function renderFromGlyphs(base: Frame, street: string, name: string): Frame {
   return out;
 }
 
-const MSJH = "C:/Windows/Fonts/msjh.ttc";
+const MSJH = "C:/Windows/Fonts/msjhbd.ttc";
 const hasMsjh = fs.existsSync(MSJH) && GlobalFonts.registerFromPath(MSJH, "MsjhForTest");
 
 function renderWithFont(base: Frame, street: string, name: string): Frame {
@@ -412,9 +463,12 @@ function renderWithFont(base: Frame, street: string, name: string): Frame {
   const image = context.createImageData(base.width, base.height);
   image.data.set(floodTitle(base).data);
   context.putImageData(image, 0, 0);
-  context.fillStyle = "#222";
-  context.font = '12px "MsjhForTest"';
+  context.font = '13px "MsjhForTest"';
   context.textBaseline = "alphabetic";
+  context.fillStyle = "#0a1418";
+  context.fillText(street, 52, 74);
+  context.fillText(name, 52, 90);
+  context.fillStyle = "#fff";
   context.fillText(street, 51, 73);
   context.fillText(name, 51, 89);
   const { data } = context.getImageData(0, 0, base.width, base.height);
@@ -424,12 +478,12 @@ function renderWithFont(base: Frame, street: string, name: string): Frame {
 function adjacentMapChecks(render: (base: Frame, street: string, name: string) => Frame) {
   const sign = async (street: string, name: string) => readTitle(render(await loadFixture("window-1364.png"), street, name), names)!.signature;
 
-  it("同一組裡任兩張圖的簽章都差超過 10 格（不會被當成同一張）", async () => {
+  it("同一組裡任兩張圖的簽章都差超過 7 格（不會被當成同一張）", async () => {
     for (const [street, titles] of SERIES) {
       const signatures = await Promise.all(titles.map(title => sign(street, title)));
       for (let i = 0; i < titles.length; i++) {
         for (let j = i + 1; j < titles.length; j++) {
-          expect(hammingDistance(signatures[i], signatures[j]), `${titles[i]} 跟 ${titles[j]}`).toBeGreaterThan(10);
+          expect(hammingDistance(signatures[i], signatures[j]), `${titles[i]} 跟 ${titles[j]}`).toBeGreaterThan(7);
         }
       }
     }
@@ -481,6 +535,6 @@ describe("相鄰的地圖（字形樣板貼出來的標題）", () => {
   adjacentMapChecks(renderFromGlyphs);
 });
 
-describe.skipIf(!hasMsjh)("相鄰的地圖（微軟正黑體畫出來的標題，只在有這個字型的機器跑）", () => {
+describe.skipIf(!hasMsjh)("相鄰的地圖（微軟正黑體粗體畫出來的標題，只在有這個字型的機器跑）", () => {
   adjacentMapChecks(renderWithFont);
 });

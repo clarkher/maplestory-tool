@@ -1,10 +1,11 @@
 // src/lib/speed/__tests__/api.test.ts
 // 資料庫換成假的（記下送出去的每一句 SQL 跟參數），不連真的 Neon。
+import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Monster, TrainingRow } from "@/lib/types";
 import monsterJson from "../../../../public/data/monsters.json";
 import trainingJson from "../../../../public/data/training.json";
-import { mapCap, toRow, type BoardRow, type RunPayload } from "../server/rules";
+import { mapCap, toRow, type BoardRow, type Coupon, type RunPayload } from "../server/rules";
 
 type Call = { text: string; values: unknown[]; tx?: number };
 const db = vi.hoisted(() => ({
@@ -69,7 +70,7 @@ async function load() {
   const runs = await import("@/app/api/speed/runs/route");
   const board = await import("@/app/api/speed/board/route");
   const dbModule = await import("@/lib/speed/server/db");
-  return { POST: runs.POST, GET: board.GET, ...dbModule };
+  return { POST: runs.POST, PATCH: runs.PATCH, GET: board.GET, ...dbModule };
 }
 
 const MAP = 105040303;
@@ -87,6 +88,20 @@ function post(body: unknown, headers: Record<string, string> = {}): Request {
 }
 
 const get = (query: string) => new Request(`http://x/api/speed/board${query}`);
+
+function patch(body: unknown, headers: Record<string, string> = {}): Request {
+  return new Request("http://x/api/speed/runs", {
+    method: "PATCH",
+    body: typeof body === "string" ? body : JSON.stringify(body),
+    headers: { "content-type": "application/json", ...headers },
+  });
+}
+
+const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
+const MONSTER_BY_ID = new Map(monsters.map(monster => [monster.id, monster]));
+/** 跟 runs/route.ts 一樣的算法：這張圖的上限、練功資料、怪物表都帶上 */
+const expectedRow = (run: RunPayload, coupon: Coupon | null = null) =>
+  toRow(run, run.mapId === null ? null : mapCap(run.mapId, training, monsters), training.find(item => item.m === run.mapId), MONSTER_BY_ID, coupon);
 
 /** 回覆：INSERT 那句回一列（寫進去了），其他回空 */
 function quiet(text: string): unknown[] {
@@ -160,6 +175,14 @@ describe("還沒建資料庫", () => {
     expect(db.calls).toHaveLength(0);
   });
 
+  it("補填加倍券（PATCH）也回 503「排行還沒開」", async () => {
+    const { PATCH } = await load();
+    const response = await PATCH(patch({ id: "1", token: "0".repeat(32), coupon: null }));
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ ok: false, error: "排行還沒開" });
+    expect(db.calls).toHaveLength(0);
+  });
+
   it("排行回 open: false、空的", async () => {
     const { GET } = await load();
     const response = await GET(get("?map=105040303"));
@@ -191,16 +214,32 @@ describe("資料庫（假的）：建表", () => {
     expect(create).toContain("party_hitter integer NOT NULL DEFAULT 0");
     expect(create).toContain("kills_per_10min real");
     expect(create).not.toMatch(/kills_per_10min real NOT NULL/);
-    expect(db.calls.slice(1).map(call => call.text).every(text => text.startsWith("CREATE INDEX IF NOT EXISTS"))).toBe(true);
+    expect(db.calls.filter(call => !call.text.startsWith("CREATE TABLE") && !call.text.startsWith("ALTER TABLE")).every(call => call.text.startsWith("CREATE INDEX IF NOT EXISTS"))).toBe(true);
   });
 
-  it("一張表加三個索引放在同一個 transaction 送（一次來回、要嘛全成要嘛全不成）", async () => {
+  it("10/20 的欄位用 ALTER 補上（冪等）：角色 ID 可以空著、加倍券倍率跟分鐘數、改這筆用的雜湊", async () => {
     const { ensureSchema, getSql } = await load();
     await ensureSchema(getSql()!);
-    expect(db.calls).toHaveLength(4);
+    expect(db.calls.filter(call => call.text.startsWith("ALTER")).map(call => call.text)).toEqual([
+      "ALTER TABLE speed_runs ALTER COLUMN char_id DROP NOT NULL",
+      "ALTER TABLE speed_runs ADD COLUMN IF NOT EXISTS coupon_mult real",
+      "ALTER TABLE speed_runs ADD COLUMN IF NOT EXISTS coupon_min integer",
+      "ALTER TABLE speed_runs ADD COLUMN IF NOT EXISTS edit_hash text",
+    ]);
+    // 建表沒有刪資料、改資料
+    for (const call of db.calls) expect(call.text).not.toMatch(/\b(DELETE|UPDATE|TRUNCATE)\b/i);
+  });
+
+  it("一張表、補欄位、三個索引放在同一個 transaction 送（一次來回、要嘛全成要嘛全不成）；ALTER 在索引前面", async () => {
+    const { ensureSchema, getSql } = await load();
+    await ensureSchema(getSql()!);
+    expect(db.calls).toHaveLength(8);
     expect(db.txCount).toBe(1);
     expect(db.calls.every(call => call.tx === 1)).toBe(true);
-    expect(db.calls.map(call => call.text.split(" ").slice(0, 2).join(" "))).toEqual(["CREATE TABLE", "CREATE INDEX", "CREATE INDEX", "CREATE INDEX"]);
+    // 先拿最強的鎖（ALTER）再建索引：兩個執行個體同時建表時，不會各自先拿到索引的鎖、再互等對方放掉才能升級成 ALTER 的鎖（死結）
+    expect(db.calls.map(call => call.text.split(" ").slice(0, 2).join(" "))).toEqual([
+      "CREATE TABLE", "ALTER TABLE", "ALTER TABLE", "ALTER TABLE", "ALTER TABLE", "CREATE INDEX", "CREATE INDEX", "CREATE INDEX",
+    ]);
   });
 
   it("同一個執行個體只建一次；失敗了下一次會再試", async () => {
@@ -279,7 +318,7 @@ describe("資料庫（假的）：存一筆", () => {
     const { POST } = await load();
     const response = await POST(post(payload, { "x-forwarded-for": "1.2.3.4" }));
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true, ranked: true });
+    expect(await response.json()).toMatchObject({ ok: true, ranked: true });
     expect(db.calls[0].text).toContain("CREATE TABLE");
     const writes = db.calls.filter(call => call.tx === 2);
     expect(db.txCount).toBe(2);
@@ -309,7 +348,7 @@ describe("資料庫（假的）：存一筆", () => {
     const { POST } = await load();
     const party = { partyLevels: [44, 47], partyHitter: 2 };
     const response = await POST(post({ ...payload, ...party }));
-    expect(await response.json()).toEqual({ ok: true, ranked: true });
+    expect(await response.json()).toMatchObject({ ok: true, ranked: true });
     const row = inserted(db.calls);
     expect(row).toMatchObject({ party_size: 3, party_hitter: 2 });
     expect(row.party_levels).toEqual([44, 47]);
@@ -322,7 +361,7 @@ describe("資料庫（假的）：存一筆", () => {
     // Task 9 修正第 1 輪、裁決 I3：原本這裡預期 ranked: true，亂編的地圖編號會灌上排行，改成不進排行
     const { POST } = await load();
     const response = await POST(post({ ...payload, mapId: 999_999_999, mapName: "不存在的圖" }));
-    expect(await response.json()).toEqual({ ok: true, ranked: false });
+    expect(await response.json()).toMatchObject({ ok: true, ranked: false });
     expect(inserted(db.calls).ranked).toBe(false);
     expect(inserted(db.calls).kills_per_10min).toBeNull();
   });
@@ -330,19 +369,67 @@ describe("資料庫（假的）：存一筆", () => {
   it("沒有地圖：照存，但不進排行", async () => {
     const { POST } = await load();
     const response = await POST(post({ ...payload, mapId: null, mapName: null }));
-    expect(await response.json()).toEqual({ ok: true, ranked: false });
+    expect(await response.json()).toMatchObject({ ok: true, ranked: false });
     const row = inserted(db.calls);
     expect(row).toMatchObject({ map_id: null, map_name: null, ranked: false, kills_per_10min: null });
   });
 
   it("不到 10 分鐘、或超過這張圖的理論上限：照存，不進排行", async () => {
     const { POST } = await load();
-    expect(await (await POST(post({ ...payload, durationSec: 599 }))).json()).toEqual({ ok: true, ranked: false });
+    expect(await (await POST(post({ ...payload, durationSec: 599 }))).json()).toMatchObject({ ok: true, ranked: false });
     expect(inserted(db.calls).ranked).toBe(false);
 
     db.calls.length = 0;
-    expect(await (await POST(post({ ...payload, expGained: 50_000_000 }))).json()).toEqual({ ok: true, ranked: false });
+    expect(await (await POST(post({ ...payload, expGained: 50_000_000 }))).json()).toMatchObject({ ok: true, ranked: false });
     expect(inserted(db.calls).ranked).toBe(false);
+  });
+
+  it("存好回這筆的 id（字串）跟改這筆用的 token；資料庫只存 token 的雜湊，原始 token 不進資料庫", async () => {
+    const { POST } = await load();
+    const response = await POST(post(payload));
+    const body = (await response.json()) as { ok: boolean; ranked: boolean; id: string; token: string };
+    expect(body).toEqual({ ok: true, ranked: true, id: "1", token: expect.stringMatching(/^[0-9a-f]{32}$/) });
+    const row = inserted(db.calls);
+    expect(row.edit_hash).toBe(sha256(body.token));
+    expect(row.edit_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(JSON.stringify(db.calls)).not.toContain(body.token);
+    // 存的當下一律當沒開加倍券（一段存好才問，回答了再 PATCH 改同一筆）
+    expect(row).toMatchObject({ coupon_mult: null, coupon_min: null });
+    // INSERT 欄位跟型別：倍率 real、分鐘 integer、雜湊 text
+    expect(insertCall(db.calls).text).toMatch(/coupon_mult, coupon_min, edit_hash\) SELECT .*\?::real, \?::integer, \?::text WHERE/);
+  });
+
+  it("每一筆的 token 都不一樣；資料庫回的 id 是數字或字串都變成字串", async () => {
+    const { POST } = await load();
+    const first = (await (await POST(post(payload))).json()) as { token: string };
+    db.reply = text => (text.startsWith("INSERT") ? [{ id: "9007199254740993" }] : []);
+    const second = (await (await POST(post(payload))).json()) as { id: string; token: string };
+    expect(second.id).toBe("9007199254740993");
+    expect(second.token).not.toBe(first.token);
+  });
+
+  it.each([
+    ["null", { charId: null }],
+    ["空字串", { charId: "" }],
+    ["只有空白", { charId: "   " }],
+  ])("沒填角色 ID（%s）照存：char_id 是 null、照樣進排行", async (_name, patchBody) => {
+    const { POST } = await load();
+    const response = await POST(post({ ...payload, ...patchBody }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ ok: true, ranked: true });
+    expect(inserted(db.calls)).toMatchObject({ char_id: null, ranked: true });
+  });
+
+  it("沒給角色 ID 欄位也照存；有填但太短的照舊回 400", async () => {
+    const { POST } = await load();
+    const { charId: _drop, ...noId } = payload;
+    expect((await POST(post(noId))).status).toBe(200);
+    expect(inserted(db.calls).char_id).toBeNull();
+    db.calls.length = 0;
+    const response = await POST(post({ ...payload, charId: "a" }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toContain("角色 ID");
+    expect(db.calls).toHaveLength(0);
   });
 
   it("開始時間統一成 UTC 的標準寫法再存（資料庫不用猜格式）", async () => {
@@ -398,6 +485,7 @@ describe("資料庫（假的）：存一筆", () => {
     db.reply = text => (text.startsWith("INSERT") ? [] : []);
     const response = await POST(post(payload));
     expect(response.status).toBe(429);
+    // 沒寫進去就不給 token（toEqual：多一個欄位都不行）
     expect(await response.json()).toEqual({ ok: false, error: "送太快了，等一下再存" });
     // 兩句都送了（鎖、INSERT），是 INSERT 自己的 WHERE 把它擋掉
     expect(db.calls.filter(call => call.tx === 2).map(call => call.text.split(" ")[0])).toEqual(["SELECT", "INSERT"]);
@@ -414,7 +502,9 @@ describe("資料庫（假的）：存一筆", () => {
     expect(statuses.filter(status => status === 200)).toHaveLength(6);
     expect(statuses.filter(status => status === 429)).toHaveLength(94);
     expect(rows).toHaveLength(6);
-  });
+    // 100 個一個一個排隊、每個讓出 1ms：Windows 的計時器一格十幾 ms，整套測試一起跑時會超過預設的 5 秒；
+    // 超時被砍掉的話還沒跑完的請求會漏進下一個測試（下一個就跟著錯），所以放寬到 30 秒
+  }, 30_000);
 
   it("不同位址同時送互不影響：各自都有自己的 6 次", async () => {
     const { POST } = await load();
@@ -422,7 +512,7 @@ describe("資料庫（假的）：存一筆", () => {
     const responses = await Promise.all(["1.1.1.1", "2.2.2.2"].flatMap(ip => Array.from({ length: 10 }, () => POST(post(payload, { "x-forwarded-for": ip })))));
     expect(responses.filter(response => response.status === 200)).toHaveLength(12);
     expect(rows).toHaveLength(12);
-  });
+  }, 30_000);
 
   it("資料庫出錯：回 500 加中文原因（不漏錯誤內容）、不是一頁空白", async () => {
     const { POST } = await load();
@@ -435,12 +525,21 @@ describe("資料庫（假的）：存一筆", () => {
     expect(console.error).toHaveBeenCalled();
   });
 
-  it("送出去的 SQL 沒有 DELETE／UPDATE／DROP／TRUNCATE", async () => {
+  it("存一筆、看排行送出去的 SQL 沒有 DELETE／UPDATE／DROP／TRUNCATE；ALTER 只有建表時補欄位那四句", async () => {
     const { POST, GET } = await load();
     await POST(post(payload));
     await GET(get("?map=105040303"));
     expect(db.calls.length).toBeGreaterThan(3);
-    for (const call of db.calls) expect(call.text).not.toMatch(/\b(DELETE|UPDATE|DROP|TRUNCATE|ALTER)\b/i);
+    const allowed = [
+      "ALTER TABLE speed_runs ALTER COLUMN char_id DROP NOT NULL",
+      "ALTER TABLE speed_runs ADD COLUMN IF NOT EXISTS coupon_mult real",
+      "ALTER TABLE speed_runs ADD COLUMN IF NOT EXISTS coupon_min integer",
+      "ALTER TABLE speed_runs ADD COLUMN IF NOT EXISTS edit_hash text",
+    ];
+    for (const call of db.calls) {
+      if (allowed.includes(call.text)) continue;
+      expect(call.text).not.toMatch(/\b(DELETE|UPDATE|DROP|TRUNCATE|ALTER)\b/i);
+    }
   });
 });
 
@@ -502,12 +601,42 @@ describe("資料庫（假的）：排行", () => {
     expect(queries).toHaveLength(2);
     for (const query of queries) {
       // best 那一層把上榜那筆的 is_public 選出來（改名 best_public，跟最新一筆的分開）
-      expect(query.text).toMatch(/SELECT DISTINCT ON \(char_id\) id, char_id, is_public AS best_public, /);
+      expect(query.text).toMatch(/SELECT DISTINCT ON \(COALESCE\(char_id, 'ip:' \|\| ip_hash\)\) id, char_id, is_public AS best_public, /);
       // latest 那一層是每個前 10 名角色最新的一筆（created_at DESC, id DESC 取第一筆）
-      expect(query.text).toMatch(/latest AS \( SELECT DISTINCT ON \(char_id\) char_id, is_public FROM speed_runs WHERE env = \? AND char_id IN \(SELECT char_id FROM leaders\) ORDER BY char_id, created_at DESC, id DESC \)/);
-      expect(query.text).toContain("SELECT leaders.*, latest.is_public AS latest_public FROM leaders JOIN latest USING (char_id)");
+      // 沒填 ID 的不查最新一筆（沒有 ID 認不出是誰），LEFT JOIN 讓它們照樣留在榜上
+      expect(query.text).toMatch(/latest AS \( SELECT DISTINCT ON \(char_id\) char_id, is_public FROM speed_runs WHERE env = \? AND char_id IN \(SELECT char_id FROM leaders WHERE char_id IS NOT NULL\) ORDER BY char_id, created_at DESC, id DESC \)/);
+      expect(query.text).toContain("SELECT leaders.*, latest.is_public AS latest_public FROM leaders LEFT JOIN latest USING (char_id)");
       // 不再有單看最新一筆的 show
       expect(query.text).not.toContain("AS show");
+    }
+  });
+
+  it("沒填角色 ID 的也上榜：名字一律 null（就算那筆勾了公開），成績照給", async () => {
+    const { GET } = await load();
+    db.reply = text => {
+      if (text.includes("party_size = 1")) return [soloRaw({ char_id: null, best_public: true, latest_public: null }), soloRaw({ exp_per_10min: "90000" })];
+      if (text.includes("party_size > 1")) return [partyRaw({ char_id: null, best_public: true, latest_public: null })];
+      return [];
+    };
+    const body = (await (await GET(get("?map=105040303"))).json()) as { solo: BoardRow[]; party: BoardRow[] };
+    expect(body.solo).toEqual([
+      { name: null, job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6 },
+      { name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 90000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6 },
+    ]);
+    expect(body.party).toEqual([{ name: null, job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 3, kills: 1866.6 }]);
+  });
+
+  it("沒 ID 的用網路位址雜湊分組（雜湊每天換：同一個位址同一天只留最好一筆）；位址雜湊不選出來、不會送到頁面", async () => {
+    const { GET } = await load();
+    await GET(get("?map=105040303"));
+    const queries = db.calls.filter(call => call.text.startsWith("WITH"));
+    expect(queries).toHaveLength(2);
+    for (const query of queries) {
+      const best = /best AS \( SELECT DISTINCT ON \(COALESCE\(char_id, 'ip:' \|\| ip_hash\)\) (.*?) FROM speed_runs/.exec(query.text);
+      expect(best).not.toBeNull();
+      expect(best![1]).not.toContain("ip_hash");
+      // 角色 ID 最多 12 個字，「ip:」加 32 個字的雜湊不可能跟真的 ID 撞在一起
+      expect(query.text).toContain("'ip:' || ip_hash");
     }
   });
 
@@ -525,18 +654,19 @@ describe("資料庫（假的）：排行", () => {
     expect(queries).toHaveLength(2);
     const solo = queries.find(call => call.text.includes("party_size = 1"))!;
     const party = queries.find(call => call.text.includes("party_size > 1"))!;
-    expect(solo.text).toContain("DISTINCT ON (char_id)");
-    expect(solo.text).toMatch(/ORDER BY char_id, exp_per_10min DESC/);
+    expect(solo.text).toContain("DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash))");
+    expect(solo.text).toMatch(/ORDER BY COALESCE\(char_id, 'ip:' \|\| ip_hash\), exp_per_10min DESC/);
     expect(solo.text).toMatch(/LIMIT 10/);
     expect(solo.text).not.toContain("kills_per_10min IS NOT NULL");
     expect(party.text).toContain("kills_per_10min IS NOT NULL");
-    expect(party.text).toMatch(/ORDER BY char_id, kills_per_10min DESC/);
+    expect(party.text).toContain("DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash))");
+    expect(party.text).toMatch(/ORDER BY COALESCE\(char_id, 'ip:' \|\| ip_hash\), kills_per_10min DESC/);
     expect(party.text).toMatch(/ORDER BY (leaders\.)?kills_per_10min DESC/);
     expect(party.text).toMatch(/LIMIT 10/);
     // 同分時要有固定的先後（第 10 名的切線不能每次不一樣）：看誰先達成、再看 id；公開與否取最新一筆時同時間也看 id
-    expect(solo.text).toContain("ORDER BY char_id, exp_per_10min DESC, created_at, id");
+    expect(solo.text).toContain("ORDER BY COALESCE(char_id, 'ip:' || ip_hash), exp_per_10min DESC, created_at, id");
     expect(solo.text).toContain("ORDER BY exp_per_10min DESC, created_at, id LIMIT 10");
-    expect(party.text).toContain("ORDER BY char_id, kills_per_10min DESC, created_at, id");
+    expect(party.text).toContain("ORDER BY COALESCE(char_id, 'ip:' || ip_hash), kills_per_10min DESC, created_at, id");
     expect(party.text).toContain("ORDER BY kills_per_10min DESC, created_at, id LIMIT 10");
     for (const query of [solo, party]) {
       expect(query.text).toContain("ORDER BY char_id, created_at DESC, id DESC");
@@ -592,5 +722,243 @@ describe("資料庫（假的）：排行", () => {
     expect(await response.json()).toEqual({ open: false, solo: [], party: [] });
     expect(response.headers.get("cache-control") ?? "").not.toContain("s-maxage");
     expect(console.error).toHaveBeenCalled();
+  });
+});
+
+describe("資料庫（假的）：補填加倍券（PATCH）", () => {
+  beforeEach(() => {
+    process.env.DATABASE_URL = "postgres://fake";
+  });
+
+  const TOKEN = "0123456789abcdef0123456789abcdef";
+  /** 資料庫裡那一筆（照 Neon 回的樣子：bigint 是字串、陣列是陣列） */
+  const stored = (patch: Record<string, unknown> = {}) => ({
+    map_id: MAP, map_name: "森林迷宮III", level: 46, job: 220, char_id: "芙莉蓮熊芙莉", is_public: true, party_levels: [], party_hitter: 0, mode: "auto",
+    started_at: new Date("2026-10-13T10:00:00.000Z"), duration_sec: 900, exp_gained: "150000", level_ups: 0, deaths: 0, client_ver: "v0.95", ...patch,
+  });
+  const body = (patch: Record<string, unknown> = {}) => ({ id: "7", token: TOKEN, coupon: { mult: 1.5, minutes: 15 }, ...patch });
+
+  /** 找那一筆回 row（沒給就是找不到），UPDATE 回改到的那一筆 */
+  function reply(row: Record<string, unknown> | null = stored(), updated: unknown[] = [{ id: "7" }]) {
+    db.reply = text => {
+      if (text.startsWith("SELECT") && text.includes("edit_hash")) return row ? [row] : [];
+      if (text.startsWith("UPDATE")) return updated;
+      return [];
+    };
+  }
+  const selectCall = () => db.calls.find(call => call.text.startsWith("SELECT") && call.text.includes("edit_hash"));
+  const updateCall = () => db.calls.find(call => call.text.startsWith("UPDATE"));
+  /** UPDATE 那句：SET 的欄位跟參數一一對起來 */
+  function updated(): Record<string, unknown> {
+    const call = updateCall();
+    if (!call) throw new Error("沒有送出 UPDATE");
+    const columns = /SET (.*) WHERE/.exec(call.text)![1].split(",").map(item => item.trim().split(" ")[0]);
+    return Object.fromEntries(columns.map((name, index) => [name, call.values[index]]));
+  }
+
+  it("有開：先找那一筆（同環境、id、token 的雜湊、一天內），再只改加倍券跟回推出來的欄位", async () => {
+    const { PATCH } = await load();
+    reply();
+    const response = await PATCH(patch(body()));
+    expect(response.status).toBe(200);
+    const expected = expectedRow(payload, { mult: 1.5, minutes: 15 });
+    expect(expected.expPer10).toBe(66_667);
+    expect(await response.json()).toEqual({ ok: true, ranked: true, expPer10: 66_667 });
+
+    const select = selectCall()!;
+    expect(select.text).toMatch(/FROM speed_runs WHERE env = \? AND id = \?::bigint AND edit_hash = \? AND created_at > now\(\) - interval '1 day'$/);
+    expect(select.values).toEqual(["development", "7", sha256(TOKEN)]);
+
+    const update = updateCall()!;
+    expect(update.text).toBe("UPDATE speed_runs SET coupon_mult = ?::real, coupon_min = ?::integer, exp_per_10min = ?::bigint, kills_per_10min = ?::real, ranked = ?::boolean WHERE id = ?::bigint AND edit_hash = ? RETURNING id");
+    expect(updated()).toEqual({ coupon_mult: 1.5, coupon_min: 15, exp_per_10min: 66_667, kills_per_10min: expected.killsPer10, ranked: true });
+    expect(update.values.slice(-2)).toEqual(["7", sha256(TOKEN)]);
+    expect(typeof expected.killsPer10).toBe("number");
+    // 原始 token 不進資料庫
+    expect(JSON.stringify(db.calls)).not.toContain(TOKEN);
+  });
+
+  it("改成沒開（null）：倍率、分鐘清空，速度回到原始的", async () => {
+    const { PATCH } = await load();
+    reply();
+    const response = await PATCH(patch(body({ coupon: null })));
+    expect(await response.json()).toEqual({ ok: true, ranked: true, expPer10: 100_000 });
+    expect(updated()).toMatchObject({ coupon_mult: null, coupon_min: null, exp_per_10min: 100_000, ranked: true });
+  });
+
+  it("倍率四捨五入到兩位小數再存；只開其中幾分鐘照比例回推", async () => {
+    const { PATCH } = await load();
+    reply();
+    const response = await PATCH(patch(body({ coupon: { mult: 1.4999999, minutes: 10 } })));
+    expect(await response.json()).toEqual({ ok: true, ranked: true, expPer10: 75_000 });
+    expect(updated()).toMatchObject({ coupon_mult: 1.5, coupon_min: 10, exp_per_10min: 75_000 });
+  });
+
+  it("組隊：全隊打幾隻用回推後的速度重算", async () => {
+    const { PATCH } = await load();
+    reply(stored({ party_levels: [44, 47], party_hitter: 2 }));
+    await PATCH(patch(body({ coupon: { mult: 2, minutes: 15 } })));
+    const party: RunPayload = { ...payload, partyLevels: [44, 47], partyHitter: 2 };
+    const expected = expectedRow(party, { mult: 2, minutes: 15 });
+    expect(expected.killsPer10).toBeLessThan(expectedRow(party).killsPer10!);
+    expect(updated()).toMatchObject({ kills_per_10min: expected.killsPer10, exp_per_10min: expected.expPer10, ranked: expected.ranked });
+  });
+
+  it("原始速度超過這張圖的上限：開了加倍券回推後變低，一樣不進排行", async () => {
+    const { PATCH } = await load();
+    reply(stored({ exp_gained: "50000000" }));
+    const response = await PATCH(patch(body({ coupon: { mult: 3, minutes: 15 } })));
+    expect(await response.json()).toMatchObject({ ok: true, ranked: false });
+    expect(updated().ranked).toBe(false);
+  });
+
+  it("資料庫給的開始時間是字串、client_ver 是 null 也算得出來", async () => {
+    const { PATCH } = await load();
+    reply(stored({ started_at: "2026-10-13T10:00:00.000Z", client_ver: null }));
+    expect((await PATCH(patch(body()))).status).toBe(200);
+  });
+
+  it("找不到（id 或 token 不對、別的環境、超過一天）回 404，不送 UPDATE", async () => {
+    const { PATCH } = await load();
+    reply(null);
+    const response = await PATCH(patch(body()));
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ ok: false, error: "找不到這筆紀錄（超過一天就不能改了）" });
+    expect(updateCall()).toBeUndefined();
+  });
+
+  it("UPDATE 沒改到（找到之後剛好不見）也回 404", async () => {
+    const { PATCH } = await load();
+    reply(stored(), []);
+    const response = await PATCH(patch(body()));
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ ok: false, error: "找不到這筆紀錄（超過一天就不能改了）" });
+  });
+
+  it("環境名稱照 VERCEL_ENV：只改得到同一個環境的", async () => {
+    process.env.VERCEL_ENV = "preview";
+    const { PATCH } = await load();
+    reply();
+    await PATCH(patch(body()));
+    expect(selectCall()!.values[0]).toBe("preview");
+  });
+
+  it.each([
+    [{ coupon: { mult: 5, minutes: 10 } }, "倍率要 1.10～3.00"],
+    [{ coupon: { mult: 1.5, minutes: 16 } }, "加倍的分鐘數不對"],
+    [{ coupon: { mult: 1.5, minutes: 0 } }, "加倍的分鐘數不對"],
+    [{ coupon: undefined }, "加倍券格式不對"],
+    [{ coupon: "1.5" }, "加倍券格式不對"],
+  ])("加倍券不合規則 %o 回 400（%s），不送 UPDATE", async (patchBody, error) => {
+    const { PATCH } = await load();
+    reply();
+    const response = await PATCH(patch(body(patchBody)));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error });
+    expect(updateCall()).toBeUndefined();
+  });
+
+  it.each([
+    ["數字", 7],
+    ["0", "0"],
+    ["負數", "-1"],
+    ["小數", "1.5"],
+    ["前面補 0", "07"],
+    ["有空白", " 7"],
+    ["不是數字", "abc"],
+    ["空字串", ""],
+    ["超過 bigint", "9223372036854775808"],
+    ["太長", "1".repeat(30)],
+    ["沒給", undefined],
+  ])("id 不對（%s）回 400、不碰資料庫", async (_name, id) => {
+    const { PATCH } = await load();
+    const response = await PATCH(patch(body({ id })));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: "格式不對" });
+    expect(db.calls).toHaveLength(0);
+  });
+
+  it("id 剛好是 bigint 最大值還收", async () => {
+    const { PATCH } = await load();
+    reply();
+    await PATCH(patch(body({ id: "9223372036854775807" })));
+    expect(selectCall()!.values[1]).toBe("9223372036854775807");
+  });
+
+  it.each([
+    ["31 個字", TOKEN.slice(1)],
+    ["33 個字", `${TOKEN}0`],
+    ["不是 16 進位", "g".repeat(32)],
+    ["有空白", ` ${TOKEN.slice(1)}`],
+    ["數字", 12345],
+    ["沒給", undefined],
+  ])("token 不對（%s）回 400、不碰資料庫", async (_name, token) => {
+    const { PATCH } = await load();
+    const response = await PATCH(patch(body({ token })));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: "格式不對" });
+    expect(db.calls).toHaveLength(0);
+  });
+
+  it("token 大寫也認（照小寫算雜湊）", async () => {
+    const { PATCH } = await load();
+    reply();
+    await PATCH(patch(body({ token: TOKEN.toUpperCase() })));
+    expect(selectCall()!.values[2]).toBe(sha256(TOKEN));
+  });
+
+  it.each([
+    ["text/plain;charset=UTF-8", JSON.stringify(body())],
+    ["application/json", "不是 JSON"],
+    ["application/json", "null"],
+    ["application/json", "[1]"],
+  ])("Content-Type「%s」、內容 %s：回 400 格式不對、不碰資料庫", async (contentType, raw) => {
+    const { PATCH } = await load();
+    const response = await PATCH(new Request("http://x/api/speed/runs", { method: "PATCH", body: raw, headers: { "content-type": contentType } }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ ok: false, error: "格式不對" });
+    expect(db.calls).toHaveLength(0);
+  });
+
+  it("資料庫出錯：回 500 加中文原因（不漏錯誤內容）", async () => {
+    const { PATCH } = await load();
+    db.reply = () => new Error("password authentication failed for user neondb_owner");
+    const response = await PATCH(patch(body()));
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    expect(JSON.parse(text)).toEqual({ ok: false, error: "排行暫時連不上，等一下再存" });
+    expect(text).not.toContain("neondb_owner");
+    expect(console.error).toHaveBeenCalled();
+  });
+
+  it("從存一筆拿到的 id、token 改得到同一筆（token 的雜湊就是存進去的 edit_hash）", async () => {
+    const { POST, PATCH } = await load();
+    const saved = (await (await POST(post(payload))).json()) as { id: string; token: string };
+    const editHash = inserted(db.calls).edit_hash;
+    db.calls.length = 0;
+    db.reply = (text, values) => {
+      if (text.startsWith("SELECT") && text.includes("edit_hash")) return values[1] === saved.id && values[2] === editHash ? [stored()] : [];
+      if (text.startsWith("UPDATE")) return values[values.length - 2] === saved.id && values[values.length - 1] === editHash ? [{ id: saved.id }] : [];
+      return [];
+    };
+    const ok = await PATCH(patch({ id: saved.id, token: saved.token, coupon: { mult: 2, minutes: 15 } }));
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toEqual({ ok: true, ranked: true, expPer10: 50_000 });
+    // 別的 token 改不到
+    const wrong = await PATCH(patch({ id: saved.id, token: "f".repeat(32), coupon: null }));
+    expect(wrong.status).toBe(404);
+  });
+
+  it("送出去的 SQL 沒有 DELETE／DROP／TRUNCATE；UPDATE 只有改加倍券那一句、只改那五欄", async () => {
+    const { PATCH } = await load();
+    reply();
+    await PATCH(patch(body()));
+    const updates = db.calls.filter(call => /\bUPDATE\b/i.test(call.text));
+    expect(updates).toHaveLength(1);
+    expect(Object.keys(updated())).toEqual(["coupon_mult", "coupon_min", "exp_per_10min", "kills_per_10min", "ranked"]);
+    for (const call of db.calls) {
+      if (call.text.startsWith("ALTER TABLE speed_runs")) continue;
+      expect(call.text).not.toMatch(/\b(DELETE|DROP|TRUNCATE)\b/i);
+    }
   });
 });

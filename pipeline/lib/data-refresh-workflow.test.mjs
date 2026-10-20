@@ -301,6 +301,10 @@ test("拿新資料跑全套測試（pipeline＋vitest 全部，不是只跑首�
   assert.doesNotMatch(block, /now-plan-realdata/);
 });
 
+test("全套測試設 SPEED_NAMES_MAY_LAG：新地圖還沒產練功測速的字形樣板（要 Windows 字型）不擋自動更新（v1.10）", () => {
+  assert.match(stepBlock("全套測試（含首頁每個組合的真資料檢查）"), /^ {8}env:\r?\n {10}SPEED_NAMES_MAY_LAG: "1"\r?\n/m);
+});
+
 test("notify 接在 refresh、publish 後面、成功失敗都跑，拿得到兩個 job 的結果與兩個版本號，有開 issue 與讀 log 的權限", () => {
   assert.match(NOTIFY, /needs: \[refresh, publish\]\n/);
   assert.match(NOTIFY, /if: \$\{\{ !cancelled\(\) \}\}\n/);

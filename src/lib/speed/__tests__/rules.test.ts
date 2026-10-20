@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Monster, TrainingRow } from "@/lib/types";
 import monsterJson from "../../../../public/data/monsters.json";
 import trainingJson from "../../../../public/data/training.json";
-import { checkRun, expPer10, mapCap, mapKillCap, toRow, type RunPayload } from "../server/rules";
+import { checkCoupon, checkRun, expPer10, mapCap, mapKillCap, realExpPer10, toRow, type RunPayload } from "../server/rules";
 
 const run: RunPayload = {
   mapId: 105040303, mapName: "森林迷宮III", level: 46, job: 220, charId: "芙莉蓮熊芙莉", isPublic: false, partyLevels: [], partyHitter: 0, mode: "auto",
@@ -195,6 +195,30 @@ describe("名字跟文字欄位", () => {
     const bom = check({ charId: "\uFEFF芙莉蓮熊芙莉" });
     expect(bom.ok && bom.run.charId).toBe("芙莉蓮熊芙莉");
     expect(check({ charId: 12345 }).ok).toBe(false);
+    expect(check({ charId: {} }).ok).toBe(false);
+    expect(check({ charId: false }).ok).toBe(false);
+  });
+
+  // 10/20：超過 10 分鐘的都要算有效的數據，有沒有填角色 ID 都一樣（沒填的排行寫匿名玩家）
+  it.each([
+    ["null", null],
+    ["空字串", ""],
+    ["只有空白", "  \u3000\t "],
+  ])("沒填角色 ID（%s）也收，存成 null", (_name, charId) => {
+    const result = check({ charId });
+    expect(result).toEqual({ ok: true, run: { ...run, charId: null } });
+  });
+
+  it("沒給角色 ID 這個欄位也收，存成 null；其他檢查照舊", () => {
+    const { charId: _drop, ...noId } = run;
+    expect(checkRun(noId, NOW)).toEqual({ ok: true, run: { ...run, charId: null } });
+    const tooShort = checkRun({ ...noId, durationSec: 100 }, NOW);
+    expect(!tooShort.ok && tooShort.error).toContain("時間");
+  });
+
+  it("沒填角色 ID 的照樣能進排行（滿 10 分鐘、有地圖、沒超過上限）", () => {
+    const result = check({ charId: null });
+    expect(result.ok && toRow(result.run, 200_000)).toMatchObject({ charId: null, ranked: true, expPer10: 100_000 });
   });
 
   it("地圖名稱、版本：看不見的控制字元拿掉，不整筆擋掉", () => {
@@ -366,5 +390,138 @@ describe("組隊榜：全隊 10 分鐘打幾隻的上限（10/13 最終審查）
     const low: RunPayload = { ...run, level: 10, partyLevels: [60], partyHitter: 1, durationSec: 600, expGained: 100 };
     expect(toRow(low, 999_999, row([[10, 5, 7]]), new Map([[10, mob(10, 100, 100)]]))).toMatchObject({ killsPer10: null, ranked: false });
     expect(toRow(run, 200_000).ranked).toBe(true);
+  });
+});
+
+describe("加倍券（10/20）：檢查", () => {
+  // 905 秒＝15.08 分鐘 → 有開的分鐘數最多填 16（無條件進位，玩家看到的是「這段 16 分鐘」）
+  const SEC = 905;
+
+  it("沒開（null）合法", () => {
+    expect(checkCoupon(null, SEC)).toEqual({ ok: true, coupon: null });
+  });
+
+  it("倍率 1.10～3.00（含兩端）、分鐘數 1～這段的分鐘數（無條件進位）都收", () => {
+    expect(checkCoupon({ mult: 1.5, minutes: 10 }, SEC)).toEqual({ ok: true, coupon: { mult: 1.5, minutes: 10 } });
+    expect(checkCoupon({ mult: 1.1, minutes: 1 }, SEC)).toEqual({ ok: true, coupon: { mult: 1.1, minutes: 1 } });
+    expect(checkCoupon({ mult: 3, minutes: 16 }, SEC)).toEqual({ ok: true, coupon: { mult: 3, minutes: 16 } });
+    expect(checkCoupon({ mult: 2, minutes: 10 }, 600)).toEqual({ ok: true, coupon: { mult: 2, minutes: 10 } });
+  });
+
+  it("浮點誤差算在範圍內（1 + 0.1 是 1.1000000000000001）；存的時候四捨五入到兩位小數", () => {
+    expect(checkCoupon({ mult: 1 + 0.1, minutes: 5 }, SEC)).toEqual({ ok: true, coupon: { mult: 1.1, minutes: 5 } });
+    expect(checkCoupon({ mult: 0.1 * 3 * 10, minutes: 5 }, SEC)).toEqual({ ok: true, coupon: { mult: 3, minutes: 5 } });
+    expect(checkCoupon({ mult: 1.2349, minutes: 5 }, SEC)).toEqual({ ok: true, coupon: { mult: 1.23, minutes: 5 } });
+    expect(checkCoupon({ mult: 1.236, minutes: 5 }, SEC)).toEqual({ ok: true, coupon: { mult: 1.24, minutes: 5 } });
+  });
+
+  it.each([
+    [{ mult: 1.09, minutes: 5 }],
+    [{ mult: 3.01, minutes: 5 }],
+    [{ mult: 1, minutes: 5 }],
+    [{ mult: 0, minutes: 5 }],
+    [{ mult: -2, minutes: 5 }],
+    [{ mult: "1.5", minutes: 5 }],
+    [{ mult: Number.NaN, minutes: 5 }],
+    [{ mult: Number.POSITIVE_INFINITY, minutes: 5 }],
+    [{ minutes: 5 }],
+  ])("倍率不對 %o 不收", value => {
+    const result = checkCoupon(value, SEC);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("倍率要 1.10～3.00");
+  });
+
+  it.each([
+    [{ mult: 1.5, minutes: 0 }],
+    [{ mult: 1.5, minutes: 17 }],
+    [{ mult: 1.5, minutes: 2.5 }],
+    [{ mult: 1.5, minutes: -1 }],
+    [{ mult: 1.5, minutes: "10" }],
+    [{ mult: 1.5 }],
+  ])("分鐘數不對 %o 不收", value => {
+    const result = checkCoupon(value, SEC);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toBe("加倍的分鐘數不對");
+  });
+
+  it.each([[undefined], ["1.5"], [1.5], [true], [[1.5, 10]]])("不是物件也不是 null（%o）不收", value => {
+    const result = checkCoupon(value, SEC);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error).toContain("加倍券");
+  });
+
+  it("多塞的欄位丟掉，只留倍率跟分鐘數", () => {
+    const result = checkCoupon({ mult: 1.5, minutes: 10, ranked: true, expPer10: 1 }, SEC);
+    expect(result.ok && Object.keys(result.coupon!).sort()).toEqual(["minutes", "mult"]);
+  });
+});
+
+describe("加倍券（10/20）：回推真實的 10 分鐘經驗", () => {
+  it("沒開＝原本的 10 分鐘經驗", () => {
+    expect(realExpPer10(150_000, 900, null)).toBe(expPer10(150_000, 900));
+    expect(realExpPer10(1234, 777, null)).toBe(expPer10(1234, 777));
+  });
+
+  it("整段都開：拿到的 ÷（分鐘 × 倍率）× 10", () => {
+    // 15 分鐘、1.5 倍 → 等於沒加倍時的 22.5 分鐘 → 150,000 ÷ 22.5 × 10 = 66,666.7 → 66,667
+    expect(realExpPer10(150_000, 900, { mult: 1.5, minutes: 15 })).toBe(66_667);
+    expect(realExpPer10(100_000, 600, { mult: 2, minutes: 10 })).toBe(50_000);
+  });
+
+  it("只開其中幾分鐘：沒開的分鐘 + 有開的分鐘 × 倍率", () => {
+    // 15 分鐘裡 10 分鐘 1.5 倍 → 5 + 15 = 20 → 150,000 ÷ 20 × 10 = 75,000
+    expect(realExpPer10(150_000, 900, { mult: 1.5, minutes: 10 })).toBe(75_000);
+    expect(realExpPer10(150_000, 900, { mult: 3, minutes: 1 })).toBe(Math.round((150_000 / (14 + 3)) * 10));
+  });
+
+  it("分鐘用小數算；填的分鐘數比這段長（無條件進位那一分鐘）就當整段都開", () => {
+    // 905 秒＝15.083 分鐘，填 16 分鐘 → 有開的只算 15.083
+    expect(realExpPer10(150_000, 905, { mult: 1.5, minutes: 16 })).toBe(Math.round((150_000 / ((905 / 60) * 1.5)) * 10));
+    expect(realExpPer10(150_000, 905, { mult: 1.5, minutes: 16 })).toBe(66_298);
+    expect(realExpPer10(150_000, 905, { mult: 1.5, minutes: 15 })).toBe(Math.round((150_000 / (905 / 60 - 15 + 15 * 1.5)) * 10));
+  });
+});
+
+describe("加倍券（10/20）：存的欄位、進排行", () => {
+  const monsters = new Map([[10, mob(10, 30, 100)]]);
+  const solo: RunPayload = { ...run, level: 30, durationSec: 600, expGained: 1000 };
+
+  it("沒開：倍率、分鐘數是 null，速度照原本的", () => {
+    expect(toRow(run, 200_000)).toMatchObject({ expPer10: 100_000, couponMult: null, couponMin: null, ranked: true });
+    expect(toRow(run, 200_000, undefined, undefined, null)).toMatchObject({ expPer10: 100_000, couponMult: null, couponMin: null });
+  });
+
+  it("有開：10 分鐘經驗改成回推的，倍率跟分鐘數一起存", () => {
+    expect(toRow(run, 200_000, undefined, undefined, { mult: 1.5, minutes: 10 })).toMatchObject({ expPer10: 75_000, couponMult: 1.5, couponMin: 10, ranked: true });
+  });
+
+  it("全隊打幾隻也用回推的速度算", () => {
+    // 10 分鐘 1000 經驗、整段 2 倍 → 真的速度 500 → 怪經驗 100 → 5 隻（沒開是 10 隻）
+    expect(toRow(solo, null, row([[10, 5, 7]]), monsters).killsPer10).toBe(10);
+    expect(toRow(solo, null, row([[10, 5, 7]]), monsters, { mult: 2, minutes: 10 })).toMatchObject({ expPer10: 500, killsPer10: 5 });
+  });
+
+  it("經驗上限照量到的原始速度擋：回推後低於上限、原始的超過一樣不進排行", () => {
+    const coupon = { mult: 1.5, minutes: 15 };
+    // 原始 100,000、回推 66,667
+    expect(toRow(run, 99_999, undefined, undefined, coupon)).toMatchObject({ expPer10: 66_667, ranked: false });
+    expect(toRow(run, 100_000, undefined, undefined, coupon)).toMatchObject({ expPer10: 66_667, ranked: true });
+    expect(toRow(run, 70_000, undefined, undefined, coupon).ranked).toBe(false);
+  });
+
+  it("其他進排行條件不變：不到 10 分鐘、沒地圖、沒上限、經驗 0 一樣不進", () => {
+    const coupon = { mult: 2, minutes: 5 };
+    expect(toRow({ ...run, durationSec: 599 }, 200_000, undefined, undefined, coupon).ranked).toBe(false);
+    expect(toRow({ ...run, mapId: null }, 200_000, undefined, undefined, coupon).ranked).toBe(false);
+    expect(toRow(run, null, undefined, undefined, coupon).ranked).toBe(false);
+    expect(toRow({ ...run, expGained: 0 }, 200_000, undefined, undefined, coupon)).toMatchObject({ expPer10: 0, ranked: false });
+  });
+
+  it("組隊打幾隻的上限照回推後的隻數擋（開了加倍券，同樣的經驗打的隻數比較少）", () => {
+    // 7 個 7 秒的點 → 上限 1800 隻；每隻自己拿 44 → 原始 79,245 經驗＝1801 隻（超過），整段 1.5 倍 → 1200.7 隻（沒超過）
+    const small = row([[10, 7, 7]]);
+    const party: RunPayload = { ...run, level: 30, partyLevels: [30], partyHitter: 1, durationSec: 600, expGained: 79_245 };
+    expect(toRow(party, 999_999, small, monsters).ranked).toBe(false);
+    expect(toRow(party, 999_999, small, monsters, { mult: 1.5, minutes: 10 })).toMatchObject({ killsPer10: 1200.7, ranked: true });
   });
 });
