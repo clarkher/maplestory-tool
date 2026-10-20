@@ -13,7 +13,6 @@ import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob,
 import { effectiveLevels, goChecker, longRunNow, mainPick, nowQuests, pqJustClosed } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
 import { sessionMemo } from "@/lib/session-memo";
-import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
 import { goddessNoteFor } from "@/lib/v002-notes";
@@ -37,7 +36,6 @@ export type GuideStatus = GuideState["status"];
 const SAVED_PROFILE_HINT = `try{var p=JSON.parse(localStorage.getItem("ms-profile")||"null");if(p&&p.level>0&&p.job>=0)document.documentElement.dataset.profile="saved"}catch(e){}`;
 
 export function RouteHome() {
-  const showV002Banner = useBeforeV002();
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
@@ -166,13 +164,6 @@ export function RouteHome() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
-      {/* V002 內容現在就上線，但要等官方 2026/10/15 開機才能玩；10/15 一到自動不再標，不用重新部署 */}
-      {showV002Banner ? (
-        <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
-          已經照 10/15 改版排好：三轉、Lv.120、天空之城／冰原雪域／廢礦區，要 2026/10/15 開機後才能去。
-        </p>
-      ) : null}
-
       {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
           存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
       {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}

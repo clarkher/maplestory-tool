@@ -66,7 +66,6 @@ export type CalcData = {
   training: TrainingRow[];
   /** 升級經驗表（guides/common.json 的 expTable.toNext）：[n]＝Lv.n 升到 n+1 要的經驗，算 10 分鐘經驗占這一級幾 % */
   expToNext: number[];
-  beforeOpen: boolean;
 };
 
 export type GroupConfig = {
@@ -153,9 +152,9 @@ export function ammoChoices(ammo: GearAmmo[], weaponType: string): GearAmmo[] {
 }
 
 /** 預設彈藥：等級夠、現在拿得到的裡面，商店買得到的攻擊力最高那種；沒有商店賣的就挑拿得到的裡攻擊力最高的 */
-export function defaultAmmo(ammo: GearAmmo[], weaponType: string, level: number, beforeOpen: boolean): GearAmmo | null {
-  const usable = ammoChoices(ammo, weaponType).filter(entry => entry.lv <= level && !(beforeOpen && entry.o));
-  const sold = usable.filter(entry => entry.src.shops?.some(shop => !(beforeOpen && shop.o)));
+export function defaultAmmo(ammo: GearAmmo[], weaponType: string, level: number): GearAmmo | null {
+  const usable = ammoChoices(ammo, weaponType).filter(entry => entry.lv <= level);
+  const sold = usable.filter(entry => entry.src.shops?.length);
   const pool = sold.length ? sold : usable;
   return pool.length ? pool[pool.length - 1] : null;
 }
@@ -194,16 +193,16 @@ export function levelNoticeText(job: number, level: number): string | null {
 /** 一組的預設：gearPlan 的點法（含要湊的裝備）、主推武器、商店彈藥、技能點法的等級；其他攻擊 0、增益不勾 */
 export function defaultGroup(data: CalcData, job: number, level: number, tab: string | null): GroupConfig {
   const lv = clampLevel(job, level);
-  const plan = gearPlan(data.gear, job, lv, data.beforeOpen, tab);
+  const plan = gearPlan(data.gear, job, lv, tab);
   const naked = plan.targets ?? { STR: 4, DEX: 4, INT: 4, LUK: 4 };
-  const stats = plan.rule?.kit?.length && plan.targets ? kitStats(plan.rule.kit, lv, plan.targets, data.beforeOpen).stats : naked;
+  const stats = plan.rule?.kit?.length && plan.targets ? kitStats(plan.rule.kit, lv, plan.targets).stats : naked;
   const weapon = plan.best;
   return {
     tab: plan.rule?.tab ?? null,
     level: lv,
     weaponId: weapon?.id ?? null,
     weaponAtk: null,
-    ammoId: weapon ? defaultAmmo(data.gear.ammo ?? [], weapon.s, lv, data.beforeOpen)?.id ?? null : null,
+    ammoId: weapon ? defaultAmmo(data.gear.ammo ?? [], weapon.s, lv)?.id ?? null : null,
     extra: 0,
     stats: { ...stats },
     buffs: [],
@@ -222,36 +221,34 @@ export function boosterFor(data: CalcData, job: number, weaponType: string): Boo
 
 /**
  * 預設怪：練功排行（planTraining，前 30 張）依序找，取第一張「主力怪在怪物選單裡」的圖的主力怪。
- * 跳過王圖（刷怪點 BOSS_SPAWN_MAX 個以下，跟 timeline.ts 同一條規則——巴洛古那種圖不是拿來練功的）；
- * 還沒開放（beforeOpen）時再跳過只在 V002 才有的怪（跟選單的 v002 同一條規則）。都沒有回 null。
+ * 跳過王圖（刷怪點 BOSS_SPAWN_MAX 個以下，跟 timeline.ts 同一條規則——巴洛古那種圖不是拿來練功的）。都沒有回 null。
  */
 export function defaultMonster(data: CalcData, job: number, level: number): number | null {
   const byId = new Map(data.monsters.map(monster => [monster.id, monster]));
   for (const pick of planTraining({ job, level }, data.training, byId, 30)) {
     if (pick.row.sp <= BOSS_SPAWN_MAX || !pick.lead) continue;
-    const choice = choiceFor(pick.lead, data.maps);
-    if (!choice || (data.beforeOpen && choice.v002)) continue;
+    if (!choiceFor(pick.lead, data.maps)) continue;
     return pick.lead.id;
   }
   return null;
 }
 
-export type MonsterChoice = { monster: Monster; v002: boolean };
+export type MonsterChoice = { monster: Monster };
 
 /** 「HP 3,200・經驗 135」：打哪隻怪那格、名單的滑鼠提示、怪物小卡同一種寫法（v0.86 使用者要看得到） */
 export function monsterStats(monster: Pick<Monster, "hp" | "exp">): string {
   return `HP ${monster.hp.toLocaleString()}・經驗 ${monster.exp.toLocaleString()}`;
 }
 
-/** 這隻怪在選單裡的樣子：出現在有中文名地圖的怪才有（不收錄、沒有等級的不收），v002＝出現的有名地圖全是 V002 的；不收的回 null */
+/** 這隻怪在選單裡的樣子：出現在有中文名地圖的怪才有（不收錄、沒有等級的不收）；不收的回 null */
 function choiceFor(monster: Monster, maps: Record<string, MapRecord>): MonsterChoice | null {
   if (monster.un || monster.lv === null) return null;
   const named = monster.maps.filter(id => maps[String(id)]?.zh);
   if (!named.length) return null;
-  return { monster, v002: named.every(id => Boolean(maps[String(id)]?.o)) };
+  return { monster };
 }
 
-/** 怪物選單：出現在有中文名地圖的怪（不收錄、沒有等級的不列），依等級低到高；v002＝出現的有名地圖全是 V002 的 */
+/** 怪物選單：出現在有中文名地圖的怪（不收錄、沒有等級的不列），依等級低到高 */
 export function monsterChoices(monsters: Monster[], maps: Record<string, MapRecord>): MonsterChoice[] {
   return monsters
     .flatMap(monster => choiceFor(monster, maps) ?? [])
@@ -722,12 +719,12 @@ function otherTabOf(data: CalcData, job: number, tab: string | null): string | u
 /** 右組：有第二套點法就是 candidate（那套的預設）；沒有就同一套換下一把武器，連下一把都沒有就跟左組一樣 */
 function rightGroup(data: CalcData, job: number, left: GroupConfig, candidate: GroupConfig): GroupConfig {
   if (otherTabOf(data, job, left.tab)) return candidate;
-  const next = gearPlan(data.gear, job, left.level, data.beforeOpen, left.tab).next;
+  const next = gearPlan(data.gear, job, left.level, left.tab).next;
   return next ? withWeapon(data, candidate, next) : { ...candidate, weaponId: left.weaponId, ammoId: left.ammoId, weaponAtk: left.weaponAtk };
 }
 
 function withWeapon(data: CalcData, group: GroupConfig, weapon: GearWeapon): GroupConfig {
-  const ammo = defaultAmmo(data.gear.ammo ?? [], weapon.s, Math.max(group.level, weapon.lv), data.beforeOpen);
+  const ammo = defaultAmmo(data.gear.ammo ?? [], weapon.s, Math.max(group.level, weapon.lv));
   return { ...group, weaponId: weapon.id, weaponAtk: null, ammoId: ammo?.id ?? null };
 }
 
@@ -750,19 +747,19 @@ export function relevel(data: CalcData, state: CalcState, level: number): CalcSt
   let monsterId = state.shared.monsterId === oldDefault ? defaultMonster(data, job, lv) : state.shared.monsterId;
   // 群體治癒跟著預設怪換到不是不死系的怪時，改挑這一級的不死系
   if (state.shared.skillId === HEAL && monsterId !== state.shared.monsterId && !data.monsters.find(monster => monster.id === monsterId)?.und) {
-    monsterId = undeadDefault(monsterChoices(data.monsters, data.maps), lv, data.beforeOpen);
+    monsterId = undeadDefault(monsterChoices(data.monsters, data.maps), lv);
   }
   const skillLevel = left.levels[state.shared.skillId] || state.shared.skillLevel;
   return { shared: { ...state.shared, skillLevel, monsterId }, groups: [left, right] };
 }
 
 /**
- * 群體治癒的預設怪：不死系裡等級不超過角色、最高的那隻（同等級取選單裡排後面的）；都比角色高就挑最低的；
- * 還沒開放（beforeOpen）跳過只在 V002 的怪。整張圖最多 BOSS_SPAWN_MAX 隻的（殭屍蘑菇王這種王、冥界幽靈這種迴避 999 的稀有怪）
+ * 群體治癒的預設怪：不死系裡等級不超過角色、最高的那隻（同等級取選單裡排後面的）；都比角色高就挑最低的。
+ * 整張圖最多 BOSS_SPAWN_MAX 隻的（殭屍蘑菇王這種王、冥界幽靈這種迴避 999 的稀有怪）
  * 不自動挑——跟練功排行跳過王圖同一條規則；手動還是選得到。沒有不死系回 null。
  */
-export function undeadDefault(choices: MonsterChoice[], level: number, beforeOpen: boolean): number | null {
-  const open = choices.filter(choice => choice.monster.und && !(beforeOpen && choice.v002));
+export function undeadDefault(choices: MonsterChoice[], level: number): number | null {
+  const open = choices.filter(choice => choice.monster.und);
   const common = open.filter(choice => !choice.monster.sp?.length || Math.max(...choice.monster.sp.map(([, count]) => count)) > BOSS_SPAWN_MAX);
   const undead = common.length ? common : open;
   if (!undead.length) return null;
@@ -771,10 +768,10 @@ export function undeadDefault(choices: MonsterChoice[], level: number, beforeOpe
 }
 
 /** 改共用設定：換成群體治癒、選的怪不是不死系（或沒選）時，順便換成 undeadDefault；其他照改 */
-export function withSkill(state: CalcState, patch: Partial<SharedConfig>, choices: MonsterChoice[], beforeOpen: boolean): CalcState {
+export function withSkill(state: CalcState, patch: Partial<SharedConfig>, choices: MonsterChoice[]): CalcState {
   const shared = { ...state.shared, ...patch };
   if (patch.skillId === HEAL && !choices.find(choice => choice.monster.id === shared.monsterId)?.monster.und) {
-    shared.monsterId = undeadDefault(choices, state.groups[0].level, beforeOpen);
+    shared.monsterId = undeadDefault(choices, state.groups[0].level);
   }
   return { ...state, shared };
 }
@@ -792,7 +789,7 @@ export function sameGroups(groups: [GroupConfig, GroupConfig]): boolean {
 /* ------------------------------------------------------------------ 一下／兩下打死 */
 
 /** minUse：最低一次（不爆擊）；midUse：最高跟最低的中間值一次（不爆擊） */
-export type KillEntry = { monster: Monster; v002: boolean; minUse: number; midUse: number };
+export type KillEntry = { monster: Monster; minUse: number; midUse: number };
 /** element：這一招的屬性（名單上「只看怕這個屬性的怪」按鈕用），沒有屬性是 null */
 export type KillLists = { one: KillEntry[]; two: KillEntry[]; nearOne: KillEntry[]; nearTwo: KillEntry[]; element: Element | null };
 
@@ -808,9 +805,9 @@ export function killLists(data: CalcData, shared: SharedConfig, group: GroupConf
   if (!prepared.ok) return null;
   const lists: KillLists = { one: [], two: [], nearOne: [], nearTwo: [], element: prepared.element };
   // 群體治癒只打得到不死系（v0.88 使用者：只顯示群體治癒打到的怪）
-  for (const { monster, v002 } of prepared.heal ? choices.filter(choice => choice.monster.und) : choices) {
+  for (const { monster } of prepared.heal ? choices.filter(choice => choice.monster.und) : choices) {
     const { hit } = prepared.at(monster);
-    const entry = { monster, v002, minUse: hit.min * prepared.hits, midUse: ((hit.min + hit.max) / 2) * prepared.hits };
+    const entry = { monster, minUse: hit.min * prepared.hits, midUse: ((hit.min + hit.max) / 2) * prepared.hits };
     const { hp } = monster;
     if (entry.minUse >= hp) lists.one.push(entry);
     else if (entry.minUse * 2 >= hp) lists.two.push(entry);

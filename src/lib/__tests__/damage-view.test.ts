@@ -66,8 +66,6 @@ const data: CalcData = {
   maps: read<Record<string, MapRecord>>("maps.json"),
   training: read<TrainingRow[]>("training.json"),
   expToNext: read<GuideCommon>("guides/common.json").expTable.toNext,
-  // 測試固定當作已開放（10/15 之後），不跟著跑測試的日期變
-  beforeOpen: false,
 };
 
 describe("等級上限", () => {
@@ -129,11 +127,11 @@ describe("彈藥", () => {
   it("拳套只列飛鏢；預設是商店買得到的（海星鏢）", () => {
     const ammo = gear.ammo ?? [];
     expect(ammoChoices(ammo, "拳套").every(entry => entry.kind === "飛鏢")).toBe(true);
-    expect(defaultAmmo(ammo, "拳套", 50, false)?.id).toBe(2070000);
+    expect(defaultAmmo(ammo, "拳套", 50)?.id).toBe(2070000);
   });
   it("不用彈藥的武器回空的", () => {
     expect(ammoChoices(gear.ammo ?? [], "單手劍")).toEqual([]);
-    expect(defaultAmmo(gear.ammo ?? [], "單手劍", 50, false)).toBeNull();
+    expect(defaultAmmo(gear.ammo ?? [], "單手劍", 50)).toBeNull();
   });
 });
 
@@ -179,11 +177,10 @@ describe("一組的預設", () => {
 });
 
 describe("怪物", () => {
-  it("選單只收有中文名地圖的怪、依等級排、標出 V002", () => {
+  it("選單只收有中文名地圖的怪、依等級排", () => {
     const choices = monsterChoices(data.monsters, data.maps);
     expect(choices.length).toBeGreaterThan(50);
     expect(choices.every((choice, index) => index === 0 || (choices[index - 1].monster.lv ?? 0) <= (choice.monster.lv ?? 0))).toBe(true);
-    expect(choices.some(choice => choice.v002)).toBe(true);
   });
   it("預設怪＝練功排行第一名那張圖的主力怪", () => {
     const id = defaultMonster(data, 410, 50);
@@ -606,7 +603,7 @@ describe("差多少的字", () => {
 });
 
 function gearPlanNext(job: number, level: number) {
-  return gearPlan(gear, job, level, false, null).next;
+  return gearPlan(gear, job, level, null).next;
 }
 
 // 下面是照真資料多補的：預設技能怎麼挑、槍連擊／矛連擊吃每一級說明、沒練功圖的等級不選怪也算得出來
@@ -858,26 +855,25 @@ describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）
     for (const entry of all) expect(entry.monster.und, entry.monster.n).toBe(1);
   });
   it("換成群體治癒時選的怪不是不死系：換成等級不超過角色、最高的不死系；都太高挑最低的", () => {
-    expect(undeadDefault(choices, 50, false)).toBe(byName("大幽靈").id);
-    expect(undeadDefault(choices, 10, false)).toBe(byName("殭屍菇菇").id);
+    expect(undeadDefault(choices, 50)).toBe(byName("大幽靈").id);
+    expect(undeadDefault(choices, 10)).toBe(byName("殭屍菇菇").id);
   });
   it("自動挑不死系跳過王、稀有怪（整張圖最多 3 隻：殭屍蘑菇王、冥界幽靈、厄運死神）", () => {
     for (const level of [56, 65, 70]) {
-      const pick = undeadDefault(choices, level, false);
+      const pick = undeadDefault(choices, level);
       expect(["殭屍蘑菇王", "冥界幽靈", "厄運死神"]).not.toContain(data.monsters.find(monster => monster.id === pick)?.n);
     }
-    const fake = (id: number, lv: number, v002: boolean, spawns: number) => ({
+    const fake = (id: number, lv: number, spawns: number) => ({
       monster: { ...byName("骷髏犬"), id, n: `怪${id}`, lv, sp: [[1, spawns, 0]] as [number, number, number][] },
-      v002,
     });
-    const list = [fake(1, 40, false, 10), fake(2, 50, true, 10), fake(3, 50, false, 1)];
-    expect(undeadDefault(list, 55, false)).toBe(2);
+    const list = [fake(1, 40, 10), fake(2, 50, 10), fake(3, 50, 1)];
+    expect(undeadDefault(list, 55)).toBe(2);
     // 全是稀有怪時照樣挑得出來（不回 null）
-    expect(undeadDefault([fake(3, 50, false, 1)], 55, false)).toBe(3);
+    expect(undeadDefault([fake(3, 50, 1)], 55)).toBe(3);
   });
   it("換等級：群體治癒的怪跟著預設怪換到不是不死系時，改挑這一級的不死系", () => {
     const state = defaultState(data, 230, 40, null);
-    const healed = withSkill(state, { skillId: HEAL, skillLevel: 30 }, choices, false);
+    const healed = withSkill(state, { skillId: HEAL, skillLevel: 30 }, choices);
     expect(byName("大幽靈").id).toBe(healed.shared.monsterId);
     expect(defaultMonster(data, 230, 40)).toBe(healed.shared.monsterId);
     const next = relevel(data, healed, 50);
@@ -886,10 +882,10 @@ describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）
   it("withSkill：換成群體治癒、怪不是不死系 → 換怪；本來就是不死系 → 留著；換回別的技能不動怪", () => {
     const state = defaultState(data, 230, 50, null);
     const dragon = { ...state, shared: { ...state.shared, monsterId: byName("青龍").id } };
-    expect(withSkill(dragon, { skillId: HEAL, skillLevel: 30 }, choices, false).shared.monsterId).toBe(byName("大幽靈").id);
+    expect(withSkill(dragon, { skillId: HEAL, skillLevel: 30 }, choices).shared.monsterId).toBe(byName("大幽靈").id);
     const dog = { ...state, shared: { ...state.shared, monsterId: byName("骷髏犬").id } };
-    expect(withSkill(dog, { skillId: HEAL, skillLevel: 30 }, choices, false).shared.monsterId).toBe(byName("骷髏犬").id);
-    expect(withSkill(dragon, { skillId: 2301005, skillLevel: 20 }, choices, false).shared.monsterId).toBe(byName("青龍").id);
+    expect(withSkill(dog, { skillId: HEAL, skillLevel: 30 }, choices).shared.monsterId).toBe(byName("骷髏犬").id);
+    expect(withSkill(dragon, { skillId: 2301005, skillLevel: 20 }, choices).shared.monsterId).toBe(byName("青龍").id);
   });
   it("記下的範圍內隻數要是 1～5 的整數；沒有這欄照收", () => {
     const state = defaultState(data, 230, 50, null);

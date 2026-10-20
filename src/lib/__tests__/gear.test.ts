@@ -587,7 +587,7 @@ describe("kitStats：空身加上要湊的裝備", () => {
 
   it("只有 V002 才拿得到的也照算（開放後都拿得到）", () => {
     const v002Hat = piece({ n: "V002 帽", lv: 10, v: 9, o: "2026-10-15" });
-    expect(kitStats([v002Hat], 30, base, false).stats.DEX).toBe(34);
+    expect(kitStats([v002Hat], 30, base).stats.DEX).toBe(34);
   });
 
   it("不改到傳進來的 base", () => {
@@ -664,16 +664,16 @@ describe("armorPicks：每個部位穿得上、拿得到、等級最高的那件
   const wear35 = { STR: 4, DEX: 4, INT: 200, LUK: 38 };
 
   it("裝備法 35 等（幸運 38）：帽子取 35 等的第一件（同等級照資料順序）、40 等的不算；上衣褲裙都比套服高等就換成兩件；只有 V002 的鞋子也推（開放後都拿得到）", () => {
-    expect(armorPicks(list, 210, 35, wear35, false).map(a => a.n)).toEqual(["帽35甲", "上衣35", "褲裙35", "鞋35", "手套10"]);
+    expect(armorPicks(list, 210, 35, wear35).map(a => a.n)).toEqual(["帽35甲", "上衣35", "褲裙35", "鞋35", "手套10"]);
   });
 
   it("穿不上的（幸運不夠）不算：全智幸運 4 一件都沒有", () => {
-    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 4 }, false)).toEqual([]);
-    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 33 }, false).map(a => a.n)).toEqual(["帽30", "套服30", "鞋20", "手套10"]);
+    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 4 })).toEqual([]);
+    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 33 }).map(a => a.n)).toEqual(["帽30", "套服30", "鞋20", "手套10"]);
   });
 
   it("別的職業用不了（法師防具給刺客）回空陣列", () => {
-    expect(armorPicks(list, 410, 35, { STR: 4, DEX: 999, INT: 999, LUK: 999 }, false)).toEqual([]);
+    expect(armorPicks(list, 410, 35, { STR: 4, DEX: 999, INT: 999, LUK: 999 })).toEqual([]);
   });
 });
 

@@ -27,11 +27,10 @@ const data: CalcData = {
   maps: read<Record<string, MapRecord>>("maps.json"),
   training: read<TrainingRow[]>("training.json"),
   expToNext: read<GuideCommon>("guides/common.json").expTable.toNext,
-  beforeOpen: false,
 };
 const graph = read<Record<string, PortalEdge[]>>("graph.json");
 const nearestTown = read<Record<string, [number, number]>>("nearest-town.json");
-const pickFor = (job: number, level: number, beforeOpen = false) => calcPick({ data: { ...data, beforeOpen }, job, level, buildTab: null, graph, nearestTown });
+const pickFor = (job: number, level: number) => calcPick({ data, job, level, buildTab: null, graph, nearestTown });
 const byName = (name: string) => data.monsters.find(monster => monster.n === name)!;
 
 describe("群體技能＝一次打 3 隻以上（台服說明／資料）", () => {
@@ -143,7 +142,7 @@ describe("calcPick：照傷害算的推薦", () => {
     expect(ghost.ok && ghost.vs?.kills.avg).toBe(6);
   });
   it("狂戰士 45 三段：至少兩段有圖、每段的下數在範圍裡", () => {
-    const pick = pickFor(110, 45, false)!;
+    const pick = pickFor(110, 45)!;
     expect(pick.rows.filter(row => row.option).length).toBeGreaterThanOrEqual(2);
     pick.rows.forEach((row, index) => {
       if (row.option) expect(row.option.kills >= AOE_TIERS[index][0] && row.option.kills <= AOE_TIERS[index][1], row.label).toBe(true);

@@ -8,19 +8,18 @@ import { useBuildChoice } from "@/lib/build-choice";
 import { itemImage, loadGear, mapName, monsterImage, peekGear, skillImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { isMagicJob, type GearData } from "@/lib/gear";
-import { bandGear, craftMaterialsText, offenseText, sourceOpensLater, sourceText, type SourcePick } from "@/lib/gear-view";
+import { bandGear, craftMaterialsText, offenseText, sourceText, type SourcePick } from "@/lib/gear-view";
 import { LEVEL_CAP } from "@/lib/profile";
 import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
-import { useBeforeV002 } from "@/lib/release";
 import { type Band, isIslandBand, onIsland, recFromPlayers, spawnIndex } from "@/lib/route-planner";
 import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 import type { GuideStatus } from "./RouteHome";
-import { Chip, SourceLinks, SourceTag, Sprite, levelText } from "./bits";
+import { SourceLinks, SourceTag, Sprite, levelText } from "./bits";
 import { QuestLine } from "./QuestLine";
 
 type Context = {
@@ -135,7 +134,6 @@ function BandItem({
 function BandDetail({ plan, next, context, active, memoryKey }: { plan: BandPlan; next?: Band; context: Context; active: boolean; memoryKey: string }) {
   const { band, stage, guide } = plan;
   const { job, level, quests, monsters, monsterIndex, maps, common, prefer, guideStatus, effective } = context;
-  const beforeOpen = useBeforeV002();
 
   const detail = useMemo(() => {
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
@@ -196,9 +194,7 @@ function BandDetail({ plan, next, context, active, memoryKey }: { plan: BandPlan
 
       {stuckInSecondJob ? (
         <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
-          {beforeOpen
-            ? "還沒三轉：三轉 10/15 開放，轉完按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。"
-            : "還沒三轉：完成二轉、70 等到冰原雪域的長老公館三轉；轉完按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。"}
+          還沒三轉：完成二轉、70 等到冰原雪域的長老公館三轉；轉完按上面「換其他職業」選你的三轉職業，這段會換成那個職業的攻略。
         </p>
       ) : null}
 
@@ -314,9 +310,6 @@ function TrainRowItem({
   const lead = row.mobs.find(id => monsterIndex.has(id));
   const leadMonster = lead !== undefined ? monsterIndex.get(lead) : undefined;
   const names = row.mobs.map(id => monsterIndex.get(id)?.n).filter(Boolean).slice(0, 3).join("、");
-  // V002 才放行的圖（冰原雪域、廢礦）要 10/15 開機後才能去，過了那天自動不再標
-  const beforeOpen = useBeforeV002();
-  const notOpenYet = row.map !== null && Boolean(maps[String(row.map)]?.o) && beforeOpen;
   return (
     <li className="space-y-1.5">
       <div className="flex items-center gap-2.5">
@@ -324,7 +317,6 @@ function TrainRowItem({
         {row.source === "data" ? (
           <span className="min-w-0 flex-1 text-[14px] leading-snug">
             <b>{row.title}</b>
-            {notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
             {/* 每一塊（怪幾等、清一輪幾經驗）各自不斷行，375 寬不會把「經驗」或數字拆到下一行（跟 TodoList 同一招）；
                 分隔的「 · 」放在前一塊的結尾、後面可以換行 */}
             <span className="block text-[12px] ink-soft">
@@ -342,7 +334,6 @@ function TrainRowItem({
         ) : (
           <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} className="min-w-0 flex-1 text-left text-[14px] leading-snug">
             <b>{row.title}</b>
-            {notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
             <span className="block text-[12px] ink-soft">
               {[
                 row.from !== undefined && row.to !== undefined ? levelRange(row.from, row.to) : null,
@@ -439,7 +430,6 @@ function PqLink({ pqKey, common, text }: { pqKey: string; common: GuideCommon; t
 function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Record<string, MapRecord> }) {
   // 這次瀏覽載過就直接拿：換頁回首頁時展開的那一段不會晚一格才冒出裝備
   const [gear, setGear] = useState<GearData | null>(peekGear);
-  const beforeOpen = useBeforeV002();
   const [tab] = useBuildChoice(job);
   useEffect(() => {
     let cancelled = false;
@@ -454,17 +444,10 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
   }, []);
   // 一段是 from 到 to 前一級（下一段從 to 開始）；最後一段（100–120）含上限那一級
   const last = band.to >= LEVEL_CAP ? band.to : band.to - 1;
-  const plan = useMemo(() => (gear ? bandGear(gear, job, band.from, last, beforeOpen, tab) : null), [gear, job, band.from, last, beforeOpen, tab]);
+  const plan = useMemo(() => (gear ? bandGear(gear, job, band.from, last, tab) : null), [gear, job, band.from, last, tab]);
   if (!plan || (!plan.weapons.length && !plan.families.length)) return null;
   const magic = isMagicJob(job);
   const label = (id: number) => mapName(maps, id);
-  const chip = (later: string | undefined) =>
-    later && beforeOpen ? (
-      <span className="ml-1 inline-block align-middle">
-        <Chip tone="gold">10/15 開放</Chip>
-      </span>
-    ) : null;
-
   return (
     <Block label="裝備" tag={<SourceTag kind="data" />}>
       <ul className="space-y-2">
@@ -480,7 +463,7 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
                 {entry.weapon.n}
               </Link>
               <span className="whitespace-nowrap ink-soft">（{offenseText(entry.weapon, magic)}）</span>
-              {entry.source ? <BandSource pick={entry.source} label={label} chip={chip} /> : null}
+              {entry.source ? <BandSource pick={entry.source} label={label} /> : null}
             </span>
           </li>
         ))}
@@ -491,7 +474,7 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
             <li key={`${family.slot}:${family.stat}`} className="text-[13px] leading-snug">
               <span className="font-bold">{family.options[0].n}</span>{" "}
               <span className="whitespace-nowrap tabular-nums ink-soft">{family.options.map(option => `${option.rate}%`).join("／")}</span>
-              {family.source ? <BandSource pick={family.source} label={label} chip={chip} /> : null}
+              {family.source ? <BandSource pick={family.source} label={label} /> : null}
             </li>
           ))}
         </ul>
@@ -501,11 +484,10 @@ function BandGearBlock({ job, band, maps }: { job: number; band: Band; maps: Rec
 }
 
 /** 一段裡「怎麼拿」那一行；合成另外一行寫材料 */
-function BandSource({ pick, label, chip }: { pick: SourcePick; label: (id: number) => string; chip: (later: string | undefined) => React.ReactNode }) {
+function BandSource({ pick, label }: { pick: SourcePick; label: (id: number) => string }) {
   return (
     <span className="block text-[12px] ink-soft">
       {sourceText(pick, label)}
-      {chip(sourceOpensLater(pick))}
       {pick.kind === "craft" ? <span className="block ink-faint">材料：{craftMaterialsText(pick.craft)}</span> : null}
     </span>
   );
