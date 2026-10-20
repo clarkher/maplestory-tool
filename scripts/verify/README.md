@@ -395,7 +395,7 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 
 ### 練功測速
 
-#### `speed-shot.mjs`：用測試截圖當假的分享畫面，跑一次練功測速頁（v0.95，埠 9391）
+#### `speed-shot.mjs`：用測試截圖當假的分享畫面，跑一次練功測速頁（v0.95；v1.10 改，埠 9391）
 
 ```bash
 node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:3095] [DevTools 埠，預設 9391]
@@ -414,10 +414,11 @@ node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:30
 - 頁面在非正式機時認 `window.__speedTestStream`（`src/lib/speed/capture.ts`）：腳本把 `src/lib/speed/__fixtures__/window-1364.png` 畫到 canvas、`captureStream` 塞進去，
   不用真的開遊戲、也不會跳出選視窗的對話框。按「分享遊戲畫面」、滑鼠點擊、打字都走 DevTools 的 `Input`，不是直接呼叫 `click()`。
 - 檢查（任何一項沒過 exit 1，每項的結果寫在 `results.json` 的 `checks`，量到的字在 `detail`）：
-  1. 頁面載入、重新整理後載好，塞進去的設定讀得到（角色卡寫「你的角色：驗收用」）；導覽列的「練功測速」在電腦寬度看得到、而且是亮著的那顆。
+  1. 頁面載入、重新整理後載好；沒有「你的角色」那張卡（v1.10 拿掉），控制卡寫「這次沒填角色 ID，排行寫匿名玩家。」；導覽列的「練功測速」在電腦寬度看得到、而且是亮著的那顆。
+     按「分享遊戲畫面」先跳「這次要填角色 ID 嗎？」（ID 欄空的、游標在裡面，截 `speed-id.png`），填「驗收用」按「開始分享」，控制卡寫「這次的角色：驗收用」。
   2. 讀到「Lv.46 · 經驗 406,947（79.73%）」（% 是經驗 ÷ 46 級升級要的經驗算的）、職業「冰雷巫師」、沒勾組隊時寫「單練」。
-  3. 地圖：自動認成「森林迷宮III」，或問「你在哪張圖？」。基準截圖是有損壓縮，認不出是預期，而且候選五個裡通常沒有森林迷宮III
-     （`results.json` 的 `mapState` 記是哪一種、候選是哪些）——沒有就用「找不到就搜尋」打字選；候選裡剛好有就直接點。選好後地圖面板的標題要是「森林迷宮III」。
+  3. 地圖：自動認成「森林迷宮III」，或問「你在哪張圖？」（`results.json` 的 `mapState` 記是哪一種、候選是哪些）——問的話候選裡有就點、沒有就用「找不到就搜尋」打字選。
+     **v1.10 起基準截圖要直接認出來**（多一項檢查；用 `SPEED_FIXTURE` 換畫面時不判）。以前一定認不出：地圖名的範圍從按鈕往左只看 35px、樣板是一般字重的實心字，見 `read-map.ts` 的 `locateTitle`。
   4. 地圖面板：風獨眼獸、猴子、黑曜石巨人在，每隻有等級、HP、經驗、刷怪點；有掉寶標籤；沒勾組隊時沒有「組隊每隻」；
      「這張圖的實測排行」出現，寫「排行還沒開」（本機沒有 `DATABASE_URL`；有資料庫時是名單或「還沒有人練滿 10 分鐘」），卡在「載入中」或「連不上」都算沒過
      （dev 第一次呼叫排行 API 要先編譯，最多等 1 分鐘）。地圖面板一出現，頁面就向 `/api/speed/board?map=<地圖 id>` 要排行，所以這一步會把那張圖的 id 送到被測的伺服器。
@@ -427,12 +428,17 @@ node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:30
   6. **不動 60 秒**：地圖點好之後同一張畫面再放 60 秒，地圖面板一直是「森林迷宮III」、不能再問「你在哪張圖？」（頁面裡掛 MutationObserver 逐次看，不是只在最後看一眼）。
      同一段時間每一次取樣（頁面裡的觀察器加上每 10 秒一次的取樣）都要看狀態列還是「等經驗一動就開始算」那類還在讀的字、「停止分享」那顆還在，
      不能出現「分享停了」「認不到遊戲畫面」——畫面上的「Lv.46 · 經驗 …」那行在分享停了之後還會留著，光看它抓不到停了。最後等級經驗也還讀得到。守的是小地圖標題的長相不隨時間飄、讀畫面沒有中途停掉。
-  7. 整頁截圖 `speed.png`；玩家點過地圖的話，重新整理再分享一次，要直接認成這張圖、不再問，角色卡還寫「你的角色：驗收用」（驗證「點一次之後會記住」，`ms-speed-maps`）。
-  8. 整趟沒有沒接住的例外、`console.error`（警告只記在 `results.json` 的 `problems.warnings`，不判）。
-- 輸出：`speed.png`（整頁）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`problems`）；出錯時另存 `crash.png`。
+  7. 整頁截圖 `speed.png`。
+  8. 存一段＋加倍券（v1.10）：頁面在非正式機掛 `window.__speedTestSave`，腳本丟一段 12 分鐘、拿到 120,000 的進去存。
+     本機沒有 `DATABASE_URL`：「上一段」寫「排行還沒開」，加倍券那段記成略過。有資料庫（分支預覽、測試機，資料寫在 preview 環境）：存好就跳「上一段有開加倍券嗎？」，
+     勾「有開加倍券」預設倍率 1.5、分鐘 12（截 `speed-coupon.png`），改成 1.6、10 分鐘按「記下來」，「上一段」補上「實際 10 分鐘 66,667 經驗」（120,000 ÷（2 + 10 × 1.6）× 10）。
+  9. 重新整理：角色 ID 沒被記住（控制卡寫「這次沒填角色 ID」）；玩家點過地圖的話 `ms-speed-maps` 有存。再分享，對話框 ID 欄是空的，勾「下次不要再問我」按「不填，直接開始」，
+     直接認成這張圖、`ms-speed` 的 `askId` 是 false、沒有 `charId`；停止、重新整理再分享，不跳對話框直接讀。
+  10. 整趟沒有沒接住的例外、`console.error`（警告只記在 `results.json` 的 `problems.warnings`，不判）。
+- 輸出：`speed.png`（整頁）、`speed-id.png`（問角色 ID）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`speed-coupon.png`（問加倍券，有資料庫才有）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`problems`）；出錯時另存 `crash.png`。
 - 耗時：本機 dev server 約 80 秒（60 秒是不動檢查）；dev 第一次編譯 `/plan/speed` 跟排行 API 另加（頁面最多等 2 分半）。
   `--webpack` 的 dev server：`npx next dev --webpack -p 3095`；也可以 `npm run build && npx next start -p 3095`。
-- 量不到的：經驗會不會跟著動、自動停、存進排行——畫面是靜止的，靠 `tracker.test.ts` 跟真人玩一段。真的存進資料庫要在有 Neon 的測試機上手動驗（見根目錄 README「練功測速」的上線前檢查）。
+- 量不到的：經驗會不會跟著動、自動停——畫面是靜止的，靠 `tracker.test.ts` 跟真人玩一段。存進資料庫、補填加倍券在有 Neon 的分支預覽／測試機上跑這支就量得到（第 8 項）。
 - 假畫面用的是 `window-1364.png`（repo 公開，截圖裡隊友的名字已打馬賽克）；字形樣板、名單換了，這支的「讀到 Lv.46」那幾項要一起看。
 
 ### 楓幣匯率
