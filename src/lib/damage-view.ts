@@ -53,7 +53,7 @@ import { LEVEL_CAP } from "./profile";
 import { buildProgress, mainBuild, spAtLevel } from "./skill-plan";
 import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "./types";
 
-/** 經典版等級上限：沿用 profile.ts 那一個（那裡是唯一要改的地方，v002-open 的排程也是改那一行），這裡只轉出去 */
+/** 經典版等級上限：沿用 profile.ts 那一個（那裡是唯一要改的地方），這裡只轉出去 */
 export { LEVEL_CAP };
 
 export type CalcData = {

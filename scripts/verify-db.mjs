@@ -1151,12 +1151,12 @@ try {
       more?.focus(); more?.click(); await __sleep(500);
       const sixth = rows()[before];
       const focusInSixth = !!sixth && sixth.contains(document.activeElement);
-      const after = rows().map(li => ({ spawns: spawnsOf(li), later: li.textContent.includes("10/15 開放") }));
+      const after = rows().map(li => ({ spawns: spawnsOf(li) }));
       return { want, header, before, moreText, focusInSixth, active: document.activeElement?.textContent?.trim().slice(0, 20) ?? null, after, note: noteOf(maps),
         unopened: card.textContent.includes("未開放地圖"), bottom: card.nextElementSibling?.textContent.trim() ?? null };`);
-    const sorted = r.after.every((row, i, all) => i === 0 || (all[i - 1].later === row.later ? all[i - 1].spawns >= row.spawns : !all[i - 1].later && row.later));
+    const sorted = r.after.every((row, i, all) => i === 0 || all[i - 1].spawns >= row.spawns);
     check("N14 出沒地圖只列開放的圖，先列 5 張，下面一顆「看全部 N 張」", r.header === r.want.openMaps && r.before === Math.min(5, r.header) && r.moreText === `看全部 ${r.want.openMaps} 張`, { want: r.want, header: r.header, before: r.before, moreText: r.moreText });
-    check("N14 按「看全部」：全部列出來，現在就能去、刷怪點多的在前", r.after.length === r.want.openMaps && sorted, { count: r.after.length, rows: r.after.slice(0, 8) });
+    check("N14 按「看全部」：全部列出來，刷怪點多的在前", r.after.length === r.want.openMaps && sorted, { count: r.after.length, rows: r.after.slice(0, 8) });
     check("N14 按「看全部」後焦點落在新列出來的第一列（用鍵盤、讀螢幕的人不會被丟回頁首）", r.focusInSixth, r.active);
     check("N14 還沒開放的圖不列，最後寫另有幾張", !r.unopened && r.note === `另有 ${r.want.hiddenMaps} 張還沒開放的地圖沒列出來`, { note: r.note, want: r.want, unopened: r.unopened });
     check("N14 卡片下面那顆按鈕寫「收起」", r.bottom === "收起", r.bottom);
