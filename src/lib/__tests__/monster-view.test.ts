@@ -14,7 +14,6 @@ describe("怪物卡的出沒地圖", () => {
     // "6" 根本不在地圖資料裡
   };
   const now = () => false;
-  const later = (record: MapRecord) => !!record.o;
 
   it("沒有中文名的圖（還沒開放）不列，另外算張數；地圖資料裡根本沒有的也算進去", () => {
     const result = monsterMaps({ sp: [[1, 3, 0], [3, 15, 0], [6, 9, 0]], maps: [] }, maps, now);
@@ -33,23 +32,7 @@ describe("怪物卡的出沒地圖", () => {
     expect(result.hidden).toBe(0);
   });
 
-  it("現在就能去、只是沒有刷怪點資料的圖，也排在 10/15 才開的圖前面", () => {
-    const result = monsterMaps({ sp: [[4, 30, 0]], maps: [5] }, maps, later);
-    expect(result.rows).toEqual([
-      { id: 5, spawns: null, later: false },
-      { id: 4, spawns: 30, later: true },
-    ]);
-  });
-
-  it("10/15 才開的圖排在現在就能去的後面，就算刷怪點比較多", () => {
-    const result = monsterMaps({ sp: [[4, 30, 0], [1, 3, 0]], maps: [] }, maps, later);
-    expect(result.rows).toEqual([
-      { id: 1, spawns: 3, later: false },
-      { id: 4, spawns: 30, later: true },
-    ]);
-  });
-
-  it("過了 10/15（不傳「還不能去」的判斷）：一起照刷怪點排", () => {
+  it("V002 的圖跟其他圖一起照刷怪點排", () => {
     const result = monsterMaps({ sp: [[4, 30, 0], [1, 3, 0]], maps: [] }, maps);
     expect(result.rows).toEqual([
       { id: 4, spawns: 30, later: false },

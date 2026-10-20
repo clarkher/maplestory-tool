@@ -1,7 +1,6 @@
 /**
  * 真資料常駐檢查：直接讀 public/data/gear.json，確認 weaponPicks／equipRequirement 套在
- * 真實武器與主流規則上不會推薦穿不上的武器當 best（跟 v002-realdata.test.ts、
- * now-plan-realdata.test.ts 同一招：直接讀檔，不靠假資料）。
+ * 真實武器與主流規則上不會推薦穿不上的武器當 best（跟 now-plan-realdata.test.ts 同一招：直接讀檔，不靠假資料）。
  *
  * targetsAt 照 GearCard.tsx 之後會用的方式組：equip 類型的規則才需要 equipRequirement。
  */
@@ -61,10 +60,3 @@ describe("真資料：俠盜（420）Lv55 幸運為主、敏捷點到短刀需�
   });
 });
 
-describe("真資料：刺客（410）Lv35，10/15 前（beforeOpen）", () => {
-  it("next 不是只有 V002 來源才拿得到的武器", () => {
-    const result = weaponPicks(gear.weapons, 410, 35, { beforeOpen: true });
-    expect(result.next).not.toBeNull();
-    expect(result.next?.o).toBeUndefined();
-  });
-});

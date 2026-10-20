@@ -122,16 +122,6 @@ describe("calcPick：照傷害算的推薦", () => {
       for (const option of pick?.options ?? []) expect(dangerPenalty(level, option.row.lvMax), `${job} ${level} ${option.title}`).toBeGreaterThan(0.2);
     }
   });
-  it("10/15 前：不推 V002 的圖、不挑只在 V002 的怪", () => {
-    for (const [job, level] of [[210, 45], [410, 60], [230, 60], [211, 80]]) {
-      const pick = pickFor(job, level, true);
-      for (const option of pick?.options ?? []) {
-        expect(data.maps[String(option.map)]?.o, `${job} ${level} ${option.title}`).toBeUndefined();
-        const choice = monsterChoices(data.monsters, data.maps).find(item => item.monster.id === option.lead.id)!;
-        expect(choice.v002, option.lead.n).toBe(false);
-      }
-    }
-  });
   it("群體分三段（v0.94 使用者）：2～3、3～4、4～5 下各一隻、不重複；僧侶 45 群體治癒只有不死系", () => {
     expect(AOE_TIERS).toEqual([[2, 3], [3, 4], [4, 5]]);
     const pick = pickFor(230, 45);
@@ -153,7 +143,7 @@ describe("calcPick：照傷害算的推薦", () => {
     expect(ghost.ok && ghost.vs?.kills.avg).toBe(6);
   });
   it("狂戰士 45 三段：至少兩段有圖、每段的下數在範圍裡", () => {
-    const pick = pickFor(110, 45, true)!;
+    const pick = pickFor(110, 45, false)!;
     expect(pick.rows.filter(row => row.option).length).toBeGreaterThanOrEqual(2);
     pick.rows.forEach((row, index) => {
       if (row.option) expect(row.option.kills >= AOE_TIERS[index][0] && row.option.kills <= AOE_TIERS[index][1], row.label).toBe(true);

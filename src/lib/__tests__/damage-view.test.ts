@@ -194,17 +194,7 @@ describe("怪物", () => {
   const byId = new Map(data.monsters.map(monster => [monster.id, monster]));
   const choiceById = new Map(monsterChoices(data.monsters, data.maps).map(choice => [choice.monster.id, choice]));
   const choiceOf = (id: number | null) => (id === null ? undefined : choiceById.get(id));
-  const beforeOpen = { ...data, beforeOpen: true };
 
-  it("還沒開（10/15 前）：預設怪不是只在 V002 才有的怪（刺客 79 開放後排第一的只在 V002；上游 2.0.0 前是刺客 56 的野狼）", () => {
-    // 開放後照排行第一名，不擋
-    const after = defaultMonster(data, 410, 79);
-    expect(choiceOf(after)?.v002).toBe(true);
-    const id = defaultMonster(beforeOpen, 410, 79);
-    expect(id).not.toBeNull();
-    expect(id).not.toBe(after);
-    expect(choiceOf(id)?.v002).toBe(false);
-  });
   it("跳過王圖（刷怪點 3 個以下）：刺客 92 原本排第一的是巴洛古那張王圖", () => {
     const id = defaultMonster(data, 410, 92);
     expect(id).not.toBe(8130100);
@@ -215,16 +205,12 @@ describe("怪物", () => {
       expect(leadsOnRealMaps).toContain(id);
     }
   });
-  it("每個等級的預設怪（有的話）都在怪物選單裡；還沒開時不是 V002 限定", () => {
+  it("每個等級的預設怪（有的話）都在怪物選單裡", () => {
     for (const job of [410, 210]) {
       for (let level = clampLevel(job, 1); level <= LEVEL_CAP; level += 1) {
-        for (const source of [data, beforeOpen]) {
-          const id = defaultMonster(source, job, level);
-          if (id === null) continue;
-          const choice = choiceOf(id);
-          expect(choice, `${job} Lv${level} 預設怪 ${id} 不在選單`).toBeDefined();
-          if (source.beforeOpen) expect(choice?.v002, `${job} Lv${level} 預設怪 ${id} 是 V002 限定`).toBe(false);
-        }
+        const id = defaultMonster(data, job, level);
+        if (id === null) continue;
+        expect(choiceOf(id), `${job} Lv${level} 預設怪 ${id} 不在選單`).toBeDefined();
       }
     }
   });
@@ -871,16 +857,11 @@ describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）
     expect(all.length).toBeGreaterThan(0);
     for (const entry of all) expect(entry.monster.und, entry.monster.n).toBe(1);
   });
-  it("換成群體治癒時選的怪不是不死系：換成等級不超過角色、最高的不死系；都太高挑最低的；10/15 前跳過 V002", () => {
+  it("換成群體治癒時選的怪不是不死系：換成等級不超過角色、最高的不死系；都太高挑最低的", () => {
     expect(undeadDefault(choices, 50, false)).toBe(byName("大幽靈").id);
     expect(undeadDefault(choices, 10, false)).toBe(byName("殭屍菇菇").id);
-    const before = undeadDefault(choices, 60, true);
-    const pick = choices.find(choice => choice.monster.id === before)!;
-    expect(pick.monster.und).toBe(1);
-    expect(pick.v002).toBe(false);
-    expect(pick.monster.lv).toBe(57);
   });
-  it("自動挑不死系跳過王、稀有怪（整張圖最多 3 隻：殭屍蘑菇王、冥界幽靈、厄運死神）；10/15 前跳過 V002（自己組的清單）", () => {
+  it("自動挑不死系跳過王、稀有怪（整張圖最多 3 隻：殭屍蘑菇王、冥界幽靈、厄運死神）", () => {
     for (const level of [56, 65, 70]) {
       const pick = undeadDefault(choices, level, false);
       expect(["殭屍蘑菇王", "冥界幽靈", "厄運死神"]).not.toContain(data.monsters.find(monster => monster.id === pick)?.n);
@@ -891,7 +872,6 @@ describe("群體治癒（v0.88 使用者 3A 範圍內幾隻、4A 神聖不乘）
     });
     const list = [fake(1, 40, false, 10), fake(2, 50, true, 10), fake(3, 50, false, 1)];
     expect(undeadDefault(list, 55, false)).toBe(2);
-    expect(undeadDefault(list, 55, true)).toBe(1);
     // 全是稀有怪時照樣挑得出來（不回 null）
     expect(undeadDefault([fake(3, 50, false, 1)], 55, false)).toBe(3);
   });
