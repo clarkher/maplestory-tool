@@ -18,10 +18,8 @@ import { effectiveLevels } from "@/lib/now-plan";
 import { isDevQuest, QUEST_BUCKET_LABEL } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { boardNote, compareListLevel, levelNote, listLevel, questBoard, type ListLevel } from "@/lib/quest-view";
-import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import type { GuideCommon, MapRecord, Monster, Quest } from "@/lib/types";
-import { isV002Map, isV002Quest } from "@/lib/v002";
 
 export function QuestDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -35,7 +33,6 @@ export function QuestDb() {
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useRemembered("db:任務:category", "");
   const [onlyEligible, setOnlyEligible] = useRemembered("db:任務:onlyEligible", false);
-  const notOpenYet = useBeforeV002();
   // 角色列填了職業和等級才出現「只看我現在接得到的」：跟首頁同一套判斷（等級、等級上限、職業、楓之島）
   const { profile, isComplete } = useStoredProfile();
   const eligibleOn = onlyEligible && isComplete;
@@ -86,7 +83,6 @@ export function QuestDb() {
     const levelOf = (quest: Quest) => levels.get(quest.id) ?? null;
     const inCategory = (quest: Quest) => !category || quest.cat === category;
     const entryOf = (quest: Quest, note: string, group?: string): DbEntry => {
-      const opensLater = isV002Quest(quest, maps) && notOpenYet;
       const finished = done.has(quest.id);
       return {
         id: quest.id,
@@ -94,12 +90,7 @@ export function QuestDb() {
         note,
         image: quest.sNpc ? npcImage(quest.sNpc.id) : undefined,
         keywords: `${quest.parent ?? ""} ${quest.sNpc?.n ?? ""}`,
-        badge: opensLater || finished ? (
-          <>
-            {opensLater ? <Chip tone="gold">10/15 開放</Chip> : null}
-            {finished ? <Chip tone="leaf">做完了</Chip> : null}
-          </>
-        ) : undefined,
+        badge: finished ? <Chip tone="leaf">做完了</Chip> : undefined,
         group,
       };
     };
@@ -123,7 +114,7 @@ export function QuestDb() {
       .filter(inCategory)
       .sort((a, b) => compareListLevel(levelOf(a), levelOf(b)))
       .map(quest => entryOf(quest, levelNote(quest, levelOf(quest))));
-  }, [quests, maps, levels, category, eligibleOn, profile, done, keepId, notOpenYet]);
+  }, [quests, maps, levels, category, eligibleOn, profile, done, keepId]);
 
   return (
     <DbBrowser
@@ -178,7 +169,6 @@ function QuestDetail({
   maps: Record<string, MapRecord>;
   questNames: Map<string, string>;
 }) {
-  const notOpenYet = useBeforeV002();
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
 
   return (
@@ -186,7 +176,6 @@ function QuestDetail({
       <header>
         <h2 className="text-2xl font-black leading-tight">
           {quest.n}
-          {isV002Quest(quest, maps) && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
         </h2>
         <p className="mt-1 text-sm ink-soft">
           {quest.cat}
@@ -242,7 +231,6 @@ function NpcBlock({
   npc: NonNullable<Quest["sNpc"]>;
   maps: Record<string, MapRecord>;
 }) {
-  const notOpenYet = useBeforeV002();
   return (
     <div className="rounded-xl bg-[color:var(--paper-deep)] p-3">
       <p className="text-[11px] ink-faint">{title}</p>
@@ -254,7 +242,6 @@ function NpcBlock({
           {npc.map ? (
             <p className="flex min-w-0 items-center gap-1.5 text-[12px] ink-faint">
               <span className="min-w-0 truncate">{mapName(maps, npc.map)}</span>
-              {isV002Map(maps[String(npc.map)]) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : null}
             </p>
           ) : null}
         </div>

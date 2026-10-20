@@ -6,7 +6,7 @@ import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { FilterTag } from "@/components/FilterTag";
 import {
-  itemImage, loadItems, loadMaps, loadMonsters, loadQuests, monsterImage, peekItems, peekMaps, peekMonsters, peekQuests,
+  itemImage, loadItems, loadMonsters, loadQuests, monsterImage, peekItems, peekMonsters, peekQuests,
 } from "@/lib/data";
 import type { Prefer } from "@/lib/db-browse";
 import {
@@ -14,24 +14,20 @@ import {
   subcategoryGroups, usableBy, wearableNow, wearFit, type WearFit,
 } from "@/lib/item-view";
 import { useStoredProfile } from "@/lib/profile";
-import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
-import type { Item, MapRecord, Monster, Quest } from "@/lib/types";
-import { isV002Item, isV002Map, v002MonsterIds, v002QuestIds } from "@/lib/v002";
+import type { Item, Monster, Quest } from "@/lib/types";
 
 export function ItemDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
   const [items, setItems] = useState<Item[] | null>(peekItems);
   const [monsters, setMonsters] = useState<Monster[] | null>(peekMonsters);
   const [quests, setQuests] = useState<Quest[] | null>(peekQuests);
-  const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [error, setError] = useState<string | null>(null);
   const [category, setCategory] = useRemembered("db:道具:category", "");
   const [subcategory, setSubcategory] = useRemembered("db:道具:subcategory", "");
   const [onlyDroppable, setOnlyDroppable] = useRemembered("db:道具:onlyDroppable", false);
   /** 誰能用：""＝不限職業、"usable"＝〇〇能用、"now"＝現在就能穿（職業＋等級） */
   const [mineMode, setMineMode] = useRemembered("db:道具:mine", "");
-  const notOpenYet = useBeforeV002();
   // 同步讀角色：按返回時第一個畫面就套上「〇〇能用」，清單才跟離開時一樣
   const { profile, loaded, isComplete } = useStoredProfile();
   /** 角色列選了職業就出現「〇〇能用」標籤，不用填等級；「現在就能穿」要有等級才出現 */
@@ -39,12 +35,11 @@ export function ItemDb() {
   const mine = !mineName ? "" : mineMode === "now" && !isComplete ? "usable" : mineMode;
 
   useEffect(() => {
-    Promise.all([loadItems(), loadMonsters(), loadQuests(), loadMaps()])
-      .then(([itemData, monsterData, questData, mapData]) => {
+    Promise.all([loadItems(), loadMonsters(), loadQuests()])
+      .then(([itemData, monsterData, questData]) => {
         setItems(itemData);
         setMonsters(monsterData);
         setQuests(questData);
-        setMaps(mapData);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
@@ -55,16 +50,6 @@ export function ItemDb() {
     [monsters],
   );
   const questIndex = useMemo(() => new Map((quests ?? []).map(quest => [quest.id, quest])), [quests]);
-
-  /** 道具的 V002 判斷要知道「哪些怪、哪些任務是 V002」，整批算一次給下面兩處用（列表 badge、細節頁 chip）。 */
-  const v002Monsters = useMemo(
-    () => (maps ? v002MonsterIds(monsters ?? [], maps) : new Set<number>()),
-    [monsters, maps],
-  );
-  const v002Quests = useMemo(
-    () => (maps ? v002QuestIds(quests ?? [], maps) : new Set<string>()),
-    [quests, maps],
-  );
 
   const categories = useMemo(() => {
     const set = new Set<string>();
@@ -134,9 +119,8 @@ export function ItemDb() {
         note: itemNote(item),
         image: itemImage(item.id),
         keywords: keywordsById.get(item.id),
-        badge: isV002Item(item, v002Monsters, v002Quests) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [sortedItems, keywordsById, category, activeSubcategory, onlyDroppable, fitsMine, v002Monsters, v002Quests, notOpenYet]);
+  }, [sortedItems, keywordsById, category, activeSubcategory, onlyDroppable, fitsMine]);
 
   /** 「誰能用」兩顆標籤只能開一顆，點開著的那顆就關（＝不限職業）；開了就只看裝備分類 */
   const pickMine = (mode: "usable" | "now") => {
@@ -153,7 +137,7 @@ export function ItemDb() {
       title="道具"
       lead="裝備數值、道具說明，以及最重要的：這東西誰會掉、哪個任務給。"
       entries={entries}
-      loading={!items || !monsters || !quests || !maps}
+      loading={!items || !monsters || !quests}
       error={error}
       preferFor={preferFor}
       filters={
@@ -210,8 +194,6 @@ export function ItemDb() {
             item={item}
             monsterIndex={monsterIndex}
             questIndex={questIndex}
-            maps={maps ?? {}}
-            isV002={isV002Item(item, v002Monsters, v002Quests)}
             fit={isComplete ? wearFit(item, profile) : null}
           />
         );
@@ -224,23 +206,16 @@ function ItemDetail({
   item,
   monsterIndex,
   questIndex,
-  maps,
-  isV002,
   fit,
 }: {
   item: Item;
   monsterIndex: Map<number, Monster>;
   questIndex: Map<string, Quest>;
-  /** 店家地點要看是不是 10/15 才開放 */
-  maps: Record<string, MapRecord>;
-  isV002: boolean;
   /** 穿戴條件旁的小標籤；角色列沒選職業或沒填等級時是 null */
   fit: WearFit | null;
 }) {
-  const notOpenYet = useBeforeV002();
   const { requirements, stats } = equipGroups(item);
-  // 店的地點 10/15 才開放、而且現在還沒到：標「10/15 開放」並排在最後
-  const shops = shopGroups(item, mapId => notOpenYet && isV002Map(maps[String(mapId)]));
+  const shops = shopGroups(item);
 
   return (
     <DetailCard>
@@ -250,7 +225,6 @@ function ItemDetail({
         <div className="min-w-0">
           <h2 className="text-2xl font-black leading-tight">
             {item.n}
-            {isV002 && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
           </h2>
           <p className="mt-0.5 text-sm ink-soft">
             {item.c}
@@ -334,7 +308,6 @@ function ItemDetail({
                     >
                       <span className="text-[13px] font-bold">{place.place}</span>
                       {place.npc ? <span className="text-[11px] ink-faint">{place.npc}</span> : null}
-                      {place.later ? <Chip tone="gold">10/15 開放</Chip> : null}
                     </li>
                   ))}
                 </ul>

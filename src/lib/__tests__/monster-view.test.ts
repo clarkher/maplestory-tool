@@ -13,21 +13,20 @@ describe("怪物卡的出沒地圖", () => {
     "5": map("弓箭手村東部小山"),
     // "6" 根本不在地圖資料裡
   };
-  const now = () => false;
 
   it("沒有中文名的圖（還沒開放）不列，另外算張數；地圖資料裡根本沒有的也算進去", () => {
-    const result = monsterMaps({ sp: [[1, 3, 0], [3, 15, 0], [6, 9, 0]], maps: [] }, maps, now);
+    const result = monsterMaps({ sp: [[1, 3, 0], [3, 15, 0], [6, 9, 0]], maps: [] }, maps);
     expect(result.rows.map(row => row.id)).toEqual([1]);
     expect(result.hidden).toBe(2);
   });
 
   it("刷怪點多的排前面；刷怪點一樣照原本的順序（不是照編號）；沒有刷怪點資料的排最後", () => {
-    const result = monsterMaps({ sp: [[5, 12, 0], [2, 53, 0], [1, 12, 0]], maps: [1, 2, 5, 4] }, maps, now);
+    const result = monsterMaps({ sp: [[5, 12, 0], [2, 53, 0], [1, 12, 0]], maps: [1, 2, 5, 4] }, maps);
     expect(result.rows).toEqual([
-      { id: 2, spawns: 53, later: false },
-      { id: 5, spawns: 12, later: false },
-      { id: 1, spawns: 12, later: false },
-      { id: 4, spawns: null, later: false },
+      { id: 2, spawns: 53 },
+      { id: 5, spawns: 12 },
+      { id: 1, spawns: 12 },
+      { id: 4, spawns: null },
     ]);
     expect(result.hidden).toBe(0);
   });
@@ -35,18 +34,18 @@ describe("怪物卡的出沒地圖", () => {
   it("V002 的圖跟其他圖一起照刷怪點排", () => {
     const result = monsterMaps({ sp: [[4, 30, 0], [1, 3, 0]], maps: [] }, maps);
     expect(result.rows).toEqual([
-      { id: 4, spawns: 30, later: false },
-      { id: 1, spawns: 3, later: false },
+      { id: 4, spawns: 30 },
+      { id: 1, spawns: 3 },
     ]);
   });
 
   it("同一張圖在刷怪資料和出沒清單都有：只列一次，用刷怪點的數字", () => {
-    const result = monsterMaps({ sp: [[2, 7, 0]], maps: [2, 2] }, maps, now);
-    expect(result.rows).toEqual([{ id: 2, spawns: 7, later: false }]);
+    const result = monsterMaps({ sp: [[2, 7, 0]], maps: [2, 2] }, maps);
+    expect(result.rows).toEqual([{ id: 2, spawns: 7 }]);
   });
 
   it("沒有任何出沒資料：沒有列、也沒有藏起來的", () => {
-    expect(monsterMaps({ maps: [] }, maps, now)).toEqual({ rows: [], hidden: 0 });
+    expect(monsterMaps({ maps: [] }, maps)).toEqual({ rows: [], hidden: 0 });
   });
 });
 

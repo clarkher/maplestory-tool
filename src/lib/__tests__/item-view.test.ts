@@ -392,8 +392,8 @@ describe("哪裡買得到", () => {
       groups: [{
         price: "24,000 楓幣",
         places: [
-          { place: "弓箭手村武器店", npc: "克爾", later: false },
-          { place: "勇士之村武器店", npc: "利伯", later: false },
+          { place: "弓箭手村武器店", npc: "克爾" },
+          { place: "勇士之村武器店", npc: "利伯" },
         ],
       }],
       fromOldData: true,
@@ -405,8 +405,8 @@ describe("哪裡買得到", () => {
     const box: Item = { id: 5068302, n: "記憶音樂盒", c: "現金", sp: [{ p: "商城", pr: 220, c: 1 }, { p: "商城", pr: 1980, k: 10, c: 1 }] };
     expect(shopGroups(box)).toEqual({
       groups: [
-        { price: "220 樂豆點", places: [{ place: "商城", later: false }] },
-        { price: "10 個 1,980 樂豆點", places: [{ place: "商城", later: false }] },
+        { price: "220 樂豆點", places: [{ place: "商城" }] },
+        { price: "10 個 1,980 樂豆點", places: [{ place: "商城" }] },
       ],
       fromOldData: false,
     });

@@ -2,16 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
 import { loadSkills, peekSkills } from "@/lib/data";
 import { skillJobGroups, stageJob } from "@/lib/jobs";
 import { useStoredProfile } from "@/lib/profile";
-import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import { changedParts, reachableLevel, reachText, skillEffect, skillIcon, skillLevels } from "@/lib/skill-view";
 import type { Skill } from "@/lib/types";
-import { isV002Skill } from "@/lib/v002";
 
 export function SkillDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -22,7 +19,6 @@ export function SkillDb() {
   const [chosenJob, setChosenJob] = useRemembered<string | null>("db:技能:job", null);
   const { profile, isComplete } = useStoredProfile();
   const jobFilter = chosenJob ?? (isComplete ? String(stageJob(profile.job, profile.level)) : "");
-  const notOpenYet = useBeforeV002();
 
   useEffect(() => {
     loadSkills().then(setSkills).catch(loadError => setError(String(loadError.message ?? loadError)));
@@ -45,9 +41,8 @@ export function SkillDb() {
         note: skill.adv,
         image: skillIcon(skill.id),
         keywords: `${skill.jobName} ${skill.group}`,
-        badge: isV002Skill(skill) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [skills, jobFilter, notOpenYet]);
+  }, [skills, jobFilter]);
 
   return (
     <DbBrowser
@@ -87,7 +82,7 @@ export function SkillDb() {
  * 各等級數值表的外框。表格放得下時表頭黏在上面（手機在「收起」那一列下面、桌機在右邊那一欄頂端），
  * 往下捲到 30 級還看得到每一欄是什麼；放不下（欄位太多）才改成左右滑，這時表頭不黏——
  * 會左右滑的框是捲動容器，表頭黏不出去。overflow: clip 不算捲動容器，所以放得下時用它切圓角（兩個方向都切，圓角才切得到）。
- * 手機上表頭要黏在「收起」那一列下面：量那一列實際多高（字放大、有「10/15 開放」標籤時會變高）寫進 --stuck-h。
+ * 手機上表頭要黏在「收起」那一列下面：量那一列實際多高（字放大時會變高）寫進 --stuck-h。
  */
 function TableFrame({ children }: { children: (sticky: boolean) => React.ReactNode }) {
   const frame = useRef<HTMLDivElement>(null);
@@ -143,7 +138,6 @@ const rowProps = (index: number, mark: number | undefined) => ({
 type FindSkill = (id: number) => Skill | undefined;
 
 function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
-  const notOpenYet = useBeforeV002();
   const { profile, isComplete } = useStoredProfile();
   const levels = useMemo(() => skillLevels(skill), [skill]);
   const effect = useMemo(() => skillEffect(skill), [skill]);
@@ -170,7 +164,6 @@ function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
         <div className="min-w-0">
           <h2 className="text-2xl font-black leading-tight">
             {skill.n}
-            {isV002Skill(skill) && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
           </h2>
           <p className="mt-0.5 text-sm ink-soft">
             {skill.group} · {skill.jobName} · {skill.adv}
