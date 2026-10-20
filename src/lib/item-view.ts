@@ -229,8 +229,7 @@ export function subcategoryGroups(items: Item[], category: string): Array<{ labe
     .filter(group => group.options.length > 0);
 }
 
-/** later：這家店的地點 10/15 才開放（畫面標「10/15 開放」） */
-export type ShopPlace = { place: string; npc?: string; later: boolean };
+export type ShopPlace = { place: string; npc?: string };
 export type ShopGroup = { price: string; places: ShopPlace[] };
 
 /** 標價寫法：楓幣、商城的樂豆點（客戶端「{0}楓幣」「{0}個{1}樂豆點」）；整組賣的寫「10 個 1,980 樂豆點」，件數也加千分位 */
@@ -240,17 +239,10 @@ function shopPriceText(row: ShopRow): string {
 }
 
 /**
- * 「哪裡買得到」：同一個標價的店家排在一起，價錢只寫一次（一般道具每家都賣一樣的價錢）。
- * opensLater 判斷店的地點是不是 10/15 才開放（呼叫端用 maps.json 跟現在日期判斷）；這種店排在同一組最後——
- * 紅色藥水這類到處都賣的，玩家現在要買，先看到現在去得了的地方。其餘照資料順序。
- * 價錢組本身也一樣：整組地點都是 10/15 才開的（例：冷酷之心 75,000 楓幣只有天空之城賣）排在現在就買得到的價錢組後面，
- * 免得玩家先看到買不到的價錢。其餘價錢組維持資料順序。
+ * 「哪裡買得到」：同一個標價的店家排在一起，價錢只寫一次（一般道具每家都賣一樣的價錢）。其餘照資料順序。
  * fromOldData：有任何一家取自舊版資料，畫面要標「參考舊版資料，可能有出入」。
  */
-export function shopGroups(
-  item: Item,
-  opensLater: (mapId: number) => boolean = () => false,
-): { groups: ShopGroup[]; fromOldData: boolean } {
+export function shopGroups(item: Item): { groups: ShopGroup[]; fromOldData: boolean } {
   const groups: ShopGroup[] = [];
   for (const row of item.sp ?? []) {
     const price = shopPriceText(row);
@@ -259,11 +251,7 @@ export function shopGroups(
       group = { price, places: [] };
       groups.push(group);
     }
-    group.places.push({ place: row.p, npc: row.n, later: row.m !== undefined && opensLater(row.m) });
+    group.places.push({ place: row.p, npc: row.n });
   }
-  // sort 是穩定排序：later 一樣的維持資料順序
-  for (const group of groups) group.places.sort((a, b) => Number(a.later) - Number(b.later));
-  const allLater = (group: ShopGroup) => group.places.every(place => place.later);
-  groups.sort((a, b) => Number(allLater(a)) - Number(allLater(b)));
   return { groups, fromOldData: (item.sp ?? []).some(row => row.o === 1) };
 }

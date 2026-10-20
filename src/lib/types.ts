@@ -17,7 +17,7 @@ export type MapRecord = {
   rate?: number;
   /** 1 = 有小地圖圖檔 */
   mm?: 1;
-  /** V002 才放行的地圖才有：開放日（YYYY-MM-DD，目前只有 "2026-10-15"），過了這天 src/lib/release.ts 判定已開放 */
+  /** V002 才放行的地圖才有：開放日（YYYY-MM-DD，目前只有 "2026-10-15"）。標示已拆（v0.46），留給裝備推薦排序用（見 README） */
   o?: string;
   /** 要幾等才走得到（要過 NPC 傳送才到得了的圖才有，冰雪峽谷Ⅱ的傑夫後面是 50；pipeline/lib/npc-warps.mjs gateLevels） */
   g?: number;
@@ -55,7 +55,7 @@ export type Monster = {
 
 /**
  * 道具「哪裡買得到」的一家店（pipeline/lib/shops.mjs，只列經典版已開放的地方）。
- * p 地點、n NPC（商城沒有）、m 地點的地圖 id（看是不是 10/15 才開放）、pr 標價、
+ * p 地點、n NPC（商城沒有）、m 地點的地圖 id、pr 標價、
  * k 一組幾個（1 個不寫）、c=1 商城的樂豆點（沒寫是楓幣）、o=1 取自舊版資料（經典版實際可能不同）。
  */
 export type ShopRow = { p: string; n?: string; m?: number; pr: number; k?: number; c?: 1; o?: 1 };
@@ -74,7 +74,7 @@ export type Item = {
   qr?: string[];
   /** 需要這個道具的任務 id */
   qq?: string[];
-  /** 店家數（含還沒開放城鎮的店）；v002.ts 用來判斷「有店賣就不是 V002 限定」 */
+  /** 店家數（含還沒開放城鎮的店） */
   sh?: number;
   /** 哪裡買得到（見 ShopRow） */
   sp?: ShopRow[];

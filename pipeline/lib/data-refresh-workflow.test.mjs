@@ -77,7 +77,7 @@ function runScripts(text) {
   lines.forEach((line, i) => {
     const match = line.match(/^( *)(-\s+)?run:(.*)$/);
     if (!match) return;
-    // 值是空的、下一行又是「鍵: 值」：那是名字叫 run 的 job（v002-open.yml 就是），不是步驟的 run
+    // 值是空的、下一行又是「鍵: 值」：那是名字叫 run 的 job（以前的 v002-open.yml 就是），不是步驟的 run
     const nextLine = lines.slice(i + 1).find(text => text.trim()) ?? "";
     if (!match[3].trim() && /^\s*[\w-]+:(\s|$)/.test(nextLine)) return;
     const indent = match[1].length + (match[2]?.length ?? 0);

@@ -105,11 +105,11 @@ function DraftNumber({ value, min, max, onCommit, onStep, ...rest }: {
  * 怪物選單的選項：一百多個 option（monsters.json 約 125 隻），包成 memo——按 −／＋ 時整張卡重畫，選項不用跟著一個一個比對
  * （props 沒變就整串跳過）。
  */
-const MonsterOptions = memo(function MonsterOptions({ choices, beforeOpen }: { choices: MonsterChoice[]; beforeOpen: boolean }) {
+const MonsterOptions = memo(function MonsterOptions({ choices }: { choices: MonsterChoice[] }) {
   return (
     <>
-      {choices.map(({ monster, v002 }) => (
-        <option key={monster.id} value={monster.id}>{`${monster.n} Lv.${monster.lv}${v002 && beforeOpen ? "（10/15 開放）" : ""}`}</option>
+      {choices.map(({ monster }) => (
+        <option key={monster.id} value={monster.id}>{`${monster.n} Lv.${monster.lv}`}</option>
       ))}
     </>
   );
@@ -126,14 +126,14 @@ export function groupName(index: number, labels: [string, string]): string {
 
 /* ------------------------------------------------------------------ 共用設定 */
 
-export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNotice, choices, beforeOpen }: {
+export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNotice, choices }: {
   data: CalcData | null; state: CalcState | null; job: number; onJob: (job: number) => void; onShared: (patch: Partial<SharedConfig>) => void;
   /** 換等級（兩組一起換，DamageCalculator 用 relevel） */
   onLevel: (level: number) => void;
   /** 換職業時等級被拉高的說明（「三轉最低 70 等，已調成 70」）；沒有就 null */
   levelNotice: string | null;
   /** 怪物選單（DamageCalculator 算一次傳下來，不要每次重畫都重排） */
-  choices: MonsterChoice[]; beforeOpen: boolean;
+  choices: MonsterChoice[];
 }) {
   const avatar = job > 0 ? jobAvatar(job) : undefined;
   const skillIds = useMemo(() => (data && job > 0 ? attackSkillIds(data.skills, job) : []), [data, job]);
@@ -210,7 +210,7 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
             >
               {/* 群體治癒打不到木樁（只打得到不死系，v0.88 使用者：只顯示打得到的怪） */}
               {state.shared.skillId === HEAL ? null : <option value="">不選怪（打木樁）</option>}
-              <MonsterOptions choices={choices} beforeOpen={beforeOpen} />
+              <MonsterOptions choices={choices} />
             </select>
           </Row>
           {target ? <p className="pb-1 text-right text-[12px] font-bold ink-soft">{monsterStats(target)}</p> : null}
@@ -470,7 +470,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
   const boosterLevel = booster ? group.levels[booster.id] ?? 0 : 0;
   const boosterName = booster ? data.skills.get(booster.id)?.n ?? "加速" : null;
   // 全幸這種要湊裝備的點法：寫出預設的副屬性是「空身＋裝備」各多少（使用者改過那格就不寫）
-  const plan = useMemo(() => gearPlan(data.gear, job, group.level, data.beforeOpen, group.tab), [data.gear, job, group.level, data.beforeOpen, group.tab]);
+  const plan = useMemo(() => gearPlan(data.gear, job, group.level, group.tab), [data.gear, job, group.level, group.tab]);
   const kitHint = plan.kit && group.stats[plan.kit.stat] === plan.kit.wear ? `${STAT_WORD[plan.kit.stat]}：空身 ${plan.kit.base}＋裝備 ${plan.kit.total}` : null;
   // 武器原本的攻擊／魔攻（「武器攻擊」那格沒改過時顯示這個）
   const baseWeaponPower = weapon ? (magic ? weapon.mag : weapon.atk) ?? 0 : 0;
@@ -527,10 +527,10 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
             const nextAmmo = next ? ammoChoices(data.gear.ammo ?? [], next.s) : [];
             // 同一種彈藥還能用就留著；換了種類（弓換弩）就用預設：商店買得到、攻擊最高那種
             const keep = nextAmmo.some(entry => entry.id === group.ammoId);
-            set({ weaponId: next?.id ?? null, weaponAtk: null, ammoId: keep ? group.ammoId : next ? defaultAmmo(data.gear.ammo ?? [], next.s, group.level, data.beforeOpen)?.id ?? null : null });
+            set({ weaponId: next?.id ?? null, weaponAtk: null, ammoId: keep ? group.ammoId : next ? defaultAmmo(data.gear.ammo ?? [], next.s, group.level)?.id ?? null : null });
           }}>
             {group.weaponId === null ? <option value="" disabled>選武器</option> : null}
-            {weapons.map(entry => <option key={entry.id} value={entry.id}>{`Lv.${entry.lv} ${entry.n}（${magic ? `魔攻 ${entry.mag ?? 0}` : `攻擊 ${entry.atk ?? 0}`}）${entry.o && data.beforeOpen ? "（10/15 開放）" : ""}`}</option>)}
+            {weapons.map(entry => <option key={entry.id} value={entry.id}>{`Lv.${entry.lv} ${entry.n}（${magic ? `魔攻 ${entry.mag ?? 0}` : `攻擊 ${entry.atk ?? 0}`}）`}</option>)}
           </select>
         </Row>
         {result.ok && result.levelNeeded !== null ? (
@@ -560,7 +560,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
           <Row label={<span className="flex flex-col items-start gap-0.5">{ammo[0].kind}{ammo[0].kind === "飛鏢" ? null : <span className="rounded-full bg-[color:var(--gold-wash)] px-1.5 py-0.5 text-[11px] font-bold leading-tight text-[color:var(--gold)]">台服沒驗證</span>}</span>}>
             {group.ammoId ? <Sprite src={itemImage(group.ammoId)} size={22} /> : null}
             <select aria-label={ammo[0].kind} className={SELECT} value={group.ammoId ?? ""} onChange={event => set({ ammoId: Number(event.target.value) })}>
-              {ammo.map(entry => <option key={entry.id} value={entry.id}>{`${entry.n}（攻擊 +${entry.atk}）${entry.o && data.beforeOpen ? "（10/15 開放）" : ""}`}</option>)}
+              {ammo.map(entry => <option key={entry.id} value={entry.id}>{`${entry.n}（攻擊 +${entry.atk}）`}</option>)}
             </select>
           </Row>
         ) : null}

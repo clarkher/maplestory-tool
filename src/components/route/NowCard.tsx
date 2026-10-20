@@ -10,7 +10,6 @@ import { formatNumber, levelRange } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
 import { advanceTitle, altPrefix, canGo, ceilingText, pqClosedText, type MainPick, type TrainOption } from "@/lib/now-plan";
 import { LEVEL_CAP } from "@/lib/profile";
-import { useBeforeV002 } from "@/lib/release";
 import { boatText } from "@/lib/route";
 import type { GuidePq, MapRecord, Monster } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
@@ -128,7 +127,6 @@ function AltLine({ alt, prefix }: { alt?: TrainOption; prefix: string }) {
 function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { pick: Extract<MainPick, { kind: "map" }> }) {
   const { option, alt, ceiling } = pick;
   const record = maps[String(option.map)];
-  const notOpenYet = useBeforeV002();
   return (
     <article aria-label="現在去這裡" className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
       <Hero map={option.map} maps={maps} mobs={option.mobs} label={`Lv.${level} ${jobName}・現在去這裡`} />
@@ -136,7 +134,6 @@ function MapCard({ pick, level, jobName, maps, monsters, pqClosed }: Common & { 
         <div>
           <h2 className="text-[22px] font-black leading-tight">
             {option.title}
-            {record?.o && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
           </h2>
           <p className="text-[13px] ink-soft">{[record?.st, mobLine(option, monsters)].filter(Boolean).join("・")}</p>
           {option.source === "guide" && option.guide?.why ? <GuideReason key={option.map} map={option.map} text={option.guide.why} /> : null}

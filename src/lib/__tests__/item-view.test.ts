@@ -392,39 +392,21 @@ describe("哪裡買得到", () => {
       groups: [{
         price: "24,000 楓幣",
         places: [
-          { place: "弓箭手村武器店", npc: "克爾", later: false },
-          { place: "勇士之村武器店", npc: "利伯", later: false },
+          { place: "弓箭手村武器店", npc: "克爾" },
+          { place: "勇士之村武器店", npc: "利伯" },
         ],
       }],
       fromOldData: true,
     });
   });
 
-  it("10/15 才開放的店標 later、排在同一組最後；現在去得了的先列（其餘照資料順序）", () => {
-    const redPotion: Item = {
-      id: 2000000, n: "紅色藥水", c: "消耗", s: "藥水",
-      sp: [
-        { p: "冰原雪域", n: "哈娜", m: 211000000, pr: 50, o: 1 },
-        { p: "弓箭手村雜貨店", n: "露娜", m: 100000102, pr: 50, o: 1 },
-        { p: "楓之谷通行證遠端商店", pr: 50 },
-      ],
-    };
-    const opensLater = (mapId: number) => mapId === 211000000;
-    expect(shopGroups(redPotion, opensLater).groups[0].places).toEqual([
-      { place: "弓箭手村雜貨店", npc: "露娜", later: false },
-      { place: "楓之谷通行證遠端商店", later: false },
-      { place: "冰原雪域", npc: "哈娜", later: true },
-    ]);
-    // 沒傳判斷就當全部現在都去得了，照資料順序
-    expect(shopGroups(redPotion).groups[0].places.map(place => place.place)).toEqual(["冰原雪域", "弓箭手村雜貨店", "楓之谷通行證遠端商店"]);
-  });
 
   it("商城寫樂豆點、整組賣的寫幾個，不同價錢分開列；全是商城不標舊版", () => {
     const box: Item = { id: 5068302, n: "記憶音樂盒", c: "現金", sp: [{ p: "商城", pr: 220, c: 1 }, { p: "商城", pr: 1980, k: 10, c: 1 }] };
     expect(shopGroups(box)).toEqual({
       groups: [
-        { price: "220 樂豆點", places: [{ place: "商城", later: false }] },
-        { price: "10 個 1,980 樂豆點", places: [{ place: "商城", later: false }] },
+        { price: "220 樂豆點", places: [{ place: "商城" }] },
+        { price: "10 個 1,980 樂豆點", places: [{ place: "商城" }] },
       ],
       fromOldData: false,
     });
@@ -439,13 +421,4 @@ describe("哪裡買得到", () => {
     expect(shopGroups(arrows).groups.map(group => group.price)).toEqual(["2,000 個 1,400 楓幣"]);
   });
 
-  it("整組都是 10/15 才開的價錢排在現在買得到的價錢後面", () => {
-    const coldHeart: Item = { id: 1492004, n: "冷酷之心", c: "裝備", s: "火槍", sp: [
-      { p: "天空之城", n: "妖精 娜麗", m: 200000000, pr: 75000, o: 1 },
-      { p: "中央走廊", n: "摩根", m: 120000200, pr: 50000, o: 1 },
-    ] };
-    const opensLater = (mapId: number) => mapId === 200000000;
-    expect(shopGroups(coldHeart, opensLater).groups.map(group => group.price)).toEqual(["50,000 楓幣", "75,000 楓幣"]);
-    expect(shopGroups(coldHeart).groups.map(group => group.price)).toEqual(["75,000 楓幣", "50,000 楓幣"]);
-  });
 });

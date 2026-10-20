@@ -10,7 +10,6 @@ import { loadGear, loadSkills, mapName, monsterImage, peekGear, peekSkills } fro
 import { tenMinuteText } from "@/lib/damage-view";
 import { isMagicJob, type GearData } from "@/lib/gear";
 import type { HomeData } from "@/lib/home-data";
-import { useBeforeV002 } from "@/lib/release";
 import { boatText } from "@/lib/route";
 import { sessionMemo } from "@/lib/session-memo";
 import type { GuideJob, Skill } from "@/lib/types";
@@ -84,7 +83,6 @@ export function CalcPickCard({ job, level, home, guides, guideStatus }: {
   /** 攻略還在載就先放骨架；載不到就不出這張卡（技能等級會被當成最高等級，數字不可信） */
   guideStatus: "loading" | "ready" | "failed";
 }) {
-  const beforeOpen = useBeforeV002();
   const [buildTab] = useBuildChoice(Math.max(job, 0));
   const [extra, setExtra] = useState<Extra | null>(peekExtra);
   const [failed, setFailed] = useState(false);
@@ -108,7 +106,7 @@ export function CalcPickCard({ job, level, home, guides, guideStatus }: {
   const guideList = useMemo(() => [...guides.entries()].sort((a, b) => a[0] - b[0]), [guides]);
   const pick = useMemo(() => {
     if (!extra || guideStatus !== "ready") return undefined;
-    const deps = [calcPick, extra.gear, extra.skillList, home.monsters, home.maps, home.training, home.common, home.graph, home.nearestTown, beforeOpen, job, level, buildTab, ...guideList.flat()];
+    const deps = [calcPick, extra.gear, extra.skillList, home.monsters, home.maps, home.training, home.common, home.graph, home.nearestTown, job, level, buildTab, ...guideList.flat()];
     return sessionMemo("home:calc-pick", deps, () =>
       calcPick({
         data: {
@@ -119,7 +117,6 @@ export function CalcPickCard({ job, level, home, guides, guideStatus }: {
           maps: home.maps,
           training: home.training,
           expToNext: home.common.expTable.toNext,
-          beforeOpen,
         },
         job,
         level,
@@ -128,7 +125,7 @@ export function CalcPickCard({ job, level, home, guides, guideStatus }: {
         nearestTown: home.nearestTown,
       }),
     );
-  }, [extra, guideStatus, guideList, home, beforeOpen, job, level, buildTab]);
+  }, [extra, guideStatus, guideList, home, job, level, buildTab]);
 
   // 算不出來（初心者、還沒點攻擊技能、攻略載不到）不出這張卡
   if (pick === null || guideStatus === "failed") return null;

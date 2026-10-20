@@ -32,8 +32,8 @@ function useColumns() {
   return [ref, columns] as const;
 }
 
-function Section({ title, storeKey, list, beforeOpen, onOpen, heading = "h2" }: {
-  title: string; storeKey: string; list: KillEntry[]; beforeOpen: boolean; onOpen: (entry: KillEntry, opener: HTMLElement) => void;
+function Section({ title, storeKey, list, onOpen, heading = "h2" }: {
+  title: string; storeKey: string; list: KillEntry[]; onOpen: (entry: KillEntry, opener: HTMLElement) => void;
   /** 「差一點」底下的「一下」「兩下」是小標（h3），其他是 h2 */
   heading?: "h2" | "h3";
 }) {
@@ -63,7 +63,6 @@ function Section({ title, storeKey, list, beforeOpen, onOpen, heading = "h2" }: 
           >
             <Sprite src={monsterImage(entry.monster.id)} size={30} />
             <span className="absolute -bottom-1 right-0 rounded bg-[color:var(--ink)] px-0.5 text-[10px] font-bold leading-tight text-[color:var(--paper)]">Lv.{entry.monster.lv}</span>
-            {entry.v002 && beforeOpen ? <span className="absolute -top-1 left-0 rounded bg-[color:var(--gold)] px-0.5 text-[10px] font-bold leading-tight text-[color:var(--on-accent)]">10/15</span> : null}
           </button>
         ))}
       </div>
@@ -154,8 +153,8 @@ function Sheet({ entry, kind, hitText, onClose, onPick }: { entry: KillEntry; ki
   );
 }
 
-export function KillCard({ data, state, active, label, onPick, beforeOpen, choices }: {
-  data: CalcData; state: CalcState; active: 0 | 1; label: string; onPick: (monsterId: number) => void; beforeOpen: boolean; choices: MonsterChoice[];
+export function KillCard({ data, state, active, label, onPick, choices }: {
+  data: CalcData; state: CalcState; active: 0 | 1; label: string; onPick: (monsterId: number) => void; choices: MonsterChoice[];
 }) {
   const all = useMemo(() => killLists(data, state.shared, state.groups[active], choices), [data, state, active, choices]);
   // 只看怕這個屬性的怪（v0.90 使用者：有屬性的招式加篩選按鈕）：記在同一筆瀏覽紀錄，換成沒屬性的招式時按鈕不出現、名單照全部
@@ -193,8 +192,8 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
       ) : null}
       {lists ? (
         <>
-          <Section title="一下打死" storeKey="damage:kill-one" list={lists.one} beforeOpen={beforeOpen} onOpen={open({ hits: "一下", near: false })} />
-          <Section title="兩下打死" storeKey="damage:kill-two" list={lists.two} beforeOpen={beforeOpen} onOpen={open({ hits: "兩下", near: false })} />
+          <Section title="一下打死" storeKey="damage:kill-one" list={lists.one} onOpen={open({ hits: "一下", near: false })} />
+          <Section title="兩下打死" storeKey="damage:kill-two" list={lists.two} onOpen={open({ hits: "兩下", near: false })} />
           <p className="text-[11px] ink-faint">
             {state.shared.skillId === HEAL ? `群體治癒只列不死系、照範圍內 ${state.shared.targets ?? 1} 隻算；` : null}
             {state.shared.skillId === BOMB_ARROW ? "炸彈箭照被射中那隻（50%）算；" : null}
@@ -203,8 +202,8 @@ export function KillCard({ data, state, active, label, onPick, beforeOpen, choic
           {/* 差一點（2026-10-12 使用者追加，選 B）：中間值打得死、最低打不死的，分一下、兩下兩排 */}
           <div className="space-y-3 rounded-xl border border-dashed border-[color:var(--paper-edge)] p-3">
             <h2 className="text-[15px] font-black">差一點<span className="ml-1 text-[12px] font-bold ink-soft">運氣好才打得死</span></h2>
-            <Section heading="h3" title="一下" storeKey="damage:kill-near-one" list={lists.nearOne} beforeOpen={beforeOpen} onOpen={open({ hits: "一下", near: true })} />
-            <Section heading="h3" title="兩下" storeKey="damage:kill-near-two" list={lists.nearTwo} beforeOpen={beforeOpen} onOpen={open({ hits: "兩下", near: true })} />
+            <Section heading="h3" title="一下" storeKey="damage:kill-near-one" list={lists.nearOne} onOpen={open({ hits: "一下", near: true })} />
+            <Section heading="h3" title="兩下" storeKey="damage:kill-near-two" list={lists.nearTwo} onOpen={open({ hits: "兩下", near: true })} />
             <p className="text-[11px] ink-faint">用最高跟最低傷害的中間值算打得死、但最低傷害在那個下數打不死；同一隻可能也在「兩下打死」（穩穩兩下、運氣好一下）。</p>
           </div>
         </>
