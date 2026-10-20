@@ -22,7 +22,8 @@ describe("練功測速排行卡", () => {
     expect(html).toContain("全隊 52 隻／10 分");
     expect(html).not.toContain("52.4");
     expect(html).toContain("3 人隊");
-    expect(html).toContain("數字是全隊 10 分鐘打幾隻，用存這段的人填的等級回推。");
+    // 10/20：有開加倍券的已經扣掉（伺服器存的是回推後的真實速度）
+    expect(html).toContain("數字是全隊 10 分鐘打幾隻，用存這段的人填的等級回推（有開加倍券的已經扣掉）。");
   });
 
   it("單練分頁：10 分鐘經驗照千分位；沒公開寫匿名玩家", () => {
@@ -30,6 +31,7 @@ describe("練功測速排行卡", () => {
     expect(html).toContain("123,456");
     expect(html).toContain("匿名玩家");
     expect(html).toContain("冰雷巫師 Lv.46");
+    expect(html).toContain("數字是 10 分鐘拿到的經驗（有開加倍券的已經扣掉）。");
   });
 
   it("分頁對應 tabpanel：選中的分頁 id ＝ tabpanel 的 aria-labelledby，分頁的 aria-controls 指向 tabpanel", () => {

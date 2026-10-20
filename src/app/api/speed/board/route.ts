@@ -11,7 +11,8 @@ const TRAINED = new Set((trainingJson as unknown as TrainingRow[]).map(row => ro
 const CACHE = { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" };
 
 type Raw = {
-  char_id: string;
+  /** 沒填角色 ID 的是 null */
+  char_id: string | null;
   job: number | null;
   level: number;
   party_size: number;
@@ -21,8 +22,8 @@ type Raw = {
   created_at: string | Date;
   /** 上榜那一筆有沒有勾公開 */
   best_public: boolean;
-  /** 這個角色最新的一筆有沒有勾公開 */
-  latest_public: boolean;
+  /** 這個角色最新的一筆有沒有勾公開；沒填角色 ID 的不查（LEFT JOIN 出來是 null） */
+  latest_public: boolean | null;
 };
 
 const TAIPEI_OFFSET_MS = 8 * 3600 * 1000;
@@ -34,8 +35,8 @@ function taipeiDate(value: string | Date): string {
 
 function toBoard(rows: Raw[]): BoardRow[] {
   return rows.map(row => ({
-    // 兩筆都公開才掛名：別人只能把你藏起來、不能幫你翻開
-    name: row.best_public && row.latest_public ? row.char_id : null,
+    // 兩筆都公開才掛名：別人只能把你藏起來、不能幫你翻開；沒填角色 ID 的一律匿名（就算勾了公開也沒有名字可以掛）
+    name: row.char_id !== null && row.best_public && row.latest_public === true ? row.char_id : null,
     job: row.job,
     level: row.level,
     expPer10: Number(row.exp_per_10min),
@@ -50,6 +51,9 @@ const EMPTY = { open: false, solo: [], party: [] };
 
 /**
  * 一張圖的排行：單練、組隊各前 10。每個角色只留最好的一筆；
+ * 沒填角色 ID 的（10/20 起也收）用網路位址雜湊分組：雜湊每天（UTC）換，所以同一個位址同一天只留最好的一筆，名字一律匿名。
+ * 分組鍵是 COALESCE(char_id, 'ip:' || ip_hash)：角色 ID 最多 12 個字，「ip:」加 32 個字的雜湊不會跟真的 ID 撞在一起。
+ * 同一個位址（例如網咖）同一天好幾個人都沒填 ID 的話，只會留一筆——要分開上榜就要填角色 ID。
  * 網址只看 map，其他參數（存成功後頁面加的 v=，用來跳過 5 分鐘快取）不管；沒有練功資料的圖不查資料庫，直接回空的。
  * 單練照 10 分鐘經驗排；組隊照「全隊 10 分鐘打幾隻」排（沒算出打幾隻的不上榜）。
  * 掛名要「上榜那一筆」跟「這個角色最新的一筆」都勾公開，兩筆都是才顯示名字，其他寫匿名（10/13 使用者選 B）。
@@ -66,39 +70,40 @@ export async function GET(request: Request): Promise<Response> {
   try {
     await ensureSchema(sql);
     const env = speedEnv();
-    // latest 只查前 10 名的角色（走 env, char_id 索引），不用掃整張表。
+    // latest 只查前 10 名裡有填角色 ID 的（走 env, char_id 索引），不用掃整張表；沒填 ID 的認不出是誰，不查，LEFT JOIN 讓它們照樣留在榜上。
+    // ip_hash 只拿來分組，不選出來（不會送到頁面）。
     // 同分的先後固定：先達成的在前、再看 id（第 10 名的切線每次一樣）；最新一筆同一時間時 id 大的算最新。
     // 掛名的旗標：best 帶上榜那筆的 is_public（best_public），latest 帶最新一筆的（latest_public）。
     const [solo, party] = await Promise.all([
       sql`
         WITH best AS (
-          SELECT DISTINCT ON (char_id) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
+          SELECT DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash)) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
           FROM speed_runs
           WHERE env = ${env} AND map_id = ${map} AND ranked AND party_size = 1
-          ORDER BY char_id, exp_per_10min DESC, created_at, id
+          ORDER BY COALESCE(char_id, 'ip:' || ip_hash), exp_per_10min DESC, created_at, id
         ), leaders AS (
           SELECT * FROM best ORDER BY exp_per_10min DESC, created_at, id LIMIT 10
         ), latest AS (
           SELECT DISTINCT ON (char_id) char_id, is_public FROM speed_runs
-          WHERE env = ${env} AND char_id IN (SELECT char_id FROM leaders)
+          WHERE env = ${env} AND char_id IN (SELECT char_id FROM leaders WHERE char_id IS NOT NULL)
           ORDER BY char_id, created_at DESC, id DESC
         )
-        SELECT leaders.*, latest.is_public AS latest_public FROM leaders JOIN latest USING (char_id)
+        SELECT leaders.*, latest.is_public AS latest_public FROM leaders LEFT JOIN latest USING (char_id)
         ORDER BY leaders.exp_per_10min DESC, leaders.created_at, leaders.id`,
       sql`
         WITH best AS (
-          SELECT DISTINCT ON (char_id) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
+          SELECT DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash)) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
           FROM speed_runs
           WHERE env = ${env} AND map_id = ${map} AND ranked AND party_size > 1 AND kills_per_10min IS NOT NULL
-          ORDER BY char_id, kills_per_10min DESC, created_at, id
+          ORDER BY COALESCE(char_id, 'ip:' || ip_hash), kills_per_10min DESC, created_at, id
         ), leaders AS (
           SELECT * FROM best ORDER BY kills_per_10min DESC, created_at, id LIMIT 10
         ), latest AS (
           SELECT DISTINCT ON (char_id) char_id, is_public FROM speed_runs
-          WHERE env = ${env} AND char_id IN (SELECT char_id FROM leaders)
+          WHERE env = ${env} AND char_id IN (SELECT char_id FROM leaders WHERE char_id IS NOT NULL)
           ORDER BY char_id, created_at DESC, id DESC
         )
-        SELECT leaders.*, latest.is_public AS latest_public FROM leaders JOIN latest USING (char_id)
+        SELECT leaders.*, latest.is_public AS latest_public FROM leaders LEFT JOIN latest USING (char_id)
         ORDER BY leaders.kills_per_10min DESC, leaders.created_at, leaders.id`,
     ]);
     return Response.json(

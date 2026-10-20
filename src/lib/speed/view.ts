@@ -195,7 +195,7 @@ export function mapSource(title: { key: string | null; mapId: number | null }, p
 export function runBody(
   seg: Segment,
   where: { mapId: number | null; mapName: string | null },
-  context: { charId: string; isPublic: boolean; party: SpeedParty; profileJob: number; clientVer: string },
+  context: { charId: string | null; isPublic: boolean; party: SpeedParty; profileJob: number; clientVer: string },
 ): RunPayload {
   const { party } = context;
   return {
@@ -217,20 +217,18 @@ export function runBody(
   };
 }
 
-/** 存的結果：伺服器回的（含狀態碼），或沒送出去的原因 */
+/** 存的結果：伺服器回的（含狀態碼），或沒送出去的原因（2026-10-20 起沒填角色 ID 也送，存成匿名） */
 export type SaveOutcome =
-  | { kind: "noId" }
   | { kind: "short" }
   | { kind: "network" }
   | { kind: "response"; status: number; ok: boolean; ranked?: boolean; error?: string };
 
-/** 「上一段」後面那句：存了沒、進排行沒，沒進寫為什麼 */
-export function saveNote(outcome: SaveOutcome, run: { durationSec: number; mapId: number | null }): string {
-  if (outcome.kind === "noId") return "沒填角色 ID，這段沒存進排行。";
+/** 「上一段」後面那句：存了沒、進排行沒，沒進寫為什麼；沒填角色 ID 進了排行，寫明名字是匿名玩家 */
+export function saveNote(outcome: SaveOutcome, run: { durationSec: number; mapId: number | null; charId: string | null }): string {
   if (outcome.kind === "short") return "不到 5 分鐘，沒存。";
   if (outcome.kind === "network") return "沒存到：網路不通，等一下再過來。";
   if (outcome.ok) {
-    if (outcome.ranked) return "存好了，已列入這張圖的排行。";
+    if (outcome.ranked) return run.charId ? "存好了，已列入這張圖的排行。" : "存好了，已列入這張圖的排行（沒填角色 ID，名字寫匿名玩家）。";
     if (run.durationSec < 600) return "存好了。不到 10 分鐘，不列排行。";
     if (run.mapId === null) return "存好了。認不出地圖，不列排行。";
     return "存好了。這張圖不列排行（不是練功地圖，或超過這張圖打得到的上限）。";
@@ -238,4 +236,48 @@ export function saveNote(outcome: SaveOutcome, run: { durationSec: number; mapId
   if (outcome.status === 503) return "排行還沒開，這段沒存到。";
   if (outcome.error?.includes("開始時間")) return "沒存到：電腦時間跟標準時間差太多，校正一下時間再試。";
   return `沒存到：${outcome.error ?? "等一下再過來"}。`;
+}
+
+/** 看不見的字元（控制字元、零寬空白、雙向控制）：伺服器也擋，這裡先講清楚 */
+const INVISIBLE = /[\p{Cc}\p{Cf}]/u;
+
+/**
+ * 按分享時填的角色 ID（只用這次，不存在電腦裡）：空的＝不填（存成匿名）；有填要 2～12 個字（照字數算，跟伺服器一樣）。
+ */
+export function checkCharId(text: string): { ok: true; charId: string | null } | { ok: false; error: string } {
+  const charId = text.trim();
+  if (!charId) return { ok: true, charId: null };
+  if (INVISIBLE.test(charId)) return { ok: false, error: "角色 ID 不能有看不見的字元。" };
+  const length = Array.from(charId).length;
+  return length >= 2 && length <= 12 ? { ok: true, charId } : { ok: false, error: "角色 ID 要 2～12 個字。" };
+}
+
+/** 加倍券：倍率跟其中幾分鐘有開（伺服器 rules.ts 的 Coupon） */
+export type Coupon = { mult: number; minutes: number };
+
+/** 這段最多有幾分鐘開加倍券（也是預設值＝整段）：跟伺服器一樣，用四捨五入到秒的時間、無條件進位成分鐘；最少 1 */
+export function couponMinutes(seg: Segment): number {
+  return Math.max(1, Math.ceil(Math.round(durationMs(seg) / 1000) / 60));
+}
+
+/**
+ * 加倍券對話框打的字 → 要送的加倍券：沒勾＝沒開（null）；勾了倍率要 1.10～3.00（最多兩位小數，1.15、1.6 都可以），
+ * 分鐘要 1～這段的分鐘數的整數。
+ */
+export function parseCoupon(on: boolean, multText: string, minutesText: string, maxMinutes: number): { ok: true; coupon: Coupon | null } | { ok: false; error: string } {
+  if (!on) return { ok: true, coupon: null };
+  const multRaw = multText.trim();
+  const mult = /^\d(\.\d{1,2})?$/.test(multRaw) ? Number(multRaw) : Number.NaN;
+  if (!(mult >= 1.1 && mult <= 3)) return { ok: false, error: "倍率要 1.10～3.00。" };
+  const minutesRaw = minutesText.trim();
+  const minutes = /^\d{1,4}$/.test(minutesRaw) ? Number(minutesRaw) : Number.NaN;
+  if (!(minutes >= 1 && minutes <= maxMinutes)) return { ok: false, error: `有開的分鐘要 1～${maxMinutes}。` };
+  return { ok: true, coupon: { mult, minutes } };
+}
+
+/** 補填加倍券之後「上一段」那行換成這句：ok 帶伺服器回推的 10 分鐘經驗；沒送到（網路不通）給 { ok: false } */
+export function couponNote(result: { ok: boolean; expPer10?: number; error?: string }, coupon: Coupon | null): string {
+  if (!result.ok) return `加倍券沒記到：${result.error ?? "網路不通，等一下再過來"}。`;
+  if (!coupon) return "記成沒開加倍券。";
+  return `加倍券記好了：扣掉加倍，實際 10 分鐘 ${formatNumber(result.expPer10 ?? 0)} 經驗。`;
 }

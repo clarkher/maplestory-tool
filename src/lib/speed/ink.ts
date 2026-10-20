@@ -8,7 +8,7 @@ export type Box = { x0: number; x1: number; y0: number; y1: number; n: number };
 
 /**
  * 背景＝這塊亮度的中位數、字＝最亮的那一小撮（hiPct），中間線性對到 0～1。
- * dark：深色字淺色底（小地圖標題），先把亮度反過來。
+ * dark：深色字淺色底，先把亮度反過來（小地圖標題 2026-10-20 起改抓白字，現在沒人用 true）。
  */
 export function inkMask(frame: Frame, rect: Rect, dark = false, hiPct = 0.995): Mask | null {
   const r = clampRect(frame, rect);
