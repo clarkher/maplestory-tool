@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { parseUpstreamScript, assembleUpstream, readUpstream } from "./upstream.mjs";
+import { createHash } from "node:crypto";
+import { parseUpstreamScript, assembleUpstream, readUpstream, UPSTREAM_PARTS } from "./upstream.mjs";
 
 const meta = (gameVersion, generatedAt) => ({
   gameVersion,
@@ -273,4 +274,110 @@ test("readUpstream 缺必要檔案時報出檔名", t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "upstream-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   assert.throws(() => readUpstream(dir), /data\.js/);
+});
+
+// ---- 內容雜湊（v1.11）：上游作者手動修資料不會改 generatedAt（2026-10-16、10-17、10-21 三次都是），
+// 排程只比時間就一次都沒抓到，所以另外算上游檔案內容的雜湊 ----
+
+const GLOBALS = Object.fromEntries(UPSTREAM_PARTS.map(({ file, global }) => [file, global]));
+const sha256 = text => createHash("sha256").update(text, "utf8").digest("hex");
+const HEX64 = /^[0-9a-f]{64}$/;
+
+/** 把 parts 寫成上游那種「window.名稱 = {JSON};」的檔，回傳每個檔寫進去的原文。 */
+function writeUpstream(dir, parts, { newline = "\n" } = {}) {
+  const written = {};
+  for (const [file, part] of Object.entries(parts)) {
+    written[file] = `window.${GLOBALS[file]} = ${JSON.stringify(part)};${newline}`;
+    fs.writeFileSync(path.join(dir, file), written[file]);
+  }
+  return written;
+}
+
+function tempDir(t) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "upstream-hash-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
+test("readUpstream 算內容雜湊：兩份只差一個字的上游檔，contentHash 不同、generatedAt 一樣；同一份讀兩次雜湊一樣", t => {
+  const a = tempDir(t);
+  const b = tempDir(t);
+  writeUpstream(a, fixtureParts());
+  const edited = fixtureParts();
+  edited["items-data.js"].items[0].name = "紅色藥氺"; // 只改一個字，metadata 完全沒動
+  writeUpstream(b, edited);
+
+  const first = readUpstream(a);
+  const again = readUpstream(a);
+  const changed = readUpstream(b);
+
+  assert.match(first.metadata.contentHash, HEX64);
+  assert.equal(again.metadata.contentHash, first.metadata.contentHash, "同一份內容雜湊兩次要一樣");
+  assert.equal(changed.metadata.generatedAt, first.metadata.generatedAt, "這個情境的重點：產生時間沒變");
+  assert.notEqual(changed.metadata.contentHash, first.metadata.contentHash);
+
+  // 每個檔各自留底：只有被改的那個檔的 sha256 不一樣
+  for (const { file } of UPSTREAM_PARTS) {
+    assert.match(first.metadata.parts[file].sha256, HEX64, `${file} 要有 sha256`);
+    const same = changed.metadata.parts[file].sha256 === first.metadata.parts[file].sha256;
+    assert.equal(same, file !== "items-data.js", `${file} 的 sha256 ${same ? "沒變" : "變了"}`);
+  }
+});
+
+test("contentHash ＝ 各檔原文依 UPSTREAM_PARTS 順序各自 sha256、把十六進位字串串起來再 sha256", t => {
+  const dir = tempDir(t);
+  const written = writeUpstream(dir, fixtureParts());
+  const { metadata } = readUpstream(dir);
+  const perFile = UPSTREAM_PARTS.map(({ file }) => sha256(written[file]));
+  assert.deepEqual(UPSTREAM_PARTS.map(({ file }) => metadata.parts[file].sha256), perFile);
+  assert.equal(metadata.contentHash, sha256(perFile.join("")));
+});
+
+test("contentHash 不受換行寫法影響（Windows 的 git 可能把上游檔轉成 CRLF）：本機重建跟 CI 才算得出同一個值", t => {
+  const lf = tempDir(t);
+  const crlf = tempDir(t);
+  writeUpstream(lf, fixtureParts());
+  writeUpstream(crlf, fixtureParts(), { newline: "\r\n" });
+  assert.equal(readUpstream(crlf).metadata.contentHash, readUpstream(lf).metadata.contentHash);
+});
+
+test("沒有世界地圖檔照樣算 contentHash（那個檔不是必要的），而且跟有那個檔時不同", t => {
+  const full = tempDir(t);
+  const partial = tempDir(t);
+  writeUpstream(full, fixtureParts());
+  const parts = fixtureParts();
+  delete parts["worldmaps-data.js"];
+  writeUpstream(partial, parts);
+  const without = readUpstream(partial).metadata;
+  assert.match(without.contentHash, HEX64);
+  assert.equal(without.parts["worldmaps-data.js"], undefined);
+  assert.notEqual(without.contentHash, readUpstream(full).metadata.contentHash);
+});
+
+test("assembleUpstream 是純函式：雜湊由呼叫端傳進來，沒傳就不帶 contentHash、parts 也沒有 sha256", () => {
+  const plain = assembleUpstream(fixtureParts());
+  assert.equal(plain.metadata.contentHash, null);
+  for (const part of Object.values(plain.metadata.parts)) assert.equal("sha256" in part, false);
+
+  const hashes = Object.fromEntries(UPSTREAM_PARTS.map(({ file }, i) => [file, String(i).repeat(64)]));
+  const { metadata } = assembleUpstream(fixtureParts(), hashes);
+  assert.equal(metadata.parts["maps-data.js"].sha256, hashes["maps-data.js"]);
+  assert.equal(metadata.contentHash, sha256(UPSTREAM_PARTS.map(({ file }) => hashes[file]).join("")));
+});
+
+test("assembleUpstream 缺任何一個檔的雜湊就不給 contentHash（只有一部分的雜湊不能拿來比對）", () => {
+  const hashes = Object.fromEntries(UPSTREAM_PARTS.map(({ file }) => [file, "a".repeat(64)]));
+  delete hashes["quests-data.js"];
+  assert.equal(assembleUpstream(fixtureParts(), hashes).metadata.contentHash, null);
+});
+
+test("assembleUpstream 不採用上游檔自己 metadata 裡寫的 contentHash／sha256：雜湊只認我們自己算的", () => {
+  const parts = fixtureParts();
+  parts["items-data.js"].metadata.contentHash = "f".repeat(64); // 最新的那個檔，metadata 會整份帶進來
+  parts["items-data.js"].metadata.parts = { "data.js": { sha256: "f".repeat(64) } };
+  assert.equal(assembleUpstream(parts).metadata.contentHash, null);
+  assert.equal("sha256" in assembleUpstream(parts).metadata.parts["data.js"], false);
+
+  const hashes = Object.fromEntries(UPSTREAM_PARTS.map(({ file }) => [file, "a".repeat(64)]));
+  assert.equal(assembleUpstream(parts, hashes).metadata.contentHash, sha256("a".repeat(64).repeat(UPSTREAM_PARTS.length)));
 });

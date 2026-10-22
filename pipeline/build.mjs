@@ -18,6 +18,7 @@ import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
+import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopRows } from "./lib/shops.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
@@ -108,6 +109,13 @@ function main() {
   const twTable = twSpawns(artale.maps);
   const spawnTable = mergeSpawns(twTable, v83.maps);
   const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
+  // 上游讓新怪物借用別隻的圖時（6300001 變形雪吉拉 → 6300000.png），補一張 <id>.png，前端才不會是壞圖。
+  // 放在建置而不放在 fetch：資料自動更新每次先 fetch（rsync 鏡像會刪掉這張複製檔）再 build（補回來），所以不會被洗掉
+  const rawMonster = new Map((artale.monsters || []).map(monster => [Number(monster.id), monster]));
+  copyMissingFrames(
+    path.join(ROOT, "public", "assets", "monster_frames"),
+    monsters.list.map(monster => ({ id: monster.id, image: rawMonster.get(monster.id)?.image })),
+  );
   const items = buildItems(artale, monsters, maps);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
@@ -132,6 +140,9 @@ function main() {
   const meta = {
     gameVersion: artale.metadata?.gameVersion ?? null,
     dataGeneratedAt: artale.metadata?.generatedAt ?? null,
+    // 上游六個檔原文的雜湊（lib/upstream.mjs 算的）：排程拿它判斷上游有沒有改資料——上游手動修資料不會改產生時間。
+    // 本機抽檔（artale.local.json）不經過那裡，沒有就是 null，排程改回比產生時間
+    dataHash: artale.metadata?.contentHash ?? null,
     dataGeneratedAtText: artale.metadata?.generatedAtText ?? null,
     ingest: artale.ingest ?? null,
     // 上游六個資料檔各自的版本，gameVersion 取的是其中最新的

@@ -170,6 +170,15 @@ describe("一組的預設", () => {
     expect(group.stats.LUK).toBe(237);
     expect(group.stats.DEX).toBeGreaterThan(25);
   });
+  it("三轉完成多 5 點：暗殺者 70 等預設能力值四項加起來 375、80 等 425；二轉刺客 70 等 370", () => {
+    const sum = (job: number, level: number) => Object.values(defaultGroup(data, job, level, null).stats).reduce((a, b) => a + b, 0);
+    expect(sum(411, 70)).toBe(375);
+    expect(sum(411, 80)).toBe(425);
+    expect(sum(410, 70)).toBe(370);
+    // 換等級（regroup）也走同一條：三轉 80 等換回 70 等，總點數跟著 70 等算
+    const third = defaultGroup(data, 411, 80, null);
+    expect(Object.values(regroup(data, 411, third, { level: 70 }).stats).reduce((a, b) => a + b, 0)).toBe(375);
+  });
   it("等級夾在職業的轉職等級到 120", () => {
     expect(clampLevel(411, 50)).toBe(70);
     expect(clampLevel(410, 200)).toBe(120);

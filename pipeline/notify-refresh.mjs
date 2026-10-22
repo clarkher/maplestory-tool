@@ -2,7 +2,7 @@
  * 資料自動更新（.github/workflows/data-refresh.yml）的失敗通知，跑在 notify job。
  *
  * refresh（建置）或 publish（開 PR 合併）失敗：開一張 issue（label「資料更新失敗」、指派給 repo 擁有者）；已經有開著的就不另開——
- *   同樣的失敗（同一步、同一個上游版本）只更新內文「最後一次失敗」那行（不發通知），有變才在那張留言。
+ *   同樣的失敗（同一步、同一個上游版本＝產生時間加內容雜湊）只更新內文「最後一次失敗」那行（不發通知），有變才在那張留言。
  *   步驟名與錯誤訊息從失敗的那個 job 讀（lib/refresh-issue.mjs 的 overallResult）。
  * 跑超過時間上限被中止（結果是 cancelled，但有主要步驟跑到一半）也算失敗；
  * 一步都沒跑（GitHub 沒派到機器）、或只有收尾步驟被中止，不通知。
@@ -14,7 +14,10 @@
  *   REFRESH_RESULT  refresh job 的結果：success／failure／cancelled
  *   PUBLISH_RESULT  publish job 的結果：success／failure／cancelled／skipped（沒給當成沒跑）
  *   UPSTREAM_STAMP  上游版本（data/raw/artale.json 的 metadata.generatedAt），取上游那步就失敗時是空的
+ *   UPSTREAM_HASH   上游資料檔原文的雜湊（metadata.contentHash，64 位小寫 hex；本機抽檔、取上游那步就失敗時是空的，不合格也當成沒有）
  *   SITE_STAMP      網站目前的資料版本（public/data/meta.json 的 dataGeneratedAt）
+ *   SITE_HASH       網站目前資料的內容雜湊（meta.json 的 dataHash；舊版沒有就是空的，不合格也當成沒有）
+ *                   上游只改內容、產生時間沒變時，兩個版本的時間會一樣，issue 靠雜湊前 8 碼寫出不同，也靠它分辨兩次不同的內容改動
  *   DRY_RUN         "true" 就改用測試用的 label 與標題（workflow 開頭的 env：勾 dry_run、simulate_failure，或不是從 main 觸發）
  *   ASSIGNEE        issue 指派給誰
  *   以及 Actions 內建的 GITHUB_REPOSITORY、GITHUB_RUN_ID、GITHUB_SERVER_URL、GITHUB_API_URL
@@ -191,7 +194,9 @@ const outcome = await notifyRefresh(
     job,
     dryRun: env.DRY_RUN === "true",
     upstreamStamp: env.UPSTREAM_STAMP ?? "",
+    upstreamHash: env.UPSTREAM_HASH ?? "",
     siteStamp: env.SITE_STAMP ?? "",
+    siteHash: env.SITE_HASH ?? "",
     runUrl: `${server}/${repo}/actions/runs/${runId}`,
     // blob/HEAD＝預設分支：從功能分支觸發的測試 issue，分支刪掉後連結也不會壞
     readmeUrl: `${server}/${repo}/blob/HEAD/README.md#${encodeURIComponent("自動更新")}`,

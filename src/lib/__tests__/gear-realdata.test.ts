@@ -20,7 +20,7 @@ function mainstreamRule(job: number): StatRule {
 }
 
 function targetsAtFor(job: number, rule: StatRule) {
-  return (lv: number) => statTargets(rule, lv, rule.secondary?.type === "equip" ? equipRequirement(gear.weapons, job, lv, rule) : undefined);
+  return (lv: number) => statTargets(rule, lv, rule.secondary?.type === "equip" ? equipRequirement(gear.weapons, job, lv, rule) : undefined, job);
 }
 
 describe("真資料：火毒巫師（210）Lv40 全點智力", () => {

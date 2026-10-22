@@ -42,6 +42,9 @@ const SCRIPT = publishScript();
 
 const STAMP = "2026-10-08T10:00:00+08:00";
 const BRANCH = "data/refresh-20261008100000";
+// 上游內容雜湊（64 位小寫 hex）：有的話分支名、commit、PR 標題帶前 8 碼，時間沒變、內容變了也不會跟上一次撞名
+const HASH = "0123456789abcdef".repeat(4);
+const BRANCH_WITH_HASH = `${BRANCH}-${HASH.slice(0, 8)}`;
 // 網站目前的檔（public/ 以外也有東西：artifact 不該動到它們）
 const SITE = {
   "public/data/meta.json": JSON.stringify({ gameVersion: "1.15.2", dataGeneratedAt: "2026-09-24T11:25:10+08:00" }),
@@ -103,7 +106,7 @@ function siteTemplate() {
  * staleBranch：遠端先有一條同名、內容不同的資料分支（上一輪推了分支卻在開 PR 時失敗）。
  * prepare(artifactDir)：額外動 artifact（例如放捷徑）。
  */
-async function publish({ artifact = FRESH, env = {}, staleBranch = false, prepare } = {}) {
+async function publish({ artifact = FRESH, env = {}, staleBranch = false, prepare, branch = BRANCH } = {}) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "publish-step-"));
   try {
     const source = await siteTemplate();
@@ -116,11 +119,11 @@ async function publish({ artifact = FRESH, env = {}, staleBranch = false, prepar
     fs.writeFileSync(config, fs.readFileSync(config, "utf8").replaceAll(posix(path.join(source, "remote.git")), posix(remote)));
     const git = gitIn(root);
     if (staleBranch) {
-      await git(work, "checkout", "-q", "-b", BRANCH);
+      await git(work, "checkout", "-q", "-b", branch);
       await git(work, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "上一輪推上去的");
-      await git(work, "push", "-q", "origin", BRANCH);
+      await git(work, "push", "-q", "origin", branch);
       await git(work, "checkout", "-q", "main");
-      await git(work, "branch", "-q", "-D", BRANCH);
+      await git(work, "branch", "-q", "-D", branch);
     }
 
     // artifact：跟 upload-artifact 從 public/ 開始存一樣，最上層是 data、assets
@@ -161,9 +164,9 @@ async function publish({ artifact = FRESH, env = {}, staleBranch = false, prepar
     }
 
     const branches = (await git(root, "--git-dir", remote, "for-each-ref", "--format=%(refname:short)", "refs/heads")).stdout.trim().split("\n");
-    const pushed = branches.includes(BRANCH);
-    const files = pushed ? (await git(root, "--git-dir", remote, "diff", "--name-status", "main", BRANCH)).stdout.trim().split("\n").sort() : [];
-    const message = pushed ? (await git(root, "--git-dir", remote, "log", "-1", "--format=%s", BRANCH)).stdout.trim() : "";
+    const pushed = branches.includes(branch);
+    const files = pushed ? (await git(root, "--git-dir", remote, "diff", "--name-status", "main", branch)).stdout.trim().split("\n").sort() : [];
+    const message = pushed ? (await git(root, "--git-dir", remote, "log", "-1", "--format=%s", branch)).stdout.trim() : "";
     const gh = fs.existsSync(ghLog) ? fs.readFileSync(ghLog, "utf8").trim().split("\n") : [];
     return { code, out, branches, files, message, gh, executed: fs.existsSync(marker), siteUntouched: fs.existsSync(path.join(work, "public/data/items.json")) };
   } finally {
@@ -270,6 +273,31 @@ describe("publish 那一步真的跑一次（bash＋git，本機 bare repo 當 o
   for (const stamp of [`${STAMP}\n::warning::x`, "2026-10-08 10:00", `2026-10-08T10:00:00.${"1".repeat(40)}+08:00`]) {
     test(`上游版本 ${JSON.stringify(stamp).slice(0, 40)}（換行、空白、太長）：開分支前就失敗，不推、不開 PR`, async () => {
       assertRefused(await publish({ env: { STAMP: stamp } }), BAD_STRING);
+    });
+  }
+
+  test("有上游內容雜湊：分支名、commit 訊息、PR 標題都帶雜湊前 8 碼（上游只改資料、產生時間沒變時，不會跟上一次撞名）", async () => {
+    const result = await publish({ env: { HASH }, branch: BRANCH_WITH_HASH });
+    assert.equal(result.code, 0, result.out);
+    assert.deepEqual(result.branches.sort(), [BRANCH_WITH_HASH, "main"]);
+    const label = `${STAMP}，內容 ${HASH.slice(0, 8)}`;
+    assert.equal(result.message, `data: 同步遊戲版本 1.15.3（${label}）`);
+    assert.equal(result.gh.length, 2);
+    assert.ok(result.gh[0].startsWith(`gh pr create --title data: 同步遊戲版本 1.15.3（${label}） --body `), result.gh[0]);
+    assert.ok(result.gh[0].endsWith(` --base main --head ${BRANCH_WITH_HASH}`), result.gh[0]);
+    assert.equal(result.gh[1], `gh pr merge ${BRANCH_WITH_HASH} --squash --delete-branch --admin`);
+  });
+
+  test("雜湊是空的（本機抽檔沒有）：照舊，分支名跟標題都不帶雜湊", async () => {
+    const result = await publish({ env: { HASH: "" } });
+    assert.equal(result.code, 0, result.out);
+    assert.deepEqual(result.branches.sort(), [BRANCH, "main"]);
+    assert.equal(result.message, `data: 同步遊戲版本 1.15.3（${STAMP}）`);
+  });
+
+  for (const hash of [`${HASH}\n::warning::x`, HASH.toUpperCase(), HASH.slice(1), `${HASH}0`, "abc", '"; echo X; echo "']) {
+    test(`雜湊 ${JSON.stringify(hash).slice(0, 40)}（換行、大寫、長度不對、不是 hex）：開分支前就失敗，不推、不開 PR`, async () => {
+      assertRefused(await publish({ env: { HASH: hash } }), BAD_STRING);
     });
   }
 

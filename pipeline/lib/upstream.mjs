@@ -6,10 +6,15 @@
  * 移出版控（.gitignore），排程因此連續失敗了兩個月。這裡把六個檔併回同一個結構，
  * 下游 build.mjs 不用跟著改。
  *
+ * 內容雜湊（metadata.contentHash、metadata.parts[檔].sha256）：上游作者手動修資料不會改 metadata.generatedAt
+ * （2026-10-16、10-17、10-21 三次都是），排程只比產生時間就一次都沒抓到。所以讀檔時順便算每個檔原文的 sha256，
+ * 排程改比這個（見 .github/workflows/data-refresh.yml「比對版本」）。
+ *
  * 用法：
  *   import { readUpstream } from "./lib/upstream.mjs";
  *   const payload = readUpstream("data/cache/upstream"); // { metadata, monsters, items, quests, skills, ... }
  */
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -27,6 +32,15 @@ export const UPSTREAM_PARTS = [
   { file: "maps-data.js", global: "MS_MAP_DB", required: true, take: { maps: "maps" }, mustHave: ["maps"] },
   { file: "worldmaps-data.js", global: "MS_WORLD_MAP_DB", required: false, take: { worldMaps: "worldMaps" }, mustHave: [] },
 ];
+
+/**
+ * 一個上游檔原文的 sha256（小寫 16 進位 64 碼）。
+ * 換行先統一成 \n 再算：Windows 的 git 可能把檔案轉成 CRLF，本機重建跟 CI（Linux）才算得出同一個值，
+ * 不然本機重建後第一次排程會白白重建一次。
+ */
+export function hashUpstreamText(text) {
+  return crypto.createHash("sha256").update(text.replace(/\r\n/g, "\n"), "utf8").digest("hex");
+}
 
 /**
  * 把 `window.名稱 = {JSON};` 解成物件。
@@ -95,11 +109,18 @@ function checkGeneratedAtText(value, file) {
  * 各檔的版本與產生時間不一定相同（2026-09-24 實測：data.js 是 1.15.1，items-data.js 是 1.15.2）。
  * 整份資料的版本取最新產生的那個檔——排程就是拿這個時間戳判斷要不要重建，
  * 取最新的才不會漏掉「只有道具檔更新」這種情況。各檔自己的版本留在 metadata.parts。
+ *
+ * sha256s：{ 檔名: 原文的 sha256 }，由呼叫端算好傳進來（readUpstream 讀檔時算），這個函式保持純函式、好測。
+ * 每個檔的雜湊留在 metadata.parts[檔].sha256；整份資料的 metadata.contentHash ＝ 依 UPSTREAM_PARTS 順序
+ * 把各檔的雜湊（16 進位字串）串起來再 sha256。沒傳、或有哪個檔沒有雜湊，contentHash 就是 null（不拿一部分的雜湊去比對）。
+ * 雜湊只認這裡算的：上游檔自己 metadata 裡就算寫了 contentHash 也不採用。
  */
-export function assembleUpstream(parts) {
+export function assembleUpstream(parts, sha256s = {}) {
   const payload = {};
   const filters = {};
   const partVersions = {};
+  const hashes = [];
+  let complete = true;
   let newest = null;
 
   for (const spec of UPSTREAM_PARTS) {
@@ -123,6 +144,12 @@ export function assembleUpstream(parts) {
     const gameVersion = checkedGameVersion(metadata.gameVersion, spec.file);
     checkGeneratedAtText(metadata.generatedAtText, spec.file);
     partVersions[spec.file] = { gameVersion, generatedAt };
+    if (sha256s[spec.file]) {
+      partVersions[spec.file].sha256 = sha256s[spec.file];
+      hashes.push(sha256s[spec.file]);
+    } else {
+      complete = false;
+    }
     const stamp = Date.parse(generatedAt ?? "");
     if (Number.isFinite(stamp) && (!newest || stamp > newest.stamp)) newest = { stamp, metadata };
   }
@@ -133,23 +160,31 @@ export function assembleUpstream(parts) {
   return {
     generatedFrom: base.generatedFrom,
     source: base.source,
-    metadata: { ...newest.metadata, parts: partVersions },
+    metadata: { ...newest.metadata, parts: partVersions, contentHash: complete ? hashContents(hashes) : null },
     summary: base.summary,
     filters,
     ...payload,
   };
 }
 
+/** 各檔的雜湊（依 UPSTREAM_PARTS 順序）串起來再 sha256。 */
+function hashContents(hashes) {
+  return crypto.createHash("sha256").update(hashes.join(""), "utf8").digest("hex");
+}
+
 /** 從上游 repo 的資料夾讀出合併後的資料。 */
 export function readUpstream(dir) {
   const parts = {};
+  const sha256s = {};
   for (const spec of UPSTREAM_PARTS) {
     const filePath = path.join(dir, spec.file);
     if (!fs.existsSync(filePath)) {
       if (spec.required) throw new Error(`上游 repo 沒有 ${spec.file}，格式可能改了`);
       continue;
     }
-    parts[spec.file] = parseUpstreamScript(fs.readFileSync(filePath, "utf8"), spec.global, spec.file);
+    const text = fs.readFileSync(filePath, "utf8");
+    sha256s[spec.file] = hashUpstreamText(text);
+    parts[spec.file] = parseUpstreamScript(text, spec.global, spec.file);
   }
-  return assembleUpstream(parts);
+  return assembleUpstream(parts, sha256s);
 }

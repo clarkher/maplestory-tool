@@ -654,3 +654,48 @@ describe("真資料：選了第二套的升級路線、運氣好的上限、法�
     expect(gearPlan(gear, 410, 35, "全幸").armor).toBeNull();
   });
 });
+
+describe("三轉完成多 5 點能力值（70 等起，台服玩家 10/19、10/21 回報，上游 10/21 補計）", () => {
+  // 全幸主屬 LUK、其餘固定 4：70 等二轉 LUK＝370－12＝358，三轉多 5 點全進主屬 → 363
+  const shop = { shops: [{ p: "店", pr: 1 }] };
+  const fixture: GearData = {
+    builtAt: "test",
+    notes: [],
+    scrolls: [],
+    rules: [{ jobs: [410, 411], label: "全幸", main: "LUK", secondary: null, t: "", s: [], v: "tw", mainstream: true, weapons: ["拳套"] }],
+    weapons: [
+      weapon({ id: 1, n: "普通拳套", s: "拳套", lv: 60, atk: 30, job: 8, src: shop }),
+      // 要幸運 360：二轉 70 等（358）差 2 點穿不上，三轉 70 等（363）穿得上
+      weapon({ id: 2, n: "三轉才穿得上的拳套", s: "拳套", lv: 60, atk: 45, job: 8, req: { LUK: 360 }, src: shop }),
+    ],
+  };
+
+  it("gearPlan：三轉 70 等主屬性比二轉 70 等多 5；80 等一樣多 5（不是只有 70 當天）", () => {
+    expect(gearPlan(fixture, 411, 70).targets).toEqual({ STR: 4, DEX: 4, INT: 4, LUK: 363 });
+    expect(gearPlan(fixture, 410, 70).targets).toEqual({ STR: 4, DEX: 4, INT: 4, LUK: 358 });
+    expect(gearPlan(fixture, 411, 80).targets?.LUK).toBe(413);
+    expect(gearPlan(fixture, 410, 80).targets?.LUK).toBe(408);
+  });
+
+  it("gearPlan：穿不穿得上的判斷也吃那 5 點（要幸運 360 的武器：三轉 70 等是推薦、二轉 70 等是『再強一點』）", () => {
+    const third = gearPlan(fixture, 411, 70);
+    expect(third.best?.id).toBe(2);
+    expect(third.bestShort).toEqual([]);
+    const second = gearPlan(fixture, 410, 70);
+    expect(second.best?.id).toBe(1);
+    expect(second.stronger?.id).toBe(2);
+    expect(second.strongerShort).toEqual([{ stat: "LUK", short: 2 }]);
+  });
+
+  it("bandGear（升級路線）：70 等起用三轉的總點數，同一把要幸運 360 的武器三轉 70 等就出現、二轉晚一級", () => {
+    expect(bandGear(fixture, 411, 70, 79).weapons.map(entry => [entry.level, entry.weapon.id])).toEqual([[70, 2]]);
+    // 二轉要到 71 等（幸運 363）才穿得上，晚三轉一級
+    expect(bandGear(fixture, 410, 70, 79).weapons.map(entry => [entry.level, entry.weapon.id])).toEqual([[70, 1], [71, 2]]);
+  });
+
+  it("bandGear：選三轉職業時 70 等以前還是二轉，總點數照舊（不會提早多 5 點）", () => {
+    // 69 等二轉：LUK＝365－12＝353，穿不上要 360 的；70 等三轉才換
+    const band = bandGear(fixture, 411, 60, 79);
+    expect(band.weapons.map(entry => [entry.level, entry.weapon.id])).toEqual([[60, 1], [70, 2]]);
+  });
+});

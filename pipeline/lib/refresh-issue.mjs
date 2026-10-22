@@ -128,12 +128,27 @@ export function issueKeys(dryRun) {
 
 const DRY_RUN_NOTE = "這是 dry-run 測試（手動觸發，不開 PR、不合併）。";
 
+// 上游資料檔原文的 sha256（workflow 的 hash／before_hash 輸出）。上游只改內容、產生時間沒變時，光看時間分不出版本不同
+const HASH = /^[0-9a-f]{64}$/;
+
+/** 64 位小寫 hex 才收，其他（沒給、空字串、大寫、夾了換行或反引號、不是字串）一律當成沒有——它會寫進 issue 內文跟藏著的註解。 */
+function cleanHash(value) {
+  return typeof value === "string" && HASH.test(value) ? value : "";
+}
+
+/** issue 上的版本：「`時間`（內容 前 8 碼）」；沒有雜湊就只有時間，兩個都沒有回 fallback。 */
+function versionText(stamp, hash, fallback) {
+  const text = [stamp ? `\`${stamp}\`` : "", hash ? `（內容 ${hash.slice(0, 8)}）` : ""].join("");
+  return text || fallback;
+}
+
 /**
  * 失敗時的 issue 內容（含「最後一次失敗」那行與藏著的註解，之後同樣的失敗只換這兩處）；
  * repeat = 失敗有變、在已經開著的那張底下留言（開頭寫連續第幾次，不帶那一行與註解）。
  * tail 是 errorTail() 的結果，抓不到時改寫 tailNote（原因）。at 是 taipeiTime()。
  */
-export function failureBody({ stepName, upstreamStamp, siteStamp, runUrl, readmeUrl, tail = [], tailNote, dryRun = false, repeat = false, count = 1, at }) {
+export function failureBody({ stepName, upstreamStamp, upstreamHash, siteStamp, siteHash, runUrl, readmeUrl, tail = [], tailNote, dryRun = false, repeat = false, count = 1, at }) {
+  upstreamHash = cleanHash(upstreamHash);
   const lines = dryRun ? [DRY_RUN_NOTE, ""] : [];
   if (repeat) {
     lines.push(`又失敗了（連續第 ${count} 次），這次失敗的步驟或上游版本跟上次不同；網站資料還停在原本那一版。`);
@@ -143,8 +158,8 @@ export function failureBody({ stepName, upstreamStamp, siteStamp, runUrl, readme
   lines.push(
     "",
     `- 失敗的步驟：${stepName ?? "（沒有哪一步標成失敗，可能是執行的機器出問題）"}`,
-    `- 上游版本：${upstreamStamp ? `\`${upstreamStamp}\`` : "（沒取到：在讀到上游版本之前就失敗了）"}`,
-    `- 網站目前的資料版本：${siteStamp ? `\`${siteStamp}\`` : "（沒取到）"}`,
+    `- 上游版本：${versionText(upstreamStamp, upstreamHash, "（沒取到：在讀到上游版本之前就失敗了）")}`,
+    `- 網站目前的資料版本：${versionText(siteStamp, cleanHash(siteHash), "（沒取到）")}`,
     `- 執行紀錄：${runUrl}`,
     "",
   );
@@ -160,19 +175,19 @@ export function failureBody({ stepName, upstreamStamp, siteStamp, runUrl, readme
       "",
       "之後同樣的失敗只會更新上面「最後一次失敗」那行，不另外通知；失敗的步驟或上游版本變了，才會在這裡留言。" +
         `修好後下一次更新成功，會自動留言並關掉這張。怎麼處理見 ${readme}。`,
-      failureMark({ stepName, upstreamStamp, count }),
+      failureMark({ stepName, upstreamStamp, upstreamHash, count }),
     );
   }
   return lines.join("\n");
 }
 
 /** 成功時關掉 issue 前留的那則。 */
-export function recoveredBody({ upstreamStamp, runUrl, dryRun = false }) {
+export function recoveredBody({ upstreamStamp, upstreamHash, runUrl, dryRun = false }) {
   const lines = dryRun ? [DRY_RUN_NOTE, ""] : [];
   lines.push(
     "恢復了：這次資料自動更新成功，自動關掉這張。",
     "",
-    `- 上游版本：${upstreamStamp ? `\`${upstreamStamp}\`` : "（沒取到）"}`,
+    `- 上游版本：${versionText(upstreamStamp, cleanHash(upstreamHash), "（沒取到）")}`,
     `- 執行紀錄：${runUrl}`,
   );
   return lines.join("\n");
@@ -189,13 +204,16 @@ function fenceFor(lines) {
  * 已經有開著的時候，同樣的失敗（同一步、同一個上游版本）只改內文的「最後一次失敗」那行——改內文不發通知，
  * 排程一天兩次壞著不修才不會每 12 小時吵一次；失敗的步驟或上游版本變了才留言（會通知）。
  *
- * ctx：{ result、job（overallResult() 的結果；job 沒給就是 refresh）, dryRun, upstreamStamp, siteStamp, runUrl, readmeUrl, assignee, now }
+ * ctx：{ result、job（overallResult() 的結果；job 沒給就是 refresh）, dryRun, upstreamStamp, upstreamHash, siteStamp, siteHash, runUrl, readmeUrl, assignee, now }
+ *   upstreamHash、siteHash 是兩邊資料檔內容的雜湊（可以沒有；不是 64 位小寫 hex 就當成沒有）：上游只改內容、產生時間沒變時，
+ *   靠它寫出版本不同，也靠它分辨兩次不同的內容改動（見 failureMark）
  * github：打 GitHub API 的動作（pipeline/notify-refresh.mjs 給真的，測試給假的）——
  *   findOpenIssue(label)、job(name)（這次執行裡叫這個名字的 job）、jobLog(jobId)、ensureLabel(label)、
  *   createIssue({ title, body, label, assignee })、comment(number, body)、updateIssue(number, body)、close(number)
  * 回傳 { action: "create" | "comment" | "update" | "close" | "none", issue? }
  */
 export async function notifyRefresh(ctx, github) {
+  ctx = { ...ctx, upstreamHash: cleanHash(ctx.upstreamHash), siteHash: cleanHash(ctx.siteHash) };
   let result = ctx.result;
   const jobName = ctx.job ?? "refresh";
   let job;
@@ -229,7 +247,12 @@ export async function notifyRefresh(ctx, github) {
   }
 
   const previous = readFailureMark(open.body);
-  const same = previous !== null && previous.step === (failure.stepName ?? null) && previous.upstream === (failure.upstreamStamp || "");
+  // 上游版本＝產生時間＋內容雜湊：只改內容、時間沒變的兩次上游改動，時間一樣、雜湊不一樣；沒記雜湊（或這次沒有）的算「沒有」，跟有的不同
+  const same =
+    previous !== null &&
+    previous.step === (failure.stepName ?? null) &&
+    previous.upstream === (failure.upstreamStamp || "") &&
+    (previous.hash ?? "") === failure.upstreamHash;
   // 藏著的註解被人改掉時，次數改從「最後一次失敗」那行接著算
   const count = (Number.isInteger(previous?.count) ? previous.count : (countInStatus(open.body) ?? 1)) + 1;
   // 先留言再改內文：改內文失敗頂多下次再留一次，反過來會漏掉通知
@@ -280,11 +303,13 @@ function countInStatus(body) {
 }
 
 /**
- * 藏在 issue 內文最後（畫面上看不到）的這次失敗：步驟、上游版本、連續次數，下一次拿來比是不是同樣的失敗。
+ * 藏在 issue 內文最後（畫面上看不到）的這次失敗：步驟、上游版本（產生時間＋內容雜湊）、連續次數，下一次拿來比是不是同樣的失敗。
+ * 雜湊沒有就不寫這個欄位（跟加雜湊之前的註解一模一樣）。
  * 內容整段 encodeURIComponent：步驟名可能帶著錯誤訊息原文（-->、換行、U+2028…），編碼後註解不會被提早結束、也一定讀得回來。
  */
-function failureMark({ stepName, upstreamStamp, count }) {
-  const payload = encodeURIComponent(JSON.stringify({ step: stepName ?? null, upstream: upstreamStamp || "", count }));
+function failureMark({ stepName, upstreamStamp, upstreamHash, count }) {
+  const hash = cleanHash(upstreamHash);
+  const payload = encodeURIComponent(JSON.stringify({ step: stepName ?? null, upstream: upstreamStamp || "", ...(hash ? { hash } : {}), count }));
   return `<!-- data-refresh-failure ${payload} -->`;
 }
 
@@ -293,17 +318,18 @@ export function readFailureMark(body) {
   const last = [...(body ?? "").matchAll(MARKS)].at(-1);
   if (!last) return null;
   try {
-    const { step, upstream, count } = JSON.parse(decodeURIComponent(last[1]));
-    return { step, upstream, count };
+    const { step, upstream, hash, count } = JSON.parse(decodeURIComponent(last[1]));
+    // 註解是明文、人改得動：雜湊不合格就當沒有
+    return { step, upstream, count, ...(cleanHash(hash) ? { hash } : {}) };
   } catch {
     return null;
   }
 }
 
 /** 同樣的失敗又發生：換掉內文的「最後一次失敗」那行（沒有就補）、藏著的註解換成一個新的放最後，其他內容不動。 */
-export function markFailure(body, { stepName, upstreamStamp, count, at, runUrl }) {
+export function markFailure(body, { stepName, upstreamStamp, upstreamHash, count, at, runUrl }) {
   const status = statusLine({ stepName, count, at, runUrl });
   const rest = body.replace(MARKS, "").replace(/\s+$/, "");
   const withStatus = STATUS_LINE.test(rest) ? rest.replace(STATUS_LINE, () => status) : rest ? `${rest}\n\n${status}` : status;
-  return `${withStatus}\n${failureMark({ stepName, upstreamStamp, count })}`;
+  return `${withStatus}\n${failureMark({ stepName, upstreamStamp, upstreamHash, count })}`;
 }
