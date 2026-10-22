@@ -3,6 +3,33 @@ export function formatNumber(value: number | undefined | null): string {
   return value.toLocaleString("zh-TW");
 }
 
+/** 帶時區的 ISO 時間（2026-10-22T04:08:50.511Z、…+08:00）；沒寫時區的會被當成機器的本地時間，伺服器跟瀏覽器算出來不一樣，所以不收 */
+const ISO_WITH_ZONE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d(:[0-5]\d(\.\d+)?)?(Z|[+-]([01]\d|2[0-3]):?[0-5]\d)$/;
+
+/**
+ * 頁尾、首頁說明的「資料更新」時間：寫我們實際抓上游資料的時間（meta.json 的 ingest.fetchedAt），換成台灣時間，
+ * 寫到分（2026-10-22 12:08，24 小時制）。上游的產生時間（dataGeneratedAtText）在作者只改內容時不會動，
+ * 拿來當「資料更新」會停在舊日期。
+ *
+ * 沒有抓資料時間（舊的 meta.json、本機抽檔）或格式不對，退回上游的產生時間原文；兩個都沒有回空字串。
+ * 純函式、不讀現在時間也不看機器時區：伺服器先畫、瀏覽器再畫，兩邊要一模一樣，不然會有 hydration 對不上。
+ */
+export function dataSyncedText(meta: {
+  ingest?: { fetchedAt?: string } | null;
+  dataGeneratedAtText?: string | null;
+}): string {
+  const fetchedAt = meta.ingest?.fetchedAt;
+  if (typeof fetchedAt === "string" && ISO_WITH_ZONE.test(fetchedAt)) {
+    const time = Date.parse(fetchedAt);
+    if (!Number.isNaN(time)) {
+      // 台灣沒有夏令時間，固定 UTC+8：加 8 小時後用 UTC 的欄位讀，結果就跟機器時區無關
+      const taipei = new Date(time + 8 * 3600_000).toISOString();
+      return `${taipei.slice(0, 10)} ${taipei.slice(11, 16)}`;
+    }
+  }
+  return meta.dataGeneratedAtText ?? "";
+}
+
 /** 出處網站的名字（看網址的主機名）；不認得的寫「網頁」 */
 const SOURCE_SITES: Array<[RegExp, string]> = [
   [/(^|\.)forum\.gamer\.com\.tw$/, "巴哈姆特"],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attackSpeedLabel, elementalNotes, equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
+import { attackSpeedLabel, dataSyncedText, elementalNotes, equipStatLabel, equipStatValue, levelRange, respawnText, sourceLabels } from "@/lib/format";
 import { ELEMENT_KEY, RESIST_CODE } from "../../../pipeline/lib/elemental.mjs";
 
 describe("回生秒數的寫法", () => {
@@ -162,5 +162,75 @@ describe("怪物的屬性抗性", () => {
     expect(keys.length * codes.length).toBeGreaterThan(0);
     const missing = keys.flatMap(key => codes.filter(code => elementalNotes({ [key]: code }).length !== 1).map(code => `${key}:${code}`));
     expect(missing).toEqual([]);
+  });
+});
+
+describe("頁尾的資料更新時間（寫我們實際抓上游資料的時間）", () => {
+  const generated = "2026-10-15 22:04:30 GMT+8";
+
+  it("抓資料時間（UTC）換成台灣時間，寫到分、24 小時制", () => {
+    expect(dataSyncedText({ ingest: { fetchedAt: "2026-10-22T04:08:50.511Z" }, dataGeneratedAtText: generated })).toBe("2026-10-22 12:08");
+  });
+
+  it("上游只改內容、沒改產生時間時，日期跟著抓資料的時間走，不停在上游的產生時間", () => {
+    const text = dataSyncedText({ ingest: { fetchedAt: "2026-10-22T04:08:50.511Z" }, dataGeneratedAtText: generated });
+    expect(text.startsWith("2026-10-22")).toBe(true);
+    expect(text).not.toContain("2026-10-15");
+  });
+
+  it("台灣時間跨午夜時日期要進位：UTC 16:00 起已經是台灣隔天", () => {
+    expect(dataSyncedText({ ingest: { fetchedAt: "2026-10-22T15:59:59Z" }, dataGeneratedAtText: null })).toBe("2026-10-22 23:59");
+    expect(dataSyncedText({ ingest: { fetchedAt: "2026-10-22T16:00:00Z" }, dataGeneratedAtText: null })).toBe("2026-10-23 00:00");
+    expect(dataSyncedText({ ingest: { fetchedAt: "2026-12-31T20:30:00Z" }, dataGeneratedAtText: null })).toBe("2027-01-01 04:30");
+  });
+
+  it("帶時區的寫法（+08:00、-05:00）也換成台灣時間，沒有小數秒也行", () => {
+    expect(dataSyncedText({ ingest: { fetchedAt: "2026-10-22T12:08:50+08:00" }, dataGeneratedAtText: null })).toBe("2026-10-22 12:08");
+    expect(dataSyncedText({ ingest: { fetchedAt: "2026-10-22T00:00:00-05:00" }, dataGeneratedAtText: null })).toBe("2026-10-22 13:00");
+    expect(dataSyncedText({ ingest: { fetchedAt: "2026-10-22T04:08Z" }, dataGeneratedAtText: null })).toBe("2026-10-22 12:08");
+  });
+
+  it("結果只看資料，不看跑這段程式的機器在哪個時區（伺服器算的跟瀏覽器算的要一樣，不然畫面會對不上）", () => {
+    const before = process.env.TZ;
+    try {
+      const results = ["UTC", "America/Los_Angeles", "Asia/Tokyo", "Pacific/Kiritimati"].map(zone => {
+        process.env.TZ = zone;
+        return dataSyncedText({ ingest: { fetchedAt: "2026-10-22T04:08:50.511Z" }, dataGeneratedAtText: generated });
+      });
+      expect(results).toEqual(Array(4).fill("2026-10-22 12:08"));
+    } finally {
+      if (before === undefined) delete process.env.TZ;
+      else process.env.TZ = before;
+    }
+  });
+
+  it("沒有抓資料時間（舊的 meta.json、本機抽檔）退回上游的產生時間，照舊寫", () => {
+    expect(dataSyncedText({ ingest: null, dataGeneratedAtText: generated })).toBe(generated);
+    expect(dataSyncedText({ dataGeneratedAtText: generated })).toBe(generated);
+    expect(dataSyncedText({ ingest: undefined, dataGeneratedAtText: generated })).toBe(generated);
+  });
+
+  it("抓資料時間的格式不對（空字串、不是時間、沒寫時區、月日時分超出範圍）也退回上游的產生時間，不猜", () => {
+    const bad = ["", "昨天", "2026-10-22", "2026-10-22T04:08:50", "2026-10-22 04:08:50Z", "2026-13-01T00:00:00Z", "2026-10-32T00:00:00Z", "2026-10-22T25:00:00Z", "2026-10-22T04:61:00Z", "NaN"];
+    for (const fetchedAt of bad) {
+      expect(dataSyncedText({ ingest: { fetchedAt }, dataGeneratedAtText: generated })).toBe(generated);
+    }
+    expect(dataSyncedText({ ingest: { fetchedAt: 1761106130000 as unknown as string }, dataGeneratedAtText: generated })).toBe(generated);
+    expect(dataSyncedText({ ingest: {} as { fetchedAt: string }, dataGeneratedAtText: generated })).toBe(generated);
+  });
+
+  it("兩個都沒有就回空字串，畫面不寫「資料更新」", () => {
+    expect(dataSyncedText({ ingest: null, dataGeneratedAtText: null })).toBe("");
+    expect(dataSyncedText({})).toBe("");
+    expect(dataSyncedText({ ingest: { fetchedAt: "壞掉" }, dataGeneratedAtText: null })).toBe("");
+    expect(dataSyncedText({ ingest: { fetchedAt: "壞掉" }, dataGeneratedAtText: "" })).toBe("");
+  });
+
+  it("真的 meta.json 讀得出時間（有 ingest.fetchedAt 就是台灣時間 YYYY-MM-DD HH:mm）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const meta = JSON.parse(readFileSync("public/data/meta.json", "utf8"));
+    const text = dataSyncedText(meta);
+    expect(text).not.toBe("");
+    if (meta.ingest?.fetchedAt) expect(text).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/);
   });
 });
