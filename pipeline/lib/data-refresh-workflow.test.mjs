@@ -364,3 +364,16 @@ test("開 PR 那步：雜湊從 env 傳、空的可以（本機抽檔沒有）�
   assert.match(block, /git commit -m "data: 同步遊戲版本 \$\{VERSION\}（\$\{LABEL\}）"/);
   assert.match(block, /gh pr create --title "data: 同步遊戲版本 \$\{VERSION\}（\$\{LABEL\}）"/);
 });
+
+test("notify 也拿得到兩邊的內容雜湊（上游改內容不改時間時，issue 才分得出版本不同）：refresh 多輸出網站更新前的雜湊，兩個都走 env，不寫進 run", () => {
+  // 上游的雜湊就是 refresh 已經輸出給 publish 的 hash；網站更新前的雜湊是「記下更新前的版本」那步的 hash
+  assert.match(REFRESH, /^ {6}hash: \$\{\{ steps\.check\.outputs\.hash \}\}$/m);
+  assert.match(REFRESH, /^ {6}before_hash: \$\{\{ steps\.before\.outputs\.hash \}\}$/m);
+  assert.match(NOTIFY, /^ {10}UPSTREAM_HASH: \$\{\{ needs\.refresh\.outputs\.hash \}\}$/m);
+  assert.match(NOTIFY, /^ {10}SITE_HASH: \$\{\{ needs\.refresh\.outputs\.before_hash \}\}$/m);
+  const notifyRun = runScripts(NOTIFY).join("\n");
+  assert.doesNotMatch(notifyRun, /\$\{\{/);
+  assert.match(notifyRun, /node pipeline\/notify-refresh\.mjs/);
+  // 這兩個值只放在 env 區塊（縮排 10 格）：不會有別的地方（run、with）另外貼 ${{ }}
+  assert.equal((NOTIFY.match(/needs\.refresh\.outputs\.(?:hash|before_hash)/g) ?? []).length, 2);
+});

@@ -24,7 +24,7 @@ name: 資料自動更新
 #
 # 失敗通知（notify job，pipeline/notify-refresh.mjs）：refresh 或 publish 任何一步失敗就開一張 issue
 # （label「資料更新失敗」，指派給 repo 擁有者）。已經有開著的就不另開：同樣的失敗只更新內文「最後一次失敗」那行、
-# 不發通知，失敗的步驟或上游版本變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
+# 不發通知，失敗的步驟或上游版本（產生時間加內容雜湊前 8 碼）變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
 # 要測通知本身，手動觸發勾 dry_run（不開 PR、不合併，寫到「資料更新失敗-測試」）；勾 simulate_failure 會故意失敗一次（也算 dry-run）。
 # 從 main 以外的分支手動觸發一律當 dry-run。
 
@@ -76,8 +76,11 @@ jobs:
       # 給 notify 寫進 issue：網站目前的資料版本、上游版本（取上游那步就失敗時是空的）
       before: ${{ steps.before.outputs.stamp }}
       stamp: ${{ steps.check.outputs.stamp }}
-      # 給 publish：上游資料檔原文的雜湊（本機抽檔沒有就是空的），分支名與標題帶前 8 碼
+      # 上游資料檔原文的雜湊（本機抽檔沒有就是空的）：給 publish 的分支名與標題帶前 8 碼；也給 notify，
+      # 上游只改內容、產生時間沒變時，issue 才寫得出上游版本跟網站版本不同，也分得出兩次不同的內容改動
       hash: ${{ steps.check.outputs.hash }}
+      # 網站更新前的內容雜湊（meta.json 的 dataHash，舊版沒有就是空的）：給 notify 跟上面的 hash 對照
+      before_hash: ${{ steps.before.outputs.hash }}
       # 給 publish：上游版本有變（或勾了 force），有重建、有存 artifact
       changed: ${{ steps.check.outputs.changed }}
     steps:
@@ -312,6 +315,8 @@ jobs:
           REFRESH_RESULT: ${{ needs.refresh.result }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
           UPSTREAM_STAMP: ${{ needs.refresh.outputs.stamp }}
+          UPSTREAM_HASH: ${{ needs.refresh.outputs.hash }}
           SITE_STAMP: ${{ needs.refresh.outputs.before }}
+          SITE_HASH: ${{ needs.refresh.outputs.before_hash }}
           ASSIGNEE: ${{ github.repository_owner }}
         run: node pipeline/notify-refresh.mjs

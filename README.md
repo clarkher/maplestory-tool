@@ -303,9 +303,10 @@ Windows 本機沒有 rsync，圖檔同步（`syncAssets`）跑不了：本機刷
   （`pipeline/lib/assets.mjs`）。上游把 `assets` 或其中一個目錄換成捷徑時「取得 Artale 資料」直接失敗、不開 PR。
   前端要載新的圖檔格式就到 `ASSET_EXTENSIONS` 加（`pipeline/lib/assets.test.mjs` 會檢查前端用到的副檔名都在白名單裡）
 - 任何一步失敗（`refresh` 的取得上游、重建、`verify.mjs`、全套測試、`next build`，`publish` 的下載 artifact、開 PR 合併），
-  接在後面的 `notify` job 會開一張 issue（label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本、
+  接在後面的 `notify` job 會開一張 issue（label `資料更新失敗`、指派給 repo 擁有者），寫哪一步失敗、上游版本、網站目前的資料版本
+  （兩邊都有內容雜湊時寫成「時間（內容 前 8 碼）」：上游只改內容、產生時間沒變，時間會一樣，靠雜湊才看得出版本不同）、
   失敗那個 job 的執行紀錄連結、那一步錯誤訊息的最後 30 行（兩個 job 的結果怎麼併成一個：`pipeline/lib/refresh-issue.mjs` 的 `overallResult`）。
-  已經有開著的就不另開：同樣的失敗（同一步、同一個上游版本）只更新那張內文的「最後一次失敗」那行（時間、卡在哪一步、連續第幾次；
+  已經有開著的就不另開：同樣的失敗（同一步、同一個上游版本，版本含內容雜湊，所以兩次不同的內容改動算不同的版本）只更新那張內文的「最後一次失敗」那行（時間、卡在哪一步、連續第幾次；
   改內文不發通知，壞著沒修也不會每 12 小時吵一次），失敗的步驟或上游版本變了才在那張留言；之後成功一次就自動留言並關掉。
   `refresh` 最多跑 30 分鐘、`publish` 最多 15 分鐘（`timeout-minutes`；平常 `refresh` 連完整重建、存 artifact 1～2 分鐘，`publish` 約 20 秒），卡住被 GitHub 中止也算失敗、一樣開 issue，寫是哪一步被中止
   （中止的結果是 cancelled，notify 看有沒有主要步驟跑到一半來分辨）；一步都沒跑（GitHub 沒派到機器）、或只有收尾步驟被中止不通知，
