@@ -1221,7 +1221,7 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；58 等一場大約 8～9% 經驗、熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
@@ -2060,7 +2060,7 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；58 等一場大約 8～9% 經驗、熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
@@ -2115,7 +2115,8 @@
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=794",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=3954"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12522&sn=3954",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2195"
           ],
           "steps": [
             {
@@ -2140,7 +2141,7 @@
               "skillId": 1211002,
               "skillName": "屬性攻擊",
               "to": 30,
-              "note": "三轉時放一次，劍上的屬性就沒了、要重新附，所以排在後面"
+              "note": "三轉時放一次，劍上的屬性就沒了、要重新附，所以排在後面；台服玩家說寵物會自動重新附屬性，這個缺點小很多"
             },
             {
               "skillId": 1210000,
@@ -3015,7 +3016,7 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；58 等一場大約 8～9% 經驗、熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
@@ -3200,6 +3201,14 @@
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2225",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "10/19～10/20 板上：台服龍騎士多在王冠之地（企鵝王）、紅光庭園 II（紅獨角獅）用龍咆哮清怪，常跟祭司組隊；沒人寫點法跟經驗，下面兩套是舊版排法。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2275",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2285",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2269"
           ]
         }
       ]

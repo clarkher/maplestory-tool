@@ -1420,7 +1420,7 @@
         },
         {
           "levelFrom": 38,
-          "levelTo": 60,
+          "levelTo": 80,
           "kind": "party",
           "mapName": "猴子森林Ⅱ（板上稱「猴森2」）天使猴",
           "mapId": 100040103,
@@ -1436,12 +1436,13 @@
               "lv": 37
             }
           ],
-          "why": "經典版板：42 等弓箭手逛完全島認為只有「猴子森林2」最適合，但每頻都滿；回覆：當前版本最高效的畢業圖只有這一張，經驗與楓幣收益跟其他圖差一個等級，60 頻不夠。50 等弓箭手問去哪：多數回「猴子森林2」。72 等獵人 3 人組隊 爆炸箭一下清六隻，一小時約 428,000 經驗。",
+          "why": "經典版板：42 等弓箭手逛完全島認為只有「猴子森林2」最適合，但每頻都滿；回覆：當前版本最高效的畢業圖只有這一張，經驗與楓幣收益跟其他圖差一個等級，60 頻不夠。50 等弓箭手問去哪：多數回「猴子森林2」。72 等獵人 3 人組隊 爆炸箭一下清六隻，一小時約 428,000 經驗。10/19 板上：雙人分上下層組隊 10 分鐘上層 6.7 萬、下層 5 萬多（等級、加成沒寫）；也有人建議獵人在這待到 80 等，70 等出去三轉完再回來。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=915",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1416",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1309",
-            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html"
+            "https://bobogameguides.com/maplestory-classic/guides/leveling-routes.html",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2279"
           ],
           "verified": "tw"
         },
@@ -1806,7 +1807,8 @@
           "mainstream": true,
           "verified": "legacy",
           "sources": [
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=4500"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=4500",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2291"
           ],
           "steps": [
             {
@@ -1831,13 +1833,13 @@
               "skillId": 3111004,
               "skillName": "箭雨",
               "to": 30,
-              "note": "往天上射箭，打身邊最多 6 隻"
+              "note": "往天上射箭，打身邊最多 6 隻；板上說 70 等先點箭雨比較通用，專打冰雪峽谷的人先點烈火箭（雪吉拉怕火）"
             },
             {
               "skillId": 3110000,
               "skillName": "疾風步",
               "to": 5,
-              "note": "移動速度 +10"
+              "note": "移動速度 +10；板上說移速靠裝備跟寵物就補得到，可以晚點"
             },
             {
               "skillId": 3111003,
@@ -5205,7 +5207,7 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；58 等一場大約 8～9% 經驗、熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
@@ -6168,7 +6170,7 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；58 等一場大約 8～9% 經驗、熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
