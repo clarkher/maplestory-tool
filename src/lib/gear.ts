@@ -4,7 +4,7 @@
  * docs/superpowers/specs/2026-10-06-gear-card-design.md）。這裡不碰畫面，只算數字跟排序。
  */
 import { canJobUse } from "./item-view";
-import { baseJob, previousJob } from "./jobs";
+import { baseJob, jobTier, previousJob, THIRD_JOB_LEVEL } from "./jobs";
 import { rewardFitsJob } from "./now-plan";
 
 /* ------------------------------------------------------------------ 資料型別（對應 public/data/gear.json，兩邊要一致） */
@@ -12,18 +12,18 @@ import { rewardFitsJob } from "./now-plan";
 export type GearSource = {
   /**
    * 哪幾家店賣（items.json 的 sp，只留開放的地圖或有名字的城鎮、不含商城）：p 地點、n NPC、m 地圖、pr 楓幣；
-   * o：店在 10/15 才開的城鎮（冰原雪域、天空之城）。現在就開的排前面、再比便宜，最多 3 家。
+   * o：店在 V002 才放行的城鎮（冰原雪域、天空之城）。現在就開的排前面、再比便宜，最多 3 家。
    */
   shops?: Array<{ p: string; n?: string; m?: number; pr: number; o?: string }>;
   /**
-   * 城鎮 NPC 合成（墮落城市的後街吉姆做狼牙）：n NPC、m 地圖、mats 材料、fee 楓幣、rand 隨機給、o 10/15 才開的城鎮。
+   * 城鎮 NPC 合成（墮落城市的後街吉姆做狼牙）：n NPC、m 地圖、mats 材料、fee 楓幣、rand 隨機給、o V002 才放行的城鎮。
    * 台服經典版很多武器是這樣拿的（狼牙的店都在還沒開的城鎮，2026-10-07 使用者確認墮落城市武器店沒賣）。
    */
   crafts?: Array<{ n: string; m?: number; mats: Array<{ id: number; n: string; c: number }>; fee?: number; rand?: 1; o?: string }>;
   /** 掉落怪：只收出現在已開放地圖的怪，依怪物等級由低到高，最多 8 隻；map 是牠出現的一張已開放地圖（優先不是 V002 的） */
   drops?: Array<{ m: number; n: string; lv: number; map: number; o?: string }>;
   /**
-   * 給這個道具的已開放任務（quests.json 有的、接任務的 NPC 在開放地圖）；o：V002 任務（同 src/lib/v002.ts 的規則）；
+   * 給這個道具的已開放任務（quests.json 有的、接任務的 NPC 在開放地圖）；o：V002 任務（規則見 pipeline/lib/gear.mjs 的 isV002Quest）；
    * minLv：連同前置任務一路上去最高的需求等級；maxLv：等級上限；rand：好幾樣獎勵抽一樣；
    * jobs：任務限定的職業代碼；rj：這個獎勵限定的職業旗標（跟任務獎勵的 job 同一套，見 now-plan rewardFitsJob）
    */
@@ -191,19 +191,35 @@ const STAT_KEYS: StatKey[] = ["STR", "DEX", "INT", "LUK"];
 /** 職業硬規則：能力值最少 4 點 */
 const STAT_FLOOR = 4;
 
-/** 總點數：1 等 25 點、每級 5 點 */
-export function totalStats(level: number): number {
-  return 5 * level + 20;
+/** 三轉完成多給的能力值點數 */
+export const THIRD_JOB_BONUS = 5;
+
+/**
+ * 總點數：1 等 25 點、每級 5 點；三轉職業 70 等起（完成三轉）再多 THIRD_JOB_BONUS 點（70 等 375、80 等 425）。
+ * 出處：台服玩家 10/19、10/21 回報三轉完成多給 5 點（巴哈 snA=732），上游資料 10/21 也補計；使用者 10/22 拍板加。
+ * job 是這個等級實際的職業：選了三轉職業就代表已經轉完（三轉最低 70 等），所以只看 jobTier(job) === 3
+ * 跟等級到了 THIRD_JOB_LEVEL；二轉職業（含還沒轉的 70 等以上）、一轉、初心者、不認得的代碼、沒給 job 都照舊。
+ */
+export function totalStats(level: number, job?: number): number {
+  const bonus = job !== undefined && jobTier(job) === 3 && level >= THIRD_JOB_LEVEL ? THIRD_JOB_BONUS : 0;
+  return 5 * level + 20 + bonus;
 }
 
 /**
  * 這套點法在這個等級的四圍目標。equip 類型的副屬看 equipReq（見 equipRequirement）；
  * 沒給 equipReq、或那個屬性沒資料時退回 floor。
+ * job 是這個等級實際的職業（見 totalStats）：三轉職業 70 等起總點數多 5，多出來的點數照規則分配
+ * （等級加減、固定值、裝備需求的副屬不動，多的 5 點全進主屬性；ratio 的池子跟著變大）。沒給 job 就是二轉以下的總點數。
  * 副屬算出來若超過「總點數－12」會夾住（留給主屬性跟其餘兩項各自最低 4 點）；
  * 所有算出來的數字最低都是 4。
  */
-export function statTargets(rule: StatRule, level: number, equipReq?: Partial<Record<StatKey, number>>): Record<StatKey, number> {
-  const total = totalStats(level);
+export function statTargets(
+  rule: StatRule,
+  level: number,
+  equipReq?: Partial<Record<StatKey, number>>,
+  job?: number,
+): Record<StatKey, number> {
+  const total = totalStats(level, job);
   const result: Record<StatKey, number> = { STR: STAT_FLOOR, DEX: STAT_FLOOR, INT: STAT_FLOOR, LUK: STAT_FLOOR };
   const sec = rule.secondary;
 
@@ -247,13 +263,12 @@ export function statTargets(rule: StatRule, level: number, equipReq?: Partial<Re
 /**
  * 空身能力值加上要湊的裝備：等級到了、要求的能力值（空身＋已經穿上的）夠了才算穿上，
  * 一直套到沒有新的能穿為止——破舊的披風 +5 讓敏捷到 30，才戴得上要敏捷 30 的綠色斗笠，跟研究檔寫的順序無關。
- * worn 照研究檔順序；later 是還穿不上的（等級不夠、需求不夠、10/15 前只有 V002 拿得到）。
+ * worn 照研究檔順序；later 是還穿不上的（等級不夠、需求不夠）。
  */
 export function kitStats(
   kit: GearKit[],
   level: number,
   base: Record<StatKey, number>,
-  beforeOpen = false,
 ): { stats: Record<StatKey, number>; worn: GearKit[]; later: GearKit[] } {
   const stats = { ...base };
   const wornSet = new Set<GearKit>();
@@ -261,7 +276,7 @@ export function kitStats(
   while (changed) {
     changed = false;
     for (const piece of kit) {
-      if (wornSet.has(piece) || piece.lv > level || (beforeOpen && piece.o)) continue;
+      if (wornSet.has(piece) || piece.lv > level) continue;
       if (!STAT_KEYS.every(key => (piece.req?.[key] ?? 0) <= stats[key])) continue;
       stats[piece.stat] += piece.v;
       wornSet.add(piece);
@@ -280,16 +295,16 @@ function effectGain(effect: string, stat: StatKey): number {
  * 運氣好的上限：要湊的裝備裡有寫卷軸的那幾件，改衝同部位同屬性、這個成功率（60%）的那張，全部成功時各加多少。
  * 道具本身的點數＝原本的 v － 衝卷次數 × 100% 那張加的點數；新的 v＝道具本身＋次數 × 這張加的點數
  * （桑那服 10 次：100% 每張 +1 是 10，60% 每張 +2 就是 20）。卷軸效果照遊戲資料，不寫死。
- * 這個成功率沒有卷、或 10/15 前只有 V002 拿得到的那件照原本；一件都換不到回 null。沒換的件回傳同一個物件。
+ * 這個成功率沒有卷的那件照原本；一件都換不到回 null。沒換的件回傳同一個物件。
  */
-export function luckyKit(kit: GearKit[], scrolls: GearScroll[], job: number, rate: number, beforeOpen = false): GearKit[] | null {
+export function luckyKit(kit: GearKit[], scrolls: GearScroll[], job: number, rate: number): GearKit[] | null {
   let changed = false;
   const result = kit.map(piece => {
     const used = piece.scroll;
     if (!used) return piece;
     const family = scrollFamily(scrolls, job, used.slot, used.stat);
     const from = family?.options.find(option => option.rate === used.rate);
-    const to = family?.options.find(option => option.rate === rate && !(beforeOpen && option.o));
+    const to = family?.options.find(option => option.rate === rate);
     const perFrom = from ? effectGain(from.effect, piece.stat) : 0;
     const perTo = to ? effectGain(to.effect, piece.stat) : 0;
     if (!to || !perFrom || !perTo) return piece;
@@ -305,11 +320,11 @@ const ARMOR_SLOTS = ["帽子", "套服", "上衣", "褲裙", "鞋子", "手套",
 /**
  * 每個部位現在拿得到、穿得上（照 wear）、等級最高的那件法師防具：帽子、身上、鞋子、手套、盾牌各一件。
  * 身上：上衣跟褲裙都有、而且兩件都比套服高等才列兩件，不然列套服（沒有套服才只列有的那件）。
- * 同等級取陣列裡第一件（pipeline 已照加智力、防禦、拿法多寡排好）。10/15 前不收只有 V002 拿得到的。
+ * 同等級取陣列裡第一件（pipeline 已照加智力、防禦、拿法多寡排好）。
  */
-export function armorPicks(armor: GearArmor[], job: number, level: number, wear: Record<StatKey, number>, beforeOpen = false): GearArmor[] {
+export function armorPicks(armor: GearArmor[], job: number, level: number, wear: Record<StatKey, number>): GearArmor[] {
   const usable = armor.filter(
-    piece => canJobUse(piece.job, job) === true && piece.lv <= level && !(beforeOpen && piece.o) && obtainableBy(piece.src, job, level) && canWear(piece, wear),
+    piece => canJobUse(piece.job, job) === true && piece.lv <= level && obtainableBy(piece.src, job, level) && canWear(piece, wear),
   );
   const top = (slot: string): GearArmor | null => {
     const inSlot = usable.filter(piece => piece.slot === slot);
@@ -446,22 +461,20 @@ function rankNext(a: GearWeapon, b: GearWeapon, magic: boolean): number {
  * stronger＝不管穿不穿得上、攻擊／魔力比 best 還高的那把（沒有就 null）——
  * 用來顯示「想用更強的，幸運還差 N」，而不是直接把穿不上的武器當 best 推薦出去
  * （火毒巫師全智點法：護法之杖魔攻更高但要幸運 43，穿不上，不該是 best）；
- * next＝需求等級比現在高、攻擊／魔力比 best 高的第一把，依「最近能換的」排序、同分優先選非 V002 的——
- * 10/15 前 next 仍可能是只有 V002 來源的武器（nothing else），畫面自己標「10/15 開放」，
- * 這裡不因為 beforeOpen 就直接濾掉（跟 best／alternatives／stronger 不同）。
+ * next＝需求等級比現在高、攻擊／魔力比 best 高的第一把，依「最近能換的」排序、同分優先選非 V002 的。
  */
 export function weaponPicks(
   weapons: GearWeapon[],
   job: number,
   level: number,
-  opts: { targetsAt?: (level: number) => Record<StatKey, number>; beforeOpen?: boolean; types?: string[] } = {},
+  opts: { targetsAt?: (level: number) => Record<StatKey, number>; types?: string[] } = {},
 ): { best: GearWeapon | null; alternatives: GearWeapon[]; next: GearWeapon | null; stronger: GearWeapon | null } {
   const magic = isMagicJob(job);
-  const { targetsAt, beforeOpen, types } = opts;
+  const { targetsAt, types } = opts;
   const pool = candidatePool(weapons, job, magic, types);
 
-  // 現在拿得到：等級夠、10/15 前不收只有 V002 才拿得到的、只靠任務拿的要現在還接得了（沒過等級上限）
-  const eligibleNow = pool.filter(w => w.lv <= level && (!beforeOpen || !w.o) && obtainableBy(w.src, job, level));
+  // 現在拿得到：等級夠、只靠任務拿的要現在還接得了（沒過等級上限）
+  const eligibleNow = pool.filter(w => w.lv <= level && obtainableBy(w.src, job, level));
   const wearableNow = targetsAt ? eligibleNow.filter(w => canWear(w, targetsAt(level))) : eligibleNow;
 
   const rankedWearable = [...wearableNow].sort((a, b) => rankWeapon(a, b, magic));
@@ -513,14 +526,14 @@ export function nearestUpgrade(
   level: number,
   wear: Record<StatKey, number>,
   best: GearWeapon | null,
-  opts: { beforeOpen?: boolean; types?: string[] } = {},
+  opts: { types?: string[] } = {},
 ): GearWeapon | null {
   const magic = isMagicJob(job);
   const bestOffense = best ? offenseStat(best, magic) : -Infinity;
   const missing = (w: GearWeapon) => statShortfall(w, wear).reduce((sum, entry) => sum + entry.short, 0);
   return (
     candidatePool(weapons, job, magic, opts.types)
-      .filter(w => w.lv <= level && (!opts.beforeOpen || !w.o) && obtainableBy(w.src, job, level))
+      .filter(w => w.lv <= level && obtainableBy(w.src, job, level))
       .filter(w => offenseStat(w, magic) > bestOffense && !canWear(w, wear))
       // 差的點數一樣、攻擊也一樣時，照 weaponPicks 的排法（攻速、等級、非 V002、拿法多）決定，不看資料裡的順序
       .sort((a, b) => missing(a) - missing(b) || offenseStat(b, magic) - offenseStat(a, magic) || rankWeapon(a, b, magic))[0] ?? null
@@ -541,7 +554,6 @@ export function equipRequirement(
   job: number,
   level: number,
   rule: StatRule,
-  beforeOpen = false,
 ): Partial<Record<StatKey, number>> {
   const secondaryStat = rule.secondary?.stat;
   const otherKeys = STAT_KEYS.filter(key => key !== rule.main && key !== secondaryStat);
@@ -549,8 +561,7 @@ export function equipRequirement(
 
   const result: Partial<Record<StatKey, number>> = {};
   for (let l = 1; l <= level; l++) {
-    // beforeOpen 跟 weaponPicks 一樣：10/15 前只看現在拿得到的武器，能力值目標才對得上畫面推薦的那把
-    const req = weaponPicks(candidates, job, l, { beforeOpen, types: rule.weapons }).best?.req;
+    const req = weaponPicks(candidates, job, l, { types: rule.weapons }).best?.req;
     if (!req) continue;
     for (const key of STAT_KEYS) {
       const value = req[key];

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import { itemImage, loadGuide, monsterImage } from "@/lib/data";
-import { formatNumber } from "@/lib/format";
+import { dataSyncedText, formatNumber } from "@/lib/format";
 import {
   cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, settleGuides, type GuideState, type HomeData,
 } from "@/lib/home-data";
@@ -13,7 +13,6 @@ import { isSecondJob, isThirdJob, jobOption, jobTier, normalizeJob, previousJob,
 import { effectiveLevels, goChecker, longRunNow, mainPick, nowQuests, pqJustClosed } from "@/lib/now-plan";
 import { useProfile } from "@/lib/profile";
 import { sessionMemo } from "@/lib/session-memo";
-import { useBeforeV002 } from "@/lib/release";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
 import { goddessNoteFor } from "@/lib/v002-notes";
@@ -37,7 +36,6 @@ export type GuideStatus = GuideState["status"];
 const SAVED_PROFILE_HINT = `try{var p=JSON.parse(localStorage.getItem("ms-profile")||"null");if(p&&p.level>0&&p.job>=0)document.documentElement.dataset.profile="saved"}catch(e){}`;
 
 export function RouteHome() {
-  const showV002Banner = useBeforeV002();
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
@@ -166,13 +164,6 @@ export function RouteHome() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
-      {/* V002 內容現在就上線，但要等官方 2026/10/15 開機才能玩；10/15 一到自動不再標，不用重新部署 */}
-      {showV002Banner ? (
-        <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px] leading-relaxed">
-          已經照 10/15 改版排好：三轉、Lv.120、天空之城／冰原雪域／廢礦區，要 2026/10/15 開機後才能去。
-        </p>
-      ) : null}
-
       {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
           存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
       {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}
@@ -274,7 +265,7 @@ export function RouteHome() {
           </section>
 
           <p className="px-1 pt-2 text-[12px] leading-relaxed ink-faint">
-            遊戲資料：版本 {data.meta.gameVersion ?? "—"}（{data.meta.dataGeneratedAtText?.slice(0, 10) ?? "—"}）；
+            遊戲資料：版本 {data.meta.gameVersion ?? "—"}（{dataSyncedText(data.meta).slice(0, 10) || "—"}）；
             點法、練功點與必解任務整理自巴哈姆特、波波攻略島、楓錄等玩家攻略（{data.common.researchedAt}{data.common.updatedAt ? `，${data.common.updatedAt} 依改版更新` : ""}），玩家攻略每一條都附出處；標「遊戲資料」的是照遊戲資料推算。
             想看全部地圖或任務，去
             <Link href="/db" className="mx-1 font-bold text-[color:var(--sky)]">查資料</Link>。

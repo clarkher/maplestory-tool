@@ -1,36 +1,43 @@
 {
   "gameVersion": "2.0.0",
   "dataGeneratedAt": "2026-10-15T22:04:30+08:00",
+  "dataHash": "315ff734b2377717b4afdc59239a9e4e392bbb88f2892f3ffd6678afc59db2c5",
   "dataGeneratedAtText": "2026-10-15 22:04:30 GMT+8",
   "ingest": {
     "origin": "upstream",
-    "ref": "local-sparse",
-    "fetchedAt": "2026-10-16T00:56:05.889Z"
+    "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
+    "fetchedAt": "2026-10-22T04:08:50.511Z"
   },
   "parts": {
     "data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T22:04:30+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00",
+      "sha256": "6e6471ffa80b1aa47340ce8f30d41eff6f15ac46afb32e077e9707181b7aa1fa"
     },
     "items-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T22:04:30+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00",
+      "sha256": "fe233fa94b994b46d2986eb384e28207a2f3577eb7bec6f93f826ffb39cdb210"
     },
     "quests-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T22:04:30+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00",
+      "sha256": "e6eab9e2359eb22888cbc27f96cb9a4686ed3cbdccff744b2b03b22fe4971d0d"
     },
     "skills-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T22:04:30+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00",
+      "sha256": "560f24920b0d4d5d29422e93797c42dc5bb35b4a4c8afbc9323a52b50e82a17d"
     },
     "maps-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T22:04:30+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00",
+      "sha256": "779b89cbcb1610d287fb754ec5a489e6399703cb7c465d271fa5d07f7d233539"
     },
     "worldmaps-data.js": {
       "gameVersion": "2.0.0",
-      "generatedAt": "2026-10-15T22:04:30+08:00"
+      "generatedAt": "2026-10-15T22:04:30+08:00",
+      "sha256": "3573b5bf61209a190bbfb3e916bec30ce60dccab53274841076d95b74c48cf31"
     }
   },
   "mapSource": {
@@ -77,7 +84,7 @@
     "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
   },
   "counts": {
-    "monsters": 115,
+    "monsters": 116,
     "items": 14082,
     "quests": 526,
     "skills": 238,
@@ -88,12 +95,12 @@
     "regions": 40,
     "walkableAreas": 4046,
     "trainingMaps": 273,
-    "farmableItems": 1391
+    "farmableItems": 1392
   },
   "coverage": {
     "monstersWithSpawnData": 104,
-    "monstersWithoutSpawnData": 11,
+    "monstersWithoutSpawnData": 12,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-16T08:46:37.195Z"
+  "builtAt": "2026-10-22T04:10:56.882Z"
 }

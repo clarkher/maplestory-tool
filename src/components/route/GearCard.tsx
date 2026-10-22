@@ -18,7 +18,6 @@ import {
   inheritNote,
   offenseText,
   shortText,
-  sourceOpensLater,
   sourceText,
   weaponStatParts,
   type GearFamily,
@@ -27,10 +26,9 @@ import {
   type SourcePick,
 } from "@/lib/gear-view";
 import { jobOption } from "@/lib/jobs";
-import { useBeforeV002 } from "@/lib/release";
 import type { MapRecord, Verified } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
-import { Chip, SourceLinks, SourceTag, Sprite } from "./bits";
+import { SourceLinks, SourceTag, Sprite } from "./bits";
 
 /** 收合時衝卷列幾組（武器卷＋手套攻擊卷，法師是兩種智力卷），其餘按「看全部」；三組時卡片收合也要 800px 高，太長 */
 const FIRST_FAMILIES = 2;
@@ -39,8 +37,6 @@ type Where = {
   maps: Record<string, MapRecord>;
   /** 傳送門資料走得到的地圖（跟主推卡、先解同一份），有才給「帶我去」 */
   routable: Set<number>;
-  /** 10/15 前（useBeforeV002）：只有 V002 才拿得到的標「10/15 開放」 */
-  beforeOpen: boolean;
 };
 
 /**
@@ -51,7 +47,6 @@ export function GearCard({ job, level, maps, routable }: { job: number; level: n
   // 這次瀏覽載過就直接拿：換頁回首頁不先畫骨架
   const [gear, setGear] = useState<GearData | null>(peekGear);
   const [failed, setFailed] = useState(false);
-  const beforeOpen = useBeforeV002();
 
   useEffect(() => {
     let cancelled = false;
@@ -74,7 +69,7 @@ export function GearCard({ job, level, maps, routable }: { job: number; level: n
   if (!gear) return <GearCardSkeleton title={title} />;
   if (job <= 0) return <BeginnerCard gear={gear} title={title} />;
   // 換職業或等級時重新掛載，「看全部」的展開狀態不帶到別的角色（跟先解同一招）
-  return <GearContent key={`${job}:${level}`} gear={gear} job={job} level={level} title={title} where={{ maps, routable, beforeOpen }} />;
+  return <GearContent key={`${job}:${level}`} gear={gear} job={job} level={level} title={title} where={{ maps, routable }} />;
 }
 
 function Frame({ title, busy, children }: { title: string; busy?: boolean; children: ReactNode }) {
@@ -134,7 +129,7 @@ function GuideSources({ urls, verified }: { urls: string[]; verified: Verified }
 function GearContent({ gear, job, level, title, where }: { gear: GearData; job: number; level: number; title: string; where: Where }) {
   // 卡片上方選的第二套點法（全幸、裝備法）：記在系別上，換等級、換轉職都還是那套
   const [chosen, setChosen] = useBuildChoice(job);
-  const plan = useMemo(() => gearPlan(gear, job, level, where.beforeOpen, chosen), [gear, job, level, where.beforeOpen, chosen]);
+  const plan = useMemo(() => gearPlan(gear, job, level, chosen), [gear, job, level, chosen]);
   // 「看全部」記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時首頁一樣長，才捲得回同一段；換職業、等級不帶過去
   const [open, setOpen] = useVisitState(`home:gear:${job}:${level}`, false);
   const families = open ? plan.families : plan.families.slice(0, FIRST_FAMILIES);
@@ -289,10 +284,9 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
                   {best.n}
                   <ChevronRight size={14} className="ml-0.5 inline-block align-[-2px] ink-faint" />
                 </Link>
-                <OpenChip later={best.o ?? (plan.bestSource ? sourceOpensLater(plan.bestSource) : undefined)} where={where} />
               </p>
               <Chunks parts={weaponStatParts(best, magic)} className="block text-[12px] tabular-nums ink-soft" />
-              <SourceLine pick={plan.bestSource} where={where} chip={false} />
+              <SourceLine pick={plan.bestSource} where={where} />
             </div>
           </div>
           {plan.bestShort.length ? (
@@ -330,7 +324,6 @@ function WeaponBlock({ plan, where }: { plan: GearPlan; where: Where }) {
             <WeaponLine weapon={next}>
               <span className="whitespace-nowrap">Lv.{next.lv}</span> 可以換 <NameLink weapon={next} />
               <span className="whitespace-nowrap">（{offenseText(next, magic)}）</span>
-              <OpenChip later={next.o} where={where} spaced />
             </WeaponLine>
           ) : null}
           {plan.compare ? (
@@ -448,7 +441,6 @@ function ArmorBlock({ plan, where }: { plan: GearPlan; where: Where }) {
             <div className="min-w-0 flex-1">
               <p className="flex flex-wrap items-baseline gap-x-1.5 text-[14px] font-bold leading-snug">
                 <Link href={`/db/items?id=${piece.id}`}>{piece.n}</Link>
-                <OpenChip later={piece.o ?? (source ? sourceOpensLater(source) : undefined)} where={where} />
               </p>
               <Chunks
                 parts={[
@@ -458,7 +450,7 @@ function ArmorBlock({ plan, where }: { plan: GearPlan; where: Where }) {
                 ]}
                 className="block text-[12px] tabular-nums ink-soft"
               />
-              <SourceLine pick={source} where={where} chip={false} />
+              <SourceLine pick={source} where={where} />
             </div>
           </li>
         ))}
@@ -516,20 +508,11 @@ function Chunks({ parts, separator = "・", className = "" }: { parts: string[];
   );
 }
 
-function OpenChip({ later, where, spaced = false }: { later: string | undefined; where: Where; spaced?: boolean }) {
-  if (!later || !where.beforeOpen) return null;
-  return (
-    <span className={`inline-block align-middle ${spaced ? "ml-1.5" : ""}`}>
-      <Chip tone="gold">10/15 開放</Chip>
-    </span>
-  );
-}
-
 /**
  * 怎麼拿：商店／哪隻怪會掉（走得到就給「帶我去」）／哪個任務給。
  * quiet：要湊的裝備還沒到等級的那幾列——「帶我去」跟合成材料改深咖啡色，淺色主題對比也在 4.5:1 以上（楓葉橘在米色底只有 3.3）
  */
-function SourceLine({ pick, where, chip = true, quiet = false }: { pick: SourcePick | null; where: Where; chip?: boolean; quiet?: boolean }) {
+function SourceLine({ pick, where, quiet = false }: { pick: SourcePick | null; where: Where; quiet?: boolean }) {
   if (!pick) return null;
   // 掉落的怪在哪張圖、店開在哪張圖：走得到就給「帶我去」
   const target = pick.kind === "drop" ? pick.drop.map : pick.kind === "shop" ? pick.shop.m : pick.kind === "craft" ? pick.craft.m : undefined;
@@ -559,7 +542,6 @@ function SourceLine({ pick, where, chip = true, quiet = false }: { pick: SourceP
         ) : (
           <span className="break-keep wrap-anywhere">{sourceText(pick, label)}</span>
         )}
-        {chip ? <OpenChip later={sourceOpensLater(pick)} where={where} spaced /> : null}
       </span>
       {go !== null ? (
         <Link
@@ -594,14 +576,11 @@ function FamilyItem({ family, where }: { family: GearFamily; where: Where }) {
               <span className="w-9 shrink-0 font-black tabular-nums text-[color:var(--maple)]">{option.rate}%</span>
               <span className="min-w-0">
                 <Chunks parts={effectParts(option.effect)} separator="、" />
-                {/* 這張只有 V002 才拿得到（披風力量卷軸100%）：10/15 前標出來，免得玩家去找 */}
-                <OpenChip later={option.o} where={where} spaced />
               </span>
             </p>
             {option === pick && source ? (
               <div className="pl-[42px]">
-                {/* 這張本身已經標了 10/15 開放（整組都只有 V002 拿得到）就不在來源再標一次 */}
-                <SourceLine pick={source} where={where} chip={!pick.o} />
+                <SourceLine pick={source} where={where} />
               </div>
             ) : null}
           </li>
@@ -649,10 +628,9 @@ function MoreBlocks({ plan, where }: { plan: GearPlan; where: Where }) {
                     <Link href={`/db/items?id=${weapon.id}`} className="text-[14px] font-bold leading-snug">
                       {weapon.n}
                     </Link>
-                    <OpenChip later={weapon.o ?? (source ? sourceOpensLater(source) : undefined)} where={where} />
                   </p>
                   <Chunks parts={weaponStatParts(weapon, magic)} className="block text-[12px] tabular-nums ink-soft" />
-                  <SourceLine pick={source} where={where} chip={false} />
+                  <SourceLine pick={source} where={where} />
                 </div>
               </li>
             ))}

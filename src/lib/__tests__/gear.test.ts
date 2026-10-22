@@ -40,6 +40,30 @@ describe("totalStats", () => {
     expect(totalStats(10)).toBe(70);
     expect(totalStats(35)).toBe(195);
   });
+
+  // 台服玩家 10/19、10/21 回報三轉完成多給 5 點，上游 10/21 補計（巴哈 snA=732）；使用者拍板加（10/22 第 11 項 A）
+  it("三轉職業 70 等起多 5 點：70 等 375、80 等 425", () => {
+    expect(totalStats(70, 411)).toBe(375);
+    expect(totalStats(70, 231)).toBe(375);
+    expect(totalStats(80, 411)).toBe(425);
+    expect(totalStats(120, 521)).toBe(625);
+  });
+
+  it("二轉職業 70 等以上還是 5 倍加 20（沒有三轉就沒有那 5 點）", () => {
+    expect(totalStats(70, 410)).toBe(370);
+    expect(totalStats(80, 410)).toBe(420);
+    expect(totalStats(70, 110)).toBe(370);
+  });
+
+  it("三轉職業但等級低於 70（不會有這種存檔，防呆）、一轉、初心者、不認得的代碼都不變", () => {
+    expect(totalStats(69, 411)).toBe(365);
+    expect(totalStats(50, 411)).toBe(270);
+    expect(totalStats(70, 400)).toBe(370);
+    expect(totalStats(70, 0)).toBe(370);
+    expect(totalStats(70, -1)).toBe(370);
+    expect(totalStats(70, 1110)).toBe(370);
+    expect(totalStats(70)).toBe(370);
+  });
 });
 
 describe("weaponTypesFor", () => {
@@ -166,6 +190,22 @@ describe("statTargets", () => {
     expect(statTargets(r, 30)).toMatchObject({ STR: 34, DEX: 128 });
   });
 
+  it("三轉完成多 5 點：全智三轉 70 等智力 363（二轉 70 等 358），ratio 的池子跟著多", () => {
+    const allInt = rule({ jobs: [230, 231], label: "全智", main: "INT", secondary: null });
+    expect(statTargets(allInt, 70, undefined, 231).INT).toBe(363);
+    expect(statTargets(allInt, 70, undefined, 230).INT).toBe(358);
+    expect(statTargets(allInt, 70).INT).toBe(358);
+    expect(statTargets(allInt, 69, undefined, 231).INT).toBe(353);
+    // 副屬是等級加減的，不吃總點數：多出來的 5 點全進主屬性
+    const hunter = rule({ jobs: [310, 311], label: "獵人", main: "DEX", secondary: { stat: "STR", type: "level", offset: 5 } });
+    expect(statTargets(hunter, 70, undefined, 311)).toMatchObject({ STR: 75, DEX: 292 });
+    expect(statTargets(hunter, 70, undefined, 310)).toMatchObject({ STR: 75, DEX: 287 });
+    // ratio 4:1：池子＝總點數－16，多 5 點讓副屬多 1 點（floor）
+    const ratio = rule({ jobs: [510, 511], label: "打手", main: "DEX", secondary: { stat: "STR", type: "ratio", ratio: [4, 1] } });
+    expect(statTargets(ratio, 70, undefined, 510).STR).toBe(4 + Math.floor((370 - 16) / 5));
+    expect(statTargets(ratio, 70, undefined, 511).STR).toBe(4 + Math.floor((375 - 16) / 5));
+  });
+
   it("副屬算出來超過「總點數－12」要夾住，主屬性不會變負的", () => {
     const r = rule({ jobs: [999], label: "極端測試", main: "DEX", secondary: { stat: "STR", type: "fixed", value: 9999 } });
     const total = totalStats(10);
@@ -200,12 +240,10 @@ describe("equipRequirement", () => {
     expect(equipRequirement(weapons, 420, 55, r)).toEqual({ DEX: 40 });
   });
 
-  it("beforeOpen：10/15 前只算現在拿得到的武器，不讓只有 V002 掉的武器把敏捷目標拉高", () => {
+  it("只有 V002 掉的拳套也算進敏捷目標（開放後都拿得到）", () => {
     const v002Claw = weapon({ id: 1, n: "只有 V002 掉的拳套", s: "拳套", lv: 40, atk: 24, job: 8, req: { DEX: 90 }, o: "2026-10-15" });
     const openClaw = weapon({ id: 2, n: "現在拿得到的拳套", s: "拳套", lv: 40, atk: 22, job: 8, req: { DEX: 80 } });
-    const weapons: GearWeapon[] = [v002Claw, openClaw];
-    expect(equipRequirement(weapons, 410, 40, dexEquipRule, true)).toEqual({ DEX: 80 });
-    expect(equipRequirement(weapons, 410, 40, dexEquipRule)).toEqual({ DEX: 90 });
+    expect(equipRequirement([v002Claw, openClaw], 410, 40, dexEquipRule)).toEqual({ DEX: 90 });
   });
 });
 
@@ -286,19 +324,6 @@ describe("weaponPicks", () => {
     const result = weaponPicks(weapons, 420, 50, { targetsAt });
     expect(result.best?.id).toBe(2);
     expect(result.stronger?.id).toBe(1);
-  });
-
-  it("beforeOpen：best／stronger 都不會選到只有 V002 來源的武器", () => {
-    const v002Dagger = weapon({ id: 1, n: "V002短刀", s: "短刀", lv: 10, atk: 100, job: 8, o: "2026-10-15" });
-    const openDagger = weapon({ id: 2, n: "現在短刀", s: "短刀", lv: 10, atk: 50, job: 8 });
-    const weapons: GearWeapon[] = [v002Dagger, openDagger];
-
-    const withoutFilter = weaponPicks(weapons, 420, 10);
-    expect(withoutFilter.best?.id).toBe(1);
-
-    const result = weaponPicks(weapons, 420, 10, { beforeOpen: true });
-    expect(result.best?.id).toBe(2);
-    expect(result.stronger).toBeNull();
   });
 
   it("下一把同分時優先選沒有 o 的", () => {
@@ -600,10 +625,9 @@ describe("kitStats：空身加上要湊的裝備", () => {
     expect(result.later.map(k => k.n)).toEqual(["桑那服"]);
   });
 
-  it("10/15 前不算只有 V002 才拿得到的", () => {
-    const later = piece({ n: "V002 帽", lv: 10, v: 9, o: "2026-10-15" });
-    expect(kitStats([later], 30, base, true).stats.DEX).toBe(25);
-    expect(kitStats([later], 30, base, false).stats.DEX).toBe(34);
+  it("只有 V002 才拿得到的也照算（開放後都拿得到）", () => {
+    const v002Hat = piece({ n: "V002 帽", lv: 10, v: 9, o: "2026-10-15" });
+    expect(kitStats([v002Hat], 30, base).stats.DEX).toBe(34);
   });
 
   it("不改到傳進來的 base", () => {
@@ -679,18 +703,17 @@ describe("armorPicks：每個部位穿得上、拿得到、等級最高的那件
   ];
   const wear35 = { STR: 4, DEX: 4, INT: 200, LUK: 38 };
 
-  it("裝備法 35 等（幸運 38）：帽子取 35 等的第一件（同等級照資料順序）、40 等的不算；上衣褲裙都比套服高等就換成兩件；鞋子 10/15 前不推只有 V002 的", () => {
-    expect(armorPicks(list, 210, 35, wear35, true).map(a => a.n)).toEqual(["帽35甲", "上衣35", "褲裙35", "鞋20", "手套10"]);
-    expect(armorPicks(list, 210, 35, wear35, false).map(a => a.n)).toEqual(["帽35甲", "上衣35", "褲裙35", "鞋35", "手套10"]);
+  it("裝備法 35 等（幸運 38）：帽子取 35 等的第一件（同等級照資料順序）、40 等的不算；上衣褲裙都比套服高等就換成兩件；只有 V002 的鞋子也推（開放後都拿得到）", () => {
+    expect(armorPicks(list, 210, 35, wear35).map(a => a.n)).toEqual(["帽35甲", "上衣35", "褲裙35", "鞋35", "手套10"]);
   });
 
   it("穿不上的（幸運不夠）不算：全智幸運 4 一件都沒有", () => {
-    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 4 }, true)).toEqual([]);
-    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 33 }, true).map(a => a.n)).toEqual(["帽30", "套服30", "鞋20", "手套10"]);
+    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 4 })).toEqual([]);
+    expect(armorPicks(list, 210, 35, { ...wear35, LUK: 33 }).map(a => a.n)).toEqual(["帽30", "套服30", "鞋20", "手套10"]);
   });
 
   it("別的職業用不了（法師防具給刺客）回空陣列", () => {
-    expect(armorPicks(list, 410, 35, { STR: 4, DEX: 999, INT: 999, LUK: 999 }, true)).toEqual([]);
+    expect(armorPicks(list, 410, 35, { STR: 4, DEX: 999, INT: 999, LUK: 999 })).toEqual([]);
   });
 });
 
@@ -720,10 +743,8 @@ describe("luckyKit：有卷的那幾件改衝別的成功率、全部成功時�
     expect(luckyKit([own], scrolls, 410, 60)![0].v).toBe(11);
   });
 
-  it("那個成功率沒有卷（披風沒有 10%）就照原本；10/15 前只有 V002 拿得到的那張不算；一件都換不到回 null", () => {
+  it("那個成功率沒有卷（披風沒有 10%）就照原本；一件都換不到回 null", () => {
     expect(luckyKit([robe, cape], scrolls, 410, 10)!.map(p => p.v)).toEqual([50, 5]);
-    const later = scrolls.map(s => (s.rate === 60 ? { ...s, o: "2026-10-15" } : s));
-    expect(luckyKit([robe, cape], later, 410, 60, true)).toBeNull();
     expect(luckyKit([hat], scrolls, 410, 60)).toBeNull();
   });
 });

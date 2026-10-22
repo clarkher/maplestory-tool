@@ -180,7 +180,7 @@ describe("真資料：首頁每個組合", () => {
     for (let level = 1; level < levelCap; level += 1) expect(toNext[level], `Lv.${level}`).toBeGreaterThan(0);
   });
 
-  it("V002 才放行的地圖有開放日（o 欄位是 2026-10-15），楓之島、維多利亞島的地圖沒有（Task 15：直接讀 maps.json，不呼叫 src/lib/release.ts）", () => {
+  it("V002 才放行的地圖有開放日（o 欄位是 2026-10-15），楓之島、維多利亞島的地圖沒有", () => {
     // 跟 pipeline/verify.mjs 的 REGION_SENTINELS 同一組代表地圖：冰原雪域、廢礦已開放的代表圖，
     // 加上官方地名補缺的兩座城鎮本身（天空之城、冰原雪域——客戶端一直沒給名字，region 查不到，id 是直接認的）
     // 殘暴炎魔祭壇 280030000 2026-10-16 起擋著（官方只開廢礦前半部），代表圖跟 verify 一起換成尖銳的絕壁Ⅰ

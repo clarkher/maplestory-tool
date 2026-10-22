@@ -82,7 +82,7 @@ async function navigate(url) {
   page.listeners.delete(listener);
   if (!ok) throw new Error(`載入逾時：${url}`);
 }
-/** 瀏覽器時鐘調到指定時間（整頁載入時從那個時間開始走）；計時器照真實時間跑（同 first-frame.mjs 的 clockAt） */
+/** 瀏覽器時鐘調到指定時間（整頁載入時從那個時間開始走）；計時器照真實時間跑 */
 const clockAt = target => `(() => {
   const RealDate = Date;
   const offset = ${target} - RealDate.now();
@@ -180,7 +180,7 @@ try {
 } finally {
   fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
   console.log(`輸出：${OUT}`);
-  // 同 first-frame.mjs：Chrome 有時不回應 Browser.close 就斷線，最多等 2 秒；再 taskkill 確定關掉、埠放出來，
+  // Chrome 有時不回應 Browser.close 就斷線，最多等 2 秒；再 taskkill 確定關掉、埠放出來，
   // 不然馬上再跑一次（同一個埠）新的 Chrome 會開不起 DevTools
   try { await Promise.race([browser.send("Browser.close"), sleep(2000)]); } catch {}
   await sleep(800);

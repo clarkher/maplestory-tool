@@ -24,7 +24,7 @@ export type DbEntry = {
   image?: string;
   /** 搜尋時額外比對的字串 */
   keywords?: string;
-  /** 名字後面的小標籤，例如「10/15 開放」的 Chip */
+  /** 名字後面的小標籤，例如任務「做完了」的 Chip */
   badge?: React.ReactNode;
   /** 清單中間的小標：跟上一筆不同時，在這一筆上面放一行（沒有搜尋字時才用；任務頁「接得到的」分快過期、剛解鎖、隨時可以補） */
   group?: string;
