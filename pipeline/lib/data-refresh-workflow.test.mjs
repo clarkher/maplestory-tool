@@ -211,7 +211,7 @@ test("publish 先檢查下載的 artifact、版本字串，才動 public/、開�
   // 只能有 data、assets 兩個資料夾，裡面只能是一般檔案（隱藏檔、連結一律不收）
   assert.ok(at("find ") < at("rm -rf public/data public/assets"), "先檢查 artifact 再換掉 public/ 的資料");
   // 版本字串太長，開 PR 會被 GitHub 拒（標題上限 256 字），那時資料分支已經推上去了
-  for (const name of ["VERSION", "STAMP"]) {
+  for (const name of ["VERSION", "STAMP", "HASH"]) {
     assert.ok(at(`[[ "$${name}" =~ `) < at("git checkout -b"), `${name} 要在開分支前檢查`);
   }
 });
@@ -319,4 +319,48 @@ test("notify 接在 refresh、publish 後面、成功失敗都跑，拿得到兩
 
   assert.match(REFRESH, /stamp: \$\{\{ steps\.check\.outputs\.stamp \}\}/);
   assert.match(REFRESH, /before: \$\{\{ steps\.before\.outputs\.stamp \}\}/);
+});
+
+// ---- 比對上游檔案內容的雜湊（v1.11）----
+// 上游作者手動修資料不會改 generatedAt（2026-10-16、10-17、10-21 三次都是），只比時間就一次都沒抓到。
+// 比對規則怎麼跑的在 data-refresh-check.test.mjs（真的用 bash 跑那一步）；這裡鎖住 workflow 的寫法
+
+const HASH_PATTERN = "^[0-9a-f]{64}$";
+
+test("記下更新前的版本也記雜湊：網站 meta.json 的 dataHash 輸出成 hash，格式不對或舊版沒有就是空字串；refresh 把比對後的 hash 交給 publish", () => {
+  const block = stepBlock("記下更新前的版本");
+  assert.match(block, /dataHash/);
+  assert.match(block, /echo "hash=/);
+  assert.ok(block.includes(HASH_PATTERN), "輸出前要先擋格式");
+  assert.match(REFRESH, /^ {6}hash: \$\{\{ steps\.check\.outputs\.hash \}\}$/m);
+});
+
+test("比對版本：雜湊用 env 傳進來，讀 artale.json 的 contentHash，寫進輸出前先用 ^[0-9a-f]{64}$ 擋；兩邊都有雜湊才比雜湊，否則照舊比時間", () => {
+  const block = stepBlock("比對版本");
+  assert.match(block, /\n {10}BEFORE_HASH: \$\{\{ steps\.before\.outputs\.hash \}\}\n/);
+  assert.match(block, /metadata\?\.contentHash/);
+  assert.match(block, /"\$BEFORE_HASH"/);
+  assert.match(block, /"\$AFTER_HASH"/);
+  assert.match(block, /echo "hash=\$AFTER_HASH" >> "\$GITHUB_OUTPUT"/);
+  assert.ok(block.indexOf(HASH_PATTERN) !== -1 && block.indexOf(HASH_PATTERN) < block.indexOf('echo "hash='), "擋在寫進 $GITHUB_OUTPUT 之前");
+  // 「兩邊都有雜湊」的判斷：任一邊是空的就不比雜湊（舊版 meta.json、本機抽檔）
+  assert.match(block, /\[ -n "\$BEFORE_HASH" \] && \[ -n "\$AFTER_HASH" \]/);
+  // 紀錄裡寫得出是時間變還是內容變
+  assert.match(block, /內容/);
+  assert.match(block, /產生時間/);
+});
+
+test("開 PR 那步：雜湊從 env 傳、空的可以（本機抽檔沒有）、有的話一定是 64 位小寫 hex 且在開分支前擋；分支名、commit 與 PR 標題帶前 8 碼，時間沒變、內容變了也不會跟上一次撞名", () => {
+  const block = stepBlock("開 PR 並自動合併");
+  assert.match(block, /\n {10}HASH: \$\{\{ needs\.refresh\.outputs\.hash \}\}\n/);
+  assert.match(block, /"\$HASH"/);
+  const guard = block.indexOf(HASH_PATTERN);
+  assert.notEqual(guard, -1, "要檢查 HASH 的格式");
+  assert.ok(guard < block.indexOf("git checkout -b"), "HASH 要在開分支前檢查");
+  assert.ok(block.indexOf("${HASH:0:8}") !== -1, "要用前 8 碼");
+  // 前 8 碼要進分支名、commit 訊息、PR 標題（後兩個共用 LABEL）
+  assert.match(block, /BRANCH="\$\{BRANCH\}-\$\{HASH:0:8\}"/, "分支名要帶雜湊");
+  assert.match(block, /LABEL="\$\{STAMP\}，內容 \$\{HASH:0:8\}"/);
+  assert.match(block, /git commit -m "data: 同步遊戲版本 \$\{VERSION\}（\$\{LABEL\}）"/);
+  assert.match(block, /gh pr create --title "data: 同步遊戲版本 \$\{VERSION\}（\$\{LABEL\}）"/);
 });

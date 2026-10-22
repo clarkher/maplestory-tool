@@ -245,7 +245,15 @@ node scripts/client/wzjs.mjs "$TEMP/skills.bin" 500 skill/5001005/level
 
 `.github/workflows/data-refresh.yml`：
 
-- 每天兩次（台灣時間 08:20、20:20）比對上游的 `generatedAt`（六個檔裡最新的那個），有變才重建
+- 每天兩次（台灣時間 08:20、20:20）比對上游有沒有變，有變才重建。比兩樣：
+  **上游六個資料檔的內容雜湊**（取上游時算的 `data/raw/artale.json` 的 `metadata.contentHash`，對上網站 `public/data/meta.json` 的 `dataHash`；
+  每個檔的 sha256 留在 `metadata.parts[檔名].sha256`，整份的雜湊是依 `UPSTREAM_PARTS` 順序把各檔雜湊串起來再 sha256，算法在 `pipeline/lib/upstream.mjs`，
+  換行先統一成 LF 再算，Windows 本機重建跟 CI 才是同一個值），跟上游的產生時間 `generatedAt`（六個檔裡最新的那個）。
+  **為什麼要比內容**：上游作者手動修資料不會改 `generatedAt`——2026-10-16、10-17、10-21 三次都是，只比時間的排程一次都沒抓到。
+  規則：勾了 `force` 就重建；兩邊都有雜湊時，雜湊不同**或**產生時間不同都重建（時間照舊算，不會比以前少抓）；
+  任一邊沒有雜湊（舊的 `meta.json`、本機抽檔 `artale.local.json` 不經過上游讀檔，`dataHash` 是 `null`）就照舊只比產生時間，不會白白重建。
+  執行紀錄會寫是「產生時間變了」還是「檔案內容變了」。雜湊要進資料分支名、commit 與 PR 標題（前 8 碼，上游只改資料、時間沒變時才不會跟上一次撞名），
+  所以一律先用 `^[0-9a-f]{64}$` 擋過才用（`pipeline/lib/data-refresh-check.test.mjs` 真的用 bash 跑比對那兩步，`data-refresh-workflow.test.mjs`、`data-refresh-publish.test.mjs` 鎖住寫法）
 - `data/raw/artale.local.json` 或 `pipeline/` 有異動時立即重建
 - 重建後重編玩家攻略（遊戲資料變了，攻略裡的 id 要重新驗）、跑 `verify.mjs`，再拿新資料跑**全套測試**（跟 PR 的「單元測試」同一套：pipeline 的 `node --test`＋vitest 全部；
   2026-10-15 以前只跑首頁那一支，上游 2.0.0 漏抽熟練度、計算機算錯照樣合進正式機（#129），10/16 使用者選 5 改成全套），其中首頁每個職業 × 等級那支

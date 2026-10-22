@@ -211,6 +211,8 @@ export type SearchRow = ["m" | "i" | "q" | "s" | "p", number | string, string, s
 export type Meta = {
   gameVersion: string | null;
   dataGeneratedAt: string | null;
+  /** 上游資料檔原文的雜湊（資料自動更新拿來比對）；舊的 meta.json、本機抽檔沒有 */
+  dataHash?: string | null;
   dataGeneratedAtText: string | null;
   ingest: { origin: string; ref: string; fetchedAt: string } | null;
   mapSource: { source: string; url: string; extractedAt: string };

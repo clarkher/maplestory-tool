@@ -132,6 +132,9 @@ function main() {
   const meta = {
     gameVersion: artale.metadata?.gameVersion ?? null,
     dataGeneratedAt: artale.metadata?.generatedAt ?? null,
+    // 上游六個檔原文的雜湊（lib/upstream.mjs 算的）：排程拿它判斷上游有沒有改資料——上游手動修資料不會改產生時間。
+    // 本機抽檔（artale.local.json）不經過那裡，沒有就是 null，排程改回比產生時間
+    dataHash: artale.metadata?.contentHash ?? null,
     dataGeneratedAtText: artale.metadata?.generatedAtText ?? null,
     ingest: artale.ingest ?? null,
     // 上游六個資料檔各自的版本，gameVersion 取的是其中最新的
