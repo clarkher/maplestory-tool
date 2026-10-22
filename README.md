@@ -56,6 +56,7 @@
 
 點法、練功點、必解任務這些客戶端資料裡沒有，是從玩家攻略整理的（2026-10-03 研究）。
 2026-10-19 依改版後查核更新過一次（技能說明換成經典版數字、三轉流程、殭屍練功點、女神組隊），報告在 `docs/superpowers/specs/2026-10-19-v002-guides-update-design.md`。
+2026-10-22 依改版後第二次查核更新（女神組隊一場經驗、祭司殭屍與時空門、獵人猴森Ⅱ、遊俠騎士龍騎士暗殺者補板上說法、艾利傑有影片），報告在 `docs/superpowers/specs/2026-10-22-guides-followup-design.md`。
 每一條都記了出處網址，以及是「台服實測」「社群整理」還是「舊版經驗」，畫面上照實標。
 
 - 攻略寫的地圖、怪物、技能對不上遊戲資料時，**以遊戲資料為準**：`pipeline/build-guides.mjs` 會拿掉對不上的 id 並印出來。
@@ -238,6 +239,10 @@ node scripts/client/wzjs.mjs "$TEMP/skills.bin" 500 skill/5001005/level
 
 圖檔只同步前端用得到的四個目錄（`items`、`monster_frames`、`npcs`、`skills`）；
 上游 `assets` 已經超過 500MB（整張地圖渲染圖就 342MB），整包鏡像會撐爆 repo 與部署。
+
+Windows 本機沒有 rsync，圖檔同步（`syncAssets`）跑不了：本機刷新上游要另外照 `pipeline/lib/assets.mjs` 的規則（只收四個目錄最上層的 `.png`、`.json`，捷徑與子資料夾不收）鏡像圖檔（2026-10-22 刷新時用暫存腳本做過）。
+
+上游借用別隻怪的圖時（變形雪吉拉 6300001 用 6300000.png），建置會補一張 `<id>.png`（`pipeline/lib/monster-frames.mjs`；放在建置、不放在同步，才不會被下一次鏡像洗掉），`verify.mjs` 的「每隻怪物都有圖」擋沒有圖的怪。
 
 推上 `main` 之後 GitHub Actions 會自動重建並部署。
 
