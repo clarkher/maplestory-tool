@@ -138,7 +138,7 @@ export function calcPick(args: {
     const found: Array<{ option: Omit<CalcPickOption, "kills" | "tenMinute">; score: number }> = [];
     for (const row of data.training) {
       const record = data.maps[String(row.m)];
-      if (isIslandMap(row.m) !== island || !record?.zh || row.sp <= BOSS_SPAWN_MAX || (data.beforeOpen && record.o)) continue;
+      if (isIslandMap(row.m) !== island || !record?.zh || row.sp <= BOSS_SPAWN_MAX) continue;
       // 跟 planTraining 一樣：地圖等級差太多、圖上最高等的怪高你 12 級以上（石巨人插在弓箭手村迷宮那種）都不列
       if (levelFit(level, row.lv) <= 0.05 || dangerPenalty(level, row.lvMax) <= 0.2) continue;
       const mobs = spawns.get(row.m) ?? [];
@@ -162,8 +162,8 @@ export function calcPick(args: {
     return best;
   };
 
-  // 符合條件的怪：選單裡的怪、10/15 前跳過只在 V002 的、不比角色高 5 級以上
-  const choices = monsterChoices(data.monsters, data.maps).filter(choice => !(data.beforeOpen && choice.v002) && (choice.monster.lv ?? 0) <= level + CAP_REACH);
+  // 符合條件的怪：選單裡的怪、不比角色高 5 級以上
+  const choices = monsterChoices(data.monsters, data.maps).filter(choice => (choice.monster.lv ?? 0) <= level + CAP_REACH);
   const rows: CalcPickRow[] = [];
   if (aoe) {
     // 群體：約 2～5 下打死的怪都先找圖，再一段一段挑（2～3 下先挑；3、4 下兩段都符合的怪不重複，被前一段挑走就換下一隻）

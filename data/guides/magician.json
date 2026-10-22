@@ -1077,11 +1077,11 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/19 查：三轉技能重置卷只有菇菇通行證 S2 的新角色 70 等高級獎勵有，舊角色還買不到，點錯沒得洗。",
+          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2225",
+            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
           ]
         }
@@ -2221,11 +2221,11 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/19 查：三轉技能重置卷只有菇菇通行證 S2 的新角色 70 等高級獎勵有，舊角色還買不到，點錯沒得洗。",
+          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2225",
+            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
           ]
         }
@@ -3046,7 +3046,7 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；58 等一場大約 8～9% 經驗、熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
@@ -3072,10 +3072,11 @@
               "lv": 57
             }
           ],
-          "why": "殭屍、礦山殭屍都是 57 等的不死系，群體治癒補得到；板上說這是冰原少數能用群體治癒練等的怪。亡者之林Ⅰ～Ⅳ、廢棄礦坑Ⅰ～Ⅲ都是同一種怪，挑人少的那張。要先在冰雪峽谷Ⅱ最上面找傑夫送過去。",
+          "why": "殭屍、礦山殭屍都是 57 等的不死系，群體治癒補得到；板上說這是冰原少數能用群體治癒練等的怪。亡者之林Ⅰ～Ⅳ、廢棄礦坑Ⅰ～Ⅲ都是同一種怪，挑人少的那張。要先在冰雪峽谷Ⅱ最上面找傑夫送過去。板上幾乎都是 3 人團，亡者之林Ⅳ最熱。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2278"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2278",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2294"
           ],
           "verified": "community"
         }
@@ -3147,7 +3148,9 @@
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=963",
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=1202",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=1130"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=1130",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2278",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2295"
           ],
           "steps": [
             {
@@ -3166,7 +3169,7 @@
               "skillId": 2311003,
               "skillName": "神聖祈禱",
               "to": 30,
-              "note": "組隊時全隊打怪經驗變多（舊版點滿 1.5 倍；經典版遊戲裡看不到數字，10/16 官方修過一次經驗算法），當年組隊廣播都在找祈禱點滿的祭司"
+              "note": "組隊時全隊打怪經驗變多（舊版點滿 1.5 倍；經典版遊戲裡看不到數字，10/16 官方修過一次經驗算法），當年組隊廣播都在找祈禱點滿的祭司；台服玩家 10/19 實測：三人以上組隊約 1.5 倍，兩人只剩約 1.3 倍（遊戲說明寫兩人就滿）"
             },
             {
               "skillId": 2310000,
@@ -3199,7 +3202,9 @@
           "mainstream": false,
           "verified": "legacy",
           "sources": [
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=963"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12546&sn=963",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2278",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2295"
           ],
           "steps": [
             {
@@ -3230,7 +3235,7 @@
               "skillId": 2311003,
               "skillName": "神聖祈禱",
               "to": 30,
-              "note": "組隊時全隊打怪經驗變多"
+              "note": "組隊時全隊打怪經驗變多；台服玩家 10/19 實測：三人以上組隊約 1.5 倍，兩人只剩約 1.3 倍（遊戲說明寫兩人就滿）"
             },
             {
               "skillId": 2310000,
@@ -3257,7 +3262,9 @@
           "mainstream": false,
           "verified": "community",
           "sources": [
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2294",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2296"
           ],
           "steps": [
             {
@@ -3279,10 +3286,16 @@
               "note": "先點滿；板上說先滿聖光也行，但組隊會比較難找"
             },
             {
+              "skillId": 2311002,
+              "skillName": "時空門",
+              "to": 1,
+              "note": "82 等點 1 點，幫隊友開門回亡者之林"
+            },
+            {
               "skillId": 2311004,
               "skillName": "聖光",
               "to": 30,
-              "note": "再回頭點滿；聖龍召喚可以晚點，時空門、淨化看自己需要"
+              "note": "再回頭點滿；聖龍召喚可以晚點，淨化看自己需要；台服 103 等祭司聖光一下 3,700～5,000，殭屍 4,500 血，常常要兩下，很多人打殭屍還是用群體治癒"
             }
           ]
         }
@@ -3290,7 +3303,7 @@
       "training": [
         {
           "levelFrom": 70,
-          "levelTo": 85,
+          "levelTo": 100,
           "kind": "solo",
           "mapName": "亡者之林Ⅳ／廢棄礦坑Ⅰ（殭屍、礦山殭屍）",
           "mapId": 211041400,
@@ -3306,11 +3319,12 @@
               "lv": 57
             }
           ],
-          "why": "滿祈禱的祭司實際打殭屍：單練一隻 190 經驗、有隊友 155＋54。殭屍是不死系，群體治癒跟聖光都打得痛，毒打不動。打到幾等板上沒講，85 是推估。",
+          "why": "滿祈禱的祭司實際打殭屍：單練一隻 190 經驗、有隊友 155＋54。殭屍是不死系，群體治癒跟聖光都打得痛，毒打不動。10/20 板上說全職業 60～100 等都在這，幾乎都是 3 人團，亡者之林Ⅳ最熱。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2278",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2270",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2294"
           ],
           "verified": "tw",
           "current": true
@@ -3318,11 +3332,11 @@
       ],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/19 查：三轉技能重置卷只有菇菇通行證 S2 的新角色 70 等高級獎勵有，舊角色還買不到，點錯沒得洗。",
+          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2225",
+            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
           ]
         }

@@ -4,6 +4,13 @@ name: 資料自動更新
 #  1. 本機抽檔（data/raw/artale.local.json）—— 有的話一律優先，那是從遊戲客戶端直接抽的
 #  2. 上游資料庫 —— 沒有本機抽檔時才用，每天排程比對版本，有變才重建
 #
+# 比對版本看兩樣東西（v1.11）：上游六個資料檔「原文」的雜湊（網站 meta.json 的 dataHash，對上取上游時算的
+# data/raw/artale.json 的 metadata.contentHash，pipeline/lib/upstream.mjs），跟上游的產生時間 generatedAt。
+# 光比產生時間不夠：上游作者手動修資料不會改 generatedAt（2026-10-16、10-17、10-21 三次都是），
+# 以前排程一次都沒抓到。規則：勾了 force 就重建；兩邊都有雜湊時，雜湊不同或產生時間不同都重建；
+# 任一邊沒有雜湊（舊的 meta.json、本機抽檔）就照舊只比產生時間，不會白白重建。
+# 雜湊會進資料分支名、commit 與 PR 標題（取前 8 碼），所以一律先用 ^[0-9a-f]{64}$ 擋過才用。
+#
 # 刷怪點與回生秒數來自台服客戶端（上游 maps-data.js），跟遊戲資料一起在這裡更新。
 # v83 地圖資料（傳送門、回城點、世界地圖區域；台服客戶端沒有刷怪資料的圖才用它的刷怪點）
 # 是凍結版本，已進版控，不會在這裡重抓。
@@ -17,7 +24,7 @@ name: 資料自動更新
 #
 # 失敗通知（notify job，pipeline/notify-refresh.mjs）：refresh 或 publish 任何一步失敗就開一張 issue
 # （label「資料更新失敗」，指派給 repo 擁有者）。已經有開著的就不另開：同樣的失敗只更新內文「最後一次失敗」那行、
-# 不發通知，失敗的步驟或上游版本變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
+# 不發通知，失敗的步驟或上游版本（產生時間加內容雜湊前 8 碼）變了才留言；之後成功一次就留言並關掉。跑超過時間上限被中止也算失敗。
 # 要測通知本身，手動觸發勾 dry_run（不開 PR、不合併，寫到「資料更新失敗-測試」）；勾 simulate_failure 會故意失敗一次（也算 dry-run）。
 # 從 main 以外的分支手動觸發一律當 dry-run。
 
@@ -69,6 +76,11 @@ jobs:
       # 給 notify 寫進 issue：網站目前的資料版本、上游版本（取上游那步就失敗時是空的）
       before: ${{ steps.before.outputs.stamp }}
       stamp: ${{ steps.check.outputs.stamp }}
+      # 上游資料檔原文的雜湊（本機抽檔沒有就是空的）：給 publish 的分支名與標題帶前 8 碼；也給 notify，
+      # 上游只改內容、產生時間沒變時，issue 才寫得出上游版本跟網站版本不同，也分得出兩次不同的內容改動
+      hash: ${{ steps.check.outputs.hash }}
+      # 網站更新前的內容雜湊（meta.json 的 dataHash，舊版沒有就是空的）：給 notify 跟上面的 hash 對照
+      before_hash: ${{ steps.before.outputs.hash }}
       # 給 publish：上游版本有變（或勾了 force），有重建、有存 artifact
       changed: ${{ steps.check.outputs.changed }}
     steps:
@@ -87,8 +99,11 @@ jobs:
         run: |
           if [ -f public/data/meta.json ]; then
             echo "stamp=$(node -p "require('./public/data/meta.json').dataGeneratedAt ?? ''")" >> "$GITHUB_OUTPUT"
+            # 上游資料檔的雜湊（build.mjs 寫進 meta.json 的 dataHash）：只收 64 位小寫 hex，舊版 meta.json 沒有、格式不對都當成沒有
+            echo "hash=$(node -p 'const h = require("./public/data/meta.json").dataHash; typeof h === "string" && /^[0-9a-f]{64}$/.test(h) ? h : ""')" >> "$GITHUB_OUTPUT"
           else
             echo "stamp=" >> "$GITHUB_OUTPUT"
+            echo "hash=" >> "$GITHUB_OUTPUT"
           fi
 
       - name: 取得 Artale 資料
@@ -100,16 +115,37 @@ jobs:
         id: check
         env:
           BEFORE: ${{ steps.before.outputs.stamp }}
+          BEFORE_HASH: ${{ steps.before.outputs.hash }}
           FORCE: ${{ inputs.force }}
         run: |
           AFTER=$(node -p "require('./data/raw/artale.json').metadata?.generatedAt ?? ''")
+          AFTER_HASH=$(node -p "require('./data/raw/artale.json').metadata?.contentHash ?? ''")
+          # 雜湊會進分支名、PR 標題：不是 64 位小寫 hex 就當成沒有（本機抽檔、舊版 meta.json 本來就沒有）
+          if ! [[ "$AFTER_HASH" =~ ^[0-9a-f]{64}$ ]]; then AFTER_HASH=""; fi
+          if ! [[ "$BEFORE_HASH" =~ ^[0-9a-f]{64}$ ]]; then BEFORE_HASH=""; fi
           echo "stamp=$AFTER" >> "$GITHUB_OUTPUT"
-          if [ "$AFTER" = "$BEFORE" ] && [ "$FORCE" != "true" ]; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "上游版本沒變（$AFTER），跳過重建"
-          else
+          echo "hash=$AFTER_HASH" >> "$GITHUB_OUTPUT"
+          # 兩邊都有雜湊才比內容（上游手動修資料不會改產生時間）；產生時間不同照舊算有變，所以不會比以前少抓
+          if [ "$FORCE" = "true" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            echo "版本從 $BEFORE 變成 $AFTER，重建"
+            echo "手動勾了 force，強制重建（上游版本 $AFTER）"
+          elif [ -n "$BEFORE_HASH" ] && [ -n "$AFTER_HASH" ] && [ "$AFTER_HASH" != "$BEFORE_HASH" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            if [ "$AFTER" = "$BEFORE" ]; then
+              echo "上游產生時間沒變（$AFTER），但資料檔內容變了（${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}），重建"
+            else
+              echo "上游資料檔內容變了（${BEFORE_HASH:0:8} → ${AFTER_HASH:0:8}），產生時間也從 $BEFORE 變成 $AFTER，重建"
+            fi
+          elif [ "$AFTER" != "$BEFORE" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "上游產生時間從 $BEFORE 變成 $AFTER，重建"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            if [ -n "$BEFORE_HASH" ] && [ -n "$AFTER_HASH" ]; then
+              echo "上游產生時間（$AFTER）跟資料檔內容（${AFTER_HASH:0:8}）都沒變，跳過重建"
+            else
+              echo "上游版本沒變（$AFTER），跳過重建（網站或上游沒有內容雜湊，只比了產生時間）"
+            fi
           fi
 
       - name: （測試）故意失敗
@@ -198,6 +234,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           STAMP: ${{ needs.refresh.outputs.stamp }}
+          HASH: ${{ needs.refresh.outputs.hash }}
         run: |
           # 這一步會用 --admin 直接合進 main（正式機），dry-run 絕不能走到這裡：job 條件、步驟條件之外再擋一次
           if [ "$DRY_RUN" = "true" ]; then
@@ -227,20 +264,27 @@ jobs:
           VERSION=$(node -e 'const meta = JSON.parse(require("fs").readFileSync("public/data/meta.json", "utf8")); process.stdout.write(String(meta.gameVersion ?? "?"))')
           # 要寫進分支名、commit 訊息、PR 標題的字串，開分支前再擋一次（上游來的 upstream.mjs 擋過格式，本機抽檔不經過那裡）：
           # 太長開 PR 會被 GitHub 拒（標題上限 256 字），那時資料分支已經推上去了
-          if ! [[ "$VERSION" =~ ^[0-9A-Za-z.+-]{1,32}$ ]] || ! [[ "$STAMP" =~ ^[0-9A-Za-z.:+-]{1,40}$ ]]; then
-            echo "遊戲版本或上游版本的字串不對（長度 ${#VERSION}、${#STAMP}），不開 PR"
+          # 內容雜湊（上游資料檔原文的 sha256）可以是空的（本機抽檔沒有），有的話一定是 64 位小寫 hex
+          if ! [[ "$VERSION" =~ ^[0-9A-Za-z.+-]{1,32}$ ]] || ! [[ "$STAMP" =~ ^[0-9A-Za-z.:+-]{1,40}$ ]] || { [ -n "$HASH" ] && ! [[ "$HASH" =~ ^[0-9a-f]{64}$ ]]; }; then
+            echo "遊戲版本、上游版本或內容雜湊的字串不對（長度 ${#VERSION}、${#STAMP}、${#HASH}），不開 PR"
             exit 1
           fi
           BRANCH="data/refresh-$(echo "$STAMP" | tr -dc '0-9' | head -c 14)"
+          LABEL="$STAMP"
+          # 上游只改資料、產生時間沒變時，分支名跟標題只靠時間會跟上一次一樣：帶雜湊前 8 碼
+          if [ -n "$HASH" ]; then
+            BRANCH="${BRANCH}-${HASH:0:8}"
+            LABEL="${STAMP}，內容 ${HASH:0:8}"
+          fi
           git checkout -b "$BRANCH"
-          git commit -m "data: 同步遊戲版本 ${VERSION}（${STAMP}）"
+          git commit -m "data: 同步遊戲版本 ${VERSION}（${LABEL}）"
           # 上一輪推了同一條分支、卻在開 PR 或合併時失敗（或手動 Re-run）：先刪掉舊的（它開著的 PR 會跟著關），不然推不上去、要人工清
           if git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
             git push origin --delete "$BRANCH"
           fi
           git push -u origin "$BRANCH"
           # refresh 的 verify.mjs、全套測試、next build 全過才會走到這裡，PR 開了就直接合
-          gh pr create --title "data: 同步遊戲版本 ${VERSION}（${STAMP}）" \
+          gh pr create --title "data: 同步遊戲版本 ${VERSION}（${LABEL}）" \
             --body "自動資料更新。verify.mjs 與全套測試全數通過、next build 成功。合併後 Vercel 會自動部署。" \
             --base main --head "$BRANCH"
           gh pr merge "$BRANCH" --squash --delete-branch --admin
@@ -271,6 +315,8 @@ jobs:
           REFRESH_RESULT: ${{ needs.refresh.result }}
           PUBLISH_RESULT: ${{ needs.publish.result }}
           UPSTREAM_STAMP: ${{ needs.refresh.outputs.stamp }}
+          UPSTREAM_HASH: ${{ needs.refresh.outputs.hash }}
           SITE_STAMP: ${{ needs.refresh.outputs.before }}
+          SITE_HASH: ${{ needs.refresh.outputs.before_hash }}
           ASSIGNEE: ${{ github.repository_owner }}
         run: node pipeline/notify-refresh.mjs

@@ -729,3 +729,125 @@ test("有 README 網址時，「怎麼處理」寫成點得到的連結", () => 
   assert.ok(failureBody({ ...VERIFY_FAILED, readmeUrl }).includes(`怎麼處理見 [README「自動更新」](${readmeUrl})。`));
   assert.ok(failureBody(VERIFY_FAILED).includes("怎麼處理見 README「自動更新」。"));
 });
+
+// ---- 上游內容雜湊（v1.11 審查修正）----
+// 上游只改資料、產生時間沒變時，issue 上的上游版本跟網站版本會長得一模一樣；「同樣的失敗」只看時間也分不出兩次不同的內容改動
+
+const UPSTREAM_HASH = "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90";
+const SITE_HASH = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0";
+const OTHER_HASH = "ffffffff4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0";
+const HASHED = { ...VERIFY_FAILED, siteStamp: VERIFY_FAILED.upstreamStamp, upstreamHash: UPSTREAM_HASH, siteHash: SITE_HASH };
+
+test("有雜湊：上游版本跟網站目前的資料版本都寫成「時間（內容 前 8 碼）」，時間一樣也看得出內容不同", () => {
+  const body = failureBody(HASHED);
+  assert.match(body, /上游版本：`2026-10-05T10:00:00\+08:00`（內容 a1b2c3d4）/);
+  assert.match(body, /網站目前的資料版本：`2026-10-05T10:00:00\+08:00`（內容 0f1e2d3c）/);
+  // 看得到的內文只放前 8 碼；整串只在看不到的註解裡（拿來比是不是同一個內容）
+  assert.ok(!body.slice(0, body.indexOf("<!--")).includes(UPSTREAM_HASH), "內文只放前 8 碼，不放整串");
+  // 失敗有變的留言、恢復的留言也一樣
+  assert.match(failureBody({ ...HASHED, repeat: true, count: 2 }), /上游版本：`2026-10-05T10:00:00\+08:00`（內容 a1b2c3d4）/);
+  assert.match(recoveredBody({ upstreamStamp: "2026-10-05T10:00:00+08:00", upstreamHash: UPSTREAM_HASH, runUrl: RUN_URL }), /上游版本：`2026-10-05T10:00:00\+08:00`（內容 a1b2c3d4）/);
+});
+
+test("只有一邊有雜湊：有的那邊寫、沒有的那邊維持原樣（舊版 meta.json、本機抽檔沒有雜湊）", () => {
+  const body = failureBody({ ...HASHED, siteHash: "" });
+  assert.match(body, /上游版本：`2026-10-05T10:00:00\+08:00`（內容 a1b2c3d4）/);
+  assert.match(body, /網站目前的資料版本：`2026-10-05T10:00:00\+08:00`\n/);
+});
+
+test("沒有雜湊（沒給、空字串、undefined）：內文跟以前一個字都不差", () => {
+  const plain = failureBody(VERIFY_FAILED);
+  for (const upstreamHash of [undefined, "", null]) {
+    assert.equal(failureBody({ ...VERIFY_FAILED, upstreamHash, siteHash: upstreamHash }), plain);
+  }
+  assert.doesNotMatch(plain, /內容 /);
+  const recovered = recoveredBody({ upstreamStamp: "2026-10-05T10:00:00+08:00", runUrl: RUN_URL });
+  assert.equal(recoveredBody({ upstreamStamp: "2026-10-05T10:00:00+08:00", upstreamHash: "", runUrl: RUN_URL }), recovered);
+  assert.doesNotMatch(recovered, /內容 /);
+});
+
+test("雜湊不是 64 位小寫 hex（大寫、長度不對、夾了換行或反引號、不是字串）：整個忽略，不寫進內文也不藏進註解", () => {
+  const plain = failureBody(VERIFY_FAILED);
+  const bad = [
+    UPSTREAM_HASH.toUpperCase(), UPSTREAM_HASH.slice(0, 63), `${UPSTREAM_HASH}0`, `${UPSTREAM_HASH}\n`,
+    `${UPSTREAM_HASH.slice(0, 8)}\`\n- 失敗的步驟：假的${UPSTREAM_HASH.slice(0, 20)}`, ` ${UPSTREAM_HASH.slice(1)}`, "xyz", 12345, {}, ["a"],
+  ];
+  for (const hash of bad) {
+    const body = failureBody({ ...VERIFY_FAILED, upstreamHash: hash, siteHash: hash });
+    assert.equal(body, plain, `${JSON.stringify(hash).slice(0, 40)} 要被忽略`);
+    assert.equal(readFailureMark(body).hash, undefined);
+  }
+});
+
+test("藏著的註解多記上游雜湊；沒有雜湊就跟以前一樣只有步驟、上游版本、次數", () => {
+  assert.deepEqual(readFailureMark(failureBody(HASHED)), { step: "確認產出沒有壞掉", upstream: "2026-10-05T10:00:00+08:00", count: 1, hash: UPSTREAM_HASH });
+  assert.deepEqual(readFailureMark(failureBody(VERIFY_FAILED)), { step: "確認產出沒有壞掉", upstream: "2026-10-05T10:00:00+08:00", count: 1 });
+  // 同樣的失敗又來一次，換掉註解之後雜湊還在、也只留一個註解
+  const after = markFailure(failureBody(HASHED), { ...HASHED, count: 2, at: "2026-10-08 08:21", runUrl: RUN_URL });
+  assert.equal(readFailureMark(after).hash, UPSTREAM_HASH);
+  assert.equal(after.match(/<!-- data-refresh-failure /g).length, 1);
+  // 註解被人改成不合格的雜湊：當成沒有
+  const forged = `x\n<!-- data-refresh-failure ${encodeURIComponent(JSON.stringify({ step: "a", upstream: "b", count: 1, hash: "NOT-A-HASH" }))} -->`;
+  assert.deepEqual(readFailureMark(forged), { step: "a", upstream: "b", count: 1 });
+});
+
+test("issue 上的版本跟藏著的雜湊都用同一個驗過的值：網站雜湊不進註解（不影響是不是同樣的失敗）", () => {
+  const withSite = readFailureMark(failureBody(HASHED));
+  const withoutSite = readFailureMark(failureBody({ ...HASHED, siteHash: "" }));
+  assert.deepEqual(withSite, withoutSite);
+});
+
+/** 沒給雜湊的 FAILED，換成上游只改內容、時間沒變的情境。 */
+const CONTENT_ONLY = { ...FAILED, upstreamStamp: "2026-10-05T10:00:00+08:00", siteStamp: "2026-10-05T10:00:00+08:00", upstreamHash: UPSTREAM_HASH, siteHash: SITE_HASH };
+
+test("開新的 issue：版本那兩行帶內容前 8 碼，藏著的註解記上游雜湊", async () => {
+  const github = fakeGitHub();
+  await notifyRefresh(CONTENT_ONLY, github);
+  const [, issue] = github.writes().find(([name]) => name === "createIssue");
+  assert.match(issue.body, /上游版本：`2026-10-05T10:00:00\+08:00`（內容 a1b2c3d4）/);
+  assert.match(issue.body, /網站目前的資料版本：`2026-10-05T10:00:00\+08:00`（內容 0f1e2d3c）/);
+  assert.equal(readFailureMark(issue.body).hash, UPSTREAM_HASH);
+});
+
+test("同一步、上游產生時間一樣、但內容雜湊不同：算新的上游版本，先留言（會通知）再更新內文", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "取得 Artale 資料", upstreamStamp: CONTENT_ONLY.upstreamStamp, upstreamHash: OTHER_HASH }) });
+  const outcome = await notifyRefresh(CONTENT_ONLY, github);
+  assert.equal(outcome.action, "comment");
+  const writes = github.writes();
+  assert.deepEqual(writes.map(([name, number]) => [name, number]), [["comment", 5], ["updateIssue", 5]]);
+  assert.match(writes[0][2], /上游版本：`2026-10-05T10:00:00\+08:00`（內容 a1b2c3d4）/);
+  assert.equal(readFailureMark(writes[1][2]).hash, UPSTREAM_HASH, "註解換成這一次的雜湊，下次才比得出來");
+});
+
+test("同一步、時間一樣、雜湊也一樣：還是同樣的失敗，只更新內文那一行、不留言", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "取得 Artale 資料", upstreamStamp: CONTENT_ONLY.upstreamStamp, upstreamHash: UPSTREAM_HASH }) });
+  const outcome = await notifyRefresh(CONTENT_ONLY, github);
+  assert.equal(outcome.action, "update");
+  assert.deepEqual(github.writes().map(([name]) => name), ["updateIssue"]);
+  assert.equal(readFailureMark(github.writes()[0][2]).hash, UPSTREAM_HASH);
+});
+
+test("開著的那張是沒記雜湊的（舊版通知開的，或當時沒取到）、這次有雜湊：分不出是不是同一個內容，當成不一樣，留言一次", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "取得 Artale 資料", upstreamStamp: CONTENT_ONLY.upstreamStamp }) });
+  assert.equal((await notifyRefresh(CONTENT_ONLY, github)).action, "comment");
+});
+
+test("開著的那張記了雜湊、這次沒有雜湊（本機抽檔、取上游那步就失敗）：當成不一樣，留言", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "取得 Artale 資料", upstreamStamp: "", upstreamHash: UPSTREAM_HASH }) });
+  assert.equal((await notifyRefresh(FAILED, github)).action, "comment");
+});
+
+test("傳進來的雜湊不合格：notifyRefresh 當成沒有，行為跟沒給一樣（同樣的失敗照舊只更新那一行）", async () => {
+  const github = fakeGitHub({ open: openedBy({ stepName: "取得 Artale 資料", upstreamStamp: "" }) });
+  const outcome = await notifyRefresh({ ...FAILED, upstreamHash: "NOT-A-HASH", siteHash: UPSTREAM_HASH.toUpperCase() }, github);
+  assert.equal(outcome.action, "update");
+  const [, , updated] = github.writes().find(([name]) => name === "updateIssue");
+  assert.doesNotMatch(updated, /內容 /);
+  assert.equal(readFailureMark(updated).hash, undefined);
+});
+
+test("成功關 issue 的留言也帶這次的上游內容前 8 碼", async () => {
+  const github = fakeGitHub({ open: OPEN_ISSUE });
+  await notifyRefresh({ ...CONTENT_ONLY, result: "success" }, github);
+  assert.match(github.writes()[0][2], /上游版本：`2026-10-05T10:00:00\+08:00`（內容 a1b2c3d4）/);
+});

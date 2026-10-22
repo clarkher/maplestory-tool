@@ -117,8 +117,7 @@ function jobTier(job) {
 }
 
 /**
- * 鏡射 src/lib/v002.ts 的 isV002Quest：任務是不是 V002 才有（等級限制超過 100、接取地圖是 V002 地圖、
- * 或可接職業全是三轉代碼）。同樣因為 pipeline 不能 import TypeScript，手動保持邏輯一致。
+ * 任務是不是 V002 才有：等級限制超過 100、接取地圖是 V002 地圖、或可接職業全是三轉代碼。
  */
 export function isV002Quest(quest, maps) {
   if ((quest.minLv ?? 0) > 100) return true;

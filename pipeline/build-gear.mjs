@@ -19,7 +19,7 @@
  *
  * 「已開放地圖」跟 build.mjs／build-guides.mjs 同一個判準：maps.json 裡有中文名（zh）就算；
  * V002 地圖另外帶 o（開放日期），只有 V002 地圖／任務拿得到的武器與卷軸會帶這個 o。
- * 任務是不是 V002 的判斷鏡射 src/lib/v002.ts 的 isV002Quest（pipeline 不能 import TypeScript，lib/gear.mjs 手動保持邏輯一致）。
+ * 任務是不是 V002 的判斷在 lib/gear.mjs 的 isV002Quest。
  *
  * 只收「現在拿得到」的東西：商店有賣、或掉落怪出現在已開放地圖（含 V002）、或已開放任務會給；
  * 三個來源都沒有（常見於週年慶等活動贈品，資料庫裡還留著但現在沒有管道拿）的武器／卷軸整筆不收，不編造。

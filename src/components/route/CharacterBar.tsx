@@ -9,7 +9,6 @@ import {
   JOB_LINES, SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, branchPairs, commitLevelText, jobAvatar, jobLineOf, jobOption, jobTier, minLevelFor, pickJobKeepingLevel, typedLevel,
 } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
-import { useBeforeV002 } from "@/lib/release";
 import type { Profile } from "@/lib/types";
 
 /**
@@ -17,7 +16,6 @@ import type { Profile } from "@/lib/types";
  * 第一次來（還沒填）直接展開選單，不另外做一個「開始」頁。
  */
 export function CharacterBar({ profile, onChange }: { profile: Profile; onChange: (next: Profile) => void }) {
-  const beforeOpen = useBeforeV002();
   const incomplete = profile.level <= 0 || profile.job < 0;
   const [editing, setEditing] = useState(incomplete);
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
@@ -54,7 +52,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
         ? `${option?.line} · 三轉`
         : tier === 2
           ? profile.level >= THIRD_JOB_LEVEL
-            ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等${beforeOpen ? "可以三轉（10/15 開放）" : "可以三轉了（到冰原雪域的長老公館）"}`
+            ? `${option?.line} · 二轉 · ${THIRD_JOB_LEVEL} 等可以三轉了（到冰原雪域的長老公館）`
             : `${option?.line} · 二轉`
           : profile.level >= SECOND_JOB_LEVEL ? `一轉 · ${SECOND_JOB_LEVEL} 等可以二轉了` : "一轉";
 
@@ -235,7 +233,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
                 <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-x-1.5 gap-y-2 rounded-xl bg-[color:var(--paper-deep)] p-2.5">
                   <p className="text-[11px] font-bold ink-faint">二轉</p>
                   <span />
-                  <p className="text-[11px] font-bold ink-faint">{beforeOpen ? "三轉（10/15 開放）" : "三轉"}</p>
+                  <p className="text-[11px] font-bold ink-faint">三轉</p>
                   {branchPairs(currentLine).map(({ second, third }) => (
                     <Fragment key={second[0]}>
                       {jobPill(second)}

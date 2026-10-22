@@ -6,7 +6,6 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { compareItems, equipGroups, hiddenFromList, itemKeywords, itemNote, shopGroups, wearFit, usableBy } from "@/lib/item-view";
-import { isV002Map } from "@/lib/v002";
 import type { Item, MapRecord } from "@/lib/types";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
@@ -117,17 +116,6 @@ describe("真資料：裝備數值的順序與佔兩格", () => {
 });
 
 describe("真資料：哪裡買得到", () => {
-  const maps = JSON.parse(fs.readFileSync(`${DATA}maps.json`, "utf8")) as Record<string, MapRecord>;
-  const opensLater = (mapId: number) => isV002Map(maps[String(mapId)]);
-
-  it("紅色藥水：10/15 才開的冰原雪域、天空之城排在最後，現在去得了的雜貨店先列", () => {
-    const { groups } = shopGroups(items.find(item => item.id === 2000000)!, opensLater);
-    const places = groups[0].places;
-    expect(places[0].later).toBe(false);
-    // 上游 2.0.0 起商店資料給了店內那張圖名字（以前只寫城鎮名「冰原雪域」「天空之城」）
-    expect(places.filter(place => place.later).map(place => place.place).sort()).toEqual(["冰原雪域雜貨店", "天空之城雜貨店"]);
-    expect(places.slice(-2).every(place => place.later)).toBe(true);
-  });
 
   it("拖把：弓箭手村武器店、勇士之村武器店都是 24,000 楓幣，標舊版資料；水世界（還沒開放）的店不列", () => {
     const { groups, fromOldData } = shopGroups(items.find(item => item.id === 1442004)!);
@@ -145,26 +133,10 @@ describe("真資料：哪裡買得到", () => {
     expect(fromOldData).toBe(false);
   });
 
-  it("冷酷之心、精鋼拳套、褐色無袖服：現在買得到的價錢排第一組", () => {
-    for (const id of [1492004, 1482004, 1052107]) {
-      const { groups } = shopGroups(items.find(item => item.id === id)!, opensLater);
-      expect(groups[0].places.some(place => !place.later), String(id)).toBe(true);
-      expect(groups[groups.length - 1].places.every(place => place.later), String(id)).toBe(true);
-    }
-  });
 
   it("店家地點都有名字，沒有「未命名地圖」", () => {
     const bad = items.flatMap(item => (item.sp ?? []).filter(row => !row.p || row.p.includes("未命名")).map(row => `${item.id} ${row.p}`));
     expect(bad).toEqual([]);
   });
 
-  it("10/15 才開的地區（世界地圖 WorldMap020、WorldMap021）的店全部帶得出開放日，畫面才標得到 10/15 開放", () => {
-    const rows = items.flatMap(item => item.sp ?? []).filter(row => row.m !== undefined && ["WorldMap020", "WorldMap021"].includes(maps[String(row.m)]?.rg ?? ""));
-    expect(rows.length).toBeGreaterThan(300);
-    expect(rows.filter(row => !isV002Map(maps[String(row.m)])).map(row => `${row.p} ${row.n}`)).toEqual([]);
-    // 店內那張圖沒中文名的（天空之城武器店、冰原雪域雜貨店…，2.0.0 起上游給了店名）跟著城鎮標開放日，也要在裡面
-    const named = items.flatMap(item => item.sp ?? []).filter(row => /^(?:天空之城|冰原雪域)/.test(row.p));
-    expect(named.length).toBeGreaterThan(0);
-    expect(named.every(row => rows.includes(row))).toBe(true);
-  });
 });

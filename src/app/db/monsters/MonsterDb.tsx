@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { FilterTag } from "@/components/FilterTag";
 import { GoButton } from "@/components/PlanShell";
@@ -14,10 +13,8 @@ import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
 import { FIRST_MAPS, monsterDrops, monsterMaps, monsterNote } from "@/lib/monster-view";
 import { trainingRange } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
-import { useBeforeV002 } from "@/lib/release";
 import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster } from "@/lib/types";
-import { isV002Map, isV002Monster } from "@/lib/v002";
 
 /** 練功範圍標籤開了哪一顆：""＝都沒開、"fit"＝適合我練的（同級到高 5 級）、"wide"＝包含低 5 級（低 5 級到高 5 級）。兩顆只能開一顆 */
 type Band = "" | "fit" | "wide";
@@ -35,7 +32,6 @@ export function MonsterDb() {
   const [showUnnamed, setShowUnnamed] = useRemembered("db:怪物:showUnnamed", false);
   // 記的是開了哪一顆練功範圍標籤（舊的 db:怪物:onlyBand 不再讀）
   const [band, setBand] = useRemembered<Band>("db:怪物:band", "");
-  const notOpenYet = useBeforeV002();
   // 角色列填了等級才出現「適合我練的」「包含低 5 級」：範圍跟練功推薦同一套（同級到高 5 級，包含低 5 級就從低 5 級開始），再套職業規則
   const { profile, loaded } = useStoredProfile();
   const level = loaded && profile.level > 0 ? profile.level : null;
@@ -81,9 +77,8 @@ export function MonsterDb() {
         name: monster.n,
         note: monsterNote(monster),
         image: monsterImage(monster.id),
-        badge: isV002Monster(monster, maps) && notOpenYet ? <Chip tone="gold">10/15 開放</Chip> : undefined,
       }));
-  }, [monsters, maps, showUnnamed, level, band, profile.job, notOpenYet]);
+  }, [monsters, maps, showUnnamed, level, band, profile.job]);
 
   return (
     <DbBrowser
@@ -135,10 +130,9 @@ function MonsterDetail({
   maps: Record<string, MapRecord>;
   itemIndex: Map<number, Item>;
 }) {
-  const notOpenYet = useBeforeV002();
   const elements = elementalNotes(monster.el);
-  // 出沒地圖只列開放的圖：現在就能去、刷怪點多的在前，10/15 才開的排後面；先列幾張，按「看全部」才全部列
-  const { rows: mapRows, hidden: hiddenMaps } = monsterMaps(monster, maps, map => notOpenYet && isV002Map(map));
+  // 出沒地圖只列開放的圖：刷怪點多的在前；先列幾張，按「看全部」才全部列
+  const { rows: mapRows, hidden: hiddenMaps } = monsterMaps(monster, maps);
   // 展開記到關掉分頁為止：點地圖、掉落物離開再按返回，卡片還是一樣長，瀏覽器才捲得回原位
   const [allMapsShown, setAllMapsShown] = useRemembered(`db:怪物:allMaps:${monster.id}`, false);
   const visibleMaps = allMapsShown ? mapRows : mapRows.slice(0, FIRST_MAPS);
@@ -161,7 +155,6 @@ function MonsterDetail({
         <div className="min-w-0">
           <h2 className="text-2xl font-black leading-tight">
             {monster.n}
-            {isV002Monster(monster, maps) && notOpenYet ? <span className="ml-1.5 align-middle"><Chip tone="gold">10/15 開放</Chip></span> : null}
           </h2>
           <p className="mt-0.5 text-sm ink-soft">
             Lv.{monster.lv} · HP {formatNumber(monster.hp)} · 經驗 {formatNumber(monster.exp)}
@@ -215,7 +208,6 @@ function MonsterDetail({
                   <span className="min-w-0">
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span className="min-w-0 truncate font-bold">{mapName(maps, row.id)}</span>
-                      {row.later ? <Chip tone="gold">10/15 開放</Chip> : null}
                     </span>
                     <span className="block text-[11px] ink-faint">
                       {maps[String(row.id)]?.st}

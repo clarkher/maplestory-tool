@@ -19,15 +19,15 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：first-frame 是 9343、scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，fx-shot 是 9481，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，fx-shot 是 9481，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
-  first-frame 會印 PASS／FAIL，但一律 exit 0。check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
+  check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
   speed-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
-- 測試機實測時間（2026-10-07）：first-frame 的 nav 段 25 秒、scroll-proof 45 秒、crossdoc（plain）75 秒、
+- 測試機實測時間（2026-10-07）：scroll-proof 45 秒、crossdoc（plain）75 秒、
   after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
   gear-source-shot 三個角色 13 秒。
   border-compare 全部跑約 20 分鐘。
@@ -62,23 +62,6 @@ node scripts/verify/check-first-frame.mjs [輸出] [網址，預設 http://local
   第 7 項把期待的標籤改成「一般點法」，硬重新整理、站內換頁兩段都紅（2026-10-08）。
 - 輸出：`results.json`（每項的細節、console；第 7 項的 `reload` 有卡片畫出來幾格、第一格長怎樣、不對的格）、`1-home.png`、
   `7-home-luck.png`（第 7 項跑完捲到卡片）；CI 沒過時整個資料夾上傳成 artifact「first-frame」。
-
-#### `first-frame.mjs`：「10/15 開放」標示第一個畫面就要在（v0.37）
-
-```bash
-node scripts/verify/first-frame.mjs <輸出> [網址] [段落，逗號分隔：nav,load,dawn,midnight,stale]
-```
-
-- `nav`：站內換頁進查資料四頁跟首頁，清單／首頁畫出來的第一格就要有標示，第一次 commit 就要帶著。
-- `load`：直接打開首頁，伺服器給的 HTML 就有 10/15 橫幅，沒有 hydration 警告。
-- `dawn`：時鐘調到 10/14 23:59:40，頁面開著跨過 10/15 00:00，橫幅跟角色列的「10/15 開放」都還在（v0.48 起開機才收）。
-- `midnight`：瀏覽器時鐘調到開放前 30 秒，頁面開著跨過開放時刻，橫幅跟技能頁標示 1.5 秒內自己收掉。
-- `stale`：時鐘調到開放後 20 小時（10/16 10:00）打開舊建置，不報 hydration、橫幅收掉、清單沒標示。
-- 開放時刻用環境變數 `OPEN_AT` 改，預設 `2026-10-15T14:00:00+08:00`（`src/lib/release.ts` 的官方開機時刻；那邊改了這裡跟著改）。
-  `DUMP_FRAMES=1` 會另存每一格 screencast。
-- 輸出：`nav-<頁>-first-frame.png`（清單出現後的第一張 screencast）、`*-final.png`、`results.json`。
-- 寫死的資料：二轉 75 等狂戰士、搜尋「幼紅獨角獅」「佛羅利刃」「泰勒斯的介紹函」、技能職業 111。
-  整支繞著「10/15 開放」標示，標示拆掉後只剩參考。
 
 #### `home-first-frame.mjs`：站內換頁進首頁的第一個畫面（v0.34）
 
@@ -473,7 +456,7 @@ node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3000]
   screencast 的時間戳跟頁面的 `Date.now` 差約 100 毫秒，只能當畫面順序看。
 - **取樣要在畫完之後**（rAF 之後再排 `setTimeout`），不然會記到沒畫出來的那一格。
 - **調瀏覽器時鐘**：用 `Page.addScriptToEvaluateOnNewDocument` 把頁面的 `Date` 換成位移版
-  （`class extends Date`，只改 `now()` 跟無參數建構），計時器照真實時間跑。見 `first-frame.mjs` 的 `clockAt`。
+  （`class extends Date`，只改 `now()` 跟無參數建構），計時器照真實時間跑。見 `gear-source-shot.mjs` 的 `clockAt`。
   dev 模式整頁載入加載資料要 10 秒上下，時間要留足。
 - **注入腳本跑的時候 `<html>` 還沒建好**（`document.documentElement` 是 null），直接設樣式會靜靜失敗。
   要用 MutationObserver 等它出現再設，見 `crossdoc.mjs` 的 `EARLY_AUTO`。

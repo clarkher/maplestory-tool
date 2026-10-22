@@ -10,6 +10,7 @@ import path from "node:path";
 import { readJson } from "./lib/http.mjs";
 import { WEAPON_TYPES } from "./lib/gear.mjs";
 import { HELD_BACK_MAPS, OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
+import { missingFrames } from "./lib/monster-frames.mjs";
 import { NPC_WARPS } from "./lib/npc-warps.mjs";
 import { officialNoteStatus, OFFICIAL_SKILL_NOTES } from "./lib/official-skill-notes.mjs";
 
@@ -52,6 +53,13 @@ function main() {
   check("meta 有遊戲版本", Boolean(meta?.gameVersion), String(meta?.gameVersion));
   check("怪物數量合理（僅已開放）", monsters?.length >= 100 && monsters?.length <= 157, `${monsters?.length} 隻`);
   check("道具數量合理", items?.length >= 10000, `${items?.length} 個`);
+
+  // 前端一律載 /assets/monster_frames/<id>.png。2026-10-22 上游讓 6300001 變形雪吉拉 借用 6300000.png，沒有自己的檔，
+  // 查資料、掉落來源、計算機全是壞圖；建置會補一張（lib/monster-frames.mjs），補不到（上游指的檔也不在）就擋下自動更新
+  const frameDir = path.join(OUT, "..", "assets", "monster_frames");
+  const frameFiles = fs.existsSync(frameDir) ? fs.readdirSync(frameDir) : [];
+  const noFrame = missingFrames(monsters ?? [], frameFiles);
+  check("每隻怪物都有圖（monster_frames/<id>.png）", noFrame.length === 0, noFrame.length ? `缺圖：${noFrame.map(monster => `${monster.id} ${monster.n}`).join("、")}` : `${monsters?.length} 隻都有`);
   check("任務數量合理（僅已開放）", quests?.length >= 348 && quests?.length <= 545, `${quests?.length} 個`);
   // 2026-10-06 技能改成只收經典版實際存在的職業（lib/classic-jobs.mjs），上限跟著從 659 降下來；
   // 範圍公式不變：[floor(實際數×0.8), ceil(實際數×1.25)]，實際數基準是當時重建出來的 242 筆

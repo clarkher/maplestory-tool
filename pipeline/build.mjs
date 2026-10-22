@@ -18,6 +18,7 @@ import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
+import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopRows } from "./lib/shops.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
@@ -69,9 +70,8 @@ const RELEASE = {
 
 /**
  * V002 開機日（官方公告 https://maplestoryclassic.beanfun.com/bulletin?Bid=83849）。
- * 2026-10-06 用戶決定：資料現在就上正式機，不用等開機公告，但要讓玩家看得出冰原雪域／廢礦區／
- * 三轉／Lv.120 是這天才開放——帶這個日期的地圖，前端（src/lib/release.ts）會標「10/15 開放」，
- * 過了這天自動不再標，不用重新部署。
+ * 帶這個日期的地圖（maps.json 的 o）＝ V002 才放行的地圖。開放前前端用它標「10/15 開放」（v0.46 已拆），
+ * 現在留給 build-gear 用：掉落地圖優先挑不是 V002 的、只有 V002 拿得到的武器／卷軸帶 o（同分排序用）。
  */
 const V002_OPEN_DATE = "2026-10-15";
 
@@ -109,6 +109,13 @@ function main() {
   const twTable = twSpawns(artale.maps);
   const spawnTable = mergeSpawns(twTable, v83.maps);
   const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
+  // 上游讓新怪物借用別隻的圖時（6300001 變形雪吉拉 → 6300000.png），補一張 <id>.png，前端才不會是壞圖。
+  // 放在建置而不放在 fetch：資料自動更新每次先 fetch（rsync 鏡像會刪掉這張複製檔）再 build（補回來），所以不會被洗掉
+  const rawMonster = new Map((artale.monsters || []).map(monster => [Number(monster.id), monster]));
+  copyMissingFrames(
+    path.join(ROOT, "public", "assets", "monster_frames"),
+    monsters.list.map(monster => ({ id: monster.id, image: rawMonster.get(monster.id)?.image })),
+  );
   const items = buildItems(artale, monsters, maps);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
@@ -133,6 +140,9 @@ function main() {
   const meta = {
     gameVersion: artale.metadata?.gameVersion ?? null,
     dataGeneratedAt: artale.metadata?.generatedAt ?? null,
+    // 上游六個檔原文的雜湊（lib/upstream.mjs 算的）：排程拿它判斷上游有沒有改資料——上游手動修資料不會改產生時間。
+    // 本機抽檔（artale.local.json）不經過那裡，沒有就是 null，排程改回比產生時間
+    dataHash: artale.metadata?.contentHash ?? null,
     dataGeneratedAtText: artale.metadata?.generatedAtText ?? null,
     ingest: artale.ingest ?? null,
     // 上游六個資料檔各自的版本，gameVersion 取的是其中最新的

@@ -27,7 +27,6 @@ import type { GearData } from "@/lib/gear";
 import { minLevelFor } from "@/lib/jobs";
 import { jobLineage } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
-import { useBeforeV002 } from "@/lib/release";
 import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 import { KillCard } from "./KillCard";
@@ -66,7 +65,6 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export function DamageCalculator() {
   const { profile, loaded } = useStoredProfile();
-  const beforeOpen = useBeforeV002();
   const [base, setBase] = useState<BaseData | null>(null);
   const [failed, setFailed] = useState(false);
   const [saved, setSaved] = useVisitState<string | null>("damage:state", null);
@@ -101,8 +99,8 @@ export function DamageCalculator() {
   const [buildTab] = useBuildChoice(Math.max(job, 0));
   const guides = useGuides(job);
   const data: CalcData | null = useMemo(
-    () => (base && guides ? { ...base, guides, beforeOpen } : null),
-    [base, guides, beforeOpen],
+    () => (base && guides ? { ...base, guides } : null),
+    [base, guides],
   );
   const startLevel = Math.max(profile.level || 0, job > 0 ? minLevelFor(job) : 1);
 
@@ -155,7 +153,7 @@ export function DamageCalculator() {
   if (job <= 0) {
     return (
       <Shell>
-        <SharedCard data={null} state={null} job={job} onJob={pickJob} onShared={() => {}} onLevel={() => {}} levelNotice={null} choices={choices} beforeOpen={beforeOpen} />
+        <SharedCard data={null} state={null} job={job} onJob={pickJob} onShared={() => {}} onLevel={() => {}} levelNotice={null} choices={choices} />
         <p className="rounded-[var(--radius-card)] border border-dashed border-[color:var(--paper-edge)] px-4 py-8 text-center text-[15px] ink-soft">
           {job === 0 ? "轉職後才有攻擊技能可以算，先選一個職業看看" : "先選職業，下面就會算出來"}
         </p>
@@ -166,14 +164,14 @@ export function DamageCalculator() {
   if (!data || !state || !calc) {
     return (
       <Shell>
-        <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={() => {}} onLevel={() => {}} levelNotice={levelNotice} choices={choices} beforeOpen={beforeOpen} />
+        <SharedCard data={data} state={state} job={job} onJob={pickJob} onShared={() => {}} onLevel={() => {}} levelNotice={levelNotice} choices={choices} />
         <LoadingBlock label="整理武器、技能跟怪物中…" />
       </Shell>
     );
   }
 
   // 換成群體治癒、選的怪不是不死系時，withSkill 順便換成不死系
-  const setShared = (patch: Partial<SharedConfig>) => update(withSkill(state, patch, choices, beforeOpen));
+  const setShared = (patch: Partial<SharedConfig>) => update(withSkill(state, patch, choices));
   const setGroup = (index: 0 | 1, next: GroupConfig) =>
     update({ ...state, groups: (index === 0 ? [next, state.groups[1]] : [state.groups[0], next]) as [GroupConfig, GroupConfig] });
   const { results, labels, diff } = calc;
@@ -195,10 +193,9 @@ export function DamageCalculator() {
         }}
         levelNotice={levelNotice}
         choices={shownChoices}
-        beforeOpen={beforeOpen}
       />
       <ResultCard data={data} state={state} labels={labels} results={results} target={target} diff={diff} />
-      <KillCard data={data} state={state} active={tab} label={groupName(tab, labels)} onPick={monsterId => setShared({ monsterId })} beforeOpen={beforeOpen} choices={shownChoices} />
+      <KillCard data={data} state={state} active={tab} label={groupName(tab, labels)} onPick={monsterId => setShared({ monsterId })} choices={shownChoices} />
       <GroupEditor data={data} state={state} result={results[tab]} active={tab} onActive={index => setActive(index)} onGroup={setGroup} />
       <HowCard data={data} job={job} level={state.groups[0].level} />
     </Shell>
