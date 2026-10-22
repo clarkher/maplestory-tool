@@ -289,7 +289,7 @@ function otherRuleThatWears(
 ): StatRule | null {
   for (const other of others) {
     const equipReq = other.secondary?.type === "equip" ? equipRequirement(gear.weapons, job, level, other) : undefined;
-    if (canWear(weapon, statTargets(other, level, equipReq))) return other;
+    if (canWear(weapon, statTargets(other, level, equipReq, job))) return other;
   }
   return null;
 }
@@ -437,7 +437,7 @@ export function gearPlan(gear: GearData, job: number, level: number, tab?: strin
 /** 運氣好的上限算哪個成功率的卷：60%（10% 卷十張全過幾乎不可能，不拿來算） */
 const LUCKY_RATE = 60;
 
-/** 這套點法空身的四格，每個等級只算一次；equip 類型才吃 equipRequirement。沒有點法回 undefined */
+/** 這套點法空身的四格，每個等級只算一次；equip 類型才吃 equipRequirement。沒有點法回 undefined。三轉職業 70 等起總點數多 5（見 totalStats） */
 function targetsAtFor(gear: GearData, job: number, rule: StatRule | null) {
   if (!rule) return undefined;
   const cache = new Map<number, Record<StatKey, number>>();
@@ -445,7 +445,7 @@ function targetsAtFor(gear: GearData, job: number, rule: StatRule | null) {
     let targets = cache.get(lv);
     if (!targets) {
       const equipReq = rule.secondary?.type === "equip" ? equipRequirement(gear.weapons, job, lv, rule) : undefined;
-      targets = statTargets(rule, lv, equipReq);
+      targets = statTargets(rule, lv, equipReq, job);
       cache.set(lv, targets);
     }
     return targets;
@@ -506,13 +506,14 @@ function ruleAt(rules: StatRule[], job: number, stage: number, tab?: string | nu
 export function bandGear(gear: GearData, job: number, from: number, to: number, tab?: string | null): BandGear {
   if (job <= 0) return { weapons: [], families: [] };
   const cache = new Map<string, Record<StatKey, number>>();
-  // 這套點法空身的四格（每個等級只算一次）
+  // 這套點法空身的四格（每個等級只算一次）。總點數看選的職業（job）不看 stage：三轉職業往後問的等級（下一把幾等換）70 等起也多 5 點，
+  // 70 等以前問的等級本來就沒有（totalStats 看等級）
   const baseAt = (stage: number, rule: StatRule) => (lv: number) => {
     const key = `${stage}|${rule.label}|${lv}`;
     let targets = cache.get(key);
     if (!targets) {
       const equipReq = rule.secondary?.type === "equip" ? equipRequirement(gear.weapons, stage, lv, rule) : undefined;
-      targets = statTargets(rule, lv, equipReq);
+      targets = statTargets(rule, lv, equipReq, job);
       cache.set(key, targets);
     }
     return targets;

@@ -4,7 +4,7 @@
  * docs/superpowers/specs/2026-10-06-gear-card-design.md）。這裡不碰畫面，只算數字跟排序。
  */
 import { canJobUse } from "./item-view";
-import { baseJob, previousJob } from "./jobs";
+import { baseJob, jobTier, previousJob, THIRD_JOB_LEVEL } from "./jobs";
 import { rewardFitsJob } from "./now-plan";
 
 /* ------------------------------------------------------------------ 資料型別（對應 public/data/gear.json，兩邊要一致） */
@@ -191,19 +191,35 @@ const STAT_KEYS: StatKey[] = ["STR", "DEX", "INT", "LUK"];
 /** 職業硬規則：能力值最少 4 點 */
 const STAT_FLOOR = 4;
 
-/** 總點數：1 等 25 點、每級 5 點 */
-export function totalStats(level: number): number {
-  return 5 * level + 20;
+/** 三轉完成多給的能力值點數 */
+export const THIRD_JOB_BONUS = 5;
+
+/**
+ * 總點數：1 等 25 點、每級 5 點；三轉職業 70 等起（完成三轉）再多 THIRD_JOB_BONUS 點（70 等 375、80 等 425）。
+ * 出處：台服玩家 10/19、10/21 回報三轉完成多給 5 點（巴哈 snA=732），上游資料 10/21 也補計；使用者 10/22 拍板加。
+ * job 是這個等級實際的職業：選了三轉職業就代表已經轉完（三轉最低 70 等），所以只看 jobTier(job) === 3
+ * 跟等級到了 THIRD_JOB_LEVEL；二轉職業（含還沒轉的 70 等以上）、一轉、初心者、不認得的代碼、沒給 job 都照舊。
+ */
+export function totalStats(level: number, job?: number): number {
+  const bonus = job !== undefined && jobTier(job) === 3 && level >= THIRD_JOB_LEVEL ? THIRD_JOB_BONUS : 0;
+  return 5 * level + 20 + bonus;
 }
 
 /**
  * 這套點法在這個等級的四圍目標。equip 類型的副屬看 equipReq（見 equipRequirement）；
  * 沒給 equipReq、或那個屬性沒資料時退回 floor。
+ * job 是這個等級實際的職業（見 totalStats）：三轉職業 70 等起總點數多 5，多出來的點數照規則分配
+ * （等級加減、固定值、裝備需求的副屬不動，多的 5 點全進主屬性；ratio 的池子跟著變大）。沒給 job 就是二轉以下的總點數。
  * 副屬算出來若超過「總點數－12」會夾住（留給主屬性跟其餘兩項各自最低 4 點）；
  * 所有算出來的數字最低都是 4。
  */
-export function statTargets(rule: StatRule, level: number, equipReq?: Partial<Record<StatKey, number>>): Record<StatKey, number> {
-  const total = totalStats(level);
+export function statTargets(
+  rule: StatRule,
+  level: number,
+  equipReq?: Partial<Record<StatKey, number>>,
+  job?: number,
+): Record<StatKey, number> {
+  const total = totalStats(level, job);
   const result: Record<StatKey, number> = { STR: STAT_FLOOR, DEX: STAT_FLOOR, INT: STAT_FLOOR, LUK: STAT_FLOOR };
   const sec = rule.secondary;
 

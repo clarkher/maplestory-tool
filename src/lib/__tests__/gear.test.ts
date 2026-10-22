@@ -40,6 +40,30 @@ describe("totalStats", () => {
     expect(totalStats(10)).toBe(70);
     expect(totalStats(35)).toBe(195);
   });
+
+  // 台服玩家 10/19、10/21 回報三轉完成多給 5 點，上游 10/21 補計（巴哈 snA=732）；使用者拍板加（10/22 第 11 項 A）
+  it("三轉職業 70 等起多 5 點：70 等 375、80 等 425", () => {
+    expect(totalStats(70, 411)).toBe(375);
+    expect(totalStats(70, 231)).toBe(375);
+    expect(totalStats(80, 411)).toBe(425);
+    expect(totalStats(120, 521)).toBe(625);
+  });
+
+  it("二轉職業 70 等以上還是 5 倍加 20（沒有三轉就沒有那 5 點）", () => {
+    expect(totalStats(70, 410)).toBe(370);
+    expect(totalStats(80, 410)).toBe(420);
+    expect(totalStats(70, 110)).toBe(370);
+  });
+
+  it("三轉職業但等級低於 70（不會有這種存檔，防呆）、一轉、初心者、不認得的代碼都不變", () => {
+    expect(totalStats(69, 411)).toBe(365);
+    expect(totalStats(50, 411)).toBe(270);
+    expect(totalStats(70, 400)).toBe(370);
+    expect(totalStats(70, 0)).toBe(370);
+    expect(totalStats(70, -1)).toBe(370);
+    expect(totalStats(70, 1110)).toBe(370);
+    expect(totalStats(70)).toBe(370);
+  });
 });
 
 describe("weaponTypesFor", () => {
@@ -164,6 +188,22 @@ describe("statTargets", () => {
     const r = rule({ jobs: [500], label: "槍手", main: "DEX", secondary: { stat: "STR", type: "ratio", ratio: [4, 1] } });
     expect(statTargets(r, 50)).toMatchObject({ STR: 54, DEX: 208 });
     expect(statTargets(r, 30)).toMatchObject({ STR: 34, DEX: 128 });
+  });
+
+  it("三轉完成多 5 點：全智三轉 70 等智力 363（二轉 70 等 358），ratio 的池子跟著多", () => {
+    const allInt = rule({ jobs: [230, 231], label: "全智", main: "INT", secondary: null });
+    expect(statTargets(allInt, 70, undefined, 231).INT).toBe(363);
+    expect(statTargets(allInt, 70, undefined, 230).INT).toBe(358);
+    expect(statTargets(allInt, 70).INT).toBe(358);
+    expect(statTargets(allInt, 69, undefined, 231).INT).toBe(353);
+    // 副屬是等級加減的，不吃總點數：多出來的 5 點全進主屬性
+    const hunter = rule({ jobs: [310, 311], label: "獵人", main: "DEX", secondary: { stat: "STR", type: "level", offset: 5 } });
+    expect(statTargets(hunter, 70, undefined, 311)).toMatchObject({ STR: 75, DEX: 292 });
+    expect(statTargets(hunter, 70, undefined, 310)).toMatchObject({ STR: 75, DEX: 287 });
+    // ratio 4:1：池子＝總點數－16，多 5 點讓副屬多 1 點（floor）
+    const ratio = rule({ jobs: [510, 511], label: "打手", main: "DEX", secondary: { stat: "STR", type: "ratio", ratio: [4, 1] } });
+    expect(statTargets(ratio, 70, undefined, 510).STR).toBe(4 + Math.floor((370 - 16) / 5));
+    expect(statTargets(ratio, 70, undefined, 511).STR).toBe(4 + Math.floor((375 - 16) / 5));
   });
 
   it("副屬算出來超過「總點數－12」要夾住，主屬性不會變負的", () => {
