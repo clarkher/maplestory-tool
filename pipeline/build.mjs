@@ -18,6 +18,7 @@ import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
+import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopRows } from "./lib/shops.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
@@ -108,6 +109,13 @@ function main() {
   const twTable = twSpawns(artale.maps);
   const spawnTable = mergeSpawns(twTable, v83.maps);
   const monsters = buildMonsters(artale, spawnTable.spawns, maps, canonItem);
+  // 上游讓新怪物借用別隻的圖時（6300001 變形雪吉拉 → 6300000.png），補一張 <id>.png，前端才不會是壞圖。
+  // 放在建置而不放在 fetch：資料自動更新每次先 fetch（rsync 鏡像會刪掉這張複製檔）再 build（補回來），所以不會被洗掉
+  const rawMonster = new Map((artale.monsters || []).map(monster => [Number(monster.id), monster]));
+  copyMissingFrames(
+    path.join(ROOT, "public", "assets", "monster_frames"),
+    monsters.list.map(monster => ({ id: monster.id, image: rawMonster.get(monster.id)?.image })),
+  );
   const items = buildItems(artale, monsters, maps);
   const quests = buildQuests(artale, maps, allJobs, canonItem);
   const skills = buildSkills(artale, allJobs);
