@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { loadMeta } from "@/lib/data";
+import { dataSyncedText } from "@/lib/format";
 import type { Meta } from "@/lib/types";
 
 export function SiteFooter() {
@@ -11,6 +12,9 @@ export function SiteFooter() {
   useEffect(() => {
     loadMeta().then(setMeta).catch(() => setMeta(null));
   }, []);
+
+  // 寫我們實際抓上游資料的時間（台灣時間）；上游只改內容時它的產生時間不會動
+  const syncedText = meta ? dataSyncedText(meta) : "";
 
   return (
     <footer className="mt-auto border-t border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]/60">
@@ -26,7 +30,7 @@ export function SiteFooter() {
             {meta ? (
               <p className="ink-faint text-xs leading-relaxed">
                 遊戲版本 {meta.gameVersion ?? "—"}
-                {meta.dataGeneratedAtText ? ` · 資料更新 ${meta.dataGeneratedAtText}` : ""}
+                {syncedText ? ` · 資料更新 ${syncedText}` : ""}
               </p>
             ) : null}
           </div>

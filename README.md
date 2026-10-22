@@ -259,6 +259,7 @@ Windows 本機沒有 rsync，圖檔同步（`syncAssets`）跑不了：本機刷
   任一邊沒有雜湊（舊的 `meta.json`、本機抽檔 `artale.local.json` 不經過上游讀檔，`dataHash` 是 `null`）就照舊只比產生時間，不會白白重建。
   執行紀錄會寫是「產生時間變了」還是「檔案內容變了」。雜湊要進資料分支名、commit 與 PR 標題（前 8 碼，上游只改資料、時間沒變時才不會跟上一次撞名），
   所以一律先用 `^[0-9a-f]{64}$` 擋過才用（`pipeline/lib/data-refresh-check.test.mjs` 真的用 bash 跑比對那兩步，`data-refresh-workflow.test.mjs`、`data-refresh-publish.test.mjs` 鎖住寫法）
+- 頁尾與首頁說明的「資料更新」日期寫**我們抓上游資料的時間**（`meta.json` 的 `ingest.fetchedAt`，換成台灣時間寫到分；`src/lib/format.ts` 的 `dataSyncedText`），不寫上游的產生時間 `generatedAt`——上游只改內容時它不會動，日期會停在舊的。沒有抓資料時間（舊的 `meta.json`）才退回產生時間。「資料從哪來」頁的「資料產生時間」仍是上游的產生時間
 - `data/raw/artale.local.json` 或 `pipeline/` 有異動時立即重建
 - 重建後重編玩家攻略（遊戲資料變了，攻略裡的 id 要重新驗）、跑 `verify.mjs`，再拿新資料跑**全套測試**（跟 PR 的「單元測試」同一套：pipeline 的 `node --test`＋vitest 全部；
   2026-10-15 以前只跑首頁那一支，上游 2.0.0 漏抽熟練度、計算機算錯照樣合進正式機（#129），10/16 使用者選 5 改成全套），其中首頁每個職業 × 等級那支

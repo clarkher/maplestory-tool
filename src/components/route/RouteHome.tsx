@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import { itemImage, loadGuide, monsterImage } from "@/lib/data";
-import { formatNumber } from "@/lib/format";
+import { dataSyncedText, formatNumber } from "@/lib/format";
 import {
   cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, settleGuides, type GuideState, type HomeData,
 } from "@/lib/home-data";
@@ -265,7 +265,7 @@ export function RouteHome() {
           </section>
 
           <p className="px-1 pt-2 text-[12px] leading-relaxed ink-faint">
-            遊戲資料：版本 {data.meta.gameVersion ?? "—"}（{data.meta.dataGeneratedAtText?.slice(0, 10) ?? "—"}）；
+            遊戲資料：版本 {data.meta.gameVersion ?? "—"}（{dataSyncedText(data.meta).slice(0, 10) || "—"}）；
             點法、練功點與必解任務整理自巴哈姆特、波波攻略島、楓錄等玩家攻略（{data.common.researchedAt}{data.common.updatedAt ? `，${data.common.updatedAt} 依改版更新` : ""}），玩家攻略每一條都附出處；標「遊戲資料」的是照遊戲資料推算。
             想看全部地圖或任務，去
             <Link href="/db" className="mx-1 font-bold text-[color:var(--sky)]">查資料</Link>。
