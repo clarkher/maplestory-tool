@@ -37,7 +37,7 @@ export function BuyQuestPlanner() {
   }, []);
 
   const rows = useMemo(
-    () => (quests && data ? buyQuestRows(data, quests, eligibleOn ? { profile, done } : undefined) : []),
+    () => (quests && data ? buyQuestRows(data, quests, eligibleOn ? { eligible: profile, done } : { done }) : []),
     [quests, data, eligibleOn, profile, done],
   );
 
