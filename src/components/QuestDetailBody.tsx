@@ -169,7 +169,8 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
-function ItemChips({ rows, linkToFarm = false }: { rows: Array<QuestRef | QuestReward>; linkToFarm?: boolean }) {
+/** 道具膠囊列（圖＋名稱＋數量）。拍賣買齊就能交的任務（/plan/buy）也用 */
+export function ItemChips({ rows, linkToFarm = false }: { rows: Array<QuestRef | QuestReward>; linkToFarm?: boolean }) {
   return (
     <ul className="flex flex-wrap gap-1.5">
       {rows.map((row, index) => (

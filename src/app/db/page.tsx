@@ -21,6 +21,7 @@ const TOOLS = [
   { href: "/plan/quest", title: "現在能接的任務", lead: "這個等級接得到的全部任務，快過期的排前面", image: "/assets/npcs/1012100.png" },
   { href: "/plan/farm", title: "想要的東西去哪打", lead: "勾幾樣道具，排出一趟收最多的地圖", image: "/assets/items/4000013.png" },
   { href: "/plan/bundle", title: "任務打包", lead: "要跑同一張圖的任務併成一趟，數量直接加總", image: "/assets/items/2000000.png" },
+  { href: "/plan/buy", title: "拍賣買齊就能交的任務", lead: "不用打怪，買齊東西直接交，看拿多少經驗、什麼獎勵", image: "/assets/items/4000031.png" },
   { href: "/guide", title: "月妙、超綠組隊圖解", lead: "種子怎麼種、答題表、跳桶位置", image: "/assets/npcs/1012112.png" },
 ];
 
