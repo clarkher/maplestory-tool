@@ -203,7 +203,7 @@ function main() {
   const badMobDrops = (monsters ?? []).flatMap(monster => (monster.drops ?? []).filter(id => !itemIds.has(id)));
   check("怪物掉落都指得到道具", badMobDrops.length === 0, `${badMobDrops.length} 筆指不到${badMobDrops.length ? `（${badMobDrops.slice(0, 5).join("、")}）` : ""}`);
   const badQuestItems = (quests ?? []).flatMap(quest =>
-    ["needItems", "startItems", "rewardItems", "startGiven"].flatMap(key => (quest[key] ?? []).filter(row => !itemIds.has(row.id)).map(row => row.id)));
+    ["needItems", "startItems", "startNone", "rewardItems", "startGiven"].flatMap(key => (quest[key] ?? []).filter(row => !itemIds.has(row.id)).map(row => row.id)));
   check("任務道具都指得到道具", badQuestItems.length === 0, `${badQuestItems.length} 筆指不到${badQuestItems.length ? `（${badQuestItems.slice(0, 5).join("、")}）` : ""}`);
 
   const withSpawn = (monsters ?? []).filter(monster => monster.sp?.length).length;

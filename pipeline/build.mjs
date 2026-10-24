@@ -22,6 +22,7 @@ import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopPrice, shopRows } from "./lib/shops.mjs";
 import { buyQuestIds, buyQuestShops, buyQuestSkills, tradeTable } from "./lib/buy-quests.mjs";
+import { rewardSkillNames, splitStartNone } from "./lib/quest-fields.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
@@ -118,8 +119,10 @@ function main() {
     monsters.list.map(monster => ({ id: monster.id, image: rawMonster.get(monster.id)?.image })),
   );
   const items = buildItems(artale, monsters, maps);
-  const quests = buildQuests(artale, maps, allJobs, canonItem);
+  // 技能先建：任務的獎勵技能要寫技能名（buildQuests）
   const skills = buildSkills(artale, allJobs);
+  const skillsById = new Map(skills.list.map(skill => [skill.id, skill]));
+  const quests = buildQuests(artale, maps, allJobs, canonItem, skillsById);
   const training = buildTraining(maps, spawnTable.spawns, monsters);
   const farming = buildFarmingIndex(items, monsters, maps);
   const search = buildSearch({ monsters, items, quests, skills, maps });
@@ -130,7 +133,7 @@ function main() {
   const buyQuests = {
     quests: buyIds,
     shops: buyShops,
-    skills: buyQuestSkills(buyIds, quests.list, new Map(skills.list.map(skill => [skill.id, skill]))),
+    skills: buyQuestSkills(buyIds, quests.list, skillsById),
   };
 
   const report = {};
@@ -575,7 +578,10 @@ function compactEquip(stats) {
 
 /* ---------------------------------------------------------------- 任務 */
 
-function buildQuests(artale, maps, jobs, canonItem) {
+function buildQuests(artale, maps, jobs, canonItem, skillsById) {
+  // 台服客戶端接取條件裡「身上不能有」的道具（scripts/client/quest-start-none.mjs 抽的）：上游一律寫成要有 1 個
+  const client = readJson(path.join(ROOT, "data", "client", "quest-start-none.json"), { none: {}, known: [] });
+  const clientKnown = new Set(client.known.map(String));
   const advOf = new Map(jobs.map(job => [job.id, job.advOrder]));
   const reachableJob = (codes) => {
     if (!codes?.length) return true;
@@ -608,8 +614,8 @@ function buildQuests(artale, maps, jobs, canonItem) {
       needItems: rowRefs(complete.items, canonItem),
       needMobs: rowRefs(complete.monsters),
 
-      // 接取條件：有些任務要先帶著道具、或先練到某個技能才接得到
-      startItems: rowRefs(start.items, canonItem),
+      // 接取條件：有些任務要先帶著道具、或先練到某個技能才接得到；startNone 是身上不能有的（lib/quest-fields.mjs）
+      ...splitStartNone(String(quest.id), rowRefs(start.items, canonItem), client.none),
       startSkills: skillRefs(start.skills),
 
       // 獎勵。接受時就給的跟完成才給的分開，不要混成一筆
@@ -618,6 +624,7 @@ function buildQuests(artale, maps, jobs, canonItem) {
       pop: rewards.pop ?? undefined,
       rewardItems: rewardRefs(rewards.items, canonItem),
       rewardSkills: skillRefs(rewards.skills),
+      rewardSkillNames: rewardSkillNames(skillRefs(rewards.skills), skillsById),
       startExp: startRewards.exp ?? undefined,
       startGiven: rewardRefs(startRewards.items, canonItem),
 
@@ -634,6 +641,11 @@ function buildQuests(artale, maps, jobs, canonItem) {
       npcs: relatedNpcs(quest, maps),
     });
   });
+  // 客戶端比上游舊（改版新加的任務）：接取道具照上游寫「身上要有」，客戶端更新後重抽
+  const unchecked = list.filter(quest => quest.startItems && !clientKnown.has(quest.id));
+  if (unchecked.length) {
+    console.log(`[quests] 要道具才接得到、客戶端沒有這個任務的：${unchecked.length} 個（${unchecked.map(quest => quest.id).join("、")}），照上游寫「身上要有」`);
+  }
   return { list };
 }
 
