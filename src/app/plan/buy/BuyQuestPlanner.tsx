@@ -90,7 +90,7 @@ export function BuyQuestPlanner() {
 function BuyCard({ row }: { row: BuyQuestRow }) {
   const { quest, pre, shops, skills } = row;
   // 楓幣是負的＝交任務要付錢，不是獎勵：獎勵那行只放正的，要付的寫在「要交的東西」底下
-  const reward = rewardSummary(quest.exp, quest.money && quest.money > 0 ? quest.money : undefined);
+  const reward = rewardSummary(quest.exp, quest.money && quest.money > 0 ? quest.money : undefined, quest.pop);
   const pay = quest.money && quest.money < 0 ? -quest.money : 0;
   const sold = (quest.needItems ?? []).filter(item => shops.has(item.id));
   const oldData = sold.some(item => shops.get(item.id)?.o);

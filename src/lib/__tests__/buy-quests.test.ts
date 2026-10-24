@@ -56,6 +56,11 @@ describe("卡片資料", () => {
     expect(rows.find(row => row.quest.id === "7")!.skills).toEqual([]);
     expect(rows.find(row => row.quest.id === "8")!.skills).toEqual(["神匠之魂"]);
   });
+  it("舊版資料沒有 skills 欄位：不會丟錯，技能是空的", () => {
+    const old = { quests: ["6000"], shops: {} } as unknown as BuyQuestData;
+    const rows = buyQuestRows(old, [q("6000", { rewardSkills: [1003] })]);
+    expect(rows.map(row => row.skills)).toEqual([[]]);
+  });
   it("前置任務帶出來；商店有賣的道具帶最便宜那家", () => {
     const rows = buyQuestRows(data, quests);
     expect(rows.find(row => row.quest.id === "2")!.pre.map(pre => pre.id)).toEqual(["3"]);

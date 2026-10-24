@@ -55,7 +55,8 @@ export function buyQuestRows(
           return shop ? [[row.id, shop] as [number, ShopRow]] : [];
         }),
       ),
-      skills: [...new Set((quest.rewardSkills ?? []).flatMap(id => (data.skills[id] ? [data.skills[id]] : [])))],
+      // 舊版 buy-quests.json 沒有 skills 欄位：不要因為這樣整頁掛掉，當作沒有技能
+      skills: [...new Set((quest.rewardSkills ?? []).flatMap(id => (data.skills?.[id] ? [data.skills[id]] : [])))],
     }))
     .sort(
       (a, b) =>
