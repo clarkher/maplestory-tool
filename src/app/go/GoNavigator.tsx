@@ -8,6 +8,8 @@ import { MapPicker } from "@/components/MapPicker";
 import { PixelMinimap } from "@/components/PixelMinimap";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
 import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage, peekGraph, peekMaps, peekNearestTown } from "@/lib/data";
+/** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
+import { GO_START_KEY as START_KEY } from "@/lib/go-start";
 import { normalizeJob } from "@/lib/jobs";
 import { npcLevelNote, npcSentence, npcWarp, portalDirection, portalSentence } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
@@ -17,9 +19,6 @@ import {
 } from "@/lib/route";
 import type { MapRecord, PortalEdge } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
-
-/** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
-const START_KEY = "ms-go-start";
 
 function readRememberedStart(): number | null {
   try {
