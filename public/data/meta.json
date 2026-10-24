@@ -95,12 +95,13 @@
     "regions": 40,
     "walkableAreas": 4046,
     "trainingMaps": 273,
-    "farmableItems": 1392
+    "farmableItems": 1392,
+    "buyQuests": 100
   },
   "coverage": {
     "monstersWithSpawnData": 104,
     "monstersWithoutSpawnData": 12,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-10-22T04:10:56.882Z"
+  "builtAt": "2026-10-24T01:44:49.153Z"
 }
