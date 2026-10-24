@@ -60,6 +60,12 @@ export type Monster = {
  */
 export type ShopRow = { p: string; n?: string; m?: number; pr: number; k?: number; c?: 1; o?: 1 };
 
+/**
+ * 拍賣買齊就能交的任務（pipeline/lib/buy-quests.mjs 輸出的 buy-quests.json）：quests 任務編號、shops 要交的道具在 NPC 商店的店家列（沒有商城）、
+ * skills 這些任務完成後學會的技能（技能編號 → 技能名，頁面不載 skills.json 所以名字跟著走）
+ */
+export type BuyQuestData = { quests: string[]; shops: Record<string, ShopRow[]>; skills: Record<string, string> };
+
 export type Item = {
   id: number;
   n: string;
