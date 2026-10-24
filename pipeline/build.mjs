@@ -125,7 +125,9 @@ function main() {
   const search = buildSearch({ monsters, items, quests, skills, maps });
   // 拍賣買齊就能交的任務（/plan/buy）：要交的道具全能交易、不用打怪（lib/buy-quests.mjs）
   const buyIds = buyQuestIds(artale.quests, tradeTable(artale.items), new Set(quests.list.map(quest => quest.id)));
-  const buyQuests = { quests: buyIds, shops: buyQuestShops(buyIds, quests.list, items.byId) };
+  const rawItemsById = new Map((artale.items || []).map(item => [Number(item.id), item]));
+  const buyShops = buyQuestShops(buyIds, quests.list, rawItemsById, { openRegions: RELEASE.mapRegions, mapRecords: maps.records });
+  const buyQuests = { quests: buyIds, shops: buyShops };
 
   const report = {};
   report["maps.json"] = write("maps.json", maps.records);

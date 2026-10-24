@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buyQuestIds, buyQuestShops, isTradeable, tradeTable } from "./buy-quests.mjs";
+import { buyQuestIds, buyQuestShops, isMesoShop, isTradeable, tradeTable } from "./buy-quests.mjs";
 
 const free = { status: "unlimited", label: "無限交易", note: "", flags: {} };
 const rawItems = [
@@ -51,17 +51,56 @@ test("站上沒有的任務（還沒開放）不收", () => {
   assert.deepEqual(buyQuestIds([quest(30, [4000023])], tradeOf, listedAll([])), []);
 });
 
-test("商店：只看符合的任務要交的道具，去掉商城樂豆點，沒有店的不寫", () => {
-  const apple = { p: "弓箭手村", n: "雜貨商人", m: 100000102, pr: 30, o: 1 };
-  const itemsById = new Map([
-    [2010000, { id: 2010000, sp: [apple, { p: "商城", pr: 100, c: 1 }] }],
-    [4000023, { id: 4000023 }],
-    [2000000, { id: 2000000, sp: [{ p: "商城", pr: 50, c: 1 }] }],
-    [2000001, { id: 2000001, sp: [{ p: "勇士之村", pr: 160 }] }],
-  ]);
+// 上游 item.sources.shops 的樣子（只留 shopRows 會看的欄位）
+const place = { id: 100000102, name: "弓箭手村雜貨店", unnamed: false, regionName: "維多利亞島" };
+const meso = (overrides = {}) => ({
+  sourceType: "npcShop", sourceFile: "heavenms_db_database.sql", merchantName: "露娜",
+  price: 30, count: 1, currency: "楓幣", maps: [place], ...overrides,
+});
+// 2026-10 萬聖節活動店：收萬聖節硬幣、有限時說明，sp 沒有幣別，不擋會被當成「1 楓幣」
+const halloween = (overrides = {}) => meso({
+  sourceFile: "halloween2026", merchantName: "行商人", price: 1, count: 10, currency: "萬聖節硬幣",
+  availabilityText: "2026/10/15 維護後～2026/11/11 23:59", ...overrides,
+});
+const cashShop = () => ({ sourceType: "cashShop", merchantName: "商城", price: 100, count: 1, currency: "點數", maps: [] });
+const context = { openRegions: ["維多利亞島"], mapRecords: { 100000102: { zh: "弓箭手村雜貨店" } } };
+const rawItem = (id, shops) => ({ id, sources: shops ? { shops } : {} });
+const itemsOf = (...items) => new Map(items.map(item => [Number(item.id), item]));
+const need = (id, n = "道具") => ({ id, n, c: 1 });
+const apple = { p: "弓箭手村雜貨店", n: "露娜", m: 100000102, pr: 30, o: 1 };
+
+test("isMesoShop：只認收楓幣、沒有限時說明的店", () => {
+  assert.equal(isMesoShop(meso()), true);
+  assert.equal(isMesoShop(halloween()), false);
+  assert.equal(isMesoShop(meso({ availabilityText: "2026/10/15 維護後～2026/11/11 23:59" })), false);
+  assert.equal(isMesoShop(cashShop()), false);
+  assert.equal(isMesoShop(undefined), false);
+});
+
+test("商店：收楓幣、不限時的 NPC 店留下，寫成 shopRows 的樣子", () => {
+  const raw = itemsOf(rawItem(2010000, [meso()]));
+  const quests = [{ id: "3100", needItems: [need(2010000, "蘋果")] }];
+  assert.deepEqual(buyQuestShops(["3100"], quests, raw, context), { 2010000: [apple] });
+});
+
+test("商店：萬聖節硬幣的活動店、限時的楓幣店、商城樂豆點都不列，只留常駐收楓幣的", () => {
+  const mixed = [halloween(), meso({ price: 99, availabilityText: "2026/10/15 維護後～2026/11/11 23:59" }), cashShop(), meso()];
+  const raw = itemsOf(rawItem(2022000, mixed));
+  const quests = [{ id: "3100", needItems: [need(2022000, "礦泉水")] }];
+  assert.deepEqual(buyQuestShops(["3100"], quests, raw, context), { 2022000: [apple] });
+});
+
+test("商店：剩不下任何一家就不寫；沒有商店資料、查不到道具的也不寫", () => {
+  const raw = itemsOf(rawItem(2022000, [halloween(), cashShop()]), rawItem(4000023, undefined));
+  const quests = [{ id: "3100", needItems: [need(2022000), need(4000023), need(9999999)] }];
+  assert.deepEqual(buyQuestShops(["3100"], quests, raw, context), {});
+});
+
+test("商店：只看符合的任務要交的道具，別的任務的不管", () => {
+  const raw = itemsOf(rawItem(2010000, [meso()]), rawItem(2000001, [meso({ price: 160 })]));
   const quests = [
-    { id: "3100", needItems: [{ id: 2010000, n: "蘋果", c: 20 }, { id: 4000023, n: "冰獨眼獸之尾巴", c: 50 }, { id: 2000000, n: "紅色藥水", c: 1 }] },
-    { id: "9", needItems: [{ id: 2000001, n: "橘色藥水", c: 1 }] },
+    { id: "3100", needItems: [need(2010000, "蘋果")] },
+    { id: "9", needItems: [need(2000001, "橘色藥水")] },
   ];
-  assert.deepEqual(buyQuestShops(["3100"], quests, itemsById), { 2010000: [apple] });
+  assert.deepEqual(buyQuestShops(["3100"], quests, raw, context), { 2010000: [apple] });
 });

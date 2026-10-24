@@ -1,12 +1,14 @@
 /**
  * 「拍賣買齊就能交的任務」（/plan/buy，v1.13）：要交的道具全都能交易、不用打怪的任務，
- * 跟這些道具在 NPC 商店的價錢。build.mjs 寫成 public/data/buy-quests.json。
+ * 跟這些道具在 NPC 商店的價錢（只列常駐、收楓幣的店）。build.mjs 寫成 public/data/buy-quests.json。
  *
  * 能不能交易看上游的 trade：status 是 unlimited、而且沒有 flags.quest。
  * 上游把任務道具（quest: 1，休咪的錢包、白花…）也標 unlimited，但遊戲裡任務道具不能交易、拍賣買不到。
  * 上游把同名道具併成一筆（紅色藥水 2000000 底下有不能交易的活動版 2001500），每個編號自己的交易狀態在 tradeVariants，
  * 所以查的是任務原本要的那個編號。查不到的當作不能交易（寧可少列）。
  */
+
+import { shopRows } from "./shops.mjs";
 
 /** 每個道具編號（含併進別筆的）的交易狀態 */
 export function tradeTable(rawItems) {
@@ -41,18 +43,35 @@ export function buyQuestIds(rawQuests, tradeOf, listed) {
 }
 
 /**
- * 這些任務要交的道具裡，NPC 商店有賣的：items.json 的 sp 去掉商城（c: 1，樂豆點）那幾列。
- * quests.json 的 needItems 是合併後的編號，跟 items.json 對得上。
+ * 這家店收的是楓幣、而且不是限時活動店。
+ * items.json 的 sp 沒有幣別（lib/shops.mjs 只用 c: 1 標商城樂豆點），活動店收的萬聖節硬幣、活動幣會被當成楓幣：
+ * 2026-10 萬聖節活動店（雪原的面具祭典現場，currency 是「萬聖節硬幣」、有 availabilityText）賣礦泉水 10 個 1，
+ * 直接抄 sp 會寫成「10 個 1 楓幣」。所以這頁自己從上游原始店家資料挑：幣別是楓幣、沒有限時說明才算。
+ * 商城的點數店、限時的楓幣店也一併不列——這頁給玩家照著去買，不要列一家過幾天就關的店。
+ */
+export function isMesoShop(shop) {
+  return shop?.currency === "楓幣" && !shop.availabilityText;
+}
+
+/**
+ * 這些任務要交的道具裡，NPC 常駐商店有賣的：從上游原始店家（item.sources.shops）挑 isMesoShop，
+ * 再交給 shopRows 轉成 items.json sp 同一種列（地區開放、地圖名、舊版資料標記都沿用它的規則）。
+ * quests.json 的 needItems 是合併後的編號，跟上游道具表的 id 對得上。
+ * @param {string[]} questIds buyQuestIds 的結果
+ * @param {Array<object>} quests quests.json 的 list
+ * @param {Map<number, object>} rawItemsById 上游 artale.items，key 是 Number(item.id)
+ * @param {{ openRegions: string[], mapRecords: Record<string, object> }} shopContext shopRows 的第二個參數
  * @returns {Record<string, Array<object>>} 道具編號 → 店家列
  */
-export function buyQuestShops(questIds, quests, itemsById) {
+export function buyQuestShops(questIds, quests, rawItemsById, shopContext) {
   const wanted = new Set(questIds);
   const shops = {};
   for (const quest of quests) {
     if (!wanted.has(quest.id)) continue;
     for (const row of quest.needItems || []) {
-      const rows = (itemsById.get(row.id)?.sp || []).filter(shop => !shop.c);
-      if (rows.length) shops[row.id] = rows;
+      const raw = rawItemsById.get(Number(row.id));
+      const rows = shopRows((raw?.sources?.shops || []).filter(isMesoShop), shopContext);
+      if (rows) shops[row.id] = rows;
     }
   }
   return shops;
