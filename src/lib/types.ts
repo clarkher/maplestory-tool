@@ -56,9 +56,10 @@ export type Monster = {
 /**
  * 道具「哪裡買得到」的一家店（pipeline/lib/shops.mjs，只列經典版已開放的地方）。
  * p 地點、n NPC（商城沒有）、m 地點的地圖 id、pr 標價、
- * k 一組幾個（1 個不寫）、c=1 商城的樂豆點（沒寫是楓幣）、o=1 取自舊版資料（經典版實際可能不同）。
+ * k 一組幾個（1 個不寫）、c=1 商城的樂豆點（沒寫是楓幣）、u 活動貨幣的名稱（萬聖節硬幣，標價是幾個硬幣）、
+ * e 限時店的結束時間（"2026-11-11T23:59+08:00"，過了畫面就不列）、o=1 取自舊版資料（經典版實際可能不同）。
  */
-export type ShopRow = { p: string; n?: string; m?: number; pr: number; k?: number; c?: 1; o?: 1 };
+export type ShopRow = { p: string; n?: string; m?: number; pr: number; k?: number; c?: 1; u?: string; e?: string; o?: 1 };
 
 /**
  * 拍賣買齊就能交的任務（pipeline/lib/buy-quests.mjs 輸出的 buy-quests.json）：quests 任務編號、shops 要交的道具在 NPC 商店的店家列（沒有商城）、

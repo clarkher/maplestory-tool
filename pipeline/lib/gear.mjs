@@ -179,14 +179,15 @@ function chainMinLv(quest, questsById, seen = new Set()) {
 
 /**
  * 道具的商店來源：照 items.json 的 sp 店家清單（pipeline/lib/shops.mjs 已經只留開放的地圖或有名字的城鎮）。
- * 商城（樂豆點）不算；店在 10/15 才開的城鎮（冰原雪域、天空之城）帶 o。現在就開的店排前面、再比便宜，最多 3 家。
+ * 商城（樂豆點）不算；活動店（收萬聖節硬幣的 u、限時的 e）也不算，去哪拿只推常駐的店。
+ * 店在 10/15 才開的城鎮（冰原雪域、天空之城）帶 o。現在就開的店排前面、再比便宜，最多 3 家。
  * 上游的 sh 是「幾筆販售資料」，連還沒開放的城鎮都算進去，不能拿來說「商店買得到」。
  */
 export function shopSources(item, maps, v002Date) {
   const rows = [];
   const seen = new Set();
   for (const shop of item.sp ?? []) {
-    if (shop.c) continue;
+    if (shop.c || shop.u || shop.e) continue;
     const row = { p: shop.p };
     if (shop.n) row.n = shop.n;
     if (shop.m !== undefined) row.m = shop.m;

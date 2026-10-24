@@ -298,8 +298,11 @@ function ItemDetail({
         <Section title="哪裡買得到" extra={shops.fromOldData ? "參考舊版資料，可能有出入" : undefined}>
           <div className="space-y-2">
             {shops.groups.map(group => (
-              <div key={group.price} className="space-y-1">
-                <p className="text-[13px] font-black tabular-nums">{group.price}</p>
+              <div key={`${group.price}-${group.until ?? ""}`} className="space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-[13px] font-black tabular-nums">
+                  {group.price}
+                  {group.until ? <Chip tone="maple">活動限定・到 {group.until}</Chip> : null}
+                </p>
                 <ul className="flex flex-wrap gap-1.5">
                   {group.places.map((place, index) => (
                     <li

@@ -421,4 +421,40 @@ describe("哪裡買得到", () => {
     expect(shopGroups(arrows).groups.map(group => group.price)).toEqual(["2,000 個 1,400 楓幣"]);
   });
 
+  /** 萬聖節活動的行商人：收萬聖節硬幣、到 11/11 23:59，同一家店開在 5 張分流圖（建置時各記一筆） */
+  const halloween = (m: number) => ({ p: "雪原的面具祭典現場", n: "行商人", m, pr: 1, k: 10, u: "萬聖節硬幣", e: "2026-11-11T23:59+08:00" });
+  const water: Item = {
+    id: 2022000, n: "礦泉水", c: "消耗",
+    sp: [halloween(876011151), { p: "維多利亞港", n: "珍", m: 104000000, pr: 1600 }, halloween(876011153), halloween(876011154)],
+  };
+  const duringEvent = Date.parse("2026-10-24T12:00:00+08:00");
+
+  it("活動店寫真的幣別、標「到 11/11」，排在常駐的店後面；好幾張分流圖同一個地點只列一次", () => {
+    expect(shopGroups(water, duringEvent)).toEqual({
+      groups: [
+        { price: "1,600 楓幣", places: [{ place: "維多利亞港", npc: "珍" }] },
+        { price: "10 個 1 萬聖節硬幣", until: "11/11", places: [{ place: "雪原的面具祭典現場", npc: "行商人" }] },
+      ],
+      fromOldData: false,
+    });
+  });
+
+  it("同一個價錢、一家限時一家常駐：分開列，常駐的不會被標成活動限定", () => {
+    const mask: Item = {
+      id: 1012939, n: "樹木面具", c: "裝備",
+      sp: [{ p: "雪原的面具祭典現場", n: "祭典管理員", m: 876011151, pr: 50000, e: "2026-11-11T23:59+08:00" }, { p: "弓箭手村", pr: 50000 }],
+    };
+    expect(shopGroups(mask, duringEvent).groups).toEqual([
+      { price: "50,000 楓幣", places: [{ place: "弓箭手村" }] },
+      { price: "50,000 楓幣", until: "11/11", places: [{ place: "雪原的面具祭典現場", npc: "祭典管理員" }] },
+    ]);
+  });
+
+  it("活動結束後（11/12 起）活動店自己不列，不用等資料重建", () => {
+    const afterEvent = Date.parse("2026-11-12T00:00:00+08:00");
+    expect(shopGroups(water, afterEvent).groups).toEqual([{ price: "1,600 楓幣", places: [{ place: "維多利亞港", npc: "珍" }] }]);
+    expect(shopGroups({ ...water, sp: [halloween(876011151)] }, afterEvent)).toEqual({ groups: [], fromOldData: false });
+    expect(shopGroups(water, Date.parse("2026-11-11T23:59:30+08:00")).groups).toHaveLength(2);
+  });
+
 });

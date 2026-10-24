@@ -20,7 +20,7 @@ import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
 import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
-import { shopRows } from "./lib/shops.mjs";
+import { shopPrice, shopRows } from "./lib/shops.mjs";
 import { buyQuestIds, buyQuestShops, buyQuestSkills, tradeTable } from "./lib/buy-quests.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
@@ -546,22 +546,6 @@ function buildItems(artale, monsters, maps) {
     return record;
   });
   return { list, byId: new Map(list.map(item => [item.id, item])) };
-}
-
-/**
- * NPC 商店的最高單價。同一個道具在不同店家可能不同價，取最高的當參考。
- *
- * 有些店是整組賣（通行證遠端商店：箭矢 2000 支 1400），要除以組數才是一個的價錢。
- * 上游標成 hiddenByDefault 的是「非本期限時售價」，現在買不到這個價，不算。
- */
-function shopPrice(shops) {
-  if (!Array.isArray(shops) || !shops.length) return undefined;
-  const prices = shops
-    .filter(shop => !shop?.hiddenByDefault)
-    .map(shop => (Number(shop?.price) || 0) / Math.max(Number(shop?.count) || 1, 1))
-    .map(price => Math.round(price * 100) / 100)
-    .filter(price => price > 0);
-  return prices.length ? Math.max(...prices) : undefined;
 }
 
 function pluckIds(rows, key = "id") {
