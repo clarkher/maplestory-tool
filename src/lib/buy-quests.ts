@@ -30,7 +30,7 @@ export function shopLine(shop: ShopRow): string {
 }
 
 /**
- * 經驗高的在前，一樣多的需求等級低的在前。
+ * 經驗高的在前，一樣多的需求等級低的在前；經驗一樣、需求等級也一樣時照任務編號，同一條任務線就會照順序。
  * eligible 給了就只留這個角色現在接得到（questEligible：等級、職業、楓之島）、沒按過「我做完了」的；前置做了沒不擋，卡片寫「要先做」。
  */
 export function buyQuestRows(
@@ -54,5 +54,10 @@ export function buyQuestRows(
         }),
       ),
     }))
-    .sort((a, b) => (b.quest.exp ?? 0) - (a.quest.exp ?? 0) || (a.quest.minLv ?? 0) - (b.quest.minLv ?? 0));
+    .sort(
+      (a, b) =>
+        (b.quest.exp ?? 0) - (a.quest.exp ?? 0) ||
+        (a.quest.minLv ?? 0) - (b.quest.minLv ?? 0) ||
+        Number(a.quest.id) - Number(b.quest.id),
+    );
 }

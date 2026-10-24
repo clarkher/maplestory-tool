@@ -35,6 +35,20 @@ describe("卡片資料", () => {
   it("經驗高的在前，一樣多的需求等級低的在前；沒經驗的排最後；開發測試用、查不到的不列", () => {
     expect(buyQuestRows(data, quests).map(row => row.quest.id)).toEqual(["2", "5", "1", "6"]);
   });
+  it("經驗一樣：需求等級低的在前（資料裡倒著排也一樣）", () => {
+    const sameExp = [
+      q("11", { exp: 1000, minLv: 40 }),
+      q("12", { exp: 1000, minLv: 30 }),
+      q("13", { exp: 1000, minLv: 20 }),
+    ];
+    const rows = buyQuestRows({ quests: ["11", "12", "13"], shops: {} }, sameExp);
+    expect(rows.map(row => row.quest.id)).toEqual(["13", "12", "11"]);
+  });
+  it("經驗、需求等級都一樣：照任務編號，同一條任務線會照順序", () => {
+    const chain = [q("69089", { exp: 50000, minLv: 30 }), q("69088", { exp: 50000, minLv: 30 })];
+    const rows = buyQuestRows({ quests: ["69089", "69088"], shops: {} }, chain);
+    expect(rows.map(row => row.quest.id)).toEqual(["69088", "69089"]);
+  });
   it("前置任務帶出來；商店有賣的道具帶最便宜那家", () => {
     const rows = buyQuestRows(data, quests);
     expect(rows.find(row => row.quest.id === "2")!.pre.map(pre => pre.id)).toEqual(["3"]);

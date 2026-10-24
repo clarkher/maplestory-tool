@@ -9,7 +9,7 @@ import { ItemChips } from "@/components/QuestDetailBody";
 import { buyQuestRows, shopLine, type BuyQuestRow } from "@/lib/buy-quests";
 import { loadBuyQuests, loadQuests, npcImage, peekBuyQuests, peekQuests } from "@/lib/data";
 import { useDoneQuests } from "@/lib/done-quests";
-import { rewardSummary } from "@/lib/format";
+import { formatNumber, rewardSummary } from "@/lib/format";
 import { npcPlace } from "@/lib/go-label";
 import { useProfile } from "@/lib/profile";
 import { useRemembered } from "@/lib/remember";
@@ -72,10 +72,14 @@ export function BuyQuestPlanner() {
               {rows.map(row => <BuyCard key={row.quest.id} row={row} />)}
             </ul>
           ) : (
-            <EmptyBlock
-              title={`Lv.${profile.level} 現在接得到的任務裡，沒有買齊就能交的`}
-              hint="關掉「只看我接得到的」可以看全部。"
-            />
+            eligibleOn ? (
+              <EmptyBlock
+                title={`Lv.${profile.level} 現在接得到的任務裡，沒有買齊就能交的`}
+                hint="關掉「只看我接得到的」可以看全部。"
+              />
+            ) : (
+              <EmptyBlock title="目前沒有買齊就能交的任務" />
+            )
           )}
         </>
       )}
@@ -85,7 +89,9 @@ export function BuyQuestPlanner() {
 
 function BuyCard({ row }: { row: BuyQuestRow }) {
   const { quest, pre, shops } = row;
-  const reward = rewardSummary(quest.exp, quest.money);
+  // 楓幣是負的＝交任務要付錢，不是獎勵：獎勵那行只放正的，要付的寫在「要交的東西」底下
+  const reward = rewardSummary(quest.exp, quest.money && quest.money > 0 ? quest.money : undefined);
+  const pay = quest.money && quest.money < 0 ? -quest.money : 0;
   const sold = (quest.needItems ?? []).filter(item => shops.has(item.id));
   const oldData = sold.some(item => shops.get(item.id)?.o);
   const npc = quest.sNpc;
@@ -110,13 +116,18 @@ function BuyCard({ row }: { row: BuyQuestRow }) {
       <section>
         <h3 className="mb-1.5 text-[13px] font-black">要交的東西</h3>
         <ItemChips rows={quest.needItems ?? []} />
+        {pay ? <p className="mt-1.5 text-[13px] font-bold">另外要付 {formatNumber(pay)} 楓幣</p> : null}
         {sold.length ? (
-          <ul className="mt-1.5 space-y-0.5 text-[12px] leading-relaxed ink-soft">
-            {sold.map(item => (
-              <li key={item.id}>商店有賣：{item.n} {shopLine(shops.get(item.id)!)}</li>
-            ))}
-            {oldData ? <li className="ink-faint">商店參考舊版資料，可能有出入</li> : null}
-          </ul>
+          <div className="mt-1.5 text-[12px] leading-relaxed ink-soft">
+            <p>NPC 商店也買得到{oldData ? "（參考舊版資料，可能有出入）" : ""}</p>
+            <ul className="space-y-0.5">
+              {sold.map(item => (
+                <li key={item.id}>
+                  <span className="font-bold">{item.n}</span>：{shopLine(shops.get(item.id)!)}
+                </li>
+              ))}
+            </ul>
+          </div>
         ) : null}
       </section>
 
