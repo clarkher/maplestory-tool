@@ -8,7 +8,7 @@ import { FilterTag } from "@/components/FilterTag";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
 import { ItemChips } from "@/components/QuestDetailBody";
 import { BIG_AMOUNT, buyQuestRegions, buyQuestRows, displayItemName, shopLine, type BuyQuestRow } from "@/lib/buy-quests";
-import { loadBuyQuests, loadNearestTown, loadQuests, npcImage, peekBuyQuests, peekQuests } from "@/lib/data";
+import { loadBuyQuests, loadNearestTown, loadQuests, npcImage, peekBuyQuests, peekNearestTown, peekQuests } from "@/lib/data";
 import { useDoneQuests } from "@/lib/done-quests";
 import { formatNumber, rewardSummary } from "@/lib/format";
 import { npcPlace } from "@/lib/go-label";
@@ -50,16 +50,22 @@ export function BuyQuestPlanner() {
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
 
+  // 讀本機儲存要在 effect 裡（不然跟伺服器畫出來的不一樣）；對照表這次瀏覽載過就同步用，卡片不會先畫一次再換
   useEffect(() => {
     const start = readGoStart();
     if (!start) return;
-    loadNearestTown()
-      .then(table => {
-        setStartTown(start);
-        setTownOf(() => (mapId: number) => table[String(mapId)]?.[0]);
-      })
-      // 載不到就照舊挑最便宜的
-      .catch(() => {});
+    const apply = (table: Record<string, [number, number]>) => {
+      // 記下來的起點不一定是城鎮：換成它所在的城鎮再比
+      setStartTown(table[String(start)]?.[0] ?? start);
+      setTownOf(() => (mapId: number) => table[String(mapId)]?.[0]);
+    };
+    const loaded = peekNearestTown();
+    if (loaded) {
+      apply(loaded);
+      return;
+    }
+    // 載不到就照舊挑最便宜的
+    loadNearestTown().then(apply).catch(() => {});
   }, []);
 
   const doneHere = useMemo(() => new Set([...done].filter(id => !keep.has(id))), [done, keep]);
@@ -80,6 +86,13 @@ export function BuyQuestPlanner() {
     [quests, data, eligibleOn, profile, doneHere, noFightOnly, region, startTown, townOf],
   );
   const shown = showAll ? rows : rows.slice(0, FIRST_SHOWN);
+  // 沒有任務時的提示：只列現在開著的篩選
+  const toggles = [eligibleOn ? "「只看我接得到的」" : "", noFightOnly ? "「前面也不用打怪」" : ""].filter(Boolean).join("、");
+  const emptyHint = toggles
+    ? `關掉${toggles}${region ? "或換個地區" : ""}看看。`
+    : region
+      ? "換個地區看看。"
+      : undefined;
   const onToggleDone = (id: string) => setKeep(before => new Set(before).add(id));
 
   return (
@@ -141,13 +154,11 @@ export function BuyQuestPlanner() {
                 </button>
               ) : null}
             </>
-          ) : eligibleOn ? (
-            <EmptyBlock
-              title={`Lv.${profile.level} 現在接得到的任務裡，沒有買齊就能交的`}
-              hint="關掉「只看我接得到的」可以看全部。"
-            />
           ) : (
-            <EmptyBlock title="目前沒有買齊就能交的任務" hint={noFightOnly || region ? "換個地區、或關掉「前面也不用打怪」看看。" : undefined} />
+            <EmptyBlock
+              title={eligibleOn ? `Lv.${profile.level} 現在接得到的任務裡，沒有買齊就能交的` : "目前沒有買齊就能交的任務"}
+              hint={emptyHint}
+            />
           )}
         </>
       )}
@@ -163,8 +174,8 @@ function BuyCard({ row, onToggleDone }: { row: BuyQuestRow; onToggleDone: (id: s
   const needItems = (quest.needItems ?? []).map(item => ({ ...item, n: displayItemName(item) }));
   const sold = needItems.filter(item => shops.has(item.id));
   const oldData = sold.some(item => shops.get(item.id)?.o);
-  // 量多的提醒：自己的道具有單項 200 個以上，或連前面一起做時合計有單項 200 個以上
-  const bigAmount = big || Boolean(chain?.items.some(item => (item.c ?? 1) >= BIG_AMOUNT));
+  // 量多的提醒：自己的道具有單項 200 個以上寫在要交的東西底下；只有連前面一起做的合計才 200 個以上，就寫在合計那段
+  const chainBig = !big && Boolean(chain?.items.some(item => (item.c ?? 1) >= BIG_AMOUNT));
   const startNpc = quest.sNpc;
   // 回報的人跟接任務不同才多一格
   const endNpc = quest.eNpc && quest.eNpc.id !== startNpc?.id ? quest.eNpc : undefined;
@@ -192,7 +203,7 @@ function BuyCard({ row, onToggleDone }: { row: BuyQuestRow; onToggleDone: (id: s
       <section>
         <h3 className="mb-1.5 text-[13px] font-black">要交的東西</h3>
         <ItemChips rows={needItems} />
-        {bigAmount ? <p className="mt-1.5 text-[12px] ink-soft">量多，拍賣可能要分幾次才買得齊</p> : null}
+        {big ? <p className="mt-1.5 text-[12px] ink-soft">量多，拍賣可能要分幾次才買得齊</p> : null}
         {pay ? <p className="mt-1.5 text-[13px] font-bold">另外要付 {formatNumber(pay)} 楓幣</p> : null}
         {sold.length ? (
           <div className="mt-1.5 text-[12px] leading-relaxed ink-soft">
@@ -241,15 +252,18 @@ function BuyCard({ row, onToggleDone }: { row: BuyQuestRow; onToggleDone: (id: s
               連前面一起做：共 {chain.steps} 段，合計經驗 <strong className="font-bold text-[color:var(--gold)]">{formatNumber(chain.exp)}</strong>
               <br />
               合計要交：{chain.items.map(item => `${item.n} ×${formatNumber(item.c ?? 1)}`).join("、")}
+              {chainBig ? <><br />合計量多，拍賣可能要分幾次才買得齊</> : null}
             </p>
           ) : null}
         </div>
       ) : null}
 
-      <div className={endNpc ? "grid gap-2 sm:grid-cols-2" : undefined}>
-        {startNpc ? <NpcBox title="接任務" npc={startNpc} /> : null}
-        {endNpc ? <NpcBox title="回報" npc={endNpc} /> : null}
-      </div>
+      {startNpc || endNpc ? (
+        <div className={endNpc ? "grid gap-2 sm:grid-cols-2" : undefined}>
+          {startNpc ? <NpcBox title="接任務" npc={startNpc} /> : null}
+          {endNpc ? <NpcBox title="回報" npc={endNpc} /> : null}
+        </div>
+      ) : null}
     </li>
   );
 }

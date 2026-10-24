@@ -82,6 +82,19 @@ describe("卡片資料", () => {
     const rows = buyQuestRows(data, quests, { eligible: { level: 25, job: 100 }, done: new Set(["6"]) });
     expect(rows.map(row => row.quest.id)).toEqual(["1"]);
   });
+  it("按過做完了的不列，沒開「只看接得到的」也一樣", () => {
+    const rows = buyQuestRows(data, quests, { done: new Set(["1"]) });
+    expect(rows.map(row => row.quest.id)).not.toContain("1");
+    expect(rows.map(row => row.quest.id)).toContain("2");
+  });
+  it("要先做只列還沒做完的前置；全做完了就是空的", () => {
+    const two = q("p2", { exp: 100, pre: ["p1", "p0"] });
+    const ones = [q("p0"), q("p1"), two];
+    const list: BuyQuestData = { quests: ["p2"], shops: {}, skills: {} };
+    expect(buyQuestRows(list, ones)[0].pre.map(pre => pre.id)).toEqual(["p1", "p0"]);
+    expect(buyQuestRows(list, ones, { done: new Set(["p1"]) })[0].pre.map(pre => pre.id)).toEqual(["p0"]);
+    expect(buyQuestRows(list, ones, { done: new Set(["p0", "p1"]) })[0].pre).toEqual([]);
+  });
 });
 
 describe("連前面一起做（整串前置）", () => {

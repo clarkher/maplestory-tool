@@ -12,7 +12,7 @@ export const BIG_AMOUNT = 200;
 export type BuyQuestOptions = {
   /** 只看這個角色現在接得到的（questEligible：等級、職業、楓之島） */
   eligible?: Profile;
-  /** 按過「我做完了」的：「只看接得到的」不列；整串前置裡不算 */
+  /** 按過「我做完了」的：不列；也不算在「要先做」跟整串前置裡 */
   done?: ReadonlySet<string>;
   /** 只留「前面也不用打怪」的：整串前置都是交拍賣買得到的、或只找人對話 */
   noFightChain?: boolean;
@@ -31,7 +31,7 @@ export type BuyQuestChain = { steps: number; exp: number; items: QuestRef[] };
 
 export type BuyQuestRow = {
   quest: Quest;
-  /** 前置任務（站上查得到的）：卡片寫「要先做」 */
+  /** 還沒做完的前置任務（站上查得到的、沒按過「我做完了」）：卡片寫「要先做」 */
   pre: Quest[];
   /** 要交的道具裡 NPC 商店有賣的：道具編號 → 挑出來那家（起點城鎮優先，否則最便宜） */
   shops: Map<number, ShopRow>;
@@ -151,7 +151,7 @@ export function buyQuestRegions(data: BuyQuestData, quests: Quest[]): string[] {
 
 /**
  * 經驗高的在前，一樣多的需求等級低的在前；經驗一樣、需求等級也一樣時照任務編號，同一條任務線就會照順序。
- * eligible 給了就只留這個角色現在接得到、沒按過「我做完了」的；前置做了沒不擋，卡片寫「要先做」。
+ * 按過「我做完了」的任務一律不列；eligible 給了再多篩這個角色現在接得到的（前置做了沒不擋，卡片寫「要先做」）。
  */
 export function buyQuestRows(data: BuyQuestData, quests: Quest[], options: BuyQuestOptions = {}): BuyQuestRow[] {
   const { eligible, done = new Set<string>(), noFightChain, region, job, startTown, townOf } = options;
@@ -163,7 +163,8 @@ export function buyQuestRows(data: BuyQuestData, quests: Quest[], options: BuyQu
     .filter((quest): quest is Quest => quest !== undefined)
     .filter(quest => !isDevQuest(quest))
     .filter(quest => !region || quest.cat === region)
-    .filter(quest => !eligible || (questEligible(quest, eligible, lineage) && !done.has(quest.id)))
+    .filter(quest => !done.has(quest.id))
+    .filter(quest => !eligible || questEligible(quest, eligible, lineage))
     .map((quest): BuyQuestRow => {
       const shops = new Map<number, ShopRow>();
       const shopNear = new Set<number>();
@@ -176,7 +177,7 @@ export function buyQuestRows(data: BuyQuestData, quests: Quest[], options: BuyQu
       const steps = chainSteps(quest, byId, buySet, done);
       return {
         quest,
-        pre: (quest.pre ?? []).map(id => byId.get(id)).filter((pre): pre is Quest => Boolean(pre)),
+        pre: (quest.pre ?? []).filter(id => !done.has(id)).map(id => byId.get(id)).filter((pre): pre is Quest => Boolean(pre)),
         shops,
         shopNear,
         // 舊版 buy-quests.json 沒有 skills 欄位：不要因為這樣整頁掛掉，當作沒有技能
