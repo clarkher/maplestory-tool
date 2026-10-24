@@ -60,6 +60,9 @@ export type Monster = {
  */
 export type ShopRow = { p: string; n?: string; m?: number; pr: number; k?: number; c?: 1; o?: 1 };
 
+/** 拍賣買齊就能交的任務（pipeline/lib/buy-quests.mjs 輸出的 buy-quests.json）：quests 任務編號、shops 要交的道具在 NPC 商店的店家列（沒有商城） */
+export type BuyQuestData = { quests: string[]; shops: Record<string, ShopRow[]> };
+
 export type Item = {
   id: number;
   n: string;
