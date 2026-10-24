@@ -53,7 +53,7 @@ export function TodoList({ items, routable, maps, questNames }: Omit<RowProps, "
           {showAll ? "收起" : `還有 ${items.length - FIRST_SHOWN} 個任務`}
         </button>
       ) : null}
-      <Link href="/plan/buy" className="block px-1 pt-0.5 text-[13px] font-bold text-[color:var(--maple)] hover:underline">
+      <Link href="/plan/buy" className="tap-safe block px-1 pt-0.5 text-[13px] font-bold text-[color:var(--maple)] hover:underline">
         不想打怪？看拍賣買齊就能交的任務
       </Link>
     </section>

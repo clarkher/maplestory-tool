@@ -20,10 +20,8 @@ export type BuyQuestOptions = {
   region?: string;
   /** 職業代碼：給了就只列這個職業拿得到的職業限定獎勵 */
   job?: number;
-  /** 「帶我去」記的起點城鎮（地圖編號），跟 townOf 一起給才會優先挑起點的店 */
+  /** 「帶我去」記的起點所在的城鎮（地圖編號）：給了就優先挑這個城鎮裡的店（shopInTown） */
   startTown?: number;
-  /** 地圖 → 所在城鎮（nearest-town.json） */
-  townOf?: (mapId: number) => number | undefined;
 };
 
 /** 連前面一起做：還沒做完的段數（含自己）、合計經驗、合計要交（同一道具相加，照第一次出現的順序） */
@@ -33,9 +31,9 @@ export type BuyQuestRow = {
   quest: Quest;
   /** 還沒做完的前置任務（站上查得到的、沒按過「我做完了」）：卡片寫「要先做」 */
   pre: Quest[];
-  /** 要交的道具裡 NPC 商店有賣的：道具編號 → 挑出來那家（起點城鎮優先，否則最便宜） */
+  /** 要交的道具裡 NPC 商店有賣的：道具編號 → 挑出來那家（起點城鎮裡的優先，否則最便宜） */
   shops: Map<number, ShopRow>;
-  /** 挑出來的店就在起點城鎮的道具 */
+  /** 挑出來的店就在起點城鎮裡的道具 */
   shopNear: Set<number>;
   /** 完成後學會的技能名（站上查得到的，照任務原本的順序、不重複） */
   skills: string[];
@@ -60,10 +58,18 @@ export function cheapestShop(rows?: ShopRow[]): ShopRow | undefined {
   return best;
 }
 
-/** 起點城鎮有賣就挑那裡最便宜的一家；沒有起點、或起點沒賣，挑全部裡最便宜的 */
-export function pickShop(rows?: ShopRow[], startTown?: number, townOf?: (mapId: number) => number | undefined): ShopRow | undefined {
-  if (startTown && townOf) {
-    const near = (rows ?? []).filter(row => row.m !== undefined && townOf(row.m) === startTown);
+/**
+ * 店在不在這個城鎮裡：地圖編號去掉最後三碼一樣（魔法森林雜貨店 101000002 在魔法森林 101000000、桑那房 105040401 在 105040300）。
+ * 不用 nearest-town.json 比：那是「死亡後回去的城鎮」，魔法森林雜貨店、鯨魚號走廊會對到自己，野外的店（天空之城塔、大木林Ⅲ…）反而會被算進城鎮。
+ */
+export function shopInTown(mapId: number | undefined, town: number): boolean {
+  return mapId !== undefined && Math.floor(mapId / 1000) === Math.floor(town / 1000);
+}
+
+/** 起點城鎮裡有賣就挑那裡最便宜的一家；沒有起點、或起點城鎮裡沒賣，挑全部裡最便宜的 */
+export function pickShop(rows?: ShopRow[], startTown?: number): ShopRow | undefined {
+  if (startTown) {
+    const near = (rows ?? []).filter(row => shopInTown(row.m, startTown));
     if (near.length) return cheapestShop(near);
   }
   return cheapestShop(rows);
@@ -154,7 +160,7 @@ export function buyQuestRegions(data: BuyQuestData, quests: Quest[]): string[] {
  * 按過「我做完了」的任務一律不列；eligible 給了再多篩這個角色現在接得到的（前置做了沒不擋，卡片寫「要先做」）。
  */
 export function buyQuestRows(data: BuyQuestData, quests: Quest[], options: BuyQuestOptions = {}): BuyQuestRow[] {
-  const { eligible, done = new Set<string>(), noFightChain, region, job, startTown, townOf } = options;
+  const { eligible, done = new Set<string>(), noFightChain, region, job, startTown } = options;
   const byId = new Map(quests.map(quest => [quest.id, quest]));
   const buySet = new Set(data.quests);
   const lineage = eligible ? new Set(jobLineage(eligible.job)) : undefined;
@@ -169,10 +175,10 @@ export function buyQuestRows(data: BuyQuestData, quests: Quest[], options: BuyQu
       const shops = new Map<number, ShopRow>();
       const shopNear = new Set<number>();
       for (const item of quest.needItems ?? []) {
-        const shop = pickShop(data.shops[item.id], startTown, townOf);
+        const shop = pickShop(data.shops[item.id], startTown);
         if (!shop) continue;
         shops.set(item.id, shop);
-        if (startTown && townOf && shop.m !== undefined && townOf(shop.m) === startTown) shopNear.add(item.id);
+        if (startTown && shopInTown(shop.m, startTown)) shopNear.add(item.id);
       }
       const steps = chainSteps(quest, byId, buySet, done);
       return {

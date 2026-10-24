@@ -9,6 +9,7 @@ import {
   npcShopTotal,
   pickShop,
   rewardFitsJob,
+  shopInTown,
   shopLine,
 } from "@/lib/buy-quests";
 import type { BuyQuestData, Quest, ShopRow } from "@/lib/types";
@@ -188,21 +189,41 @@ describe("名字、量、錢、店", () => {
     expect(npcShopTotal([{ id: 1, n: "蘋果", c: 20 }, { id: 3, n: "冰獨眼獸之尾巴", c: 50 }], shops)).toBeUndefined();
     expect(npcShopTotal([], shops)).toBeUndefined();
   });
-  it("挑店：起點城鎮有賣就挑那家（多家取便宜的），沒有才挑最便宜的", () => {
+  it("店在不在城鎮裡：地圖編號去掉最後三碼一樣（城鎮裡的小地圖、桑那房都算）", () => {
+    expect(shopInTown(101000002, 101000000)).toBe(true);
+    expect(shopInTown(120000200, 120000000)).toBe(true);
+    expect(shopInTown(105040401, 105040300)).toBe(true);
+    expect(shopInTown(1010003, 1010000)).toBe(true);
+    expect(shopInTown(101010102, 101000000)).toBe(false);
+    expect(shopInTown(undefined, 101000000)).toBe(false);
+  });
+  it("挑店：起點城鎮裡有賣就挑那家（多家取便宜的），沒有才挑最便宜的", () => {
     const far: ShopRow = { p: "弓箭手村雜貨店", m: 100000102, pr: 30 };
     const home: ShopRow = { p: "冰原雪域雜貨店", m: 211000102, pr: 40 };
-    const townOf = (mapId: number) => ({ 100000102: 100000000, 211000102: 211000000 })[mapId];
-    expect(pickShop([far, home], 211000000, townOf)).toBe(home);
-    expect(pickShop([far, home], 104000000, townOf)).toBe(far);
+    expect(pickShop([far, home], 211000000)).toBe(home);
+    // 起點城鎮裡沒有店：挑全部裡最便宜的
+    expect(pickShop([far, home], 104000000)).toBe(far);
     expect(pickShop([far, home])).toBe(far);
   });
-  it("卡片：起點有賣的道具記在 shopNear", () => {
+  it("起點是魔法森林：挑魔法森林裡的店，不挑一樣價錢、排在前面的冰原雪域", () => {
+    const snow: ShopRow = { p: "冰原雪域雜貨店", m: 211000102, pr: 50 };
+    const forest: ShopRow = { p: "魔法森林雜貨店", n: "妖精 蓮", m: 101000002, pr: 50 };
+    expect(pickShop([snow, forest], 101000000)).toBe(forest);
+    expect(pickShop([snow, forest])).toBe(snow);
+  });
+  it("起點是天空之城：城外的天空之城塔<14層> 不算在城鎮裡，照挑最便宜的", () => {
+    const tower: ShopRow = { p: "天空之城塔<14層>", m: 200080800, pr: 35000 };
+    const cheap: ShopRow = { p: "弓箭手村雜貨店", m: 100000102, pr: 30 };
+    expect(pickShop([tower, cheap], 200000000)).toBe(cheap);
+    const quest = q("3101", { exp: 1, needItems: [{ id: 2010000, n: "蘋果", c: 20 }] });
+    const rows = buyQuestRows({ quests: ["3101"], shops: { 2010000: [tower, cheap] }, skills: {} }, [quest], { startTown: 200000000 });
+    expect(rows[0].shops.get(2010000)).toBe(cheap);
+    expect([...rows[0].shopNear]).toEqual([]);
+  });
+  it("卡片：起點城鎮裡有賣的道具記在 shopNear", () => {
     const home: ShopRow = { p: "冰原雪域雜貨店", m: 211000102, pr: 40 };
     const quest = q("3100", { exp: 1, needItems: [{ id: 2010000, n: "蘋果", c: 20 }] });
-    const rows = buyQuestRows({ quests: ["3100"], shops: { 2010000: [home] }, skills: {} }, [quest], {
-      startTown: 211000000,
-      townOf: mapId => (mapId === 211000102 ? 211000000 : undefined),
-    });
+    const rows = buyQuestRows({ quests: ["3100"], shops: { 2010000: [home] }, skills: {} }, [quest], { startTown: 211000000 });
     expect([...rows[0].shopNear]).toEqual([2010000]);
     expect(rows[0].shopTotal).toBe(800);
   });

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { DoneButton } from "@/components/DoneButton";
 import { FilterTag } from "@/components/FilterTag";
 import { EmptyBlock, GoButton, LoadingBlock, PlanShell } from "@/components/PlanShell";
@@ -36,9 +36,8 @@ export function BuyQuestPlanner() {
   // 在這一頁剛按「我做完了」的先留在畫面上（不然一按就跳走），下次進來才不列
   const [keep, setKeep] = useState<ReadonlySet<string>>(() => new Set());
   const [showAll, setShowAll] = useVisitState("plan:buy:all", false);
-  // 「帶我去」選過起點城鎮：起點有賣的店優先（要地圖 → 城鎮的對照，選過起點才載）
+  // 「帶我去」選過起點：起點所在城鎮裡的店優先（要地圖 → 城鎮的對照，只拿來把起點換成它所在的城鎮，選過起點才載）
   const [startTown, setStartTown] = useState<number | null>(null);
-  const [townOf, setTownOf] = useState<((mapId: number) => number | undefined) | null>(null);
 
   useEffect(() => {
     if (quests && data) return;
@@ -54,11 +53,8 @@ export function BuyQuestPlanner() {
   useEffect(() => {
     const start = readGoStart();
     if (!start) return;
-    const apply = (table: Record<string, [number, number]>) => {
-      // 記下來的起點不一定是城鎮：換成它所在的城鎮再比
-      setStartTown(table[String(start)]?.[0] ?? start);
-      setTownOf(() => (mapId: number) => table[String(mapId)]?.[0]);
-    };
+    // 記下來的起點不一定是城鎮：換成它所在的城鎮（店在不在城鎮裡看地圖編號，見 shopInTown）
+    const apply = (table: Record<string, [number, number]>) => setStartTown(table[String(start)]?.[0] ?? start);
     const loaded = peekNearestTown();
     if (loaded) {
       apply(loaded);
@@ -80,10 +76,9 @@ export function BuyQuestPlanner() {
             region,
             job: profile.job >= 0 ? profile.job : undefined,
             startTown: startTown ?? undefined,
-            townOf: townOf ?? undefined,
           })
         : [],
-    [quests, data, eligibleOn, profile, doneHere, noFightOnly, region, startTown, townOf],
+    [quests, data, eligibleOn, profile, doneHere, noFightOnly, region, startTown],
   );
   const shown = showAll ? rows : rows.slice(0, FIRST_SHOWN);
   // 沒有任務時的提示：只列現在開著的篩選
@@ -133,7 +128,7 @@ export function BuyQuestPlanner() {
               ) : null}
             </div>
             {noFightOnly ? (
-              <p className="text-xs ink-faint">前置任務也只要交拍賣買得到的東西、或找人對話；做完的在卡片按<span className="whitespace-nowrap">「我做完了」</span>就不算</p>
+              <p className="text-xs ink-faint">前置任務也只要交拍賣買得到的東西、或找人對話；做完的前置在任務卡按<span className="whitespace-nowrap">「我做完了」</span>就不算</p>
             ) : null}
             <p className="text-xs ink-faint">共 {rows.length} 個任務 · 經驗高的在前</p>
           </div>
@@ -192,7 +187,15 @@ function BuyCard({ row, onToggleDone }: { row: BuyQuestRow; onToggleDone: (id: s
             {quest.minLv ? ` · Lv.${quest.minLv}${quest.maxLv ? `–${quest.maxLv}` : "+"}` : ""}
           </p>
           {reward ? (
-            <p className="mt-1 font-bold text-[color:var(--gold)]">{reward}</p>
+            // 每一塊（經驗、楓幣、人氣）各自不斷行，375 寬不會把「人氣 +1」拆成兩行；「·」跟前一塊走，後面可以換行
+            <p className="mt-1 font-bold text-[color:var(--gold)]">
+              {reward.split(" · ").map((part, index, all) => (
+                <Fragment key={part}>
+                  <span className="whitespace-nowrap">{index < all.length - 1 ? `${part} ·` : part}</span>
+                  {index < all.length - 1 ? " " : null}
+                </Fragment>
+              ))}
+            </p>
           ) : (
             <p className="mt-1 text-[13px] ink-soft">不給經驗</p>
           )}
@@ -212,7 +215,7 @@ function BuyCard({ row, onToggleDone }: { row: BuyQuestRow; onToggleDone: (id: s
               {sold.map(item => (
                 <li key={item.id}>
                   <span className="font-bold">{item.n}</span>：{shopLine(shops.get(item.id)!)}
-                  {shopNear.has(item.id) ? <span className="whitespace-nowrap">，你的起點就有</span> : null}
+                  {shopNear.has(item.id) ? <span className="whitespace-nowrap">，起點城鎮就有</span> : null}
                 </li>
               ))}
             </ul>
