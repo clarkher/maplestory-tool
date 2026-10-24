@@ -88,7 +88,7 @@ export function BuyQuestPlanner() {
 }
 
 function BuyCard({ row }: { row: BuyQuestRow }) {
-  const { quest, pre, shops } = row;
+  const { quest, pre, shops, skills } = row;
   // 楓幣是負的＝交任務要付錢，不是獎勵：獎勵那行只放正的，要付的寫在「要交的東西」底下
   const reward = rewardSummary(quest.exp, quest.money && quest.money > 0 ? quest.money : undefined);
   const pay = quest.money && quest.money < 0 ? -quest.money : 0;
@@ -131,12 +131,15 @@ function BuyCard({ row }: { row: BuyQuestRow }) {
         ) : null}
       </section>
 
-      {quest.rewardItems?.length ? (
+      {quest.rewardItems?.length || skills.length ? (
         <section>
           <h3 className="mb-1.5 text-[13px] font-black">完成後拿到</h3>
-          <ItemChips rows={quest.rewardItems} />
-          {quest.rewardItems.some(item => item.rand) ? (
+          {quest.rewardItems?.length ? <ItemChips rows={quest.rewardItems} /> : null}
+          {quest.rewardItems?.some(item => item.rand) ? (
             <p className="mt-1 text-[11px] ink-faint">標「隨機」的是從裡面隨機給一樣，不是全拿</p>
+          ) : null}
+          {skills.length ? (
+            <p className="mt-1 text-[13px]">學會技能：<strong className="font-bold">{skills.join("、")}</strong></p>
           ) : null}
         </section>
       ) : null}

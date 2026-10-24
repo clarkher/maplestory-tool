@@ -21,7 +21,7 @@ import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
 import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopRows } from "./lib/shops.mjs";
-import { buyQuestIds, buyQuestShops, tradeTable } from "./lib/buy-quests.mjs";
+import { buyQuestIds, buyQuestShops, buyQuestSkills, tradeTable } from "./lib/buy-quests.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
@@ -127,7 +127,11 @@ function main() {
   const buyIds = buyQuestIds(artale.quests, tradeTable(artale.items), new Set(quests.list.map(quest => quest.id)));
   const rawItemsById = new Map((artale.items || []).map(item => [Number(item.id), item]));
   const buyShops = buyQuestShops(buyIds, quests.list, rawItemsById, { openRegions: RELEASE.mapRegions, mapRecords: maps.records });
-  const buyQuests = { quests: buyIds, shops: buyShops };
+  const buyQuests = {
+    quests: buyIds,
+    shops: buyShops,
+    skills: buyQuestSkills(buyIds, quests.list, new Map(skills.list.map(skill => [skill.id, skill]))),
+  };
 
   const report = {};
   report["maps.json"] = write("maps.json", maps.records);

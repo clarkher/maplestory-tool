@@ -76,3 +76,26 @@ export function buyQuestShops(questIds, quests, rawItemsById, shopContext) {
   }
   return shops;
 }
+
+/**
+ * 這些任務完成後學會的技能：技能編號 → 技能名稱。
+ * 為什麼要自己帶：流浪煉金術師的新技術（6000）完成不給經驗、不給道具，獎勵是學會神匠之魂；
+ * 卡片不寫的話玩家會以為做完什麼都沒有。頁面不載 skills.json（243KB），所以把名字跟著 buy-quests.json 走。
+ * skillsById 查不到的編號（別的職業線、站上沒有的技能）略過。
+ * @param {string[]} questIds buyQuestIds 的結果
+ * @param {Array<object>} quests quests.json 的 list（rewardSkills 是技能編號陣列）
+ * @param {Map<number, object>} skillsById skills.json 的 list，key 是技能編號、值有 n（技能名）
+ * @returns {Record<string, string>}
+ */
+export function buyQuestSkills(questIds, quests, skillsById) {
+  const wanted = new Set(questIds);
+  const names = {};
+  for (const quest of quests) {
+    if (!wanted.has(quest.id)) continue;
+    for (const id of quest.rewardSkills || []) {
+      const skill = skillsById.get(Number(id));
+      if (skill?.n) names[id] = skill.n;
+    }
+  }
+  return names;
+}

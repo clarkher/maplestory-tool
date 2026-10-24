@@ -30,7 +30,7 @@ describe("卡片資料", () => {
     q("6", { minLv: 10 }),
   ];
   const apple: ShopRow = { p: "弓箭手村", n: "雜貨商人", pr: 30, o: 1 };
-  const data: BuyQuestData = { quests: ["1", "2", "4", "5", "6", "404"], shops: { 2010000: [apple] } };
+  const data: BuyQuestData = { quests: ["1", "2", "4", "5", "6", "404"], shops: { 2010000: [apple] }, skills: {} };
 
   it("經驗高的在前，一樣多的需求等級低的在前；沒經驗的排最後；開發測試用、查不到的不列", () => {
     expect(buyQuestRows(data, quests).map(row => row.quest.id)).toEqual(["2", "5", "1", "6"]);
@@ -41,13 +41,20 @@ describe("卡片資料", () => {
       q("12", { exp: 1000, minLv: 30 }),
       q("13", { exp: 1000, minLv: 20 }),
     ];
-    const rows = buyQuestRows({ quests: ["11", "12", "13"], shops: {} }, sameExp);
+    const rows = buyQuestRows({ quests: ["11", "12", "13"], shops: {}, skills: {} }, sameExp);
     expect(rows.map(row => row.quest.id)).toEqual(["13", "12", "11"]);
   });
   it("經驗、需求等級都一樣：照任務編號，同一條任務線會照順序", () => {
     const chain = [q("69089", { exp: 50000, minLv: 30 }), q("69088", { exp: 50000, minLv: 30 })];
-    const rows = buyQuestRows({ quests: ["69089", "69088"], shops: {} }, chain);
+    const rows = buyQuestRows({ quests: ["69089", "69088"], shops: {}, skills: {} }, chain);
     expect(rows.map(row => row.quest.id)).toEqual(["69088", "69089"]);
+  });
+  it("完成後學會的技能：站上查得到的帶出名字，查不到的略過、同名不重複", () => {
+    const skillQuests = [q("6000", { money: -1000000, rewardSkills: [1003, 10001003, 20001003] }), q("7", { exp: 10 }), q("8", { exp: 5, rewardSkills: [1003, 1003] })];
+    const rows = buyQuestRows({ quests: ["6000", "7", "8"], shops: {}, skills: { 1003: "神匠之魂" } }, skillQuests);
+    expect(rows.find(row => row.quest.id === "6000")!.skills).toEqual(["神匠之魂"]);
+    expect(rows.find(row => row.quest.id === "7")!.skills).toEqual([]);
+    expect(rows.find(row => row.quest.id === "8")!.skills).toEqual(["神匠之魂"]);
   });
   it("前置任務帶出來；商店有賣的道具帶最便宜那家", () => {
     const rows = buyQuestRows(data, quests);

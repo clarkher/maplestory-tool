@@ -12,6 +12,8 @@ export type BuyQuestRow = {
   pre: Quest[];
   /** 要交的道具裡 NPC 商店有賣的：道具編號 → 最便宜那家 */
   shops: Map<number, ShopRow>;
+  /** 完成後學會的技能名（站上查得到的，照任務原本的順序、不重複） */
+  skills: string[];
 };
 
 const unitPrice = (shop: ShopRow) => shop.pr / (shop.k ?? 1);
@@ -53,6 +55,7 @@ export function buyQuestRows(
           return shop ? [[row.id, shop] as [number, ShopRow]] : [];
         }),
       ),
+      skills: [...new Set((quest.rewardSkills ?? []).flatMap(id => (data.skills[id] ? [data.skills[id]] : [])))],
     }))
     .sort(
       (a, b) =>

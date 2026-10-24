@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buyQuestIds, buyQuestShops, isMesoShop, isTradeable, tradeTable } from "./buy-quests.mjs";
+import { buyQuestIds, buyQuestShops, buyQuestSkills, isMesoShop, isTradeable, tradeTable } from "./buy-quests.mjs";
 
 const free = { status: "unlimited", label: "無限交易", note: "", flags: {} };
 const rawItems = [
@@ -103,4 +103,26 @@ test("商店：只看符合的任務要交的道具，別的任務的不管", ()
     { id: "9", needItems: [need(2000001, "橘色藥水")] },
   ];
   assert.deepEqual(buyQuestShops(["3100"], quests, raw, context), { 2010000: [apple] });
+});
+
+const skillTable = new Map([[1003, { id: 1003, n: "神匠之魂" }], [1004, { id: 1004, n: "別的技能" }]]);
+
+test("獎勵技能：站上有的技能編號寫成技能名", () => {
+  const quests = [{ id: "6000", rewardSkills: [1003] }];
+  assert.deepEqual(buyQuestSkills(["6000"], quests, skillTable), { 1003: "神匠之魂" });
+});
+
+test("獎勵技能：站上查不到的編號（別的職業線）略過，查得到的照留", () => {
+  const quests = [{ id: "6000", rewardSkills: [1003, 10001003, 20001003] }];
+  assert.deepEqual(buyQuestSkills(["6000"], quests, skillTable), { 1003: "神匠之魂" });
+});
+
+test("獎勵技能：沒被選進來的任務不管", () => {
+  const quests = [{ id: "6000", rewardSkills: [1003] }, { id: "7", rewardSkills: [1004] }];
+  assert.deepEqual(buyQuestSkills(["6000"], quests, skillTable), { 1003: "神匠之魂" });
+});
+
+test("獎勵技能：沒有 rewardSkills 的任務不產生東西", () => {
+  const quests = [{ id: "2206" }, { id: "3100", rewardSkills: [] }];
+  assert.deepEqual(buyQuestSkills(["2206", "3100"], quests, skillTable), {});
 });
