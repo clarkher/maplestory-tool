@@ -5,13 +5,14 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, type DbEntry } from "@/components/DbBrowser";
+import { DoneButton } from "@/components/DoneButton";
 import { FilterTag } from "@/components/FilterTag";
 import { GoButton } from "@/components/PlanShell";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
 import {
   loadGuideCommon, loadMaps, loadMonsters, loadQuests, mapName, npcImage, peekGuideCommon, peekMaps, peekMonsters, peekQuests,
 } from "@/lib/data";
-import { setQuestDone, useDoneQuests } from "@/lib/done-quests";
+import { useDoneQuests } from "@/lib/done-quests";
 import { rewardSummary } from "@/lib/format";
 import { npcPlace } from "@/lib/go-label";
 import { effectiveLevels } from "@/lib/now-plan";
@@ -196,29 +197,6 @@ function QuestDetail({
 
       <QuestDetailBody quest={quest} maps={maps} questNames={questNames} />
     </DetailCard>
-  );
-}
-
-/**
- * 「我做完了」：點一下記成做完了（記在這台裝置的瀏覽器），按鈕變楓葉綠底白字「做完了」，再點一下取消。
- * 大小跟篩選標籤（FilterTag）一樣，高 36px 的膠囊；只放在這一頁的任務卡，首頁用的 QuestDetailBody 不放。
- */
-function DoneButton({ id }: { id: string }) {
-  const done = useDoneQuests().has(id);
-  return (
-    <button
-      type="button"
-      aria-pressed={done}
-      onClick={() => setQuestDone(id, !done)}
-      className={[
-        "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-full border px-[11px] text-[13px] font-bold transition-colors",
-        done
-          ? "border-[color:var(--leaf)] bg-[color:var(--leaf)] text-[color:var(--on-accent)]"
-          : "border-[color:var(--paper-edge)] bg-[color:var(--paper)] hover:bg-[color:var(--maple-wash)]",
-      ].join(" ")}
-    >
-      {done ? "做完了" : "我做完了"}
-    </button>
   );
 }
 
