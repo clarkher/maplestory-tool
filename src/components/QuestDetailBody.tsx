@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { itemImage, mapName, npcImage } from "@/lib/data";
-import { rewardSummary } from "@/lib/format";
+import { payText, rewardSummary } from "@/lib/format";
 import type { MapRecord, Quest, QuestRef, QuestReward } from "@/lib/types";
 
 /**
@@ -22,6 +22,8 @@ export function QuestDetailBody({
   questNames?: Map<string, string>;
 }) {
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
+  // 楓幣是負的＝交任務時要付，寫在要交的東西底下（奈洛的禮物、流浪煉金術師的新技術）
+  const pay = payText(quest.money, Boolean(quest.needItems?.length));
 
   return (
     <div className="space-y-3.5 text-sm">
@@ -42,7 +44,7 @@ export function QuestDetailBody({
         </p>
       ) : null}
 
-      {quest.startItems?.length || quest.startSkills?.length || quest.pre?.length ? (
+      {quest.startItems?.length || quest.startNone?.length || quest.startSkills?.length || quest.pre?.length ? (
         <Block title="接得到的條件">
           <div className="space-y-1.5">
           {quest.pre?.length ? (
@@ -62,6 +64,13 @@ export function QuestDetailBody({
             <div className="mb-1.5">
               <span className="ink-faint">身上要有：</span>
               <ItemChips rows={quest.startItems} />
+            </div>
+          ) : null}
+          {/* 客戶端的接取道具沒寫數量＝要 0 個：瑪亞愛情象徵身上已經有愛情象徵就接不到 */}
+          {quest.startNone?.length ? (
+            <div className="mb-1.5">
+              <span className="ink-faint">身上不能有：</span>
+              <ItemChips rows={quest.startNone} />
             </div>
           ) : null}
           {quest.startSkills?.length ? (
@@ -89,13 +98,16 @@ export function QuestDetailBody({
         </Block>
       ) : null}
 
-      {quest.needItems?.length ? (
+      {quest.needItems?.length || pay ? (
         <Block title="要交的東西">
-          <ItemChips rows={quest.needItems} linkToFarm />
+          <div className="space-y-1.5">
+            {quest.needItems?.length ? <ItemChips rows={quest.needItems} linkToFarm /> : null}
+            {pay ? <p className="text-[13px] font-bold">{pay}</p> : null}
+          </div>
         </Block>
       ) : null}
 
-      {reward || quest.rewardItems?.length || quest.rewardSkills?.length ? (
+      {reward || quest.rewardItems?.length || quest.rewardSkillNames?.length ? (
         <Block title="完成後拿到">
           <div className="space-y-1.5">
           {reward ? <p className="font-bold text-[color:var(--gold)]">{reward}</p> : null}
@@ -107,8 +119,9 @@ export function QuestDetailBody({
               ) : null}
             </>
           ) : null}
-          {quest.rewardSkills?.length ? (
-            <p className="ink-soft">附贈技能 {quest.rewardSkills.length} 個</p>
+          {/* 只寫站上有的技能名（跟 /plan/buy 同一句）：6000 的三個編號只有神匠之魂是冒險家的，寫「3 個」會以為拿三個 */}
+          {quest.rewardSkillNames?.length ? (
+            <p className="text-[13px]">學會技能：<strong className="font-bold">{quest.rewardSkillNames.join("、")}</strong></p>
           ) : null}
           </div>
         </Block>

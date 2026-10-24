@@ -211,6 +211,15 @@ node scripts/client/wzjs.mjs "$TEMP/skills.bin" 500 skill/5001005/level
   `buildSkills` 的 `linkPrereqs` 照這份的 id 接連結、名字換成正式名稱（要跟說明寫的等級一樣、同一條職業線才接）。重抽：
   `node scripts/client/skill-req.mjs "$TEMP/skills.bin"`（同一個解好的檔，只收經典版有的職業，2026-10-08 是 73 個技能）。
   建置時還接不上的會印「[skills] 所需技能接不上連結的：N 個」，v0.80 起是 0 個。
+- **任務接取條件「身上不能有」**（`data/client/quest-start-none.json`，v1.15）：客戶端任務的接取條件（WZJS 物件 `Check` 的 `<任務 id>/0/item`）
+  有些道具沒寫 `count`＝要 0 個＝身上不能有（瑪亞愛情象徵：已經有愛情象徵就接不到；尋找皺摺的紙片：紙片弄丟了才接得到），上游一律補成 1，
+  站上原本寫成「身上要有」。`buildQuests` 照這份把那幾件搬到 `startNone`，任務卡寫「身上不能有：」（`pipeline/lib/quest-fields.mjs`）。重抽：
+  `node scripts/client/decomp.mjs "D:/屁哥/maplestory_classic/Maplestory_Classic_Data/StreamingAssets/aa/w/json_d0204d274fe26485ef82614de81bd4d4.bundle" "$TEMP/quest.bin"`
+  → `node scripts/client/quest-start-none.mjs "$TEMP/quest.bin"`（2026-10-24 用 1.15.3 客戶端抽，站上改到 14 個任務）。
+  客戶端比上游舊時（10/15 改版加的任務不在 1.15.3 裡），建置印「[quests] 要道具才接得到、客戶端沒有這個任務的：N 個」，那幾個照上游寫「身上要有」，
+  10/24 是 6 個（3048、3050、3104、1119、3079、3069）：遊戲更新客戶端後重抽、重建就會一起對上。
+- 同一包的 `Act` 是任務的獎勵／扣除：`<任務 id>/1/money` 是負的＝交任務時要付（流浪煉金術師的新技術 -1,000,000）。任務卡的獎勵那行只寫正的楓幣，
+  要付的寫在「要交的東西」底下（`rewardSummary`、`payText`，跟 /plan/buy 同一句「另外要付 N 楓幣」；沒有要交的道具寫「要付 N 楓幣」）。
 
 #### 上游漏抽的技能欄位（`data/upstream-fallback/skills.json`，v1.00）
 

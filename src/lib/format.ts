@@ -86,13 +86,22 @@ export function formatCompact(value: number): string {
   return value.toLocaleString("zh-TW");
 }
 
-/** 任務給的獎勵通常同時有經驗、楓幣、人氣，湊成一句話比排三個欄位好讀。 */
+/**
+ * 任務給的獎勵通常同時有經驗、楓幣、人氣，湊成一句話比排三個欄位好讀。
+ * 楓幣只寫正的：負的是交任務時要付（奈洛的禮物 -10,000），寫在要交的東西底下（payText）。
+ */
 export function rewardSummary(exp?: number, money?: number, pop?: number): string {
   const parts: string[] = [];
   if (exp) parts.push(`經驗 ${formatNumber(exp)}`);
-  if (money) parts.push(`楓幣 ${formatNumber(money)}`);
+  if (money && money > 0) parts.push(`楓幣 ${formatNumber(money)}`);
   if (pop) parts.push(`人氣 ${pop > 0 ? "+" : ""}${pop}`);
   return parts.join(" · ");
+}
+
+/** 任務的楓幣是負的＝交任務時要付：還要交道具寫「另外要付」（跟 /plan/buy 同一句），只付錢寫「要付」；不用付回空字串 */
+export function payText(money: number | undefined, withItems: boolean): string {
+  if (!money || money >= 0) return "";
+  return `${withItems ? "另外要付" : "要付"} ${formatNumber(-money)} 楓幣`;
 }
 
 const ELEMENT_LABEL: Record<string, string> = {

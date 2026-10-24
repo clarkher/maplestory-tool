@@ -121,16 +121,19 @@ export type Quest = {
   /** 完成條件 */
   needItems?: QuestRef[];
   needMobs?: QuestRef[];
-  /** 接取條件 */
+  /** 接取條件：startItems 身上要有、startNone 身上不能有（台服客戶端的接取道具沒寫數量＝要 0 個，pipeline/lib/quest-fields.mjs） */
   startItems?: QuestRef[];
+  startNone?: QuestRef[];
   startSkills?: number[];
 
-  /** 完成獎勵 */
+  /** 完成獎勵。money 是負的＝交任務時要付（不是獎勵，payText） */
   exp?: number;
   money?: number;
   pop?: number;
   rewardItems?: QuestReward[];
   rewardSkills?: number[];
+  /** 獎勵技能裡站上有的技能名（別的職業線的同名技能不算：6000 給三個編號，只有神匠之魂 1003 是冒險家的） */
+  rewardSkillNames?: string[];
   /** 接受任務當下就給的 */
   startExp?: number;
   startGiven?: QuestReward[];

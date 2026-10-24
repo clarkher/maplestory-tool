@@ -620,7 +620,8 @@ export function planQuestBundles(
       const reward = { exp: 0, money: 0, pop: 0, items: 0, maybeItems: 0 };
       for (const quest of list) {
         reward.exp += quest.exp ?? 0;
-        reward.money += quest.money ?? 0;
+        // 負的楓幣是交任務時要付的，不是獎勵（rewardSummary 同一套）
+        reward.money += Math.max(0, quest.money ?? 0);
         reward.pop += quest.pop ?? 0;
         for (const item of quest.rewardItems || []) {
           if (item.rand || item.job) reward.maybeItems += 1;
