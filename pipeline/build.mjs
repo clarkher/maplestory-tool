@@ -21,6 +21,7 @@ import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
 import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopRows } from "./lib/shops.mjs";
+import { buyQuestIds, buyQuestShops, buyQuestSkills, tradeTable } from "./lib/buy-quests.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
@@ -122,6 +123,15 @@ function main() {
   const training = buildTraining(maps, spawnTable.spawns, monsters);
   const farming = buildFarmingIndex(items, monsters, maps);
   const search = buildSearch({ monsters, items, quests, skills, maps });
+  // 拍賣買齊就能交的任務（/plan/buy）：要交的道具全能交易、不用打怪（lib/buy-quests.mjs）
+  const buyIds = buyQuestIds(artale.quests, tradeTable(artale.items), new Set(quests.list.map(quest => quest.id)));
+  const rawItemsById = new Map((artale.items || []).map(item => [Number(item.id), item]));
+  const buyShops = buyQuestShops(buyIds, quests.list, rawItemsById, { openRegions: RELEASE.mapRegions, mapRecords: maps.records });
+  const buyQuests = {
+    quests: buyIds,
+    shops: buyShops,
+    skills: buyQuestSkills(buyIds, quests.list, new Map(skills.list.map(skill => [skill.id, skill]))),
+  };
 
   const report = {};
   report["maps.json"] = write("maps.json", maps.records);
@@ -136,6 +146,7 @@ function main() {
   report["training.json"] = write("training.json", training);
   report["farming.json"] = write("farming.json", farming);
   report["search.json"] = write("search.json", search);
+  report["buy-quests.json"] = write("buy-quests.json", buyQuests);
 
   const meta = {
     gameVersion: artale.metadata?.gameVersion ?? null,
@@ -176,6 +187,7 @@ function main() {
       walkableAreas: components.count,
       trainingMaps: training.length,
       farmableItems: Object.keys(farming).length,
+      buyQuests: buyIds.length,
     },
     coverage: {
       monstersWithSpawnData: monsters.withSpawnData,

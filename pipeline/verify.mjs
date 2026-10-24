@@ -49,6 +49,7 @@ function main() {
   const training = readJson(path.join(OUT, "training.json"));
   const farming = readJson(path.join(OUT, "farming.json"));
   const search = readJson(path.join(OUT, "search.json"));
+  const buyQuests = readJson(path.join(OUT, "buy-quests.json"));
 
   check("meta 有遊戲版本", Boolean(meta?.gameVersion), String(meta?.gameVersion));
   check("怪物數量合理（僅已開放）", monsters?.length >= 100 && monsters?.length <= 157, `${monsters?.length} 隻`);
@@ -61,6 +62,12 @@ function main() {
   const noFrame = missingFrames(monsters ?? [], frameFiles);
   check("每隻怪物都有圖（monster_frames/<id>.png）", noFrame.length === 0, noFrame.length ? `缺圖：${noFrame.map(monster => `${monster.id} ${monster.n}`).join("、")}` : `${monsters?.length} 隻都有`);
   check("任務數量合理（僅已開放）", quests?.length >= 348 && quests?.length <= 545, `${quests?.length} 個`);
+  // 拍賣買齊就能交的任務（/plan/buy）：2026-10-24 上游 2.0.0 是 100 個
+  const questById = new Map((quests ?? []).map(quest => [quest.id, quest]));
+  const buyIds = buyQuests?.quests ?? [];
+  const buyBad = buyIds.filter(id => !questById.get(id)?.needItems?.length || questById.get(id)?.needMobs?.length);
+  check("拍賣買齊就能交的任務數量合理", buyIds.length >= 60 && buyIds.length <= 200, `${buyIds.length} 個`);
+  check("拍賣買齊就能交的任務都在任務表、都要交道具、都不用打怪", buyBad.length === 0, buyBad.length ? buyBad.slice(0, 5).join("、") : `${buyIds.length} 個`);
   // 2026-10-06 技能改成只收經典版實際存在的職業（lib/classic-jobs.mjs），上限跟著從 659 降下來；
   // 範圍公式不變：[floor(實際數×0.8), ceil(實際數×1.25)]，實際數基準是當時重建出來的 242 筆
   check("技能數量合理（僅經典版職業，到三轉）", skills?.length >= 193 && skills?.length <= 303, `${skills?.length} 個`);
