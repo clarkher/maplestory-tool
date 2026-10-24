@@ -230,28 +230,44 @@ export function subcategoryGroups(items: Item[], category: string): Array<{ labe
 }
 
 export type ShopPlace = { place: string; npc?: string };
-export type ShopGroup = { price: string; places: ShopPlace[] };
+/** until：限時店（活動）的結束日「11/11」，畫面標「活動限定・到 11/11」；常駐的店沒有 */
+export type ShopGroup = { price: string; places: ShopPlace[]; until?: string };
 
-/** 標價寫法：楓幣、商城的樂豆點（客戶端「{0}楓幣」「{0}個{1}樂豆點」）；整組賣的寫「10 個 1,980 樂豆點」，件數也加千分位 */
+/**
+ * 標價寫法：楓幣、商城的樂豆點（客戶端「{0}楓幣」「{0}個{1}樂豆點」）、活動貨幣寫它自己的名字（萬聖節硬幣）；
+ * 整組賣的寫「10 個 1,980 樂豆點」，件數也加千分位
+ */
 function shopPriceText(row: ShopRow): string {
-  const amount = `${formatNumber(row.pr)} ${row.c ? "樂豆點" : "楓幣"}`;
+  const amount = `${formatNumber(row.pr)} ${row.u ?? (row.c ? "樂豆點" : "楓幣")}`;
   return row.k ? `${formatNumber(row.k)} 個 ${amount}` : amount;
+}
+
+/** 結束時間 "2026-11-11T23:59+08:00" → "11/11"（直接讀字串裡的台灣日期，不換時區） */
+function untilText(end: string): string {
+  const [, month, day] = end.slice(0, 10).split("-");
+  return `${Number(month)}/${Number(day)}`;
 }
 
 /**
  * 「哪裡買得到」：同一個標價的店家排在一起，價錢只寫一次（一般道具每家都賣一樣的價錢）。其餘照資料順序。
- * fromOldData：有任何一家取自舊版資料，畫面要標「參考舊版資料，可能有出入」。
+ * 限時的活動店：過了結束時間（now）就不列，不用等資料重建；沒過的排在常駐的店後面，同價錢也不跟常駐的併在一起。
+ * 同一組裡地點跟 NPC 都一樣的只列一次（活動行商人開在 5 張分流圖，名字都是雪原的面具祭典現場）。
+ * fromOldData：列出來的店有任何一家取自舊版資料，畫面要標「參考舊版資料，可能有出入」。
  */
-export function shopGroups(item: Item): { groups: ShopGroup[]; fromOldData: boolean } {
+export function shopGroups(item: Item, now = Date.now()): { groups: ShopGroup[]; fromOldData: boolean } {
+  // 「23:59 結束」那一分鐘整分鐘都算還開著
+  const rows = (item.sp ?? []).filter(row => !row.e || Date.parse(row.e) + 60_000 > now);
   const groups: ShopGroup[] = [];
-  for (const row of item.sp ?? []) {
+  for (const row of [...rows.filter(entry => !entry.e), ...rows.filter(entry => entry.e)]) {
     const price = shopPriceText(row);
-    let group = groups.find(entry => entry.price === price);
+    const until = row.e ? untilText(row.e) : undefined;
+    let group = groups.find(entry => entry.price === price && entry.until === until);
     if (!group) {
-      group = { price, places: [] };
+      group = until ? { price, until, places: [] } : { price, places: [] };
       groups.push(group);
     }
+    if (group.places.some(place => place.place === row.p && place.npc === row.n)) continue;
     group.places.push({ place: row.p, npc: row.n });
   }
-  return { groups, fromOldData: (item.sp ?? []).some(row => row.o === 1) };
+  return { groups, fromOldData: rows.some(row => row.o === 1) };
 }

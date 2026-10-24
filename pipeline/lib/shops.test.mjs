@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { shopRows } from "./shops.mjs";
+import { shopPrice, shopRows } from "./shops.mjs";
 
 const context = {
   openRegions: ["維多利亞島", "冰原雪域"],
@@ -83,4 +83,45 @@ test("一家店在好幾張圖：每張已開放的圖各列一筆；沒開放�
     { p: "寵物公園", n: "科爾", m: 100000202, pr: 24000, o: 1 },
     { p: "弓箭手村市集", n: "科爾", m: 100000100, pr: 24000, o: 1 },
   ]);
+});
+
+/** 萬聖節活動的行商人（上游 sourceFile halloween2026）：收萬聖節硬幣、限時，同一家店開在 5 張分流圖 */
+const eventShop = overrides => ({
+  sourceType: "npcShop",
+  sourceFile: "halloween2026",
+  merchantName: "行商人",
+  price: 1,
+  count: 10,
+  currency: "萬聖節硬幣",
+  availabilityText: "2026/10/15 維護後～2026/11/11 23:59",
+  maps: [876011151, 876011153].map(id => ({ id, name: "雪原的面具祭典現場", unnamed: false, regionName: "冰原雪域" })),
+  ...overrides,
+});
+
+test("活動店收萬聖節硬幣：記幣別 u、結束時間 e（台灣時間），不是楓幣也不是樂豆點", () => {
+  assert.deepEqual(shopRows([eventShop({ maps: eventShop().maps.slice(0, 1) })], context), [
+    { p: "雪原的面具祭典現場", n: "行商人", m: 876011151, pr: 1, k: 10, u: "萬聖節硬幣", e: "2026-11-11T23:59+08:00" },
+  ]);
+});
+
+test("限時的楓幣店只記結束時間，不記幣別", () => {
+  const rows = shopRows([eventShop({ merchantName: "祭典管理員", price: 50000, count: 1, currency: "楓幣", maps: eventShop().maps.slice(0, 1) })], context);
+  assert.deepEqual(rows, [{ p: "雪原的面具祭典現場", n: "祭典管理員", m: 876011151, pr: 50000, e: "2026-11-11T23:59+08:00" }]);
+});
+
+test("限時說明只寫日期沒寫幾點：算到那天 23:59", () => {
+  const [row] = shopRows([eventShop({ availabilityText: "2026/12/1 維護後～2027/1/5", maps: eventShop().maps.slice(0, 1) })], context);
+  assert.equal(row.e, "2027-01-05T23:59+08:00");
+});
+
+test("有限時說明、但讀不出哪天結束的不列——不知道現在還開不開", () => {
+  assert.equal(shopRows([eventShop({ availabilityText: "活動期間限定" })], context), undefined);
+});
+
+test("shopPrice：最高單價只算楓幣跟樂豆點，活動硬幣不算（超級藥水 10 個 2 萬聖節硬幣不是 0.2）", () => {
+  assert.equal(shopPrice([eventShop({ price: 2 })]), undefined);
+  assert.equal(shopPrice([npcShop({ price: 1650 }), eventShop()]), 1650);
+  assert.equal(shopPrice([npcShop({ price: 1400, count: 2000 })]), 0.7);
+  assert.equal(shopPrice([npcShop({ price: 9999, hiddenByDefault: true })]), undefined);
+  assert.equal(shopPrice(undefined), undefined);
 });
