@@ -194,6 +194,23 @@ export function expectedHit(normal: Range, crit: Range | null, rate: number): nu
   return crit ? (1 - rate) * average(normal) + rate * average(crit) : average(normal);
 }
 
+/**
+ * 一次（hits 下）裡爆了幾下的分布：每下各自 rate 機率爆擊，爆 k 下的機率＝C(hits,k)×rate^k×(1−rate)^(hits−k)，
+ * 範圍＝(hits−k) 下一般＋k 下爆擊。從沒爆擊排到全爆（v1.17 使用者選 B：結果卡列出每種情況）
+ */
+export function critSpread(normal: Range, crit: Range, rate: number, hits: number): Array<{ crits: number; chance: number; range: Range }> {
+  let choose = 1;
+  return Array.from({ length: hits + 1 }, (_, crits) => {
+    if (crits) choose = (choose * (hits - crits + 1)) / crits;
+    const rest = hits - crits;
+    return {
+      crits,
+      chance: choose * rate ** crits * (1 - rate) ** rest,
+      range: { min: rest * normal.min + crits * crit.min, max: rest * normal.max + crits * crit.max },
+    };
+  });
+}
+
 /** 幾次打死：約＝HP÷一次期望，最快＝HP÷一次最高，最慢＝HP÷一次最低，都無條件進位 */
 export function killCounts(hp: number, expectedUse: number, bestUse: number, worstUse: number): { avg: number; fastest: number; slowest: number } {
   return { avg: Math.ceil(hp / expectedUse), fastest: Math.ceil(hp / bestUse), slowest: Math.ceil(hp / worstUse) };
