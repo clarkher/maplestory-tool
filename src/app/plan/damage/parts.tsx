@@ -7,7 +7,7 @@ import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
 import { ammoChoices, boosterFor, defaultAmmo, HEAL_ASSUMPTION, levelNeededText, levelPercentText, monsterStats, secondsText, tenMinuteExpText, tenMinuteText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
 import { AMP_SKILLS, attackSkillIds, BASIC_ATTACK, BUFFS, CHARGES, CRIT_SKILL, HEAL, HEAL_TARGETS_MAX, masterySkillFor, notCalculatedFor } from "@/lib/damage-skills";
-import { healTargetMultiplier } from "@/lib/damage";
+import { critSpread, healTargetMultiplier } from "@/lib/damage";
 import type { Range } from "@/lib/damage";
 import { boosterSteps, SPEED_UNKNOWN } from "@/lib/damage-speed";
 import { gearPlan, tabsFor, STAT_ORDER, STAT_WORD, shortText } from "@/lib/gear-view";
@@ -234,6 +234,46 @@ function ElementNote({ text }: { text: string }) {
   return <p className="rounded-lg bg-[color:var(--sky-wash)] px-2.5 py-1.5 text-[12px] font-bold text-[color:var(--sky)]">{text}</p>;
 }
 
+const COUNT_WORD = ["", "一", "兩", "三", "四", "五", "六", "七", "八", "九", "十"];
+
+/** 爆了幾下的說法：只打一下是「爆擊」；多下是「爆一下」「爆兩下」…全爆是「兩下都爆」 */
+function critLabel(crits: number, hits: number): string {
+  if (!crits) return "沒爆擊";
+  if (hits === 1) return "爆擊";
+  const word = COUNT_WORD[crits] ?? String(crits);
+  return crits === hits ? `${word}下都爆` : `爆${word}下`;
+}
+
+const chanceText = (chance: number) => (chance < 0.005 ? "不到 1%" : `${Math.round(chance * 100)}%`);
+
+/**
+ * 爆擊那幾行（v1.17 使用者選 B）：大字照舊是沒爆擊的範圍，下面每種情況一行——機率條＋幾 %＋一次打多少。
+ * 每下各自擲一次爆擊，所以多下的招會有「爆一下」「兩下都爆」。
+ */
+function CritRows({ normal, crit, rate, hits, tone }: { normal: Range; crit: Range; rate: number; hits: number; tone: string }) {
+  const rows = critSpread(normal, crit, rate, hits);
+  return (
+    <div className="rounded-lg bg-[color:var(--paper-deep)] px-2.5 py-2">
+      <p className="mb-1 flex items-baseline justify-between gap-2 text-[12px] font-bold">
+        <span>爆擊機率{hits > 1 ? `（每下各 ${Math.round(rate * 100)}%）` : ` ${Math.round(rate * 100)}%`}</span>
+        <span className="text-[11px] text-[color:var(--gold)]">未驗證</span>
+      </p>
+      <ul className="space-y-1">
+        {rows.map(row => (
+          <li key={row.crits} className="grid grid-cols-[4.5em_1fr_3.2em_7.4em] items-center gap-2 text-[12px] tabular-nums">
+            <span className={row.crits ? "font-bold" : "ink-soft"}>{critLabel(row.crits, hits)}</span>
+            <span className="h-1.5 rounded-full bg-[color:var(--paper-edge)]" aria-hidden>
+              <span className="block h-full rounded-full" style={{ width: `${Math.max(2, row.chance * 100)}%`, background: `var(--${tone})`, opacity: row.crits ? 1 : 0.45 }} />
+            </span>
+            <span className="text-right font-bold">{chanceText(row.chance)}</span>
+            <span className="text-right font-bold">{fmt(row.range)}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function ResultCard({ data, state, labels, results, target, diff }: {
   data: CalcData; state: CalcState; labels: [string, string]; results: readonly [GroupResult, GroupResult]; target: Monster | null; diff: string | null;
 }) {
@@ -257,7 +297,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
   // 要不 miss（v0.85 使用者選 A）：只看等級跟怪（兩組共用等級），寫一次；法師看魔法命中
   const hitResult = results.find(result => result.ok && result.vs);
   const hitVs = hitResult?.ok ? hitResult.vs : null;
-  const scale = Math.max(1, ...results.map(result => shown(result)?.max ?? 0));
+  const critOf = (result: GroupResult) => (result.ok ? (result.vs ?? result.raw).crit : null);
+  // 長條的比例尺含全爆的上限，淡色那段＝要爆擊才打得到
+  const scale = Math.max(1, ...results.map(result => Math.max(shown(result)?.max ?? 0, critOf(result)?.use.max ?? 0)));
   return (
     <section aria-label="結果" className="space-y-3 rounded-[var(--radius-card)] glass wood-frame p-3.5">
       <header className="flex flex-wrap items-center justify-between gap-1.5">
@@ -289,6 +331,12 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
             {result.ok ? (
               <>
                 <div className="relative h-3 rounded-full bg-[color:var(--paper-deep)]" aria-hidden>
+                  {critOf(result) ? (
+                    <div
+                      className="absolute inset-y-0 rounded-full opacity-30"
+                      style={{ left: `${(shown(result)!.min / scale) * 100}%`, width: `${((critOf(result)!.use.max - shown(result)!.min) / scale) * 100}%`, background: `var(--${TONES[index]})` }}
+                    />
+                  ) : null}
                   <div
                     className="absolute inset-y-0 rounded-full"
                     style={{ left: `${(shown(result)!.min / scale) * 100}%`, width: `${Math.max(1, ((shown(result)!.max - shown(result)!.min) / scale) * 100)}%`, background: `var(--${TONES[index]})` }}
@@ -298,6 +346,9 @@ export function ResultCard({ data, state, labels, results, target, diff }: {
                   <p className="text-[12px] ink-soft">
                     {bits.map((bit, at) => <Fragment key={at}>{at ? "・" : null}{bit}</Fragment>)}
                   </p>
+                ) : null}
+                {critOf(result) && result.critRate !== null ? (
+                  <CritRows normal={(result.vs ?? result.raw).hit} crit={critOf(result)!.hit} rate={result.critRate} hits={result.hits} tone={TONES[index]} />
                 ) : null}
                 {result.splash ? <p className="text-[12px] ink-soft">周圍最多 5 隻各吃 {result.splash.percent}%：每隻 {fmt(result.splash.hit)}</p> : null}
                 {/* 10 分鐘經驗（v0.87 每秒經驗，v0.89 使用者改成 10 分鐘＋占這一級升級經驗的 %）：選了怪才有；出手時間查不到的招式照實寫 */}
