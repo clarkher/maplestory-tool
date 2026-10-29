@@ -1,0 +1,352 @@
+// src/lib/speed/__tests__/potions.test.ts
+import { describe, expect, it } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
+import { FIRST_READ_MS, iconDistance, matchPotion, MISS_MS, nextPotions, potionsOnRead, POTION_MAX_DISTANCE, POTION_MIN_GAP, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
+import { iconOf, readQuickslot } from "../quickslot";
+import { NON_POTION_GROUPS, POTION_GROUPS } from "../read-extras";
+import { findStatusBar } from "../status-bar";
+import { loadFixture, loadItemIcon, paintSlotCount, pasteIcon } from "./fixture";
+import type { Frame } from "../frame";
+import type { Item } from "../../types";
+
+const IDS = [2000000, 2000001, 2000002, 2000003];
+const SLOT = { x: 0, y: 0, w: 32, h: 30 };
+const blank = (): Frame => ({ width: 32, height: 30, data: new Uint8ClampedArray(32 * 30 * 4) });
+const BGS: Array<[number, number, number]> = [
+  [196, 206, 222],
+  [60, 64, 80],
+];
+
+/** 假裝是從畫面讀出來的格子圖示：圖示貼在底色上（可帶數字），再縮 16×16 */
+async function slotIcon(id: number, bg: [number, number, number], count: number | null = null) {
+  let frame = pasteIcon(blank(), SLOT, await loadItemIcon(id), bg);
+  if (count !== null) frame = paintSlotCount(frame, SLOT, count, { clear: false });
+  return iconOf(frame, SLOT)!;
+}
+
+const buildRefs = () => Promise.all(IDS.map(async id => potionRefOf(id, await loadItemIcon(id))));
+
+describe("matchPotion（合成畫面）", () => {
+  it("四種藥水自己比自己都對、互比不混（兩種格子底色、有沒有數字）", async () => {
+    const refs = await buildRefs();
+    let worstSelf = 0;
+    let bestOther = Infinity;
+    for (const bg of BGS) {
+      for (const id of IDS) {
+        for (const count of [null, 702]) {
+          const icon = await slotIcon(id, bg, count);
+          expect(matchPotion(icon, refs, count)).toEqual({ ids: [id] });
+          for (const ref of refs) {
+            const d = refDistance(icon, ref, count);
+            if (ref.id === id) worstSelf = Math.max(worstSelf, d);
+            else bestOther = Math.min(bestOther, d);
+          }
+        }
+      }
+    }
+    console.log(`合成藥水距離：自己最大 ${worstSelf.toFixed(1)}、別種最小 ${bestOther.toFixed(1)}、門檻 ${POTION_MAX_DISTANCE}`);
+    expect(worstSelf).toBeLessThan(POTION_MAX_DISTANCE);
+    expect(bestOther).toBeGreaterThan(POTION_MAX_DISTANCE);
+  });
+
+  it("雜訊圖、空白格子 → null；長度不對 → Infinity", async () => {
+    const refs = await buildRefs();
+    const noise = new Uint8ClampedArray(16 * 16 * 4);
+    let seed = 7;
+    for (let i = 0; i < noise.length; i++) {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      noise[i] = i % 4 === 3 ? 255 : seed % 256;
+    }
+    expect(matchPotion(noise, refs)).toBeNull();
+    expect(matchPotion(new Uint8ClampedArray(16 * 16 * 4).fill(30), refs)).toBeNull();
+    expect(iconDistance(new Uint8ClampedArray(10), refs[0].icons[0])).toBe(Infinity);
+    expect(iconDistance(refs[0].icons[0], new Uint8ClampedArray(10))).toBe(Infinity);
+  });
+});
+
+describe("matchPotion（真截圖 window-1364.png）", () => {
+  // 左上到右下 8 格：技能、白色藥水(702)、技能、藍色藥水(279)、礦泉水(141)、活力藥水(0)、技能、一種食物(2)
+  // 站上同一張圖有好幾個編號的（藍色藥水 2000003＝藍色濃縮藥水 2000017、活力藥水 2000006＝2000018、三種香水）不硬猜，全部列出來
+  // 頁面實際用的池子：藥水四類＋認得出但不是藥水的（箭矢、飛鏢、子彈、回城）
+  const POOL = [...POTION_GROUPS, ...NON_POTION_GROUPS];
+  const WANT: Array<number[] | null> = [null, [2000002], null, [2000003, 2000017], [2022000], [2000006, 2000018], null, [2022060, 2022061, 2022062]];
+
+  async function loadPool() {
+    const items = (JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "public/data/items.json"), "utf8")) as Item[])
+      .filter(item => item.c === "消耗" && POOL.includes(item.s ?? ""))
+      .sort((a, b) => a.id - b.id);
+    const refs: PotionRef[] = [];
+    for (const item of items) {
+      try {
+        refs.push(potionRefOf(item.id, await loadItemIcon(item.id)));
+      } catch {
+        // 沒有圖示檔的跳過
+      }
+    }
+    return refs;
+  }
+
+  it("真的那一種被拿掉：每格都回 null，不會認成別的；而且第二像的差距夠開", async () => {
+    const refs = await loadPool();
+    const frame = await loadFixture("window-1364.png");
+    const slots = readQuickslot(frame, findStatusBar(frame)!)!;
+    const gaps: string[] = [];
+    slots.forEach((slot, i) => {
+      const want = WANT[i];
+      if (!want) return;
+      const ds = refs.map(ref => ({ id: ref.id, d: refDistance(slot.icon!, ref, slot.count) })).sort((a, b) => a.d - b.d);
+      const best = ds.find(x => want.includes(x.id))!.d;
+      const other = ds.find(x => !want.includes(x.id))!.d;
+      gaps.push(`${i}:${best.toFixed(1)}→${other.toFixed(1)}`);
+      expect(other - best, `第 ${i} 格第二像`).toBeGreaterThanOrEqual(POTION_MIN_GAP);
+      const without = refs.filter(ref => !want.includes(ref.id));
+      expect(matchPotion(slot.icon!, without, slot.count), `第 ${i} 格拿掉真的`).toBeNull();
+    });
+    console.log(`真截圖認對→第二像：${gaps.join("、")}、門檻 ${POTION_MAX_DISTANCE}、最小差距 ${POTION_MIN_GAP}`);
+  }, 120000);
+
+  it("每格認成真的那一種、技能格是 null，而且差距拉得夠開", async () => {
+    const refs = await loadPool();
+    const frame = await loadFixture("window-1364.png");
+    const slots = readQuickslot(frame, findStatusBar(frame)!)!;
+    let worstRight = 0;
+    let bestSkill = Infinity;
+    const lines: string[] = [];
+    slots.forEach((slot, i) => {
+      const ds = refs.map(ref => ({ id: ref.id, d: refDistance(slot.icon!, ref, slot.count) })).sort((a, b) => a.d - b.d);
+      lines.push(`${i}:${slot.count}→${ds[0].id} ${ds[0].d.toFixed(1)}（第二 ${ds[1].id} ${ds[1].d.toFixed(1)}）`);
+      if (WANT[i] === null) bestSkill = Math.min(bestSkill, ds[0].d);
+      else worstRight = Math.max(worstRight, ds.find(x => x.id === WANT[i]![0])!.d);
+      expect(matchPotion(slot.icon!, refs, slot.count)?.ids ?? null, `第 ${i} 格`).toEqual(WANT[i]);
+    });
+    console.log(`真截圖：${lines.join("；")}；認對最大 ${worstRight.toFixed(1)}、技能格最小 ${bestSkill.toFixed(1)}、門檻 ${POTION_MAX_DISTANCE}`);
+    expect(worstRight).toBeLessThan(POTION_MAX_DISTANCE);
+    expect(bestSkill).toBeGreaterThan(POTION_MAX_DISTANCE);
+  }, 120000);
+});
+
+const start: PotionTrack = { slots: {} };
+const feed = (t: PotionTrack, ...counts: number[]) =>
+  counts.reduce((acc, count) => nextPotions(acc, [{ index: 0, itemId: 2000000, count }]), t);
+
+describe("nextPotions", () => {
+  it("needs two equal reads", () => {
+    let t = feed(start, 702);
+    expect(t.slots[0]).toBeUndefined();
+    t = feed(t, 702);
+    expect(t.slots[0]).toMatchObject({ startCount: 702, lastCount: 702, used: 0 });
+    t = feed(t, 700);
+    expect(t.slots[0].used).toBe(0);
+    t = feed(t, 700);
+    expect(t.slots[0]).toMatchObject({ lastCount: 700, used: 2 });
+  });
+
+  it("covered last digit is ignored", () => {
+    // 最後一位被蓋住：702 讀成 70 一次，下一輪又讀回 702 → 沒用掉
+    const t = feed(start, 702, 702, 70, 702);
+    expect(t.slots[0]).toMatchObject({ lastCount: 702, used: 0, restocked: false });
+    expect(t.pending?.[0]).toBeUndefined();
+  });
+
+  it("big drop rejected", () => {
+    // 連續兩次都讀到 70 也不採用（一次掉 632）：不算用量、不算補貨
+    const t = feed(start, 702, 702, 70, 70);
+    expect(t.slots[0]).toMatchObject({ lastCount: 702, used: 0, restocked: false });
+  });
+
+  it("restock is not usage", () => {
+    let t = feed(start, 100, 100, 95, 95);
+    expect(t.slots[0].used).toBe(5);
+    t = feed(t, 300, 300);
+    expect(t.slots[0]).toMatchObject({ used: 5, lastCount: 300, restocked: true });
+    t = feed(t, 290, 290);
+    expect(t.slots[0]).toMatchObject({ used: 15, restocked: true });
+  });
+
+  it("drop rebase: 同一個新數字連續讀到夠多次 → 重新起算、標 skipped、不算用量", () => {
+    // 702 → 一直是 30（丟掉一堆、換一組）：前面擋下，連續 DROP_REBASE 次一樣就接受
+    let t = feed(start, 702, 702, 30);
+    for (let i = 0; i < 3; i++) {
+      t = feed(t, 30);
+      expect(t.slots[0]).toMatchObject({ lastCount: 702, used: 0 });
+    }
+    t = feed(t, 30);
+    expect(t.slots[0]).toMatchObject({ lastCount: 30, used: 0, skipped: true });
+    t = feed(t, 28, 28);
+    expect(t.slots[0]).toMatchObject({ lastCount: 28, used: 2, skipped: true });
+    expect(potionSummary(t, 10, () => 1).uncounted).toBe(true);
+  });
+
+  it("drop rebase: 中間讀回原本的數字或換別的數字就重數", () => {
+    let t = feed(start, 702, 702, 30, 30, 30, 30);
+    t = feed(t, 702); // 讀回來了
+    t = feed(t, 30, 30, 30, 30);
+    expect(t.slots[0]).toMatchObject({ lastCount: 702 });
+    expect(t.slots[0].skipped).toBeUndefined();
+    expect(potionSummary(t, 10, () => 1).uncounted).toBe(false);
+  });
+
+  it("長得一樣的一組道具當一個鍵；價格不同就沒有楓幣", () => {
+    const key = potionKey([2022061, 2022060, 2022062]);
+    expect(key).toBe("2022060,2022061,2022062");
+    expect(potionKey([2000003])).toBe(2000003);
+    let t = start;
+    for (const count of [100, 100, 90, 90]) t = nextPotions(t, [{ index: 7, itemId: key, count }]);
+    expect(t.slots[7]).toMatchObject({ itemId: key, used: 10 });
+    const same = potionSummary(t, 10, () => 5).uses[0];
+    expect(same).toMatchObject({ ids: [2022060, 2022061, 2022062], per10: 10, meso10: 50 });
+    const diff = potionSummary(t, 10, id => (id === 2022062 ? 6 : 5)).uses[0];
+    expect(diff.meso10).toBeNull();
+    expect(potionSummary(t, 10, id => (id === 2022062 ? null : 5)).uses[0].meso10).toBeNull();
+  });
+
+  it("slot item change resets", () => {
+    let t = feed(start, 100, 100, 90, 90);
+    t = nextPotions(t, [{ index: 0, itemId: 2000003, count: 50 }]);
+    t = nextPotions(t, [{ index: 0, itemId: 2000003, count: 50 }]);
+    expect(t.slots[0]).toMatchObject({ itemId: 2000003, startCount: 50, lastCount: 50, used: 0, restocked: false });
+  });
+
+  it("格子換道具：舊道具算到的用量照道具留著，不丟", () => {
+    let t = feed(start, 100, 100, 90, 90); // 紅色藥水用了 10
+    for (const count of [50, 50, 45, 45]) t = nextPotions(t, [{ index: 0, itemId: 2000003, count }]); // 換藍色藥水、用了 5
+    const { uses, incomplete } = potionSummary(t, 10, () => 1);
+    expect(new Map(uses.map(use => [use.itemId, use.per10]))).toEqual(new Map([[2000000, 10], [2000003, 5]]));
+    expect(incomplete).toBe(false);
+    // 換回紅色：之前的 10 跟新的用量加在一起
+    for (const count of [80, 80, 78, 78]) t = nextPotions(t, [{ index: 0, itemId: 2000000, count }]);
+    const red = potionSummary(t, 10, () => 1).uses.find(use => use.itemId === 2000000);
+    expect(red?.per10).toBe(12);
+  });
+
+  it("換掉的那格補過藥、有一段沒算到：標記留著", () => {
+    let t = feed(start, 100, 100, 300, 300); // 補過藥
+    for (const count of [50, 50]) t = nextPotions(t, [{ index: 0, itemId: 2000003, count }]);
+    expect(potionSummary(t, 10, () => 1).restocked).toBe(true);
+    let u = feed(start, 702, 702, 30, 30, 30, 30, 30); // 有一段沒算到
+    expect(u.slots[0].skipped).toBe(true);
+    for (const count of [50, 50]) u = nextPotions(u, [{ index: 0, itemId: 2000003, count }]);
+    expect(potionSummary(u, 10, () => 1)).toMatchObject({ uncounted: true, incomplete: true });
+  });
+
+  it("null 跳過、不動既有的數字", () => {
+    let t = feed(start, 100, 100);
+    t = nextPotions(t, [{ index: 0, itemId: 2000000, count: null }]);
+    t = nextPotions(t, [{ index: 0, itemId: null, count: null }]);
+    expect(t.slots[0]).toMatchObject({ lastCount: 100, used: 0 });
+    expect(t.gap).toBeUndefined();
+  });
+
+  it("認不出的格子：數量不變、變多不算不完整；確定的數量變少才算", () => {
+    const unknown = (t: PotionTrack, ...counts: number[]) => counts.reduce((acc, count) => nextPotions(acc, [{ index: 3, itemId: null, count }]), t);
+    let t = unknown(start, 50, 50, 50, 60, 60);
+    expect(t.gap).toBeUndefined();
+    t = unknown(t, 58); // 只讀到一次：還不確定
+    expect(t.gap).toBeUndefined();
+    t = unknown(t, 60, 60); // 讀回 60：沒用掉
+    expect(t.gap).toBeUndefined();
+    t = unknown(t, 58, 58); // 連兩次 58：用掉了算不出錢的東西
+    expect(t.gap).toBe(true);
+    expect(potionSummary(t, 10, () => 1).incomplete).toBe(true);
+  });
+
+  it("箭矢、回城（other）：整格跳過，不追蹤、不算錢、不算不完整；原本那格的藥水用量留著", () => {
+    let t = start;
+    for (const count of [500, 500, 480, 480]) t = nextPotions(t, [{ index: 2, itemId: null, count, other: true }]);
+    expect(t.slots[2]).toBeUndefined();
+    expect(t.gap).toBeUndefined();
+    expect(potionSummary(t, 10, () => 1)).toMatchObject({ uses: [], incomplete: false });
+    let u = feed(start, 100, 100, 90, 90);
+    for (const count of [300, 300]) u = nextPotions(u, [{ index: 0, itemId: null, count, other: true }]);
+    expect(u.slots[0]).toBeUndefined();
+    expect(potionSummary(u, 10, () => 1).uses).toMatchObject([{ itemId: 2000000, per10: 10 }]);
+  });
+});
+
+describe("potionsOnRead", () => {
+  const read = (count: number) => [{ index: 0, itemId: 2000000 as const, count }];
+  it("一開始就讀得到、一直讀得到：完整", () => {
+    let t = potionsOnRead(start, read(100), 1000, 0);
+    t = potionsOnRead(t, read(100), 4000, 0);
+    t = potionsOnRead(t, read(90), 7000, 0);
+    t = potionsOnRead(t, read(90), 10000, 0);
+    expect(t.seen).toBe(true);
+    expect(potionSummary(t, 10, () => 1)).toMatchObject({ incomplete: false, uses: [{ per10: 10 }] });
+  });
+  it("讀到過之後被擋一下（不到 10 秒）：不算不完整，擋的那段用量讀回來時補上", () => {
+    let t = potionsOnRead(start, read(100), 1000, 0);
+    t = potionsOnRead(t, read(100), 4000, 0);
+    t = potionsOnRead(t, null, 7000, 0);
+    t = potionsOnRead(t, null, 7000 + MISS_MS - 1, 0);
+    expect(t.gap).toBeFalsy();
+    t = potionsOnRead(t, read(95), 20000, 0);
+    t = potionsOnRead(t, read(95), 23000, 0);
+    expect(potionSummary(t, 10, () => 1)).toMatchObject({ incomplete: false, uses: [{ per10: 5 }] });
+  });
+  it("讀到過之後連續讀不到 10 秒以上 → 不完整；中間讀到一次就重算", () => {
+    let t = potionsOnRead(start, read(100), 1000, 0);
+    t = potionsOnRead(t, null, 4000, 0);
+    t = potionsOnRead(t, read(100), 7000, 0); // 讀回來：重算
+    t = potionsOnRead(t, null, 10000, 0);
+    t = potionsOnRead(t, null, 10000 + MISS_MS - 1, 0);
+    expect(t.gap).toBeFalsy();
+    t = potionsOnRead(t, null, 10000 + MISS_MS, 0);
+    expect(t.gap).toBe(true);
+    t = potionsOnRead(t, read(100), 30000, 0);
+    expect(potionSummary(t, 10, () => 1).incomplete).toBe(true);
+  });
+  it("太晚才第一次讀到：從 since（這段開始跟參考圖載好取晚的）算", () => {
+    // 這段 0 開始、參考圖 15 秒才載好：since＝15000，20 秒第一次讀到不算晚
+    expect(potionsOnRead(start, read(100), 20000, 15000).gap).toBeFalsy();
+    expect(potionsOnRead(start, read(100), 15000 + FIRST_READ_MS + 1, 15000).gap).toBe(true);
+  });
+  it("開始後讀不到不到 10 秒，然後讀得到：完整", () => {
+    let t = potionsOnRead(start, null, 3000, 0);
+    t = potionsOnRead(t, null, FIRST_READ_MS, 0);
+    t = potionsOnRead(t, read(100), FIRST_READ_MS, 0);
+    expect(t.gap).toBeFalsy();
+  });
+  it("開始後超過 10 秒才第一次讀到（或一直讀不到）→ 不完整", () => {
+    expect(potionsOnRead(start, null, FIRST_READ_MS + 1, 0).gap).toBe(true);
+    expect(potionsOnRead(start, read(100), FIRST_READ_MS + 1, 0).gap).toBe(true);
+    expect(potionsOnRead(start, null, 5000, 0).gap).toBeUndefined();
+  });
+});
+
+describe("potionSummary", () => {
+  it("two slots same potion merge", () => {
+    let t = start;
+    for (const [a, b] of [[100, 200], [100, 200], [90, 190], [90, 190]]) {
+      t = nextPotions(t, [
+        { index: 0, itemId: 2000003, count: a },
+        { index: 1, itemId: 2000003, count: b },
+      ]);
+    }
+    const { uses, restocked } = potionSummary(t, 20, id => (id === 2000003 ? 192 : null));
+    expect(restocked).toBe(false);
+    expect(uses).toEqual([{ itemId: 2000003, ids: [2000003], per10: 10, meso10: 1920 }]);
+    expect(potionSummary(t, 20, () => null).uses[0].meso10).toBeNull();
+    expect(potionSummary(t, 0, () => 1).uses).toEqual([]);
+  });
+});
+
+describe("potionPriceFn", () => {
+  const items = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "public/data/items.json"), "utf8")) as Item[];
+  const price = potionPriceFn(items);
+
+  it("藍色藥水 2000003：常駐楓幣店最低價 192（魔法森林雜貨店）", () => {
+    expect(price(2000003)).toBe(192);
+    expect(price(2000000)).toBe(50);
+  });
+
+  it("活動店（u、e）跟商城（c）不算；一組多個除以組數；沒有店回 null", () => {
+    const fake = potionPriceFn([
+      { id: 1, n: "x", c: "消耗", sp: [{ p: "活動", pr: 1, u: "萬聖節硬幣" }, { p: "限時", pr: 2, e: "2026-11-11T23:59+08:00" }, { p: "商城", pr: 3, c: 1 }, { p: "店", pr: 40, k: 2 }] },
+      { id: 2, n: "y", c: "消耗" },
+    ] as Item[]);
+    expect(fake(1)).toBe(20);
+    expect(fake(2)).toBeNull();
+    expect(fake(999)).toBeNull();
+  });
+});

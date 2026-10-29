@@ -2,14 +2,16 @@
 // src/lib/speed/capture.worker.ts
 import { createFrameThrottle } from "./frame-throttle";
 import { parseNames, type RawSpeedNames } from "./names";
-import { readFrame, type ReaderInit } from "./read-frame";
+import { createExtrasState, loadPotionRefs, readExtras } from "./read-extras";
+import { readFrameWithBar, type ReaderInit } from "./read-frame";
 
 /**
  * 背景執行緒：主執行緒把分享畫面的 ReadableStream<VideoFrame> 交過來，這裡一秒處理一張（其他張直接關掉），
  * 畫到 OffscreenCanvas、讀完把結果傳回去。遊戲蓋住瀏覽器時主執行緒的計時器會被放慢，這裡是有畫面進來就跑。
  * 每一張 VideoFrame 都一定 close()（包含被丟掉的、畫失敗的），不然佔著的顯示記憶體會一路長上去。
+ * v1.22：每張另外讀 HP、每 3 秒讀快捷鍵（readExtras）；認藥水的參考圖在開始後才在這裡載（potionIds）。
  */
-type Start = { type: "start"; readable: ReadableStream<VideoFrame>; toNext: number[]; names: RawSpeedNames };
+type Start = { type: "start"; readable: ReadableStream<VideoFrame>; toNext: number[]; names: RawSpeedNames; potionIds: number[] };
 type Hints = { type: "hints"; hints: number[] };
 
 let hints: number[] = [];
@@ -38,6 +40,11 @@ function grab(frame: VideoFrame, slot: { canvas: OffscreenCanvas | null; context
 async function run(message: Start) {
   const due = createFrameThrottle(1000);
   const slot: { canvas: OffscreenCanvas | null; context: OffscreenCanvasRenderingContext2D | null } = { canvas: null, context: null };
+  const extras = createExtrasState();
+  // 參考圖載好之前快捷鍵照讀數量，只是還不知道是哪種藥水
+  void loadPotionRefs(message.potionIds ?? []).then(refs => {
+    extras.refs = refs;
+  });
   try {
     const init: ReaderInit = { toNext: message.toNext, names: parseNames(message.names) };
     const reader = message.readable.getReader();
@@ -52,8 +59,15 @@ async function run(message: Start) {
       try {
         const image = grab(frame, slot);
         if (!image) continue;
-        const reading = readFrame({ width: image.width, height: image.height, data: image.data }, init, hints);
-        self.postMessage({ reading, at: now });
+        const pixels = { width: image.width, height: image.height, data: image.data };
+        const { reading, bar } = readFrameWithBar(pixels, init, hints);
+        let more = null;
+        try {
+          more = readExtras(pixels, bar, now, extras);
+        } catch (error) {
+          console.error("練功測速：HP、快捷鍵這一張讀不出來", error);
+        }
+        self.postMessage({ reading, at: now, extras: more });
       } catch (error) {
         // 一張讀壞不要整個停掉，下一秒再試；訊息留在 DevTools 方便查
         console.error("練功測速：這一張讀不出來", error);

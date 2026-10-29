@@ -425,13 +425,20 @@ node scripts/verify/speed-shot.mjs [輸出] [網址，預設 http://localhost:30
      同一段時間每一次取樣（頁面裡的觀察器加上每 10 秒一次的取樣）都要看狀態列還是「等經驗一動就開始算」那類還在讀的字、「停止分享」那顆還在，
      不能出現「分享停了」「認不到遊戲畫面」——畫面上的「Lv.46 · 經驗 …」那行在分享停了之後還會留著，光看它抓不到停了。最後等級經驗也還讀得到。守的是小地圖標題的長相不隨時間飄、讀畫面沒有中途停掉。
   7. 整頁截圖 `speed.png`。
+  7b. v1.22 新卡片（整頁截圖之後、存一段之前）：「楓幣收益」卡有撿到／藥水／淨賺跟「開始時楓幣」「現在楓幣」欄；
+     「讀不到快捷鍵」那行沒出現（頁面不把讀到的數字露出來，快捷鍵數字本身靠 `quickslot.test.ts`、`read-extras.test.ts` 驗，這裡只看基準截圖讀得到）；
+     非正式機的楓幣收益卡掛 `data-slots-read`（最近一次讀快捷鍵有數字的格數），基準截圖要 ≥ 5（702、279、141、0、2；用 `SPEED_FIXTURE` 換畫面時不判）；
+     有「跟我之前比」卡；控制卡有「HP 低於 30% 響一聲」開關、預設關。分享中的左欄白天、深色各截一張（`speed-left-light.png`、`speed-left-dark.png`）。
+     靜止的假畫面不會列出藥水（用量看數量往下掉），所以藥水那幾行這裡量不到（「—」跟說明那行的規則靠 `live-view.test.ts` 的 `mesoCells`、`potions.test.ts` 的 `potionsOnRead`）。
   8. 存一段＋加倍券（v1.10）：頁面在非正式機掛 `window.__speedTestSave`，腳本丟一段 12 分鐘、拿到 120,000 的進去存。
      本機沒有 `DATABASE_URL`：「上一段」寫「排行還沒開」，加倍券那段記成略過。有資料庫（分支預覽、測試機，資料寫在 preview 環境）：存好就跳「上一段有開加倍券嗎？」，
      勾「有開加倍券」預設倍率 1.5、分鐘 12（截 `speed-coupon.png`），改成 1.6、10 分鐘按「記下來」，「上一段」補上「實際 10 分鐘 66,667 經驗」（120,000 ÷（2 + 10 × 1.6）× 10）。
+  8b. 分享圖（存一段之後才有停了的上一段可以做圖）：「產生分享圖」按得下去，按了跳出「分享圖」對話框、裡面一張 1200×630 的圖、有「關掉」「下載」（截 `speed-share.png`），按「關掉」收起來。
+     再切到深色主題產一次：圖本身還是白天紙張（左上角接近 `#fbf5ea`），圖存成 `speed-share-dark.png`。
   9. 重新整理：角色 ID 沒被記住（控制卡寫「這次沒填角色 ID」）；玩家點過地圖的話 `ms-speed-maps` 有存。再分享，對話框 ID 欄是空的，勾「下次不要再問我」按「不填，直接開始」，
      直接認成這張圖、`ms-speed` 的 `askId` 是 false、沒有 `charId`；停止、重新整理再分享，不跳對話框直接讀。
   10. 整趟沒有沒接住的例外、`console.error`（警告只記在 `results.json` 的 `problems.warnings`，不判）。
-- 輸出：`speed.png`（整頁）、`speed-id.png`（問角色 ID）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`speed-coupon.png`（問加倍券，有資料庫才有）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`problems`）；出錯時另存 `crash.png`。
+- 輸出：`speed.png`（整頁）、`speed-id.png`（問角色 ID）、`speed-choices.png`（問「你在哪張圖？」那一刻）、`speed-left-light.png`／`speed-left-dark.png`（左欄）、`speed-share.png`、`speed-share-dark.png`（深色主題下產的分享圖）、`speed-coupon.png`（問加倍券，有資料庫才有）、`results.json`（`summary`、`checks`、`failedChecks`、`mapState`、`stationary`、`problems`）；出錯時另存 `crash.png`。
 - 耗時：本機 dev server 約 80 秒（60 秒是不動檢查）；dev 第一次編譯 `/plan/speed` 跟排行 API 另加（頁面最多等 2 分半）。
   `--webpack` 的 dev server：`npx next dev --webpack -p 3095`；也可以 `npm run build && npx next start -p 3095`。
 - 量不到的：經驗會不會跟著動、自動停——畫面是靜止的，靠 `tracker.test.ts` 跟真人玩一段。存進資料庫、補填加倍券在有 Neon 的分支預覽／測試機上跑這支就量得到（第 8 項）。

@@ -8,11 +8,11 @@ describe("練功測速的本機設定", () => {
     expect(parseSettings("{壞")).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings("null")).toEqual(DEFAULT_SETTINGS);
     expect(parseSettings("[]")).toEqual(DEFAULT_SETTINGS);
-    expect(DEFAULT_SETTINGS).toEqual({ isPublic: false, askId: true, mode: "auto", party: { on: false, others: [], hitter: 0 } });
+    expect(DEFAULT_SETTINGS).toEqual({ isPublic: false, askId: true, mode: "auto", party: { on: false, others: [], hitter: 0 }, lowHp: false });
   });
 
   it("存過的照用；欄位不對的換成預設", () => {
-    const saved = { isPublic: true, askId: false, mode: "manual", party: { on: true, others: [60, 70], hitter: 1 } };
+    const saved = { isPublic: true, askId: false, mode: "manual", party: { on: true, others: [60, 70], hitter: 1 }, lowHp: true };
     expect(parseSettings(JSON.stringify(saved))).toEqual(saved);
     expect(parseSettings(JSON.stringify({ isPublic: "y", askId: "no", mode: "fast" }))).toEqual(DEFAULT_SETTINGS);
   });
@@ -31,7 +31,15 @@ describe("練功測速的本機設定", () => {
       askId: true,
       mode: "manual",
       party: { on: false, others: [], hitter: 0 },
+      lowHp: false,
     });
+  });
+
+  it("低血提醒只收 true，舊版沒有這欄、亂填的都當沒開（v1.22）", () => {
+    expect(parseSettings(JSON.stringify({ lowHp: true })).lowHp).toBe(true);
+    for (const bad of [undefined, "true", 1, null, false]) {
+      expect(parseSettings(JSON.stringify({ lowHp: bad })).lowHp).toBe(false);
+    }
   });
 
   it("預設是新的一份：改了回傳的東西不會污染預設", () => {
@@ -99,6 +107,7 @@ describe("組隊設定的驗證（逐欄位）", () => {
       askId: false,
       mode: "manual",
       party: { on: false, others: [], hitter: 0 },
+      lowHp: false,
     });
   });
 });

@@ -5,7 +5,8 @@
 // 假的分享畫面：頁面在非正式機會先看 window.__speedTestStream；腳本把 src/lib/speed/__fixtures__/window-1364.png
 // 畫進 canvas、captureStream 塞進去，不用真的開遊戲、也不會跳出選視窗的對話框。
 // 輸出：speed.png（整頁，1440 寬）、speed-id.png（按分享時問角色 ID）、speed-choices.png（認不出地圖、列出候選的時候）、
-//       speed-coupon.png（存好一段後問加倍券）、results.json（每一項檢查的結果＋量到的字）
+//       speed-share.png（按「產生分享圖」跳出的對話框，v1.22）、speed-share-dark.png（深色主題下產的分享圖本身，要是白天紙張）、
+//       speed-left-light.png／speed-left-dark.png（分享中的左欄，白天／深色主題）、speed-coupon.png（存好一段後問加倍券）、results.json（每一項檢查的結果＋量到的字）
 // 量不到的（靠 tracker.test.ts 跟真人玩）：經驗會不會跟著動、自動停——假畫面是靜止的。
 // 存一段＋補填加倍券（v1.10）：頁面在非正式機有 window.__speedTestSave，腳本直接丟一段 12 分鐘的進去存；
 //   本機沒有 DATABASE_URL 會寫「排行還沒開」、不會跳加倍券（這幾項記成略過）；分支預覽／測試機有資料庫，整段都量得到（資料寫在 preview 環境，正式機看不到）。
@@ -108,6 +109,23 @@ async function fullShot(file) {
   await ev(`await __waitFor(() => [...document.images].every(img => img.complete), 8000); await __sleep(300);`);
   await shot(file);
   await viewport();
+}
+
+/** 主題：跟頁首的切換鈕一樣改 <html data-theme> */
+const setTheme = theme => evaluate(`(() => { document.documentElement.dataset.theme = ${JSON.stringify(theme)}; return true; })()`);
+
+/** 左欄（組隊 → 控制 → 經驗 → 楓幣收益 → 跟我之前比）截圖：視窗拉到整頁高，照左欄的範圍裁 */
+async function leftShot(file) {
+  const height = await evaluate("Math.ceil(document.documentElement.scrollHeight)");
+  await viewport(height);
+  await sleep(500);
+  const box = await evaluate(`(() => { const col = document.querySelector("[data-slots-read]")?.closest(".space-y-4") ?? [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === "楓幣收益")?.closest(".space-y-4"); if (!col) return null; const r = col.getBoundingClientRect(); return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height }; })()`);
+  if (box) {
+    const r = await page.send("Page.captureScreenshot", { format: "png", clip: { ...box, scale: 1 } });
+    fs.writeFileSync(path.join(OUT, file), Buffer.from(r.data, "base64"));
+  }
+  await viewport();
+  return box !== null;
 }
 
 /** 右邊那欄現在是什麼：地圖面板的標題、排行卡、「你在哪張圖？」跟它的候選 */
@@ -379,6 +397,29 @@ try {
   await fullShot("speed.png");
   results.screenshot = path.join(OUT, "speed.png");
 
+  // 7b. v1.22 新卡片：楓幣收益、跟我之前比、低血開關、快捷鍵、分享圖
+  const finalBody = await bodyText();
+  const mesoCard = await evaluate(`(() => { const h = [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === "楓幣收益"); return h ? h.parentElement.innerText : null; })()`);
+  record("左欄有「楓幣收益」卡（撿到、藥水、淨賺三格＋開始時楓幣、現在楓幣兩個欄位）", mesoCard !== null && /撿到/.test(mesoCard) && /藥水/.test(mesoCard) && /淨賺/.test(mesoCard) && /開始時楓幣/.test(finalBody) && /現在楓幣/.test(finalBody), mesoCard?.replace(/\n+/g, " / ").slice(0, 160));
+  // 快捷鍵：頁面沒有把讀到的數字露出來，退一步看「讀不到快捷鍵」那行沒冒出來（基準截圖的快捷鍵 8 格有 5 格有數字）
+  record("基準截圖的快捷鍵讀得到：楓幣收益卡沒有「讀不到快捷鍵」那行", mesoCard !== null && !/讀不到快捷鍵/.test(finalBody));
+  // 非正式機的楓幣收益卡掛 data-slots-read（最近一次讀快捷鍵有數字的格數）：基準截圖 8 格裡 702、279、141、0、2 這 5 格有數字
+  if (!process.env.SPEED_FIXTURE) {
+    await ev(`return await __waitFor(() => document.querySelector("[data-slots-read]") !== null, 10000)`);
+    const slotsRead = await evaluate(`document.querySelector("[data-slots-read]")?.getAttribute("data-slots-read") ?? null`);
+    record("分享中：楓幣收益卡的 data-slots-read ≥ 5（基準截圖的快捷鍵數字真的讀到）", slotsRead !== null && Number(slotsRead) >= 5, slotsRead);
+  }
+  // 左欄截圖：白天、深色各一張（分享中）
+  await setTheme("light");
+  const leftLight = await leftShot("speed-left-light.png");
+  await setTheme("dark");
+  const leftDark = await leftShot("speed-left-dark.png");
+  await setTheme("light");
+  record("左欄截圖（speed-left-light.png、speed-left-dark.png）", leftLight && leftDark);
+  record("左欄有「跟我之前比」卡", (await evaluate(`[...document.querySelectorAll("h2")].some(h => h.textContent.trim() === "跟我之前比")`)) === true);
+  const lowHp = await evaluate(`(() => { const sw = document.querySelector('button[role="switch"][aria-labelledby="speed-low-hp"]'); return sw ? { checked: sw.getAttribute("aria-checked"), label: document.getElementById("speed-low-hp")?.textContent.trim() } : null; })()`);
+  record("控制卡有低血開關（「HP 低於 30% 響一聲」，預設關）", lowHp !== null && lowHp.checked === "false" && /HP 低於 30%/.test(lowHp.label ?? ""), lowHp);
+
   // 8. 存一段、補填加倍券（v1.10）：直接丟一段 12 分鐘、拿到 120,000 的進去存
   const canSave = await evaluate("typeof window.__speedTestSave === 'function'");
   record("非正式機掛著驗收用的 __speedTestSave", canSave);
@@ -419,6 +460,44 @@ try {
       const couponLine = (await bodyText()).match(/上一段：.*/)?.[0] ?? null;
       record("記下來：對話框關掉，「上一段」補上「實際 10 分鐘 66,667 經驗」", noted && (couponLine ?? "").includes("實際 10 分鐘 66,667 經驗") && (await dialogTitle()) === null, couponLine);
     }
+  }
+
+  // 8b. 分享圖：靜止的假畫面經驗不會動，要等存了那段 12 分鐘的才有東西可以做圖
+  const sharable = await ev(`return await __waitFor(() => { const b = [...document.querySelectorAll("button")].find(b => b.textContent.trim() === "產生分享圖"); return Boolean(b) && !b.disabled; }, 15000)`);
+  record("「產生分享圖」按得下去（存一段之後，停了的上一段有 10 分鐘經驗跟地圖）", sharable);
+  if (sharable) {
+    await click(BUTTON("產生分享圖"));
+    const drawn = await ev(`return await __waitFor(() => { const img = document.querySelector("dialog[open] img[data-share-image]"); return Boolean(img) && img.complete && img.naturalWidth > 0; }, 15000)`);
+    const shareInfo = await evaluate(`(() => { const d = document.querySelector("dialog[open]"); const img = d?.querySelector("img[data-share-image]"); return d ? { title: d.querySelector("h2")?.textContent.trim(), w: img?.naturalWidth ?? 0, h: img?.naturalHeight ?? 0, buttons: [...d.querySelectorAll("button, a")].map(b => b.textContent.trim()) } : null; })()`);
+    record("按「產生分享圖」跳出對話框，裡面有 1200×630 的圖，有「關掉」「下載」", drawn && shareInfo?.title === "分享圖" && shareInfo.w === 1200 && shareInfo.h === 630 && shareInfo.buttons.includes("關掉") && shareInfo.buttons.includes("下載"), shareInfo);
+    await shot("speed-share.png");
+    await click(BUTTON("關掉"));
+    await sleep(300);
+    record("按「關掉」對話框收起來", (await dialogTitle()) === null);
+
+    // 深色主題下產分享圖：圖本身還是白天紙張（左上角的紙色、字是深色），存成 speed-share-dark.png
+    await setTheme("dark");
+    await click(BUTTON("產生分享圖"));
+    const darkDrawn = await ev(`return await __waitFor(() => { const img = document.querySelector("dialog[open] img[data-share-image]"); return Boolean(img) && img.complete && img.naturalWidth > 0; }, 15000)`);
+    const darkInfo = darkDrawn
+      ? await evaluate(`(() => {
+          const img = document.querySelector("dialog[open] img[data-share-image]");
+          const c = document.createElement("canvas");
+          c.width = img.naturalWidth;
+          c.height = img.naturalHeight;
+          const g = c.getContext("2d");
+          g.drawImage(img, 0, 0);
+          const at = (x, y) => [...g.getImageData(x, y, 1, 1).data].slice(0, 3);
+          return { theme: document.documentElement.dataset.theme, corner: at(40, 40), url: img.src };
+        })()`)
+      : null;
+    if (darkInfo) fs.writeFileSync(path.join(OUT, "speed-share-dark.png"), Buffer.from(darkInfo.url.split(",")[1], "base64"));
+    // 白天紙張 --paper #fbf5ea＝(251,245,234)；深色的 --paper 是 #16110c
+    const light = darkInfo !== null && darkInfo.corner.every((v, i) => Math.abs(v - [251, 245, 234][i]) <= 12);
+    record("深色主題下產的分享圖還是白天紙張（左上角接近 #fbf5ea）", darkInfo?.theme === "dark" && light, darkInfo ? { theme: darkInfo.theme, corner: darkInfo.corner } : null);
+    await click(BUTTON("關掉"));
+    await sleep(300);
+    await setTheme("light");
   }
 
   // 9. 點選過的地圖有記住（只有玩家點過才有這步）；角色 ID 不記：重新整理後再分享，對話框是空的；勾「下次不要再問我」
