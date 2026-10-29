@@ -191,6 +191,15 @@ describe("怪物", () => {
     expect(choices.length).toBeGreaterThan(50);
     expect(choices.every((choice, index) => index === 0 || (choices[index - 1].monster.lv ?? 0) <= (choice.monster.lv ?? 0))).toBe(true);
   });
+  it("只收野外打得到的怪：只出現在組隊任務、獎勵圖（9 開頭的副本地圖）的不列", () => {
+    const ids = new Set(monsterChoices(data.monsters, data.maps).map(choice => choice.monster.id));
+    // 肥肥村莊（月妙獎勵圖）那支鋼之肥肥、肥肥、緞帶肥肥；女神塔組隊的爸爸精靈
+    for (const id of [9300060, 9300058, 9300059, 9300039]) expect(ids.has(id)).toBe(false);
+    // 鋼之肥肥公園那支、鋼之黑肥肥之地（隱藏地圖但在野外）照列
+    expect(ids.has(4230103)).toBe(true);
+    expect(ids.has(4230400)).toBe(true);
+    expect(monsterChoices(data.monsters, data.maps).filter(choice => choice.monster.n === "鋼之肥肥")).toHaveLength(1);
+  });
   it("預設怪＝練功排行第一名那張圖的主力怪", () => {
     const id = defaultMonster(data, 410, 50);
     expect(id).not.toBeNull();
