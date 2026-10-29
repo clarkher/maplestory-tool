@@ -9,6 +9,7 @@ import { useStoredProfile } from "@/lib/profile";
 import { useRemembered } from "@/lib/remember";
 import { changedParts, reachableLevel, reachText, skillEffect, skillIcon, skillLevels } from "@/lib/skill-view";
 import type { Skill } from "@/lib/types";
+import { DB_HEADS } from "@/lib/db-heads";
 
 export function SkillDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -46,8 +47,8 @@ export function SkillDb() {
 
   return (
     <DbBrowser
-      title="技能"
-      lead="每個技能每一級的實際數值，不用自己算。"
+      title={DB_HEADS.skills.title}
+      lead={DB_HEADS.skills.lead}
       entries={entries}
       loading={!skills}
       error={error}

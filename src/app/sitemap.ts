@@ -1,37 +1,29 @@
 import type { MetadataRoute } from "next";
-
-const SITE_URL = "https://maplestory-tool-three.vercel.app";
+import { SITE_URL } from "@/lib/seo";
+import { SITE_PAGES } from "@/lib/site-pages";
+import { staticGuideJobs, staticModified, staticMonsters, staticQuests, staticSkills } from "@/lib/static-data";
 
 export default function sitemap(): MetadataRoute.Sitemap {
+  // 資料頁的更新時間用遊戲資料的產生時間，不用建置時間：沒改資料就不會每次部署都說「全站都改了」
+  const modified = staticModified() ? new Date(staticModified()!) : new Date();
   const now = new Date();
-  const routes = [
-    { path: "/", priority: 1 },
-    { path: "/plan/quest", priority: 0.9 },
-    { path: "/plan/train", priority: 0.9 },
-    { path: "/plan/farm", priority: 0.9 },
-    { path: "/plan/bundle", priority: 0.9 },
-    { path: "/plan/buy", priority: 0.8 },
-    { path: "/plan/damage", priority: 0.8 },
-    { path: "/plan/speed", priority: 0.7 },
-    { path: "/plan/boss", priority: 0.8 },
-    { path: "/price/fx", priority: 0.7 },
-    { path: "/guide", priority: 0.9 },
-    { path: "/event/halloween", priority: 0.8 },
-    { path: "/go", priority: 0.8 },
-    { path: "/db", priority: 0.8 },
-    { path: "/db/monsters", priority: 0.7 },
-    { path: "/db/items", priority: 0.7 },
-    { path: "/db/quests", priority: 0.7 },
-    { path: "/db/skills", priority: 0.7 },
-    { path: "/about", priority: 0.5 },
-    { path: "/privacy", priority: 0.2 },
-    { path: "/terms", priority: 0.2 },
-    { path: "/contact", priority: 0.3 },
-  ];
-  return routes.map(route => ({
-    url: `${SITE_URL}${route.path}`,
+  const fixed = SITE_PAGES.map(page => ({
+    url: `${SITE_URL}${page.path}`,
     lastModified: now,
     changeFrequency: "weekly" as const,
-    priority: route.priority,
+    priority: page.priority,
   }));
+  const detail = (path: string, priority: number) => ({
+    url: `${SITE_URL}${path}`,
+    lastModified: modified,
+    changeFrequency: "monthly" as const,
+    priority,
+  });
+  return [
+    ...fixed,
+    ...staticGuideJobs().map(job => detail(`/jobs/${job}`, 0.8)),
+    ...staticMonsters().map(monster => detail(`/db/monsters/${monster.id}`, 0.6)),
+    ...staticQuests().map(quest => detail(`/db/quests/${encodeURIComponent(quest.id)}`, 0.5)),
+    ...staticSkills().map(skill => detail(`/db/skills/${skill.id}`, 0.5)),
+  ];
 }

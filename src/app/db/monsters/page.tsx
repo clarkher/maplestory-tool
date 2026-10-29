@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { LoadingBlock } from "@/components/PlanShell";
+import { DbFallback } from "@/components/DbFallback";
+import { DB_HEADS } from "@/lib/db-heads";
 import { MonsterDb } from "./MonsterDb";
 
 export const metadata: Metadata = {
@@ -11,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <Suspense fallback={<LoadingBlock />}>
+    <Suspense fallback={<DbFallback {...DB_HEADS.monsters} />}>
       <MonsterDb />
     </Suspense>
   );

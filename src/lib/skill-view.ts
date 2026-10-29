@@ -4,7 +4,7 @@
  * 規則（2026-10-08 使用者看候選截圖選 B）：效果樣板有 #mpCon 這種代號時，改寫滿級那一級的遊戲原文；
  * 好幾級但上游沒有數值的（槍連擊、極速詠唱…8 個），一級一列放每一級的遊戲原文。數字一律照遊戲資料，不從句子硬拆、不編。
  */
-import { skillImage } from "./data";
+import { skillImage } from "./asset-paths";
 import { jobTier, previousJob, stageJob, tierStartLevel } from "./jobs";
 import { spAtLevel } from "./skill-plan";
 import type { Skill } from "./types";

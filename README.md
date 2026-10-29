@@ -407,6 +407,16 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」「測試 / 第一格」，紅燈點進去看是哪一步；第一格沒過時截圖跟紀錄在
 那次執行的 artifact。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
 
+### 搜尋引擎跟 AI 看得到的東西（v1.21）
+
+- **單筆靜態頁**：`/db/monsters/<id>`、`/db/quests/<id>`、`/db/skills/<id>`、`/jobs/<職業>`，建置時從 `public/data` 讀（`src/lib/static-data.ts`）
+  先畫好，不跑 JavaScript 也讀得到。開頭那段話在 `src/lib/seo.ts`，只用資料裡有的欄位組句子。查資料清單、卡片照舊用 `?id=`。
+- **固定頁清單**：`src/lib/site-pages.ts`，`sitemap.xml` 跟 `/llms.txt`（給 AI 讀的網站說明）共用；**新增頁面要加在這裡**。
+- **robots**：明列 AI 爬蟲（GPTBot、ClaudeBot、PerplexityBot…）允許，`/api/` 不給爬。
+- **結構化資料**：全站 WebSite 放 `<body>`（`<head>` 的 script 會被 `scroll-behavior.test.ts` 當程式跑），單筆頁另有麵包屑跟 WebPage。
+- 查資料四頁讀取時伺服器先畫標題（`DbFallback`，標題字在 `src/lib/db-heads.ts`）。
+- 圖檔網址在 `src/lib/asset-paths.ts`：`data.ts` 是 `"use client"`，伺服器頁不能呼叫它的函式。
+
 ### 查資料頁驗收（改查資料四頁之後跑）
 
 `/db/items`、`/db/monsters`、`/db/quests`、`/db/skills` 的捲動、展開、收起、按返回、記住搜尋篩選、自動載入（接到 600 筆換成按鈕）、
