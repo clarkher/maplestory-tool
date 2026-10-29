@@ -497,6 +497,11 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
   只重產數字樣板：`npx vitest run -c vitest.gen.config.ts -t "產 glyphs.json"`（不用字型）。v1.05 以前數字樣板是微軟正黑體，1、3、5 會認錯，經驗幾乎都讀不出來。
   `public/data/maps.json` 多了新地圖名，要在 Windows 上重跑 `npm run speed:glyphs`（職業要微軟正黑體 `C:/Windows/Fonts/msjh.ttc`、地圖名要微軟正黑體粗體 `msjhbd.ttc`；CI 不跑產樣板），
   沒重跑的話 `read-map.test.ts`「maps.json 每張有中文名的圖，地圖名跟街道名都有樣板」會紅（10/15 新地圖就是這樣漏掉 21 張練功圖，v1.10 補）；資料自動更新時跳過這一項（`data-refresh.yml` 設 `SPEED_NAMES_MAY_LAG`，Linux 產不了樣板，不能卡住道具、怪物的更新），下一個進 dev 的 PR 會紅、提醒去重產。
+- **快捷鍵數量**（v1.20）：右下角快捷鍵 8 格（`src/lib/speed/quickslot.ts`）。找法是在狀態列上方、畫面右邊 35% 找那圈白框（146×75×縮放、欄縫列縫是暗的），
+  格子位置照白框推。數字用**客戶端的道具數量字**（`src/lib/speed/quickslot-font.ts`，客戶端 `UI/Basic/ItemNo` 的 0～9，跟狀態列是不同套），
+  用「應該多亮」跟實際亮度的相關係數比，整個字跟四個半邊都要像；讀不準（像字又不夠像、只有半個字）整格回 null，不回少幾位的數。
+  重抽字形：`python -E -P scripts/client/quickslot-font.py > src/lib/speed/quickslot-font.ts`（要 `pip install --user UnityPy`）。
+  基準截圖只有 0、1、2、4、7、9，3、5、6、8 用 `paintSlotCount`（`__tests__/fixture.ts`）畫進格子驗，1～2 倍縮放都測。
 - **小地圖標題**（v1.10）：小地圖的寬度跟著地圖走，「地圖」按鈕貼右緣、地圖名靠左（緊接在地圖圖示後面）。地圖名的範圍從按鈕下面的面板條往左走到面板左緣、跳過圖示框才開始讀
   （以前從按鈕往左只看 35px，只有很窄的小地圖讀得到，2026-10-20 使用者「地圖全部都沒有抓到」）。遊戲的標題是粗體白字＋右下 1 格陰影，讀的時候抓白字，樣板也照這個畫法產（13px）；
   無損的基準截圖直接認出森林迷宮Ⅲ，放大過的視窗第一候選是對的、要點一次（點過的長相記在這台電腦）。

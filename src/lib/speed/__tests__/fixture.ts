@@ -1,7 +1,8 @@
 // src/lib/speed/__tests__/fixture.ts
 import path from "node:path";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
-import type { Frame } from "../frame";
+import type { Frame, Rect } from "../frame";
+import { QUICKSLOT_FONT, QUICKSLOT_FONT_H, QUICKSLOT_FONT_RGB } from "../quickslot-font";
 import { STATUS_FONT } from "../status-font";
 import type { StatusBar } from "../status-bar";
 
@@ -170,4 +171,48 @@ export function paintExpLine(frame: Frame, bar: StatusBar, text: string): Frame 
     x += glyph.rows[0].length + 1 + (dot ? 1 : 0);
   }
   return { width: frame.width, height: frame.height, data };
+}
+
+/**
+ * 在 1 倍的畫面上把某一格快捷鍵的數量換掉：格子下面字那一條（格子上緣往下 19 格到格子底）先塗成藍色藥水的底色，
+ * 再用客戶端的道具數量字（QUICKSLOT_FONT）從格子左緣一個接一個畫上去（字跟字不重疊，下一個字接在上一個字的寬度後面），
+ * 字身照原圖每一列的漸層色、黑框畫純黑。位置照基準截圖量的（例：第 2 格 702 的字從 x 1248、y 671 開始）。
+ * 基準截圖的快捷鍵只有 0、1、2、4、7、9，3、5、6、8 只能這樣畫來驗。count 給 null 就只塗底、不畫字。
+ */
+export function paintSlotCount(frame: Frame, rect: Rect, count: number | null): Frame {
+  const data = new Uint8ClampedArray(frame.data);
+  const top = rect.y + 19;
+  for (let y = top; y < top + QUICKSLOT_FONT_H; y++) {
+    for (let x = rect.x; x < rect.x + rect.w; x++) data.set([70, 110, 200, 255], (y * frame.width + x) * 4);
+  }
+  let x = rect.x;
+  for (const ch of count === null ? "" : String(count)) {
+    const rows = QUICKSLOT_FONT[ch];
+    rows.forEach((line, dy) => {
+      for (let dx = 0; dx < line.length; dx++) {
+        if (line[dx] === ".") continue;
+        const rgb = line[dx] === "#" ? QUICKSLOT_FONT_RGB[dy] : [0, 0, 0];
+        data.set([...rgb, 255], ((top + dy) * frame.width + x + dx) * 4);
+      }
+    });
+    x += rows[0].length;
+  }
+  return { width: frame.width, height: frame.height, data };
+}
+
+/**
+ * 1920×1080 的畫面（onScene：狀態列置中貼在最下面，左右是亮色磚地），再把基準截圖右下角的快捷鍵整塊
+ * （x 1204～1359、y 642～725，含白框外面一點）貼到畫面右邊，離右緣、離底的距離跟基準截圖一樣。
+ */
+export function quickslotOnScene(frame: Frame): Frame {
+  const scene = onScene(frame, 1920, 1080);
+  const data = new Uint8ClampedArray(scene.data);
+  const [x0, x1, y0, y1] = [1204, 1360, 642, 726];
+  const left = scene.width - (frame.width - x0);
+  const top = scene.height - (frame.height - y0);
+  for (let y = y0; y < y1; y++) {
+    const from = (y * frame.width + x0) * 4;
+    data.set(frame.data.subarray(from, from + (x1 - x0) * 4), ((top + y - y0) * scene.width + left) * 4);
+  }
+  return { width: scene.width, height: scene.height, data };
 }
