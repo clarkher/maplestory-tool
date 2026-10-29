@@ -55,11 +55,13 @@ export const NO_MESO: MesoEntry = { value: null, at: 0 };
 /**
  * 填好一格楓幣。打到一半的字不算，只有這裡才改數字。
  * keepFirst（開始時楓幣）：已經有數字時改填，時間留第一次填的那一刻（改錯字不會讓速度亂跳）；
- * 現在楓幣每次填都用填的那一刻。清空或看不懂 → 回到沒填。
+ * 現在楓幣每次填（數字有改）都用填的那一刻；數字沒改就原樣回傳、時間不重記。清空或看不懂 → 回到沒填。
  */
 export function commitMeso(prev: MesoEntry, text: string, now: number, keepFirst: boolean): MesoEntry {
   const value = parseMeso(text);
-  if (value === null) return NO_MESO;
+  if (value === null) return prev.value === null ? prev : NO_MESO;
+  // 數字沒改（按了 Enter 又離開欄位、用 Tab 經過）：原樣留著，時間不重記
+  if (value === prev.value) return prev;
   return { value, at: keepFirst && prev.value !== null ? prev.at : now };
 }
 

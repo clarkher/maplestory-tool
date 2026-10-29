@@ -80,6 +80,14 @@ describe("commitMeso", () => {
     const first = commitMeso(NO_MESO, "5000", 100, false);
     expect(commitMeso(first, "5200", 500, false)).toEqual({ value: 5200, at: 500 });
   });
+  it("數字沒改（Enter 之後又離開欄位、Tab 經過）：原樣回傳，時間不重記", () => {
+    const now = commitMeso(NO_MESO, "5,000", 100, false);
+    expect(commitMeso(now, "5000", 900, false)).toBe(now);
+    const start = commitMeso(NO_MESO, "1000", 100, true);
+    expect(commitMeso(start, "1,000", 900, true)).toBe(start);
+    expect(commitMeso(NO_MESO, "", 900, false)).toBe(NO_MESO);
+  });
+
   it("清空、看不懂 → 沒填；之後再填算第一次", () => {
     const first = commitMeso(NO_MESO, "1000", 100, true);
     const cleared = commitMeso(first, "", 200, true);

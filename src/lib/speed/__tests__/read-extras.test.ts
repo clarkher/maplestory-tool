@@ -57,25 +57,35 @@ describe("readExtras（真截圖 window-1364.png）", () => {
     expect(again.slots).toEqual(first.slots);
   }, 120000);
 
-  it("數量變了：先跟上次認出來的比（快路）；格子換成別種藥水就整池重認，不沿用", async () => {
+  it("畫面沒變沿用上次；數量變了整池重認，還是同一種", async () => {
     const base = await loadFixture("window-1364.png");
     const bar = findStatusBar(base)!;
     const rects = findQuickslot(base, bar)!;
     const state = createExtrasState();
     state.refs = await loadRefs();
     readExtras(base, bar, 0, state);
-    const fullBefore = state.stats.full;
+    const full = state.stats.full;
+    readExtras(base, bar, SLOT_EVERY_MS, state);
+    expect(state.stats.full).toBe(full);
+    expect(state.stats.cached).toBeGreaterThan(0);
 
     const fewer = paintSlotCount(pasteIcon(base, rects[1], await loadItemIcon(2000002)), rects[1], 700, { clear: false });
-    const next = readExtras(fewer, findStatusBar(fewer)!, SLOT_EVERY_MS, state);
+    const next = readExtras(fewer, findStatusBar(fewer)!, 2 * SLOT_EVERY_MS, state);
     expect(next.slots?.[1]).toEqual({ index: 1, ids: [2000002], count: 700 });
-    expect(state.stats.fast).toBeGreaterThanOrEqual(1);
-    expect(state.stats.full).toBe(fullBefore);
+    expect(state.stats.full).toBeGreaterThan(full);
+  }, 120000);
 
-    const swapped = paintSlotCount(pasteIcon(base, rects[1], await loadItemIcon(2000000)), rects[1], 50, { clear: false });
-    const after = readExtras(swapped, findStatusBar(swapped)!, 2 * SLOT_EVERY_MS, state);
-    expect(after.slots?.[1].ids).not.toEqual([2000002]);
-    expect(state.stats.full).toBeGreaterThan(fullBefore);
+  // 讀錯不行：格子換成長得像的別種藥水（白色 → 紅、橘），只能認成新的那種或認不出，絕不沿用白色藥水
+  it.each([2000000, 2000001])("白色藥水那格換成 %s：認成新的或 null，不會還是白色藥水", async id => {
+    const base = await loadFixture("window-1364.png");
+    const bar = findStatusBar(base)!;
+    const rects = findQuickslot(base, bar)!;
+    const state = createExtrasState();
+    state.refs = await loadRefs();
+    expect(readExtras(base, bar, 0, state).slots?.[1].ids).toEqual([2000002]);
+    const swapped = paintSlotCount(pasteIcon(base, rects[1], await loadItemIcon(id)), rects[1], 700, { clear: false });
+    const ids = readExtras(swapped, findStatusBar(swapped)!, SLOT_EVERY_MS, state).slots?.[1].ids ?? null;
+    expect(ids === null || (ids.length === 1 && ids[0] === id)).toBe(true);
   }, 120000);
 
   it("還沒載好藥水圖：數量照讀，是哪種藥水先不知道（ids 是 null）", async () => {

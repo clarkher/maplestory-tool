@@ -2,13 +2,11 @@
 /**
  * 練功測速 v1.20 每張畫面多讀的：HP 比例（每張）、快捷鍵的數量跟藥水種類（每 SLOT_EVERY_MS 讀一次）。
  * 在讀畫面的地方跑（Worker；沒有 Worker 的退路是主執行緒），結果跟著讀數一起傳回頁面。
- * 認藥水很花時間（參考圖幾百個）：同一格圖示＋數量跟上次一模一樣就直接用上次的結果；
- * 數量變了（圖示上壓的字不同）先只跟上次認出來的那幾個參考比（快路），還是夠像、而且沒有比上次差太多才沿用，
- * 不然整池重認（門檻＋差距規則照 matchPotion）。
+ * 認藥水很花時間（參考圖幾百個）：同一格圖示＋數量跟上次一模一樣就直接用上次的結果，有變就整池重認。
  */
 import type { Frame } from "./frame";
 import { hpRatio } from "./hp";
-import { matchPotion, POTION_MAX_DISTANCE, potionRefOf, refDistance, type PotionRef } from "./potions";
+import { matchPotion, potionRefOf, type PotionRef } from "./potions";
 import { readQuickslot } from "./quickslot";
 import type { StatusBar } from "./status-bar";
 import type { Item } from "../types";
@@ -30,37 +28,27 @@ export type SlotSeen = { index: number; ids: number[] | null; count: number | nu
 /** hp：HP 比例（讀不到 null）；slots：這張有讀快捷鍵才有這欄，null＝找不到快捷鍵 */
 export type FrameExtras = { hp: number | null; slots?: SlotSeen[] | null };
 
-/** 快路沿用時，距離最多只能比整池認出來那次多這麼多（圖示換了一個長得像的道具就會超過，改走整池） */
-const FAST_SLACK = 3;
-
-/** d＝整池認出來那次的距離（認不出是 Infinity） */
-type Cached = { sig: number; refs: PotionRef[]; ids: number[] | null; d: number };
-/** stats：整池認了幾次、快路沿用幾次（測試看用） */
-export type ExtrasState = { lastSlotsAt: number; refs: PotionRef[] | null; cache: Map<number, Cached>; stats: { full: number; fast: number } };
+type Cached = { sig: number; refs: PotionRef[]; ids: number[] | null };
+/** stats：整池認了幾次、畫面沒變直接沿用幾次（測試看用） */
+export type ExtrasState = { lastSlotsAt: number; refs: PotionRef[] | null; cache: Map<number, Cached>; stats: { full: number; cached: number } };
 
 export function createExtrasState(): ExtrasState {
-  return { lastSlotsAt: -Infinity, refs: null, cache: new Map(), stats: { full: 0, fast: 0 } };
+  return { lastSlotsAt: -Infinity, refs: null, cache: new Map(), stats: { full: 0, cached: 0 } };
 }
 
+/**
+ * 認一格：圖示＋數量跟上次一模一樣才沿用；只要有一點不同就整池重認（門檻＋差距規則照 matchPotion），
+ * 不拿上次的答案抄捷徑——換成長得像的另一種藥水時，寧可認不出也不能沿用舊的。
+ */
 function matchSlot(icon: Uint8ClampedArray, count: number | null, index: number, sig: number, refs: PotionRef[], state: ExtrasState): number[] | null {
   const hit = state.cache.get(index);
-  if (hit && hit.refs === refs) {
-    if (hit.sig === sig) return hit.ids;
-    if (hit.ids) {
-      const ids = hit.ids;
-      const mine = refs.filter(ref => ids.includes(ref.id));
-      const d = Math.min(...mine.map(ref => refDistance(icon, ref, count)));
-      if (d <= POTION_MAX_DISTANCE && d <= hit.d + FAST_SLACK) {
-        state.stats.fast++;
-        state.cache.set(index, { ...hit, sig });
-        return ids;
-      }
-    }
+  if (hit && hit.refs === refs && hit.sig === sig) {
+    state.stats.cached++;
+    return hit.ids;
   }
   state.stats.full++;
   const ids = matchPotion(icon, refs, count)?.ids ?? null;
-  const d = ids ? Math.min(...refs.filter(ref => ids.includes(ref.id)).map(ref => refDistance(icon, ref, count))) : Infinity;
-  state.cache.set(index, { sig, refs, ids, d });
+  state.cache.set(index, { sig, refs, ids });
   return ids;
 }
 
