@@ -5,7 +5,7 @@
 // 假的分享畫面：頁面在非正式機會先看 window.__speedTestStream；腳本把 src/lib/speed/__fixtures__/window-1364.png
 // 畫進 canvas、captureStream 塞進去，不用真的開遊戲、也不會跳出選視窗的對話框。
 // 輸出：speed.png（整頁，1440 寬）、speed-id.png（按分享時問角色 ID）、speed-choices.png（認不出地圖、列出候選的時候）、
-//       speed-coupon.png（存好一段後問加倍券）、results.json（每一項檢查的結果＋量到的字）
+//       speed-share.png（按「產生分享圖」跳出的對話框，v1.20）、speed-coupon.png（存好一段後問加倍券）、results.json（每一項檢查的結果＋量到的字）
 // 量不到的（靠 tracker.test.ts 跟真人玩）：經驗會不會跟著動、自動停——假畫面是靜止的。
 // 存一段＋補填加倍券（v1.10）：頁面在非正式機有 window.__speedTestSave，腳本直接丟一段 12 分鐘的進去存；
 //   本機沒有 DATABASE_URL 會寫「排行還沒開」、不會跳加倍券（這幾項記成略過）；分支預覽／測試機有資料庫，整段都量得到（資料寫在 preview 環境，正式機看不到）。
@@ -379,6 +379,16 @@ try {
   await fullShot("speed.png");
   results.screenshot = path.join(OUT, "speed.png");
 
+  // 7b. v1.20 新卡片：楓幣收益、跟我之前比、低血開關、快捷鍵、分享圖
+  const finalBody = await bodyText();
+  const mesoCard = await evaluate(`(() => { const h = [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === "楓幣收益"); return h ? h.parentElement.innerText : null; })()`);
+  record("左欄有「楓幣收益」卡（撿到、藥水、淨賺三格＋開始時楓幣、現在楓幣兩個欄位）", mesoCard !== null && /撿到/.test(mesoCard) && /藥水/.test(mesoCard) && /淨賺/.test(mesoCard) && /開始時楓幣/.test(finalBody) && /現在楓幣/.test(finalBody), mesoCard?.replace(/\n+/g, " / ").slice(0, 160));
+  // 快捷鍵：頁面沒有把讀到的數字露出來，退一步看「讀不到快捷鍵」那行沒冒出來（基準截圖的快捷鍵 8 格有 5 格有數字）
+  record("基準截圖的快捷鍵讀得到：楓幣收益卡沒有「讀不到快捷鍵」那行", mesoCard !== null && !/讀不到快捷鍵/.test(finalBody));
+  record("左欄有「跟我之前比」卡", (await evaluate(`[...document.querySelectorAll("h2")].some(h => h.textContent.trim() === "跟我之前比")`)) === true);
+  const lowHp = await evaluate(`(() => { const sw = document.querySelector('button[role="switch"][aria-labelledby="speed-low-hp"]'); return sw ? { checked: sw.getAttribute("aria-checked"), label: document.getElementById("speed-low-hp")?.textContent.trim() } : null; })()`);
+  record("控制卡有低血開關（「HP 低於 30% 響一聲」，預設關）", lowHp !== null && lowHp.checked === "false" && /HP 低於 30%/.test(lowHp.label ?? ""), lowHp);
+
   // 8. 存一段、補填加倍券（v1.10）：直接丟一段 12 分鐘、拿到 120,000 的進去存
   const canSave = await evaluate("typeof window.__speedTestSave === 'function'");
   record("非正式機掛著驗收用的 __speedTestSave", canSave);
@@ -419,6 +429,20 @@ try {
       const couponLine = (await bodyText()).match(/上一段：.*/)?.[0] ?? null;
       record("記下來：對話框關掉，「上一段」補上「實際 10 分鐘 66,667 經驗」", noted && (couponLine ?? "").includes("實際 10 分鐘 66,667 經驗") && (await dialogTitle()) === null, couponLine);
     }
+  }
+
+  // 8b. 分享圖：靜止的假畫面經驗不會動，要等存了那段 12 分鐘的才有東西可以做圖
+  const sharable = await ev(`return await __waitFor(() => { const b = [...document.querySelectorAll("button")].find(b => b.textContent.trim() === "產生分享圖"); return Boolean(b) && !b.disabled; }, 15000)`);
+  record("「產生分享圖」按得下去（存一段之後，停了的上一段有 10 分鐘經驗跟地圖）", sharable);
+  if (sharable) {
+    await click(BUTTON("產生分享圖"));
+    const drawn = await ev(`return await __waitFor(() => { const img = document.querySelector("dialog[open] img[data-share-image]"); return Boolean(img) && img.complete && img.naturalWidth > 0; }, 15000)`);
+    const shareInfo = await evaluate(`(() => { const d = document.querySelector("dialog[open]"); const img = d?.querySelector("img[data-share-image]"); return d ? { title: d.querySelector("h2")?.textContent.trim(), w: img?.naturalWidth ?? 0, h: img?.naturalHeight ?? 0, buttons: [...d.querySelectorAll("button, a")].map(b => b.textContent.trim()) } : null; })()`);
+    record("按「產生分享圖」跳出對話框，裡面有 1200×630 的圖，有「關掉」「下載」", drawn && shareInfo?.title === "分享圖" && shareInfo.w === 1200 && shareInfo.h === 630 && shareInfo.buttons.includes("關掉") && shareInfo.buttons.includes("下載"), shareInfo);
+    await shot("speed-share.png");
+    await click(BUTTON("關掉"));
+    await sleep(300);
+    record("按「關掉」對話框收起來", (await dialogTitle()) === null);
   }
 
   // 9. 點選過的地圖有記住（只有玩家點過才有這步）；角色 ID 不記：重新整理後再分享，對話框是空的；勾「下次不要再問我」
