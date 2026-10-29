@@ -15,8 +15,8 @@ import { nextLowHp, type LowHp } from "@/lib/speed/hp";
 import { commitMeso, mesoCells, mesoForNewSegment, NO_MESO, potionLine, potionMinutes, potionName, segmentLine, signedText, type MesoEntry } from "@/lib/speed/live-view";
 import { mesoRates } from "@/lib/speed/meso";
 import { backCalc, mapPartyExp, membersOf } from "@/lib/speed/party-exp";
-import { potionKey, potionPriceFn, potionsOnRead, potionSummary, type PotionTrack } from "@/lib/speed/potions";
-import { potionPoolIds, type FrameExtras } from "@/lib/speed/read-extras";
+import { potionPriceFn, potionsOnRead, potionSummary, type PotionTrack } from "@/lib/speed/potions";
+import { nonPotionIds, potionPoolIds, slotReads, type FrameExtras } from "@/lib/speed/read-extras";
 import type { FrameReading } from "@/lib/speed/read-frame";
 import { resolveMap, settleTitle, type MapGuess, type TitleSettle } from "@/lib/speed/read-map";
 import type { BoardRow } from "@/lib/speed/server/rules";
@@ -45,6 +45,8 @@ type Data = {
   maps: Record<string, MapRecord>;
   monsterById: Map<number, Monster>;
   items: Map<number, Item>;
+  /** 比對池裡認得出、但不是藥水的（箭矢、飛鏢、子彈、回城） */
+  nonPotion: Set<number>;
   training: TrainingRow[];
   trainingIds: Set<number>;
   toNext: number[];
@@ -150,6 +152,8 @@ export function PracticeSpeed() {
   const potionsRef = useRef(potions);
   /** 快捷鍵從什麼時候開始讀不到（null＝讀得到） */
   const slotMissRef = useRef<number | null>(null);
+  /** 這次分享藥水參考圖載好的時間（null＝還沒載好）：「太晚才第一次讀到」從這之後算 */
+  const poolReadyAtRef = useRef<number | null>(null);
   const lowHpRef = useRef<LowHp>({ armed: true });
   /** 現在算得出的每 10 分鐘淨賺：存一段時一起記進這台電腦的紀錄 */
   const mesoNetRef = useRef<number | null>(null);
@@ -188,6 +192,7 @@ export function PracticeSpeed() {
           maps,
           monsterById: new Map(monsters.map(monster => [monster.id, monster])),
           items: new Map(items.map(item => [item.id, item])),
+          nonPotion: nonPotionIds(items),
           training,
           trainingIds: new Set(training.map(row => row.m)),
           toNext: common.expTable.toNext,
@@ -299,17 +304,14 @@ export function PracticeSpeed() {
     if (slots && process.env.NEXT_PUBLIC_VERCEL_ENV !== "production") setSlotsRead(slots.filter(slot => slot.count !== null).length);
     const seg = trackerRef.current.seg;
     if (!seg) return;
-    // 藥水參考圖還沒載好：每格都認不出是正常的，這次當沒讀（這段太久才讀到會由 potionsOnRead 標不完整）
-    if (slots && extras.poolReady === false) return;
+    // 藥水參考圖還沒載好：每格都認不出是正常的，這次當沒讀；「太晚才第一次讀到」從載好那一刻起算
+    if (extras.poolReady && poolReadyAtRef.current === null) poolReadyAtRef.current = at;
+    if (poolReadyAtRef.current === null) return;
+    const items = dataRef.current?.nonPotion ?? new Set<number>();
     const before = potionsRef.current;
     const prev = before.startedAt === seg.startedAt ? before.track : NO_POTIONS;
-    // 讀不到（null）、有數字認不出道具、太晚才第一次讀到：這段的藥水錢就算不完整
-    const track = potionsOnRead(
-      prev,
-      slots ? slots.map(slot => ({ index: slot.index, itemId: slot.ids ? potionKey(slot.ids) : null, count: slot.count })) : null,
-      at,
-      seg.startedAt,
-    );
+    // 連續讀不到 10 秒、認不出的格子數量變少、太晚才第一次讀到：這段的藥水錢就算不完整；箭矢、回城這類整格跳過
+    const track = potionsOnRead(prev, slots ? slotReads(slots, items) : null, at, Math.max(seg.startedAt, poolReadyAtRef.current));
     if (track === prev && before.startedAt === seg.startedAt) return;
     potionsRef.current = { startedAt: seg.startedAt, track };
     setPotions(potionsRef.current);
@@ -402,6 +404,7 @@ export function PracticeSpeed() {
     try {
       const handle = await startCapture({ toNext: data.toNext, names: data.names, potionIds: potionPoolIds(data.items.values()) }, onReading);
       slotMissRef.current = null;
+      poolReadyAtRef.current = null;
       setNoQuickslot(false);
       lowHpRef.current = { armed: true };
       curveRef.current = null;

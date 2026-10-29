@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { potionRefOf, type PotionRef } from "../potions";
-import { createExtrasState, potionPoolIds, readExtras, SLOT_EVERY_MS } from "../read-extras";
+import { createExtrasState, nonPotionIds, potionPoolIds, slotReads, readExtras, SLOT_EVERY_MS } from "../read-extras";
 import { findQuickslot } from "../quickslot";
 import { findStatusBar } from "../status-bar";
 import type { Item } from "../../types";
@@ -24,14 +24,44 @@ async function loadRefs(): Promise<PotionRef[]> {
 }
 
 describe("potionPoolIds", () => {
-  it("只拿藥水、食物、狀態消耗、特殊消耗（不拿卷軸、怪物卡、飛鏢），由小到大", () => {
+  it("拿藥水、食物、狀態消耗、特殊消耗，加上認得出但不是藥水的箭矢、飛鏢、子彈、傳送卷軸（不拿一般卷軸、怪物卡），由小到大", () => {
     const ids = potionPoolIds(items);
     expect(ids).toContain(2000002);
     expect(ids).toContain(2000003);
     expect(ids).toContain(2022000);
     const byId = new Map(items.map(item => [item.id, item]));
-    expect(ids.every(id => byId.get(id)?.c === "消耗" && ["藥水", "食物", "狀態消耗", "特殊消耗"].includes(byId.get(id)?.s ?? ""))).toBe(true);
+    const groups = ["藥水", "食物", "狀態消耗", "特殊消耗", "箭矢", "飛鏢", "子彈", "傳送卷軸"];
+    expect(ids.every(id => byId.get(id)?.c === "消耗" && groups.includes(byId.get(id)?.s ?? ""))).toBe(true);
+    for (const s of ["箭矢", "飛鏢", "子彈", "傳送卷軸"]) expect(ids.some(id => byId.get(id)?.s === s), s).toBe(true);
     expect([...ids].sort((a, b) => a - b)).toEqual(ids);
+  });
+});
+
+describe("nonPotionIds、slotReads", () => {
+  const nonPotion = nonPotionIds(items);
+  const byId = new Map(items.map(item => [item.id, item]));
+  it("只有箭矢、飛鏢、子彈、傳送卷軸", () => {
+    expect(nonPotion.size).toBeGreaterThan(0);
+    expect([...nonPotion].every(id => ["箭矢", "飛鏢", "子彈", "傳送卷軸"].includes(byId.get(id)?.s ?? ""))).toBe(true);
+    expect(nonPotion.has(2000002)).toBe(false);
+  });
+  it("認出來全是不是藥水的標 other；藥水照道具鍵；認不出的 itemId null", () => {
+    const arrow = [...nonPotion].find(id => byId.get(id)?.s === "箭矢")!;
+    const reads = slotReads(
+      [
+        { index: 0, ids: [arrow], count: 900 },
+        { index: 1, ids: [2000003, 2000017], count: 279 },
+        { index: 2, ids: null, count: 5 },
+        { index: 3, ids: [2000002], count: null },
+      ],
+      nonPotion,
+    );
+    expect(reads).toEqual([
+      { index: 0, itemId: null, count: 900, other: true },
+      { index: 1, itemId: "2000003,2000017", count: 279 },
+      { index: 2, itemId: null, count: 5 },
+      { index: 3, itemId: 2000002, count: null },
+    ]);
   });
 });
 

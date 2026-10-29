@@ -154,27 +154,35 @@ export type PotionTrack = {
   goneSkipped?: boolean;
   seen?: boolean;
   gap?: boolean;
+  /** 有數字、認不出是什麼道具的格子：連兩次一樣才算確定的數量（confirmed），數量變少就是用掉了算不出錢的東西 → gap */
+  unknown?: Record<number, { confirmed: number | null; last: number }>;
+  /** 快捷鍵從什麼時候開始連續讀不到（讀到就清掉） */
+  missSince?: number;
 };
 
 /** 這段開始後超過這麼久才第一次讀到快捷鍵：前面那段用了多少不知道，算不完整 */
 export const FIRST_READ_MS = 10_000;
+/** 讀到過之後，快捷鍵連續讀不到這麼久才算不完整（被擋一下不算：擋的那段用掉的，讀回來時數量差會補上） */
+export const MISS_MS = 10_000;
+
+/** 一格讀到的：itemId＝道具鍵（認不出 null）；other＝認得出、但不是藥水（箭矢、回城…），整格跳過 */
+export type PotionRead = { index: number; itemId: PotionKey | null; count: number | null; other?: boolean };
 
 /**
- * 這段每讀一次快捷鍵（reads＝null 是找不到快捷鍵）：
- * - 讀到過之後又讀不到 → gap（中間用了多少不知道）
- * - 這段開始超過 FIRST_READ_MS 還沒讀到（不管是讀不到還是第一次讀到時已經太晚）→ gap
+ * 這段每讀一次快捷鍵（reads＝null 是找不到快捷鍵）。since＝max(這段開始, 藥水參考圖載好的時間)：
+ * - 讀到過之後連續讀不到 MISS_MS 以上 → gap
+ * - since 之後超過 FIRST_READ_MS 才第一次讀到（或一直讀不到）→ gap
  * - 讀得到就交給 nextPotions，標 seen
  */
-export function potionsOnRead(
-  t: PotionTrack,
-  reads: { index: number; itemId: PotionKey | null; count: number | null }[] | null,
-  at: number,
-  startedAt: number,
-): PotionTrack {
-  const late = !t.seen && at - startedAt > FIRST_READ_MS;
-  if (reads === null) return t.seen || late ? (t.gap ? t : { ...t, gap: true }) : t;
+export function potionsOnRead(t: PotionTrack, reads: PotionRead[] | null, at: number, since: number): PotionTrack {
+  const late = !t.seen && at - since > FIRST_READ_MS;
+  if (reads === null) {
+    const missSince = t.missSince ?? at;
+    const gap = t.gap || late || (t.seen && at - missSince >= MISS_MS);
+    return { ...t, missSince, gap: gap || undefined };
+  }
   const next = nextPotions(t, reads);
-  return { ...next, seen: true, gap: next.gap || late || undefined };
+  return { ...next, seen: true, missSince: undefined, gap: next.gap || late || undefined };
 }
 
 /** 一次減這麼多以上當讀錯（例 702 被讀成 70），不算用量 */
@@ -189,24 +197,47 @@ export const DROP_REBASE = 4;
  *   一次減超過 MAX_DROP 先當讀錯、不採用；但同一個新數字連續讀到 DROP_REBASE 次就當真的（例：換了一組藥水、丟掉一堆）：
  *   lastCount 改成新數字、不加進 used、標 skipped（那一段用量算不出來）
  * - 換了別的道具：舊道具算到的用量搬進 gone（照道具留著），補過藥、沒算到的標記也留著
- * - itemId 或 count 是 null：這輪跳過（待確認的也清掉）；有數量卻認不出是什麼道具（itemId null、count 不是 null）標 gap
+ * - other（箭矢、回城這類認得出但不是藥水）：整格跳過，原本記的藥水照「換了道具」收進 gone
+ * - itemId 或 count 是 null：這輪跳過（待確認的也清掉）
+ * - 有數量卻認不出是什麼道具：連兩次一樣才確定；確定的數量比上次確定的少（用掉了算不出錢的東西）才標 gap，不變、變多不算
  */
-export function nextPotions(
-  t: PotionTrack,
-  reads: { index: number; itemId: PotionKey | null; count: number | null }[],
-): PotionTrack {
+export function nextPotions(t: PotionTrack, reads: PotionRead[]): PotionTrack {
   const slots = { ...t.slots };
   const pending = { ...(t.pending ?? {}) };
   let gone = t.gone;
   let goneRestocked = t.goneRestocked;
   let goneSkipped = t.goneSkipped;
   let gap = t.gap;
-  for (const { index, itemId, count } of reads) {
+  const unknown = { ...(t.unknown ?? {}) };
+  const retire = (slot: PotionSlot) => {
+    if (slot.used > 0) gone = [...(gone ?? []), { itemId: slot.itemId, used: slot.used }];
+    if (slot.restocked) goneRestocked = true;
+    if (slot.skipped) goneSkipped = true;
+  };
+  for (const { index, itemId, count, other } of reads) {
+    if (other) {
+      delete pending[index];
+      delete unknown[index];
+      if (slots[index]) {
+        retire(slots[index]);
+        delete slots[index];
+      }
+      continue;
+    }
+    if (itemId === null && count !== null) {
+      delete pending[index];
+      const u = unknown[index];
+      if (u && u.last === count) {
+        if (u.confirmed !== null && count < u.confirmed) gap = true;
+        unknown[index] = { confirmed: count, last: count };
+      } else unknown[index] = { confirmed: u?.confirmed ?? null, last: count };
+      continue;
+    }
     if (itemId === null || count === null) {
-      if (itemId === null && count !== null) gap = true;
       delete pending[index];
       continue;
     }
+    delete unknown[index];
     const slot = slots[index];
     const waiting = pending[index];
     // 跟已採用的一樣：沒事，待確認的也清掉
@@ -223,11 +254,7 @@ export function nextPotions(
     }
     if (!slot || slot.itemId !== itemId) {
       delete pending[index];
-      if (slot) {
-        if (slot.used > 0) gone = [...(gone ?? []), { itemId: slot.itemId, used: slot.used }];
-        if (slot.restocked) goneRestocked = true;
-        if (slot.skipped) goneSkipped = true;
-      }
+      if (slot) retire(slot);
       slots[index] = { itemId, startCount: count, lastCount: count, used: 0, restocked: false };
     } else if (count < slot.lastCount) {
       if (slot.lastCount - count > MAX_DROP) {
@@ -246,7 +273,7 @@ export function nextPotions(
       slots[index] = { ...slot, lastCount: count, drop: undefined, restocked: true };
     }
   }
-  const out: PotionTrack = { ...t, slots, pending };
+  const out: PotionTrack = { ...t, slots, pending, unknown };
   if (gone) out.gone = gone;
   if (goneRestocked) out.goneRestocked = true;
   if (goneSkipped) out.goneSkipped = true;

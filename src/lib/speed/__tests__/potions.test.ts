@@ -2,8 +2,9 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { FIRST_READ_MS, iconDistance, matchPotion, nextPotions, potionsOnRead, POTION_MAX_DISTANCE, POTION_MIN_GAP, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
+import { FIRST_READ_MS, iconDistance, matchPotion, MISS_MS, nextPotions, potionsOnRead, POTION_MAX_DISTANCE, POTION_MIN_GAP, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
 import { iconOf, readQuickslot } from "../quickslot";
+import { NON_POTION_GROUPS, POTION_GROUPS } from "../read-extras";
 import { findStatusBar } from "../status-bar";
 import { loadFixture, loadItemIcon, paintSlotCount, pasteIcon } from "./fixture";
 import type { Frame } from "../frame";
@@ -67,7 +68,8 @@ describe("matchPotion（合成畫面）", () => {
 describe("matchPotion（真截圖 window-1364.png）", () => {
   // 左上到右下 8 格：技能、白色藥水(702)、技能、藍色藥水(279)、礦泉水(141)、活力藥水(0)、技能、一種食物(2)
   // 站上同一張圖有好幾個編號的（藍色藥水 2000003＝藍色濃縮藥水 2000017、活力藥水 2000006＝2000018、三種香水）不硬猜，全部列出來
-  const POOL = ["藥水", "食物", "狀態消耗", "特殊消耗"];
+  // 頁面實際用的池子：藥水四類＋認得出但不是藥水的（箭矢、飛鏢、子彈、回城）
+  const POOL = [...POTION_GROUPS, ...NON_POTION_GROUPS];
   const WANT: Array<number[] | null> = [null, [2000002], null, [2000003, 2000017], [2022000], [2000006, 2000018], null, [2022060, 2022061, 2022062]];
 
   async function loadPool() {
@@ -228,16 +230,37 @@ describe("nextPotions", () => {
     expect(potionSummary(u, 10, () => 1)).toMatchObject({ uncounted: true, incomplete: true });
   });
 
-  it("null 跳過、不動既有的數字；有數量卻認不出道具 → gap", () => {
+  it("null 跳過、不動既有的數字", () => {
     let t = feed(start, 100, 100);
     t = nextPotions(t, [{ index: 0, itemId: 2000000, count: null }]);
-    expect(t.gap).toBeUndefined();
     t = nextPotions(t, [{ index: 0, itemId: null, count: null }]);
-    expect(t.gap).toBeUndefined();
-    t = nextPotions(t, [{ index: 0, itemId: null, count: 50 }]);
     expect(t.slots[0]).toMatchObject({ lastCount: 100, used: 0 });
+    expect(t.gap).toBeUndefined();
+  });
+
+  it("認不出的格子：數量不變、變多不算不完整；確定的數量變少才算", () => {
+    const unknown = (t: PotionTrack, ...counts: number[]) => counts.reduce((acc, count) => nextPotions(acc, [{ index: 3, itemId: null, count }]), t);
+    let t = unknown(start, 50, 50, 50, 60, 60);
+    expect(t.gap).toBeUndefined();
+    t = unknown(t, 58); // 只讀到一次：還不確定
+    expect(t.gap).toBeUndefined();
+    t = unknown(t, 60, 60); // 讀回 60：沒用掉
+    expect(t.gap).toBeUndefined();
+    t = unknown(t, 58, 58); // 連兩次 58：用掉了算不出錢的東西
     expect(t.gap).toBe(true);
     expect(potionSummary(t, 10, () => 1).incomplete).toBe(true);
+  });
+
+  it("箭矢、回城（other）：整格跳過，不追蹤、不算錢、不算不完整；原本那格的藥水用量留著", () => {
+    let t = start;
+    for (const count of [500, 500, 480, 480]) t = nextPotions(t, [{ index: 2, itemId: null, count, other: true }]);
+    expect(t.slots[2]).toBeUndefined();
+    expect(t.gap).toBeUndefined();
+    expect(potionSummary(t, 10, () => 1)).toMatchObject({ uses: [], incomplete: false });
+    let u = feed(start, 100, 100, 90, 90);
+    for (const count of [300, 300]) u = nextPotions(u, [{ index: 0, itemId: null, count, other: true }]);
+    expect(u.slots[0]).toBeUndefined();
+    expect(potionSummary(u, 10, () => 1).uses).toMatchObject([{ itemId: 2000000, per10: 10 }]);
   });
 });
 
@@ -251,12 +274,32 @@ describe("potionsOnRead", () => {
     expect(t.seen).toBe(true);
     expect(potionSummary(t, 10, () => 1)).toMatchObject({ incomplete: false, uses: [{ per10: 10 }] });
   });
-  it("讀到過之後又讀不到 → 不完整", () => {
+  it("讀到過之後被擋一下（不到 10 秒）：不算不完整，擋的那段用量讀回來時補上", () => {
+    let t = potionsOnRead(start, read(100), 1000, 0);
+    t = potionsOnRead(t, read(100), 4000, 0);
+    t = potionsOnRead(t, null, 7000, 0);
+    t = potionsOnRead(t, null, 7000 + MISS_MS - 1, 0);
+    expect(t.gap).toBeFalsy();
+    t = potionsOnRead(t, read(95), 20000, 0);
+    t = potionsOnRead(t, read(95), 23000, 0);
+    expect(potionSummary(t, 10, () => 1)).toMatchObject({ incomplete: false, uses: [{ per10: 5 }] });
+  });
+  it("讀到過之後連續讀不到 10 秒以上 → 不完整；中間讀到一次就重算", () => {
     let t = potionsOnRead(start, read(100), 1000, 0);
     t = potionsOnRead(t, null, 4000, 0);
+    t = potionsOnRead(t, read(100), 7000, 0); // 讀回來：重算
+    t = potionsOnRead(t, null, 10000, 0);
+    t = potionsOnRead(t, null, 10000 + MISS_MS - 1, 0);
+    expect(t.gap).toBeFalsy();
+    t = potionsOnRead(t, null, 10000 + MISS_MS, 0);
     expect(t.gap).toBe(true);
-    t = potionsOnRead(t, read(100), 7000, 0);
+    t = potionsOnRead(t, read(100), 30000, 0);
     expect(potionSummary(t, 10, () => 1).incomplete).toBe(true);
+  });
+  it("太晚才第一次讀到：從 since（這段開始跟參考圖載好取晚的）算", () => {
+    // 這段 0 開始、參考圖 15 秒才載好：since＝15000，20 秒第一次讀到不算晚
+    expect(potionsOnRead(start, read(100), 20000, 15000).gap).toBeFalsy();
+    expect(potionsOnRead(start, read(100), 15000 + FIRST_READ_MS + 1, 15000).gap).toBe(true);
   });
   it("開始後讀不到不到 10 秒，然後讀得到：完整", () => {
     let t = potionsOnRead(start, null, 3000, 0);

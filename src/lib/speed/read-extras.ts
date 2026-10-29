@@ -6,21 +6,42 @@
  */
 import type { Frame } from "./frame";
 import { hpRatio } from "./hp";
-import { matchPotion, potionRefOf, type PotionRef } from "./potions";
+import { matchPotion, potionKey, potionRefOf, type PotionKey, type PotionRef } from "./potions";
 import { readQuickslot } from "./quickslot";
 import type { StatusBar } from "./status-bar";
 import type { Item } from "../types";
 
 /** 拿來比的消耗品小分類（認藥水門檻是用這一池量的，見 potions.test.ts） */
 export const POTION_GROUPS = ["藥水", "食物", "狀態消耗", "特殊消耗"];
+/**
+ * 也放進比對池、但認出來就知道「不是藥水」的小分類：箭矢、飛鏢、子彈、回城（傳送卷軸）常放在快捷鍵上，
+ * 不放進池子會變成「有數字卻認不出」；認出來之後藥水那邊整格跳過（不算錢、不列、不算讀不完整，見 nextPotions 的 other）
+ */
+export const NON_POTION_GROUPS = ["箭矢", "飛鏢", "子彈", "傳送卷軸"];
 /** 快捷鍵多久讀一次（經驗照舊每秒） */
 export const SLOT_EVERY_MS = 3000;
 
-/** 要載哪些道具圖當參考：消耗品裡的 POTION_GROUPS，由小到大 */
+/** 要載哪些道具圖當參考：消耗品裡的 POTION_GROUPS 跟 NON_POTION_GROUPS，由小到大 */
 export function potionPoolIds(items: Iterable<Item>): number[] {
   const ids: number[] = [];
-  for (const item of items) if (item.c === "消耗" && POTION_GROUPS.includes(item.s ?? "")) ids.push(item.id);
+  for (const item of items) if (item.c === "消耗" && (POTION_GROUPS.includes(item.s ?? "") || NON_POTION_GROUPS.includes(item.s ?? ""))) ids.push(item.id);
   return ids.sort((a, b) => a - b);
+}
+
+/** 比對池裡「不是藥水」的那些編號（NON_POTION_GROUPS） */
+export function nonPotionIds(items: Iterable<Item>): Set<number> {
+  const ids = new Set<number>();
+  for (const item of items) if (item.c === "消耗" && NON_POTION_GROUPS.includes(item.s ?? "")) ids.add(item.id);
+  return ids;
+}
+
+/** 讀到的快捷鍵換成藥水追蹤吃的格式：認出來全是「不是藥水」的（箭矢、回城…）標 other，整格跳過 */
+export function slotReads(slots: SlotSeen[], nonPotion: ReadonlySet<number>): { index: number; itemId: PotionKey | null; count: number | null; other?: boolean }[] {
+  return slots.map(slot =>
+    slot.ids && slot.ids.length && slot.ids.every(id => nonPotion.has(id))
+      ? { index: slot.index, itemId: null, count: slot.count, other: true }
+      : { index: slot.index, itemId: slot.ids ? potionKey(slot.ids) : null, count: slot.count },
+  );
 }
 
 /** 一格：ids＝可能是哪些道具（認不出、還沒載好參考都是 null），count＝數量（讀不到 null） */
