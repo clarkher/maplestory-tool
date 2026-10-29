@@ -48,7 +48,7 @@ type Panel = { x: number; y: number; scale: number };
 
 /**
  * 找快捷鍵的白框：在狀態列上方（往上 300 格×縮放以內）、畫面右邊 35% 裡，
- * 1. 每一欄找夠長的白色直線（至少框高的八成；四個角是圓的，直線比框短一點）；
+ * 1. 每一欄找夠長的白色直線（至少框高的八成；四個角是圓的，直線比框短一點；中間被數字壓斷的接起來）；
  * 2. 兩條直線相距差不多 146×縮放、上下對得上，就是左右框；再找上下框（左右框之間八成以上是白的那一列），高要差不多 75×縮放；
  * 3. 驗格子：三條欄縫、一條列縫都要是暗的（排除場景裡剛好有白色長方形）。
  * 縮放照狀態列的 scale 推（跟 findStatusBar 同一套：視窗放大，UI 一起放大）。
@@ -62,14 +62,28 @@ function findPanel(frame: Frame, bar: StatusBar): Panel | null {
   const yTo = Math.min(frame.height, bar.top);
   type Line = { x: number; y0: number; y1: number };
   const lines: Line[] = [];
+  // 白線中間可以斷（最右那欄 5 位數的數字會壓在右框上，斷 11×縮放 列）：斷不超過 14×縮放 列的接起來算同一條，白的要佔六成以上
+  const maxGap = 14 * s;
   for (let x = xFrom; x < frame.width; x++) {
+    const runs: Array<[number, number]> = [];
     let start = -1;
     for (let y = yFrom; y <= yTo; y++) {
       const white = y < yTo && isWhite(frame, x, y);
       if (white && start < 0) start = y;
       if (!white && start >= 0) {
-        if (y - start >= 0.8 * fh && y - start <= fh + 3) lines.push({ x, y0: start, y1: y });
+        runs.push([start, y]);
         start = -1;
+      }
+    }
+    for (let i = 0; i < runs.length; i++) {
+      let white = runs[i][1] - runs[i][0];
+      let end = runs[i][1];
+      for (let j = i; ; j++) {
+        const span = end - runs[i][0];
+        if (span >= 0.8 * fh && span <= fh + 3 && white >= 0.6 * span) lines.push({ x, y0: runs[i][0], y1: end });
+        if (j + 1 >= runs.length || runs[j + 1][0] - end > maxGap || runs[j + 1][1] - runs[i][0] > fh + 3) break;
+        white += runs[j + 1][1] - runs[j + 1][0];
+        end = runs[j + 1][1];
       }
     }
   }
@@ -347,9 +361,10 @@ function readCount(lum: Lum, slot: Rect, s: number, right: number): number | nul
   let y = slot.y + COUNT_Y * s;
   for (let k = 0; k <= MAX_DIGITS; k++) {
     const best = bestGlyph(lum, x, y, s, k === 0 ? 1.5 * s : 0.5);
-    // 最右邊那欄，4 位數就頂到白框了：第 5 位會壓在白框上（白框像「1」），只看左半邊有沒有字——有就讀不準、整格不讀，沒有就是結束
+    // 最右邊那欄，4 位數就頂到白框了：第 5 位會壓在白框上、讀不準。那裡有一點像字（整個字到 AMBIGUOUS、或左半邊到 HALF_SEEN）
+    // 就整格不讀——寧可 null，也不回前 4 位（10234 讀成 1023）；什麼都不像才算 4 位數結束
     if (x + 4 * s > right) {
-      if (best.left >= HALF_SEEN) return null;
+      if (best.score >= AMBIGUOUS || best.left >= HALF_SEEN) return null;
       break;
     }
     const sure = best.score >= ACCEPT && best.score - best.second >= MARGIN;

@@ -178,11 +178,12 @@ export function paintExpLine(frame: Frame, bar: StatusBar, text: string): Frame 
  * 再用客戶端的道具數量字（QUICKSLOT_FONT）從格子左緣一個接一個畫上去（字跟字不重疊，下一個字接在上一個字的寬度後面），
  * 字身照原圖每一列的漸層色、黑框畫純黑。位置照基準截圖量的（例：第 2 格 702 的字從 x 1248、y 671 開始）。
  * 基準截圖的快捷鍵只有 0、1、2、4、7、9，3、5、6、8 只能這樣畫來驗。count 給 null 就只塗底、不畫字。
+ * clear: false＝不塗底，數字直接壓在格子現有的圖示上（配 pasteIcon 用）。
  */
-export function paintSlotCount(frame: Frame, rect: Rect, count: number | null): Frame {
+export function paintSlotCount(frame: Frame, rect: Rect, count: number | null, { clear = true } = {}): Frame {
   const data = new Uint8ClampedArray(frame.data);
   const top = rect.y + 19;
-  for (let y = top; y < top + QUICKSLOT_FONT_H; y++) {
+  for (let y = top; y < top + QUICKSLOT_FONT_H && clear; y++) {
     for (let x = rect.x; x < rect.x + rect.w; x++) data.set([70, 110, 200, 255], (y * frame.width + x) * 4);
   }
   let x = rect.x;
@@ -215,4 +216,63 @@ export function quickslotOnScene(frame: Frame): Frame {
     data.set(frame.data.subarray(from, from + (x1 - x0) * 4), ((top + y - y0) * scene.width + left) * 4);
   }
   return { width: scene.width, height: scene.height, data };
+}
+
+/** 讀 public/assets/items/<id>.png（道具圖示，RGBA） */
+export async function loadItemIcon(id: number): Promise<Frame> {
+  const image = await loadImage(path.resolve(process.cwd(), "public/assets/items", `${id}.png`));
+  const canvas = createCanvas(image.width, image.height);
+  const context = canvas.getContext("2d");
+  context.drawImage(image, 0, 0);
+  const { data } = context.getImageData(0, 0, image.width, image.height);
+  return { width: image.width, height: image.height, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length) };
+}
+
+/**
+ * 把真的道具圖示放進一格（1 倍畫面）：整格先塗成格子底色 bg（蓋掉原本的圖示跟數字），圖示照透明度疊上去、水平置中、貼齊格子底部
+ * （比格子大的切掉）。之後再用 paintSlotCount(…, { clear: false }) 把數字直接畫在圖示上，模擬遊戲裡數字壓在藥水圖上。
+ */
+export function pasteIcon(frame: Frame, rect: Rect, icon: Frame, bg: [number, number, number] = [196, 206, 222]): Frame {
+  const data = new Uint8ClampedArray(frame.data);
+  for (let y = rect.y; y < rect.y + rect.h; y++) {
+    for (let x = rect.x; x < rect.x + rect.w; x++) data.set([...bg, 255], (y * frame.width + x) * 4);
+  }
+  const left = rect.x + Math.floor((rect.w - icon.width) / 2);
+  const top = rect.y + rect.h - icon.height;
+  for (let y = 0; y < icon.height; y++) {
+    for (let x = 0; x < icon.width; x++) {
+      const fx = left + x;
+      const fy = top + y;
+      if (fx < rect.x || fx >= rect.x + rect.w || fy < rect.y || fy >= rect.y + rect.h) continue;
+      const s = (y * icon.width + x) * 4;
+      const a = icon.data[s + 3] / 255;
+      const d = (fy * frame.width + fx) * 4;
+      for (let c = 0; c < 3; c++) data[d + c] = Math.round(icon.data[s + c] * a + data[d + c] * (1 - a));
+    }
+  }
+  return { width: frame.width, height: frame.height, data };
+}
+
+/**
+ * 整個遊戲畫面放大 scale 倍（狀態列、快捷鍵一起放大）再放到 width×height 的場景上：場景是 onScene 的磚地，
+ * 最下面貼放大後的聊天列＋狀態列（70×scale 列，從左邊切 width 寬），右下貼放大後的快捷鍵那塊，離右緣、離底的距離照放大後的算。
+ */
+export function scaledUiOnScene(frame: Frame, scale: number, width = 1920, height = 1080): Frame {
+  const big = scaleFrame(frame, scale);
+  const scene = onScene(frame, width, height, { panelRows: 0 });
+  const data = new Uint8ClampedArray(scene.data);
+  const rows = Math.round(70 * scale);
+  const cols = Math.min(width, big.width);
+  for (let y = 0; y < rows; y++) {
+    const from = ((big.height - rows + y) * big.width) * 4;
+    data.set(big.data.subarray(from, from + cols * 4), ((height - rows + y) * width) * 4);
+  }
+  const [x0, x1, y0, y1] = [1204, 1360, 642, 726].map(v => Math.round(v * scale));
+  const left = width - (big.width - x0);
+  const top = height - (big.height - y0);
+  for (let y = y0; y < y1; y++) {
+    const from = (y * big.width + x0) * 4;
+    data.set(big.data.subarray(from, from + (x1 - x0) * 4), ((top + y - y0) * width + left) * 4);
+  }
+  return { width, height, data };
 }
