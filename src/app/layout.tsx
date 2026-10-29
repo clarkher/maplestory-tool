@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { HistoryScrollJump } from "@/components/HistoryScrollJump";
 import { HomePrefetch } from "@/components/HomePrefetch";
 import { restoreScrollBootstrap } from "@/lib/history-scroll";
+import { SITE_URL, websiteLd } from "@/lib/seo";
 
 const notoTC = Noto_Sans_TC({
   subsets: ["latin"],
@@ -13,8 +14,6 @@ const notoTC = Noto_Sans_TC({
   variable: "--font-noto-tc",
   display: "swap",
 });
-
-const SITE_URL = "https://maplestory-tool-three.vercel.app";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -70,6 +69,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${notoTC.variable} antialiased`}>
         <HistoryScrollJump />
+        {/* 結構化資料：告訴搜尋引擎這是什麼網站（各頁的麵包屑在頁面自己那裡）；放 body，<head> 只放畫面出來前要跑的程式 */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd()) }} />
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:px-4 focus:py-2 focus:glass-solid"

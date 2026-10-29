@@ -16,6 +16,7 @@ import {
 import { useStoredProfile } from "@/lib/profile";
 import { useRemembered } from "@/lib/remember";
 import type { Item, Monster, Quest } from "@/lib/types";
+import { DB_HEADS } from "@/lib/db-heads";
 
 export function ItemDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -134,8 +135,8 @@ export function ItemDb() {
 
   return (
     <DbBrowser
-      title="道具"
-      lead="裝備數值、道具說明，以及最重要的：這東西誰會掉、哪個任務給。"
+      title={DB_HEADS.items.title}
+      lead={DB_HEADS.items.lead}
       entries={entries}
       loading={!items || !monsters || !quests}
       error={error}
