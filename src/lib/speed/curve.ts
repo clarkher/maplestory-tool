@@ -6,7 +6,7 @@
 import type { Segment } from "./tracker";
 
 export type Curve = { startedAt: number; lastGained: number; minutes: number[] };
-export type Bar = { value: number; low: boolean };
+export type Bar = { value: number; low: boolean; current: boolean };
 
 const MINUTE_MS = 60000;
 const BAR_COUNT = 60;
@@ -23,11 +23,22 @@ export function nextCurve(prev: Curve | null, seg: Segment | null, now: number):
   return { startedAt: base.startedAt, lastGained: seg.gained, minutes };
 }
 
-/** 最後 60 根；低於全部分鐘平均（只算 >0 的分鐘）一半的標 low */
-export function curveBars(c: Curve): Bar[] {
-  const positive = c.minutes.filter((v) => v > 0);
-  const avg = positive.length ? positive.reduce((a, b) => a + b, 0) / positive.length : 0;
-  return c.minutes.slice(-BAR_COUNT).map((value) => ({ value, low: avg > 0 && value < avg / 2 }));
+/**
+ * 最後 60 根。補 0 補到 now 所在那一分鐘（閒置一段結束後才看得出掉）；
+ * now 所在那一分鐘還在進行，標 current、不判 low、也不算進平均；
+ * 平均只算已結束且 >0 的分鐘，低於平均一半的標 low。
+ */
+export function curveBars(c: Curve, now: number): Bar[] {
+  const cur = Math.max(0, Math.floor((now - c.startedAt) / MINUTE_MS));
+  const minutes = c.minutes.slice(0, cur + 1);
+  while (minutes.length <= cur) minutes.push(0);
+  const done = minutes.slice(0, cur).filter((v) => v > 0);
+  const avg = done.length ? done.reduce((a, b) => a + b, 0) / done.length : 0;
+  const first = Math.max(0, minutes.length - BAR_COUNT);
+  return minutes.slice(first).map((value, i) => {
+    const current = first + i === cur;
+    return { value, current, low: !current && avg > 0 && value < avg / 2 };
+  });
 }
 
 /** 最近一段連續 low 的分鐘（從 1 起算、以整段為基準），沒有就 null */

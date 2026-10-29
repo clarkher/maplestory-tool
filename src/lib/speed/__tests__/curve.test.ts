@@ -36,18 +36,34 @@ describe("每分鐘經驗曲線", () => {
   });
   it("last 60 only", () => {
     const c: Curve = { startedAt: 0, lastGained: 0, minutes: Array.from({ length: 100 }, (_, i) => i + 1) };
-    const bars = curveBars(c);
+    const bars = curveBars(c, 99 * MIN + 1000);
     expect(bars).toHaveLength(60);
     expect(bars[0].value).toBe(41);
-    expect(bars[59].value).toBe(100);
+    expect(bars[59]).toMatchObject({ value: 100, current: true, low: false });
   });
+  const mk = (minutes: number[]): Curve => ({ startedAt: 0, lastGained: 0, minutes });
   it("low bar and text", () => {
-    const mk = (minutes: number[]): Curve => ({ startedAt: 0, lastGained: 0, minutes });
-    const a = curveBars(mk([500, 500, 100, 500]));
-    expect(a.map((b) => b.low)).toEqual([false, false, true, false]);
-    expect(lowRunText(a, 4)).toBe("第 3 分鐘掉很多（可能死了或在補藥）");
-    const b = curveBars(mk([500, 100, 100, 500]));
-    expect(lowRunText(b, 4)).toBe("第 2～3 分鐘掉很多（可能死了或在補藥）");
-    expect(lowRunText(curveBars(mk([500, 500])), 2)).toBeNull();
+    const a = curveBars(mk([500, 500, 100, 500]), 4 * MIN + 1000);
+    expect(a.map((b) => b.low)).toEqual([false, false, true, false, false]);
+    expect(lowRunText(a, 5)).toBe("第 3 分鐘掉很多（可能死了或在補藥）");
+    const b = curveBars(mk([500, 100, 100, 500]), 4 * MIN + 1000);
+    expect(lowRunText(b, 5)).toBe("第 2～3 分鐘掉很多（可能死了或在補藥）");
+    expect(lowRunText(curveBars(mk([500, 500]), MIN + 1000), 2)).toBeNull();
+  });
+  it("current minute is not judged", () => {
+    const bars = curveBars(mk([500, 500, 500, 20]), 3 * MIN + 1000);
+    expect(bars.some((b) => b.low)).toBe(false);
+    expect(bars[3].current).toBe(true);
+    expect(lowRunText(bars, 4)).toBeNull();
+  });
+  it("idle minutes after the run are low", () => {
+    const bars = curveBars(mk([500, 0, 0, 500]), 4 * MIN + 1000);
+    expect(lowRunText(bars, 5)).toBe("第 2～3 分鐘掉很多（可能死了或在補藥）");
+  });
+  it("pads zero minutes up to now", () => {
+    const bars = curveBars(mk([500, 500]), 4 * MIN + 1000);
+    expect(bars).toHaveLength(5);
+    expect(bars.map((b) => b.low)).toEqual([false, false, true, true, false]);
+    expect(lowRunText(bars, 5)).toBe("第 3～4 分鐘掉很多（可能死了或在補藥）");
   });
 });
