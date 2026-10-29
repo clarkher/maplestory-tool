@@ -17,6 +17,7 @@ const LOOKUPS = [
 
 const TOOLS = [
   { href: "/plan/train", title: "練功地圖排行", lead: "照等級排出所有值得去的圖，看刷怪點、回生、命中需求", image: "/assets/monster_frames/3230101.png" },
+  { href: "/plan/boss", title: "野王計時", lead: "打死就記，算哪個頻道快出了，可以開房間跟隊友一起記", image: "/assets/monster_frames/6130101.png" },
   { href: "/plan/damage", title: "傷害計算機", lead: "兩套點法、兩把武器並排，看打怪差多少、哪些怪一下打得死", image: "/assets/skills/4001344.png" },
   { href: "/plan/quest", title: "現在能接的任務", lead: "這個等級接得到的全部任務，快過期的排前面", image: "/assets/npcs/1012100.png" },
   { href: "/plan/farm", title: "想要的東西去哪打", lead: "勾幾樣道具，排出一趟收最多的地圖", image: "/assets/items/4000013.png" },

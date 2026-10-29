@@ -1,0 +1,16 @@
+{
+  "_comment": "台服玩家實測重生時間（分鐘）。不用客戶端 mobTime（與伺服器實際不符）。2026-10-29 查，統計截至 9/8。",
+  "bosses": [
+    { "id": 6130101, "name": "蘑菇王", "maps": ["菇菇王出沒地"], "min": 45, "max": 60, "samples": 3651, "confidence": "高", "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 6300005, "name": "殭屍蘑菇王", "maps": ["蘑菇王之墓"], "min": 45, "max": 60, "samples": 2422, "confidence": "高", "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 2220000, "name": "紅寶王", "maps": ["海岸草叢Ⅲ"], "min": 45, "max": 45, "samples": 1244, "confidence": "高", "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 3220000, "name": "樹妖王", "maps": ["東方岩石山Ⅴ"], "min": 45, "max": 45, "samples": 1513, "confidence": "高", "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 5220002, "name": "殭屍猴王", "maps": ["巫婆森林Ⅰ", "巫婆森林Ⅱ"], "min": 45, "max": 45, "samples": 1963, "confidence": "高", "note": "兩張圖算同一隻，未證實", "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 6220000, "name": "沼澤巨鱷", "maps": ["鱷魚潭Ⅰ", "鱷魚潭Ⅱ"], "min": 42, "max": 65, "samples": 172, "confidence": "高", "note": "兩張圖算同一隻，未證實", "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 5220000, "name": "巨居蟹", "maps": ["海龜沙灘"], "min": 90, "max": 90, "samples": 139, "confidence": "中", "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 8130100, "name": "巴洛古", "maps": ["被詛咒的寺院"], "min": null, "max": null, "samples": 1, "confidence": null, "sources": ["https://bobogameguides.com/maplestory-classic/guides/boss-respawn.html"] },
+    { "id": 8220000, "name": "艾利傑", "maps": ["天空階梯Ⅱ"], "min": null, "max": null, "samples": 0, "confidence": null, "sources": [] },
+    { "id": 8220001, "name": "雪毛怪人", "maps": ["雪人之谷"], "min": null, "max": null, "samples": 0, "confidence": null, "sources": [] },
+    { "id": 5090000, "name": "冥界幽靈", "maps": ["地鐵"], "min": null, "max": null, "samples": 0, "confidence": null, "sources": [] }
+  ]
+}
