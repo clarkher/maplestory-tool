@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { iconDistance, matchPotion, nextPotions, POTION_MAX_DISTANCE, POTION_MIN_GAP, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
+import { FIRST_READ_MS, iconDistance, matchPotion, nextPotions, potionsOnRead, POTION_MAX_DISTANCE, POTION_MIN_GAP, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
 import { iconOf, readQuickslot } from "../quickslot";
 import { findStatusBar } from "../status-bar";
 import { loadFixture, loadItemIcon, paintSlotCount, pasteIcon } from "./fixture";
@@ -206,11 +206,68 @@ describe("nextPotions", () => {
     expect(t.slots[0]).toMatchObject({ itemId: 2000003, startCount: 50, lastCount: 50, used: 0, restocked: false });
   });
 
-  it("null 跳過、不動既有的數字", () => {
+  it("格子換道具：舊道具算到的用量照道具留著，不丟", () => {
+    let t = feed(start, 100, 100, 90, 90); // 紅色藥水用了 10
+    for (const count of [50, 50, 45, 45]) t = nextPotions(t, [{ index: 0, itemId: 2000003, count }]); // 換藍色藥水、用了 5
+    const { uses, incomplete } = potionSummary(t, 10, () => 1);
+    expect(new Map(uses.map(use => [use.itemId, use.per10]))).toEqual(new Map([[2000000, 10], [2000003, 5]]));
+    expect(incomplete).toBe(false);
+    // 換回紅色：之前的 10 跟新的用量加在一起
+    for (const count of [80, 80, 78, 78]) t = nextPotions(t, [{ index: 0, itemId: 2000000, count }]);
+    const red = potionSummary(t, 10, () => 1).uses.find(use => use.itemId === 2000000);
+    expect(red?.per10).toBe(12);
+  });
+
+  it("換掉的那格補過藥、有一段沒算到：標記留著", () => {
+    let t = feed(start, 100, 100, 300, 300); // 補過藥
+    for (const count of [50, 50]) t = nextPotions(t, [{ index: 0, itemId: 2000003, count }]);
+    expect(potionSummary(t, 10, () => 1).restocked).toBe(true);
+    let u = feed(start, 702, 702, 30, 30, 30, 30, 30); // 有一段沒算到
+    expect(u.slots[0].skipped).toBe(true);
+    for (const count of [50, 50]) u = nextPotions(u, [{ index: 0, itemId: 2000003, count }]);
+    expect(potionSummary(u, 10, () => 1)).toMatchObject({ uncounted: true, incomplete: true });
+  });
+
+  it("null 跳過、不動既有的數字；有數量卻認不出道具 → gap", () => {
     let t = feed(start, 100, 100);
-    t = nextPotions(t, [{ index: 0, itemId: null, count: 50 }]);
     t = nextPotions(t, [{ index: 0, itemId: 2000000, count: null }]);
+    expect(t.gap).toBeUndefined();
+    t = nextPotions(t, [{ index: 0, itemId: null, count: null }]);
+    expect(t.gap).toBeUndefined();
+    t = nextPotions(t, [{ index: 0, itemId: null, count: 50 }]);
     expect(t.slots[0]).toMatchObject({ lastCount: 100, used: 0 });
+    expect(t.gap).toBe(true);
+    expect(potionSummary(t, 10, () => 1).incomplete).toBe(true);
+  });
+});
+
+describe("potionsOnRead", () => {
+  const read = (count: number) => [{ index: 0, itemId: 2000000 as const, count }];
+  it("一開始就讀得到、一直讀得到：完整", () => {
+    let t = potionsOnRead(start, read(100), 1000, 0);
+    t = potionsOnRead(t, read(100), 4000, 0);
+    t = potionsOnRead(t, read(90), 7000, 0);
+    t = potionsOnRead(t, read(90), 10000, 0);
+    expect(t.seen).toBe(true);
+    expect(potionSummary(t, 10, () => 1)).toMatchObject({ incomplete: false, uses: [{ per10: 10 }] });
+  });
+  it("讀到過之後又讀不到 → 不完整", () => {
+    let t = potionsOnRead(start, read(100), 1000, 0);
+    t = potionsOnRead(t, null, 4000, 0);
+    expect(t.gap).toBe(true);
+    t = potionsOnRead(t, read(100), 7000, 0);
+    expect(potionSummary(t, 10, () => 1).incomplete).toBe(true);
+  });
+  it("開始後讀不到不到 10 秒，然後讀得到：完整", () => {
+    let t = potionsOnRead(start, null, 3000, 0);
+    t = potionsOnRead(t, null, FIRST_READ_MS, 0);
+    t = potionsOnRead(t, read(100), FIRST_READ_MS, 0);
+    expect(t.gap).toBeFalsy();
+  });
+  it("開始後超過 10 秒才第一次讀到（或一直讀不到）→ 不完整", () => {
+    expect(potionsOnRead(start, null, FIRST_READ_MS + 1, 0).gap).toBe(true);
+    expect(potionsOnRead(start, read(100), FIRST_READ_MS + 1, 0).gap).toBe(true);
+    expect(potionsOnRead(start, null, 5000, 0).gap).toBeUndefined();
   });
 });
 

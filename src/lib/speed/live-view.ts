@@ -73,3 +73,40 @@ export function mesoForNewSegment(entry: MesoEntry, prevEnd: number | null): Mes
   if (prevEnd === null || entry.value === null) return entry;
   return entry.at < prevEnd ? NO_MESO : entry;
 }
+
+/**
+ * 藥水用量拿來除的分鐘數：跟這段的 10 分鐘經驗同一個基準（最後一次經驗變動 − 開始，見 tenMinuteExp）；
+ * 不到 1 分鐘回 0（跟楓幣一樣，太短不算每 10 分鐘）
+ */
+export function potionMinutes(seg: { startedAt: number; lastChangeAt: number }): number {
+  const minutes = (seg.lastChangeAt - seg.startedAt) / 60_000;
+  return minutes >= 1 ? minutes : 0;
+}
+
+/** 有藥水分不出是哪一種（同一張圖、價格不同） */
+export const UNPRICED_NOTE = "有藥水分不出是哪一種（同一張圖），藥水錢跟撿到算不出來";
+/** 這段有讀不完整的地方（快捷鍵讀不到、有數量認不出、數字跳太多） */
+export const INCOMPLETE_NOTE = "有幾格沒讀到，藥水錢跟撿到算不出來";
+
+/**
+ * 楓幣收益卡的「撿到」「藥水」兩格跟藥水清單下面那一行說明（最多一行）。
+ * 藥水錢要完整才寫：至少 1 分鐘、這段讀到過快捷鍵、每種都有單價、沒有讀不完整的地方；不然兩格都寫「—」（淨賺照寫，不在這裡）。
+ */
+export function mesoCells(p: {
+  minutes: number;
+  seen: boolean;
+  uses: number;
+  unpriced: boolean;
+  incomplete: boolean;
+  potionMeso10: number;
+  picked10: number | null;
+}): { picked: string; potion: string; note: string | null } {
+  const note = p.incomplete ? INCOMPLETE_NOTE : p.unpriced ? UNPRICED_NOTE : null;
+  const known = p.minutes > 0 && p.seen && !p.unpriced && !p.incomplete;
+  if (!known) return { picked: "—", potion: "—", note };
+  return {
+    potion: p.uses ? signedText(-p.potionMeso10) : "0",
+    picked: p.picked10 !== null ? signedText(p.picked10) : "—",
+    note,
+  };
+}

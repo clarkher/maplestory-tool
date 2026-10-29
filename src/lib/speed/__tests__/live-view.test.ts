@@ -1,6 +1,6 @@
 // src/lib/speed/__tests__/live-view.test.ts
 import { describe, expect, it } from "vitest";
-import { commitMeso, mesoForNewSegment, NO_MESO, parseMeso, potionLine, potionName, segmentLine, signedText } from "../live-view";
+import { commitMeso, INCOMPLETE_NOTE, mesoCells, mesoForNewSegment, NO_MESO, parseMeso, potionMinutes, UNPRICED_NOTE, potionLine, potionName, segmentLine, signedText } from "../live-view";
 
 const names = new Map<number, { n: string }>([
   [2000003, { n: "藍色藥水" }],
@@ -104,5 +104,37 @@ describe("mesoForNewSegment", () => {
   });
   it("沒有上一段（或換隊伍、改 ID 切開的）不清", () => {
     expect(mesoForNewSegment(entry, null)).toEqual(entry);
+  });
+});
+
+describe("potionMinutes", () => {
+  it("跟 10 分鐘經驗同一個基準（最後一次變動 − 開始），不到 1 分鐘是 0", () => {
+    expect(potionMinutes({ startedAt: 0, lastChangeAt: 59_999 })).toBe(0);
+    expect(potionMinutes({ startedAt: 0, lastChangeAt: 60_000 })).toBe(1);
+    expect(potionMinutes({ startedAt: 1000, lastChangeAt: 1000 + 150_000 })).toBe(2.5);
+  });
+});
+
+describe("mesoCells", () => {
+  const base = { minutes: 10, seen: true, uses: 1, unpriced: false, incomplete: false, potionMeso10: 2400, picked10: 40000 };
+  it("完整：撿到、藥水都寫，沒有說明", () => {
+    expect(mesoCells(base)).toEqual({ picked: "+40,000", potion: "−2,400", note: null });
+  });
+  it("讀到過、沒用藥水：藥水 0", () => {
+    expect(mesoCells({ ...base, uses: 0, potionMeso10: 0, picked10: 5000 })).toEqual({ picked: "+5,000", potion: "0", note: null });
+  });
+  it("讀不完整：兩格都「—」、說明一行", () => {
+    expect(mesoCells({ ...base, incomplete: true })).toEqual({ picked: "—", potion: "—", note: INCOMPLETE_NOTE });
+  });
+  it("分不出是哪一種：兩格都「—」；同時讀不完整只寫一行", () => {
+    expect(mesoCells({ ...base, unpriced: true })).toEqual({ picked: "—", potion: "—", note: UNPRICED_NOTE });
+    expect(mesoCells({ ...base, unpriced: true, incomplete: true }).note).toBe(INCOMPLETE_NOTE);
+  });
+  it("不到 1 分鐘、這段還沒讀到快捷鍵：兩格都「—」、不寫說明", () => {
+    expect(mesoCells({ ...base, minutes: 0 })).toEqual({ picked: "—", potion: "—", note: null });
+    expect(mesoCells({ ...base, seen: false })).toEqual({ picked: "—", potion: "—", note: null });
+  });
+  it("楓幣還沒填：撿到「—」、藥水照寫", () => {
+    expect(mesoCells({ ...base, picked10: null })).toMatchObject({ picked: "—", potion: "−2,400" });
   });
 });

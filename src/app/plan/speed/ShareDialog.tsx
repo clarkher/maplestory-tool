@@ -2,23 +2,9 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
-import { drawShareImage, type ShareCard, type ShareColors } from "@/lib/speed/share-image";
+import { drawShareImage, type ShareCard } from "@/lib/speed/share-image";
 import { Modal, SECOND } from "./Dialogs";
 import { BUTTON_MAIN } from "./parts";
-
-/** 站上的顏色變數換成 canvas 看得懂的實際顏色（變數裡可能是 color-mix 之類，交給瀏覽器算） */
-function resolveColors(): ShareColors {
-  const probe = document.createElement("span");
-  probe.style.display = "none";
-  document.body.appendChild(probe);
-  const of = (name: string) => {
-    probe.style.color = `var(${name})`;
-    return getComputedStyle(probe).color;
-  };
-  const colors = { paper: of("--paper"), paperDeep: of("--paper-deep"), ink: of("--ink"), maple: of("--maple"), edge: of("--paper-edge") };
-  probe.remove();
-  return colors;
-}
 
 function canCopyImage(): boolean {
   return typeof ClipboardItem !== "undefined" && typeof navigator !== "undefined" && !!navigator.clipboard?.write;
@@ -43,7 +29,8 @@ function ShareBody({ card, titleId, onClose }: { card: ShareCard; titleId: strin
   useEffect(() => {
     setCopyable(canCopyImage());
     let cancelled = false;
-    drawShareImage(card, resolveColors(), getComputedStyle(document.body).fontFamily).then(
+    // 顏色固定白天紙張（SHARE_COLORS），深色主題下也一樣
+    drawShareImage(card, getComputedStyle(document.body).fontFamily).then(
       canvas => {
         if (!cancelled) setImage({ url: canvas.toDataURL("image/png"), canvas });
       },

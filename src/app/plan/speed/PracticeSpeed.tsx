@@ -12,10 +12,10 @@ import { curveBars, lowRunText, nextCurve, type Curve } from "@/lib/speed/curve"
 import { durationText, etaText } from "@/lib/speed/format";
 import type { RawSpeedNames } from "@/lib/speed/names";
 import { nextLowHp, type LowHp } from "@/lib/speed/hp";
-import { commitMeso, mesoForNewSegment, NO_MESO, potionLine, potionName, segmentLine, signedText, type MesoEntry } from "@/lib/speed/live-view";
+import { commitMeso, mesoCells, mesoForNewSegment, NO_MESO, potionLine, potionMinutes, potionName, segmentLine, signedText, type MesoEntry } from "@/lib/speed/live-view";
 import { mesoRates } from "@/lib/speed/meso";
 import { backCalc, mapPartyExp, membersOf } from "@/lib/speed/party-exp";
-import { nextPotions, potionKey, potionPriceFn, potionSummary, type PotionTrack } from "@/lib/speed/potions";
+import { potionKey, potionPriceFn, potionsOnRead, potionSummary, type PotionTrack } from "@/lib/speed/potions";
 import { potionPoolIds, type FrameExtras } from "@/lib/speed/read-extras";
 import type { FrameReading } from "@/lib/speed/read-frame";
 import { resolveMap, settleTitle, type MapGuess, type TitleSettle } from "@/lib/speed/read-map";
@@ -103,7 +103,8 @@ export function PracticeSpeed() {
   const [reading, setReading] = useState<FrameReading | null>(null);
   const [place, setPlace] = useState<Place>(NO_PLACE);
   const [tracker, setTracker] = useState<Tracker>(() => createTracker("auto"));
-  const [lastSaved, setLastSaved] = useState<{ seg: Segment; note: string } | null>(null);
+  /** 上一段跟它的結果；net10＝存的那一刻算得出的每 10 分鐘淨賺（分享圖用同一段的數字） */
+  const [lastSaved, setLastSaved] = useState<{ seg: Segment; note: string; net10: number | null } | null>(null);
   const [board, setBoard] = useState<BoardState>({ kind: "loading" });
   /** 最近一次存成功的時間（0＝還沒存過）：排行跟著重抓，網址帶上它跳過 5 分鐘快取（沒存到的不用重抓） */
   const [boardVersion, setBoardVersion] = useState(0);
@@ -121,6 +122,8 @@ export function PracticeSpeed() {
   /** 藥水用量：跟著哪一段（startedAt）算的 */
   const [potions, setPotions] = useState<{ startedAt: number | null; track: PotionTrack }>({ startedAt: null, track: NO_POTIONS });
   const [noQuickslot, setNoQuickslot] = useState(false);
+  /** 驗收腳本用（正式機不掛）：最近一次讀快捷鍵有讀到數字的格數 */
+  const [slotsRead, setSlotsRead] = useState<number | null>(null);
   const [mesoStart, setMesoStart] = useState<MesoEntry>(NO_MESO);
   const [mesoNow, setMesoNow] = useState<MesoEntry>(NO_MESO);
   /** 楓幣兩格正在打的字（離開欄位或按 Enter 才算填好，打到一半的不算） */
@@ -226,14 +229,15 @@ export function PracticeSpeed() {
     const body = runBody(seg, { mapId, mapName: mapId !== null && current ? mapName(current.maps, mapId) : null }, {
       charId, isPublic: set.isPublic, party, profileJob: profileJobRef.current, clientVer: CLIENT_VER,
     });
-    const note = (outcome: SaveOutcome) => setLastSaved({ seg, note: saveNote(outcome, body) });
+    const net10 = mesoNetRef.current;
+    const note = (outcome: SaveOutcome) => setLastSaved({ seg, note: saveNote(outcome, body), net10 });
     if (!shouldSave(seg)) return note({ kind: "short" });
     // 記在這台電腦（跟我之前比）：認得出地圖、算得出 10 分鐘經驗才記；淨賺是存的這一刻算得出來的（之後才填的不補）
     const exp10 = tenMinuteExp(seg);
     const store = storage();
     if (store && mapId !== null && exp10 !== null && current) {
       const job = seg.job ?? (profileJobRef.current >= 0 ? profileJobRef.current : null);
-      setRecords(addRecord(store, { at: Date.now(), mapId, mapName: mapName(current.maps, mapId), level: seg.level, job, charId, exp10, net10: mesoNetRef.current }));
+      setRecords(addRecord(store, { at: Date.now(), mapId, mapName: mapName(current.maps, mapId), level: seg.level, job, charId, exp10, net10 }));
     }
     try {
       const response = await fetch("/api/speed/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -292,13 +296,21 @@ export function PracticeSpeed() {
     slotMissRef.current = slots ? null : (slotMissRef.current ?? at);
     const missing = slotMissRef.current !== null && at - slotMissRef.current >= NO_SLOT_MS;
     setNoQuickslot(missing);
+    if (slots && process.env.NEXT_PUBLIC_VERCEL_ENV !== "production") setSlotsRead(slots.filter(slot => slot.count !== null).length);
     const seg = trackerRef.current.seg;
-    if (!slots || !seg) return;
+    if (!seg) return;
+    // 藥水參考圖還沒載好：每格都認不出是正常的，這次當沒讀（這段太久才讀到會由 potionsOnRead 標不完整）
+    if (slots && extras.poolReady === false) return;
     const before = potionsRef.current;
-    const track = nextPotions(
-      before.startedAt === seg.startedAt ? before.track : NO_POTIONS,
-      slots.map(slot => ({ index: slot.index, itemId: slot.ids ? potionKey(slot.ids) : null, count: slot.count })),
+    const prev = before.startedAt === seg.startedAt ? before.track : NO_POTIONS;
+    // 讀不到（null）、有數字認不出道具、太晚才第一次讀到：這段的藥水錢就算不完整
+    const track = potionsOnRead(
+      prev,
+      slots ? slots.map(slot => ({ index: slot.index, itemId: slot.ids ? potionKey(slot.ids) : null, count: slot.count })) : null,
+      at,
+      seg.startedAt,
     );
+    if (track === prev && before.startedAt === seg.startedAt) return;
     potionsRef.current = { startedAt: seg.startedAt, track };
     setPotions(potionsRef.current);
   }, []);
@@ -548,12 +560,13 @@ export function PracticeSpeed() {
 
   // 給「跟我之前比」、分享圖、藥水用的這段：還在練的那段，停了就是剛收掉的上一段
   const shownSeg = seg ?? lastSaved?.seg ?? null;
-  const shownMinutes = shownSeg ? (seg ? elapsed : durationMs(shownSeg)) / 60_000 : 0;
+  // 藥水每 10 分鐘：跟這段的 10 分鐘經驗同一個基準，不到 1 分鐘不算
+  const shownMinutes = shownSeg ? potionMinutes(shownSeg) : 0;
   const priceOf = useMemo(() => (data ? potionPriceFn([...data.items.values()]) : () => null), [data]);
   const potionTrack = shownSeg && potions.startedAt === shownSeg.startedAt ? potions.track : NO_POTIONS;
   const summary = potionSummary(potionTrack, shownMinutes, priceOf);
   const potionMeso10 = summary.uses.reduce((sum, use) => sum + (use.meso10 ?? 0), 0);
-  /** 有藥水分不出是哪一種（長得一樣、價格不同）：藥水錢跟撿到都算不出來，不寫 */
+  /** 有藥水分不出是哪一種（長得一樣、價格不同）：藥水錢跟撿到都算不出來，不寫（讀不完整的 summary.incomplete 也一樣） */
   const potionUnpriced = summary.uses.some(use => use.meso10 === null);
   const meso = mesoRates(
     mesoStart.value !== null && mesoNow.value !== null ? { startMeso: mesoStart.value, startAt: mesoStart.at, nowMeso: mesoNow.value, nowAt: mesoNow.at } : null,
@@ -611,8 +624,9 @@ export function PracticeSpeed() {
     iconId: use.ids[0],
     text: potionLine(potionName(use.ids, data.items), use),
   }));
-  const potionCell = potionUnpriced ? "—" : summary.uses.length === 0 ? (Object.keys(potionTrack.slots).length ? "0" : "—") : signedText(-potionMeso10);
-  const pickedCell = !potionUnpriced && meso.picked10 !== null ? signedText(meso.picked10) : "—";
+  const cells = mesoCells({
+    minutes: shownMinutes, seen: !!potionTrack.seen, uses: summary.uses.length, unpriced: potionUnpriced, incomplete: summary.incomplete, potionMeso10, picked10: meso.picked10,
+  });
 
   // 跟我之前比、分享圖
   const shownPer10 = shownSeg ? tenMinuteExp(shownSeg) : null;
@@ -628,12 +642,14 @@ export function PracticeSpeed() {
     if (!shownSeg || shownPer10 === null) return;
     const name = jobName(shownJob);
     const shownEta = minutesToLevel(shownSeg, data.toNext);
+    // 淨賺跟經驗要是同一段：還在練就是現在的，停了用那段存的時候記下的
+    const net10 = seg ? meso.net10 : lastSaved && lastSaved.seg === shownSeg ? lastSaved.net10 : null;
     // 這張圖第一隻怪（跟右邊地圖卡同一個順序）
     const firstMob = shownMapId !== null ? data.training.find(row => row.m === shownMapId)?.mobs.find(([id]) => data.monsterById.has(id))?.[0] ?? null : null;
     setShareCard({
       title: [`${name ? `${name} ` : ""}Lv.${shownSeg.level}`, shownMapName].filter(Boolean).join("・"),
       exp10: shownPer10,
-      second: meso.net10 !== null ? { label: "淨賺楓幣", value: String(Math.round(meso.net10)) } : { label: "這段拿到", value: String(shownSeg.gained) },
+      second: net10 !== null ? { label: "每 10 分鐘淨賺", value: String(Math.round(net10)) } : { label: "這段拿到", value: String(shownSeg.gained) },
       eta: shownEta !== null ? etaText(shownEta) : "—",
       monsterSrc: firstMob !== null ? monsterImage(firstMob) : null,
       date: dateText(Date.now()),
@@ -720,7 +736,11 @@ export function PracticeSpeed() {
                 aria-checked={settings.lowHp}
                 aria-labelledby="speed-low-hp"
                 onClick={() => {
-                  if (!settings.lowHp) unlockAudio();
+                  if (!settings.lowHp) {
+                    unlockAudio();
+                    // 剛打開：重新裝上，現在就低血也會響
+                    lowHpRef.current = { armed: true };
+                  }
                   updateSettings({ lowHp: !settings.lowHp });
                 }}
                 className={`relative h-[26px] w-11 shrink-0 rounded-full transition-colors ${settings.lowHp ? "bg-[color:var(--maple)]" : "bg-[color:var(--paper-edge)]"}`}
@@ -742,8 +762,8 @@ export function PracticeSpeed() {
             lastLine={lastSaved ? `上一段：${durationText(durationMs(lastSaved.seg))}、拿到 ${formatNumber(lastSaved.seg.gained)}。${lastSaved.note}` : null}
           />
           <MesoCard
-            picked={pickedCell}
-            potion={potionCell}
+            picked={cells.picked}
+            potion={cells.potion}
             net={meso.net10 !== null ? signedText(meso.net10) : "—"}
             startText={startText}
             nowText={nowText}
@@ -751,11 +771,11 @@ export function PracticeSpeed() {
             onNowText={setNowText}
             onStartCommit={() => setMesoStart(entry => commitMeso(entry, startText, Date.now(), true))}
             onNowCommit={() => setMesoNow(entry => commitMeso(entry, nowText, Date.now(), false))}
-            unpriced={potionUnpriced}
+            note={cells.note}
             potions={potionRows}
             noQuickslot={sharing && noQuickslot}
             restocked={summary.restocked}
-            uncounted={summary.uncounted}
+            slotsRead={process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" ? slotsRead : null}
           />
           <CompareCard rows={rows} byId={charId !== null} onShare={onShare} canShare={shownPer10 !== null} />
         </div>

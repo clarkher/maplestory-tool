@@ -25,8 +25,11 @@ export function potionPoolIds(items: Iterable<Item>): number[] {
 
 /** 一格：ids＝可能是哪些道具（認不出、還沒載好參考都是 null），count＝數量（讀不到 null） */
 export type SlotSeen = { index: number; ids: number[] | null; count: number | null };
-/** hp：HP 比例（讀不到 null）；slots：這張有讀快捷鍵才有這欄，null＝找不到快捷鍵 */
-export type FrameExtras = { hp: number | null; slots?: SlotSeen[] | null };
+/**
+ * hp：HP 比例（讀不到 null）；slots：這張有讀快捷鍵才有這欄，null＝找不到快捷鍵；
+ * poolReady：讀快捷鍵時藥水參考圖載好了沒（還沒載好時 ids 全是 null，不能當「認不出」）
+ */
+export type FrameExtras = { hp: number | null; slots?: SlotSeen[] | null; poolReady?: boolean };
 
 type Cached = { sig: number; refs: PotionRef[]; ids: number[] | null };
 /** stats：整池認了幾次、畫面沒變直接沿用幾次（測試看用） */
@@ -68,6 +71,7 @@ export function readExtras(frame: Frame, bar: StatusBar | null, now: number, sta
   if (now - state.lastSlotsAt < SLOT_EVERY_MS) return out;
   state.lastSlotsAt = now;
   const slots = readQuickslot(frame, bar);
+  out.poolReady = state.refs !== null;
   out.slots = slots
     ? slots.map(slot => {
         const refs = state.refs;

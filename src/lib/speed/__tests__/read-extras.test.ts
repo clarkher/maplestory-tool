@@ -45,6 +45,7 @@ describe("readExtras（真截圖 window-1364.png）", () => {
     const first = readExtras(frame, bar, 10_000, state);
     expect(Math.abs(first.hp! - 1146 / 1296)).toBeLessThanOrEqual(0.03);
     expect(first.slots?.map(slot => slot.count)).toEqual([null, 702, null, 279, 141, 0, null, 2]);
+    expect(first.poolReady).toBe(true);
     expect(first.slots?.map(slot => slot.ids)).toEqual([null, [2000002], null, [2000003, 2000017], [2022000], [2000006, 2000018], null, [2022060, 2022061, 2022062]]);
 
     // 不到 3 秒：只有 HP，沒有 slots（不是 null，是這張沒讀）
@@ -93,6 +94,7 @@ describe("readExtras（真截圖 window-1364.png）", () => {
     const out = readExtras(frame, findStatusBar(frame)!, 0, createExtrasState());
     expect(out.slots?.map(slot => slot.count)).toEqual([null, 702, null, 279, 141, 0, null, 2]);
     expect(out.slots?.every(slot => slot.ids === null)).toBe(true);
+    expect(out.poolReady).toBe(false);
   });
 
   it("沒有狀態列：HP 讀不到、不讀快捷鍵", async () => {

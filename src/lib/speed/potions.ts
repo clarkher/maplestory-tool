@@ -141,8 +141,41 @@ export type PotionSlot = {
   /** 中間有一段（一次掉超過 MAX_DROP、後來一直是新數字）沒算進用量：數字照新的接著算，但那一段用了多少不知道 */
   skipped?: boolean;
 };
-/** pending＝這格新讀到、還沒連續讀到兩次的數量（讀錯一次不算） */
-export type PotionTrack = { slots: Record<number, PotionSlot>; pending?: Record<number, { itemId: PotionKey; count: number }> };
+/**
+ * pending＝這格新讀到、還沒連續讀到兩次的數量（讀錯一次不算）；
+ * gone＝格子換了別的道具時，舊道具已經算到的用量（照道具留著，不丟）；goneRestocked／goneSkipped＝換掉的那格補過藥／有一段沒算到；
+ * seen＝這段讀到過快捷鍵；gap＝這段有讀不完整的地方（見 potionsOnRead），藥水錢跟撿到就算不出來
+ */
+export type PotionTrack = {
+  slots: Record<number, PotionSlot>;
+  pending?: Record<number, { itemId: PotionKey; count: number }>;
+  gone?: { itemId: PotionKey; used: number }[];
+  goneRestocked?: boolean;
+  goneSkipped?: boolean;
+  seen?: boolean;
+  gap?: boolean;
+};
+
+/** 這段開始後超過這麼久才第一次讀到快捷鍵：前面那段用了多少不知道，算不完整 */
+export const FIRST_READ_MS = 10_000;
+
+/**
+ * 這段每讀一次快捷鍵（reads＝null 是找不到快捷鍵）：
+ * - 讀到過之後又讀不到 → gap（中間用了多少不知道）
+ * - 這段開始超過 FIRST_READ_MS 還沒讀到（不管是讀不到還是第一次讀到時已經太晚）→ gap
+ * - 讀得到就交給 nextPotions，標 seen
+ */
+export function potionsOnRead(
+  t: PotionTrack,
+  reads: { index: number; itemId: PotionKey | null; count: number | null }[] | null,
+  at: number,
+  startedAt: number,
+): PotionTrack {
+  const late = !t.seen && at - startedAt > FIRST_READ_MS;
+  if (reads === null) return t.seen || late ? (t.gap ? t : { ...t, gap: true }) : t;
+  const next = nextPotions(t, reads);
+  return { ...next, seen: true, gap: next.gap || late || undefined };
+}
 
 /** 一次減這麼多以上當讀錯（例 702 被讀成 70），不算用量 */
 export const MAX_DROP = 50;
@@ -155,7 +188,8 @@ export const DROP_REBASE = 4;
  * - 同格同種：採用的新數字比 lastCount 小就把差加到 used；大就標 restocked、從新數字接著算；
  *   一次減超過 MAX_DROP 先當讀錯、不採用；但同一個新數字連續讀到 DROP_REBASE 次就當真的（例：換了一組藥水、丟掉一堆）：
  *   lastCount 改成新數字、不加進 used、標 skipped（那一段用量算不出來）
- * - itemId 或 count 是 null：這輪跳過（待確認的也清掉）
+ * - 換了別的道具：舊道具算到的用量搬進 gone（照道具留著），補過藥、沒算到的標記也留著
+ * - itemId 或 count 是 null：這輪跳過（待確認的也清掉）；有數量卻認不出是什麼道具（itemId null、count 不是 null）標 gap
  */
 export function nextPotions(
   t: PotionTrack,
@@ -163,8 +197,13 @@ export function nextPotions(
 ): PotionTrack {
   const slots = { ...t.slots };
   const pending = { ...(t.pending ?? {}) };
+  let gone = t.gone;
+  let goneRestocked = t.goneRestocked;
+  let goneSkipped = t.goneSkipped;
+  let gap = t.gap;
   for (const { index, itemId, count } of reads) {
     if (itemId === null || count === null) {
+      if (itemId === null && count !== null) gap = true;
       delete pending[index];
       continue;
     }
@@ -184,6 +223,11 @@ export function nextPotions(
     }
     if (!slot || slot.itemId !== itemId) {
       delete pending[index];
+      if (slot) {
+        if (slot.used > 0) gone = [...(gone ?? []), { itemId: slot.itemId, used: slot.used }];
+        if (slot.restocked) goneRestocked = true;
+        if (slot.skipped) goneSkipped = true;
+      }
       slots[index] = { itemId, startCount: count, lastCount: count, used: 0, restocked: false };
     } else if (count < slot.lastCount) {
       if (slot.lastCount - count > MAX_DROP) {
@@ -202,23 +246,34 @@ export function nextPotions(
       slots[index] = { ...slot, lastCount: count, drop: undefined, restocked: true };
     }
   }
-  return { slots, pending };
+  const out: PotionTrack = { ...t, slots, pending };
+  if (gone) out.gone = gone;
+  if (goneRestocked) out.goneRestocked = true;
+  if (goneSkipped) out.goneSkipped = true;
+  if (gap) out.gap = true;
+  return out;
 }
 
 /** itemId＝道具鍵（見 potionKey）、ids＝可能是哪些道具（長得一樣的好幾種時不只一個）；每個編號的單價不同就 meso10 是 null */
 export type PotionUse = { itemId: PotionKey; ids: number[]; per10: number; meso10: number | null };
 
-/** 同種藥水多格合併；每 10 分鐘用量＝used ÷ 分鐘 × 10，用量 0 的不列；minutes ≤ 0 回空 */
+/**
+ * 同種藥水多格合併（換掉的道具 gone 也算進去）；每 10 分鐘用量＝used ÷ 分鐘 × 10，用量 0 的不列；minutes ≤ 0 回空。
+ * incomplete＝這段有讀不完整的地方（有一段沒算到、gap）：藥水錢跟撿到不能寫。
+ */
 export function potionSummary(
   t: PotionTrack,
   minutes: number,
   price: (id: number) => number | null,
-): { uses: PotionUse[]; restocked: boolean; uncounted: boolean } {
-  const restocked = Object.values(t.slots).some(s => s.restocked);
-  const uncounted = Object.values(t.slots).some(s => s.skipped);
-  if (!(minutes > 0)) return { uses: [], restocked, uncounted };
+): { uses: PotionUse[]; restocked: boolean; uncounted: boolean; incomplete: boolean } {
+  const restocked = Object.values(t.slots).some(s => s.restocked) || !!t.goneRestocked;
+  const uncounted = Object.values(t.slots).some(s => s.skipped) || !!t.goneSkipped;
+  const incomplete = uncounted || !!t.gap;
+  if (!(minutes > 0)) return { uses: [], restocked, uncounted, incomplete };
   const used = new Map<PotionKey, number>();
-  for (const s of Object.values(t.slots)) if (s.used > 0) used.set(s.itemId, (used.get(s.itemId) ?? 0) + s.used);
+  const add = (itemId: PotionKey, n: number) => used.set(itemId, (used.get(itemId) ?? 0) + n);
+  for (const s of Object.values(t.slots)) if (s.used > 0) add(s.itemId, s.used);
+  for (const g of t.gone ?? []) if (g.used > 0) add(g.itemId, g.used);
   const uses = [...used].map(([itemId, n]) => {
     const per10 = (n / minutes) * 10;
     const ids = keyIds(itemId);
@@ -226,7 +281,7 @@ export function potionSummary(
     const p = prices[0] !== null && prices.every(x => x === prices[0]) ? prices[0] : null;
     return { itemId, ids, per10, meso10: p === null ? null : per10 * p };
   });
-  return { uses, restocked, uncounted };
+  return { uses, restocked, uncounted, incomplete };
 }
 
 /** 一組幾個的店，單價＝標價 ÷ 組數 */

@@ -4,7 +4,7 @@
 export type ShareCard = {
   title: string; // 例：冰雷巫師 Lv.46・森林迷宮Ⅲ（日期另放）
   exp10: number;
-  second: { label: "淨賺楓幣" | "這段拿到"; value: string };
+  second: { label: "每 10 分鐘淨賺" | "這段拿到"; value: string };
   eta: string;
   monsterSrc: string | null;
   date: string; // 2026/10/29
@@ -18,6 +18,18 @@ export type ShareColors = {
   edge: string;
 };
 
+/**
+ * 分享圖固定用 S1 白天紙張的顏色，不跟著頁面的深色主題（深色模式下畫出來也是白天那張）。
+ * 數值照抄 src/app/globals.css :root（白天）的 --paper、--paper-deep、--ink、--maple、--paper-edge，那邊改了這裡要跟著改。
+ */
+export const SHARE_COLORS: ShareColors = {
+  paper: "#fbf5ea",
+  paperDeep: "#f1e5d1",
+  ink: "#2c2015",
+  maple: "#b32a00",
+  edge: "#e2d2b6",
+};
+
 const nf = (n: number) => Math.abs(Math.round(n)).toLocaleString("en-US");
 
 /** 純數字才加千分位；淨賺加 +、負數用「−」。其他字串原樣。 */
@@ -27,7 +39,7 @@ function fmtSecond(label: ShareCard["second"]["label"], value: string): string {
   const n = Number(v.replace("−", "-"));
   if (!Number.isFinite(n)) return value;
   if (n < 0) return `−${nf(n)}`;
-  return label === "淨賺楓幣" ? `+${nf(n)}` : nf(n);
+  return label === "每 10 分鐘淨賺" ? `+${nf(n)}` : nf(n);
 }
 
 export function shareLines(card: ShareCard): {
@@ -75,8 +87,8 @@ function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: numbe
 /** 畫 1200×630（600×315 版型放大 2 倍）。字型載好才畫；怪圖載失敗就不放。 */
 export async function drawShareImage(
   card: ShareCard,
-  colors: ShareColors,
   font: string,
+  colors: ShareColors = SHARE_COLORS,
 ): Promise<HTMLCanvasElement> {
   const W = 600;
   const H = 315;
