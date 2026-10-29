@@ -35,3 +35,10 @@ describe("shareLines", () => {
     expect(l.bottom[0][1]).toBe("12,345 經驗");
   });
 });
+
+describe("shareLines 防呆", () => {
+  it("經驗是 NaN 或負數顯示「—」", () => {
+    expect(shareLines({ ...base, exp10: NaN }).big).toBe("—");
+    expect(shareLines({ ...base, exp10: -5 }).big).toBe("—");
+  });
+});

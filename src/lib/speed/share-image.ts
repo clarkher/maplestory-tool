@@ -37,7 +37,7 @@ export function shareLines(card: ShareCard): {
 } {
   return {
     heading: `${card.title}・${card.date}`,
-    big: nf(card.exp10),
+    big: Number.isFinite(card.exp10) && card.exp10 >= 0 ? nf(card.exp10) : "—",
     bottom: [
       [card.second.label, fmtSecond(card.second.label, card.second.value)],
       ["升級還要", card.eta],
@@ -48,8 +48,16 @@ export function shareLines(card: ShareCard): {
 function loadImage(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    // 3 秒載不到就當沒有怪圖
+    const timer = setTimeout(() => resolve(null), 3000);
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      resolve(null);
+    };
     img.src = src;
   });
 }
@@ -79,11 +87,19 @@ export async function drawShareImage(
   const ctx = canvas.getContext("2d");
   if (!ctx) return canvas;
 
-  // 字型：先要求載入會用到的字重，再等 ready，免得第一次畫成備用字
+  const { heading, big, bottom } = shareLines(card);
+
+  // 字型：Noto Sans TC 依 unicode-range 切成很多子集，fonts.ready 不會等沒被要求的子集，
+  // 所以每個字重都要拿「實際會畫的每一串字」去 load，再等 ready，免得第一次畫成備用字
+  const sample = (px: number, w: string, text: string) => document.fonts.load(`${w} ${px}px ${font}`, text);
   try {
-    await Promise.all(
-      ["700", "800", "900"].map((w) => document.fonts.load(`${w} 16px ${font}`, "楓谷幫手0123456789")),
-    );
+    await Promise.all([
+      sample(14, "700", heading),
+      sample(15, "800", "10 分鐘經驗"),
+      sample(64, "900", big),
+      ...bottom.flatMap(([label, value]) => [sample(15, "800", label), sample(28, "800", value)]),
+      sample(13, "800", "楓谷幫手・練功測速"),
+    ]);
     await document.fonts.ready;
   } catch {
     // 字型載不到就用備用字畫
@@ -91,10 +107,12 @@ export async function drawShareImage(
   const img = card.monsterSrc ? await loadImage(card.monsterSrc) : null;
 
   ctx.scale(S, S);
-  const { heading, big, bottom } = shareLines(card);
 
   // 紙張底＋圓角＋細框（框內縮半格，免得被圓角切掉）
-  const grad = ctx.createLinearGradient(0, 0, W, H);
+  // 對齊 CSS 135deg：沿右下斜 45 度，線長 (W+H)·sin45，以中心對稱
+  const half = ((W + H) * Math.SQRT1_2) / 2;
+  const d = Math.SQRT1_2;
+  const grad = ctx.createLinearGradient(W / 2 - d * half, H / 2 - d * half, W / 2 + d * half, H / 2 + d * half);
   grad.addColorStop(0, colors.paper);
   grad.addColorStop(1, colors.paperDeep);
   roundRect(ctx, 0.5, 0.5, W - 1, H - 1, 16);
