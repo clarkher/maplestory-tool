@@ -17,8 +17,10 @@ const TICK_MS = 15_000;
 const TOAST_MS = 5_000;
 const BATCH = 100;
 const UNSENT_KEY = "ms-boss:unsent";
-/** 補記最多往前幾分鐘（12 小時以前的紀錄本來就不顯示） */
-const MAX_AGO_MIN = 720;
+/** 補記最多往前幾分鐘：12 小時減 30 分，補記的一定還送得進隊友房間 */
+const MAX_AGO_MIN = 690;
+/** 離 12 小時不到 5 分鐘的紀錄不送（伺服器那邊會判太舊） */
+const SEND_SLACK_MS = 5 * 60_000;
 
 /** 伺服器畫面跟瀏覽器接手那一格都用這組（不讀瀏覽器存檔），接手後才換成記住的 */
 const FIRST_PREFS: BossPrefs = { server: "xuejila", boss: BOSSES[0].id, room: null, remind: false, device: "" };
@@ -75,6 +77,7 @@ export function BossTimer() {
   const cursorRef = useRef(0);
   const firedRef = useRef<Set<string>>(new Set());
   const busyRef = useRef(false);
+  const sendingRef = useRef(false);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chRef = useRef<HTMLInputElement>(null);
   const chipsRef = useRef<HTMLDivElement>(null);
@@ -125,7 +128,7 @@ export function BossTimer() {
     [setPrefs, setRoomBoth],
   );
 
-  /** 回應是 503／404／400 時的共同處理；回 true 表示房間已經不能用 */
+  /** 拉紀錄（GET）回 503／404／400 時的共同處理；回 true 表示房間已經不能用 */
   const handleRoomError = useCallback(
     (status: number): boolean => {
       if (status === 503) {
@@ -142,35 +145,59 @@ export function BossTimer() {
     [leaveRoom],
   );
 
-  /** 把還沒送到的紀錄送進房間（伺服器照編號去重，重送不會多一筆） */
+  /**
+   * 把還沒送到的紀錄送進房間（伺服器照編號去重，重送不會多一筆）。
+   * 送的時候只有 404（房間失效）會離開房間；400＝這批永遠送不進去（例如太舊），丟掉這批、房間照留。
+   */
   const flush = useCallback(async (): Promise<void> => {
+    if (sendingRef.current) return;
     const r = roomRef.current;
-    if (!r || unsentRef.current.length === 0) return;
-    const device = prefsRef.current.device;
-    while (unsentRef.current.length > 0 && roomRef.current?.code === r.code) {
-      const batch = unsentRef.current.slice(0, BATCH);
-      let res: Response;
-      try {
-        res = await fetch("/api/boss/events", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ room: r.code, device, events: batch }),
-        });
-      } catch {
-        setSendMsg("沒送到隊友，等一下會再送");
-        return;
+    if (!r) return;
+    // 快超過 12 小時的伺服器不收，只留在自己瀏覽器
+    const cutoff = Date.now() - EXPIRE_MS + SEND_SLACK_MS;
+    const before = unsentRef.current.length;
+    unsentRef.current = unsentRef.current.filter((e) => e.at > cutoff);
+    if (unsentRef.current.length !== before) saveUnsent(unsentRef.current);
+    if (unsentRef.current.length === 0) return;
+    sendingRef.current = true;
+    try {
+      const device = prefsRef.current.device;
+      while (unsentRef.current.length > 0 && roomRef.current?.code === r.code) {
+        const batch = unsentRef.current.slice(0, BATCH);
+        let res: Response;
+        try {
+          res = await fetch("/api/boss/events", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ room: r.code, device, events: batch }),
+          });
+        } catch {
+          setSendMsg("沒送到隊友，等一下會再送");
+          return;
+        }
+        if (res.status === 503) {
+          setNoDb(true);
+          leaveRoom(null);
+          return;
+        }
+        if (res.status === 404) {
+          leaveRoom("房間已失效");
+          return;
+        }
+        if (!res.ok && res.status !== 400) {
+          setSendMsg("沒送到隊友，等一下會再送");
+          return;
+        }
+        // 成功、或 400（這批再送也不會過）：都從待送清單拿掉
+        const done = new Set(batch.map((e) => e.id));
+        unsentRef.current = unsentRef.current.filter((e) => !done.has(e.id));
+        saveUnsent(unsentRef.current);
       }
-      if (handleRoomError(res.status)) return;
-      if (!res.ok) {
-        setSendMsg("沒送到隊友，等一下會再送");
-        return;
-      }
-      const sent = new Set(batch.map((e) => e.id));
-      unsentRef.current = unsentRef.current.filter((e) => !sent.has(e.id));
-      saveUnsent(unsentRef.current);
+      setSendMsg(null);
+    } finally {
+      sendingRef.current = false;
     }
-    setSendMsg(null);
-  }, [handleRoomError]);
+  }, [leaveRoom]);
 
   /** 先補送，再拉上次之後的新紀錄 */
   const poll = useCallback(async (): Promise<void> => {
@@ -248,7 +275,11 @@ export function BossTimer() {
     }
 
     fetch("/api/boss/intervals")
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        // 503＝房間功能沒開：房間列先寫出來，不用等按了才知道
+        if (r.status === 503) setNoDb(true);
+        return r.ok ? r.json() : null;
+      })
       .then((b: { ok?: boolean; stats?: Stats } | null) => {
         if (b?.ok && b.stats) setStats(b.stats);
       })
@@ -623,8 +654,8 @@ export function BossTimer() {
           </p>
         )}
         {agoOpen ? (
-          <label className="mt-2 flex items-center gap-2 text-[14px] ink-soft">
-            補記：
+          <label className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] ink-soft">
+            <span className="whitespace-nowrap">補記：</span>
             <input
               value={agoInput}
               onChange={(e) => setAgoInput(e.target.value)}
@@ -634,7 +665,7 @@ export function BossTimer() {
               placeholder="50"
               className="min-h-11 w-20 rounded-xl border border-[color:var(--paper-edge)] bg-transparent px-3 text-[16px] text-[color:var(--ink)] outline-none focus:border-[color:var(--maple)]"
             />
-            分鐘前打死，填好按「剛打死」
+            <span>分鐘前打死，填好按「剛打死」</span>
           </label>
         ) : (
           <button type="button" onClick={() => setAgoOpen(true)} className="tap-safe mt-1 text-[14px] font-bold text-[color:var(--maple)] underline underline-offset-2">

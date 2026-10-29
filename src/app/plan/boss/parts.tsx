@@ -45,20 +45,15 @@ export function mapText(maps: string[]): string {
 /** 經過幾分鐘（無條件捨去） */
 export const mins = (s: ChannelState) => Math.floor(s.minutes);
 
-/** 膠囊裡寫的字：沒王只寫「沒王」（時間寫在右邊） */
-export function pillText(s: ChannelState): string {
-  return s.kind === "empty" ? "沒王" : s.label;
-}
-
-/** 列表右邊那行 */
+/** 列表右邊那行：打死的寫打死多久；沒王的時間已經在膠囊裡（「沒王 N 分前」），右邊不寫 */
 export function agoText(s: ChannelState): string {
-  return s.kind === "empty" ? `巡過 ${mins(s)} 分前` : `打死 ${mins(s)} 分前`;
+  return s.kind === "empty" ? "" : `打死 ${mins(s)} 分前`;
 }
 
 export function StatePill({ s }: { s: ChannelState }) {
   return (
     <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-[3px] text-[13px] font-extrabold ${STATE_STYLE[s.kind]}`}>
-      {pillText(s)}
+      {s.label}
     </span>
   );
 }
@@ -139,7 +134,7 @@ export function BossInfo({ boss, stat }: { boss: BossDef; stat?: { n: number; me
 function nextLine(rest: ChannelState[]): string {
   const groups: { label: string; chs: number[] }[] = [];
   for (const s of rest) {
-    const label = s.kind === "empty" ? "沒王" : s.label;
+    const label = s.label;
     const last = groups[groups.length - 1];
     if (last && last.label === label) last.chs.push(s.ch);
     else groups.push({ label, chs: [s.ch] });
@@ -149,8 +144,7 @@ function nextLine(rest: ChannelState[]): string {
 
 /** 大卡上狀態那行 */
 function headline(s: ChannelState): string {
-  if (s.kind === "empty") return `沒王・巡過 ${mins(s)} 分了`;
-  if (s.kind === "since") return s.label;
+  if (s.kind === "empty" || s.kind === "since") return s.label;
   return `${s.label}・打死 ${mins(s)} 分了`;
 }
 
@@ -256,7 +250,7 @@ export function ChannelGrid({ states }: { states: ChannelState[] }) {
           className={`flex min-h-[58px] flex-col items-center justify-center gap-px rounded-xl px-1 py-1.5 ${STATE_STYLE[s.kind]}`}
         >
           <b className={`text-[17px] ${s.kind === "none" ? "text-[color:var(--ink-faint)]" : "text-[color:var(--ink)]"}`}>{s.ch}</b>
-          <span className="text-center text-[11px] font-bold leading-tight">{s.kind === "empty" ? `沒王 ${mins(s)} 分前` : s.label}</span>
+          <span className="text-center text-[11px] font-bold leading-tight">{s.label}</span>
         </li>
       ))}
     </ul>
