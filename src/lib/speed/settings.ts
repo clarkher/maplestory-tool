@@ -8,10 +8,11 @@ import { useCallback, useEffect, useState } from "react";
  * - 排行顯不顯示角色 ID（預設不顯示）、按分享時要不要問角色 ID（askId，預設問；玩家勾「下次不要再問我」就是 false）、自動／手動
  * - 角色 ID 本身不存（2026-10-20 使用者：一個人會練很多隻，每次分享時填，只用這次填的）；以前存的 charId 不讀
  * - 組隊：玩家自己填的（on＝有沒有開、others＝其他隊員的等級、hitter＝誰在打：0＝自己，1～＝others 的第幾位）
+ * - lowHp：「HP 低於 30% 響一聲」開關（v1.20，預設關；舊版存的沒有這欄當沒開）
  */
 export type SpeedParty = { on: boolean; others: number[]; hitter: number };
-export type SpeedSettings = { isPublic: boolean; askId: boolean; mode: "auto" | "manual"; party: SpeedParty };
-export const DEFAULT_SETTINGS: SpeedSettings = { isPublic: false, askId: true, mode: "auto", party: { on: false, others: [], hitter: 0 } };
+export type SpeedSettings = { isPublic: boolean; askId: boolean; mode: "auto" | "manual"; party: SpeedParty; lowHp: boolean };
+export const DEFAULT_SETTINGS: SpeedSettings = { isPublic: false, askId: true, mode: "auto", party: { on: false, others: [], hitter: 0 }, lowHp: false };
 
 const KEY = "ms-speed";
 const MAP_KEY = "ms-speed-maps";
@@ -51,6 +52,7 @@ export function parseSettings(raw: string | null): SpeedSettings {
       askId: value.askId !== false,
       mode: value.mode === "manual" ? "manual" : "auto",
       party: parseParty(value.party),
+      lowHp: value.lowHp === true,
     };
   } catch {
     return defaults();
