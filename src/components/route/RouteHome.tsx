@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown } from "@/components/Icons";
+import { ChevronDown, ChevronRight } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import { itemImage, loadGuide, monsterImage } from "@/lib/data";
 import { dataSyncedText, formatNumber } from "@/lib/format";
+import { halloweenOn } from "@/lib/halloween";
 import {
   cachedGuides, guideJobs, guidesFor, loadHomeData, peekHomeData, settleGuides, type GuideState, type HomeData,
 } from "@/lib/home-data";
@@ -179,6 +180,20 @@ export function RouteHome() {
       )}
 
       {loaded ? <CharacterBar profile={profile} onChange={setProfile} /> : <LoadingBlock label="讀取你的角色…" />}
+
+      {/* v1.19：萬聖節活動期間的入口（手機導覽列放不下，從這裡進）；11/11 23:59 後不出現 */}
+      {halloweenOn(Date.now()) ? (
+        <Link
+          href="/event/halloween"
+          className="tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]"
+        >
+          <span>
+            萬聖節面具祭典攻略
+            <span className="block text-[13px] font-medium ink-soft">三章任務照順序、要打的怪去哪打</span>
+          </span>
+          <ChevronRight size={16} />
+        </Link>
+      ) : null}
 
       {/* 至少佔一個螢幕高：從捲到底的長頁換過來時，首頁頂端被推出畫面，Next 才會捲回頂端。只比螢幕高一點的話，
           位置被截在頁底、頁尾也在畫面裡，路線長出來時瀏覽器的捲動錨定會把畫面一路推到頁底 */}
