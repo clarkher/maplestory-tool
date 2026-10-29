@@ -66,9 +66,15 @@ export function digitCells(count: number | null): number {
 /**
  * 認得藥水的門檻：格子圖示跟參考圖示的差（0～255 的色差，見 iconDistance）。
  * 2026-10-29 量的（potions.test.ts 會印）：真截圖（window-1364.png）認對的格子最大差 11.4（藍色藥水，圖糊）、其他 3.6～5.6，
- * 技能格最小差 28.4；合成畫面（紅橘白藍四種、兩種底色、有無數字）認錯的最小差 22.3。門檻放在認對最大跟認錯最小的中間偏前，寧可認不出也不認錯。
+ * 技能格最小差 28.4；合成畫面（紅橘白藍四種、兩種底色、有無數字）認錯的最小差 22.3。門檻 13：貼著認對最大（11.4）往上留一點，再加 POTION_MIN_GAP 擋「真的那個不在參考裡」，寧可認不出也不認錯。
  */
-export const POTION_MAX_DISTANCE = 16;
+export const POTION_MAX_DISTANCE = 13;
+
+/**
+ * 最像的跟「第二像、而且不是並列的」（圖示不一樣的另一個道具）至少要差這麼多，不然不認：
+ * 真截圖裡礦泉水（4.4）的下一個是肯德熊的紙條 14.7（差 10.3），其他格差 13 以上；差太少就是參考裡可能少了真的那個，寧可 null 也不認成別的。
+ */
+export const POTION_MIN_GAP = 8;
 
 /**
  * 格子圖示跟一個參考圖示（某個位置）的差：只比參考圖示有畫到的點、扣掉按鍵名那幾列跟數字蓋住的地方，
@@ -110,10 +116,13 @@ const TIE_EPSILON = 0.05;
  */
 export function matchPotion(icon: Uint8ClampedArray, refs: PotionRef[], count: number | null = null): { ids: number[] } | null {
   const scored = refs.map(ref => ({ id: ref.id, d: refDistance(icon, ref, count) }));
-  const best = Math.min(POTION_MAX_DISTANCE, ...scored.map(x => x.d));
-  if (!scored.some(x => x.d <= POTION_MAX_DISTANCE)) return null;
-  const ids = scored.filter(x => x.d <= best + TIE_EPSILON).map(x => x.id).sort((a, b) => a - b);
-  return { ids };
+  const best = Math.min(...scored.map(x => x.d));
+  if (!(best <= POTION_MAX_DISTANCE)) return null;
+  const tied = scored.filter(x => x.d <= best + TIE_EPSILON && x.d <= POTION_MAX_DISTANCE);
+  // 並列以外最像的那個要差得夠遠
+  const other = Math.min(Infinity, ...scored.filter(x => !tied.includes(x)).map(x => x.d));
+  if (other - best < POTION_MIN_GAP) return null;
+  return { ids: tied.map(x => x.id).sort((a, b) => a - b) };
 }
 
 /** 一格的道具鍵：只有一種就是編號，長得一樣的好幾種就是由小到大的編號用逗號接起來（同一格同一組才算同一種） */

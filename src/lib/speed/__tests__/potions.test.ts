@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { iconDistance, matchPotion, nextPotions, POTION_MAX_DISTANCE, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
+import { iconDistance, matchPotion, nextPotions, POTION_MAX_DISTANCE, POTION_MIN_GAP, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
 import { iconOf, readQuickslot } from "../quickslot";
 import { findStatusBar } from "../status-bar";
 import { loadFixture, loadItemIcon, paintSlotCount, pasteIcon } from "./fixture";
@@ -70,7 +70,7 @@ describe("matchPotion（真截圖 window-1364.png）", () => {
   const POOL = ["藥水", "食物", "狀態消耗", "特殊消耗"];
   const WANT: Array<number[] | null> = [null, [2000002], null, [2000003, 2000017], [2022000], [2000006, 2000018], null, [2022060, 2022061, 2022062]];
 
-  it("每格認成真的那一種、技能格是 null，而且差距拉得夠開", async () => {
+  async function loadPool() {
     const items = (JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "public/data/items.json"), "utf8")) as Item[])
       .filter(item => item.c === "消耗" && POOL.includes(item.s ?? ""))
       .sort((a, b) => a.id - b.id);
@@ -82,6 +82,30 @@ describe("matchPotion（真截圖 window-1364.png）", () => {
         // 沒有圖示檔的跳過
       }
     }
+    return refs;
+  }
+
+  it("真的那一種被拿掉：每格都回 null，不會認成別的；而且第二像的差距夠開", async () => {
+    const refs = await loadPool();
+    const frame = await loadFixture("window-1364.png");
+    const slots = readQuickslot(frame, findStatusBar(frame)!)!;
+    const gaps: string[] = [];
+    slots.forEach((slot, i) => {
+      const want = WANT[i];
+      if (!want) return;
+      const ds = refs.map(ref => ({ id: ref.id, d: refDistance(slot.icon!, ref, slot.count) })).sort((a, b) => a.d - b.d);
+      const best = ds.find(x => want.includes(x.id))!.d;
+      const other = ds.find(x => !want.includes(x.id))!.d;
+      gaps.push(`${i}:${best.toFixed(1)}→${other.toFixed(1)}`);
+      expect(other - best, `第 ${i} 格第二像`).toBeGreaterThanOrEqual(POTION_MIN_GAP);
+      const without = refs.filter(ref => !want.includes(ref.id));
+      expect(matchPotion(slot.icon!, without, slot.count), `第 ${i} 格拿掉真的`).toBeNull();
+    });
+    console.log(`真截圖認對→第二像：${gaps.join("、")}、門檻 ${POTION_MAX_DISTANCE}、最小差距 ${POTION_MIN_GAP}`);
+  }, 120000);
+
+  it("每格認成真的那一種、技能格是 null，而且差距拉得夠開", async () => {
+    const refs = await loadPool();
     const frame = await loadFixture("window-1364.png");
     const slots = readQuickslot(frame, findStatusBar(frame)!)!;
     let worstRight = 0;
