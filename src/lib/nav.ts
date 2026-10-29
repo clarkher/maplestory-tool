@@ -4,6 +4,7 @@
  * 麵包屑寫「我的路線 › 1–30 懶人包」，所以也亮「我的路線」（persona 第二輪新 10）。
  * v0.98：楓幣匯率（/price/fx）從查資料的「行情」區進去。v1.03 起電腦版導覽列多一顆「楓幣匯率」，/price 開頭亮它；
  * 手機沒有這顆（同練功測速），在 /price 時導覽列不亮任何一顆。
+ * v1.18：多一顆「野王計時」（/plan/boss，所有寬度都有），排在「帶我去」前面。
  */
 export const NAV: Array<{ href: string; label: string; match: string[]; desktopOnly?: true }> = [
   { href: "/", label: "我的路線", match: ["/guide"] },
@@ -13,6 +14,8 @@ export const NAV: Array<{ href: string; label: string; match: string[]; desktopO
   { href: "/plan/speed", label: "練功測速", match: ["/plan/speed"], desktopOnly: true },
   // v1.03：楓幣匯率拉出來（使用者選 A：只在電腦版，手機導覽列放不下，照舊從查資料的「行情」區進去）
   { href: "/price/fx", label: "楓幣匯率", match: ["/price"], desktopOnly: true },
+  // v1.18：野王計時（所有寬度都有）；要排在查資料前面，不然 /plan/boss 會亮查資料
+  { href: "/plan/boss", label: "野王計時", match: ["/plan/boss"] },
   { href: "/go", label: "帶我去", match: ["/go"] },
   { href: "/db", label: "查資料", match: ["/db", "/plan"] },
 ];

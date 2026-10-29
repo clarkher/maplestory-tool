@@ -377,6 +377,16 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
   最新一筆是手動的，`latest.json` 的 `src` 是 `manual`、沒有掛單數與價位分布，頁面更新時間那行寫「手動輸入」、當天讀數標「含手動輸入」。
   「匯率收集失敗」的 issue 內文也寫了這個做法。
 
+## 野王計時
+
+`/plan/boss`（導覽列「野王計時」）：打死野王就按一下，算每個頻道下一次大概什麼時候出，快出了排前面；可以開房間跟隊友同步。設計：`docs/superpowers/specs/2026-10-29-boss-timer-design.md`。
+
+- **重生時間的來源**：台服玩家實測（波波攻略島統計等），整理在 `docs/research/2026-10-29-boss-timer.md`。
+  **不用客戶端的 mobTime**：客戶端蘑菇王寫 1800 秒，玩家實測是 45～60 分，照客戶端算會差很多。
+- **隊友房間**：6 碼房號、24 小時有效；存在 Neon 的 `boss_rooms`、`boss_events`、`boss_presence`、`boss_intervals` 四張表。
+  沒設 `DATABASE_URL`（本機、預覽）時房間功能不出現，個人模式（記在自己瀏覽器）照用。
+- **回收間隔**：把大家回報的「打死到下次出現」間隔收回來修正預估，只收 10 分～6 小時的值，同一隻王 20 筆以上才顯示，兩台伺服器合算。
+
 ## 技術
 
 Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScript。

@@ -15,10 +15,15 @@ describe("導覽列哪一顆亮", () => {
   });
 
   it("傷害計算機拉出來放「我的路線」旁邊（v0.85 使用者選 A「算傷害」），在計算機頁亮它、不亮查資料", () => {
-    expect(NAV.map(item => item.label)).toEqual(["我的路線", "算傷害", "練功測速", "楓幣匯率", "帶我去", "查資料"]);
+    expect(NAV.map(item => item.label)).toEqual(["我的路線", "算傷害", "練功測速", "楓幣匯率", "野王計時", "帶我去", "查資料"]);
     expect(NAV[1].href).toBe("/plan/damage");
     expect(activeNav("/plan/damage")).toBe("算傷害");
     expect(activeNav("/plan/farm")).toBe("查資料");
+  });
+
+  it("野王計時（v1.18）在 /plan/boss 亮它、不亮查資料；所有寬度都有", () => {
+    expect(activeNav("/plan/boss")).toBe("野王計時");
+    expect(NAV.find(item => item.label === "野王計時")?.desktopOnly).toBeUndefined();
   });
 
   it("練功測速（v0.95）在測速頁亮它、不亮查資料；只在電腦版出現", () => {
