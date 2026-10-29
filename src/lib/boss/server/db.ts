@@ -58,6 +58,10 @@ export function ensureBossSchema(sql: NeonQueryFunction<false, false>): Promise<
         )`,
         sql`CREATE INDEX IF NOT EXISTS boss_events_room ON boss_events (room, seq)`,
         sql`CREATE INDEX IF NOT EXISTS boss_events_ip ON boss_events (ip_hash, created_at)`,
+        // 同一間房間同一個事件編號只存一筆：客戶端重送沒送成功的事件不會重複
+        sql`CREATE UNIQUE INDEX IF NOT EXISTS boss_events_room_eid ON boss_events (room, eid)`,
+        sql`CREATE INDEX IF NOT EXISTS boss_intervals_ip ON boss_intervals (ip_hash, created_at)`,
+        sql`CREATE INDEX IF NOT EXISTS boss_intervals_env_boss ON boss_intervals (env, boss)`,
       ]);
     })();
     ready.catch(() => {

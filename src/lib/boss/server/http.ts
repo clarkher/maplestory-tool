@@ -1,7 +1,7 @@
 // src/lib/boss/server/http.ts
 // 野王計時 API 共用的小工具（寫法跟練功測速的 route 一致）
 
-const isJson = (request: Request): boolean => (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase() === "application/json";
+export const isJson = (request: Request): boolean => (request.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase() === "application/json";
 
 /** 讀 JSON 內容：不是 application/json、或解析失敗回 ok: false（呼叫的回 400「格式不對」） */
 export async function readJson(request: Request): Promise<{ ok: true; body: unknown } | { ok: false }> {
@@ -18,4 +18,4 @@ export const NO_DB = { ok: false, error: "房間功能還沒開" } as const;
 export const BAD = { ok: false, error: "格式不對" } as const;
 export const DEAD = { ok: false, error: "房間已失效" } as const;
 export const TOO_FAST = { ok: false, error: "送太快了，等一下再記" } as const;
-export const DB_ERR = { ok: false, error: "連不上，等一下再試" } as const;
+export const DB_ERR = { ok: false, error: "連不上，等一下再過來" } as const;

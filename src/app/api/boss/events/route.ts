@@ -18,7 +18,7 @@ async function roomAlive(sql: Sql, room: string): Promise<boolean> {
     SELECT 1 FROM boss_rooms r
     WHERE r.code = ${room} AND r.env = ${speedEnv()}
       AND (r.created_at > now() - interval '24 hours'
-           OR EXISTS (SELECT 1 FROM boss_events e WHERE e.room = r.code AND e.created_at > now() - interval '24 hours'))`;
+           OR EXISTS (SELECT 1 FROM boss_events e WHERE e.room = r.code AND e.env = r.env AND e.created_at > now() - interval '24 hours'))`;
   return rows.length > 0;
 }
 
@@ -72,7 +72,7 @@ export async function GET(request: Request): Promise<Response> {
       LIMIT ${GET_LIMIT}`) as Stored[];
     const online = (await sql`
       SELECT count(*)::int AS n FROM boss_presence
-      WHERE room = ${room} AND seen_at > now() - ${ONLINE_MS / 1000} * interval '1 second'`) as { n: number }[];
+      WHERE room = ${room} AND seen_at > now() - ${ONLINE_MS / 1000}::int * interval '1 second'`) as { n: number }[];
     const seq = rows.length > 0 ? Number(rows[rows.length - 1].seq) : since;
     return Response.json({ ok: true, events: rows.map(toEvent), seq, online: online[0]?.n ?? 0 });
   } catch (error) {
@@ -119,14 +119,21 @@ export async function POST(request: Request): Promise<Response> {
           WHERE (SELECT count(DISTINCT created_at) FROM boss_events WHERE ip_hash = ${hash}::text AND created_at > now() - interval '1 minute')
               + (SELECT count(DISTINCT created_at) FROM boss_intervals WHERE ip_hash = ${hash}::text AND created_at > now() - interval '1 minute')
               < ${BOSS_WRITES_PER_MIN}::integer
+          ON CONFLICT (room, eid) DO NOTHING
           RETURNING seq`,
       ],
       { isolationLevel: "ReadCommitted" },
     );
     const inserted = written as { seq: string | number }[];
-    if (inserted.length === 0) return Response.json(TOO_FAST, { status: 429 });
     await touchPresence(sql, room, device);
-    return Response.json({ ok: true, seq: Math.max(...inserted.map(r => Number(r.seq))) });
+    if (inserted.length > 0) return Response.json({ ok: true, seq: Math.max(...inserted.map(r => Number(r.seq))) });
+    // 沒寫進任何一筆：被限流擋掉，或整批都是重送（之前已存過）。再數一次送出次數分辨；重送照樣回 ok＋目前最大編號
+    const [recent] = (await sql`
+      SELECT (SELECT count(DISTINCT created_at) FROM boss_events WHERE ip_hash = ${hash}::text AND created_at > now() - interval '1 minute')
+           + (SELECT count(DISTINCT created_at) FROM boss_intervals WHERE ip_hash = ${hash}::text AND created_at > now() - interval '1 minute') AS n`) as { n: string | number }[];
+    if (Number(recent.n) >= BOSS_WRITES_PER_MIN) return Response.json(TOO_FAST, { status: 429 });
+    const [top] = (await sql`SELECT coalesce(max(seq), 0) AS seq FROM boss_events WHERE room = ${room} AND env = ${speedEnv()}`) as { seq: string | number }[];
+    return Response.json({ ok: true, seq: Number(top.seq) });
   } catch (error) {
     console.error("boss/events POST", error);
     return Response.json(DB_ERR, { status: 500 });
