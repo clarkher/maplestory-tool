@@ -1,6 +1,6 @@
 // src/lib/speed/__tests__/live-view.test.ts
 import { describe, expect, it } from "vitest";
-import { parseMeso, potionLine, potionName, segmentLine, signedText } from "../live-view";
+import { commitMeso, mesoForNewSegment, NO_MESO, parseMeso, potionLine, potionName, segmentLine, signedText } from "../live-view";
 
 const names = new Map<number, { n: string }>([
   [2000003, { n: "藍色藥水" }],
@@ -67,5 +67,34 @@ describe("signedText", () => {
 describe("segmentLine", () => {
   it("這段練了多久、拿到多少", () => {
     expect(segmentLine("12 分", 123456)).toBe("這段練了 12 分 · 拿到 123,456");
+  });
+});
+
+describe("commitMeso", () => {
+  it("開始時楓幣：改填數字、時間留第一次", () => {
+    const first = commitMeso(NO_MESO, "1,000", 100, true);
+    expect(first).toEqual({ value: 1000, at: 100 });
+    expect(commitMeso(first, "1,200", 500, true)).toEqual({ value: 1200, at: 100 });
+  });
+  it("現在楓幣：每次填都用那一刻", () => {
+    const first = commitMeso(NO_MESO, "5000", 100, false);
+    expect(commitMeso(first, "5200", 500, false)).toEqual({ value: 5200, at: 500 });
+  });
+  it("清空、看不懂 → 沒填；之後再填算第一次", () => {
+    const first = commitMeso(NO_MESO, "1000", 100, true);
+    const cleared = commitMeso(first, "", 200, true);
+    expect(cleared).toEqual(NO_MESO);
+    expect(commitMeso(commitMeso(first, "12a", 200, true), "900", 300, true)).toEqual({ value: 900, at: 300 });
+  });
+});
+
+describe("mesoForNewSegment", () => {
+  const entry = { value: 1000, at: 100 };
+  it("上一段結束前填的清掉、之後（休息時）填的留著", () => {
+    expect(mesoForNewSegment(entry, 200)).toEqual(NO_MESO);
+    expect(mesoForNewSegment(entry, 50)).toEqual(entry);
+  });
+  it("沒有上一段（或換隊伍、改 ID 切開的）不清", () => {
+    expect(mesoForNewSegment(entry, null)).toEqual(entry);
   });
 });

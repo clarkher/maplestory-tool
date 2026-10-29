@@ -12,7 +12,7 @@ import { curveBars, lowRunText, nextCurve, type Curve } from "@/lib/speed/curve"
 import { durationText, etaText } from "@/lib/speed/format";
 import type { RawSpeedNames } from "@/lib/speed/names";
 import { nextLowHp, type LowHp } from "@/lib/speed/hp";
-import { parseMeso, potionLine, potionName, segmentLine, signedText } from "@/lib/speed/live-view";
+import { commitMeso, mesoForNewSegment, NO_MESO, potionLine, potionName, segmentLine, signedText, type MesoEntry } from "@/lib/speed/live-view";
 import { mesoRates } from "@/lib/speed/meso";
 import { backCalc, mapPartyExp, membersOf } from "@/lib/speed/party-exp";
 import { nextPotions, potionKey, potionPriceFn, potionSummary, type PotionTrack } from "@/lib/speed/potions";
@@ -70,9 +70,6 @@ const NO_PLACE: Place = { settle: { key: null, candidate: null, streak: 0 }, key
 const BLIND_HEADING = "讀不到小地圖的地圖名：從清單選你在哪張圖";
 /** 快捷鍵連續讀不到這麼久，楓幣收益卡才提醒（偶爾一張被擋到不吵） */
 const NO_SLOT_MS = 10_000;
-/** 玩家填的楓幣：打的字、看得懂的數字、填的時間 */
-type MesoEntry = { text: string; value: number | null; at: number };
-const NO_MESO: MesoEntry = { text: "", value: null, at: 0 };
 const NO_POTIONS: PotionTrack = { slots: {} };
 
 /** 這台電腦的 localStorage（隱私模式、被擋時拿不到就是 null） */
@@ -126,6 +123,9 @@ export function PracticeSpeed() {
   const [noQuickslot, setNoQuickslot] = useState(false);
   const [mesoStart, setMesoStart] = useState<MesoEntry>(NO_MESO);
   const [mesoNow, setMesoNow] = useState<MesoEntry>(NO_MESO);
+  /** 楓幣兩格正在打的字（離開欄位或按 Enter 才算填好，打到一半的不算） */
+  const [startText, setStartText] = useState("");
+  const [nowText, setNowText] = useState("");
   /** 我的練功紀錄（只在這台電腦），掛上去之後才讀 */
   const [records, setRecords] = useState<SpeedRecord[]>([]);
   const [shareCard, setShareCard] = useState<ShareCard | null>(null);
@@ -150,8 +150,12 @@ export function PracticeSpeed() {
   const lowHpRef = useRef<LowHp>({ armed: true });
   /** 現在算得出的每 10 分鐘淨賺：存一段時一起記進這台電腦的紀錄 */
   const mesoNetRef = useRef<number | null>(null);
-  /** 上一段的開始時間：換到新的一段時清空楓幣那兩格 */
+  const mesoStartRef = useRef<MesoEntry>(NO_MESO);
+  const mesoNowRef = useRef<MesoEntry>(NO_MESO);
+  /** 看過的這段開始時間：換到新的一段時看要不要清楓幣那兩格 */
   const segStartRef = useRef<number | null>(null);
+  /** 上一段收掉的時間（換隊伍、改 ID 切開的不算，是 null）：新的一段開始時，在這之前填的楓幣清掉 */
+  const prevEndRef = useRef<number | null>(null);
 
   useEffect(() => {
     dataRef.current = data;
@@ -263,7 +267,10 @@ export function PracticeSpeed() {
     (step: Step, party: SpeedParty = settingsRef.current.party, charId: string | null = charIdRef.current) => {
       trackerRef.current = step.tracker;
       setTracker(step.tracker);
-      if (step.closed) void save(step.closed, party, charId);
+      if (step.closed) {
+        prevEndRef.current = step.closed.mode === "auto" ? step.closed.lastChangeAt : step.closed.endedAt;
+        void save(step.closed, party, charId);
+      }
     },
     [save],
   );
@@ -384,6 +391,8 @@ export function PracticeSpeed() {
       const handle = await startCapture({ toNext: data.toNext, names: data.names, potionIds: potionPoolIds(data.items.values()) }, onReading);
       slotMissRef.current = null;
       setNoQuickslot(false);
+      lowHpRef.current = { armed: true };
+      curveRef.current = null;
       capture.current = handle;
       // 從清單選的圖只在這次分享有效；「標題讀不到多久了」也重算
       placeRef.current = { ...placeRef.current, picked: null, blind: FRESH_BLIND };
@@ -448,6 +457,8 @@ export function PracticeSpeed() {
     if (split) {
       setNow(at);
       apply(split, settingsRef.current.party, charIdRef.current);
+      // 改 ID 切開的不算休息：楓幣兩格留著
+      prevEndRef.current = null;
     }
     charIdRef.current = choice.charId;
     setCharId(choice.charId);
@@ -490,6 +501,7 @@ export function PracticeSpeed() {
       if (split) {
         setNow(at);
         apply(split, before);
+        prevEndRef.current = null;
       }
       updateSettings({ party: next });
     },
@@ -512,15 +524,26 @@ export function PracticeSpeed() {
     return backCalcLine(backCalc(per10, mapPartyExp(row, data.monsterById, members).perKill), members.map(member => member.level));
   }, [members, per10, mapId, data]);
 
-  // 換到新的一段（自動停了又開始）：楓幣那兩格清空。頁面打開後的第一段不清（開始前先填的留著）
+  // 換到新的一段：只清在上一段結束前填的（休息時填的、換隊伍／改 ID 切開的都留著）
   const segStart = seg?.startedAt ?? null;
+  // 先同步兩格目前填好的值（effect 照宣告順序跑，下面那個才拿得到這次畫面的值）
   useEffect(() => {
-    if (segStart === null) return;
-    if (segStartRef.current !== null && segStartRef.current !== segStart) {
-      setMesoStart(NO_MESO);
-      setMesoNow(NO_MESO);
-    }
+    mesoStartRef.current = mesoStart;
+    mesoNowRef.current = mesoNow;
+  }, [mesoStart, mesoNow]);
+  useEffect(() => {
+    if (segStart === null || segStartRef.current === segStart) return;
     segStartRef.current = segStart;
+    const end = prevEndRef.current;
+    prevEndRef.current = null;
+    if (mesoStartRef.current !== mesoForNewSegment(mesoStartRef.current, end)) {
+      setMesoStart(NO_MESO);
+      setStartText("");
+    }
+    if (mesoNowRef.current !== mesoForNewSegment(mesoNowRef.current, end)) {
+      setMesoNow(NO_MESO);
+      setNowText("");
+    }
   }, [segStart]);
 
   // 給「跟我之前比」、分享圖、藥水用的這段：還在練的那段，停了就是剛收掉的上一段
@@ -530,7 +553,8 @@ export function PracticeSpeed() {
   const potionTrack = shownSeg && potions.startedAt === shownSeg.startedAt ? potions.track : NO_POTIONS;
   const summary = potionSummary(potionTrack, shownMinutes, priceOf);
   const potionMeso10 = summary.uses.reduce((sum, use) => sum + (use.meso10 ?? 0), 0);
-  const potionPriced = summary.uses.some(use => use.meso10 !== null);
+  /** 有藥水分不出是哪一種（長得一樣、價格不同）：藥水錢跟撿到都算不出來，不寫 */
+  const potionUnpriced = summary.uses.some(use => use.meso10 === null);
   const meso = mesoRates(
     mesoStart.value !== null && mesoNow.value !== null ? { startMeso: mesoStart.value, startAt: mesoStart.at, nowMeso: mesoNow.value, nowAt: mesoNow.at } : null,
     potionMeso10,
@@ -587,8 +611,8 @@ export function PracticeSpeed() {
     iconId: use.ids[0],
     text: potionLine(potionName(use.ids, data.items), use),
   }));
-  const potionCell = summary.uses.length === 0 ? (Object.keys(potionTrack.slots).length ? "0" : "—") : potionPriced ? signedText(-potionMeso10) : "—";
-  const onMesoInput = (set: (entry: MesoEntry) => void) => (text: string) => set({ text, value: parseMeso(text), at: Date.now() });
+  const potionCell = potionUnpriced ? "—" : summary.uses.length === 0 ? (Object.keys(potionTrack.slots).length ? "0" : "—") : signedText(-potionMeso10);
+  const pickedCell = !potionUnpriced && meso.picked10 !== null ? signedText(meso.picked10) : "—";
 
   // 跟我之前比、分享圖
   const shownPer10 = shownSeg ? tenMinuteExp(shownSeg) : null;
@@ -620,6 +644,7 @@ export function PracticeSpeed() {
     <Shell>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-4">
+          <PartyCard party={party} selfLevel={selfLevel} onChange={onParty} />
           <Card>
             <div className="flex flex-wrap items-center gap-2">
               {sharing ? (
@@ -717,20 +742,22 @@ export function PracticeSpeed() {
             lastLine={lastSaved ? `上一段：${durationText(durationMs(lastSaved.seg))}、拿到 ${formatNumber(lastSaved.seg.gained)}。${lastSaved.note}` : null}
           />
           <MesoCard
-            picked={meso.picked10 !== null ? signedText(meso.picked10) : "—"}
+            picked={pickedCell}
             potion={potionCell}
             net={meso.net10 !== null ? signedText(meso.net10) : "—"}
-            startText={mesoStart.text}
-            nowText={mesoNow.text}
-            onStart={onMesoInput(setMesoStart)}
-            onNow={onMesoInput(setMesoNow)}
+            startText={startText}
+            nowText={nowText}
+            onStartText={setStartText}
+            onNowText={setNowText}
+            onStartCommit={() => setMesoStart(entry => commitMeso(entry, startText, Date.now(), true))}
+            onNowCommit={() => setMesoNow(entry => commitMeso(entry, nowText, Date.now(), false))}
+            unpriced={potionUnpriced}
             potions={potionRows}
             noQuickslot={sharing && noQuickslot}
             restocked={summary.restocked}
             uncounted={summary.uncounted}
           />
           <CompareCard rows={rows} byId={charId !== null} onShare={onShare} canShare={shownPer10 !== null} />
-          <PartyCard party={party} selfLevel={selfLevel} onChange={onParty} />
         </div>
 
         <div className="space-y-4">

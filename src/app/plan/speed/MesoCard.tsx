@@ -20,8 +20,11 @@ export function MesoCard({
   net,
   startText,
   nowText,
-  onStart,
-  onNow,
+  onStartText,
+  onNowText,
+  onStartCommit,
+  onNowCommit,
+  unpriced,
   potions,
   noQuickslot,
   restocked,
@@ -32,8 +35,12 @@ export function MesoCard({
   net: string;
   startText: string;
   nowText: string;
-  onStart: (text: string) => void;
-  onNow: (text: string) => void;
+  onStartText: (text: string) => void;
+  onNowText: (text: string) => void;
+  /** 離開欄位或按 Enter：這時才算填好 */
+  onStartCommit: () => void;
+  onNowCommit: () => void;
+  unpriced: boolean;
   potions: PotionRow[];
   noQuickslot: boolean;
   restocked: boolean;
@@ -53,11 +60,33 @@ export function MesoCard({
       <div className="mt-3 grid grid-cols-2 gap-3">
         <label htmlFor={`${ids}-start`} className="text-[13px] font-bold">
           開始時楓幣
-          <input id={`${ids}-start`} inputMode="numeric" autoComplete="off" value={startText} onChange={event => onStart(event.target.value)} className={FIELD} />
+          <input
+            id={`${ids}-start`}
+            inputMode="numeric"
+            autoComplete="off"
+            value={startText}
+            onChange={event => onStartText(event.target.value)}
+            onBlur={onStartCommit}
+            onKeyDown={event => {
+              if (event.key === "Enter") onStartCommit();
+            }}
+            className={FIELD}
+          />
         </label>
         <label htmlFor={`${ids}-now`} className="text-[13px] font-bold">
           現在楓幣
-          <input id={`${ids}-now`} inputMode="numeric" autoComplete="off" value={nowText} onChange={event => onNow(event.target.value)} className={FIELD} />
+          <input
+            id={`${ids}-now`}
+            inputMode="numeric"
+            autoComplete="off"
+            value={nowText}
+            onChange={event => onNowText(event.target.value)}
+            onBlur={onNowCommit}
+            onKeyDown={event => {
+              if (event.key === "Enter") onNowCommit();
+            }}
+            className={FIELD}
+          />
         </label>
       </div>
       {filled ? null : <p className="mt-1.5 text-[12px] ink-soft">開道具欄看楓幣，填開始跟現在就算得出來</p>}
@@ -72,6 +101,7 @@ export function MesoCard({
           ))}
         </ul>
       ) : null}
+      {unpriced ? <p className="mt-2 text-[12px] ink-soft">有藥水分不出是哪一種（同一張圖），藥水錢跟撿到算不出來</p> : null}
       {noQuickslot ? <p className="mt-2 text-[13px] font-bold text-[color:var(--gold)]">讀不到快捷鍵：把快捷鍵打開、不要擋到</p> : null}
       {restocked ? <p className="mt-2 text-[12px] ink-soft">這段中途補過藥，楓幣只供參考</p> : null}
       {uncounted ? <p className="mt-1 text-[12px] ink-soft">有一段沒算到（數字跳太多）</p> : null}

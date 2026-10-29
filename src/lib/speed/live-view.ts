@@ -47,3 +47,27 @@ export function signedText(value: number): string {
 export function segmentLine(duration: string, gained: number): string {
   return `這段練了 ${duration} · 拿到 ${formatNumber(gained)}`;
 }
+
+/** 玩家填好（離開欄位或按 Enter）的楓幣：value＝數字（空的、看不懂是 null）、at＝算速度用的時間 */
+export type MesoEntry = { value: number | null; at: number };
+export const NO_MESO: MesoEntry = { value: null, at: 0 };
+
+/**
+ * 填好一格楓幣。打到一半的字不算，只有這裡才改數字。
+ * keepFirst（開始時楓幣）：已經有數字時改填，時間留第一次填的那一刻（改錯字不會讓速度亂跳）；
+ * 現在楓幣每次填都用填的那一刻。清空或看不懂 → 回到沒填。
+ */
+export function commitMeso(prev: MesoEntry, text: string, now: number, keepFirst: boolean): MesoEntry {
+  const value = parseMeso(text);
+  if (value === null) return NO_MESO;
+  return { value, at: keepFirst && prev.value !== null ? prev.at : now };
+}
+
+/**
+ * 新的一段開始時這格要不要清：只清在上一段結束「之前」填的（中間休息時填的留著）。
+ * prevEnd 是 null（沒有上一段、或上一段是換隊伍／改 ID 切開的）就不清。
+ */
+export function mesoForNewSegment(entry: MesoEntry, prevEnd: number | null): MesoEntry {
+  if (prevEnd === null || entry.value === null) return entry;
+  return entry.at < prevEnd ? NO_MESO : entry;
+}

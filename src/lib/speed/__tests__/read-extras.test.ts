@@ -4,9 +4,10 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { potionRefOf, type PotionRef } from "../potions";
 import { createExtrasState, potionPoolIds, readExtras, SLOT_EVERY_MS } from "../read-extras";
+import { findQuickslot } from "../quickslot";
 import { findStatusBar } from "../status-bar";
 import type { Item } from "../../types";
-import { loadFixture, loadItemIcon } from "./fixture";
+import { loadFixture, loadItemIcon, paintSlotCount, pasteIcon } from "./fixture";
 
 const items = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "public/data/items.json"), "utf8")) as Item[];
 
@@ -54,6 +55,27 @@ describe("readExtras（真截圖 window-1364.png）", () => {
     // 到 3 秒：再讀；畫面沒變，認藥水用上次的結果（一樣的答案）
     const again = readExtras(frame, bar, 10_000 + SLOT_EVERY_MS, state);
     expect(again.slots).toEqual(first.slots);
+  }, 120000);
+
+  it("數量變了：先跟上次認出來的比（快路）；格子換成別種藥水就整池重認，不沿用", async () => {
+    const base = await loadFixture("window-1364.png");
+    const bar = findStatusBar(base)!;
+    const rects = findQuickslot(base, bar)!;
+    const state = createExtrasState();
+    state.refs = await loadRefs();
+    readExtras(base, bar, 0, state);
+    const fullBefore = state.stats.full;
+
+    const fewer = paintSlotCount(pasteIcon(base, rects[1], await loadItemIcon(2000002)), rects[1], 700, { clear: false });
+    const next = readExtras(fewer, findStatusBar(fewer)!, SLOT_EVERY_MS, state);
+    expect(next.slots?.[1]).toEqual({ index: 1, ids: [2000002], count: 700 });
+    expect(state.stats.fast).toBeGreaterThanOrEqual(1);
+    expect(state.stats.full).toBe(fullBefore);
+
+    const swapped = paintSlotCount(pasteIcon(base, rects[1], await loadItemIcon(2000000)), rects[1], 50, { clear: false });
+    const after = readExtras(swapped, findStatusBar(swapped)!, 2 * SLOT_EVERY_MS, state);
+    expect(after.slots?.[1].ids).not.toEqual([2000002]);
+    expect(state.stats.full).toBeGreaterThan(fullBefore);
   }, 120000);
 
   it("還沒載好藥水圖：數量照讀，是哪種藥水先不知道（ids 是 null）", async () => {

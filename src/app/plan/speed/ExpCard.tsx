@@ -49,6 +49,8 @@ export function ExpCard({
 function Chart({ bars }: { bars: Bar[] }) {
   const max = Math.max(1, ...bars.map(bar => bar.value));
   const width = 100 / bars.length;
+  // 左邊寫已經過完的分鐘（正在進行的那一根不算）
+  const done = bars.length - (bars[bars.length - 1]?.current ? 1 : 0);
   return (
     <div className="mt-3">
       <svg width="100%" height={70} className="block" preserveAspectRatio="none" role="img" aria-label="每分鐘經驗">
@@ -69,7 +71,7 @@ function Chart({ bars }: { bars: Bar[] }) {
         })}
       </svg>
       <div className="mt-0.5 flex justify-between text-[11px] ink-soft">
-        <span>{bars.length} 分鐘前</span>
+        <span>{done > 0 ? `${done} 分鐘前` : ""}</span>
         <span>每分鐘經驗</span>
         <span>現在</span>
       </div>
