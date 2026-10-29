@@ -7,7 +7,7 @@ import { BUTTON_MAIN, Card } from "./parts";
 export type CompareRow = { label: string; exp10: number; current: boolean };
 
 /**
- * 「跟我之前比」卡（v1.20 版面 C）：這段（楓葉橘）跟同一隻角色（沒填 ID 就是同一個職業）在別張圖最好的那筆（綠），
+ * 「跟我之前比」卡（v1.22 版面 C）：這段（楓葉橘）跟同一隻角色（沒填 ID 就是同一個職業）在別張圖最好的那筆（綠），
  * 長條照 10 分鐘經驗比；右上「產生分享圖」。
  */
 export function CompareCard({ rows, byId, onShare, canShare }: { rows: CompareRow[]; byId: boolean; onShare: () => void; canShare: boolean }) {

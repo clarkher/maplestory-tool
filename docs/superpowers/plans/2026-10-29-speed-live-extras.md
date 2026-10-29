@@ -46,7 +46,7 @@
   - `lowRunText(bars, totalMinutes): string | null`——最近一段連續 low 的分鐘，回「第 N～M 分鐘掉很多（可能死了或在補藥）」，只一分鐘就「第 N 分鐘…」；分鐘從 1 起算、以整段為基準（不是最後 60 根的索引）
 - [ ] Step 1: 測試：`accumulates per minute`（3 分鐘各加 100/200/300）、`new segment resets`、`level up keeps positive`（gained 不會變小；delta ≤ 0 不加）、`gap minutes are zero`、`last 60 only`、`low bar and text`（[500,500,100,500] → 第 3 根 low、「第 3 分鐘掉很多（可能死了或在補藥）」；[500,100,100,500] → 「第 2～3 分鐘…」）
 - [ ] Step 2: 跑 → FAIL；Step 3: 實作；Step 4: 跑 → PASS
-- [ ] Step 5: commit `v1.20 (1/8): 練功測速每分鐘經驗曲線`
+- [ ] Step 5: commit `v1.22 (1/8): 練功測速每分鐘經驗曲線`
 
 ### Task 2: HP 比例＋低血遲滯
 
@@ -60,7 +60,7 @@
   - `nextLowHp(s: LowHp, ratio: number | null): { s: LowHp; beep: boolean }`——armed 且 ratio < 0.3 → beep、armed=false；ratio ≥ 0.5 → armed=true；null 不變
 - [ ] Step 1: 測試：`window-1364.png` 的 HP（1146/1296 ≈ 0.884，容許 ±0.03）；用 `fixture.ts` 的工具把 HP 條紅色改成 25% 長 → ≈0.25；`hysteresis`：0.9→0.29 響→0.31→0.29 不響→0.55→0.28 響；null 不變
 - [ ] Step 2～4: FAIL → 實作 → PASS
-- [ ] Step 5: commit `v1.20 (2/8): 讀 HP 比例、低血提醒的響聲規則`
+- [ ] Step 5: commit `v1.22 (2/8): 讀 HP 比例、低血提醒的響聲規則`
 
 ### Task 3: 快捷鍵格子與數字
 
@@ -76,7 +76,7 @@
 - 字形：從 `D:/屁哥/maplestory_classic`（UnityFS bundle，UnityPy）找快捷鍵／道具數量用的數字圖（先找 UI 裡 `ItemNo`、`number` 之類名稱）；抽不到就從 `window-1364.png` 已有的 0、1、2、4、7、9 切，缺的 3、5、6、8 停下來回報（不准用別的字型代替）。
 - [ ] Step 1: 測試：`window-1364.png` 讀到有數字的格子 702、279、141、0、2（照截圖由左到右、上到下的實際位置）；`all digits`：用 `paintSlotCount` 把 0～9 每個字（例 1234567890 拆成幾個數）畫進格子都讀對；`finds quickslot when scaled`（1.5 倍、貼到 1920×1080 `onScene`）；`unreadable is null`（數字被遮一半 → null，不是錯的數）
 - [ ] Step 2～4: FAIL → 實作 → PASS
-- [ ] Step 5: commit `v1.20 (3/8): 讀快捷鍵格子跟數量`
+- [ ] Step 5: commit `v1.22 (3/8): 讀快捷鍵格子跟數量`
 
 ### Task 4: 藥水是哪一種、用量、楓幣算式
 
@@ -93,7 +93,7 @@
   - `potionPrice(id)`：NPC 常駐楓幣店最低價（排除活動店，跟 `/plan/buy` 同規則），沒有回 null
 - [ ] Step 1: 測試：`matchPotion` 拿 `/assets/items/2000000～2000003.png` 自己比自己 → 對、互比不混、雜訊圖 → null；`restock is not usage`；`slot item change resets`；`two slots same potion merge`；`mesoRates`：開始 1,000,000、20 分鐘後 1,060,000、藥水 3,360 → net10 30,000、picked10 33,360；時間差 30 秒 → null；`potionPrice(2000003)` 是商店價（測試裡寫實際數字）
 - [ ] Step 2～4: FAIL → 實作 → PASS
-- [ ] Step 5: commit `v1.20 (4/8): 認藥水、算用量跟楓幣`
+- [ ] Step 5: commit `v1.22 (4/8): 認藥水、算用量跟楓幣`
 
 ### Task 5: 我的練功紀錄
 
@@ -106,7 +106,7 @@
   - `compareRows(records: SpeedRecord[], current: { mapId: number | null; mapName: string; exp10: number; job: number | null; charId: string | null }): { label: string; exp10: number; current: boolean }[]`——第一列是這段（label「<地圖>（這段）」），其他是同 charId（有的話）否則同 job、不同地圖、每張圖取最好的一筆、最多 4 張圖，照 exp10 由大到小
 - [ ] Step 1: 測試：存取、壞 JSON、上限 50、比較規則（有 ID 看 ID、沒 ID 看職業、同圖只取最好、排除跟這段同圖、最多 4）
 - [ ] Step 2～4: FAIL → 實作 → PASS
-- [ ] Step 5: commit `v1.20 (5/8): 練功紀錄存在這台電腦、跟之前比`
+- [ ] Step 5: commit `v1.22 (5/8): 練功紀錄存在這台電腦、跟之前比`
 
 ### Task 6: 分享圖
 
@@ -119,7 +119,7 @@
   - `drawShareImage(card: ShareCard, colors: { paper: string; paperDeep: string; ink: string; maple: string; edge: string }, font: string): Promise<HTMLCanvasElement>`——1200×630，照 S1（`S-light.png` 上面那張、`mock-candidates.mjs` 的 `shareBase(false)` 放大兩倍）
 - [ ] Step 1: 測試只測 `shareLines`（標題「冰雷巫師 Lv.46・森林迷宮Ⅲ・2026/10/29」、千分位、沒淨賺換「這段拿到」）
 - [ ] Step 2～4: FAIL → 實作（canvas 部分在 Task 7 用瀏覽器驗）→ PASS
-- [ ] Step 5: commit `v1.20 (6/8): 分享圖內容與畫法`
+- [ ] Step 5: commit `v1.22 (6/8): 分享圖內容與畫法`
 
 ### Task 7: 頁面接線（左欄 C、小浮窗、設定）
 
@@ -130,10 +130,10 @@
 - [ ] Step 1: 實作
 - [ ] Step 2: tsc、`vitest run src/lib/speed` 全綠；emoji 掃描新檔無結果
 - [ ] Step 3: 本機 dev（`next dev --webpack -p 3397`）跑 `node scripts/verify/speed-shot.mjs <輸出> http://localhost:3397 9398` 全過；另截左欄白天／夜晚、分享圖下載的 PNG
-- [ ] Step 4: commit `v1.20 (7/8): 練功測速左欄換成經驗、楓幣、跟之前比三張卡`
+- [ ] Step 4: commit `v1.22 (7/8): 練功測速左欄換成經驗、楓幣、跟之前比三張卡`
 
 ### Task 8: 文件與驗收腳本
 
 **Files:** Modify `README.md`（練功測速段：新功能、快捷鍵字形怎麼重抽、楓幣自動讀還沒開＋TODO 等使用者道具欄截圖）、`scripts/verify/speed-shot.mjs`（加檢查：楓幣收益卡、快捷鍵讀到 702 等、跟之前比卡、分享圖對話框出現）、`scripts/verify/README.md`
 - [ ] Step 1: 改；Step 2: 跑 speed-shot 全過；全套 `vitest run` 與 tsc；contrast-audit `/plan/speed` 0 不合格
-- [ ] Step 3: commit `v1.20 (8/8): README、驗收腳本加新卡片`
+- [ ] Step 3: commit `v1.22 (8/8): README、驗收腳本加新卡片`

@@ -1,5 +1,5 @@
 # 台服經典版客戶端（Unity）抽快捷鍵／道具數量用的數字（UI/Basic/ItemNo，0～9 十張小圖），產生 src/lib/speed/quickslot-font.ts。
-# 2026-10-29 v1.20 練功測速「藥水用量」用：讀右下角快捷鍵每一格的道具數量。
+# 2026-10-29 v1.22 練功測速「藥水用量」用：讀右下角快捷鍵每一格的道具數量。
 #
 # 用法（要 Python 3.11 + UnityPy：pip install --user UnityPy）：
 #   python -E -P scripts/client/quickslot-font.py [客戶端資料夾，預設 D:/屁哥/maplestory_classic] > src/lib/speed/quickslot-font.ts

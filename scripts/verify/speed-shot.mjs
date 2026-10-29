@@ -5,7 +5,7 @@
 // 假的分享畫面：頁面在非正式機會先看 window.__speedTestStream；腳本把 src/lib/speed/__fixtures__/window-1364.png
 // 畫進 canvas、captureStream 塞進去，不用真的開遊戲、也不會跳出選視窗的對話框。
 // 輸出：speed.png（整頁，1440 寬）、speed-id.png（按分享時問角色 ID）、speed-choices.png（認不出地圖、列出候選的時候）、
-//       speed-share.png（按「產生分享圖」跳出的對話框，v1.20）、speed-share-dark.png（深色主題下產的分享圖本身，要是白天紙張）、
+//       speed-share.png（按「產生分享圖」跳出的對話框，v1.22）、speed-share-dark.png（深色主題下產的分享圖本身，要是白天紙張）、
 //       speed-left-light.png／speed-left-dark.png（分享中的左欄，白天／深色主題）、speed-coupon.png（存好一段後問加倍券）、results.json（每一項檢查的結果＋量到的字）
 // 量不到的（靠 tracker.test.ts 跟真人玩）：經驗會不會跟著動、自動停——假畫面是靜止的。
 // 存一段＋補填加倍券（v1.10）：頁面在非正式機有 window.__speedTestSave，腳本直接丟一段 12 分鐘的進去存；
@@ -397,7 +397,7 @@ try {
   await fullShot("speed.png");
   results.screenshot = path.join(OUT, "speed.png");
 
-  // 7b. v1.20 新卡片：楓幣收益、跟我之前比、低血開關、快捷鍵、分享圖
+  // 7b. v1.22 新卡片：楓幣收益、跟我之前比、低血開關、快捷鍵、分享圖
   const finalBody = await bodyText();
   const mesoCard = await evaluate(`(() => { const h = [...document.querySelectorAll("h2")].find(h => h.textContent.trim() === "楓幣收益"); return h ? h.parentElement.innerText : null; })()`);
   record("左欄有「楓幣收益」卡（撿到、藥水、淨賺三格＋開始時楓幣、現在楓幣兩個欄位）", mesoCard !== null && /撿到/.test(mesoCard) && /藥水/.test(mesoCard) && /淨賺/.test(mesoCard) && /開始時楓幣/.test(finalBody) && /現在楓幣/.test(finalBody), mesoCard?.replace(/\n+/g, " / ").slice(0, 160));

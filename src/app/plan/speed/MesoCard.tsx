@@ -11,7 +11,7 @@ const FIELD =
   "mt-1 block w-full rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 py-1.5 text-base font-normal tabular-nums outline-none focus:border-[color:var(--maple)]";
 
 /**
- * 楓幣收益卡（v1.20 版面 C）：撿到／藥水／淨賺（都是每 10 分鐘）、玩家自己填的「開始時楓幣」「現在楓幣」、
+ * 楓幣收益卡（v1.22 版面 C）：撿到／藥水／淨賺（都是每 10 分鐘）、玩家自己填的「開始時楓幣」「現在楓幣」、
  * 每種藥水一行，下面最多一行說明藥水錢為什麼算不出來（note），最後是讀不到快捷鍵、補過藥的提醒。
  * slotsRead：驗收腳本用（正式機傳 null）最近一次讀快捷鍵有讀到數字的格數，掛在 data-slots-read。
  */

@@ -9,7 +9,7 @@ import { readFrameWithBar, type ReaderInit } from "./read-frame";
  * 背景執行緒：主執行緒把分享畫面的 ReadableStream<VideoFrame> 交過來，這裡一秒處理一張（其他張直接關掉），
  * 畫到 OffscreenCanvas、讀完把結果傳回去。遊戲蓋住瀏覽器時主執行緒的計時器會被放慢，這裡是有畫面進來就跑。
  * 每一張 VideoFrame 都一定 close()（包含被丟掉的、畫失敗的），不然佔著的顯示記憶體會一路長上去。
- * v1.20：每張另外讀 HP、每 3 秒讀快捷鍵（readExtras）；認藥水的參考圖在開始後才在這裡載（potionIds）。
+ * v1.22：每張另外讀 HP、每 3 秒讀快捷鍵（readExtras）；認藥水的參考圖在開始後才在這裡載（potionIds）。
  */
 type Start = { type: "start"; readable: ReadableStream<VideoFrame>; toNext: number[]; names: RawSpeedNames; potionIds: number[] };
 type Hints = { type: "hints"; hints: number[] };

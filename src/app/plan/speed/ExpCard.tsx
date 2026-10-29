@@ -5,7 +5,7 @@ import type { Bar } from "@/lib/speed/curve";
 import { BigNumber, Card } from "./parts";
 
 /**
- * 經驗卡（v1.20 版面 C）：10 分鐘經驗、升級還要，下面每分鐘經驗長條（掉很多的那幾根金色＋一行說明），
+ * 經驗卡（v1.22 版面 C）：10 分鐘經驗、升級還要，下面每分鐘經驗長條（掉很多的那幾根金色＋一行說明），
  * 再下面一行小字「這段練了／拿到」，跟原本的組隊回推、等級經驗、上一段。
  */
 export function ExpCard({

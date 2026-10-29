@@ -497,13 +497,13 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
   只重產數字樣板：`npx vitest run -c vitest.gen.config.ts -t "產 glyphs.json"`（不用字型）。v1.05 以前數字樣板是微軟正黑體，1、3、5 會認錯，經驗幾乎都讀不出來。
   `public/data/maps.json` 多了新地圖名，要在 Windows 上重跑 `npm run speed:glyphs`（職業要微軟正黑體 `C:/Windows/Fonts/msjh.ttc`、地圖名要微軟正黑體粗體 `msjhbd.ttc`；CI 不跑產樣板），
   沒重跑的話 `read-map.test.ts`「maps.json 每張有中文名的圖，地圖名跟街道名都有樣板」會紅（10/15 新地圖就是這樣漏掉 21 張練功圖，v1.10 補）；資料自動更新時跳過這一項（`data-refresh.yml` 設 `SPEED_NAMES_MAY_LAG`，Linux 產不了樣板，不能卡住道具、怪物的更新），下一個進 dev 的 PR 會紅、提醒去重產。
-- **快捷鍵數量**（v1.20）：右下角快捷鍵 8 格（`src/lib/speed/quickslot.ts`）。找法是在狀態列上方、畫面右邊 35% 找那圈白框（146×75×縮放、欄縫列縫是暗的），
+- **快捷鍵數量**（v1.22）：右下角快捷鍵 8 格（`src/lib/speed/quickslot.ts`）。找法是在狀態列上方、畫面右邊 35% 找那圈白框（146×75×縮放、欄縫列縫是暗的），
   格子位置照白框推。數字用**客戶端的道具數量字**（`src/lib/speed/quickslot-font.ts`，客戶端 `UI/Basic/ItemNo` 的 0～9，跟狀態列是不同套），
   用「應該多亮」跟實際亮度的相關係數比，整個字跟四個半邊都要像；讀不準（像字又不夠像、只有半個字）整格回 null，不回少幾位的數。
   最右欄的第 5 位會壓在白框上：第 5 位置整個字像、或左半邊像，就整格回 null（不再回前 4 位）。
   重抽字形：`python -E -P scripts/client/quickslot-font.py > src/lib/speed/quickslot-font.ts`（要 `pip install --user UnityPy`）。
   基準截圖只有 0、1、2、4、7、9，3、5、6、8 用 `paintSlotCount`（`__tests__/fixture.ts`）畫進格子驗，1～2 倍縮放都測。
-- **練功測速補齊**（v1.20，spec：`docs/superpowers/specs/2026-10-29-speed-live-extras-design.md`，左欄版面 C：組隊 → 控制 → 經驗 → 楓幣收益 → 跟我之前比）：
+- **練功測速補齊**（v1.22，spec：`docs/superpowers/specs/2026-10-29-speed-live-extras-design.md`，左欄版面 C：組隊 → 控制 → 經驗 → 楓幣收益 → 跟我之前比）：
   - **經驗曲線**（`src/lib/speed/curve.ts`、`ExpCard.tsx`）：每分鐘一根長條，左邊寫已經過完的分鐘數；正在進行的那一分鐘畫淡一點、**不拿來判斷「掉很多」**；某一分鐘比平常少很多會標「可能死了或在補藥」。每次按開始分享就重設。
   - **低血提醒**（`src/lib/speed/hp.ts`）：讀狀態列 HP 條**紅色的長度**當比例，低於 30% 響一次，回到 50% 以上才再裝上（`LOW_HP`、`RESET_HP`）；讀不到不變。控制卡上的低血提醒開關（`ms-speed` 的 `lowHp`，預設關）開著才響；
     按「分享遊戲畫面」時順便解鎖聲音（瀏覽器自動播放規則）。

@@ -291,7 +291,7 @@ export function PracticeSpeed() {
     capture.current?.setHints(hints);
   }, []);
 
-  /** HP、快捷鍵（v1.20）：低血響一聲、藥水用量跟著這段算、快捷鍵讀不到多久了 */
+  /** HP、快捷鍵（v1.22）：低血響一聲、藥水用量跟著這段算、快捷鍵讀不到多久了 */
   const onExtras = useCallback((extras: FrameExtras, at: number) => {
     const low = nextLowHp(lowHpRef.current, extras.hp);
     lowHpRef.current = low.s;

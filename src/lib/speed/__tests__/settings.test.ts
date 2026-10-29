@@ -35,7 +35,7 @@ describe("練功測速的本機設定", () => {
     });
   });
 
-  it("低血提醒只收 true，舊版沒有這欄、亂填的都當沒開（v1.20）", () => {
+  it("低血提醒只收 true，舊版沒有這欄、亂填的都當沒開（v1.22）", () => {
     expect(parseSettings(JSON.stringify({ lowHp: true })).lowHp).toBe(true);
     for (const bad of [undefined, "true", 1, null, false]) {
       expect(parseSettings(JSON.stringify({ lowHp: bad })).lowHp).toBe(false);

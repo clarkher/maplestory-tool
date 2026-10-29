@@ -1,5 +1,5 @@
 // src/lib/speed/live-view.ts
-/** 練功測速 v1.20 左欄（經驗、楓幣收益、跟我之前比）要顯示的字：純函式，可測 */
+/** 練功測速 v1.22 左欄（經驗、楓幣收益、跟我之前比）要顯示的字：純函式，可測 */
 import { formatNumber } from "@/lib/format";
 
 /**
