@@ -382,7 +382,7 @@ function readCount(lum: Lum, slot: Rect, s: number, right: number): number | nul
 }
 
 /** 格子縮成 16×16 RGBA（每一小塊取平均），給之後比對道具圖示用 */
-function iconOf(frame: Frame, rect: Rect): Uint8ClampedArray | null {
+export function iconOf(frame: Frame, rect: Rect): Uint8ClampedArray | null {
   if (rect.x < 0 || rect.y < 0 || rect.x + rect.w > frame.width || rect.y + rect.h > frame.height || rect.w < 16 || rect.h < 16) return null;
   const out = new Uint8ClampedArray(16 * 16 * 4);
   for (let by = 0; by < 16; by++) {
