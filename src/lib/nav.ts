@@ -5,11 +5,12 @@
  * v0.98：楓幣匯率（/price/fx）從查資料的「行情」區進去。v1.03 起電腦版導覽列多一顆「楓幣匯率」，/price 開頭亮它；
  * 手機沒有這顆（同練功測速），在 /price 時導覽列不亮任何一顆。
  * v1.18：多一顆「野王計時」（/plan/boss，所有寬度都有），排在「帶我去」前面。
+ * v1.18：手機導覽列放不下，使用者選 A：算傷害只在電腦版，手機從查資料進去（手機剩 我的路線、野王計時、帶我去、查資料）。
  */
 export const NAV: Array<{ href: string; label: string; match: string[]; desktopOnly?: true }> = [
   { href: "/", label: "我的路線", match: ["/guide"] },
-  // 排在查資料前面：/plan/damage 先亮這顆，其他 /plan 照舊亮查資料
-  { href: "/plan/damage", label: "算傷害", match: ["/plan/damage"] },
+  // 排在查資料前面：/plan/damage 先亮這顆，其他 /plan 照舊亮查資料；v1.18 起只在電腦版（手機從查資料進去）
+  { href: "/plan/damage", label: "算傷害", match: ["/plan/damage"], desktopOnly: true },
   // v0.95：要分享遊戲畫面，手機用不了，只在電腦寬度出現（SiteHeader 用 desktopOnly 藏）；同樣要排在查資料前面
   { href: "/plan/speed", label: "練功測速", match: ["/plan/speed"], desktopOnly: true },
   // v1.03：楓幣匯率拉出來（使用者選 A：只在電腦版，手機導覽列放不下，照舊從查資料的「行情」區進去）

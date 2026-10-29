@@ -11,6 +11,8 @@ export const ROOM_TTL_MS = 24 * 3600_000;
 export const ONLINE_MS = 120_000;
 /** 回收間隔至少要有幾筆才採用 */
 export const MIN_REPORT_SAMPLES = 20;
+/** 同一個位址 10 分鐘內最多開幾間房間 */
+export const ROOM_CREATES_PER_10MIN = 5;
 
 const FUTURE_SLACK_MS = 5 * 60_000;
 const ID_RE = /^[A-Za-z0-9-]{1,40}$/;

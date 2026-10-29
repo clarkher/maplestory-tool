@@ -5,6 +5,7 @@ import { BOSSES, SERVERS, type BossEvent, type ServerKey } from "./types";
 
 const EVENTS_KEY = "ms-boss:events";
 const PREFS_KEY = "ms-boss:prefs";
+const FIRED_KEY = "ms-boss:fired";
 
 export type BossPrefs = {
   server: ServerKey;
@@ -75,5 +76,31 @@ export function savePrefs(storage: Storage, prefs: BossPrefs): void {
     storage.setItem(PREFS_KEY, JSON.stringify(prefs));
   } catch {
     // 同上
+  }
+}
+
+/**
+ * 已經響過的提醒（放 kill 紀錄的 id）：重新整理後不再響一次。
+ * 只留還在紀錄裡（紀錄本身 12 小時就丟）的 id，清單不會一直長。
+ */
+export function loadFired(storage: Storage, events: BossEvent[]): Set<string> {
+  try {
+    const raw = storage.getItem(FIRED_KEY);
+    if (!raw) return new Set();
+    const arr: unknown = JSON.parse(raw);
+    if (!Array.isArray(arr)) return new Set();
+    const alive = new Set(events.map((e) => e.id));
+    return new Set(arr.filter((x): x is string => typeof x === "string" && alive.has(x)));
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveFired(storage: Storage, fired: Set<string>, events: BossEvent[]): void {
+  try {
+    const alive = new Set(events.map((e) => e.id));
+    storage.setItem(FIRED_KEY, JSON.stringify([...fired].filter((id) => alive.has(id))));
+  } catch {
+    // 存不了就只記在這一次開著的頁面
   }
 }

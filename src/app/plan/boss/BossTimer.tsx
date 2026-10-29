@@ -8,7 +8,7 @@ import { dueReminders } from "@/lib/boss/remind";
 import { normalizeRoomCode } from "@/lib/boss/room-code";
 import { playBeep, unlockAudio } from "@/lib/boss/sound";
 import { EXPIRE_MS, channelState, latestByChannel, rankNext } from "@/lib/boss/state";
-import { loadEvents, loadPrefs, saveEvents, savePrefs, type BossPrefs } from "@/lib/boss/store";
+import { loadEvents, loadFired, loadPrefs, saveEvents, saveFired, savePrefs, type BossPrefs } from "@/lib/boss/store";
 import { BOSSES, SERVERS, type BossEvent, type ChannelState, type ServerKey } from "@/lib/boss/types";
 import { ActionButton, BossChip, BossInfo, CARD, ChannelGrid, ChannelRow, NextCard } from "./parts";
 
@@ -256,6 +256,7 @@ export function BossTimer() {
     setPrefsState(prefsRef.current);
     eventsRef.current = loadEvents(localStorage, t);
     setEvents(eventsRef.current);
+    firedRef.current = loadFired(localStorage, eventsRef.current); // 重新整理前響過的不再響
     unsentRef.current = loadUnsent();
     setNow(t);
     setReady(true);
@@ -326,6 +327,7 @@ export function BossTimer() {
       const due = dueReminders(eventsRef.current, p.server, t, firedRef.current);
       if (due.length === 0) return;
       for (const d of due) firedRef.current.add(d.eventId);
+      saveFired(localStorage, firedRef.current, eventsRef.current);
       playBeep();
       if ("Notification" in window && Notification.permission === "granted") {
         for (const d of due) {

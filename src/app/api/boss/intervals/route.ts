@@ -56,7 +56,8 @@ export async function GET(): Promise<Response> {
       HAVING count(*) >= ${MIN_REPORT_SAMPLES}::integer`) as { boss: number; n: number; med: number | string }[];
     const stats: Record<string, { n: number; median: number }> = {};
     for (const r of rows) stats[String(r.boss)] = { n: r.n, median: Math.round(Number(r.med) / 60) };
-    return Response.json({ ok: true, stats });
+    // 統計變得很慢（要 20 筆才採用），CDN 快取 10 分鐘、過期後一小時內先給舊的再背景更新；出錯的回應不快取
+    return Response.json({ ok: true, stats }, { headers: { "Cache-Control": "public, s-maxage=600, stale-while-revalidate=3600" } });
   } catch (error) {
     console.error("boss/intervals GET", error);
     return Response.json(DB_ERR, { status: 500 });

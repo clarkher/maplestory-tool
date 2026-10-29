@@ -379,13 +379,17 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
 
 ## 野王計時
 
-`/plan/boss`（導覽列「野王計時」）：打死野王就按一下，算每個頻道下一次大概什麼時候出，快出了排前面；可以開房間跟隊友同步。設計：`docs/superpowers/specs/2026-10-29-boss-timer-design.md`。
+`/plan/boss`（導覽列「野王計時」）：打死野王就按一下，算每個頻道下一次大概什麼時候出，快出了排前面；可以開房間跟隊友一起記。設計：`docs/superpowers/specs/2026-10-29-boss-timer-design.md`。
 
 - **重生時間的來源**：台服玩家實測（波波攻略島統計等），整理在 `docs/research/2026-10-29-boss-timer.md`。
   **不用客戶端的 mobTime**：客戶端蘑菇王寫 1800 秒，玩家實測是 45～60 分，照客戶端算會差很多。
 - **隊友房間**：6 碼房號、24 小時有效；存在 Neon 的 `boss_rooms`、`boss_events`、`boss_presence`、`boss_intervals` 四張表。
   沒設 `DATABASE_URL`（本機、預覽）時房間功能不出現，個人模式（記在自己瀏覽器）照用。
+  同一個位址 10 分鐘最多開 5 間房間（`ROOM_CREATES_PER_10MIN`，`boss_rooms.ip_hash`），超過回 429；記事件跟回報間隔合計一分鐘 30 次。
+- **提醒**：最短重生前 3 分鐘響一次；響過的記在 `localStorage` 的 `ms-boss:fired`（只留紀錄還在的），重新整理不會再響。
+- **導覽列**：手機只放 我的路線、野王計時、帶我去、查資料；「算傷害」v1.18 起跟練功測速、楓幣匯率一樣只在電腦版，手機從查資料進去。
 - **回收間隔**：把大家回報的「打死到下次出現」間隔收回來修正預估，只收 10 分～6 小時的值，同一隻王 20 筆以上才顯示，兩台伺服器合算。
+  `GET /api/boss/intervals` 回 `Cache-Control: public, s-maxage=600, stale-while-revalidate=3600`（出錯不快取）。
 
 ## 技術
 

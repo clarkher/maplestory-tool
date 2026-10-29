@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadEvents, loadPrefs, saveEvents, savePrefs } from "@/lib/boss/store";
+import { loadEvents, loadFired, loadPrefs, saveEvents, saveFired, savePrefs } from "@/lib/boss/store";
 import { EXPIRE_MS } from "@/lib/boss/state";
 import { BOSSES, type BossEvent } from "@/lib/boss/types";
 
@@ -72,5 +72,24 @@ describe("loadPrefs / savePrefs", () => {
     expect(loadPrefs(mem({ "ms-boss:prefs": "{" })).server).toBe("xuejila");
     expect(loadPrefs(broken).server).toBe("xuejila");
     expect(() => savePrefs(broken, loadPrefs(broken))).not.toThrow();
+  });
+});
+
+describe("loadFired / saveFired（響過的提醒，重新整理後不再響）", () => {
+  it("存讀一致，只留還在紀錄裡的 id", () => {
+    const s = mem();
+    const events = [ev("a", NOW - 1000), ev("b", NOW - 2000)];
+    saveFired(s, new Set(["a", "b", "gone"]), events);
+    expect(JSON.parse(s.getItem("ms-boss:fired")!)).toEqual(["a", "b"]);
+    expect([...loadFired(s, [events[0]])]).toEqual(["a"]);
+  });
+  it("壞 JSON、不是陣列、非字串元素都不崩", () => {
+    expect(loadFired(mem({ "ms-boss:fired": "{oops" }), [ev("a", NOW)]).size).toBe(0);
+    expect(loadFired(mem({ "ms-boss:fired": "{}" }), [ev("a", NOW)]).size).toBe(0);
+    expect([...loadFired(mem({ "ms-boss:fired": '["a",3,null]' }), [ev("a", NOW)])]).toEqual(["a"]);
+  });
+  it("localStorage 丟例外不崩", () => {
+    expect(loadFired(broken, []).size).toBe(0);
+    expect(() => saveFired(broken, new Set(["a"]), [ev("a", NOW)])).not.toThrow();
   });
 });

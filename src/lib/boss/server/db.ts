@@ -20,7 +20,7 @@ let ready: Promise<void> | null = null;
 export function ensureBossSchema(sql: NeonQueryFunction<false, false>): Promise<void> {
   if (!ready) {
     ready = (async () => {
-      // 四張表加索引放進同一個 transaction：要嘛全成要嘛全不成
+      // 四張表加索引（含後來補的欄位）放進同一個 transaction：要嘛全成要嘛全不成
       await sql.transaction([
         sql`CREATE TABLE IF NOT EXISTS boss_rooms (
             code text PRIMARY KEY,
@@ -62,6 +62,9 @@ export function ensureBossSchema(sql: NeonQueryFunction<false, false>): Promise<
         sql`CREATE UNIQUE INDEX IF NOT EXISTS boss_events_room_eid ON boss_events (room, eid)`,
         sql`CREATE INDEX IF NOT EXISTS boss_intervals_ip ON boss_intervals (ip_hash, created_at)`,
         sql`CREATE INDEX IF NOT EXISTS boss_intervals_env_boss ON boss_intervals (env, boss)`,
+        // v1.18 收尾：開房間限流要記位址雜湊（舊的房間這欄是空的，不影響）
+        sql`ALTER TABLE boss_rooms ADD COLUMN IF NOT EXISTS ip_hash text`,
+        sql`CREATE INDEX IF NOT EXISTS boss_rooms_ip ON boss_rooms (ip_hash, created_at)`,
       ]);
     })();
     ready.catch(() => {
