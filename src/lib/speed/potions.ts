@@ -101,22 +101,28 @@ export function refDistance(icon: Uint8ClampedArray, ref: PotionRef, count: numb
   return best;
 }
 
-/** 格子圖示是哪一種藥水（count＝這格讀到的數量，數字蓋住的地方不比）：最像、而且差不超過門檻的才回編號；其他回 null。一樣像取先列的 */
-export function matchPotion(icon: Uint8ClampedArray, refs: PotionRef[], count: number | null = null): number | null {
-  let best: number | null = null;
-  let bestDistance = POTION_MAX_DISTANCE;
-  for (const ref of refs) {
-    const d = refDistance(icon, ref, count);
-    if (d < bestDistance || (best === null && d <= bestDistance)) {
-      best = ref.id;
-      bestDistance = d;
-    }
-  }
-  return best;
+/** 差距在這個範圍內算一樣像（圖示長得一樣的幾個道具，距離會一模一樣） */
+const TIE_EPSILON = 0.05;
+
+/**
+ * 格子圖示是哪一種藥水（count＝這格讀到的數量，數字蓋住的地方不比）：差不超過門檻、而且最像的才算；其他回 null。
+ * 站上有些道具圖示長得一樣（藍色藥水＝藍色濃縮藥水、三種香水…），最像的並列時全部回傳（ids 由小到大），不硬猜是哪一個。
+ */
+export function matchPotion(icon: Uint8ClampedArray, refs: PotionRef[], count: number | null = null): { ids: number[] } | null {
+  const scored = refs.map(ref => ({ id: ref.id, d: refDistance(icon, ref, count) }));
+  const best = Math.min(POTION_MAX_DISTANCE, ...scored.map(x => x.d));
+  if (!scored.some(x => x.d <= POTION_MAX_DISTANCE)) return null;
+  const ids = scored.filter(x => x.d <= best + TIE_EPSILON).map(x => x.id).sort((a, b) => a - b);
+  return { ids };
 }
 
+/** 一格的道具鍵：只有一種就是編號，長得一樣的好幾種就是由小到大的編號用逗號接起來（同一格同一組才算同一種） */
+export type PotionKey = number | string;
+export const potionKey = (ids: number[]): PotionKey => (ids.length === 1 ? ids[0] : [...ids].sort((a, b) => a - b).join(","));
+export const keyIds = (key: PotionKey): number[] => (typeof key === "number" ? [key] : key.split(",").map(Number));
+
 export type PotionSlot = {
-  itemId: number;
+  itemId: PotionKey;
   startCount: number;
   lastCount: number;
   used: number;
@@ -127,7 +133,7 @@ export type PotionSlot = {
   skipped?: boolean;
 };
 /** pending＝這格新讀到、還沒連續讀到兩次的數量（讀錯一次不算） */
-export type PotionTrack = { slots: Record<number, PotionSlot>; pending?: Record<number, { itemId: number; count: number }> };
+export type PotionTrack = { slots: Record<number, PotionSlot>; pending?: Record<number, { itemId: PotionKey; count: number }> };
 
 /** 一次減這麼多以上當讀錯（例 702 被讀成 70），不算用量 */
 export const MAX_DROP = 50;
@@ -144,7 +150,7 @@ export const DROP_REBASE = 4;
  */
 export function nextPotions(
   t: PotionTrack,
-  reads: { index: number; itemId: number | null; count: number | null }[],
+  reads: { index: number; itemId: PotionKey | null; count: number | null }[],
 ): PotionTrack {
   const slots = { ...t.slots };
   const pending = { ...(t.pending ?? {}) };
@@ -190,7 +196,8 @@ export function nextPotions(
   return { slots, pending };
 }
 
-export type PotionUse = { itemId: number; per10: number; meso10: number | null };
+/** itemId＝道具鍵（見 potionKey）、ids＝可能是哪些道具（長得一樣的好幾種時不只一個）；每個編號的單價不同就 meso10 是 null */
+export type PotionUse = { itemId: PotionKey; ids: number[]; per10: number; meso10: number | null };
 
 /** 同種藥水多格合併；每 10 分鐘用量＝used ÷ 分鐘 × 10，用量 0 的不列；minutes ≤ 0 回空 */
 export function potionSummary(
@@ -201,12 +208,14 @@ export function potionSummary(
   const restocked = Object.values(t.slots).some(s => s.restocked);
   const uncounted = Object.values(t.slots).some(s => s.skipped);
   if (!(minutes > 0)) return { uses: [], restocked, uncounted };
-  const used = new Map<number, number>();
+  const used = new Map<PotionKey, number>();
   for (const s of Object.values(t.slots)) if (s.used > 0) used.set(s.itemId, (used.get(s.itemId) ?? 0) + s.used);
   const uses = [...used].map(([itemId, n]) => {
     const per10 = (n / minutes) * 10;
-    const p = price(itemId);
-    return { itemId, per10, meso10: p === null ? null : per10 * p };
+    const ids = keyIds(itemId);
+    const prices = ids.map(price);
+    const p = prices[0] !== null && prices.every(x => x === prices[0]) ? prices[0] : null;
+    return { itemId, ids, per10, meso10: p === null ? null : per10 * p };
   });
   return { uses, restocked, uncounted };
 }

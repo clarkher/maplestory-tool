@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
-import { iconDistance, matchPotion, nextPotions, POTION_MAX_DISTANCE, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
+import { iconDistance, matchPotion, nextPotions, POTION_MAX_DISTANCE, potionKey, potionPriceFn, potionRefOf, potionSummary, refDistance, type PotionRef, type PotionTrack } from "../potions";
 import { iconOf, readQuickslot } from "../quickslot";
 import { findStatusBar } from "../status-bar";
 import { loadFixture, loadItemIcon, paintSlotCount, pasteIcon } from "./fixture";
@@ -35,7 +35,7 @@ describe("matchPotion（合成畫面）", () => {
       for (const id of IDS) {
         for (const count of [null, 702]) {
           const icon = await slotIcon(id, bg, count);
-          expect(matchPotion(icon, refs, count)).toBe(id);
+          expect(matchPotion(icon, refs, count)).toEqual({ ids: [id] });
           for (const ref of refs) {
             const d = refDistance(icon, ref, count);
             if (ref.id === id) worstSelf = Math.max(worstSelf, d);
@@ -66,9 +66,9 @@ describe("matchPotion（合成畫面）", () => {
 
 describe("matchPotion（真截圖 window-1364.png）", () => {
   // 左上到右下 8 格：技能、白色藥水(702)、技能、藍色藥水(279)、礦泉水(141)、活力藥水(0)、技能、一種食物(2)
-  // 站上同一張圖有好幾個編號的（藍色藥水 2000003＝藍色濃縮藥水 2000017、活力藥水 2000006＝2000018、三種香水）取編號最小的，所以參考要照編號排
+  // 站上同一張圖有好幾個編號的（藍色藥水 2000003＝藍色濃縮藥水 2000017、活力藥水 2000006＝2000018、三種香水）不硬猜，全部列出來
   const POOL = ["藥水", "食物", "狀態消耗", "特殊消耗"];
-  const WANT: Array<number | null> = [null, 2000002, null, 2000003, 2022000, 2000006, null, 2022060];
+  const WANT: Array<number[] | null> = [null, [2000002], null, [2000003, 2000017], [2022000], [2000006, 2000018], null, [2022060, 2022061, 2022062]];
 
   it("每格認成真的那一種、技能格是 null，而且差距拉得夠開", async () => {
     const items = (JSON.parse(fs.readFileSync(path.resolve(process.cwd(), "public/data/items.json"), "utf8")) as Item[])
@@ -91,8 +91,8 @@ describe("matchPotion（真截圖 window-1364.png）", () => {
       const ds = refs.map(ref => ({ id: ref.id, d: refDistance(slot.icon!, ref, slot.count) })).sort((a, b) => a.d - b.d);
       lines.push(`${i}:${slot.count}→${ds[0].id} ${ds[0].d.toFixed(1)}（第二 ${ds[1].id} ${ds[1].d.toFixed(1)}）`);
       if (WANT[i] === null) bestSkill = Math.min(bestSkill, ds[0].d);
-      else worstRight = Math.max(worstRight, ds.find(x => x.id === WANT[i])!.d);
-      expect(matchPotion(slot.icon!, refs, slot.count), `第 ${i} 格`).toBe(WANT[i]);
+      else worstRight = Math.max(worstRight, ds.find(x => x.id === WANT[i]![0])!.d);
+      expect(matchPotion(slot.icon!, refs, slot.count)?.ids ?? null, `第 ${i} 格`).toEqual(WANT[i]);
     });
     console.log(`真截圖：${lines.join("；")}；認對最大 ${worstRight.toFixed(1)}、技能格最小 ${bestSkill.toFixed(1)}、門檻 ${POTION_MAX_DISTANCE}`);
     expect(worstRight).toBeLessThan(POTION_MAX_DISTANCE);
@@ -161,6 +161,20 @@ describe("nextPotions", () => {
     expect(potionSummary(t, 10, () => 1).uncounted).toBe(false);
   });
 
+  it("長得一樣的一組道具當一個鍵；價格不同就沒有楓幣", () => {
+    const key = potionKey([2022061, 2022060, 2022062]);
+    expect(key).toBe("2022060,2022061,2022062");
+    expect(potionKey([2000003])).toBe(2000003);
+    let t = start;
+    for (const count of [100, 100, 90, 90]) t = nextPotions(t, [{ index: 7, itemId: key, count }]);
+    expect(t.slots[7]).toMatchObject({ itemId: key, used: 10 });
+    const same = potionSummary(t, 10, () => 5).uses[0];
+    expect(same).toMatchObject({ ids: [2022060, 2022061, 2022062], per10: 10, meso10: 50 });
+    const diff = potionSummary(t, 10, id => (id === 2022062 ? 6 : 5)).uses[0];
+    expect(diff.meso10).toBeNull();
+    expect(potionSummary(t, 10, id => (id === 2022062 ? null : 5)).uses[0].meso10).toBeNull();
+  });
+
   it("slot item change resets", () => {
     let t = feed(start, 100, 100, 90, 90);
     t = nextPotions(t, [{ index: 0, itemId: 2000003, count: 50 }]);
@@ -187,7 +201,7 @@ describe("potionSummary", () => {
     }
     const { uses, restocked } = potionSummary(t, 20, id => (id === 2000003 ? 192 : null));
     expect(restocked).toBe(false);
-    expect(uses).toEqual([{ itemId: 2000003, per10: 10, meso10: 1920 }]);
+    expect(uses).toEqual([{ itemId: 2000003, ids: [2000003], per10: 10, meso10: 1920 }]);
     expect(potionSummary(t, 20, () => null).uses[0].meso10).toBeNull();
     expect(potionSummary(t, 0, () => 1).uses).toEqual([]);
   });
