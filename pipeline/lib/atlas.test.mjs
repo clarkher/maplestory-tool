@@ -91,6 +91,22 @@ test("沒開放的圖不收：日本、regionName 空白又沒中文名", () => 
   assert.ok(!atlas.index.maps.includes(993073000));
 });
 
+test("多收的圖：街名是隱藏地圖的不收，就算門對得到也一樣", () => {
+  assert.ok(!atlas.index.maps.includes(910320000));
+  const withDoor = run({ mapRecords: { ...fixture.mapRecords, 910320010: { zh: "測試目的地" } } });
+  assert.ok(!withDoor.index.maps.includes(910320000));
+  const hidden = { ...fixture.maps[100000101], street: "航海中" };
+  const sailing = run({ upstreamMaps: { ...fixture.maps, 100000101: hidden } });
+  assert.ok(!sailing.index.maps.includes(100000101));
+});
+
+test("多收的圖：沒有門的房間不收（只靠 NPC、任務進去的考驗場）", () => {
+  assert.ok(!atlas.index.maps.includes(108000100));
+  // maps.json 有 zh 的圖不受影響：同一張考驗場給了 zh 就收（它有 NPC）
+  const named = run({ mapRecords: { ...fixture.mapRecords, 108000100: { zh: "弓箭手2轉考驗場" } } });
+  assert.ok(named.index.maps.includes(108000100));
+});
+
 test("擋住的圖不收", () => {
   const held = run({ heldBackMaps: new Map([[100000101, "測試"]]) });
   assert.ok(!held.index.maps.includes(100000101));

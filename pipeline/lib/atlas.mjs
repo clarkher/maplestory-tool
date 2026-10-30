@@ -14,6 +14,7 @@
  * 第 2 條是為了把各村的店面、室內收進來（弓箭手村武器店 100000101），只用在 atlas，
  * 不准回寫 maps.json 的 zh——zh 會影響帶我去、主推卡、出沒地圖。
  *
+ *  第 2 條多收的圖另外排除：街名是「隱藏地圖」「航海中」的、算完門之後一個門都沒有的（只靠 NPC、任務進去的房間）。
  * 一張圖收進來了，但怪、NPC、門都沒有，就不收（頁面上沒東西可看）。
  */
 
@@ -23,6 +24,8 @@ const UNNAMED_NPC = /^NPC \d+$/;
 const NPC_WARP = "npc:";
 /** 上游 portals 的 pt：1、2 是玩家走得進去的門，其他（0 出生點、9 提示點……）不是 */
 const DOOR_TYPES = new Set([1, 2]);
+/** 多收的圖（maps.json 沒 zh）遇到這些街名不收：隱藏地圖是任務、活動送進去的，航海中是坐船時的船艙 */
+const EXTRA_SKIP_STREETS = new Set(["隱藏地圖", "航海中"]);
 
 /**
  * @param {{
@@ -55,7 +58,7 @@ export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, items, quests
   for (;;) {
     maps = [...kept.keys()].sort((a, b) => a - b)
       .map(id => buildMap(id, upstream.get(id), kept, { mapRecords, graphEdges, monsterIds }));
-    const next = new Map(maps.filter(map => map.mobs.length || map.npcs.length || map.doors.length).map(map => [map.id, kept.get(map.id)]));
+    const next = new Map(maps.filter(map => keepMap(map, mapRecords)).map(map => [map.id, kept.get(map.id)]));
     if (next.size === kept.size) break;
     kept = next;
   }
@@ -68,10 +71,20 @@ export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, items, quests
   };
 }
 
+/**
+ * 收進來的圖算完門之後還留不留：怪、NPC、門都沒有的不留。
+ * 多收的圖（maps.json 沒 zh）另外要有門：沒有門的是只靠 NPC、任務送進去的房間（2 轉考驗場這種）。
+ */
+function keepMap(map, mapRecords) {
+  if (mapRecords[String(map.id)]?.zh) return Boolean(map.mobs.length || map.npcs.length || map.doors.length);
+  return map.doors.length > 0;
+}
+
 function isOpen(id, raw, mapRecords, openRegions, heldBackMaps) {
   if (mapRecords[String(id)]?.zh) return true;
   if (!raw.name || raw.unnamed) return false;
   if (heldBackMaps?.has(id)) return false;
+  if (EXTRA_SKIP_STREETS.has(raw.street)) return false;
   return Boolean(raw.regionName) && openRegions.includes(raw.regionName);
 }
 
