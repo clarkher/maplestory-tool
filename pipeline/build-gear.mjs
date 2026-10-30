@@ -12,6 +12,7 @@
  *                          rules 的 tab（切換標籤字）照研究檔帶；kit（要湊的裝備）由 buildKit 從遊戲資料換算
  *                          armor（法師防具）：職業限制含法師、現在拿得到的帽子／套服／上衣／褲裙／鞋子／手套／盾牌，
  *                          給法師「裝備法」列每個部位穿得上的防具；排序見 lib/gear.mjs 的 sortArmor（前端同等級取第一件）
+ *  public/data/scroll-sim.json  衝卷模擬（/plan/scroll）用：卷軸（含詛咒卷、爆裝率）、白衣卷軸、可衝的裝備；解析見 lib/scroll-sim.mjs
  *                          ammo（彈藥）：飛鏢、箭矢、弩箭、子彈的攻擊力（道具說明抽）、等級限制、拿法，傷害計算機算總攻擊用
  *
  * 研究檔是另一個 Task 平行在做的，這支腳本不能假設它存在：缺檔或缺欄位時 rules／notes 給空陣列、
@@ -42,6 +43,7 @@ import {
   openMapFrom,
   sortArmor,
 } from "./lib/gear.mjs";
+import { buildScrollSim } from "./lib/scroll-sim.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DATA = path.join(ROOT, "public", "data");
@@ -49,6 +51,7 @@ const RESEARCH_FILE = path.join(ROOT, "data", "guides", "gear.json");
 /** 上游原始資料（每日更新流程會先抓下來；本機沒有就不收合成來源，不能失敗） */
 const RAW_FILE = path.join(ROOT, "data", "raw", "artale.json");
 const OUT_FILE = path.join(DATA, "gear.json");
+const SIM_FILE = path.join(DATA, "scroll-sim.json");
 
 function main() {
   const items = readJson(path.join(DATA, "items.json"));
@@ -149,6 +152,18 @@ function main() {
   console.log(`[gear] 法師防具 ${armor.length} 件：${ARMOR_SLOTS.map(slot => `${slot} ${bySlot.get(slot) ?? 0}`).join("、")}`);
   console.log(`[gear] 彈藥 ${ammo.length} 種：${["飛鏢", "箭矢", "弩箭", "子彈"].map(kind => `${kind} ${ammo.filter(entry => entry.kind === kind).length}`).join("、")}`);
   console.log(`[gear] 卷軸 ${scrolls.length} 種、能力值規則 ${rules.length} 條、攻略筆記 ${notes.length} 條${before ? "、有轉職前配點說明" : ""}`);
+  // 衝卷模擬：另寫一個小檔，不動 gear.json
+  const sim = buildScrollSim(items, ctx);
+  const simSize = writeJson(SIM_FILE, sim);
+  console.log(`[gear] scroll-sim.json ${humanBytes(simSize)}：卷軸 ${sim.scrolls.length} 種、白衣 ${sim.white.length} 種、裝備 ${sim.equips.length} 件`);
+  const simScrollSlots = new Map();
+  for (const scroll of sim.scrolls) simScrollSlots.set(scroll.slot ?? "（專用）", (simScrollSlots.get(scroll.slot ?? "（專用）") ?? 0) + 1);
+  const simEquipSlots = new Map();
+  for (const equip of sim.equips) simEquipSlots.set(equip.s, (simEquipSlots.get(equip.s) ?? 0) + 1);
+  console.log("[gear] 衝卷模擬 各部位對得到的卷軸數／裝備數：");
+  for (const slot of [...new Set([...simScrollSlots.keys(), ...simEquipSlots.keys()])].sort()) {
+    console.log(`  ${slot.padEnd(6, "　")} 卷 ${simScrollSlots.get(slot) ?? 0}／裝備 ${simEquipSlots.get(slot) ?? 0}`);
+  }
   if (warnings.length) {
     console.log(`[gear] ${warnings.length} 筆警告：`);
     for (const line of warnings) console.log(`  - ${line}`);

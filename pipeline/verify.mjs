@@ -253,6 +253,23 @@ function main() {
   check("每種武器種類至少 1 把", missingWeaponTypes.length === 0, missingWeaponTypes.join("、"));
   check("卷軸數量合理", (gear?.scrolls?.length ?? 0) >= Math.floor(106 * 0.8), `${gear?.scrolls?.length ?? 0} 種`);
 
+  // 衝卷模擬小檔（/plan/scroll）：解析壞了會少卷、少部位，或成功率／爆裝率跑出範圍
+  const sim = readJson(path.join(OUT, "scroll-sim.json"), null);
+  check("衝卷模擬小檔存在", Boolean(sim), sim ? "" : "缺 public/data/scroll-sim.json（npm run data:gear）");
+  check("衝卷模擬卷軸數量合理", (sim?.scrolls?.length ?? 0) >= 300, `${sim?.scrolls?.length ?? 0} 種`);
+  const simBadRate = (sim?.scrolls ?? []).filter(scroll => !Number.isInteger(scroll.rate) || scroll.rate < 1 || scroll.rate > 100);
+  check("衝卷模擬成功率都在 1～100", simBadRate.length === 0, simBadRate.slice(0, 5).map(scroll => scroll.n).join("、"));
+  const simBadBoom = (sim?.scrolls ?? []).filter(scroll => !(scroll.boom >= 0 && scroll.boom <= 1));
+  check("衝卷模擬爆裝率都在 0～1", simBadBoom.length === 0, simBadBoom.slice(0, 5).map(scroll => scroll.n).join("、"));
+  const simRateMismatch = (sim?.scrolls ?? []).filter(scroll => {
+    const named = scroll.n.match(/(d+)s*%s*$/);
+    return named && Number(named[1]) !== scroll.rate;
+  });
+  check("衝卷模擬名字的成功率跟 rate 一致", simRateMismatch.length === 0, simRateMismatch.slice(0, 5).map(scroll => scroll.n).join("、"));
+  check("衝卷模擬帽子對得到卷軸", (sim?.scrolls ?? []).filter(scroll => scroll.slot === "帽子").length > 0, `${(sim?.scrolls ?? []).filter(scroll => scroll.slot === "帽子").length} 種`);
+  check("衝卷模擬白衣卷軸 2 種", (sim?.white?.length ?? 0) === 2, `${sim?.white?.length ?? 0} 種`);
+  check("衝卷模擬可衝裝備數量合理", (sim?.equips?.length ?? 0) >= 1500, `${sim?.equips?.length ?? 0} 件`);
+
   // 全幸要湊的裝備（kit）：buildKit 對找不到、不收錄、沒來源、卷軸對不上的整件略過並只警告，不會讓建置失敗。
   // 每日資料更新如果因此掉了一件（例如桑那服哪天被標成不收錄），敏捷少了一截，推薦的拳套會悄悄改變，
   // 畫面看起來一切正常——所以拿研究檔當標準，建出來的件數要跟研究檔寫的一樣多，少了就擋下來。研究檔不在就跳過。
