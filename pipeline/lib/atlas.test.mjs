@@ -108,7 +108,7 @@ test("多收的圖：沒有門的房間不收（只靠 NPC、任務進去的考�
   assert.ok(named.index.maps.includes(108000100));
 });
 
-test("同一個目的地多個門：清單只列一次，每個看得到的門（pt 2）都有座標", () => {
+test("同一個目的地多個門：清單只列一次，每個按上鍵進得去的門（pt 1、2）都有座標", () => {
   const south = mapOf(100040000);
   const toCamp = south.doors.filter(door => door.to === 100040001);
   assert.equal(toCamp.length, 1);
@@ -148,7 +148,7 @@ test("門的規則：npc: 邊不算門、上游有門清單時對不到門名的
   assert.deepEqual(doors[2].p, []);
 });
 
-test("門座標以台服客戶端為準：上游有門清單時，v83 才有的門名整個丟掉、只畫 pt 2 的門", () => {
+test("門座標以台服客戶端為準：上游有門清單時，v83 才有的門名整個丟掉、只畫 pt 1、2 的門", () => {
   // 仿 101030109：上游只有 west00（pt 2），另外是 pt 3 的掉落口、pt 10 的腳本門，v83 還多了一堆門名
   const south = {
     ...fixture.maps[100040000],
@@ -169,6 +169,13 @@ test("同一個目的地：pt 2 的門畫、pt 3 的掉落口不畫（仿 101030
   const out = run({ upstreamMaps: { ...fixture.maps, 100040001: camp } });
   const back = out.maps.find(map => map.id === 100040001).doors.find(door => door.to === 100040000);
   assert.deepEqual(back.p, [[-189, 277]]);
+});
+
+test("pt 1（看不到圖示、站上去按上鍵進得去）的門也畫", () => {
+  const camp = { ...fixture.maps[100040001], portals: [{ name: "out00", pt: 1, x: -189, y: 277 }, { name: "out01", pt: 2, x: 275, y: -1090 }] };
+  const out = run({ upstreamMaps: { ...fixture.maps, 100040001: camp } });
+  const back = out.maps.find(map => map.id === 100040001).doors.find(door => door.to === 100040000);
+  assert.deepEqual(back.p, [[-189, 277], [275, -1090]]);
 });
 
 test("門座標：上游完全沒有門清單的圖才用 v83／graph 的座標", () => {
