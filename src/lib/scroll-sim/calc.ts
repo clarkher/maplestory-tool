@@ -39,7 +39,7 @@ function scrolls90Of(N: number, K: number, p: number, b: number, white: boolean)
   // 活著的狀態：成功數 s < K，而且（沒白衣時）剩下次數還夠
   const idx = new Map<number, number>();
   const states: Array<[number, number]> = [];
-  const key = (s: number, u: number) => s * 64 + u;
+  const key = (s: number, u: number) => s * (N + 1) + u;
   const live = (s: number, u: number) => s < K && N - u >= K - s;
   const queue: Array<[number, number]> = [[0, 0]];
   idx.set(key(0, 0), 0);

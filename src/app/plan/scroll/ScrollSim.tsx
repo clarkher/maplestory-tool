@@ -22,7 +22,13 @@ function fits(scroll: SimScroll, equip: SimEquip): boolean {
   return (scroll.slot !== null && scroll.slot === equip.s) || (scroll.only?.includes(equip.id) ?? false);
 }
 
-type Selection = { equip: SimEquip | null; scroll: SimScroll | null };
+type Selection = {
+  equip: SimEquip | null;
+  scroll: SimScroll | null;
+  /** 網址帶了 eq／sc 但對不到（不存在、不是可衝的東西） */
+  eqBad: boolean;
+  scBad: boolean;
+};
 
 /**
  * 網址 → 現在挑的裝備跟卷軸。id 不存在、不是這類東西、卷軸跟裝備對不上：當作沒帶（不壞頁）。
@@ -33,9 +39,11 @@ function resolve(data: ScrollSimData, eqRaw: string | null, scRaw: string | null
   const scId = idParam(scRaw);
   const equip = eqId === null ? null : (data.equips.find((e) => e.id === eqId) ?? null);
   let scroll = scId === null ? null : findScroll(data, scId);
+  const eqBad = eqRaw !== null && eqRaw !== "" && !equip;
+  const scBad = scRaw !== null && scRaw !== "" && !scroll;
   if (equip && scroll && !fits(scroll, equip)) scroll = null;
   if (equip && !scroll) scroll = defaultScroll(scrollsFor(data, equip));
-  return { equip, scroll };
+  return { equip, scroll, eqBad, scBad };
 }
 
 type Open = { kind: "equip" | "scroll"; from: HTMLElement } | null;
@@ -47,7 +55,7 @@ export function ScrollSim() {
   const [error, setError] = useState(false);
   const [open, setOpen] = useState<Open>(null);
   const [white, setWhite] = useState(false);
-  const [whiteRate, setWhiteRate] = useState<10 | 20>(10);
+  const [whiteRate, setWhiteRate] = useState<number | null>(null);
   const [scrollPrice, setScrollPrice] = useState("");
   const [equipPrice, setEquipPrice] = useState("");
   const [whitePrice, setWhitePrice] = useState("");
@@ -60,7 +68,7 @@ export function ScrollSim() {
 
   const eqRaw = params.get("eq");
   const scRaw = params.get("sc");
-  const sel = useMemo<Selection>(() => (data ? resolve(data, eqRaw, scRaw) : { equip: null, scroll: null }), [data, eqRaw, scRaw]);
+  const sel = useMemo<Selection>(() => (data ? resolve(data, eqRaw, scRaw) : { equip: null, scroll: null, eqBad: false, scBad: false }), [data, eqRaw, scRaw]);
 
   const go = useCallback(
     (equip: SimEquip | null, scroll: SimScroll | null) => {
@@ -97,8 +105,8 @@ export function ScrollSim() {
   const rows = useMemo(() => {
     const { equip, scroll } = sel;
     if (!equip || !scroll) return null;
-    return simTable(equip.tuc, scroll.rate, scroll.boom, white ? whiteRate : undefined);
-  }, [sel, white, whiteRate]);
+    return simTable(equip.tuc, scroll.rate, scroll.boom, white ? (whiteRate ?? data?.white[0]?.rate) : undefined);
+  }, [sel, white, whiteRate, data]);
 
   const prices = {
     scroll: parsePrice(scrollPrice),
@@ -133,6 +141,20 @@ export function ScrollSim() {
   }
 
   const { equip, scroll } = sel;
+  const emptyNote =
+    [
+      sel.eqBad ? "這件裝備還算不了，換一件挑" : null,
+      sel.scBad && !scroll ? "這張卷軸還算不了，換一張挑" : null,
+    ]
+      .filter(Boolean)
+      .join("；") ||
+    (equip && !scroll
+      ? data && scrollsFor(data, equip).length === 0
+        ? "這件目前沒有卷軸能衝"
+        : "先挑一張卷軸"
+      : !equip && scroll
+        ? "先挑一件裝備"
+        : "先挑一件裝備跟一張卷軸");
   const lastRow = rows ? rows[rows.length - 1] : null;
 
   return (
@@ -168,14 +190,14 @@ export function ScrollSim() {
         {white ? (
           <div className="mt-1 flex gap-1.5" role="radiogroup" aria-label="白衣卷軸成功率">
             {data.white.map((w) => {
-              const on = whiteRate === w.rate;
+              const on = (whiteRate ?? data.white[0]?.rate) === w.rate;
               return (
                 <button
                   key={w.id}
                   type="button"
                   role="radio"
                   aria-checked={on}
-                  onClick={() => setWhiteRate(w.rate === 20 ? 20 : 10)}
+                  onClick={() => setWhiteRate(w.rate)}
                   className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
                 >
                   {w.n}
@@ -216,7 +238,7 @@ export function ScrollSim() {
           </>
         ) : (
           <p className="py-6 text-center text-[15px] font-bold ink-soft">
-            {!equip && scroll ? "先挑一件裝備" : "先挑一件裝備跟一張卷軸"}
+            {emptyNote}
           </p>
         )}
       </section>

@@ -41,7 +41,7 @@ test("部位對照", () => {
   const slotOf = n => parseSimScroll(scroll(n, `成功率：60%，MaxHP+10`), NO_EQ)?.slot;
   assert.equal(slotOf("頭盔防禦卷軸60%"), "帽子");
   assert.equal(slotOf("頭盔生命卷軸60%"), "帽子");
-  assert.equal(slotOf("全身盔甲力量卷軸65%"), "套服");
+  assert.equal(slotOf("全身盔甲力量卷軸60%"), "套服");
   assert.equal(slotOf("褲、裙防禦卷軸60%"), "褲裙");
   assert.equal(slotOf("褲/裙防禦卷軸60%"), "褲裙");
   assert.equal(slotOf("褲子敏捷卷軸60%"), "褲裙");
@@ -97,6 +97,19 @@ test("buildScrollSim：白衣獨立、同名同成功率併 ids、沒來源仍�
   assert.equal(out.scrolls[0].src, false);
   assert.equal(out.scrolls[0].slot, "帽子");
   assert.deepEqual(out.equips, [{ id: 1002001, n: "金屬頭箍", s: "帽子", tuc: 7, lv: 15, src: true }]);
+});
+
+test("名字的成功率跟說明對不上 → 不收", () => {
+  assert.equal(parseSimScroll(scroll("頭盔防禦卷軸60%", "成功率：10%，物理防禦力+2"), NO_EQ), null);
+});
+
+test("buildScrollSim：沒有任何卷軸對得到的裝備不收（眼飾這類）", () => {
+  const items = [
+    scroll("頭盔防禦卷軸60%", "成功率：60%，物理防禦力+2"),
+    { id: 1022073, n: "有裂痕的眼鏡", c: "裝備", s: "眼飾", eq: { tuc: 2 } },
+    { id: 1002001, n: "金屬頭箍", c: "裝備", s: "帽子", eq: { tuc: 7 } },
+  ];
+  assert.deepEqual(buildScrollSim(items, emptyCtx).equips.map(e => e.id), [1002001]);
 });
 
 test("buildScrollSim：對不到任何裝備部位的卷不收", () => {

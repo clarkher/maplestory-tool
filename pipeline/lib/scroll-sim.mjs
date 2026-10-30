@@ -70,6 +70,8 @@ export function parseSimScroll(item, equipsByName) {
   const nameRate = name.match(NAME_RATE_RE);
   const rate = rateMatch ? Number(rateMatch[1]) : nameRate ? Number(nameRate[1]) : NaN;
   if (!Number.isInteger(rate) || rate < 1 || rate > 100) return null;
+  // 名字寫的成功率跟說明對不上就不收（寧可少一張，也不要算錯）
+  if (nameRate && Number(nameRate[1]) !== rate) return null;
 
   const rest = rateMatch ? desc.slice(rateMatch.index + rateMatch[0].length) : desc;
   const boom = parseBoom(rest);
@@ -140,5 +142,8 @@ export function buildScrollSim(items, ctx) {
     scrolls.push({ id: ids[0], ids, n: n.replace(/\s+/g, ""), slot, ...(only ? { only } : {}), rate, boom, effect, stats, src });
   }
   scrolls.sort((a, b) => (a.slot ?? "\uffff").localeCompare(b.slot ?? "\uffff") || a.n.localeCompare(b.n) || a.rate - b.rate || a.id - b.id);
-  return { scrolls, white, equips };
+  // 沒有任何卷軸對得到的裝備不收（眼飾、墜飾這類），不然挑了裝備卻沒卷可衝
+  const onlyIds = new Set(scrolls.flatMap(s => s.only ?? []));
+  const usable = equips.filter(e => onlyIds.has(e.id) || scrolls.some(s => s.slot === e.s));
+  return { scrolls, white, equips: usable };
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defaultScroll, findScroll, rowLabel, scrollsFor, statLine } from "@/lib/scroll-sim/pick";
-import type { ScrollSimData, SimEquip } from "@/lib/scroll-sim/types";
+import type { ScrollSimData, SimEquip, SimScroll } from "@/lib/scroll-sim/types";
 
 const data = JSON.parse(readFileSync(join(process.cwd(), "public/data/scroll-sim.json"), "utf8")) as ScrollSimData;
 const equip = (id: number) => data.equips.find((e) => e.id === id) as SimEquip;
@@ -37,6 +37,15 @@ describe("defaultScroll 只帶裝備時預設挑哪張", () => {
     const pick = defaultScroll(list)!;
     expect(pick.stats[0].k).toContain("攻擊");
     expect(pick.rate).toBe(100);
+  });
+  it("物理攻擊先於魔法攻擊先於其他", () => {
+    const mk = (id: number, k: string, rate: number): SimScroll => ({ id, ids: [id], n: `測試${id}`, slot: "手套", rate, boom: 0, effect: "", stats: [{ k, v: 1 }], src: true });
+    const physical = mk(1, "物理攻擊力", 100);
+    const magic = mk(2, "魔法攻擊力", 60);
+    const other = mk(3, "幸運", 60);
+    expect(defaultScroll([other, magic, physical])?.id).toBe(1);
+    expect(defaultScroll([other, magic])?.id).toBe(2);
+    expect(defaultScroll([other])?.id).toBe(3);
   });
   it("空清單回 null", () => {
     expect(defaultScroll([])).toBeNull();

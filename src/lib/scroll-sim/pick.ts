@@ -8,11 +8,11 @@ export function scrollsFor(data: ScrollSimData, equip: SimEquip): SimScroll[] {
     .sort((a, b) => b.rate - a.rate || a.n.localeCompare(b.n, "zh-Hant"));
 }
 
-/** 卷軸類別：攻擊 0、魔力 1、其他 2（看第一個加的數值） */
+/** 卷軸類別：物理攻擊 0、魔法攻擊（含「魔力」）1、其他 2（看第一個加的數值；上游的字不改） */
 function kind(s: SimScroll): number {
   const k = s.stats[0]?.k ?? "";
+  if (k.includes("魔法攻擊") || k.includes("魔力")) return 1;
   if (k.includes("攻擊")) return 0;
-  if (k.includes("魔力")) return 1;
   return 2;
 }
 
@@ -21,7 +21,7 @@ function tieBreak(a: SimScroll, b: SimScroll): number {
   return Number(b.src) - Number(a.src) || a.boom - b.boom || Number(a.n.startsWith("[")) - Number(b.n.startsWith("[")) || a.id - b.id;
 }
 
-/** 只帶裝備進來時預設的卷：攻擊 > 魔力 > 其他，同類挑成功率 60%，沒有就最高那張 */
+/** 只帶裝備進來時預設的卷：物理攻擊 > 魔法攻擊 > 其他，同類挑成功率 60%，沒有就最高那張 */
 export function defaultScroll(list: SimScroll[]): SimScroll | null {
   if (list.length === 0) return null;
   const best = Math.min(...list.map(kind));

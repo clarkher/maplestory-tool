@@ -1,6 +1,6 @@
 // 衝卷模擬（/plan/scroll，v1.23）驗收：開頁、填單價、開白衣、挑部位、窄螢幕不橫捲、查資料入口，任何一項沒過 exit 1
-// 用法：node scripts/verify/scroll-shot.mjs [網址，預設 http://localhost:9401] [輸出資料夾] [DevTools 埠，預設 9402]
-//   例：node scripts/verify/scroll-shot.mjs http://localhost:9401 "$TEMP/scroll-shot"
+// 用法：node scripts/verify/scroll-shot.mjs [網址，預設 http://localhost:9301] [輸出資料夾] [DevTools 埠，預設 9302]
+//   例：node scripts/verify/scroll-shot.mjs http://localhost:9301 "$TEMP/scroll-shot"
 // 網址用 localhost，不要用 127.0.0.1（next dev 對 127.0.0.1 的互動不理）。第一次開頁 dev 要編譯，最多等 1 分鐘。
 // 輸出：scroll-1280-light／dark.png、scroll-390-light／dark.png（390 寬是開白衣、三個單價都填的樣子，欄位最多）、
 //       scroll-picker.png（裝備挑選清單點了部位）、results.json（每一項檢查的結果＋量到的字）
@@ -11,15 +11,18 @@ import { fileURLToPath } from "node:url";
 import { chromePort, outDir } from "./config.mjs";
 import { sleep, start } from "./harness.mjs";
 
-const BASE = (process.argv[2] ?? "http://localhost:9401").replace(/\/$/, "");
+const BASE = (process.argv[2] ?? "http://localhost:9301").replace(/\/$/, "");
 const OUT = outDir(process.argv[3], "scroll-shot");
-const PORT = chromePort(9402, process.argv[4]);
+const PORT = chromePort(9302, process.argv[4]);
 
 const data = JSON.parse(fs.readFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../public/data/scroll-sim.json"), "utf8"));
 const HAT = data.equips.find(e => e.s === "帽子" && data.scrolls.some(s => s.slot === "帽子"));
 
 const EQ = 1082002;
 const SC = 2040804;
+const EYE = 1022073; // 有裂痕的眼鏡：眼飾，tuc>0 但沒有卷軸對得到
+const EXCLUDED_SC = 2046004; // 一級單手武器攻擊力卷軸40%：模擬不收
+const EXCLUDED_NAME = "一級單手武器攻擊力卷軸40%";
 const results = { base: BASE, port: PORT, hat: HAT?.id, checks: [] };
 const record = (name, ok, detail) => {
   results.checks.push({ name, ok: Boolean(ok), ...(detail === undefined ? {} : { detail }) });
@@ -86,7 +89,7 @@ const table = () => evaluate(`(() => {
 
 const open = query => navigate(`${BASE}/plan/scroll${query}`);
 /** 有東西可看了：表格、空狀態、或載入失敗 */
-const ready = () => until(`document.querySelector("section[aria-label='結果'] table") || document.body.innerText.includes("先挑一件裝備") || document.body.innerText.includes("讀不到")`);
+const ready = () => until(`document.querySelector("section[aria-label='結果'] table") || document.body.innerText.includes("先挑一件裝備") || document.body.innerText.includes("還算不了") || document.body.innerText.includes("讀不到")`);
 
 try {
   ({ page, evaluate, navigate, shot, close } = await start(OUT, PORT));
@@ -187,7 +190,29 @@ try {
   await open("?eq=999999999&sc=abc");
   await ready();
   const bad = await bodyText();
-  record("?eq=999999999&sc=abc：不壞頁，顯示空狀態", bad.includes("先挑一件裝備跟一張卷軸") && !(await table()), bad.slice(-60));
+  record("?eq=999999999&sc=abc：不壞頁，寫明這件裝備、這張卷軸還算不了", bad.includes("這件裝備還算不了") && bad.includes("這張卷軸還算不了") && !(await table()), bad.slice(-80));
+
+  await open("?sc=999999999");
+  await ready();
+  const badSc = await bodyText();
+  record("?sc=999999999：顯示「這張卷軸還算不了」，不是叫人先挑", badSc.includes("這張卷軸還算不了，換一張挑") && !badSc.includes("先挑一件裝備跟一張卷軸"), badSc.slice(-60));
+
+  // 眼飾沒有卷軸對得到，不收進模擬 → 當作對不到的 eq
+  await open(`?eq=${EYE}`);
+  await ready();
+  const eye = await bodyText();
+  record(`眼飾 eq=${EYE}（沒有卷軸能衝，不收）：顯示「這件裝備還算不了」`, eye.includes("這件裝備還算不了，換一件挑") && !(await table()), eye.slice(-60));
+
+  // 查資料：不算的卷軸（一級防具…）沒有「算衝卷」連結
+  await navigate(`${BASE}/db/items?id=${EXCLUDED_SC}`);
+  const shown = await until(`document.body.innerText.includes(${JSON.stringify(EXCLUDED_NAME)})`);
+  await sleep(500);
+  const excludedLink = await evaluate(`Boolean(document.querySelector('a[href*="/plan/scroll"]'))`);
+  record(`查資料「${EXCLUDED_NAME}」（模擬不收）沒有「算衝卷」連結`, shown && !excludedLink, { shown, excludedLink });
+  await navigate(`${BASE}/db/items?id=${EYE}`);
+  await until(`document.body.innerText.includes("有裂痕的眼鏡")`);
+  await sleep(500);
+  record("查資料眼飾（沒有卷軸能衝）沒有「算衝卷」連結", !(await evaluate(`Boolean(document.querySelector('a[href*="/plan/scroll"]'))`)));
 
   record("整趟 console 沒有例外或錯誤", problems.exceptions.length === 0 && problems.errors.length === 0, problems);
 } catch (error) {

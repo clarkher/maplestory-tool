@@ -331,7 +331,7 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
         </div>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4">
           {shown.length === 0 ? (
-            <p className="px-2 py-8 text-center text-[14px] ink-soft">找不到，換個字試試</p>
+            <p className="px-2 py-8 text-center text-[14px] ink-soft">{query.trim() ? "找不到，換個字試試" : "沒有可以挑的"}</p>
           ) : (
             sections.map((sec, i) => (
               <div key={`${sec.group}-${i}`}>
@@ -411,7 +411,7 @@ export function ResultTable({ rows, scroll, prices, white }: { rows: SimRow[]; s
             <th scope="col" className={th}>要成功</th>
             <th scope="col" className={th}>一件衝成</th>
             <th scope="col" className={th}>平均要</th>
-            <th scope="col" className={`${th} whitespace-normal!`}>九成機率要準備</th>
+            <th scope="col" className={th}><span className="block whitespace-nowrap">九成機率</span><span className="block whitespace-nowrap">要準備</span></th>
             {white ? <th scope="col" className={th}>白衣平均</th> : null}
             {showCost ? <th scope="col" className={th}>平均花費</th> : null}
           </tr>
