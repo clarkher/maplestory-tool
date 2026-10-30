@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { ASSET_EXTENSIONS } from "./assets.mjs";
+import { PUBLISH_EXTENSIONS } from "./assets.mjs";
 
 // 直接讀 workflow 原文檢查：dry-run 一路跑到底也不能動到正式機、寫入權限只在最後開 PR 合併的 publish，
 // notify 拿得到它要的值
@@ -135,10 +135,11 @@ test("publish 讀 artifact 的檔只當文字讀：不准 require／import 相�
   assert.doesNotMatch(code, /\bnode\s+(?:-p|--print)\b/);
 });
 
-test("publish 只收 png、json：跟 refresh 同步上游圖檔的白名單（pipeline/lib/assets.mjs 的 ASSET_EXTENSIONS）一樣", () => {
+test("publish 只收 png、json、webp：跟 pipeline/lib/assets.mjs 的 PUBLISH_EXTENSIONS 一樣（webp 是地圖畫面 map_renders）", () => {
   const block = stepBlock("開 PR 並自動合併");
   const allowed = [...block.matchAll(/! -name '\*\.(\w+)'/g)].map(match => match[1]).sort();
-  assert.deepEqual(allowed, [...ASSET_EXTENSIONS].sort());
+  assert.deepEqual(allowed, [...PUBLISH_EXTENSIONS].sort());
+  assert.ok(PUBLISH_EXTENSIONS.includes("webp"), "public/assets/map_renders 是 webp，不收的話每次資料更新都會失敗");
 });
 
 test("publish 拿得到 refresh 建好的資料檔：refresh 有重建就把 public/data、public/assets 存成 artifact，publish 下載同一個", () => {

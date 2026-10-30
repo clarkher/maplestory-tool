@@ -107,12 +107,18 @@ export function shopRows(shop: AtlasNpc["shop"], now = Date.now()): ShopLine[] {
     .map(row => (row.e ? { ...row, price: shopPriceText(row), until: untilText(row.e) } : { ...row, price: shopPriceText(row) }));
 }
 
-/** 「山姆在弓箭手村武器店，賣 90 樣東西。」：在哪（同名只算一次，最多 3 個名字）、賣幾樣、幾個任務，沒有的那段不寫 */
-export function npcSummary(npc: AtlasNpc, nameOf: (id: number) => string | undefined): string {
+/** 這個 NPC 現在還在賣幾樣：過期的活動店不算（跟「賣什麼」卡、shopRows 同一個 shopOpen 判斷） */
+export function openShopCount(npc: Pick<AtlasNpc, "shop">, now = Date.now()): number {
+  return (npc.shop ?? []).filter(row => shopOpen(row, now)).length;
+}
+
+/** 「山姆在弓箭手村武器店，賣 90 樣東西。」：在哪（同名只算一次，最多 3 個名字）、賣幾樣（過期活動店不算）、幾個任務，沒有的那段不寫 */
+export function npcSummary(npc: AtlasNpc, nameOf: (id: number) => string | undefined, now = Date.now()): string {
   // 同名的分流圖（活動場地開好幾張）只寫一次
   const places = [...new Set(npc.maps.map(nameOf).filter((name): name is string => Boolean(name)))];
   const parts: string[] = [];
-  if (npc.shop?.length) parts.push(`賣 ${npc.shop.length} 樣東西`);
+  const selling = openShopCount(npc, now);
+  if (selling) parts.push(`賣 ${selling} 樣東西`);
   if (npc.quests?.length) parts.push(`有 ${npc.quests.length} 個任務`);
   const head = places.length ? `${npc.n}在${listNames(places, 3, "張圖")}` : npc.n;
   return parts.length ? `${head}，${parts.join("，")}。` : `${head}。`;
@@ -164,10 +170,10 @@ export function mapGroups(maps: AtlasMap[]): MapListGroup[] {
     .map(([head, group]) => ({ head, rows: group.rows }));
 }
 
-/** NPC 清單的一列：第一張所在圖名 at、還有幾張 more、有沒有店、任務，q 是名字＋所有所在圖名（搜尋用） */
+/** NPC 清單的一列：第一張所在圖名 at、還有幾張 more、有沒有店（過期活動店不算，建置時算）、任務，q 是名字＋所有所在圖名（搜尋用） */
 export type NpcListRow = { id: number; n: string; img: boolean; at?: string; more: number; shop: boolean; quest: boolean; q: string };
 
-export function npcListRows(npcs: AtlasNpc[], nameOf: (id: number) => string | undefined): NpcListRow[] {
+export function npcListRows(npcs: AtlasNpc[], nameOf: (id: number) => string | undefined, now = Date.now()): NpcListRow[] {
   return npcs.map(npc => {
     // 同名的分流圖只算一張
     const places = [...new Set(npc.maps.map(nameOf).filter((name): name is string => Boolean(name)))];
@@ -176,7 +182,7 @@ export function npcListRows(npcs: AtlasNpc[], nameOf: (id: number) => string | u
       n: npc.n,
       img: npc.img === 1,
       more: Math.max(0, places.length - 1),
-      shop: Boolean(npc.shop?.length),
+      shop: openShopCount(npc, now) > 0,
       quest: Boolean(npc.quests?.length),
       q: [npc.n, ...places].join(" ").toLowerCase(),
     };

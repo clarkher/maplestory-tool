@@ -28,8 +28,13 @@ export function MobRows({ mobs }: { mobs: AtlasMap["mobs"] }) {
       {mobs.map((mob, index) => (
         <div key={mob.id} className={row}>
           <span className="size-2.5 shrink-0 rounded-full" style={{ background: mobColor(index) }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={monsterImage(mob.id)} alt="" width={36} height={36} loading="lazy" className="size-9 shrink-0 object-contain [image-rendering:pixelated]" />
+          {mob.img ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={monsterImage(mob.id)} alt="" width={36} height={36} loading="lazy" className="size-9 shrink-0 object-contain [image-rendering:pixelated]" />
+          ) : (
+            // 上游沒有這隻的圖：留同樣大小的空格，不放壞圖
+            <span className="size-9 shrink-0" />
+          )}
           <div className="min-w-0 flex-1">
             {mob.pg ? (
               <Link href={`/db/monsters/${mob.id}`} className="text-[15px] font-extrabold hover:text-[color:var(--maple)]">

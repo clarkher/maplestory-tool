@@ -316,6 +316,16 @@ function main() {
   check("地圖圖鑑的門、回城都連得到有頁面的圖", deadLinks.length === 0, deadLinks.slice(0, 10).join("、"));
   const multiDoors = atlasMaps.reduce((sum, map) => sum + map.doors.filter(door => door.p.length >= 2).length, 0);
   check("地圖圖鑑同一個目的地多個門都有標座標", multiDoors > 0, `${multiDoors} 個門有 2 個以上座標`);
+  // 名字有問號是上游抽不出字的亂碼（1022008「???? ?」）：每個都會變成一頁、進 sitemap
+  const garbled = [
+    ...atlasMaps.filter(map => /[?？]/.test(map.n)).map(map => `圖 ${map.id} ${map.n}`),
+    ...atlasNpcs.filter(npc => /[?？]/.test(npc.n)).map(npc => `NPC ${npc.id} ${npc.n}`),
+    ...atlasMaps.flatMap(map => map.npcs.filter(npc => /[?？]/.test(npc.n)).map(npc => `${map.id} 上的 NPC ${npc.id} ${npc.n}`)),
+  ];
+  check("地圖圖鑑的圖名、NPC 名沒有亂碼（問號）", garbled.length === 0, garbled.slice(0, 10).join("、"));
+  // 野王這類上游沒有座標的怪，上游給 0,0：畫上去就是編一個位置
+  const zeroMobs = atlasMaps.flatMap(map => map.mobs.filter(mob => mob.p.some(([x, y]) => x === 0 && y === 0)).map(mob => `${map.id} ${mob.n}`));
+  check("地圖圖鑑的怪沒有畫在 0,0（沒有座標的只進清單）", zeroMobs.length === 0, zeroMobs.slice(0, 10).join("、"));
   const sameIds = (a, b) => JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
   check("圖鑑索引跟兩個檔的 id 一致",
     sameIds(atlasIndex?.maps, atlasMaps.map(map => map.id)) && sameIds(atlasIndex?.npcs, atlasNpcs.map(npc => npc.id)),

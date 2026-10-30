@@ -5,7 +5,7 @@ import { AtlasCard, DoorRows, MobRows, NpcRows } from "@/components/atlas/rows";
 import { MapView } from "@/components/atlas/MapView";
 import { SeoPage } from "@/components/SeoPage";
 import { mapRenderImage } from "@/lib/asset-paths";
-import { doorList, levelRange, mapSection, mapSummary } from "@/lib/atlas-view";
+import { doorList, levelRange, mapSection, mapSummary, openShopCount } from "@/lib/atlas-view";
 import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
 import { staticAtlasIndex, staticAtlasMaps, staticMapRenders, staticMaps, staticModified, staticNpcs } from "@/lib/static-data";
 import type { AtlasMap } from "@/lib/types";
@@ -58,10 +58,12 @@ export default async function Page({ params }: Props) {
 
   const npcs = map.npcs.map(npc => {
     const info = npcInfo.get(npc.id);
+    // 過期的活動店不算（NPC 頁「賣什麼」那張卡也藏掉了）
+    const selling = info ? openShopCount(info) : 0;
     const note = info?.quests?.length
       ? `有 ${info.quests.length} 個任務`
-      : info?.shop?.length
-        ? `賣 ${info.shop.length} 樣東西`
+      : selling
+        ? `賣 ${selling} 樣東西`
         : undefined;
     return { id: npc.id, n: npc.n, img: Boolean(info?.img), note };
   });

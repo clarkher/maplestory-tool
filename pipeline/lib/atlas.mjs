@@ -16,6 +16,7 @@
  *
  *  第 2 條多收的圖另外排除：街名是「隱藏地圖」「航海中」的、算完門之後一個門都沒有的（只靠 NPC、任務進去的房間）。
  * 一張圖收進來了，但怪、NPC、門都沒有，就不收（頁面上沒東西可看）。
+ * 另外不收 ATLAS_SKIP_MAPS（999999998 這種不是真的地圖的）；名字有問號（亂碼）的 NPC 當成沒名字。
  */
 
 /**
@@ -52,6 +53,13 @@ const NPC_WARP = "npc:";
  * 其他（0 出生點、3 踩到就傳的掉落口、10 腳本門……）不畫座標，目的地照樣列。
  */
 const PRESS_UP_DOORS = new Set([1, 2]);
+/**
+ * 不收的圖（不管 maps.json 有沒有 zh）：
+ *  - 999999998「楓葉世界全地區」：上游拿來放怪物圖鑑標註的怪，不是真的地圖（沒畫面、沒門、沒 NPC，怪都沒有座標），帶我去也走不到
+ */
+const ATLAS_SKIP_MAPS = new Set([999999998]);
+/** 名字裡有問號的是上游抽不出字的亂碼（1022008「???? ?」），當成沒名字 */
+const GARBLED_NAME = /[?？]/;
 /** 多收的圖（maps.json 沒 zh）遇到這些街名不收：隱藏地圖是任務、活動送進去的，航海中是坐船時的船艙 */
 const EXTRA_SKIP_STREETS = new Set(["隱藏地圖", "航海中"]);
 
@@ -65,11 +73,12 @@ const EXTRA_SKIP_STREETS = new Set(["隱藏地圖", "航海中"]);
  *   quests: Array<{ id: string | number, n: string, sNpc?: { id: number }, eNpc?: { id: number }, npcs?: Array<{ id: number }> }>,
  *   monsterIds: Set<number>,
  *   npcImageIds: Set<number>,
+ *   monsterImageIds?: Set<number>,
  *   openRegions: string[],
  *   heldBackMaps: Map<number, string> | Set<number>,
  * }} input
  */
-export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, portalEdges = {}, items, quests, monsterIds, npcImageIds, openRegions, heldBackMaps }) {
+export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, portalEdges = {}, items, quests, monsterIds, npcImageIds, monsterImageIds = new Set(), openRegions, heldBackMaps }) {
   const upstream = new Map();
   for (const raw of Array.isArray(upstreamMaps) ? upstreamMaps : Object.values(upstreamMaps || {})) {
     const id = Number(raw?.id);
@@ -86,7 +95,7 @@ export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, portalEdges =
   let maps;
   for (;;) {
     maps = [...kept.keys()].sort((a, b) => a - b)
-      .map(id => buildMap(id, upstream.get(id), kept, { mapRecords, graphEdges, portalEdges, monsterIds }));
+      .map(id => buildMap(id, upstream.get(id), kept, { mapRecords, graphEdges, portalEdges, monsterIds, monsterImageIds }));
     const next = new Map(maps.filter(map => keepMap(map, mapRecords)).map(map => [map.id, kept.get(map.id)]));
     if (next.size === kept.size) break;
     kept = next;
@@ -110,6 +119,7 @@ function keepMap(map, mapRecords) {
 }
 
 function isOpen(id, raw, mapRecords, openRegions, heldBackMaps) {
+  if (ATLAS_SKIP_MAPS.has(id)) return false;
   if (mapRecords[String(id)]?.zh) return true;
   if (!raw.name || raw.unnamed) return false;
   if (heldBackMaps?.has(id)) return false;
@@ -122,7 +132,7 @@ function mapName(id, raw, mapRecords) {
   return (!raw.unnamed && raw.name) || mapRecords[String(id)]?.zh || "";
 }
 
-function buildMap(id, raw, kept, { mapRecords, graphEdges, portalEdges, monsterIds }) {
+function buildMap(id, raw, kept, { mapRecords, graphEdges, portalEdges, monsterIds, monsterImageIds }) {
   const record = mapRecords[String(id)] || {};
   const map = {
     id,
@@ -137,7 +147,7 @@ function buildMap(id, raw, kept, { mapRecords, graphEdges, portalEdges, monsterI
   if (bounds && [bounds.left, bounds.top, bounds.width, bounds.height].every(Number.isFinite)) {
     map.b = [bounds.left, bounds.top, bounds.width, bounds.height];
   }
-  map.mobs = groupMobs(raw.monsterSpawns, monsterIds);
+  map.mobs = groupMobs(raw.monsterSpawns, monsterIds, monsterImageIds);
   map.npcs = mapNpcs(raw.npcSpawns);
   // graph.json 同一個目的地只留一條邊（帶我去用），每個門的座標要從 portalEdges（doorEdges 算的）補
   const edges = [...(graphEdges[String(id)] || []), ...(portalEdges[String(id)] || [])];
@@ -145,8 +155,12 @@ function buildMap(id, raw, kept, { mapRecords, graphEdges, portalEdges, monsterI
   return map;
 }
 
-/** 刷怪點依怪分組：數量＝刷怪點數，同數量照上游先出現的排前面 */
-function groupMobs(spawns, monsterIds) {
+/**
+ * 刷怪點依怪分組：數量＝刷怪點數，同數量照上游先出現的排前面。
+ * 野王這類上游沒有座標的（coordinateMissing，或 0,0）：數量照算、不放進 p（清單有、圖上不畫，不編位置）。
+ * img = 1：public/assets/monster_frames 有這隻的圖（上游有幾隻沒圖，前端沒圖就放空格）
+ */
+function groupMobs(spawns, monsterIds, monsterImageIds) {
   const byId = new Map();
   for (const spawn of spawns || []) {
     const id = Number(spawn?.monsterId);
@@ -155,16 +169,21 @@ function groupMobs(spawns, monsterIds) {
     if (!mob) {
       mob = { id, n: spawn.name || "", lv: Number(spawn.level) || 0, k: 0, p: [] };
       if (monsterIds.has(id)) mob.pg = 1;
+      if (monsterImageIds.has(id)) mob.img = 1;
       byId.set(id, mob);
     }
     mob.k += 1;
-    mob.p.push([Number(spawn.x) || 0, Number(spawn.y) || 0]);
+    const x = Number(spawn.x);
+    const y = Number(spawn.y);
+    if (spawn.coordinateMissing || !Number.isFinite(x) || !Number.isFinite(y) || (x === 0 && y === 0)) continue;
+    mob.p.push([x, y]);
   }
   return [...byId.values()].sort((a, b) => b.k - a.k);
 }
 
 function isNamedNpc(spawn) {
-  return Boolean(spawn?.name) && !spawn.unnamed && !UNNAMED_NPC.test(spawn.name) && Number.isFinite(Number(spawn.npcId));
+  return Boolean(spawn?.name) && !spawn.unnamed && !UNNAMED_NPC.test(spawn.name) && !GARBLED_NAME.test(spawn.name)
+    && Number.isFinite(Number(spawn.npcId));
 }
 
 /** 這張圖的 NPC：沒名字的不收，同一個 NPC 只留第一個位置 */

@@ -218,7 +218,9 @@ function main() {
     items: items.list,
     quests: quests.list,
     monsterIds: new Set(monsters.list.map(monster => monster.id)),
-    npcImageIds: npcImageIds(path.join(ROOT, "public", "assets", "npcs")),
+    npcImageIds: imageIds(path.join(ROOT, "public", "assets", "npcs")),
+    // 上面 copyMissingFrames 補過借圖的怪之後才讀：還是沒圖的（9100000 超級綠水靈這幾隻）前端放空格
+    monsterImageIds: imageIds(path.join(ROOT, "public", "assets", "monster_frames")),
     openRegions: RELEASE.mapRegions,
     heldBackMaps: HELD_BACK_MAPS,
   });
@@ -239,8 +241,8 @@ function main() {
   }
 }
 
-/** public/assets/npcs 有圖的 NPC id（檔名 <id>.png） */
-function npcImageIds(dir) {
+/** 資料夾裡有圖的 id（檔名 <id>.png）：public/assets/npcs 的 NPC、public/assets/monster_frames 的怪 */
+function imageIds(dir) {
   if (!fs.existsSync(dir)) return new Set();
   return new Set(fs.readdirSync(dir).map(name => name.match(/^(\d+)\.png$/)?.[1]).filter(Boolean).map(Number));
 }

@@ -245,13 +245,13 @@ jobs:
             echo "dry-run：不開 PR、不合併"
             exit 0
           fi
-          # artifact 只當資料收：只能有 data、assets 兩個資料夾，裡面只能是 png、json（跟 pipeline/lib/assets.mjs 的白名單一樣；
+          # artifact 只當資料收：只能有 data、assets 兩個資料夾，裡面只能是 png、json、webp（地圖畫面；跟 pipeline/lib/assets.mjs 的 PUBLISH_EXTENSIONS 一樣；
           # .html、.svg 放上正式機網域就是 stored XSS，.js 可能被當成程式載入）。隱藏檔、連結正常上傳時就會被丟掉、換成檔案內容，
           # 這裡再擋一次是防 refresh 被動了手腳、自己做的 artifact
           DATA="$RUNNER_TEMP/refresh-data"
-          BAD=$(find "$DATA" -mindepth 1 \( -name '.*' -o ! -type f ! -type d -o -type f ! -name '*.png' ! -name '*.json' \) -print -quit)
+          BAD=$(find "$DATA" -mindepth 1 \( -name '.*' -o ! -type f ! -type d -o -type f ! -name '*.png' ! -name '*.json' ! -name '*.webp' \) -print -quit)
           if [ "$(ls -A "$DATA" | tr '\n' ' ')" != "assets data " ] || [ ! -d "$DATA/data" ] || [ ! -d "$DATA/assets" ] || [ -n "$BAD" ]; then
-            echo "下載的資料檔不對：只能有 data、assets 兩個資料夾，裡面只能是 png、json（不能有隱藏檔、連結）"
+            echo "下載的資料檔不對：只能有 data、assets 兩個資料夾，裡面只能是 png、json、webp（不能有隱藏檔、連結）"
             exit 1
           fi
           rm -rf public/data public/assets

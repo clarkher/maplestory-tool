@@ -3,11 +3,19 @@
  * 用法：node pipeline/build-map-renders.mjs（或 npm run data:renders）
  * 來源：data/cache/upstream/assets/map_renders/<id>.png（fetch-artale 取回的上游快取，沒有就沿用現有 webp）。
  * 不在 atlas 的既有 webp 不動（永遠不刪）。
+ * 轉圖失敗不擋資料更新：單張失敗沿用舊圖；sharp 整個載不起來（runner 上原生程式壞掉）也一樣，全部當成沿用。
  */
 import fs from "node:fs";
 import path from "node:path";
-import sharp from "sharp";
 import { renderPlan } from "./lib/map-renders.mjs";
+
+// sharp 是原生程式，載不起來時不讓整支程式丟例外（資料更新會跟著失敗），改成每張都當轉檔失敗、沿用舊圖
+let sharp = null;
+try {
+  sharp = (await import("sharp")).default;
+} catch (e) {
+  console.warn(`[map-renders] 警告：sharp 載不起來，這次不轉圖、全部沿用舊圖：${e.message}`);
+}
 
 const ROOT = path.join(import.meta.dirname, "..");
 const readJson = p => JSON.parse(fs.readFileSync(path.join(ROOT, p), "utf8"));
@@ -34,6 +42,7 @@ for (const id of plan.keep) next[id] = have[id];
 const failed = [];
 for (const id of plan.convert) {
   try {
+    if (!sharp) throw new Error("sharp 載不起來");
     await sharp(cachePng(id)).resize({ width: 1200, withoutEnlargement: true }).webp({ quality: 75 }).toFile(outWebp(id));
     next[id] = upstreamVersions[id] ?? "";
   } catch (e) {

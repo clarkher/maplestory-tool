@@ -367,8 +367,8 @@ export type AtlasMap = {
   ret?: number;
   /** 地圖範圍 [left, top, width, height]（遊戲座標） */
   b?: [number, number, number, number];
-  /** 怪：數量 k、刷怪點 p、pg = 1 有怪物頁 */
-  mobs: { id: number; n: string; lv: number; k: number; p: [number, number][]; pg?: 1 }[];
+  /** 怪：數量 k、刷怪點 p（上游沒座標的野王不放，k 照算）、pg = 1 有怪物頁、img = 1 有圖 */
+  mobs: { id: number; n: string; lv: number; k: number; p: [number, number][]; pg?: 1; img?: 1 }[];
   npcs: { id: number; n: string; x: number; y: number }[];
   /** 門：目的地 to、目的地名 n、對得到的座標（可空） */
   doors: { to: number; n: string; p: [number, number][] }[];

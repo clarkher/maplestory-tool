@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doorList, mapHref, npcHref, labelSides, levelRange, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
+import { doorList, mapHref, npcHref, labelSides, levelRange, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, openShopCount, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap, AtlasNpc } from "@/lib/types";
 
 const map1020000: AtlasMap = {
@@ -164,6 +164,19 @@ describe("npcSummary", () => {
     const vendor: AtlasNpc = { id: 9402818, n: "行商人", maps: [1, 2, 3, 4, 5], shop: [{ id: 2001001, pr: 1, s: "藥水" }] };
     expect(npcSummary(vendor, () => "雪原的面具祭典現場")).toBe("行商人在雪原的面具祭典現場，賣 1 樣東西。");
   });
+  it("活動店過期後只算還在賣的（跟「賣什麼」卡同一個判斷），全過期就不提賣東西", () => {
+    const end = "2026-11-11T23:59+08:00";
+    const during = Date.parse("2026-10-24T12:00:00+08:00");
+    const after = Date.parse("2026-11-12T00:00:00+08:00");
+    const mixed: AtlasNpc = { id: 1, n: "雜貨商", maps: [1020000], shop: [{ id: 2001001, pr: 1, u: "萬聖節硬幣", e: end, s: "藥水" }, { id: 1002033, pr: 3000, s: "帽子" }] };
+    expect(npcSummary(mixed, names, during)).toBe("雜貨商在楓葉村東郊平原，賣 2 樣東西。");
+    expect(npcSummary(mixed, names, after)).toBe("雜貨商在楓葉村東郊平原，賣 1 樣東西。");
+    expect(openShopCount(mixed, after)).toBe(1);
+    const event: AtlasNpc = { id: 2, n: "行商人", maps: [1020000], shop: [{ id: 2001001, pr: 1, u: "萬聖節硬幣", e: end, s: "藥水" }] };
+    expect(npcSummary(event, names, after)).toBe("行商人在楓葉村東郊平原。");
+    expect(openShopCount(event, after)).toBe(0);
+    expect(openShopCount({ id: 3, n: "路人", maps: [] }, after)).toBe(0);
+  });
 });
 
 describe("mapSearchText", () => {
@@ -239,6 +252,11 @@ describe("npcMatches", () => {
     expect(rows.filter(row => npcMatches(row, "", { shop: true, quest: false })).map(row => row.id)).toEqual([1011001]);
     expect(rows.filter(row => npcMatches(row, "", { shop: false, quest: true })).map(row => row.id)).toEqual([12100]);
     expect(rows.filter(row => npcMatches(row, "", { shop: true, quest: true }))).toHaveLength(0);
+  });
+  it("只有過期活動店的 NPC 不算「有賣東西」", () => {
+    const vendor: AtlasNpc = { id: 9402818, n: "行商人", maps: [], shop: [{ id: 2001001, pr: 1, u: "萬聖節硬幣", e: "2026-11-11T23:59+08:00", s: "藥水" }] };
+    expect(npcListRows([vendor], () => undefined, Date.parse("2026-10-24T12:00:00+08:00"))[0].shop).toBe(true);
+    expect(npcListRows([vendor], () => undefined, Date.parse("2026-11-12T00:00:00+08:00"))[0].shop).toBe(false);
   });
 });
 

@@ -19,6 +19,8 @@ function run(overrides = {}) {
     quests: fixture.quests,
     monsterIds: new Set([130100, 130101, 210100, 1210100]),
     npcImageIds: new Set([12100, 1011001]),
+    // 1020000 的四種怪只有木妖、紅寶有圖（測沒圖的不帶 img）
+    monsterImageIds: new Set([130100, 130101, 4230101]),
     openRegions: OPEN_REGIONS,
     heldBackMaps: new Map(),
     ...overrides,
@@ -207,4 +209,36 @@ test("maps.json 沒被改", () => {
   const before = JSON.stringify(fixture.mapRecords);
   run();
   assert.equal(JSON.stringify(fixture.mapRecords), before);
+});
+
+test("野王沒有座標（上游 coordinateMissing、0,0）：清單照算 1 隻，圖上不畫（100040105 殭屍猴王）", () => {
+  const boss = mapOf(100040105).mobs.find(mob => mob.id === 5220002);
+  assert.ok(boss);
+  assert.equal(boss.k, 1);
+  assert.deepEqual(boss.p, []);
+  // 同一張圖有座標的怪照畫
+  const monkey = mapOf(100040105).mobs.find(mob => mob.id === 4230101);
+  assert.equal(monkey.p.length, monkey.k);
+  for (const map of atlas.maps) for (const mob of map.mobs) assert.ok(!mob.p.some(([x, y]) => x === 0 && y === 0), `${map.id} ${mob.n} 畫在 0,0`);
+});
+
+test("名字是亂碼（帶 ?）的 NPC 不收：1022008「???? ?」不進 NPC 清單、也不畫在東方岩石山Ⅲ", () => {
+  assert.ok(!atlas.npcs.some(npc => npc.id === 1022008));
+  assert.ok(!mapOf(101030402).npcs.some(npc => npc.id === 1022008));
+  for (const npc of atlas.npcs) assert.ok(!/[?？]/.test(npc.n), npc.n);
+  // 圖本身有怪，照收
+  assert.ok(atlas.index.maps.includes(101030402));
+});
+
+test("999999998「楓葉世界全地區」是怪物圖鑑用的，不是真的地圖：不收", () => {
+  assert.ok(!atlas.index.maps.includes(999999998));
+});
+
+test("怪有沒有圖：public/assets/monster_frames 有 <id>.png 才帶 img（沒圖的前端放空格，不放壞圖）", () => {
+  const mobs = mapOf(1020000).mobs;
+  assert.equal(mobs.find(mob => mob.id === 130100).img, 1);
+  assert.equal(mobs.find(mob => mob.id === 130101).img, 1);
+  const noImage = mobs.filter(mob => ![130100, 130101].includes(mob.id));
+  assert.ok(noImage.length > 0);
+  for (const mob of noImage) assert.equal(mob.img, undefined, mob.n);
 });
