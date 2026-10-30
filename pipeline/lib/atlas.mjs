@@ -47,9 +47,11 @@ export function doorEdges(v83Maps, mapRecords) {
 const UNNAMED_NPC = /^NPC \d+$/;
 /** graph.json 裡 NPC 傳送（傑夫）那條邊的門名開頭：不算門 */
 const NPC_WARP = "npc:";
-/** 上游 portals 的 pt：0 是出生點，不是門；同名的門先認 1、2（玩家走得進去的一般門） */
-const SPAWN_POINT = 0;
-const DOOR_TYPES = new Set([1, 2]);
+/**
+ * 地圖上只畫玩家看得到、按得下去的門：上游 portals 的 pt 2。
+ * 其他（0 出生點、1 看不到的門、3 踩到就傳的掉落口、10 腳本門……）不畫座標，目的地照樣列。
+ */
+const VISIBLE_DOOR = 2;
 /** 多收的圖（maps.json 沒 zh）遇到這些街名不收：隱藏地圖是任務、活動送進去的，航海中是坐船時的船艙 */
 const EXTRA_SKIP_STREETS = new Set(["隱藏地圖", "航海中"]);
 
@@ -183,14 +185,14 @@ function mapNpcs(spawns) {
  * 門：graph.json 的 [目的圖, 門名, x, y]，同一個目的地只列一次、每個門的座標都記。
  * 目的地名取收進 atlas 的名字，沒有就用 maps.json 的 zh，都沒有（沒開放）就不列。
  * 座標以台服客戶端為準（同「出怪以台服客戶端為準，v83 只當備援」）：
- *  - 上游這張圖有門清單：只畫門名在清單裡的門，座標用上游的；v83 才有的門名不畫（目的地照樣列，p 可能是空的）。
+ *  - 上游這張圖有門清單：只畫門名在清單裡、而且是 pt 2（看得到的門）的，座標用上游的；
+ *    v83 才有的門名、pt 1／3／10 這類看不到的門都不畫（目的地照樣列，p 可能是空的）。
  *  - 上游這張圖完全沒有門清單：才用 graph／v83 的座標；是 0,0 就不記座標（只進清單）。
  */
 function mapDoors(id, portals, edges, kept, mapRecords) {
   const portalAt = new Map();
-  const upstreamDoors = (portals || []).filter(portal => portal?.name && Number(portal.pt) !== SPAWN_POINT);
-  for (const portal of [...upstreamDoors.filter(p => DOOR_TYPES.has(Number(p.pt))), ...upstreamDoors]) {
-    if (portalAt.has(portal.name)) continue;
+  for (const portal of portals || []) {
+    if (!portal?.name || Number(portal.pt) !== VISIBLE_DOOR || portalAt.has(portal.name)) continue;
     portalAt.set(portal.name, [Number(portal.x) || 0, Number(portal.y) || 0]);
   }
   const hasUpstream = (portals || []).length > 0;

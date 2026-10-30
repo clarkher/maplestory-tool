@@ -108,11 +108,12 @@ test("多收的圖：沒有門的房間不收（只靠 NPC、任務進去的考�
   assert.ok(named.index.maps.includes(108000100));
 });
 
-test("同一個目的地多個門：清單只列一次，每個門都有座標", () => {
+test("同一個目的地多個門：清單只列一次，每個看得到的門（pt 2）都有座標", () => {
   const south = mapOf(100040000);
   const toCamp = south.doors.filter(door => door.to === 100040001);
   assert.equal(toCamp.length, 1);
-  assert.ok(toCamp[0].p.length >= 2, JSON.stringify(toCamp[0].p));
+  // in01、in01_1 在台服客戶端是 pt 10（看不到的腳本門）：照樣列，但不畫
+  assert.deepEqual(toCamp[0].p, []);
   const back = mapOf(100040001).doors.find(door => door.to === 100040000);
   assert.deepEqual(back.p, [[-189, 277], [275, -1090]]);
 });
@@ -147,17 +148,27 @@ test("門的規則：npc: 邊不算門、上游有門清單時對不到門名的
   assert.deepEqual(doors[2].p, []);
 });
 
-test("門座標以台服客戶端為準：上游有門清單時，v83 才有的門名整個丟掉、對得到的用上游座標", () => {
-  // 仿 101030109：上游只有 west00，v83 另外多了一堆門名
-  const south = { ...fixture.maps[100040000], portals: [{ name: "west00", pt: 2, x: -1861, y: 2077 }, { name: "in01", pt: 10, x: -1, y: -2 }] };
+test("門座標以台服客戶端為準：上游有門清單時，v83 才有的門名整個丟掉、只畫 pt 2 的門", () => {
+  // 仿 101030109：上游只有 west00（pt 2），另外是 pt 3 的掉落口、pt 10 的腳本門，v83 還多了一堆門名
+  const south = {
+    ...fixture.maps[100040000],
+    portals: [{ name: "west00", pt: 2, x: -1861, y: 2077 }, { name: "in01", pt: 10, x: -1, y: -2 }, { name: "in01_1", pt: 3, x: -3, y: -4 }],
+  };
   const out = run({ upstreamMaps: { ...fixture.maps, 100040000: south } });
   const doors = out.maps.find(map => map.id === 100040000).doors;
-  assert.deepEqual(doors.find(door => door.to === 100040001).p, [[-1, -2]]);
+  assert.deepEqual(doors.find(door => door.to === 100040001).p, []);
   assert.deepEqual(doors.find(door => door.to === 100030000).p, [[-1861, 2077]]);
   for (const target of [100040002, 100040003, 100040004]) {
     const door = doors.find(item => item.to === target);
     if (door) assert.deepEqual(door.p, [], `${target} 只有 v83 的門名`);
   }
+});
+
+test("同一個目的地：pt 2 的門畫、pt 3 的掉落口不畫（仿 101030109 的 west00、under00）", () => {
+  const camp = { ...fixture.maps[100040001], portals: [{ name: "out00", pt: 2, x: -189, y: 277 }, { name: "out01", pt: 3, x: 275, y: -1090 }] };
+  const out = run({ upstreamMaps: { ...fixture.maps, 100040001: camp } });
+  const back = out.maps.find(map => map.id === 100040001).doors.find(door => door.to === 100040000);
+  assert.deepEqual(back.p, [[-189, 277]]);
 });
 
 test("門座標：上游完全沒有門清單的圖才用 v83／graph 的座標", () => {
