@@ -19,14 +19,14 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，shop-shot 是 9389，fx-shot 是 9481，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），shop-shot 是 9389，fx-shot 是 9481，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
   check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
-  speed-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
+  speed-shot、scroll-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
 - 測試機實測時間（2026-10-07）：scroll-proof 45 秒、crossdoc（plain）75 秒、
   after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
   gear-source-shot 三個角色 13 秒。
@@ -388,6 +388,21 @@ MSYS_NO_PATHCONV=1 node scripts/verify/contrast-audit.mjs <輸出> <網址> [頁
 角色用 localStorage `ms-profile` 帶入，sessionStorage 每次清掉（計算機的設定記在瀏覽紀錄，不清會沿用上一個角色的）。
 「看細節」是受控的 `<details>`（展開狀態記在瀏覽紀錄），所以腳本用點 `<summary>` 的方式展開（直接改 `open` 屬性 React 不一定認），`detailsOpen` 記有沒有真的展開；
 `consoleProblems` 是整趟 console 的錯誤、警告（hydration 警告、沒接住的例外）。
+
+### 衝卷模擬
+
+#### `scroll-shot.mjs`：跑一次衝卷模擬頁（v1.23，埠 9302）
+
+```bash
+node scripts/verify/scroll-shot.mjs [網址，預設 http://localhost:9301] [輸出] [DevTools 埠，預設 9302]
+```
+
+- 網址用 `localhost`，不要用 `127.0.0.1`。本機 dev 第一次開頁要編譯，最多等 1 分鐘。測的是工地手套（1082002，可衝 5 次）＋手套攻擊卷軸 60%（2040804）。
+- 檢查（22 項，任何一項沒過 exit 1）：表格 5 行、第 5 行 7.8%、64 張・29 件；第一欄主行只寫張數、數值在第二行；沒填單價沒有「平均花費」欄；
+  **只填卷軸單價也沒有**（卷軸＋裝備都填才有，開白衣要連白衣單價一起）；開白衣第 5 行一件衝成 100%；390 寬不橫向捲動、第一欄不超過 3 行高；
+  帽子挑得到卷；裝備清單的部位小按鈕點了只剩那個部位；查資料卷軸卡／裝備卡的連結；壞網址不壞頁（寫明「這件裝備／這張卷軸還算不了」）、眼飾不收、查資料不收的卷軸沒有連結；console 沒有錯誤。
+- 輸出：`scroll-1280-light／dark.png`、`scroll-390-light／dark.png`（390 寬是開白衣、三個單價都填的樣子）、`scroll-picker.png`、`results.json`。
+- 單價欄要走真的輸入（`Input.insertText`），直接改 `value` React 收不到。
 
 ### 練功測速
 

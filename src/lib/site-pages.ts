@@ -13,6 +13,7 @@ export const SITE_PAGES: SitePage[] = [
   { path: "/plan/buy", name: "拍賣買齊就能交的任務", what: "不用打怪、買齊東西直接交的任務", priority: 0.8 },
   { path: "/plan/damage", name: "傷害計算機", what: "算技能每一下多少、打怪幾下打死，兩套點法並排比", priority: 0.8 },
   { path: "/plan/boss", name: "野王計時", what: "打死野王按一下，算每個頻道還要多久重生", priority: 0.7 },
+  { path: "/plan/scroll", name: "衝卷模擬", what: "選裝備跟卷軸，算衝到想要的張數要準備多少", priority: 0.7 },
   { path: "/plan/speed", name: "練功測速", what: "分享遊戲畫面，自動算 10 分鐘拿多少經驗", priority: 0.7 },
   { path: "/price/fx", name: "楓幣匯率", what: "雪吉拉 1 億楓幣值多少台幣、每天走勢", priority: 0.7 },
   { path: "/event/halloween", name: "萬聖節任務攻略", what: "雪原的面具祭典 1～3 章照順序、要打的怪去哪打", priority: 0.7 },

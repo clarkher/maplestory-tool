@@ -6,6 +6,7 @@ import type {
 } from "./types";
 import type { GearData } from "./gear";
 import type { RawSpeedNames } from "./speed/names";
+import type { ScrollSimData } from "./scroll-sim/types";
 
 /**
  * 資料檔全部是編譯期產生的靜態 JSON，第一次用到才抓、抓過就留著。
@@ -154,6 +155,31 @@ export function loadGear(): Promise<GearData> {
   }
   return gearPromise;
 }
+/**
+ * 衝卷模擬的小檔（卷軸、白衣、可衝裝備）：跟 gear.json 一樣由 build-gear 寫、可以單獨重跑（meta 版本號不會動），
+ * 所以也每次回伺服器確認（next.config 對 /data/scroll-sim.json 設 must-revalidate），沒變就 304。
+ */
+let scrollSimPromise: Promise<ScrollSimData> | null = null;
+export function loadScrollSim(): Promise<ScrollSimData> {
+  if (!scrollSimPromise) {
+    scrollSimPromise = fetch("/data/scroll-sim.json", { cache: "no-cache" })
+      .then(response => {
+        if (!response.ok) throw new Error(`載入卷軸資料失敗（${response.status}）`);
+        return response.json() as Promise<ScrollSimData>;
+      })
+      .then(data => {
+        ready.set("scroll-sim", data);
+        return data;
+      });
+    // 載失敗不要記住，下次再試
+    scrollSimPromise.catch(() => {
+      scrollSimPromise = null;
+    });
+  }
+  return scrollSimPromise;
+}
+export const peekScrollSim = () => peek<ScrollSimData>("scroll-sim");
+
 /**
  * 玩家攻略跟遊戲資料是兩條獨立的更新線，不能共用 meta 的版本號——
  * 攻略改了但遊戲資料沒變時，瀏覽器會一直拿快取的舊攻略。
