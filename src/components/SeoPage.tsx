@@ -10,6 +10,7 @@ export function SeoPage({
   title,
   lead,
   image,
+  imageSize = 56,
   kicker,
   chips,
   toolHref,
@@ -22,6 +23,8 @@ export function SeoPage({
   title: string;
   lead: string;
   image?: string;
+  /** 大標旁那張圖的邊長（px）；NPC 頁的人比較高，放大一點 */
+  imageSize?: number;
   /** 大標上面的小字（地圖頁寫「大陸・區域」） */
   kicker?: string;
   /** 大標下面一排標籤（地圖頁的等級、回城、帶我去） */
@@ -57,7 +60,7 @@ export function SeoPage({
         <header className="flex items-start gap-3">
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt={title} width={56} height={56} className="size-14 shrink-0 object-contain" />
+            <img src={image} alt={title} width={imageSize} height={imageSize} style={{ width: imageSize, height: imageSize }} className="shrink-0 object-contain" />
           ) : null}
           <div className="min-w-0">
             {kicker ? <p className="text-[13px] font-bold ink-soft">{kicker}</p> : null}

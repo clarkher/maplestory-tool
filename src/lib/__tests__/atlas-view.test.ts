@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { doorList, labelSides, levelRange, mapSummary, MOB_COLORS, mobColor, pinPercent, showNpcLabels } from "@/lib/atlas-view";
-import type { AtlasMap } from "@/lib/types";
+import { doorList, labelSides, levelRange, mapSummary, MOB_COLORS, mobColor, npcSummary, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
+import type { AtlasMap, AtlasNpc } from "@/lib/types";
 
 const map1020000: AtlasMap = {
   id: 1020000,
@@ -103,5 +103,65 @@ describe("labelSides", () => {
   });
   it("離很遠的照舊放上面；靠上緣的放下面", () => {
     expect(labelSides([{ left: 10, top: 50 }, { left: 60, top: 50 }, { left: 30, top: 5 }])).toEqual(["up", "up", "down"]);
+  });
+});
+
+describe("shopRows", () => {
+  const duringEvent = Date.parse("2026-10-24T12:00:00+08:00");
+  const afterEvent = Date.parse("2026-11-12T00:00:00+08:00");
+  const end = "2026-11-11T23:59+08:00";
+
+  it("常駐的照價格由低到高，寫「N 楓幣」", () => {
+    const rows = shopRows([
+      { id: 1072026, pr: 9000, s: "鞋子" },
+      { id: 1002033, pr: 3000, s: "帽子" },
+      { id: 1041008, pr: 5500, s: "上衣" },
+    ], duringEvent);
+    expect(rows.map(row => [row.id, row.price, row.until])).toEqual([
+      [1002033, "3,000 楓幣", undefined],
+      [1041008, "5,500 楓幣", undefined],
+      [1072026, "9,000 楓幣", undefined],
+    ]);
+  });
+
+  it("活動店沒過期：標到幾號、寫真的幣別跟一次幾個，排在常駐後面", () => {
+    const rows = shopRows([
+      { id: 2047421, pr: 3, u: "萬聖節硬幣", e: end, s: "卷軸" },
+      { id: 2001001, pr: 1, k: 10, u: "萬聖節硬幣", e: end, s: "藥水" },
+      { id: 1002033, pr: 3000, s: "帽子" },
+    ], duringEvent);
+    expect(rows.map(row => [row.id, row.price, row.until])).toEqual([
+      [1002033, "3,000 楓幣", undefined],
+      [2001001, "10 個 1 萬聖節硬幣", "11/11"],
+      [2047421, "3 萬聖節硬幣", "11/11"],
+    ]);
+    expect(rows[1].e).toBe(end);
+  });
+
+  it("活動結束後（11/12 起）活動店不列；23:59 那一分鐘還算開著", () => {
+    const shop = [{ id: 2001001, pr: 1, k: 10, u: "萬聖節硬幣", e: end, s: "藥水" }, { id: 1002033, pr: 3000, s: "帽子" }];
+    expect(shopRows(shop, afterEvent).map(row => row.id)).toEqual([1002033]);
+    expect(shopRows(shop, Date.parse("2026-11-11T23:59:30+08:00"))).toHaveLength(2);
+    expect(shopRows(undefined, duringEvent)).toEqual([]);
+  });
+});
+
+describe("npcSummary", () => {
+  const sam: AtlasNpc = { id: 1011001, n: "山姆", img: 1, maps: [100000101], shop: Array.from({ length: 90 }, (_, i) => ({ id: i, pr: 100, s: "鞋子" })) };
+  const names = (id: number) => ({ 100000101: "弓箭手村武器店", 1020000: "楓葉村東郊平原" } as Record<number, string>)[id];
+
+  it("山姆：在哪、賣幾樣", () => {
+    const text = npcSummary(sam, names);
+    expect(text).toContain("弓箭手村武器店");
+    expect(text).toContain("90 樣");
+    expect(text).not.toContain("任務");
+  });
+  it("麥加：在哪、幾個任務，不提賣東西", () => {
+    const maple: AtlasNpc = { id: 12100, n: "麥加", maps: [1020000], quests: [{ id: "1016", n: "麥加的修煉", r: "接・交" }, { id: "1019", n: "桑姆的考驗", r: "交" }] };
+    expect(npcSummary(maple, names)).toBe("麥加在楓葉村東郊平原，有 2 個任務。");
+  });
+  it("同名的分流圖只寫一次（行商人開在 5 張雪原的面具祭典現場）", () => {
+    const vendor: AtlasNpc = { id: 9402818, n: "行商人", maps: [1, 2, 3, 4, 5], shop: [{ id: 2001001, pr: 1, s: "藥水" }] };
+    expect(npcSummary(vendor, () => "雪原的面具祭典現場")).toBe("行商人在雪原的面具祭典現場，賣 1 樣東西。");
   });
 });

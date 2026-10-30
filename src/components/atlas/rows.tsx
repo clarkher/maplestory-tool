@@ -1,14 +1,17 @@
 import Link from "next/link";
-import { monsterImage, npcImage } from "@/lib/asset-paths";
-import { mobColor } from "@/lib/atlas-view";
-import type { AtlasMap } from "@/lib/types";
+import { itemImage, monsterImage, npcImage } from "@/lib/asset-paths";
+import { mobColor, type ShopLine } from "@/lib/atlas-view";
+import type { AtlasMap, AtlasNpc } from "@/lib/types";
+import { Chip } from "@/components/route/bits";
+import { OpenUntil } from "./OpenUntil";
 
 /** 地圖頁的一張卡（怪物、NPC、門各一張） */
 export function AtlasCard({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {
   return (
     <section className="rounded-[1.125rem] border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] p-4">
-      <h2 className="mb-2 flex items-baseline gap-2">
-        <span className="text-base font-black">{title}</span>
+      {/* 小字長（「共 90 樣・參考舊版資料…」）時整段換到下一行，標題不會被擠成直的 */}
+      <h2 className="mb-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+        <span className="shrink-0 text-base font-black">{title}</span>
         {sub ? <span className="text-xs font-normal ink-soft">{sub}</span> : null}
       </h2>
       {children}
@@ -84,6 +87,95 @@ export function DoorRows({ doors }: { doors: { to: number; n: string; href: stri
           <span className="min-w-0 flex-1 text-[15px] font-extrabold">{door.n}</span>
           <Link href={door.href} className={actionLink}>
             過去看
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** NPC 頁「在哪」：每張所在地圖一列，小字寫「大陸・區域」 */
+export function PlaceRows({ places }: { places: { id: number; n: string; sub?: string }[] }) {
+  return (
+    <div>
+      {places.map(place => (
+        <div key={place.id} className={row}>
+          <div className="min-w-0 flex-1">
+            <Link href={`/db/maps/${place.id}`} className="text-[15px] font-extrabold hover:text-[color:var(--maple)]">
+              {place.n}
+            </Link>
+            {place.sub ? <div className="text-xs ink-soft">{place.sub}</div> : null}
+          </div>
+          <Link href={`/db/maps/${place.id}`} className={actionLink}>
+            看地圖
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ShopRow({ line, name }: { line: ShopLine; name: string }) {
+  const body = (
+    <div className={`${row} py-1.5`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={itemImage(line.id)} alt="" width={32} height={32} loading="lazy" className="size-8 shrink-0 object-contain [image-rendering:pixelated]" />
+      <div className="min-w-0 flex-1">
+        <Link href={`/db/items?id=${line.id}`} className="text-sm font-extrabold hover:text-[color:var(--maple)]">
+          {name}
+        </Link>
+        <div className="flex flex-wrap items-center gap-1.5 text-xs ink-soft">
+          {line.s}
+          {line.until ? <Chip tone="maple">活動限定・到 {line.until}</Chip> : null}
+        </div>
+      </div>
+      <b className="shrink-0 text-right text-sm font-black tabular-nums">{line.price}</b>
+    </div>
+  );
+  // 活動店：過了結束時間瀏覽器自己藏起來，不用等重建
+  return line.e ? <OpenUntil end={line.e}>{body}</OpenUntil> : body;
+}
+
+/** NPC 頁「賣什麼」：先列 first 樣，其餘收在 details（不靠 JavaScript 也打得開） */
+export function ShopRows({ lines, nameOf, first = 8 }: { lines: ShopLine[]; nameOf: (id: number) => string; first?: number }) {
+  const head = lines.slice(0, first);
+  const rest = lines.slice(first);
+  return (
+    <div>
+      {head.map((line, index) => (
+        <ShopRow key={`${line.id}-${line.pr}-${index}`} line={line} name={nameOf(line.id)} />
+      ))}
+      {rest.length ? (
+        <details className="group">
+          <summary className="tap-safe flex cursor-pointer list-none justify-center border-t border-[color:var(--paper-edge)] pt-2.5 text-[13px] font-extrabold text-[color:var(--maple)] hover:underline [&::-webkit-details-marker]:hidden">
+            <span className="group-open:hidden">看全部 {lines.length} 樣</span>
+            <span className="hidden group-open:inline">收起來</span>
+          </summary>
+          <div className="mt-2.5">
+            {rest.map((line, index) => (
+              <ShopRow key={`${line.id}-${line.pr}-${index}`} line={line} name={nameOf(line.id)} />
+            ))}
+          </div>
+        </details>
+      ) : null}
+    </div>
+  );
+}
+
+/** NPC 頁「任務」：任務名連任務頁，後面小字寫這個 NPC 的角色（接、交、接・交、相關） */
+export function QuestRows({ quests }: { quests: NonNullable<AtlasNpc["quests"]> }) {
+  return (
+    <div>
+      {quests.map(quest => (
+        <div key={quest.id} className={row}>
+          <div className="min-w-0 flex-1">
+            <Link href={`/db/quests/${quest.id}`} className="text-[15px] font-extrabold hover:text-[color:var(--maple)]">
+              {quest.n}
+            </Link>
+            <span className="ml-1.5 text-xs ink-soft">{quest.r}</span>
+          </div>
+          <Link href={`/db/quests/${quest.id}`} className={actionLink}>
+            看任務
           </Link>
         </div>
       ))}

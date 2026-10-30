@@ -1,7 +1,8 @@
 /**
- * 地圖頁（/db/maps/[id]）用的純函式：圖上標點位置、怪物顏色、等級範圍、摘要句。
+ * 地圖頁（/db/maps/[id]）、NPC 頁（/db/npcs/[id]）用的純函式：圖上標點位置、怪物顏色、等級範圍、摘要句、商店列。
  */
-import type { AtlasMap } from "./types";
+import { shopOpen, shopPriceText, untilText } from "./item-view";
+import type { AtlasMap, AtlasNpc } from "./types";
 
 /** 怪物圓點固定 6 色，依序給，超過就循環 */
 export const MOB_COLORS = ["#3f8f4f", "#d4553a", "#2f9fb0", "#c9a23a", "#8a5cc7", "#d0679d"] as const;
@@ -90,4 +91,29 @@ export function labelSides(points: { left: number; top: number }[]): LabelSide[]
     sides.push(first === "up" && hits(index, "up") && !hits(index, "down") ? "down" : first);
   });
   return sides;
+}
+
+/** NPC 頁「賣什麼」的一列：價錢字樣跟查資料道具卡同一套；until 是活動店結束日「11/11」，e 原始結束時間 */
+export type ShopLine = NonNullable<AtlasNpc["shop"]>[number] & { price: string; until?: string };
+
+/**
+ * NPC 頁「賣什麼」：過期的活動店拿掉（跟道具卡同一個 shopOpen 判斷）；常駐的在前、活動店在後，
+ * 各自照價格由低到高（同幣別排一起），同價照道具編號。
+ */
+export function shopRows(shop: AtlasNpc["shop"], now = Date.now()): ShopLine[] {
+  return (shop ?? [])
+    .filter(row => shopOpen(row, now))
+    .sort((a, b) => Number(Boolean(a.e)) - Number(Boolean(b.e)) || (a.u ?? "").localeCompare(b.u ?? "") || a.pr - b.pr || a.id - b.id)
+    .map(row => (row.e ? { ...row, price: shopPriceText(row), until: untilText(row.e) } : { ...row, price: shopPriceText(row) }));
+}
+
+/** 「山姆在弓箭手村武器店，賣 90 樣東西。」：在哪（同名只算一次，最多 3 個名字）、賣幾樣、幾個任務，沒有的那段不寫 */
+export function npcSummary(npc: AtlasNpc, nameOf: (id: number) => string | undefined): string {
+  // 同名的分流圖（活動場地開好幾張）只寫一次
+  const places = [...new Set(npc.maps.map(nameOf).filter((name): name is string => Boolean(name)))];
+  const parts: string[] = [];
+  if (npc.shop?.length) parts.push(`賣 ${npc.shop.length} 樣東西`);
+  if (npc.quests?.length) parts.push(`有 ${npc.quests.length} 個任務`);
+  const head = places.length ? `${npc.n}在${listNames(places, 3, "張圖")}` : npc.n;
+  return parts.length ? `${head}，${parts.join("，")}。` : `${head}。`;
 }
