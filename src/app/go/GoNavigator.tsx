@@ -7,7 +7,9 @@ import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } fr
 import { MapPicker } from "@/components/MapPicker";
 import { PixelMinimap } from "@/components/PixelMinimap";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
-import { loadGraph, loadMaps, loadNearestTown, mapName, minimapImage, peekGraph, peekMaps, peekNearestTown } from "@/lib/data";
+import {
+  loadAtlasIndex, loadGraph, loadMaps, loadNearestTown, mapName, minimapImage, peekAtlasIndex, peekGraph, peekMaps, peekNearestTown,
+} from "@/lib/data";
 /** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
 import { GO_START_KEY as START_KEY } from "@/lib/go-start";
 import { normalizeJob } from "@/lib/jobs";
@@ -17,7 +19,7 @@ import {
   MAIN_TOWNS, VICTORIA_PORT, crossAreaText, findRoute, goNoteText, goStart, isAirshipArea, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep,
   type StartChoice,
 } from "@/lib/route";
-import type { MapRecord, PortalEdge } from "@/lib/types";
+import type { AtlasIndex, MapRecord, PortalEdge } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 
 function readRememberedStart(): number | null {
@@ -48,6 +50,8 @@ export function GoNavigator() {
   const [graph, setGraph] = useState<Record<string, PortalEdge[]> | null>(peekGraph);
   const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(peekNearestTown);
   const [error, setError] = useState<string | null>(null);
+  // 有地圖頁的圖：目的地有頁才在「到了」旁邊放「看這張圖」。載到前不放（一行短字，放進來不會換行、不推動版面），也不擋路線
+  const [atlasIndex, setAtlasIndex] = useState<AtlasIndex | null>(peekAtlasIndex);
   // 上次自己選的起點也一開始就讀，不會先排一條路再換掉（這頁用了網址參數，只在瀏覽器上畫，讀得到本機儲存）
   const [remembered, setRemembered] = useState<number | null>(readRememberedStart);
 
@@ -60,6 +64,11 @@ export function GoNavigator() {
         setNearestTown(townData);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
+  }, []);
+  useEffect(() => {
+    if (atlasIndex) return;
+    // 載不到就不放「看這張圖」，不算錯
+    loadAtlasIndex().then(setAtlasIndex, () => {});
   }, []);
 
   // 初心者不管幾等都可能還在楓之島（看本機存的角色）：沒自己選起點時從船靠岸的維多利亞港出發，路線上面先說要搭船（route.ts goStart）
@@ -178,7 +187,7 @@ export function GoNavigator() {
               hint="這張圖在客戶端資料裡沒有連到任何城鎮，可能是活動地圖或副本。"
             />
           ) : plan?.ok ? (
-            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} notes={notes} />
+            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} notes={notes} atlasIndex={atlasIndex} />
           ) : plan && plan.reason === "different-area" ? (
             <CrossAreaNotice
               maps={maps!}
@@ -218,12 +227,14 @@ function RouteList({
   hops,
   graph,
   notes,
+  atlasIndex,
 }: {
   steps: RouteStep[];
   maps: Record<string, MapRecord>;
   hops: number;
   graph: Record<string, PortalEdge[]>;
   notes: GoNote[];
+  atlasIndex: AtlasIndex | null;
 }) {
   return (
     <section aria-label="路線">
@@ -245,6 +256,7 @@ function RouteList({
             maps={maps}
             graph={graph}
             previous={steps[index - 1]?.map}
+            atlasIndex={atlasIndex}
           />
         ))}
       </ol>
@@ -259,6 +271,7 @@ function RouteCard({
   maps,
   graph,
   previous,
+  atlasIndex,
 }: {
   step: RouteStep;
   index: number;
@@ -266,6 +279,7 @@ function RouteCard({
   maps: Record<string, MapRecord>;
   graph: Record<string, PortalEdge[]>;
   previous?: number;
+  atlasIndex: AtlasIndex | null;
 }) {
   // 小地圖展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時路線一樣長，才捲得回同一段（跟 React key 同一組）
   const [open, setOpen] = useVisitState(`go:map:${step.map}-${index}`, false);
@@ -280,6 +294,12 @@ function RouteCard({
   // 左右上下拿上一張圖的傳送門當基準，NPC 站的位置不算（code review）
   const doors = previousEdges.filter(([, via]) => !npcWarp(via)).map(([, , px, py]) => [px, py] as [number, number]);
   const direction = warp ? null : portalDirection(step.via, step.x, step.y, doors);
+  // 目的地有地圖頁：接在「到了」（起點就是目的地時接在「出發點」）後面
+  const mapPage = isEnd && atlasIndex?.maps.includes(step.map) ? (
+    <Link href={`/db/maps/${step.map}`} className="ml-2 text-[13px] font-bold ink-soft underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]">
+      看這張圖
+    </Link>
+  ) : null;
 
   return (
     <li className="overflow-hidden rounded-[var(--radius-card)] glass wood-frame">
@@ -304,7 +324,7 @@ function RouteCard({
           </p>
 
           {isStart ? (
-            <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點</p>
+            <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點{mapPage}</p>
           ) : (
             <>
               <p className="mt-0.5 text-sm ink-soft">{warp ? npcSentence(warp) : portalSentence(direction)}</p>
@@ -312,7 +332,7 @@ function RouteCard({
             </>
           )}
           {isEnd && !isStart ? (
-            <p className="mt-0.5 text-sm font-bold text-[color:var(--maple)]">到了</p>
+            <p className="mt-0.5 text-sm font-bold text-[color:var(--maple)]">到了{mapPage}</p>
           ) : null}
 
           {record?.mm ? (

@@ -10,8 +10,10 @@ import { FilterTag } from "@/components/FilterTag";
 import { GoButton } from "@/components/PlanShell";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
 import {
-  loadGuideCommon, loadMaps, loadMonsters, loadQuests, mapName, npcImage, peekGuideCommon, peekMaps, peekMonsters, peekQuests,
+  loadAtlasIndex, loadGuideCommon, loadMaps, loadMonsters, loadQuests, mapName, npcImage, peekAtlasIndex, peekGuideCommon, peekMaps,
+  peekMonsters, peekQuests,
 } from "@/lib/data";
+import { npcHref } from "@/lib/atlas-view";
 import { useDoneQuests } from "@/lib/done-quests";
 import { rewardSummary } from "@/lib/format";
 import { npcPlace } from "@/lib/go-label";
@@ -20,7 +22,7 @@ import { isDevQuest, QUEST_BUCKET_LABEL } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { boardNote, compareListLevel, levelNote, listLevel, questBoard, type ListLevel } from "@/lib/quest-view";
 import { useRemembered } from "@/lib/remember";
-import type { GuideCommon, MapRecord, Monster, Quest } from "@/lib/types";
+import type { AtlasIndex, GuideCommon, MapRecord, Monster, Quest } from "@/lib/types";
 import { DB_HEADS } from "@/lib/db-heads";
 
 export function QuestDb() {
@@ -33,6 +35,8 @@ export function QuestDb() {
   // 這兩樣載不到：清單照列，只是沒有建議等級（沒寫需求等級的小字寫分類、排最後）；任務、地圖載不到才整頁寫「資料載入失敗」
   const [suggestFailed, setSuggestFailed] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 有頁的 NPC：載到前 NPC 名字是純文字，載到後有頁的名字變連結（字跟版面不變，不擋清單）
+  const [atlasIndex, setAtlasIndex] = useState<AtlasIndex | null>(peekAtlasIndex);
   const [category, setCategory] = useRemembered("db:任務:category", "");
   const [onlyEligible, setOnlyEligible] = useRemembered("db:任務:onlyEligible", false);
   // 角色列填了職業和等級才出現「只看我現在接得到的」：跟首頁同一套判斷（等級、等級上限、職業、楓之島）
@@ -56,6 +60,8 @@ export function QuestDb() {
         setCommon(commonData);
       })
       .catch(() => setSuggestFailed(true));
+    // 載不到就照舊純文字，不算錯
+    loadAtlasIndex().then(setAtlasIndex, () => {});
   }, []);
 
   // 建議等級用的資料載完（或載不到、放棄）才畫清單：第一個畫出來的清單就是最後的樣子，返回、重新整理回到原位時位置才對得上
@@ -156,7 +162,7 @@ export function QuestDb() {
       renderDetail={id => {
         const quest = questIndex.get(id);
         if (!quest || !maps) return null;
-        return <QuestDetail quest={quest} maps={maps} questNames={questNames} />;
+        return <QuestDetail quest={quest} maps={maps} questNames={questNames} atlasIndex={atlasIndex} />;
       }}
     />
   );
@@ -166,10 +172,12 @@ function QuestDetail({
   quest,
   maps,
   questNames,
+  atlasIndex,
 }: {
   quest: Quest;
   maps: Record<string, MapRecord>;
   questNames: Map<string, string>;
+  atlasIndex: AtlasIndex | null;
 }) {
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
 
@@ -192,11 +200,11 @@ function QuestDetail({
       </header>
 
       <div className="grid gap-2 sm:grid-cols-2">
-        {quest.sNpc ? <NpcBlock title="接任務" npc={quest.sNpc} maps={maps} /> : null}
-        {quest.eNpc ? <NpcBlock title="回報" npc={quest.eNpc} maps={maps} /> : null}
+        {quest.sNpc ? <NpcBlock title="接任務" npc={quest.sNpc} maps={maps} atlasIndex={atlasIndex} /> : null}
+        {quest.eNpc ? <NpcBlock title="回報" npc={quest.eNpc} maps={maps} atlasIndex={atlasIndex} /> : null}
       </div>
 
-      <QuestDetailBody quest={quest} maps={maps} questNames={questNames} />
+      <QuestDetailBody quest={quest} maps={maps} questNames={questNames} npcPages={atlasIndex?.npcs} />
     </DetailCard>
   );
 }
@@ -205,11 +213,15 @@ function NpcBlock({
   title,
   npc,
   maps,
+  atlasIndex,
 }: {
   title: string;
   npc: NonNullable<Quest["sNpc"]>;
   maps: Record<string, MapRecord>;
+  atlasIndex: AtlasIndex | null;
 }) {
+  // 有 NPC 頁才是連結（在哪、賣什麼、任務）；沒有就照舊純文字
+  const href = npcHref(npc.id, atlasIndex);
   return (
     <div className="rounded-xl bg-[color:var(--paper-deep)] p-3">
       <p className="text-[11px] ink-faint">{title}</p>
@@ -217,7 +229,15 @@ function NpcBlock({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={npcImage(npc.id)} alt="" width={32} height={32} className="size-8 object-contain" />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-bold">{npc.n}</p>
+          <p className="truncate font-bold">
+            {href ? (
+              <Link href={href} className="underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]">
+                {npc.n}
+              </Link>
+            ) : (
+              npc.n
+            )}
+          </p>
           {npc.map ? (
             <p className="flex min-w-0 items-center gap-1.5 text-[12px] ink-faint">
               <span className="min-w-0 truncate">{mapName(maps, npc.map)}</span>

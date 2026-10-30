@@ -2,7 +2,7 @@
  * 地圖頁（/db/maps/[id]）、NPC 頁（/db/npcs/[id]）用的純函式：圖上標點位置、怪物顏色、等級範圍、摘要句、商店列。
  */
 import { shopOpen, shopPriceText, untilText } from "./item-view";
-import type { AtlasMap, AtlasNpc } from "./types";
+import type { AtlasIndex, AtlasMap, AtlasNpc } from "./types";
 
 /** 怪物圓點固定 6 色，依序給，超過就循環 */
 export const MOB_COLORS = ["#3f8f4f", "#d4553a", "#2f9fb0", "#c9a23a", "#8a5cc7", "#d0679d"] as const;
@@ -190,4 +190,25 @@ export function npcMatches(row: NpcListRow, query: string, filters: { shop: bool
   if (filters.shop && !row.shop) return false;
   if (filters.quest && !row.quest) return false;
   return mapMatches(row.q, query);
+}
+
+/** index 的 id 陣列換成 Set，同一份 index 只換一次 */
+const indexSets = new WeakMap<AtlasIndex, { maps: Set<number>; npcs: Set<number> }>();
+function sets(index: AtlasIndex) {
+  let found = indexSets.get(index);
+  if (!found) {
+    found = { maps: new Set(index.maps), npcs: new Set(index.npcs) };
+    indexSets.set(index, found);
+  }
+  return found;
+}
+
+/** 別頁的地圖連結：有地圖頁就連地圖頁（頁上有帶我去），沒有或 index 還沒載到照舊連帶路 */
+export function mapHref(id: number, index: AtlasIndex | null): string {
+  return index && sets(index).maps.has(id) ? `/db/maps/${id}` : `/go?to=${id}`;
+}
+
+/** 別頁的 NPC 連結：有 NPC 頁才有連結，沒有就 undefined（名字照舊是純文字） */
+export function npcHref(id: number, index: AtlasIndex | null): string | undefined {
+  return index && sets(index).npcs.has(id) ? `/db/npcs/${id}` : undefined;
 }

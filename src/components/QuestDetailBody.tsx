@@ -16,10 +16,13 @@ export function QuestDetailBody({
   quest,
   maps,
   questNames,
+  npcPages,
 }: {
   quest: Quest;
   maps: Record<string, MapRecord>;
   questNames?: Map<string, string>;
+  /** 有 NPC 頁的 NPC id：「還會碰到的 NPC」名字連過去；沒給（或不在裡面）名字是純文字 */
+  npcPages?: readonly number[];
 }) {
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
   // 楓幣是負的＝交任務時要付，寫在要交的東西底下（奈洛的禮物、流浪煉金術師的新技術）
@@ -140,7 +143,18 @@ export function QuestDetailBody({
               <li key={`${npc.id}-${index}`} className="flex items-center gap-2 rounded-lg bg-[color:var(--paper-deep)] px-2 py-1.5">
                 <Image src={npcImage(npc.id)} alt="" width={26} height={26} className="size-[26px] object-contain" unoptimized />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate font-bold">{npc.n}</span>
+                  <span className="block truncate font-bold">
+                    {npcPages?.includes(npc.id) ? (
+                      <Link
+                        href={`/db/npcs/${npc.id}`}
+                        className="underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]"
+                      >
+                        {npc.n}
+                      </Link>
+                    ) : (
+                      npc.n
+                    )}
+                  </span>
                   {npc.map ? (
                     <span className="flex min-w-0 items-center gap-1.5 text-[11px] ink-faint">
                       <span className="min-w-0 truncate">{mapName(maps, npc.map)}</span>

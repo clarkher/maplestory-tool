@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
 import { SeoLinks, SeoPage, SeoSection } from "@/components/SeoPage";
 import { jobLabel } from "@/lib/item-view";
+import { npcHref } from "@/lib/atlas-view";
 import { breadcrumbLd, clip, questSummary, webPageLd } from "@/lib/seo";
-import { staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
+import { staticAtlasIndex, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
 import type { MapRecord, Quest } from "@/lib/types";
 
 type Props = { params: Promise<{ id: string }> };
@@ -60,6 +61,18 @@ export default async function Page({ params }: Props) {
   const monsterIds = new Set(staticMonsters().map(monster => monster.id));
   const mobs = (quest.needMobs ?? []).filter(mob => monsterIds.has(mob.id));
   const jobs = jobsText(quest);
+  // 接任務、回報、還會碰到的 NPC：有 NPC 頁的才連過去（頁面只帶這個任務用得到的 id）
+  const atlasIndex = staticAtlasIndex();
+  // 接、回報同一個人併成一個（「接任務、回報」）
+  const sameNpc = quest.sNpc && quest.eNpc && quest.sNpc.id === quest.eNpc.id;
+  const npcLinks = [
+    ...(quest.sNpc ? [{ npc: quest.sNpc, note: sameNpc ? "接任務、回報" : "接任務" }] : []),
+    ...(quest.eNpc && !sameNpc ? [{ npc: quest.eNpc, note: "回報" }] : []),
+  ].flatMap(({ npc, note }) => {
+    const href = npcHref(npc.id, atlasIndex);
+    return href ? [{ href, text: npc.n, note }] : [];
+  });
+  const npcPages = (quest.npcs ?? []).map(npc => npc.id).filter(id => npcHref(id, atlasIndex));
 
   return (
     <SeoPage
@@ -74,7 +87,12 @@ export default async function Page({ params }: Props) {
       ]}
     >
       {jobs ? <p className="text-sm"><span className="ink-faint">可接職業：</span>{jobs}</p> : null}
-      <QuestDetailBody quest={quest} maps={mapsFor(quest, staticMaps())} questNames={questNames} />
+      {npcLinks.length ? (
+        <SeoSection title="接任務、回報的 NPC">
+          <SeoLinks links={npcLinks} />
+        </SeoSection>
+      ) : null}
+      <QuestDetailBody quest={quest} maps={mapsFor(quest, staticMaps())} questNames={questNames} npcPages={npcPages} />
       {mobs.length ? (
         <SeoSection title="要打的怪">
           <SeoLinks links={mobs.map(mob => ({ href: `/db/monsters/${mob.id}`, text: mob.n, note: mob.c ? `${mob.c} 隻` : undefined }))} />

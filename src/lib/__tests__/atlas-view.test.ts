@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doorList, labelSides, levelRange, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
+import { doorList, mapHref, npcHref, labelSides, levelRange, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap, AtlasNpc } from "@/lib/types";
 
 const map1020000: AtlasMap = {
@@ -239,5 +239,24 @@ describe("npcMatches", () => {
     expect(rows.filter(row => npcMatches(row, "", { shop: true, quest: false })).map(row => row.id)).toEqual([1011001]);
     expect(rows.filter(row => npcMatches(row, "", { shop: false, quest: true })).map(row => row.id)).toEqual([12100]);
     expect(rows.filter(row => npcMatches(row, "", { shop: true, quest: true }))).toHaveLength(0);
+  });
+});
+
+describe("mapHref／npcHref（別頁連到地圖頁、NPC 頁）", () => {
+  const index = { maps: [1000000, 1020000], npcs: [12100] };
+
+  it("圖在 index 裡連地圖頁", () => {
+    expect(mapHref(1020000, index)).toBe("/db/maps/1020000");
+  });
+
+  it("不在 index、或 index 還沒載到，照舊連帶路", () => {
+    expect(mapHref(1030000, index)).toBe("/go?to=1030000");
+    expect(mapHref(1020000, null)).toBe("/go?to=1020000");
+  });
+
+  it("NPC 在 index 裡連 NPC 頁，不在就沒有連結", () => {
+    expect(npcHref(12100, index)).toBe("/db/npcs/12100");
+    expect(npcHref(9999999, index)).toBeUndefined();
+    expect(npcHref(12100, null)).toBeUndefined();
   });
 });
