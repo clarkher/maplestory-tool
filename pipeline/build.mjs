@@ -21,7 +21,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isClassicJob } from "./lib/classic-jobs.mjs";
-import { buildAtlas } from "./lib/atlas.mjs";
+import { buildAtlas, doorEdges } from "./lib/atlas.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
@@ -213,6 +213,8 @@ function main() {
     upstreamMaps: artale.maps,
     mapRecords: maps.records,
     graphEdges: graph.edges,
+    // graph.json 同一個目的地只留一條邊；地圖頁要每個門都標，另外給完整的門清單（不動 graph.json）
+    portalEdges: doorEdges(v83.maps, maps.records),
     items: items.list,
     quests: quests.list,
     monsterIds: new Set(monsters.list.map(monster => monster.id)),

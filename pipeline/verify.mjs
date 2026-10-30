@@ -302,8 +302,20 @@ function main() {
   check("地圖圖鑑每張圖都有怪、NPC 或門", emptyAtlasMaps.length === 0, emptyAtlasMaps.length ? emptyAtlasMaps.slice(0, 10).join("、") : "");
   const sampleMap = atlasMaps.find(map => map.id === 1020000);
   const sampleWood = sampleMap?.mobs?.find(mob => mob.id === 130100);
-  check("地圖圖鑑有楓葉村東郊平原、木妖 7 隻", sampleWood?.k === 7,
-    sampleMap ? `${sampleMap.mobs.length} 種怪 ${sampleMap.mobs.reduce((sum, mob) => sum + mob.k, 0)} 隻、NPC ${sampleMap.npcs.map(npc => npc.n).join("、")}、門 ${sampleMap.doors.length} 個` : "找不到 1020000");
+  const sampleTotal = (sampleMap?.mobs ?? []).reduce((sum, mob) => sum + mob.k, 0);
+  check("地圖圖鑑樣本楓葉村東郊平原：4 種怪共 21 隻（木妖 7）、NPC 麥加、4 個門",
+    sampleMap?.mobs?.length === 4 && sampleTotal === 21 && sampleWood?.k === 7
+      && sampleMap.npcs.some(npc => npc.id === 12100) && sampleMap.doors.length === 4,
+    sampleMap ? `${sampleMap.mobs.length} 種怪 ${sampleTotal} 隻、NPC ${sampleMap.npcs.map(npc => npc.n).join("、")}、門 ${sampleMap.doors.length} 個` : "找不到 1020000");
+  // 地圖頁的門、回城都會連 /db/maps/<id>：連過去的圖一定要有頁面
+  const atlasIds = new Set(atlasMaps.map(map => map.id));
+  const deadLinks = atlasMaps.flatMap(map => [
+    ...map.doors.filter(door => !atlasIds.has(door.to)).map(door => `${map.id}→${door.to}`),
+    ...(map.ret !== undefined && !atlasIds.has(map.ret) ? [`${map.id} 回城 ${map.ret}`] : []),
+  ]);
+  check("地圖圖鑑的門、回城都連得到有頁面的圖", deadLinks.length === 0, deadLinks.slice(0, 10).join("、"));
+  const multiDoors = atlasMaps.reduce((sum, map) => sum + map.doors.filter(door => door.p.length >= 2).length, 0);
+  check("地圖圖鑑同一個目的地多個門都有標座標", multiDoors > 0, `${multiDoors} 個門有 2 個以上座標`);
   const sameIds = (a, b) => JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
   check("圖鑑索引跟兩個檔的 id 一致",
     sameIds(atlasIndex?.maps, atlasMaps.map(map => map.id)) && sameIds(atlasIndex?.npcs, atlasNpcs.map(npc => npc.id)),

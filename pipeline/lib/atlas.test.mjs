@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
-import { buildAtlas } from "./atlas.mjs";
+import { buildAtlas, doorEdges } from "./atlas.mjs";
 
 // 樣本從上游 maps-data、public/data 切出來（不讀 data/raw：那是 git 忽略的，CI 沒有）
 const fixture = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "__fixtures__", "atlas-upstream.json"), "utf8"));
@@ -14,6 +14,7 @@ function run(overrides = {}) {
     upstreamMaps: fixture.maps,
     mapRecords: fixture.mapRecords,
     graphEdges: fixture.graphEdges,
+    portalEdges: fixture.portalEdges,
     items: fixture.items,
     quests: fixture.quests,
     monsterIds: new Set([130100, 130101, 210100, 1210100]),
@@ -105,6 +106,44 @@ test("多收的圖：沒有門的房間不收（只靠 NPC、任務進去的考�
   // maps.json 有 zh 的圖不受影響：同一張考驗場給了 zh 就收（它有 NPC）
   const named = run({ mapRecords: { ...fixture.mapRecords, 108000100: { zh: "弓箭手2轉考驗場" } } });
   assert.ok(named.index.maps.includes(108000100));
+});
+
+test("同一個目的地多個門：清單只列一次，每個門都有座標", () => {
+  const south = mapOf(100040000);
+  const toCamp = south.doors.filter(door => door.to === 100040001);
+  assert.equal(toCamp.length, 1);
+  assert.ok(toCamp[0].p.length >= 2, JSON.stringify(toCamp[0].p));
+  const back = mapOf(100040001).doors.find(door => door.to === 100040000);
+  assert.deepEqual(back.p, [[-189, 277], [275, -1090]]);
+});
+
+test("doorEdges：同一個目的地每個門都留，反向門照 pt 2／3 補", () => {
+  const edges = doorEdges(
+    { 1: { p: [[2, "a", "x", 10, 5, 6], [2, "b", "y", 10, 7, 8], [3, "c", "z", 2, 1, 1], [1, "self", "", 2, 0, 0], [9, "gone", "", 2, 0, 0]] } },
+    { 1: {}, 2: {}, 3: {} },
+  );
+  assert.deepEqual(edges[1], [[2, "a", 5, 6], [2, "b", 7, 8], [3, "c", 1, 1]]);
+  assert.deepEqual(edges[3], [[1, "z", 0, 0]]);
+});
+
+test("門的規則：npc: 邊不算門、兩邊都 0,0 只進清單、對不到門名用 graph 座標", () => {
+  const out = run({
+    graphEdges: {
+      ...fixture.graphEdges,
+      1020000: [
+        [1010000, "west00", 0, 0],
+        [1020001, "沒有這個門", 11, 22],
+        [1000005, "沒有這個門2", 0, 0],
+        [1000006, "npc:麥加:傳送", 5, 5],
+      ],
+    },
+    portalEdges: {},
+  });
+  const doors = out.maps.find(map => map.id === 1020000).doors;
+  assert.deepEqual(doors.map(door => door.to), [1010000, 1020001, 1000005]);
+  assert.deepEqual(doors[0].p, [[-216, 93]]);
+  assert.deepEqual(doors[1].p, [[11, 22]]);
+  assert.deepEqual(doors[2].p, []);
 });
 
 test("擋住的圖不收", () => {

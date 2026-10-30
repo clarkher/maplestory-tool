@@ -18,6 +18,31 @@
  * 一張圖收進來了，但怪、NPC、門都沒有，就不收（頁面上沒東西可看）。
  */
 
+/**
+ * 每張圖所有的門（[目的圖, 門名, x, y]），同一個目的地有幾個門就留幾條。
+ * 跟 build.mjs 的 buildGraph 同一套規則（v83 的 p、目的圖要在 maps.json、pt 2／3 補反向門），
+ * 只是不併成一條：buildGraph 給帶我去用，每個目的地一條就夠；地圖頁要把每個門都標出來。
+ * @param {Record<string, { p?: Array<[number, string, string, number, number, number]> }>} v83Maps
+ * @param {Record<string, object>} mapRecords
+ */
+export function doorEdges(v83Maps, mapRecords) {
+  const edges = {};
+  const add = (from, to, name, x, y) => {
+    const list = (edges[from] ||= []);
+    if (list.some(edge => edge[0] === to && edge[1] === name && edge[2] === x && edge[3] === y)) return;
+    list.push([to, name, x, y]);
+  };
+  for (const [key, raw] of Object.entries(v83Maps || {})) {
+    const from = Number(key);
+    for (const [to, portalName, targetName, type, x, y] of raw.p || []) {
+      if (!mapRecords[to] || to === from) continue;
+      add(from, to, portalName || "", x, y);
+      if (type === 2 || type === 3) add(to, from, targetName || "", 0, 0);
+    }
+  }
+  return edges;
+}
+
 /** 上游沒名字的 NPC 是「NPC 1063013」這種 */
 const UNNAMED_NPC = /^NPC \d+$/;
 /** graph.json 裡 NPC 傳送（傑夫）那條邊的門名開頭：不算門 */
@@ -32,6 +57,7 @@ const EXTRA_SKIP_STREETS = new Set(["隱藏地圖", "航海中"]);
  *   upstreamMaps: Record<string, object> | object[],
  *   mapRecords: Record<string, { zh?: string, st?: string, t?: 1, ret?: number }>,
  *   graphEdges: Record<string, Array<[number, string, number, number, number?]>>,
+ *   portalEdges?: Record<string, Array<[number, string, number, number]>>,
  *   items: Array<{ id: number, c?: string, s?: string, sp?: Array<{ p: string, n?: string, m?: number, pr: number, k?: number, u?: string, e?: string }> }>,
  *   quests: Array<{ id: string | number, n: string, sNpc?: { id: number }, eNpc?: { id: number }, npcs?: Array<{ id: number }> }>,
  *   monsterIds: Set<number>,
@@ -40,7 +66,7 @@ const EXTRA_SKIP_STREETS = new Set(["隱藏地圖", "航海中"]);
  *   heldBackMaps: Map<number, string> | Set<number>,
  * }} input
  */
-export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, items, quests, monsterIds, npcImageIds, openRegions, heldBackMaps }) {
+export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, portalEdges = {}, items, quests, monsterIds, npcImageIds, openRegions, heldBackMaps }) {
   const upstream = new Map();
   for (const raw of Array.isArray(upstreamMaps) ? upstreamMaps : Object.values(upstreamMaps || {})) {
     const id = Number(raw?.id);
@@ -57,7 +83,7 @@ export function buildAtlas({ upstreamMaps, mapRecords, graphEdges, items, quests
   let maps;
   for (;;) {
     maps = [...kept.keys()].sort((a, b) => a - b)
-      .map(id => buildMap(id, upstream.get(id), kept, { mapRecords, graphEdges, monsterIds }));
+      .map(id => buildMap(id, upstream.get(id), kept, { mapRecords, graphEdges, portalEdges, monsterIds }));
     const next = new Map(maps.filter(map => keepMap(map, mapRecords)).map(map => [map.id, kept.get(map.id)]));
     if (next.size === kept.size) break;
     kept = next;
@@ -93,7 +119,7 @@ function mapName(id, raw, mapRecords) {
   return (!raw.unnamed && raw.name) || mapRecords[String(id)]?.zh || "";
 }
 
-function buildMap(id, raw, kept, { mapRecords, graphEdges, monsterIds }) {
+function buildMap(id, raw, kept, { mapRecords, graphEdges, portalEdges, monsterIds }) {
   const record = mapRecords[String(id)] || {};
   const map = {
     id,
@@ -110,7 +136,9 @@ function buildMap(id, raw, kept, { mapRecords, graphEdges, monsterIds }) {
   }
   map.mobs = groupMobs(raw.monsterSpawns, monsterIds);
   map.npcs = mapNpcs(raw.npcSpawns);
-  map.doors = mapDoors(id, raw.portals, graphEdges[String(id)], kept, mapRecords);
+  // graph.json 同一個目的地只留一條邊（帶我去用），每個門的座標要從 portalEdges（doorEdges 算的）補
+  const edges = [...(graphEdges[String(id)] || []), ...(portalEdges[String(id)] || [])];
+  map.doors = mapDoors(id, raw.portals, edges, kept, mapRecords);
   return map;
 }
 
