@@ -64,3 +64,30 @@ export function mapSummary(map: AtlasMap, nameOf: (id: number) => string | undef
   // 第一段不是「有…」時要補個逗號接在圖名後面
   return parts[0].startsWith("有") ? `${head}${parts.join("，")}。` : `${head}，${parts.join("，")}。`;
 }
+
+/** 標籤放點的上面（up）或下面（down） */
+export type LabelSide = "up" | "down";
+
+/** 兩個標籤高度差小於這個（圖高的 %）、左右差小於這個（圖寬的 %）就算會疊到 */
+const NEAR_TOP = 6;
+const NEAR_LEFT = 14;
+/** 點離上緣比這個近，標籤放上面會被切掉，一開始就放下面 */
+const TOP_EDGE = 14;
+
+/**
+ * 決定每個標籤放點的上面還是下面：照順序放（先 NPC 再門），
+ * 放上面會跟前面已經放好的標籤疊到就翻到下面；下面也疊到就留在上面。
+ * 靠上緣的一開始就在下面，不往上翻（上面會被圖框切掉）。
+ */
+export function labelSides(points: { left: number; top: number }[]): LabelSide[] {
+  const sides: LabelSide[] = [];
+  const hits = (index: number, side: LabelSide) =>
+    points.slice(0, index).some((other, j) =>
+      sides[j] === side && Math.abs(other.top - points[index].top) < NEAR_TOP && Math.abs(other.left - points[index].left) < NEAR_LEFT,
+    );
+  points.forEach((point, index) => {
+    const first: LabelSide = point.top < TOP_EDGE ? "down" : "up";
+    sides.push(first === "up" && hits(index, "up") && !hits(index, "down") ? "down" : first);
+  });
+  return sides;
+}

@@ -1,4 +1,4 @@
-import { mobColor, pinPercent, showNpcLabels } from "@/lib/atlas-view";
+import { labelSides, type LabelSide, mobColor, pinPercent, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap } from "@/lib/types";
 
 /** 圖很扁（城鎮常見）時，畫面至少這麼高，寬度不夠就在卡片裡左右滑 */
@@ -6,11 +6,11 @@ const MIN_HEIGHT = 170;
 
 /**
  * 標籤怎麼對齊點：水平方向照點在圖上的位置等比例往回推（點在 10% 就把標籤往左推自己寬度的 10%），
- * 所以靠左邊往右長、靠右邊往左長、中間置中，怎樣都不會超出圖框；靠上緣時改放點的下方。
+ * 所以靠左邊往右長、靠右邊往左長、中間置中，怎樣都不會超出圖框。
+ * 上下由 labelSides 決定：靠上緣、或放上面會跟別的標籤疊到時放點的下方。
  */
-function labelShift(left: number, top: number): string {
-  const y = top < 14 ? "40%" : "-115%";
-  return `translate(-${left}%, ${y})`;
+function labelShift(left: number, side: LabelSide): string {
+  return `translate(-${left}%, ${side === "down" ? "40%" : "-115%"})`;
 }
 
 const labelBase =
@@ -22,7 +22,12 @@ export function MapView({ map, src }: { map: AtlasMap & { b: [number, number, nu
   const ratio = width / height;
   const labels = showNpcLabels(map.npcs);
   const minWidth = Math.round(MIN_HEIGHT * ratio);
-  const doors = map.doors.flatMap(door => door.p.map(point => ({ door, point })));
+  const npcs = map.npcs.map(npc => ({ npc, pos: pinPercent(map.b, [npc.x, npc.y]) }));
+  const doors = map.doors.flatMap(door => door.p.map(point => ({ door, pos: pinPercent(map.b, point) })));
+  // 先排 NPC 名字（有寫名字時）再排門，靠很近的後者翻到點下方
+  const sides = labelSides([...(labels ? npcs : []).map(item => item.pos), ...doors.map(item => item.pos)]);
+  const npcSide = (index: number) => sides[index];
+  const doorSide = (index: number) => sides[(labels ? npcs.length : 0) + index];
 
   return (
     <div>
@@ -37,20 +42,19 @@ export function MapView({ map, src }: { map: AtlasMap & { b: [number, number, nu
               return (
                 <span
                   key={`m${mob.id}-${n}`}
-                  className="absolute -ml-[6px] -mt-[6px] size-[11px] rounded-full border-2 border-white shadow-[0_1px_2px_#0006]"
+                  className="absolute -ml-[5.5px] -mt-[5.5px] size-[11px] rounded-full border-2 border-white shadow-[0_1px_2px_#0006]"
                   style={{ left: `${pos.left}%`, top: `${pos.top}%`, background: mobColor(index) }}
                 />
               );
             }),
           )}
 
-          {map.npcs.map(npc => {
-            const pos = pinPercent(map.b, [npc.x, npc.y]);
-            return labels ? (
+          {npcs.map(({ npc, pos }, index) =>
+            labels ? (
               <span
                 key={`n${npc.id}`}
                 className={`${labelBase} z-[2] bg-white text-[#222]`}
-                style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, pos.top) }}
+                style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, npcSide(index)) }}
               >
                 {npc.n}
               </span>
@@ -61,16 +65,15 @@ export function MapView({ map, src }: { map: AtlasMap & { b: [number, number, nu
                 className="absolute z-[2] -ml-[5px] -mt-[5px] size-[10px] rotate-45 border-[1.5px] border-[#222] bg-[#ffd84a]"
                 style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
               />
-            );
-          })}
+            ),
+          )}
 
-          {doors.map(({ door, point }, n) => {
-            const pos = pinPercent(map.b, point);
+          {doors.map(({ door, pos }, n) => {
             return (
               <span
                 key={`d${door.to}-${n}`}
                 className={`${labelBase} bg-[color:var(--leaf)] text-[color:var(--on-accent)]`}
-                style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, pos.top) }}
+                style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, doorSide(n)) }}
               >
                 往 {door.n}
               </span>

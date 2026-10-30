@@ -48,7 +48,6 @@ export default async function Page({ params }: Props) {
   if (!map) notFound();
   const path = `/db/maps/${map.id}`;
   const summary = mapSummary(map, mapName);
-  const atlasMaps = new Map(staticAtlasMaps().map(m => [m.id, m]));
   const mapPages = new Set(staticAtlasIndex().maps);
   const npcInfo = new Map(staticNpcs().map(npc => [npc.id, npc]));
   const version = staticMapRenders()[String(map.id)];
@@ -70,7 +69,6 @@ export default async function Page({ params }: Props) {
     to: door.to,
     n: door.n,
     href: mapPages.has(door.to) ? `/db/maps/${door.to}` : `/go?to=${door.to}`,
-    town: Boolean(atlasMaps.get(door.to)?.t),
   }));
 
   return (

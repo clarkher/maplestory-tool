@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doorList, levelRange, mapSummary, MOB_COLORS, mobColor, pinPercent, showNpcLabels } from "@/lib/atlas-view";
+import { doorList, labelSides, levelRange, mapSummary, MOB_COLORS, mobColor, pinPercent, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap } from "@/lib/types";
 
 const map1020000: AtlasMap = {
@@ -83,5 +83,25 @@ describe("mapSummary", () => {
     expect(text).not.toContain("NPC");
     expect(text).not.toContain("隻");
     expect(text).toContain("可以通往");
+  });
+});
+
+describe("labelSides", () => {
+  const b = map1020000.b!;
+  const overlap = (p: { left: number; top: number }, q: { left: number; top: number }, sp: string, sq: string) =>
+    sp === sq && Math.abs(p.top - q.top) < 6 && Math.abs(p.left - q.left) < 14;
+
+  it("1020000 麥加跟「往 楓葉村」不互相蓋住", () => {
+    const npc = pinPercent(b, [-21, 87]);
+    const door = pinPercent(b, [-216, 93]);
+    const sides = labelSides([npc, door]);
+    expect(sides[0]).toBe("up");
+    expect(overlap(npc, door, sides[0], sides[1])).toBe(false);
+  });
+  it("兩個靠很近的門，後面那個翻到下面", () => {
+    expect(labelSides([{ left: 82.7, top: 73.4 }, { left: 93.9, top: 73.6 }])).toEqual(["up", "down"]);
+  });
+  it("離很遠的照舊放上面；靠上緣的放下面", () => {
+    expect(labelSides([{ left: 10, top: 50 }, { left: 60, top: 50 }, { left: 30, top: 5 }])).toEqual(["up", "up", "down"]);
   });
 });

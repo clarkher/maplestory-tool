@@ -71,7 +71,7 @@ export function NpcRows({ npcs }: { npcs: { id: number; n: string; img?: boolean
   );
 }
 
-export function DoorRows({ doors }: { doors: { to: number; n: string; href: string; town?: boolean }[] }) {
+export function DoorRows({ doors }: { doors: { to: number; n: string; href: string }[] }) {
   return (
     <div>
       {doors.map(door => (
@@ -82,11 +82,6 @@ export function DoorRows({ doors }: { doors: { to: number; n: string; href: stri
             </svg>
           </span>
           <span className="min-w-0 flex-1 text-[15px] font-extrabold">{door.n}</span>
-          {door.town ? (
-            <span className="inline-flex min-h-6 shrink-0 items-center rounded-full border border-[color:var(--paper-edge)] px-2 text-xs font-extrabold ink-soft">
-              城鎮
-            </span>
-          ) : null}
           <Link href={door.href} className={actionLink}>
             過去看
           </Link>
