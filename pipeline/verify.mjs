@@ -292,6 +292,23 @@ function main() {
     check("全幸要湊的裝備沒少件", kitMismatches.length === 0, kitMismatches.length ? kitMismatches.join("；") : `${kitRules} 條點法的件數都跟研究檔一樣`);
   }
 
+  // 地圖、NPC 圖鑑（v1.24，lib/atlas.mjs）：每張圖、每個 NPC 各有一頁，空的或少一大截都要擋
+  const atlasMaps = readJson(path.join(OUT, "atlas-maps.json")) ?? [];
+  const atlasNpcs = readJson(path.join(OUT, "npcs.json")) ?? [];
+  const atlasIndex = readJson(path.join(OUT, "atlas-index.json"));
+  check("地圖圖鑑圖數合理", atlasMaps.length > 300, `${atlasMaps.length} 張`);
+  check("NPC 圖鑑數量合理", atlasNpcs.length > 200, `${atlasNpcs.length} 個`);
+  const emptyAtlasMaps = atlasMaps.filter(map => !map.mobs?.length && !map.npcs?.length && !map.doors?.length).map(map => map.id);
+  check("地圖圖鑑每張圖都有怪、NPC 或門", emptyAtlasMaps.length === 0, emptyAtlasMaps.length ? emptyAtlasMaps.slice(0, 10).join("、") : "");
+  const sampleMap = atlasMaps.find(map => map.id === 1020000);
+  const sampleWood = sampleMap?.mobs?.find(mob => mob.id === 130100);
+  check("地圖圖鑑有楓葉村東郊平原、木妖 7 隻", sampleWood?.k === 7,
+    sampleMap ? `${sampleMap.mobs.length} 種怪 ${sampleMap.mobs.reduce((sum, mob) => sum + mob.k, 0)} 隻、NPC ${sampleMap.npcs.map(npc => npc.n).join("、")}、門 ${sampleMap.doors.length} 個` : "找不到 1020000");
+  const sameIds = (a, b) => JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+  check("圖鑑索引跟兩個檔的 id 一致",
+    sameIds(atlasIndex?.maps, atlasMaps.map(map => map.id)) && sameIds(atlasIndex?.npcs, atlasNpcs.map(npc => npc.id)),
+    `${atlasIndex?.maps?.length ?? 0} 張圖、${atlasIndex?.npcs?.length ?? 0} 個 NPC`);
+
   console.log("=== 資料檢查 ===");
   for (const line of notes) console.log(line);
   if (failures.length) {
