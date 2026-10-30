@@ -108,3 +108,17 @@ test("屬性名：「使用成功力量+3」去掉前綴", () => {
   const r = parseSimScroll(scroll("戒子力量卷軸10%", "戒子附加力量。 成功率：10%，使用成功力量+3"), NO_EQ);
   assert.deepEqual(r.stats, [{ k: "力量", v: 3 }]);
 });
+
+test("buildScrollSim：名字只差空白（「手套攻擊卷軸 60%」vs「手套攻擊卷軸60%」）也併成一筆，顯示名不留空白", () => {
+  const d = "手套附加攻擊。 成功率：60%，物理攻擊力+2";
+  const items = [
+    scroll("手套攻擊卷軸 60%", d, 2040826),
+    scroll("手套攻擊卷軸60%", d, 2040804),
+    { id: 1082002, n: "工地手套", c: "裝備", s: "手套", eq: { reqLevel: 10, tuc: 5 } },
+  ];
+  const { scrolls } = buildScrollSim(items, emptyCtx);
+  assert.equal(scrolls.length, 1);
+  assert.deepEqual(scrolls[0].ids, [2040804, 2040826]);
+  assert.equal(scrolls[0].id, 2040804);
+  assert.equal(scrolls[0].n, "手套攻擊卷軸60%");
+});

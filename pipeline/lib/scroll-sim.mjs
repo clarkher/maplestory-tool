@@ -20,7 +20,7 @@ const SLOT_TOKENS = {
   短杖: "短杖", 長杖: "長杖", 弓: "弓", 弩: "弩",
   拳套: "拳套", 短刀: "短刀", 短劍: "短刀", 指虎: "指虎", 火槍: "火槍",
 };
-const escapeRe = text => text.replace(/[.*+?^${}()|[\]\/]/g, "\$&");
+const escapeRe = text => text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
 const SLOT_RE = new RegExp(`^(${Object.keys(SLOT_TOKENS).sort((a, b) => b.length - a.length).map(escapeRe).join("|")})`);
 
 /** 名字開頭的活動標籤（[週年慶]、楓之谷四週年慶…）不影響部位 */
@@ -125,7 +125,7 @@ export function buildScrollSim(items, ctx) {
     const parsed = parseSimScroll(item, equipsByName);
     if (!parsed) continue;
     if (parsed.slot !== null && !slots.has(parsed.slot)) continue;
-    const key = `${parsed.n}\u0000${parsed.rate}`;
+    const key = `${parsed.n.replace(/\s+/g, "")}\u0000${parsed.rate}`;
     const group = groups.get(key) ?? { parsed, ids: [], src: false };
     group.ids.push(item.id);
     group.src ||= hasAnySource(buildSource(item, ctx));
@@ -137,7 +137,7 @@ export function buildScrollSim(items, ctx) {
   for (const { parsed, ids, src } of groups.values()) {
     ids.sort((a, b) => a - b);
     const { n, slot, only, rate, boom, effect, stats } = parsed;
-    scrolls.push({ id: ids[0], ids, n, slot, ...(only ? { only } : {}), rate, boom, effect, stats, src });
+    scrolls.push({ id: ids[0], ids, n: n.replace(/\s+/g, ""), slot, ...(only ? { only } : {}), rate, boom, effect, stats, src });
   }
   scrolls.sort((a, b) => (a.slot ?? "\uffff").localeCompare(b.slot ?? "\uffff") || a.n.localeCompare(b.n) || a.rate - b.rate || a.id - b.id);
   return { scrolls, white, equips };

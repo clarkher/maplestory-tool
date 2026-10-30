@@ -262,10 +262,11 @@ function main() {
   const simBadBoom = (sim?.scrolls ?? []).filter(scroll => !(scroll.boom >= 0 && scroll.boom <= 1));
   check("衝卷模擬爆裝率都在 0～1", simBadBoom.length === 0, simBadBoom.slice(0, 5).map(scroll => scroll.n).join("、"));
   const simRateMismatch = (sim?.scrolls ?? []).filter(scroll => {
-    const named = scroll.n.match(/(d+)s*%s*$/);
+    const named = scroll.n.match(/(\d+)\s*%\s*$/);
     return named && Number(named[1]) !== scroll.rate;
   });
-  check("衝卷模擬名字的成功率跟 rate 一致", simRateMismatch.length === 0, simRateMismatch.slice(0, 5).map(scroll => scroll.n).join("、"));
+  const simNamedCount = (sim?.scrolls ?? []).filter(scroll => /\d+\s*%\s*$/.test(scroll.n)).length;
+  check("衝卷模擬名字的成功率跟 rate 一致", simNamedCount > 0 && simRateMismatch.length === 0, simNamedCount === 0 ? "一筆名字帶 % 的都沒比到" : `${simNamedCount} 筆已比對` + (simRateMismatch.length ? "；不一致：" + simRateMismatch.slice(0, 5).map(scroll => scroll.n).join("、") : ""));
   check("衝卷模擬帽子對得到卷軸", (sim?.scrolls ?? []).filter(scroll => scroll.slot === "帽子").length > 0, `${(sim?.scrolls ?? []).filter(scroll => scroll.slot === "帽子").length} 種`);
   check("衝卷模擬白衣卷軸 2 種", (sim?.white?.length ?? 0) === 2, `${sim?.white?.length ?? 0} 種`);
   check("衝卷模擬可衝裝備數量合理", (sim?.equips?.length ?? 0) >= 1500, `${sim?.equips?.length ?? 0} 件`);
