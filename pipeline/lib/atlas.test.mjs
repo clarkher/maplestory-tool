@@ -126,7 +126,7 @@ test("doorEdges：同一個目的地每個門都留，反向門照 pt 2／3 補"
   assert.deepEqual(edges[3], [[1, "z", 0, 0]]);
 });
 
-test("門的規則：npc: 邊不算門、兩邊都 0,0 只進清單、對不到門名用 graph 座標", () => {
+test("門的規則：npc: 邊不算門、上游有門清單時對不到門名的不畫（只進清單）", () => {
   const out = run({
     graphEdges: {
       ...fixture.graphEdges,
@@ -142,8 +142,29 @@ test("門的規則：npc: 邊不算門、兩邊都 0,0 只進清單、對不到�
   const doors = out.maps.find(map => map.id === 1020000).doors;
   assert.deepEqual(doors.map(door => door.to), [1010000, 1020001, 1000005]);
   assert.deepEqual(doors[0].p, [[-216, 93]]);
-  assert.deepEqual(doors[1].p, [[11, 22]]);
+  // 1020000 在台服客戶端有門清單：v83 才有的門名（graph 座標 11,22）不畫
+  assert.deepEqual(doors[1].p, []);
   assert.deepEqual(doors[2].p, []);
+});
+
+test("門座標以台服客戶端為準：上游有門清單時，v83 才有的門名整個丟掉、對得到的用上游座標", () => {
+  // 仿 101030109：上游只有 west00，v83 另外多了一堆門名
+  const south = { ...fixture.maps[100040000], portals: [{ name: "west00", pt: 2, x: -1861, y: 2077 }, { name: "in01", pt: 10, x: -1, y: -2 }] };
+  const out = run({ upstreamMaps: { ...fixture.maps, 100040000: south } });
+  const doors = out.maps.find(map => map.id === 100040000).doors;
+  assert.deepEqual(doors.find(door => door.to === 100040001).p, [[-1, -2]]);
+  assert.deepEqual(doors.find(door => door.to === 100030000).p, [[-1861, 2077]]);
+  for (const target of [100040002, 100040003, 100040004]) {
+    const door = doors.find(item => item.to === target);
+    if (door) assert.deepEqual(door.p, [], `${target} 只有 v83 的門名`);
+  }
+});
+
+test("門座標：上游完全沒有門清單的圖才用 v83／graph 的座標", () => {
+  const bare = { ...fixture.maps[100040001], portals: [] };
+  const out = run({ upstreamMaps: { ...fixture.maps, 100040001: bare } });
+  const back = out.maps.find(map => map.id === 100040001).doors.find(door => door.to === 100040000);
+  assert.deepEqual(back.p, [[-189, 277], [275, -1090]]);
 });
 
 test("擋住的圖不收", () => {

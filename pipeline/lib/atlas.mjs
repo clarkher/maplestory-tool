@@ -47,7 +47,8 @@ export function doorEdges(v83Maps, mapRecords) {
 const UNNAMED_NPC = /^NPC \d+$/;
 /** graph.json 裡 NPC 傳送（傑夫）那條邊的門名開頭：不算門 */
 const NPC_WARP = "npc:";
-/** 上游 portals 的 pt：1、2 是玩家走得進去的門，其他（0 出生點、9 提示點……）不是 */
+/** 上游 portals 的 pt：0 是出生點，不是門；同名的門先認 1、2（玩家走得進去的一般門） */
+const SPAWN_POINT = 0;
 const DOOR_TYPES = new Set([1, 2]);
 /** 多收的圖（maps.json 沒 zh）遇到這些街名不收：隱藏地圖是任務、活動送進去的，航海中是坐船時的船艙 */
 const EXTRA_SKIP_STREETS = new Set(["隱藏地圖", "航海中"]);
@@ -181,14 +182,18 @@ function mapNpcs(spawns) {
 /**
  * 門：graph.json 的 [目的圖, 門名, x, y]，同一個目的地只列一次、每個門的座標都記。
  * 目的地名取收進 atlas 的名字，沒有就用 maps.json 的 zh，都沒有（沒開放）就不列。
- * 座標用門名對上游 portals（pt 1、2）；對不到用 graph 的座標；兩邊都是 0,0 就不記座標（只進清單）。
+ * 座標以台服客戶端為準（同「出怪以台服客戶端為準，v83 只當備援」）：
+ *  - 上游這張圖有門清單：只畫門名在清單裡的門，座標用上游的；v83 才有的門名不畫（目的地照樣列，p 可能是空的）。
+ *  - 上游這張圖完全沒有門清單：才用 graph／v83 的座標；是 0,0 就不記座標（只進清單）。
  */
 function mapDoors(id, portals, edges, kept, mapRecords) {
   const portalAt = new Map();
-  for (const portal of portals || []) {
-    if (!DOOR_TYPES.has(Number(portal?.pt)) || !portal.name || portalAt.has(portal.name)) continue;
+  const upstreamDoors = (portals || []).filter(portal => portal?.name && Number(portal.pt) !== SPAWN_POINT);
+  for (const portal of [...upstreamDoors.filter(p => DOOR_TYPES.has(Number(p.pt))), ...upstreamDoors]) {
+    if (portalAt.has(portal.name)) continue;
     portalAt.set(portal.name, [Number(portal.x) || 0, Number(portal.y) || 0]);
   }
+  const hasUpstream = (portals || []).length > 0;
   const byTarget = new Map();
   for (const edge of edges || []) {
     const [to, name, x, y] = edge;
@@ -202,8 +207,12 @@ function mapDoors(id, portals, edges, kept, mapRecords) {
       door = { to: target, n: label, p: [] };
       byTarget.set(target, door);
     }
-    const point = portalAt.get(name) || [Number(x) || 0, Number(y) || 0];
-    if (point[0] === 0 && point[1] === 0) continue;
+    let point = portalAt.get(name);
+    if (!point) {
+      if (hasUpstream) continue;
+      point = [Number(x) || 0, Number(y) || 0];
+      if (point[0] === 0 && point[1] === 0) continue;
+    }
     if (!door.p.some(([px, py]) => px === point[0] && py === point[1])) door.p.push(point);
   }
   return [...byTarget.values()];
