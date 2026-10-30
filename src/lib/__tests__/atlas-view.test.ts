@@ -175,7 +175,7 @@ describe("npcSummary", () => {
     const event: AtlasNpc = { id: 2, n: "行商人", maps: [1020000], shop: [{ id: 2001001, pr: 1, u: "萬聖節硬幣", e: end, s: "藥水" }] };
     expect(npcSummary(event, names, after)).toBe("行商人在楓葉村東郊平原。");
     expect(openShopCount(event, after)).toBe(0);
-    expect(openShopCount({ id: 3, n: "路人", maps: [] }, after)).toBe(0);
+    expect(openShopCount({}, after)).toBe(0);
   });
 });
 
