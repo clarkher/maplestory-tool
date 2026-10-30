@@ -34,3 +34,13 @@ test("不在 atlas 的既有檔不出現在任何清單（永遠不刪）", () =
   const all = [...r.convert, ...r.keep, ...r.missing];
   assert.deepEqual(all, [1]);
 });
+
+test("上游沒給版本、檔在 → keep（不每次重轉）", () => {
+  const r = plan({ atlasIds: [1], upstreamVersions: {}, have: { 1: "" }, cacheHas: () => true });
+  assert.deepEqual(r, { convert: [], keep: [1], missing: [] });
+});
+
+test("上游沒給版本、檔不在、有快取 → convert", () => {
+  const r = plan({ atlasIds: [1], upstreamVersions: {}, have: {}, cacheHas: () => true });
+  assert.deepEqual(r.convert, [1]);
+});

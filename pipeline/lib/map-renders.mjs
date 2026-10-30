@@ -18,7 +18,8 @@ export function renderPlan({ atlasIds, upstreamVersions, have, cacheHas }) {
   for (const id of atlasIds) {
     const has = Object.prototype.hasOwnProperty.call(have, id);
     const cached = cacheHas(id);
-    if (cached && (!has || have[id] !== upstreamVersions[id])) convert.push(id);
+    const known = upstreamVersions[id] !== undefined; // 上游沒給版本＝版本不明，已有檔就沿用，不每次重轉
+    if (cached && (!has || (known && have[id] !== upstreamVersions[id]))) convert.push(id);
     else if (has) keep.push(id);
     else missing.push(id);
   }

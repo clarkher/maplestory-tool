@@ -38,6 +38,7 @@ for (const id of plan.convert) {
     next[id] = upstreamVersions[id] ?? "";
   } catch (e) {
     failed.push(id);
+    if (Object.prototype.hasOwnProperty.call(have, id)) next[id] = have[id]; // 舊圖還在就沿用
     console.error(`[map-renders] ${id} 轉檔失敗：${e.message}`);
   }
 }
@@ -52,4 +53,4 @@ for (const id of atlasIds) if (next[id] !== undefined) { total += fs.statSync(ou
 console.log(`[map-renders] atlas ${atlasIds.length} 張：轉檔 ${plan.convert.length - failed.length}、沿用 ${plan.keep.length}、缺 ${plan.missing.length}、失敗 ${failed.length}`);
 console.log(`[map-renders] 共 ${count} 張 webp，${(total / 1048576).toFixed(1)} MB，平均 ${count ? (total / count / 1024).toFixed(0) : 0} KB`);
 if (plan.missing.length) console.log(`[map-renders] 缺圖 id：${plan.missing.join(", ")}`);
-if (failed.length) process.exitCode = 1;
+if (failed.length) console.warn(`[map-renders] 警告：${failed.length} 張轉檔失敗（不擋資料更新）：${failed.join(", ")}`);
