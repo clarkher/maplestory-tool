@@ -117,3 +117,77 @@ export function npcSummary(npc: AtlasNpc, nameOf: (id: number) => string | undef
   const head = places.length ? `${npc.n}在${listNames(places, 3, "張圖")}` : npc.n;
   return parts.length ? `${head}，${parts.join("，")}。` : `${head}。`;
 }
+
+/** 地圖清單的大陸順序：跟建置時的開放地區（pipeline/build.mjs RELEASE.mapRegions）同一個順序，沒列到的排最後 */
+export const REGION_ORDER = ["楓之島", "維多利亞島", "奇幻村", "鯨魚號", "楓葉世界", "冰原雪域", "廢礦"] as const;
+
+const regionRank = (rg: string) => {
+  const rank = (REGION_ORDER as readonly string[]).indexOf(rg);
+  return rank < 0 ? REGION_ORDER.length : rank;
+};
+
+/** 清單、地圖頁用的「大陸・區域」：區域跟大陸同名（楓之島・楓之島）或沒有區域就只寫大陸 */
+export function mapSection(map: Pick<AtlasMap, "rg" | "st">): string {
+  return !map.st || map.st === map.rg ? map.rg : [map.rg, map.st].filter(Boolean).join("・");
+}
+
+/** 地圖清單搜尋用的字：圖名、大陸、區域、怪名、NPC 名，全部小寫接起來 */
+export function mapSearchText(map: AtlasMap): string {
+  return [map.n, map.rg, map.st, ...map.mobs.map(mob => mob.n), ...map.npcs.map(npc => npc.n)].join(" ").toLowerCase();
+}
+
+/** 搜尋字前後空白不算、大小寫不分；空的全部符合 */
+export function mapMatches(text: string, query: string): boolean {
+  const keyword = query.trim().toLowerCase();
+  return !keyword || text.includes(keyword);
+}
+
+/** 地圖清單的一列：只帶畫面跟搜尋要的欄位（不把整張圖的座標送進瀏覽器） */
+export type MapListRow = { id: number; n: string; lv?: string; q: string };
+export type MapListGroup = { head: string; rows: MapListRow[] };
+
+/**
+ * 地圖清單依「大陸・區域」分組：大陸照開放順序，同大陸的區域照組裡最小的圖編號，組內照圖編號。
+ */
+export function mapGroups(maps: AtlasMap[]): MapListGroup[] {
+  const groups = new Map<string, { rg: string; first: number; rows: MapListRow[] }>();
+  for (const map of [...maps].sort((a, b) => a.id - b.id)) {
+    const head = mapSection(map);
+    const lv = levelRange(map.mobs);
+    const row: MapListRow = lv ? { id: map.id, n: map.n, lv, q: mapSearchText(map) } : { id: map.id, n: map.n, q: mapSearchText(map) };
+    const group = groups.get(head);
+    if (group) group.rows.push(row);
+    else groups.set(head, { rg: map.rg, first: map.id, rows: [row] });
+  }
+  return [...groups.entries()]
+    .sort(([, a], [, b]) => regionRank(a.rg) - regionRank(b.rg) || a.first - b.first)
+    .map(([head, group]) => ({ head, rows: group.rows }));
+}
+
+/** NPC 清單的一列：第一張所在圖名 at、還有幾張 more、有沒有店、任務，q 是名字＋所有所在圖名（搜尋用） */
+export type NpcListRow = { id: number; n: string; img: boolean; at?: string; more: number; shop: boolean; quest: boolean; q: string };
+
+export function npcListRows(npcs: AtlasNpc[], nameOf: (id: number) => string | undefined): NpcListRow[] {
+  return npcs.map(npc => {
+    // 同名的分流圖只算一張
+    const places = [...new Set(npc.maps.map(nameOf).filter((name): name is string => Boolean(name)))];
+    const row: NpcListRow = {
+      id: npc.id,
+      n: npc.n,
+      img: npc.img === 1,
+      more: Math.max(0, places.length - 1),
+      shop: Boolean(npc.shop?.length),
+      quest: Boolean(npc.quests?.length),
+      q: [npc.n, ...places].join(" ").toLowerCase(),
+    };
+    if (places[0]) row.at = places[0];
+    return row;
+  });
+}
+
+/** NPC 清單的過濾：搜名字、所在地圖；「有賣東西」「有任務」開著就只留有的 */
+export function npcMatches(row: NpcListRow, query: string, filters: { shop: boolean; quest: boolean }): boolean {
+  if (filters.shop && !row.shop) return false;
+  if (filters.quest && !row.quest) return false;
+  return mapMatches(row.q, query);
+}

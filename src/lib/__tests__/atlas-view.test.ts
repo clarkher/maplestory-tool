@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doorList, labelSides, levelRange, mapSummary, MOB_COLORS, mobColor, npcSummary, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
+import { doorList, labelSides, levelRange, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap, AtlasNpc } from "@/lib/types";
 
 const map1020000: AtlasMap = {
@@ -163,5 +163,76 @@ describe("npcSummary", () => {
   it("同名的分流圖只寫一次（行商人開在 5 張雪原的面具祭典現場）", () => {
     const vendor: AtlasNpc = { id: 9402818, n: "行商人", maps: [1, 2, 3, 4, 5], shop: [{ id: 2001001, pr: 1, s: "藥水" }] };
     expect(npcSummary(vendor, () => "雪原的面具祭典現場")).toBe("行商人在雪原的面具祭典現場，賣 1 樣東西。");
+  });
+});
+
+describe("mapSearchText", () => {
+  it("搜怪名、NPC 名都找得到 1020000", () => {
+    const text = mapSearchText(map1020000);
+    expect(mapMatches(text, "紅寶")).toBe(true);
+    expect(mapMatches(text, "麥加")).toBe(true);
+    expect(mapMatches(text, "楓葉村東郊")).toBe(true);
+    expect(mapMatches(text, "彩虹之地")).toBe(true);
+    expect(mapMatches(text, "肥肥 ")).toBe(true);
+    expect(mapMatches(text, "嫩寶")).toBe(false);
+  });
+  it("空白搜尋全部都符合", () => {
+    expect(mapMatches(mapSearchText(map1020000), "  ")).toBe(true);
+  });
+});
+
+describe("mapSection", () => {
+  it("大陸・區域；同名或沒有區域只寫大陸", () => {
+    expect(mapSection(map1020000)).toBe("楓之島・彩虹之地");
+    expect(mapSection({ ...map1020000, st: "楓之島" })).toBe("楓之島");
+    expect(mapSection({ ...map1020000, st: "" })).toBe("楓之島");
+  });
+});
+
+describe("mapGroups", () => {
+  const at = (id: number, rg: string, st: string): AtlasMap => ({ ...map1020000, id, rg, st, n: `M${id}`, mobs: [], npcs: [] });
+  it("照開放順序排大陸（楓之島在前），同大陸照編號，組內照編號", () => {
+    const groups = mapGroups([
+      at(200000000, "冰原雪域", "天空之城"),
+      at(100000000, "維多利亞島", "維多利亞"),
+      at(1020000, "楓之島", "彩虹之地"),
+      at(10000, "楓之島", "楓之島"),
+      at(100000001, "維多利亞島", "維多利亞"),
+      at(3, "火星", "火星"),
+    ]);
+    expect(groups.map(group => group.head)).toEqual(["楓之島", "楓之島・彩虹之地", "維多利亞島・維多利亞", "冰原雪域・天空之城", "火星"]);
+    expect(groups[2].rows.map(row => row.id)).toEqual([100000000, 100000001]);
+  });
+  it("每列只帶圖名、等級、搜尋字", () => {
+    const [group] = mapGroups([map1020000]);
+    expect(group.rows[0]).toEqual({ id: 1020000, n: "楓葉村東郊平原", lv: "4～7 等", q: mapSearchText(map1020000) });
+    const [empty] = mapGroups([{ ...map1020000, mobs: [] }]);
+    expect(empty.rows[0].lv).toBeUndefined();
+  });
+});
+
+describe("npcMatches", () => {
+  const npcs: AtlasNpc[] = [
+    { id: 12100, n: "麥加", img: 1, maps: [1020000], quests: [{ id: "q1", n: "桑姆的考驗", r: "交" }] },
+    { id: 1011001, n: "山姆", maps: [100000101, 100000102], shop: [{ id: 1302000, pr: 100, s: "武器" }] },
+    { id: 9000000, n: "路人", maps: [] },
+  ];
+  const names: Record<number, string> = { 1020000: "楓葉村東郊平原", 100000101: "弓箭手村武器店", 100000102: "弓箭手村防具店" };
+  const rows = npcListRows(npcs, id => names[id]);
+  const none = { shop: false, quest: false };
+  it("列：第一張圖名、還有幾張、有沒有店、任務", () => {
+    expect(rows.find(row => row.id === 1011001)).toMatchObject({ n: "山姆", at: "弓箭手村武器店", more: 1, shop: true, quest: false });
+    expect(rows.find(row => row.id === 12100)).toMatchObject({ img: true, at: "楓葉村東郊平原", more: 0, quest: true });
+    expect(rows.find(row => row.id === 9000000)?.at).toBeUndefined();
+  });
+  it("搜名字、所在地圖", () => {
+    expect(rows.filter(row => npcMatches(row, "麥加", none)).map(row => row.id)).toEqual([12100]);
+    expect(rows.filter(row => npcMatches(row, "防具店", none)).map(row => row.id)).toEqual([1011001]);
+    expect(rows.filter(row => npcMatches(row, "", none))).toHaveLength(3);
+  });
+  it("篩「有賣東西」只剩有店的、「有任務」只剩有任務的", () => {
+    expect(rows.filter(row => npcMatches(row, "", { shop: true, quest: false })).map(row => row.id)).toEqual([1011001]);
+    expect(rows.filter(row => npcMatches(row, "", { shop: false, quest: true })).map(row => row.id)).toEqual([12100]);
+    expect(rows.filter(row => npcMatches(row, "", { shop: true, quest: true }))).toHaveLength(0);
   });
 });
