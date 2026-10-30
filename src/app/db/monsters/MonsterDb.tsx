@@ -6,15 +6,17 @@ import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/compon
 import { FilterTag } from "@/components/FilterTag";
 import { GoButton } from "@/components/PlanShell";
 import {
-  itemImage, loadItems, loadMaps, loadMonsters, mapName, monsterImage, peekItems, peekMaps, peekMonsters,
+  itemImage, loadAtlasIndex, loadItems, loadMaps, loadMonsters, mapName, monsterImage, peekAtlasIndex, peekItems, peekMaps,
+  peekMonsters,
 } from "@/lib/data";
+import { mapHref } from "@/lib/atlas-view";
 import { elementalNotes, formatNumber } from "@/lib/format";
 import { monsterSuitsJob, trainingRuleNote } from "@/lib/job-rules";
 import { FIRST_MAPS, monsterDrops, monsterMaps, monsterNote } from "@/lib/monster-view";
 import { trainingRange } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { useRemembered } from "@/lib/remember";
-import type { Item, MapRecord, Monster } from "@/lib/types";
+import type { AtlasIndex, Item, MapRecord, Monster } from "@/lib/types";
 import { DB_HEADS } from "@/lib/db-heads";
 
 /** 練功範圍標籤開了哪一顆：""＝都沒開、"fit"＝適合我練的（同級到高 5 級）、"wide"＝包含低 5 級（低 5 級到高 5 級）。兩顆只能開一顆 */
@@ -30,6 +32,8 @@ export function MonsterDb() {
   const [maps, setMaps] = useState<Record<string, MapRecord> | null>(peekMaps);
   const [items, setItems] = useState<Item[] | null>(peekItems);
   const [error, setError] = useState<string | null>(null);
+  // 有頁的地圖：載到前出沒地圖照舊連帶路，載到後換連地圖頁（只換網址，字跟版面不變，不擋清單）
+  const [atlasIndex, setAtlasIndex] = useState<AtlasIndex | null>(peekAtlasIndex);
   const [showUnnamed, setShowUnnamed] = useRemembered("db:怪物:showUnnamed", false);
   // 記的是開了哪一顆練功範圍標籤（舊的 db:怪物:onlyBand 不再讀）
   const [band, setBand] = useRemembered<Band>("db:怪物:band", "");
@@ -53,6 +57,8 @@ export function MonsterDb() {
         setItems(itemData);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
+    // 載不到就一直連帶路，不算錯
+    loadAtlasIndex().then(setAtlasIndex, () => {});
   }, []);
 
   const monsterIndex = useMemo(
@@ -116,7 +122,7 @@ export function MonsterDb() {
         const monster = monsterIndex.get(id);
         if (!monster || !maps) return null;
         // key：換一隻怪，「看全部」重新收起來
-        return <MonsterDetail key={monster.id} monster={monster} maps={maps} itemIndex={itemIndex} />;
+        return <MonsterDetail key={monster.id} monster={monster} maps={maps} itemIndex={itemIndex} atlasIndex={atlasIndex} />;
       }}
     />
   );
@@ -126,10 +132,12 @@ function MonsterDetail({
   monster,
   maps,
   itemIndex,
+  atlasIndex,
 }: {
   monster: Monster;
   maps: Record<string, MapRecord>;
   itemIndex: Map<number, Item>;
+  atlasIndex: AtlasIndex | null;
 }) {
   const elements = elementalNotes(monster.el);
   // 出沒地圖只列開放的圖：刷怪點多的在前；先列幾張，按「看全部」才全部列
@@ -208,7 +216,15 @@ function MonsterDetail({
                 >
                   <span className="min-w-0">
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <span className="min-w-0 truncate font-bold">{mapName(maps, row.id)}</span>
+                      {/* 圖名點進地圖頁（那張圖有什麼、怎麼去）；沒有地圖頁的圖連帶路 */}
+                      <span className="min-w-0 truncate font-bold">
+                        <Link
+                          href={mapHref(row.id, atlasIndex)}
+                          className="underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]"
+                        >
+                          {mapName(maps, row.id)}
+                        </Link>
+                      </span>
                     </span>
                     <span className="block text-[11px] ink-faint">
                       {maps[String(row.id)]?.st}

@@ -1,7 +1,7 @@
 "use client";
 
 import type {
-  BuyQuestData, FarmingRow, GuideCommon, GuideJob, Item, Job, MapRecord, Meta, Monster, PortalEdge, Quest, Region, SearchRow, Skill,
+  AtlasIndex, BuyQuestData, FarmingRow, GuideCommon, GuideJob, Item, Job, MapRecord, Meta, Monster, PortalEdge, Quest, Region, SearchRow, Skill,
   TrainingRow,
 } from "./types";
 import type { GearData } from "./gear";
@@ -89,6 +89,7 @@ export const peekGuideCommon = () => peek<GuideCommon>("guides/common");
 export const peekGuide = (job: number) => peek<GuideJob>(`guides/${job}`);
 export const peekFarming = () => peek<Record<string, FarmingRow[]>>("farming");
 export const peekBuyQuests = () => peek<BuyQuestData>("buy-quests");
+export const peekAtlasIndex = () => peek<AtlasIndex>("atlas-index");
 
 export const loadMeta = (): Promise<Meta> => {
   const cached = cache.get("meta") as Promise<Meta> | undefined;
@@ -108,6 +109,8 @@ export const loadFarming = () => load<Record<string, FarmingRow[]>>("farming");
 export const loadRegions = () => load<Region[]>("regions");
 export const loadSearch = () => load<SearchRow[]>("search");
 export const loadBuyQuests = () => load<BuyQuestData>("buy-quests");
+/** 有頁的地圖、NPC id（atlas-index.json 跟 meta 同一次建置寫，照其他資料檔掛版本號＋長快取） */
+export const loadAtlasIndex = () => load<AtlasIndex>("atlas-index");
 /**
  * 練功測速的名字樣板（職業、街道、地圖名；本機 npm run speed:glyphs 產）。
  * 檔案是手動重產的、不跟 meta 的建置時間走，掛版本號 + 長快取會一直拿到舊樣板，
