@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），shop-shot 是 9389，fx-shot 是 9481，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），shop-shot 是 9389，fx-shot 是 9481，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -403,6 +403,25 @@ node scripts/verify/scroll-shot.mjs [網址，預設 http://localhost:9301] [輸
   帽子挑得到卷；裝備清單的部位小按鈕點了只剩那個部位；查資料卷軸卡／裝備卡的連結；壞網址不壞頁（寫明「這件裝備／這張卷軸還算不了」）、眼飾不收、查資料不收的卷軸沒有連結；console 沒有錯誤。
 - 輸出：`scroll-1280-light／dark.png`、`scroll-390-light／dark.png`（390 寬是開白衣、三個單價都填的樣子）、`scroll-picker.png`、`results.json`。
 - 單價欄要走真的輸入（`Input.insertText`），直接改 `value` React 收不到。
+
+### 地圖＋NPC 圖鑑
+
+#### `atlas-shot.mjs`：跑一次地圖頁、NPC 頁（v1.24，埠 9304）
+
+```bash
+node scripts/verify/atlas-shot.mjs [網址，預設 http://localhost:9303] [輸出] [DevTools 埠，預設 9304]
+```
+
+- 網址用 `localhost`，不要用 `127.0.0.1`；本機要用 `next dev --webpack -p 9303`。要驗測試機就把網址換成測試機（`https://maplestory-tool-git-dev-clarkhers-projects.vercel.app`），其他不用改。
+- 樣本：楓葉村東郊平原 1020000（4 種怪共 21 隻、NPC 麥加、4 個門）、城鎮 100000000（NPC 超過 6 個）、山姆 1011001（店 90 樣）、麥加 12100（8 個任務）、木妖 130100、任務 1016。
+- 檢查（34 項，任何一項沒過 exit 1）：怪物 4 列、木妖「7 隻」、圖上怪物點 21、門標籤 4 個、NPC 麥加、「門通往」4 個連結；
+  圖上所有點跟標籤都在圖框內（電腦、手機各量一次）；深色主題圖例文字對比 ≥ 4.5；手機 390 與電腦 1280 都不橫向捲出；
+  城鎮 NPC 超過 6 個時圖上只畫小點、不寫名字；山姆先列 8 樣、展開 90 樣、看得到「參考舊版資料」；麥加 8 個任務；
+  怪物頁（`/db/monsters/130100`、`?id=` 兩種）點第一個出沒地圖會到 `/db/maps/`；任務卡的 NPC 連到 `/db/npcs/`；
+  `/go?from=1010000&to=1020000` 有「看這張圖」；地圖清單搜「紅寶」看得到楓葉村東郊平原；
+  四頁內容沒有 emoji、沒有英文縮寫（NPC、GM 除外；頁尾每頁都有的「GMS Classic」不算，只看 `main`）；console 沒有錯誤。
+- 輸出：`atlas-map-390-light.png`、`atlas-map-1280-dark.png`、`atlas-npc-390-light.png`、`atlas-npc-1280-dark.png`（整頁）、`results.json`。
+- 「看這張圖」只在有起點的路線出現（到了那一步），所以測的是 `from=…&to=…`，只有 `to` 不會有。
 
 ### 練功測速
 
