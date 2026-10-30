@@ -157,7 +157,7 @@ function MonsterDetail({
   const { shown: drops, hidden: hiddenDrops } = monsterDrops(monster.drops, itemIndex);
 
   return (
-    <DetailCard>
+    <DetailCard pageHref={monster.un ? undefined : `/db/monsters/${monster.id}`}>
       <header className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={monsterImage(monster.id)} alt="" width={56} height={56} className="size-14 object-contain" />

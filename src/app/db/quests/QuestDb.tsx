@@ -182,7 +182,7 @@ function QuestDetail({
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
 
   return (
-    <DetailCard>
+    <DetailCard pageHref={`/db/quests/${encodeURIComponent(quest.id)}`}>
       <header>
         <h2 className="text-2xl font-black leading-tight">
           {quest.n}
