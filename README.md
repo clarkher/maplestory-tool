@@ -421,6 +421,7 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - **結構化資料**：全站 WebSite 放 `<body>`（`<head>` 的 script 會被 `scroll-behavior.test.ts` 當程式跑），單筆頁另有麵包屑跟 WebPage。
 - 查資料四頁讀取時伺服器先畫標題（`DbFallback`，標題字在 `src/lib/db-heads.ts`）。
 - 圖檔網址在 `src/lib/asset-paths.ts`：`data.ts` 是 `"use client"`，伺服器頁不能呼叫它的函式。
+- 站內入口（v1.24）：怪物、任務、技能卡片最底下「開成單獨一頁（方便分享）」（`DetailCard` 的 `pageHref`，沒名字的怪不給）；`/guide` 出處上面列 29 個 `/jobs/<職業>`（`page.tsx` 從攻略檔讀職業傳進去）。道具沒有單獨頁。
 
 ### 查資料頁驗收（改查資料四頁之後跑）
 

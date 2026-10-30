@@ -153,7 +153,7 @@ function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
   ) : null;
 
   return (
-    <DetailCard>
+    <DetailCard pageHref={`/db/skills/${skill.id}`}>
       <header className="flex items-start gap-3">
         {icon ? (
           // eslint-disable-next-line @next/next/no-img-element
