@@ -186,6 +186,11 @@ describe("mapSection", () => {
     expect(mapSection(map1020000)).toBe("楓之島・彩虹之地");
     expect(mapSection({ ...map1020000, st: "楓之島" })).toBe("楓之島");
     expect(mapSection({ ...map1020000, st: "" })).toBe("楓之島");
+    expect(mapSection({ ...map1020000, rg: "", st: "彩虹之地" })).toBe("彩虹之地");
+    expect(mapSection({ ...map1020000, rg: "", st: "" })).toBe("");
+  });
+  it("摘要句的地名也不重複", () => {
+    expect(mapSummary({ ...map1020000, st: "楓之島" }, () => undefined)).toContain("楓葉村東郊平原（楓之島）");
   });
 });
 

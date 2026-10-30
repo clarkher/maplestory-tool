@@ -5,7 +5,7 @@ import { AtlasCard, DoorRows, MobRows, NpcRows } from "@/components/atlas/rows";
 import { MapView } from "@/components/atlas/MapView";
 import { SeoPage } from "@/components/SeoPage";
 import { mapRenderImage } from "@/lib/asset-paths";
-import { doorList, levelRange, mapSummary } from "@/lib/atlas-view";
+import { doorList, levelRange, mapSection, mapSummary } from "@/lib/atlas-view";
 import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
 import { staticAtlasIndex, staticAtlasMaps, staticMapRenders, staticMaps, staticModified, staticNpcs } from "@/lib/static-data";
 import type { AtlasMap } from "@/lib/types";
@@ -54,7 +54,7 @@ export default async function Page({ params }: Props) {
 
   const levels = levelRange(map.mobs);
   const retName = map.ret && map.ret !== map.id ? mapName(map.ret) : undefined;
-  const place = [map.rg, map.st].filter(Boolean).join("・");
+  const place = mapSection(map);
 
   const npcs = map.npcs.map(npc => {
     const info = npcInfo.get(npc.id);

@@ -52,7 +52,7 @@ function listNames(names: string[], max: number, unit: string): string {
 
 /** 「<圖名>（<大陸・區域>）有 <怪 n 隻…>，NPC <…>，可以通往 <…>。」沒有的那段就不寫 */
 export function mapSummary(map: AtlasMap, nameOf: (id: number) => string | undefined): string {
-  const place = [map.rg, map.st].filter(Boolean).join("・");
+  const place = mapSection(map);
   const head = place ? `${map.n}（${place}）` : map.n;
   const parts: string[] = [];
   if (map.mobs.length) parts.push(`有${listNames(map.mobs.map(mob => `${mob.n} ${mob.k} 隻`), 6, "種怪")}`);

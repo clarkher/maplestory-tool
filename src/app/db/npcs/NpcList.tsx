@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ListHead, ROW_LINK, SearchCard } from "@/components/atlas/ListShell";
 import { FilterTag } from "@/components/FilterTag";
 import { ChevronRight } from "@/components/Icons";
@@ -9,15 +9,20 @@ import { EmptyBlock } from "@/components/PlanShell";
 import { npcImage } from "@/lib/asset-paths";
 import { npcMatches, type NpcListRow } from "@/lib/atlas-view";
 import { useHydrated } from "@/lib/hydrated";
+import { useRemembered } from "@/lib/remember";
 
 /**
  * NPC 清單：伺服器已經把全部 NPC 畫出來，這裡只照搜尋框（名字、所在地圖）跟兩個篩選把列藏起來。
+ * 搜尋字、篩選跟其他查資料清單一樣記到關掉分頁（useRemembered）；接手前一律照空的、沒開畫，第一格才跟伺服器對得上。
  */
 export function NpcList({ title, lead, rows }: { title: string; lead: string; rows: NpcListRow[] }) {
   const hydrated = useHydrated();
-  const [query, setQuery] = useState("");
-  const [shop, setShop] = useState(false);
-  const [quest, setQuest] = useState(false);
+  const [rememberedQuery, setQuery] = useRemembered("db:NPC:query", "");
+  const [rememberedShop, setShop] = useRemembered("db:NPC:shop", false);
+  const [rememberedQuest, setQuest] = useRemembered("db:NPC:quest", false);
+  const query = hydrated ? rememberedQuery : "";
+  const shop = hydrated && rememberedShop;
+  const quest = hydrated && rememberedQuest;
   const shown = useMemo(() => rows.filter(row => npcMatches(row, query, { shop, quest })), [rows, query, shop, quest]);
 
   return (

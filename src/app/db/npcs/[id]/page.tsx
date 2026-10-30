@@ -5,7 +5,7 @@ import { OpenUntil } from "@/components/atlas/OpenUntil";
 import { AtlasCard, PlaceRows, QuestRows, ShopRows } from "@/components/atlas/rows";
 import { SeoPage } from "@/components/SeoPage";
 import { npcImage } from "@/lib/asset-paths";
-import { npcSummary, shopRows } from "@/lib/atlas-view";
+import { mapSection, npcSummary, shopRows } from "@/lib/atlas-view";
 import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
 import { staticAtlasMaps, staticItemNames, staticModified, staticNpcs } from "@/lib/static-data";
 
@@ -53,7 +53,7 @@ export default async function Page({ params }: Props) {
   const places = npc.maps.flatMap(id => {
     const map = atlasMap(id);
     if (!map) return [];
-    const sub = [map.rg, map.st].filter(Boolean).join("・");
+    const sub = mapSection(map);
     return [{ id: map.id, n: map.n, sub: sub || undefined }];
   });
   const lines = shopRows(npc.shop);

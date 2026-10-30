@@ -1,20 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ListHead, ROW_LINK, SearchCard } from "@/components/atlas/ListShell";
 import { ChevronRight } from "@/components/Icons";
 import { EmptyBlock } from "@/components/PlanShell";
 import { mapMatches, type MapListGroup } from "@/lib/atlas-view";
 import { useHydrated } from "@/lib/hydrated";
+import { useRemembered } from "@/lib/remember";
 
 /**
  * 地圖清單：伺服器已經把全部分組畫出來，這裡只照搜尋框把不符合的列、整組藏起來（不重抓資料）。
  * 圖名、大陸、區域、怪名、NPC 名都搜得到（mapSearchText）。
+ * 搜尋字跟其他查資料清單一樣記到關掉分頁（useRemembered）；伺服器沒有記住的字，接手前一律照空的畫，第一格才對得上。
  */
 export function MapList({ title, lead, groups }: { title: string; lead: string; groups: MapListGroup[] }) {
   const hydrated = useHydrated();
-  const [query, setQuery] = useState("");
+  const [remembered, setQuery] = useRemembered("db:地圖:query", "");
+  const query = hydrated ? remembered : "";
   const shown = useMemo(
     () =>
       groups
