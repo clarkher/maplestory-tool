@@ -125,18 +125,18 @@
   - 網址：`?eq=&sc=` 跟著選擇用 `router.replace` 更新（不新增瀏覽紀錄）；讀網址時 id 不合法當沒帶。
   - 手機 390：表格外層 `overflow-x:auto` 只在表格內捲，頁面本身不能橫向捲；表格字 13～14px。
   - `page.tsx` metadata：title「衝卷模擬｜衝到幾張要準備多少卷軸」、description 一句白話、canonical `/plan/scroll`。
-- [ ] **Step 4:** `tsc` 過、vitest 全過；dev server（`node node_modules/next/dist/bin/next dev --webpack -p 9401`）打開 `/plan/scroll?eq=1082002&sc=2040804` 看表格第 5 行是 7.8%、「12.9 件・30 張」、「64 張・29 件」。刪掉 dev server 產生的 AGENTS.md／CLAUDE.md（不要 commit）。commit。
+- [ ] **Step 4:** `tsc` 過、vitest 全過；dev server（`node node_modules/next/dist/bin/next dev --webpack -p 9301`）打開 `/plan/scroll?eq=1082002&sc=2040804` 看表格第 5 行是 7.8%、「12.9 件・30 張」、「64 張・29 件」。刪掉 dev server 產生的 AGENTS.md／CLAUDE.md（不要 commit）。commit。
 
 ### Task 4: 入口、驗收腳本、文件
 
 **Files:**
 - Modify: `src/app/db/items/ItemDb.tsx`（卷軸卡、可衝裝備卡多一個連結）、`README.md`（頁面清單＋scroll-sim.json 說明＋驗收腳本用法）
-- Create: `scripts/verify/scroll-shot.mjs`（照 `scripts/verify/speed-shot.mjs` 的寫法，無頭 Chrome、埠 9402）
+- Create: `scripts/verify/scroll-shot.mjs`（照 `scripts/verify/speed-shot.mjs` 的寫法，無頭 Chrome、埠 9302）
 
 **Interfaces:**
 - Consumes: `findScroll`（Task 3）判斷這張卷有沒有收進模擬；裝備看 `eq.tuc > 0`。ItemDb 要用 scroll-sim.json 判斷的話用 fetch 晚載，不要讓查資料頁第一格變慢；或改用「卷軸 `s==="卷軸"` 且名字結尾有 %」這種便宜判斷，點進去對不到就顯示空狀態——**選便宜判斷**。
 
 - [ ] **Step 1:** ItemDb 卷軸卡（`s === "卷軸"` 且名字結尾 `\d+%`、不是白衣、不含「混沌」）加 `<Link href={`/plan/scroll?sc=${item.id}`}>算衝卷要準備多少</Link>`；裝備卡（`eq?.tuc > 0`）加 `/plan/scroll?eq=${item.id}`。樣式照同卡片其他連結（例如 `/plan/farm?want=` 那顆）。
 - [ ] **Step 2:** `scroll-shot.mjs`：開 `<base>/plan/scroll?eq=1082002&sc=2040804`，檢查（1）表格 5 行、第 5 行含「7.8%」「64 張・29 件」；（2）填卷軸單價 10000、裝備單價 5000 後多出「平均花費」欄；（3）開白衣後第 5 行一件衝成 100.0%；（4）`?eq=1002001` 之類帽子挑得到卷（卷軸列不是空狀態）；（5）390 寬 `document.documentElement.scrollWidth <= 390`；（6）查資料卷軸卡連結點進來網址帶 `sc=`；（7）`?eq=999999999&sc=abc` 不壞頁、顯示空狀態。白天／夜晚各截一張 390 跟 1280。印 PASS 數／總數。帽子 id 從 scroll-sim.json 實際挑一件 `s:"帽子"` 的。
-- [ ] **Step 3:** 本機 dev server 跑 `node scripts/verify/scroll-shot.mjs http://localhost:9401 <輸出資料夾>` 全過；`scripts/verify/contrast-audit.mjs` 跑 `/plan/scroll`（`MSYS_NO_PATHCONV=1`）沒有新紅。
+- [ ] **Step 3:** 本機 dev server 跑 `node scripts/verify/scroll-shot.mjs http://localhost:9301 <輸出資料夾>` 全過；`scripts/verify/contrast-audit.mjs` 跑 `/plan/scroll`（`MSYS_NO_PATHCONV=1`）沒有新紅。
 - [ ] **Step 4:** README 補：頁面清單一行、`public/data/scroll-sim.json` 由 build-gear 產（欄位一句話）、`scroll-shot.mjs` 用法。commit。
