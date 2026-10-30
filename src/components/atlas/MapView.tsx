@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { labelSides, type LabelSide, mobColor, pinPercent, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap } from "@/lib/types";
 
@@ -12,6 +13,12 @@ const MIN_HEIGHT = 170;
 function labelShift(left: number, side: LabelSide): string {
   return `translate(-${left}%, ${side === "down" ? "40%" : "-115%"})`;
 }
+
+/**
+ * 疊的順序（下到上）：門標籤 z1 → NPC 標籤 z2 → 門、NPC 的位置小點 z3 → 怪物圓點 z4。
+ * 怪物點、每個門／NPC 真正的位置永遠看得到，標籤只是說明，被蓋一點沒關係。
+ */
+const marker = "absolute z-[3] -ml-[3.5px] -mt-[3.5px] size-[7px] rounded-full border-[1.5px] border-[#222]";
 
 const labelBase =
   "absolute max-w-[46%] overflow-hidden text-ellipsis whitespace-nowrap rounded-md px-1.5 py-0.5 text-[11px] font-black leading-tight shadow-[0_1px_3px_#0007]";
@@ -42,7 +49,8 @@ export function MapView({ map, src }: { map: AtlasMap & { b: [number, number, nu
               return (
                 <span
                   key={`m${mob.id}-${n}`}
-                  className="absolute -ml-[5.5px] -mt-[5.5px] size-[11px] rounded-full border-2 border-white shadow-[0_1px_2px_#0006]"
+                  data-mob={mob.id}
+                  className="absolute z-[4] -ml-[5.5px] -mt-[5.5px] size-[11px] rounded-full border-2 border-white shadow-[0_1px_2px_#0006]"
                   style={{ left: `${pos.left}%`, top: `${pos.top}%`, background: mobColor(index) }}
                 />
               );
@@ -51,18 +59,20 @@ export function MapView({ map, src }: { map: AtlasMap & { b: [number, number, nu
 
           {npcs.map(({ npc, pos }, index) =>
             labels ? (
-              <span
-                key={`n${npc.id}`}
-                className={`${labelBase} z-[2] bg-white text-[#222]`}
-                style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, npcSide(index)) }}
-              >
-                {npc.n}
-              </span>
+              <Fragment key={`n${npc.id}`}>
+                <span
+                  className={`${labelBase} z-[2] bg-white text-[#222]`}
+                  style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, npcSide(index)) }}
+                >
+                  {npc.n}
+                </span>
+                <span className={`${marker} bg-white`} style={{ left: `${pos.left}%`, top: `${pos.top}%` }} />
+              </Fragment>
             ) : (
               <span
                 key={`n${npc.id}`}
                 title={npc.n}
-                className="absolute z-[2] -ml-[5px] -mt-[5px] size-[10px] rotate-45 border-[1.5px] border-[#222] bg-[#ffd84a]"
+                className="absolute z-[3] -ml-[5px] -mt-[5px] size-[10px] rotate-45 border-[1.5px] border-[#222] bg-[#ffd84a]"
                 style={{ left: `${pos.left}%`, top: `${pos.top}%` }}
               />
             ),
@@ -70,13 +80,15 @@ export function MapView({ map, src }: { map: AtlasMap & { b: [number, number, nu
 
           {doors.map(({ door, pos }, n) => {
             return (
-              <span
-                key={`d${door.to}-${n}`}
-                className={`${labelBase} bg-[color:var(--leaf)] text-[color:var(--on-accent)]`}
-                style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, doorSide(n)) }}
-              >
-                往 {door.n}
-              </span>
+              <Fragment key={`d${door.to}-${n}`}>
+                <span
+                  className={`${labelBase} z-[1] bg-[color:var(--leaf)] text-[color:var(--on-accent)]`}
+                  style={{ left: `${pos.left}%`, top: `${pos.top}%`, transform: labelShift(pos.left, doorSide(n)) }}
+                >
+                  往 {door.n}
+                </span>
+                <span className={`${marker} bg-[color:var(--leaf)]`} style={{ left: `${pos.left}%`, top: `${pos.top}%` }} />
+              </Fragment>
             );
           })}
         </div>
