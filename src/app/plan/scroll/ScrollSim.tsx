@@ -8,7 +8,7 @@ import { simTable } from "@/lib/scroll-sim/calc";
 import { defaultScroll, findScroll, scrollsFor } from "@/lib/scroll-sim/pick";
 import type { ScrollSimData, SimEquip, SimScroll } from "@/lib/scroll-sim/types";
 import {
-  CARD, PickRow, Picker, PriceField, ResultTable, Switch, equipItems, equipNote, mesoText, parsePrice, scrollItems, scrollNote,
+  CARD, PickRow, Picker, PriceField, ResultTable, Switch, allPriced, equipItems, equipNote, mesoText, parsePrice, scrollItems, scrollNote,
 } from "./parts";
 
 /** 網址的 id：只認正整數 */
@@ -105,7 +105,7 @@ export function ScrollSim() {
     equip: parsePrice(equipPrice),
     white: white ? parsePrice(whitePrice) : null,
   };
-  const anyPrice = prices.scroll !== null || prices.equip !== null || prices.white !== null;
+  const priced = allPriced(prices, white);
 
   // 挑選清單的內容
   const pickerItems = useMemo(() => {
@@ -197,17 +197,16 @@ export function ScrollSim() {
             <h2 className="text-[15px] font-black">要成功幾張，各要準備多少</h2>
             <ResultTable rows={rows} scroll={scroll} prices={prices} white={white} />
             <div className="mt-2.5 space-y-1.5 text-[12px] leading-relaxed ink-soft">
-              {anyPrice ? (
+              {priced ? (
                 <p>
                   {lastRow.tiny || lastRow.scrolls90 === null || lastRow.items90 === null
                     ? `全部 ${lastRow.k} 張都成功幾乎衝不到，算不出要準備多少錢`
                     : `九成機率要準備的錢：約 ${mesoText(
                         lastRow.scrolls90 * (prices.scroll ?? 0) + lastRow.items90 * (prices.equip ?? 0) + (white ? lastRow.avgWhite * (prices.white ?? 0) : 0),
                       )}（卷軸 ${lastRow.scrolls90} 張＋裝備 ${lastRow.items90} 件）${white ? "（白衣照平均張數算）" : ""}`}
-                  {prices.scroll === null || prices.equip === null || (white && prices.white === null) ? "；沒填的單價當 0 算" : ""}
                 </p>
               ) : (
-                <p>填了單價就算得出總共要花多少</p>
+                <p>單價都填了就算得出總共要花多少</p>
               )}
               <p>從全新裝備算；剩下的次數不夠衝到就換一件，不浪費卷軸。成功率照遊戲裡卷軸說明。</p>
               {scroll.boom > 0 ? (

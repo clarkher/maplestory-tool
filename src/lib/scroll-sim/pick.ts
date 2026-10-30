@@ -41,3 +41,8 @@ export function rowLabel(k: number, s: SimScroll): string {
   if (s.stats.length === 0) return `${k} 張`;
   return `${k} 張（${s.stats.map((st) => `${st.k} +${st.v * k}`).join("、")}）`;
 }
+
+/** 表格第一欄第二行：「物理攻擊力 +10、幸運 +5」；沒有數值回空字串 */
+export function statLine(k: number, s: SimScroll): string {
+  return s.stats.map((st) => `${st.k} +${st.v * k}`).join("、");
+}

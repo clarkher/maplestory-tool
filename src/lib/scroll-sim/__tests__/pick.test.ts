@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { defaultScroll, findScroll, rowLabel, scrollsFor } from "@/lib/scroll-sim/pick";
+import { defaultScroll, findScroll, rowLabel, scrollsFor, statLine } from "@/lib/scroll-sim/pick";
 import type { ScrollSimData, SimEquip } from "@/lib/scroll-sim/types";
 
 const data = JSON.parse(readFileSync(join(process.cwd(), "public/data/scroll-sim.json"), "utf8")) as ScrollSimData;
@@ -62,5 +62,14 @@ describe("rowLabel 表格第一欄", () => {
   });
   it("沒有數值只寫張數", () => {
     expect(rowLabel(2, { ...byName("短劍攻擊卷軸60%"), stats: [] })).toBe("2 張");
+  });
+});
+
+describe("statLine 表格第一欄第二行", () => {
+  it("5 張短劍攻擊卷軸60%", () => {
+    expect(statLine(5, byName("短劍攻擊卷軸60%"))).toBe("物理攻擊力 +10、幸運 +5");
+  });
+  it("沒有數值回空字串", () => {
+    expect(statLine(2, { ...byName("短劍攻擊卷軸60%"), stats: [] })).toBe("");
   });
 });

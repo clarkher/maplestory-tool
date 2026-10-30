@@ -6,7 +6,7 @@ import { CloseIcon, SearchIcon } from "@/components/Icons";
 import { SearchClear, searchKeys } from "@/components/SearchClear";
 import { itemImage } from "@/lib/data";
 import type { SimRow } from "@/lib/scroll-sim/calc";
-import { rowLabel } from "@/lib/scroll-sim/pick";
+import { statLine } from "@/lib/scroll-sim/pick";
 import type { SimEquip, SimScroll } from "@/lib/scroll-sim/types";
 
 export const CARD = "rounded-[var(--radius-card)] glass-solid p-4 sm:p-[18px]";
@@ -90,9 +90,14 @@ export function mesoText(n: number): string {
 
 export type Prices = { scroll: number | null; equip: number | null; white: number | null };
 
-/** 平均花費：卷軸＋裝備（＋白衣），沒填的單價當 0 */
+/** 要算花費的單價都填了嗎：卷軸、裝備，開白衣再加白衣 */
+export function allPriced(prices: Prices, white: boolean): boolean {
+  return prices.scroll !== null && prices.equip !== null && (!white || prices.white !== null);
+}
+
+/** 平均花費：卷軸＋裝備（＋白衣）。單價沒填齊、或幾乎衝不到回 null */
 export function avgCost(row: SimRow, prices: Prices, white: boolean): number | null {
-  if (row.tiny || !Number.isFinite(row.avgScrolls) || !Number.isFinite(row.avgItems)) return null;
+  if (!allPriced(prices, white) || row.tiny || !Number.isFinite(row.avgScrolls) || !Number.isFinite(row.avgItems)) return null;
   return row.avgScrolls * (prices.scroll ?? 0) + row.avgItems * (prices.equip ?? 0) + (white ? row.avgWhite * (prices.white ?? 0) : 0);
 }
 
@@ -214,6 +219,7 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
   title: string; items: PickerItem[]; selected: number | null; onPick: (id: number) => void; onClose: () => void; hint?: string;
 }) {
   const [query, setQuery] = useState("");
+  const [slot, setSlot] = useState("");
   const input = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
 
@@ -248,10 +254,20 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
     };
   }, [onClose]);
 
+  // 部位小按鈕：有哪些部位、多的排前面（只有一個部位或沒分組就不放）
+  const slots = useMemo(() => {
+    const tally = new Map<string, number>();
+    for (const it of items) if (it.group) tally.set(it.group, (tally.get(it.group) ?? 0) + 1);
+    if (tally.size < 2) return [];
+    return [...tally].sort((a, b) => b[1] - a[1] || bySlot(a[0], b[0])).map(([name]) => name);
+  }, [items]);
+  const activeSlot = slots.includes(slot) ? slot : "";
+
   const matched = useMemo(() => {
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    return words.length ? items.filter((it) => words.every((w) => `${it.name} ${it.group}`.toLowerCase().includes(w))) : items;
-  }, [items, query]);
+    const inSlot = activeSlot ? items.filter((it) => it.group === activeSlot) : items;
+    return words.length ? inSlot.filter((it) => words.every((w) => `${it.name} ${it.group}`.toLowerCase().includes(w))) : inSlot;
+  }, [items, query, activeSlot]);
   const shown = matched.slice(0, LIST_CAP);
 
   // 分組（連續同組併成一段）
@@ -294,6 +310,24 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
             {query ? <SearchClear onClear={() => setQuery("")} /> : null}
           </div>
           {hint ? <p className="mt-2 text-[12px] ink-soft">{hint}</p> : null}
+          {slots.length ? (
+            <div className="scroll-x -mx-4 mt-2 flex gap-1.5 px-4 pb-1" role="group" aria-label="挑部位">
+              {slots.map((name) => {
+                const on = name === activeSlot;
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setSlot(on ? "" : name)}
+                    className={`inline-flex min-h-[34px] shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
         <div className="mt-2 min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-4">
           {shown.length === 0 ? (
@@ -351,11 +385,26 @@ function Pair({ text }: { text: string }) {
 }
 
 export function ResultTable({ rows, scroll, prices, white }: { rows: SimRow[]; scroll: SimScroll; prices: Prices; white: boolean }) {
-  const showCost = prices.scroll !== null || prices.equip !== null || (white && prices.white !== null);
+  const showCost = allPriced(prices, white);
   const last = rows.length - 1;
+  // 表格比卡片寬（窄螢幕欄位多的時候）才提醒可以左右滑
+  const wrap = useRef<HTMLDivElement>(null);
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const measure = () => setWide(el.scrollWidth > el.clientWidth + 1);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    const table = el.firstElementChild;
+    if (table) ro.observe(table);
+    return () => ro.disconnect();
+  }, [rows, prices, white]);
   const th = "whitespace-nowrap px-1.5 py-1.5 text-left text-[12px] font-extrabold ink-soft";
   return (
-    <div className="scroll-x -mx-1 mt-2 px-1">
+    <>
+    <div ref={wrap} className="scroll-x -mx-1 mt-2 px-1">
       <table className="w-full border-collapse text-[13px] sm:text-[14px]">
         <thead>
           <tr>
@@ -377,7 +426,14 @@ export function ResultTable({ rows, scroll, prices, white }: { rows: SimRow[]; s
                 className={`border-t border-[color:var(--paper-edge)] ${isLast ? "font-black" : ""}`}
                 style={isLast ? { background: "color-mix(in srgb, var(--maple) 10%, transparent)" } : undefined}
               >
-                <th scope="row" className="min-w-[6.5em] px-1.5 py-2.5 text-left font-[inherit]">{rowLabel(row.k, scroll)}</th>
+                <th scope="row" className="min-w-[6.5em] px-1.5 py-2.5 text-left font-[inherit]">
+                  <span className="block whitespace-nowrap">{row.k} 張</span>
+                  {scroll.stats.length ? (
+                    <span className="block text-[12px] font-normal leading-snug text-[color:var(--ink-soft)]">{statLine(row.k, scroll).split("、").map((part, n, all) => (
+                        <span key={part} className="whitespace-nowrap">{part}{n < all.length - 1 ? "、" : ""}</span>
+                      ))}</span>
+                  ) : null}
+                </th>
                 <td className="whitespace-nowrap px-1.5 tabular-nums">{pctText(row)}</td>
                 <td className="px-1.5 tabular-nums"><Pair text={avgText(row)} /></td>
                 <td className={`px-1.5 tabular-nums ${isLast && !row.tiny ? "text-[color:var(--maple)]" : ""}`}><Pair text={prepText(row)} /></td>
@@ -389,5 +445,7 @@ export function ResultTable({ rows, scroll, prices, white }: { rows: SimRow[]; s
         </tbody>
       </table>
     </div>
+    {wide ? <p className="mt-1.5 text-[12px] ink-soft">表格可以左右滑</p> : null}
+    </>
   );
 }
