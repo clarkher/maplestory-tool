@@ -42,6 +42,11 @@
 
 「拍賣買齊就能交的任務」（`/plan/buy`，v1.13）：要交的道具全都能交易、不用打怪的任務，照經驗排，寫要交什麼、經驗、獎勵道具、NPC 商店有沒有賣（商店只列收楓幣、不限時的 NPC 店，活動店收別的幣不算）。
 
+「衝卷模擬」（`/plan/scroll`，v1.23）：挑一件裝備、一張卷軸，一張表比「成功 1～N 張」各要準備多少（平均、九成機率、白衣補次數）；單價自己填，卷軸、裝備（開白衣再加白衣）都填了才算花費。
+網址 `?eq=<裝備 id>&sc=<卷軸 id>`；查資料的卷軸卡、可衝裝備卡有入口。資料在 `public/data/scroll-sim.json`，由 `pipeline/build-gear.mjs`（`pipeline/lib/scroll-sim.mjs`）建置時產：
+`scrolls`（卷軸：成功率、爆裝率、加的數值、能衝的部位或專用裝備）、`white`（白衣）、`equips`（可衝卷的裝備與次數）。計算在 `src/lib/scroll-sim/`。
+驗收：`npx vitest run src/lib/scroll-sim`；畫面用 `node scripts/verify/scroll-shot.mjs <網址，預設 http://localhost:9401> [輸出]`（埠 9402，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
+
 「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。活動期間（到 11/11 23:59 台灣）電腦版導覽列多一顆「萬聖節」（`navFor`），首頁角色列下面有入口卡；過了就自動不出現，頁面留著。
 能不能交易看上游道具的 `trade`（`unlimited` 而且沒有 `quest` 標記——上游把任務道具也標成 unlimited，遊戲裡其實不能交易），
 查的是任務原本要的那個編號（同名道具併成一筆時，各編號的狀態在 `tradeVariants`）。建置時 `pipeline/lib/buy-quests.mjs` 挑好寫進 `public/data/buy-quests.json`，

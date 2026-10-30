@@ -217,6 +217,13 @@ function ItemDetail({
 }) {
   const { requirements, stats } = equipGroups(item);
   const shops = shopGroups(item);
+  // 衝卷模擬的入口：卷軸（名字結尾是成功率，不含白衣、混沌）、可衝卷的裝備；對不到的點進去頁面會顯示空狀態
+  const scrollLink =
+    item.s === "卷軸" && /\d+%$/.test(item.n) && !/白衣|混沌/.test(item.n)
+      ? { href: `/plan/scroll?sc=${item.id}`, text: "算衝卷要準備多少" }
+      : typeof item.eq?.tuc === "number" && item.eq.tuc > 0
+        ? { href: `/plan/scroll?eq=${item.id}`, text: "算衝卷要準備多少" }
+        : null;
 
   return (
     <DetailCard>
@@ -336,6 +343,15 @@ function ItemDetail({
             ))}
           </ul>
         </Section>
+      ) : null}
+
+      {scrollLink ? (
+        <Link
+          href={scrollLink.href}
+          className="tap-safe inline-flex self-start rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
+        >
+          {scrollLink.text}
+        </Link>
       ) : null}
 
       {!item.dm?.length && !item.qr?.length && !item.qq?.length ? (
