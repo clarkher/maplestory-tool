@@ -16,6 +16,7 @@ import {
 import { useStoredProfile } from "@/lib/profile";
 import { useRemembered } from "@/lib/remember";
 import type { Item, Monster, Quest } from "@/lib/types";
+import { DB_HEADS } from "@/lib/db-heads";
 
 export function ItemDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -134,8 +135,8 @@ export function ItemDb() {
 
   return (
     <DbBrowser
-      title="道具"
-      lead="裝備數值、道具說明，以及最重要的：這東西誰會掉、哪個任務給。"
+      title={DB_HEADS.items.title}
+      lead={DB_HEADS.items.lead}
       entries={entries}
       loading={!items || !monsters || !quests}
       error={error}
@@ -298,8 +299,11 @@ function ItemDetail({
         <Section title="哪裡買得到" extra={shops.fromOldData ? "參考舊版資料，可能有出入" : undefined}>
           <div className="space-y-2">
             {shops.groups.map(group => (
-              <div key={group.price} className="space-y-1">
-                <p className="text-[13px] font-black tabular-nums">{group.price}</p>
+              <div key={`${group.price}-${group.until ?? ""}`} className="space-y-1">
+                <p className="flex flex-wrap items-center gap-2 text-[13px] font-black tabular-nums">
+                  {group.price}
+                  {group.until ? <Chip tone="maple">活動限定・到 {group.until}</Chip> : null}
+                </p>
                 <ul className="flex flex-wrap gap-1.5">
                   {group.places.map((place, index) => (
                     <li

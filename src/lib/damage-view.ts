@@ -240,15 +240,23 @@ export function monsterStats(monster: Pick<Monster, "hp" | "exp">): string {
   return `HP ${monster.hp.toLocaleString()}・經驗 ${monster.exp.toLocaleString()}`;
 }
 
-/** 這隻怪在選單裡的樣子：出現在有中文名地圖的怪才有（不收錄、沒有等級的不收）；不收的回 null */
+/** 「楓葉世界全地區」：活動怪的假地圖編號，野外到處都會出，不算副本 */
+const EVERYWHERE_MAP = 999999998;
+
+/** 9 開頭的地圖是組隊任務、獎勵圖、任務副本（肥肥村莊那支鋼之肥肥只在月妙獎勵圖），野外打不到 */
+function isInstanceMap(id: number): boolean {
+  return id >= 900000000 && id !== EVERYWHERE_MAP;
+}
+
+/** 這隻怪在選單裡的樣子：出現在有中文名野外地圖的怪才有（不收錄、沒有等級、只在副本的不收）；不收的回 null */
 function choiceFor(monster: Monster, maps: Record<string, MapRecord>): MonsterChoice | null {
   if (monster.un || monster.lv === null) return null;
-  const named = monster.maps.filter(id => maps[String(id)]?.zh);
+  const named = monster.maps.filter(id => !isInstanceMap(id) && maps[String(id)]?.zh);
   if (!named.length) return null;
   return { monster };
 }
 
-/** 怪物選單：出現在有中文名地圖的怪（不收錄、沒有等級的不列），依等級低到高 */
+/** 怪物選單：出現在有中文名野外地圖的怪（不收錄、沒有等級、只在副本的不列），依等級低到高 */
 export function monsterChoices(monsters: Monster[], maps: Record<string, MapRecord>): MonsterChoice[] {
   return monsters
     .flatMap(monster => choiceFor(monster, maps) ?? [])

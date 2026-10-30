@@ -15,6 +15,7 @@ import { trainingRange } from "@/lib/planner";
 import { useStoredProfile } from "@/lib/profile";
 import { useRemembered } from "@/lib/remember";
 import type { Item, MapRecord, Monster } from "@/lib/types";
+import { DB_HEADS } from "@/lib/db-heads";
 
 /** 練功範圍標籤開了哪一顆：""＝都沒開、"fit"＝適合我練的（同級到高 5 級）、"wide"＝包含低 5 級（低 5 級到高 5 級）。兩顆只能開一顆 */
 type Band = "" | "fit" | "wide";
@@ -82,8 +83,8 @@ export function MonsterDb() {
 
   return (
     <DbBrowser
-      title="怪物"
-      lead="每隻怪的數值、屬性抗性、出沒地圖與掉落物。點地圖可以直接算路線過去。"
+      title={DB_HEADS.monsters.title}
+      lead={DB_HEADS.monsters.lead}
       entries={entries}
       loading={!monsters || !maps || !items}
       error={error}

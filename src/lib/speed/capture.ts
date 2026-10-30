@@ -2,6 +2,7 @@
 "use client";
 
 import type { RawSpeedNames } from "./names";
+import type { FrameExtras } from "./read-extras";
 import type { FrameReading } from "./read-frame";
 
 export type CaptureHandle = { stop(): void; setHints(hints: number[]): void; ended: Promise<void> };
@@ -14,7 +15,8 @@ declare global {
 }
 
 type TrackProcessorConstructor = new (init: { track: MediaStreamTrack }) => { readable: ReadableStream<VideoFrame> };
-type WorkerMessage = { reading?: FrameReading; at?: number; ended?: boolean };
+type WorkerMessage = { reading?: FrameReading; at?: number; extras?: FrameExtras | null; ended?: boolean };
+type OnReading = (reading: FrameReading, at: number, extras: FrameExtras | null) => void;
 
 async function getStream(): Promise<MediaStream> {
   if (process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" && window.__speedTestStream) return window.__speedTestStream;
@@ -26,7 +28,7 @@ async function getStream(): Promise<MediaStream> {
  * 有 MediaStreamTrackProcessor（Chrome／Edge）就在 Worker 裡讀；沒有就退回主執行緒用 <video>＋計時器。
  * 玩家在選視窗那一步按取消，getDisplayMedia 會丟 NotAllowedError，這裡不吞，交給呼叫的頁面決定怎麼講。
  */
-export async function startCapture(init: { toNext: number[]; names: RawSpeedNames }, onReading: (reading: FrameReading, at: number) => void): Promise<CaptureHandle> {
+export async function startCapture(init: { toNext: number[]; names: RawSpeedNames; potionIds: number[] }, onReading: OnReading): Promise<CaptureHandle> {
   const stream = await getStream();
   const track = stream.getVideoTracks()[0];
   if (!track) throw new Error("分享的內容沒有畫面");
@@ -55,11 +57,11 @@ export async function startCapture(init: { toNext: number[]; names: RawSpeedName
       worker.onmessage = (event: MessageEvent<WorkerMessage>) => {
         if (over) return;
         if (event.data.ended) finish();
-        else if (event.data.reading && event.data.at) onReading(event.data.reading, event.data.at);
+        else if (event.data.reading && event.data.at) onReading(event.data.reading, event.data.at, event.data.extras ?? null);
       };
       // Worker 檔載不進來（網路、擋掉）：讀不到畫面，結束掉讓頁面知道，不要一直轉
       worker.onerror = () => stop();
-      worker.postMessage({ type: "start", readable, toNext: init.toNext, names: init.names }, [readable]);
+      worker.postMessage({ type: "start", readable, toNext: init.toNext, names: init.names, potionIds: init.potionIds }, [readable]);
     } catch {
       // 建不起 Worker（被擋、不支援 module worker）：還沒把串流交出去，退回下面的主執行緒作法
       worker?.terminate();
@@ -78,8 +80,16 @@ export async function startCapture(init: { toNext: number[]; names: RawSpeedName
   // 退路：主執行緒。分頁被遊戲蓋住時計時器可能被放慢，所以只有沒有 MediaStreamTrackProcessor 才走這裡。
   // 認畫面的程式（含字樣板，近 200KB）只有走到這裡才載入，不放進頁面本身的檔案。
   try {
-    const [{ readFrame }, { parseNames }] = await Promise.all([import("./read-frame"), import("./names")]);
+    const [{ readFrameWithBar }, { parseNames }, { createExtrasState, loadPotionRefs, readExtras }] = await Promise.all([
+      import("./read-frame"),
+      import("./names"),
+      import("./read-extras"),
+    ]);
     const reader = { toNext: init.toNext, names: parseNames(init.names) };
+    const extras = createExtrasState();
+    void loadPotionRefs(init.potionIds).then(refs => {
+      extras.refs = refs;
+    });
     const video = document.createElement("video");
     video.muted = true;
     video.playsInline = true;
@@ -97,15 +107,23 @@ export async function startCapture(init: { toNext: number[]; names: RawSpeedName
       }
       context.drawImage(video, 0, 0);
       const image = context.getImageData(0, 0, canvas.width, canvas.height);
-      let reading: FrameReading;
+      const frame = { width: canvas.width, height: canvas.height, data: image.data };
+      const at = Date.now();
+      let read: ReturnType<typeof readFrameWithBar>;
       try {
-        reading = readFrame({ width: canvas.width, height: canvas.height, data: image.data }, reader, hints);
+        read = readFrameWithBar(frame, reader, hints);
       } catch (error) {
         // 一張讀壞不要整個停掉，下一秒再試；訊息留在 DevTools 方便查
         console.error("練功測速：這一張讀不出來", error);
         return;
       }
-      onReading(reading, Date.now());
+      let more: FrameExtras | null = null;
+      try {
+        more = readExtras(frame, read.bar, at, extras);
+      } catch (error) {
+        console.error("練功測速：HP、快捷鍵這一張讀不出來", error);
+      }
+      onReading(read.reading, at, more);
     }, 1000);
     ended.then(() => {
       window.clearInterval(timer);

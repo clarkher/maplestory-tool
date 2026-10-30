@@ -238,6 +238,19 @@ test("shopSources：商城（樂豆點）不算；10/15 才開的城鎮的店帶
   ]);
 });
 
+test("shopSources：活動店（萬聖節硬幣、限時的楓幣店）不算——去哪拿只推常駐的店", () => {
+  const rows = shopSources(
+    { sp: [
+      { p: "雪原的面具祭典現場", n: "行商人", m: 876011151, pr: 2, u: "萬聖節硬幣", e: "2026-11-11T23:59+08:00" },
+      { p: "雪原的面具祭典現場", n: "祭典管理員", m: 876011151, pr: 50000, e: "2026-11-11T23:59+08:00" },
+      { p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 9000, o: 1 },
+    ] },
+    { 103000001: { zh: "墮落城市武器店" } },
+    "2026-10-15",
+  );
+  assert.deepEqual(rows, [{ p: "墮落城市武器店", n: "曼斯塔", m: 103000001, pr: 9000 }]);
+});
+
 test("buildSource：上游寫了商店數量（sh）但店都在沒開放的城鎮（sp 是空的）→ 不算商店", () => {
   const src = buildSource({ sh: 6, sp: [] }, { monstersById: new Map(), questsById: new Map(), maps: {}, openMap, v002Date: "2026-10-15" });
   assert.deepEqual(src, {});

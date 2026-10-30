@@ -17,12 +17,18 @@
  * 2026-10-06 修正：一家店可能同時在好幾張圖開（例如科爾在寵物公園、弓箭手村市集都有賣）。
  * 原本只看 shop.maps[0]，排第一的那張圖沒開放就把整家店丟了，漏列已開放的其他分店。
  * 現在每張圖各自判斷上面三條規則，已開放的每一張都各列一筆。
+ *
+ * 2026-10-24（v1.15）：上游加了萬聖節活動的行商人（sourceFile halloween2026，雪原的面具祭典現場），
+ * 收的是「萬聖節硬幣」，原本只認「點數」是樂豆點、其他一律當楓幣，礦泉水就被寫成「10 個 1 楓幣」。
+ * 現在不是楓幣也不是樂豆點的，把幣別名稱記在 u；有限時說明（availabilityText）的記結束時間 e，
+ * 前端標「活動限定・到 11/11」、過了結束時間自己藏起來（使用者 10/24 拍板 B）。讀不出結束日的限時店不列。
  */
 
 import { HELD_BACK_MAPS } from "./map-names.mjs";
 
-/** 上游的貨幣：「點數」是商城的樂豆點，其他是楓幣 */
+/** 上游的貨幣：「點數」是商城的樂豆點、「楓幣」（或沒寫）是楓幣，其他是活動貨幣（萬聖節硬幣） */
 const CASH_CURRENCY = "點數";
+const MESO_CURRENCY = "楓幣";
 /** NPC 商店的舊版來源 */
 const OLD_SOURCE = "heavenms_db_database.sql";
 /** 沒有地圖、但確定經典版有的店 */
@@ -32,7 +38,7 @@ const REMOTE_SHOP = "楓之谷通行證遠端商店";
  * @param {Array<object> | undefined} shops 上游 item.sources.shops
  * @param {{ openRegions: string[], mapRecords: Record<string, { zh: string, ret?: number }> }} context
  *   openRegions＝build.mjs 的 RELEASE.mapRegions；mapRecords＝buildMaps 的 records（要有 zh、ret）
- * @returns {Array<{ p: string, n?: string, m?: number, pr: number, k?: number, c?: 1, o?: 1 }> | undefined}
+ * @returns {Array<{ p: string, n?: string, m?: number, pr: number, k?: number, c?: 1, u?: string, e?: string, o?: 1 }> | undefined}
  */
 export function shopRows(shops, { openRegions, mapRecords }) {
   if (!Array.isArray(shops) || !shops.length) return undefined;
@@ -44,6 +50,8 @@ export function shopRows(shops, { openRegions, mapRecords }) {
     if (!(price > 0)) continue;
     const npc = shop.sourceType === "cashShop" ? "" : String(shop.merchantName || "");
     const count = Number(shop.count) || 1;
+    const until = shop.availabilityText ? endTime(shop.availabilityText) : undefined;
+    if (until === null) continue;
     for (const where of shopPlaces(shop, openRegions, mapRecords)) {
       const row = {
         p: where.place,
@@ -52,6 +60,8 @@ export function shopRows(shops, { openRegions, mapRecords }) {
         pr: price,
         k: count > 1 ? count : undefined,
         c: shop.currency === CASH_CURRENCY ? 1 : undefined,
+        u: isEventCurrency(shop.currency) ? String(shop.currency) : undefined,
+        e: until,
         o: shop.sourceFile === OLD_SOURCE ? 1 : undefined,
       };
       for (const key of Object.keys(row)) if (row[key] === undefined) delete row[key];
@@ -62,6 +72,23 @@ export function shopRows(shops, { openRegions, mapRecords }) {
     }
   }
   return rows.length ? rows : undefined;
+}
+
+/** 不是楓幣也不是樂豆點：活動貨幣（萬聖節硬幣） */
+function isEventCurrency(currency) {
+  return Boolean(currency) && currency !== MESO_CURRENCY && currency !== CASH_CURRENCY;
+}
+
+/**
+ * 限時說明的結束時間（台灣時間）：「2026/10/15 維護後～2026/11/11 23:59」→ "2026-11-11T23:59+08:00"；
+ * 只寫日期的算到那天 23:59。讀不出來回 null。
+ */
+function endTime(text) {
+  const match = String(text).match(/[～~]\s*(\d{4})\/(\d{1,2})\/(\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/);
+  if (!match) return null;
+  const [, year, month, day, hour = "23", minute = "59"] = match;
+  const pad = value => value.padStart(2, "0");
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${minute}+08:00`;
 }
 
 /**
@@ -89,4 +116,21 @@ function shopPlaces(shop, openRegions, mapRecords) {
     if (townName) places.push({ place: townName, mapId: town });
   }
   return places;
+}
+
+/**
+ * NPC 商店的最高單價。同一個道具在不同店家可能不同價，取最高的當參考。
+ *
+ * 有些店是整組賣（通行證遠端商店：箭矢 2000 支 1400），要除以組數才是一個的價錢。
+ * 上游標成 hiddenByDefault 的是「非本期限時售價」，現在買不到這個價，不算。
+ * 活動貨幣（萬聖節硬幣）不是錢，也不算——不然只在活動店賣的超級藥水會算成一個 0.2。
+ */
+export function shopPrice(shops) {
+  if (!Array.isArray(shops) || !shops.length) return undefined;
+  const prices = shops
+    .filter(shop => !shop?.hiddenByDefault && !isEventCurrency(shop?.currency))
+    .map(shop => (Number(shop?.price) || 0) / Math.max(Number(shop?.count) || 1, 1))
+    .map(price => Math.round(price * 100) / 100)
+    .filter(price => price > 0);
+  return prices.length ? Math.max(...prices) : undefined;
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createFingerScroll, nextHeader, type HeaderMotion } from "@/lib/header-hide";
-import { NAV, activeNav } from "@/lib/nav";
+import { activeNav, navFor } from "@/lib/nav";
 import { MoonIcon, SunIcon } from "./Icons";
 
 export function SiteHeader() {
@@ -34,9 +34,9 @@ export function SiteHeader() {
           <span className="hidden text-[17px] font-black tracking-tight min-[400px]:inline">楓谷幫手</span>
         </Link>
 
-        {/* 四顆（v0.85 加「算傷害」；v0.95 加「練功測速」、v1.03 加「楓幣匯率」都只在 768 寬以上出現，手機維持四顆）：手機上縮一點才放得下——400 寬以下按鈕左右 8px、間距 2px，380 寬以下字 13px（360 寬量過有 11px 餘裕） */}
+        {/* 手機四顆：我的路線、野王計時、帶我去、查資料（v1.18 加「野王計時」，使用者選 A：「算傷害」改成跟「練功測速」「楓幣匯率」一樣只在 768 寬以上出現）：手機上縮一點才放得下——400 寬以下按鈕左右 8px、間距 2px，380 寬以下字 13px（360 寬量過有 11px 餘裕） */}
         <nav className="scroll-x -mx-1 flex flex-1 items-center gap-0.5 px-1 min-[400px]:gap-1" aria-label="主選單">
-          {NAV.map(item => {
+          {navFor(Date.now()).map(item => {
             const active = activeNav(pathname) === item.label;
             return (
               <Link

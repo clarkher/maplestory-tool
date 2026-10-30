@@ -44,7 +44,7 @@ export function MiniWindow({ open, onClose, children }: { open: boolean; onClose
     if (!open) return;
     let closed = false;
     let win: Window | null = null;
-    (window as unknown as { documentPictureInPicture: PipApi }).documentPictureInPicture.requestWindow({ width: 280, height: 150 }).then(
+    (window as unknown as { documentPictureInPicture: PipApi }).documentPictureInPicture.requestWindow({ width: 280, height: 175 }).then(
       created => {
         if (closed) {
           created.close();

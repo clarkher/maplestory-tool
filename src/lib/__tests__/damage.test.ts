@@ -11,6 +11,7 @@ import {
   diffPercent,
   dragonRoarBase,
   elementFactor,
+  critSpread,
   expectedHit,
   floorRange,
   hitRange,
@@ -157,6 +158,18 @@ describe("期望、幾下打死、差幾 %、命中", () => {
     expect(average({ min: 100, max: 300 })).toBe(200);
     expect(expectedHit({ min: 100, max: 300 }, { min: 200, max: 400 }, 0.5)).toBe(250);
     expect(expectedHit({ min: 100, max: 300 }, null, 0.5)).toBe(200);
+  });
+  it("爆擊分布：雙飛斬 2 下、每下 30%（使用者的例子）", () => {
+    const rows = critSpread({ min: 500, max: 1000 }, { min: 600, max: 1200 }, 0.3, 2);
+    expect(rows.map(row => row.crits)).toEqual([0, 1, 2]);
+    expect(rows.map(row => row.range)).toEqual([{ min: 1000, max: 2000 }, { min: 1100, max: 2200 }, { min: 1200, max: 2400 }]);
+    expect(rows.map(row => row.chance)).toEqual([expect.closeTo(0.49), expect.closeTo(0.42), expect.closeTo(0.09)]);
+  });
+  it("爆擊分布：只打一下兩行、機率加起來 1", () => {
+    const rows = critSpread({ min: 100, max: 200 }, { min: 300, max: 400 }, 0.5, 1);
+    expect(rows).toEqual([{ crits: 0, chance: 0.5, range: { min: 100, max: 200 } }, { crits: 1, chance: 0.5, range: { min: 300, max: 400 } }]);
+    const four = critSpread({ min: 1, max: 2 }, { min: 3, max: 4 }, 0.4, 4);
+    expect(four.reduce((sum, row) => sum + row.chance, 0)).toBeCloseTo(1);
   });
   it("幾下打死：無條件進位", () => {
     expect(killCounts(3200, 611.8, 892, 330)).toEqual({ avg: 6, fastest: 4, slowest: 10 });

@@ -41,6 +41,8 @@
 舊的單項工具（練功排行、可接任務、打寶、任務打包、拍賣買齊就能交的任務）跟怪物／道具／任務／技能圖鑑收在「查資料」（`/db`）。
 
 「拍賣買齊就能交的任務」（`/plan/buy`，v1.13）：要交的道具全都能交易、不用打怪的任務，照經驗排，寫要交什麼、經驗、獎勵道具、NPC 商店有沒有賣（商店只列收楓幣、不限時的 NPC 店，活動店收別的幣不算）。
+
+「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。活動期間（到 11/11 23:59 台灣）電腦版導覽列多一顆「萬聖節」（`navFor`），首頁角色列下面有入口卡；過了就自動不出現，頁面留著。
 能不能交易看上游道具的 `trade`（`unlimited` 而且沒有 `quest` 標記——上游把任務道具也標成 unlimited，遊戲裡其實不能交易），
 查的是任務原本要的那個編號（同名道具併成一筆時，各編號的狀態在 `tradeVariants`）。建置時 `pipeline/lib/buy-quests.mjs` 挑好寫進 `public/data/buy-quests.json`，
 `verify.mjs` 擋數量不合理、有要打怪的。拍賣價格沒有資料，不寫花費。
@@ -130,6 +132,12 @@ v1.14（10/24 第二輪拍板「全優化」）：篩選加「全部地區」下
 `verify.mjs` 會檢查已開放的練功圖都有城鎮走得到（組隊任務關卡這種傳送門本來就走不到的另外列出來）、
 NPC 傳送的等級門檻沒有被同兩張圖的真門蓋掉。
 
+限時活動店（2026-10-15 起上游的萬聖節行商人，`sourceFile: halloween2026`，雪原的面具祭典現場、到 11/11 23:59）：
+`pipeline/lib/shops.mjs` 把不是楓幣也不是樂豆點的幣別記在 `items.json` `sp` 的 `u`（萬聖節硬幣）、限時說明的結束時間記在 `e`；
+道具卡「哪裡買得到」寫真的幣別、標「活動限定・到 11/11」、排在常駐的店後面，**過了結束時間畫面自己不列**（不用等資料重建，v1.15）。
+讀不出結束日的限時店不列。「去哪拿」（`gear.mjs` 的 `shopSources`）、拍賣買齊任務（`buy-quests.mjs` 的 `isMesoShop`）、
+`price`（`shopPrice`）只算常駐的楓幣店，活動店都不算。
+
 V002 這次才放行的地圖（冰原雪域、廢礦區，以及上面補缺的天空之城、冰原雪域兩座城鎮本身）在 `maps.json`
 多帶一個 `o` 欄位（開放日 `"2026-10-15"`）。開放前前端用它標「10/15 開放」，開放後那些程式已經拆掉（v0.46）；
 `o` 留著是因為裝備推薦還在用：掉落怪挑一張不是 V002 的地圖來顯示、兩把武器數值完全一樣時先推不是只有 V002 才拿得到的、
@@ -205,6 +213,15 @@ node scripts/client/wzjs.mjs "$TEMP/skills.bin" 500 skill/5001005/level
   `buildSkills` 的 `linkPrereqs` 照這份的 id 接連結、名字換成正式名稱（要跟說明寫的等級一樣、同一條職業線才接）。重抽：
   `node scripts/client/skill-req.mjs "$TEMP/skills.bin"`（同一個解好的檔，只收經典版有的職業，2026-10-08 是 73 個技能）。
   建置時還接不上的會印「[skills] 所需技能接不上連結的：N 個」，v0.80 起是 0 個。
+- **任務接取條件「身上不能有」**（`data/client/quest-start-none.json`，v1.15）：客戶端任務的接取條件（WZJS 物件 `Check` 的 `<任務 id>/0/item`）
+  有些道具沒寫 `count`＝要 0 個＝身上不能有（瑪亞愛情象徵：已經有愛情象徵就接不到；尋找皺摺的紙片：紙片弄丟了才接得到），上游一律補成 1，
+  站上原本寫成「身上要有」。`buildQuests` 照這份把那幾件搬到 `startNone`，任務卡寫「身上不能有：」（`pipeline/lib/quest-fields.mjs`）。重抽：
+  `node scripts/client/decomp.mjs "D:/屁哥/maplestory_classic/Maplestory_Classic_Data/StreamingAssets/aa/w/json_d0204d274fe26485ef82614de81bd4d4.bundle" "$TEMP/quest.bin"`
+  → `node scripts/client/quest-start-none.mjs "$TEMP/quest.bin"`（2026-10-24 用 1.15.3 客戶端抽，站上改到 14 個任務）。
+  客戶端比上游舊時（10/15 改版加的任務不在 1.15.3 裡），建置印「[quests] 要道具才接得到、客戶端沒有這個任務的：N 個」，那幾個照上游寫「身上要有」，
+  10/24 是 6 個（3048、3050、3104、1119、3079、3069）：遊戲更新客戶端後重抽、重建就會一起對上。
+- 同一包的 `Act` 是任務的獎勵／扣除：`<任務 id>/1/money` 是負的＝交任務時要付（流浪煉金術師的新技術 -1,000,000）。任務卡的獎勵那行只寫正的楓幣，
+  要付的寫在「要交的東西」底下（`rewardSummary`、`payText`，跟 /plan/buy 同一句「另外要付 N 楓幣」；沒有要交的道具寫「要付 N 楓幣」）。
 
 #### 上游漏抽的技能欄位（`data/upstream-fallback/skills.json`，v1.00）
 
@@ -362,6 +379,20 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
   最新一筆是手動的，`latest.json` 的 `src` 是 `manual`、沒有掛單數與價位分布，頁面更新時間那行寫「手動輸入」、當天讀數標「含手動輸入」。
   「匯率收集失敗」的 issue 內文也寫了這個做法。
 
+## 野王計時
+
+`/plan/boss`（導覽列「野王計時」）：打死野王就按一下，算每個頻道下一次大概什麼時候出，快出了排前面；可以開房間跟隊友一起記。設計：`docs/superpowers/specs/2026-10-29-boss-timer-design.md`。
+
+- **重生時間的來源**：台服玩家實測（波波攻略島統計等），整理在 `docs/research/2026-10-29-boss-timer.md`。
+  **不用客戶端的 mobTime**：客戶端蘑菇王寫 1800 秒，玩家實測是 45～60 分，照客戶端算會差很多。
+- **隊友房間**：6 碼房號、24 小時有效；存在 Neon 的 `boss_rooms`、`boss_events`、`boss_presence`、`boss_intervals` 四張表。
+  沒設 `DATABASE_URL`（本機、預覽）時房間功能不出現，個人模式（記在自己瀏覽器）照用。
+  同一個位址 10 分鐘最多開 5 間房間（`ROOM_CREATES_PER_10MIN`，`boss_rooms.ip_hash`），超過回 429；記事件跟回報間隔合計一分鐘 30 次。
+- **提醒**：最短重生前 3 分鐘響一次；響過的記在 `localStorage` 的 `ms-boss:fired`（只留紀錄還在的），重新整理不會再響。
+- **導覽列**：手機只放 我的路線、野王計時、帶我去、查資料；「算傷害」v1.18 起跟練功測速、楓幣匯率一樣只在電腦版，手機從查資料進去。
+- **回收間隔**：把大家回報的「打死到下次出現」間隔收回來修正預估，只收 10 分～6 小時的值，同一隻王 20 筆以上才顯示，兩台伺服器合算。
+  `GET /api/boss/intervals` 回 `Cache-Control: public, s-maxage=600, stale-while-revalidate=3600`（出錯不快取）。
+
 ## 技術
 
 Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScript。
@@ -375,6 +406,16 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 用無頭 Chrome 量換頁第一格（`scripts/verify/check-first-frame.mjs`，`.github/workflows/test.yml`），
 結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」「測試 / 第一格」，紅燈點進去看是哪一步；第一格沒過時截圖跟紀錄在
 那次執行的 artifact。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
+
+### 搜尋引擎跟 AI 看得到的東西（v1.21）
+
+- **單筆靜態頁**：`/db/monsters/<id>`、`/db/quests/<id>`、`/db/skills/<id>`、`/jobs/<職業>`，建置時從 `public/data` 讀（`src/lib/static-data.ts`）
+  先畫好，不跑 JavaScript 也讀得到。開頭那段話在 `src/lib/seo.ts`，只用資料裡有的欄位組句子。查資料清單、卡片照舊用 `?id=`。
+- **固定頁清單**：`src/lib/site-pages.ts`，`sitemap.xml` 跟 `/llms.txt`（給 AI 讀的網站說明）共用；**新增頁面要加在這裡**。
+- **robots**：明列 AI 爬蟲（GPTBot、ClaudeBot、PerplexityBot…）允許，`/api/` 不給爬。
+- **結構化資料**：全站 WebSite 放 `<body>`（`<head>` 的 script 會被 `scroll-behavior.test.ts` 當程式跑），單筆頁另有麵包屑跟 WebPage。
+- 查資料四頁讀取時伺服器先畫標題（`DbFallback`，標題字在 `src/lib/db-heads.ts`）。
+- 圖檔網址在 `src/lib/asset-paths.ts`：`data.ts` 是 `"use client"`，伺服器頁不能呼叫它的函式。
 
 ### 查資料頁驗收（改查資料四頁之後跑）
 
@@ -456,6 +497,32 @@ npm run verify:db -- https://maplestory-tool-git-dev-clarkhers-projects.vercel.a
   只重產數字樣板：`npx vitest run -c vitest.gen.config.ts -t "產 glyphs.json"`（不用字型）。v1.05 以前數字樣板是微軟正黑體，1、3、5 會認錯，經驗幾乎都讀不出來。
   `public/data/maps.json` 多了新地圖名，要在 Windows 上重跑 `npm run speed:glyphs`（職業要微軟正黑體 `C:/Windows/Fonts/msjh.ttc`、地圖名要微軟正黑體粗體 `msjhbd.ttc`；CI 不跑產樣板），
   沒重跑的話 `read-map.test.ts`「maps.json 每張有中文名的圖，地圖名跟街道名都有樣板」會紅（10/15 新地圖就是這樣漏掉 21 張練功圖，v1.10 補）；資料自動更新時跳過這一項（`data-refresh.yml` 設 `SPEED_NAMES_MAY_LAG`，Linux 產不了樣板，不能卡住道具、怪物的更新），下一個進 dev 的 PR 會紅、提醒去重產。
+- **快捷鍵數量**（v1.22）：右下角快捷鍵 8 格（`src/lib/speed/quickslot.ts`）。找法是在狀態列上方、畫面右邊 35% 找那圈白框（146×75×縮放、欄縫列縫是暗的），
+  格子位置照白框推。數字用**客戶端的道具數量字**（`src/lib/speed/quickslot-font.ts`，客戶端 `UI/Basic/ItemNo` 的 0～9，跟狀態列是不同套），
+  用「應該多亮」跟實際亮度的相關係數比，整個字跟四個半邊都要像；讀不準（像字又不夠像、只有半個字）整格回 null，不回少幾位的數。
+  最右欄的第 5 位會壓在白框上：第 5 位置整個字像、或左半邊像，就整格回 null（不再回前 4 位）。
+  重抽字形：`python -E -P scripts/client/quickslot-font.py > src/lib/speed/quickslot-font.ts`（要 `pip install --user UnityPy`）。
+  基準截圖只有 0、1、2、4、7、9，3、5、6、8 用 `paintSlotCount`（`__tests__/fixture.ts`）畫進格子驗，1～2 倍縮放都測。
+- **練功測速補齊**（v1.22，spec：`docs/superpowers/specs/2026-10-29-speed-live-extras-design.md`，左欄版面 C：組隊 → 控制 → 經驗 → 楓幣收益 → 跟我之前比）：
+  - **經驗曲線**（`src/lib/speed/curve.ts`、`ExpCard.tsx`）：每分鐘一根長條，左邊寫已經過完的分鐘數；正在進行的那一分鐘畫淡一點、**不拿來判斷「掉很多」**；某一分鐘比平常少很多會標「可能死了或在補藥」。每次按開始分享就重設。
+  - **低血提醒**（`src/lib/speed/hp.ts`）：讀狀態列 HP 條**紅色的長度**當比例，低於 30% 響一次，回到 50% 以上才再裝上（`LOW_HP`、`RESET_HP`）；讀不到不變。控制卡上的低血提醒開關（`ms-speed` 的 `lowHp`，預設關）開著才響；
+    按「分享遊戲畫面」時順便解鎖聲音（瀏覽器自動播放規則）。
+  - **快捷鍵讀取**（`src/lib/speed/read-extras.ts`）：在 Worker 裡**每 3 秒**讀一次（2.5 倍縮放讀一次要 400ms，不能每秒讀）；找格子照狀態列的縮放（`quickslot.ts`），
+    數字字形從客戶端 `UI/Basic/ItemNo` 抽（上一條），第 5 位糊掉整格回 null。連續讀不到一陣子，楓幣收益卡才寫「讀不到快捷鍵：把快捷鍵打開、不要擋到」。
+  - **藥水**（`potions.ts`）：每格圖示（16×16）跟消耗品的圖比（藥水、食物、狀態消耗、特殊消耗，`POTION_GROUPS`；另加箭矢、飛鏢、子彈、傳送卷軸 `NON_POTION_GROUPS`，認出來就整格跳過、不算錢不列），距離 ≤ 13 且跟最近的「不同圖」差 ≥ 8（`POTION_MAX_DISTANCE`、`POTION_MIN_GAP`）才認；
+    圖長得一樣的（藍色藥水／藍色濃縮藥水）整組一起認，名字寫「A或B」。**連兩次讀到一樣的數量才採用**；一次少超過 50 視為讀錯，同一個值連續出現才當真的重新補貨基準。
+    格子換了別的道具，舊道具已經算到的用量照道具留著（`gone`），不會丟。價格＝常駐楓幣店的最低價（排除現金、活動幣別、限時店，`potionPriceFn`）；同一組裡價格不同就不寫楓幣。
+    **藥水錢要完整才寫**（`live-view.ts` 的 `mesoCells`）：這段不到 1 分鐘、還沒讀到快捷鍵、同一組價格不同、或這段讀不完整（`potionsOnRead`／`potionSummary` 的 `incomplete`：讀到過之後快捷鍵連續讀不到 10 秒以上（擋一下不算）、這段開始或藥水參考圖載好（取晚的）之後超過 10 秒才第一次讀到、認不出的格子數量確定變少、數字一次跳太多有一段沒算到；認不出但數量不變或變多不算）
+    → 「藥水」「撿到」兩格都寫「—」，淨賺照算；藥水清單下面只寫一行原因（讀不完整：「有幾格沒讀到，藥水錢跟撿到算不出來」，不然是價格分不出的那句）。補過藥另外提醒「楓幣只供參考」。
+    每 10 分鐘用量跟 10 分鐘經驗同一個基準（最後一次經驗變動 − 開始，`potionMinutes`）。藥水參考圖還沒載好（`poolReady` 是 false）的那幾次不算讀到。
+  - **楓幣手填**：玩家填「開始時楓幣」「現在楓幣」，離開欄位或按 Enter 才算填好（`commitMeso`）。淨賺＝（現在 − 開始）÷ 經過分鐘 × 10，撿到＝淨賺 + 這 10 分鐘的藥水錢（`meso.ts` 的 `mesoRates`，不到 1 分鐘不算）；
+    開始楓幣再改，時間**保留第一次填的那一刻**，數字沒變不重記；換新的一段時，只清掉填的時間早於上一段收掉的時間的格子（`mesoForNewSegment`）。
+  - **楓幣自動讀還沒開**。TODO：等使用者貼一張**道具欄開著的無損 PNG**，才抽道具欄上的楓幣數字樣板（現在沒有這張圖，不猜）。
+  - **跟我之前比**（`records.ts`、`CompareCard.tsx`）：每段認得出地圖、算得出 10 分鐘經驗的，記在這台電腦的 `localStorage` 鍵 `ms-speed:records`，**最多 50 筆、不上傳**。
+    卡片拿這段跟同一隻角色（沒填 ID 就是同一個職業）在別張圖最好的幾筆比。
+  - **分享圖**（`share-image.ts`、`ShareDialog.tsx`）：按「產生分享圖」跳對話框，用 canvas 畫 1200×630 的 S1 版面：標題一行（職業 Lv・地圖・日期）、10 分鐘經驗（大字）、
+    「每 10 分鐘淨賺」（算不出來就換「這段拿到」）、升級還要、這張圖第一隻怪、右下「楓谷幫手・練功測速」；**沒有曲線、沒有跟之前比，不放角色 ID**。
+    這段停了，淨賺用那段存的時候記下的數字（跟經驗同一段）。顏色**固定白天紙張**（`SHARE_COLORS`，照抄 `globals.css` 白天的值、有測試對），深色主題下畫出來也一樣。字型等用到的字都載好才畫；可複製圖片或下載。
 - **小地圖標題**（v1.10）：小地圖的寬度跟著地圖走，「地圖」按鈕貼右緣、地圖名靠左（緊接在地圖圖示後面）。地圖名的範圍從按鈕下面的面板條往左走到面板左緣、跳過圖示框才開始讀
   （以前從按鈕往左只看 35px，只有很窄的小地圖讀得到，2026-10-20 使用者「地圖全部都沒有抓到」）。遊戲的標題是粗體白字＋右下 1 格陰影，讀的時候抓白字，樣板也照這個畫法產（13px）；
   無損的基準截圖直接認出森林迷宮Ⅲ，放大過的視窗第一候選是對的、要點一次（點過的長相記在這台電腦）。

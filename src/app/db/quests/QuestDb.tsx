@@ -21,6 +21,7 @@ import { useStoredProfile } from "@/lib/profile";
 import { boardNote, compareListLevel, levelNote, listLevel, questBoard, type ListLevel } from "@/lib/quest-view";
 import { useRemembered } from "@/lib/remember";
 import type { GuideCommon, MapRecord, Monster, Quest } from "@/lib/types";
+import { DB_HEADS } from "@/lib/db-heads";
 
 export function QuestDb() {
   // 這次瀏覽載過就直接用，再進來第一個畫面就是完整清單
@@ -119,8 +120,8 @@ export function QuestDb() {
 
   return (
     <DbBrowser
-      title="任務"
-      lead="每個任務的等級與職業條件、去找誰、要交什麼、完成拿多少。"
+      title={DB_HEADS.quests.title}
+      lead={DB_HEADS.quests.lead}
       entries={entries}
       loading={!loaded}
       // 每一種會改變列出哪些任務的篩選都要放進 resetKey（一般清單不看角色，所以等級、職業只在「接得到的」開著時才算）
