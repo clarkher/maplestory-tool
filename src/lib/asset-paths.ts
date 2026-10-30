@@ -25,3 +25,8 @@ export function skillImage(id: number) {
 export function minimapImage(id: number) {
   return `/minimaps/${id}.png`;
 }
+
+/** 整張地圖畫面（pipeline/build-map-renders.mjs 轉的 webp）；只有 map-renders.json 列到的圖才有 */
+export function mapRenderImage(id: number) {
+  return `/assets/map_renders/${id}.webp`;
+}

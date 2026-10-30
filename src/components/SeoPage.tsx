@@ -10,6 +10,8 @@ export function SeoPage({
   title,
   lead,
   image,
+  kicker,
+  chips,
   toolHref,
   toolLabel,
   jsonLd,
@@ -20,8 +22,13 @@ export function SeoPage({
   title: string;
   lead: string;
   image?: string;
-  toolHref: string;
-  toolLabel: string;
+  /** 大標上面的小字（地圖頁寫「大陸・區域」） */
+  kicker?: string;
+  /** 大標下面一排標籤（地圖頁的等級、回城、帶我去） */
+  chips?: React.ReactNode;
+  /** 底下那顆連到工具頁的按鈕；不給就不放 */
+  toolHref?: string;
+  toolLabel?: string;
   jsonLd: object[];
   children: React.ReactNode;
 }) {
@@ -53,18 +60,22 @@ export function SeoPage({
             <img src={image} alt={title} width={56} height={56} className="size-14 shrink-0 object-contain" />
           ) : null}
           <div className="min-w-0">
+            {kicker ? <p className="text-[13px] font-bold ink-soft">{kicker}</p> : null}
             <h1 className="text-[26px] font-black leading-tight tracking-tight sm:text-[32px]">{title}</h1>
+            {chips ? <div className="mt-2 flex flex-wrap gap-1.5">{chips}</div> : null}
             <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">{lead}</p>
           </div>
         </header>
         {children}
-        <Link
-          href={toolHref}
-          className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm"
-        >
-          {toolLabel}
-          <ChevronRight size={15} />
-        </Link>
+        {toolHref ? (
+          <Link
+            href={toolHref}
+            className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm"
+          >
+            {toolLabel}
+            <ChevronRight size={15} />
+          </Link>
+        ) : null}
       </article>
     </div>
   );

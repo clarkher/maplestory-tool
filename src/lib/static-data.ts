@@ -4,7 +4,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import type { GuideJob, Item, MapRecord, Meta, Monster, Quest, Skill } from "./types";
+import type { AtlasIndex, AtlasMap, AtlasNpc, GuideJob, Item, MapRecord, Meta, Monster, Quest, Skill } from "./types";
 
 const cache = new Map<string, unknown>();
 
@@ -22,6 +22,14 @@ export const staticMeta = () => read<Meta>("meta");
 export const staticMonsters = () => read<Monster[]>("monsters").filter(monster => !monster.un);
 export const staticQuests = () => read<Quest[]>("quests");
 export const staticSkills = () => read<Skill[]>("skills");
+/** 地圖＋NPC 圖鑑：每張收進來的圖（地圖頁 /db/maps/[id]） */
+export const staticAtlasMaps = () => read<AtlasMap[]>("atlas-maps");
+/** 地圖＋NPC 圖鑑：每個 NPC（NPC 頁 /db/npcs/[id]） */
+export const staticNpcs = () => read<AtlasNpc[]>("npcs");
+/** 有頁的圖、NPC 的 id */
+export const staticAtlasIndex = () => read<AtlasIndex>("atlas-index");
+/** 有地圖畫面圖的圖：{ 圖 id: 版本 }，版本接在網址後面讓瀏覽器換新圖 */
+export const staticMapRenders = () => read<Record<string, string>>("map-renders");
 
 /** 有攻略的職業（public/data/guides/<職業>.json），照職業代碼排 */
 export function staticGuideJobs(): number[] {
