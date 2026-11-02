@@ -3,7 +3,7 @@ import { GA_ID, gaEnabledFor, jobParams, track, trackSettled } from "../analytic
 
 type Win = { gtag?: (...args: unknown[]) => void };
 
-describe("GA 事件（v1.31）", () => {
+describe("GA 事件（v1.32）", () => {
   let calls: unknown[][];
   beforeEach(() => {
     calls = [];
