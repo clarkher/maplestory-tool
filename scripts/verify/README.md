@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），shop-shot 是 9389，fx-shot 是 9481，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），shop-shot 是 9389，fx-shot 是 9481，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -422,6 +422,23 @@ node scripts/verify/atlas-shot.mjs [網址，預設 http://localhost:9303] [輸�
   四頁內容沒有 emoji、沒有英文縮寫（NPC、GM 除外；頁尾每頁都有的「GMS Classic」不算，只看 `main`）；console 沒有錯誤。
 - 輸出：`atlas-map-390-light.png`、`atlas-map-1280-dark.png`、`atlas-npc-390-light.png`、`atlas-npc-1280-dark.png`（整頁）、`results.json`。
 - 「看這張圖」只在有起點的路線出現（到了那一步），所以測的是 `from=…&to=…`，只有 `to` 不會有。
+
+### 組隊指揮
+
+#### `pq-shot.mjs`：跑一次組隊指揮頁（v1.31，埠 9432）
+
+```bash
+node scripts/verify/pq-shot.mjs [網址，預設 http://localhost:9431] [輸出] [DevTools 埠，預設 9432]
+```
+
+- 網址用 `localhost`；本機要用 `next dev --webpack -p 9431`。要驗測試機就把網址換成測試機。
+- 檢查（32 項，任何一項沒過 exit 1）：`?pq=kerning` 選到超綠；跳木桶沒填名字／填了名字的喊話；「不對，下一組」只叫要換的人（123→124、126→134）；
+  複製真的進剪貼簿、按鈕變「已複製」再變回來，複製完馬上換下一組新喊話不會寫「已複製」；重新整理還在同一組、名字還在；勾選；「過了」跳下一關、回去寫答案；重來只清進度不清名字；
+  20 組都不對寫「全部試過了」；女神標舊版、8 關、拉桿喊話；壞存檔＋亂填網址照樣開月妙；手機 390 三個任務都不橫捲；
+  攻略頁 `#pq-moon`、`#pq-kerning` 有連結；首頁 58 等狂戰士的女神組隊卡有連結、點了進女神；console 沒有錯誤。
+- 輸出：`pq-390-light／dark.png`、`pq-1280-light／dark.png`、`pq-goddess-390.png`（整頁）、`results.json`。
+- 攻略頁的組隊段落平常收著，要帶 `#pq-moon` 進來才展開；同一頁只換 `#` 不會重新展開，中間要先開 `about:blank`。
+- 同一個輸出資料夾連跑兩次可能卡在上一次的 Chrome 設定檔（「DevTools 沒起來」），換資料夾或換埠。
 
 ### 練功測速
 

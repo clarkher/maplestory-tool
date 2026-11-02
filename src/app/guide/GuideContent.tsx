@@ -122,6 +122,7 @@ export function GuideContent({ jobs }: { jobs: Array<{ job: number; name: string
 function MoonBunnyGuide() {
   return (
     <div className="space-y-3">
+      <PqCommandLink pq="moon" />
       <PqEntryBanner
         npcId={1012112}
         npcName="達爾利"
@@ -155,6 +156,7 @@ function MoonBunnyGuide() {
 function KpqGuide() {
   return (
     <div className="space-y-3">
+      <PqCommandLink pq="kerning" />
       <PqEntryBanner
         npcId={9020000}
         npcName="拉克里斯"
@@ -181,6 +183,15 @@ function KpqGuide() {
         <p>板上有「超綠不收劍士」的風氣（打飛行怪吃命中，無官方限制）——被拒收就找只刷第一關的逃課團。</p>
       </div>
     </div>
+  );
+}
+
+/** 組隊段落最上面：當隊長的直接開組隊指揮 */
+function PqCommandLink({ pq }: { pq: "moon" | "kerning" }) {
+  return (
+    <Link href={`/plan/pq?pq=${pq}`} className="block rounded-xl border border-[color:var(--sky)] px-3 py-2 text-[14px] font-bold text-[color:var(--sky)]">
+      當隊長？打開組隊指揮：一關一關要喊什麼，按一下複製
+    </Link>
   );
 }
 

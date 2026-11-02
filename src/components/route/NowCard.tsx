@@ -9,6 +9,7 @@ import { mapName, minimapImage, monsterImage, npcImage } from "@/lib/data";
 import { formatNumber, levelRange } from "@/lib/format";
 import { jobOption } from "@/lib/jobs";
 import { advanceTitle, altPrefix, canGo, ceilingText, pqClosedText, type MainPick, type TrainOption } from "@/lib/now-plan";
+import { isPqKey } from "@/lib/pq-command/keys";
 import { LEVEL_CAP } from "@/lib/profile";
 import { boatText } from "@/lib/route";
 import type { GuidePq, MapRecord, Monster } from "@/lib/types";
@@ -200,6 +201,11 @@ function PqCard({ pick, level, jobName, maps, routable }: Common & { pick: Extra
             </Link>
           ) : null}
         </span>
+        {isPqKey(pq.key) ? (
+          <Link href={`/plan/pq?pq=${pq.key}`} className="block w-fit text-[13px] font-bold text-[color:var(--sky)] underline decoration-[color:var(--ink-faint)] underline-offset-4">
+            當隊長？打開組隊指揮，一關一關照著喊
+          </Link>
+        ) : null}
         <AltLine alt={alt} prefix="人多時：" />
       </div>
     </article>
