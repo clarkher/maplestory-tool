@@ -36,6 +36,8 @@ export type PqInfo = {
   npcId: number;
   /** 女神：資料是舊版攻略 */
   old?: boolean;
+  /** 入口卡多一行提醒（女神的經驗團／王團，跟 data/guides/pq.json 的 why 同一套說法） */
+  tip?: string;
   stages: PqStage[];
 };
 
@@ -168,6 +170,7 @@ export const PQS: PqInfo[] = [
     entry: "天空之城疑問之塔找溫莉，剛好 6 人、51～70 等、限時 60 分鐘",
     npcId: 2013000,
     old: true,
+    tip: "經驗團只打大廳跟休息室就走（熟練一場約 1.5～2.5 分鐘），要手鐲才打到最後的王團。高台要靠盜賊的速度激發，隊上要有盜賊。",
     stages: [
       {
         key: "lobby",
@@ -194,6 +197,7 @@ export const PQS: PqInfo[] = [
           "休息室：今天只放某色唱片，拿到給我，別自己放",
           "高的平台請法師或盜賊去拿",
           "唱片放好了，我去點 NPC",
+          "經驗團到這裡結束，王團繼續往上",
         ],
       },
       {

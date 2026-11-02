@@ -172,7 +172,7 @@ try {
   await click(button("女神"));
   await until(`location.search === "?pq=goddess"`, 5000); // 換網址是非同步的
   text = await bodyText();
-  record("切女神：網址換成 ?pq=goddess、標參考舊版攻略、8 關", (await evaluate("location.search")) === "?pq=goddess" && text.includes("參考舊版攻略") && (await evaluate(`document.querySelectorAll('nav[aria-label="關卡"] button').length`)) === 8);
+  record("切女神：網址換成 ?pq=goddess、標參考舊版攻略、寫經驗團／王團、8 關", (await evaluate("location.search")) === "?pq=goddess" && text.includes("參考舊版攻略") && text.includes("經驗團只打大廳跟休息室") && (await evaluate(`document.querySelectorAll('nav[aria-label="關卡"] button').length`)) === 8);
   await click(step(7));
   record("女神上層拉桿：第一組拉下 1、2 號拉桿", (await comboSay()) === "第一組：拉下 1、2 號拉桿，其他推回去", await comboSay());
   await click(button("不對，下一組"));
