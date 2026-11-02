@@ -186,7 +186,7 @@ function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
             <span key={`${req.name}-${index}`}>
               {index > 0 ? "、" : ""}
               {req.id ? (
-                <Link href={`/db/skills?id=${req.id}`} className="font-bold text-[color:var(--ink)] underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]">
+                <Link href={`/db/skills?id=${req.id}`} className="font-bold text-[color:var(--ink)] underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]">
                   {req.name}
                 </Link>
               ) : (
@@ -209,7 +209,7 @@ function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
       {skill.note ? (
         <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-sm">
           {skill.note.t}
-          <a href={skill.note.s} target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline decoration-[color:var(--paper-edge)] underline-offset-4">
+          <a href={skill.note.s} target="_blank" rel="noopener noreferrer" className="ml-1 font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">
             看公告
           </a>
         </p>

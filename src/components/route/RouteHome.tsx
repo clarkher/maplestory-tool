@@ -226,7 +226,7 @@ export function RouteHome() {
           {goddess ? (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">
               {goddess.text}
-              <Link href={goddess.quest} className="ml-1 font-bold underline decoration-[color:var(--paper-edge)] underline-offset-4">
+              <Link href={goddess.quest} className="ml-1 font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">
                 看任務
               </Link>
             </p>

@@ -86,7 +86,7 @@ export default async function Page({ params }: Props) {
             {build.steps.map((step, index) => (
               <li key={`${step.name}-${index}`}>
                 {step.id ? (
-                  <Link href={`/db/skills/${step.id}`} className="font-bold underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]">{step.name}</Link>
+                  <Link href={`/db/skills/${step.id}`} className="font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]">{step.name}</Link>
                 ) : (
                   <span className="font-bold">{step.name}</span>
                 )}

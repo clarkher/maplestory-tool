@@ -147,7 +147,7 @@ export function QuestDetailBody({
                     {npcPages?.includes(npc.id) ? (
                       <Link
                         href={`/db/npcs/${npc.id}`}
-                        className="underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]"
+                        className="underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]"
                       >
                         {npc.n}
                       </Link>
