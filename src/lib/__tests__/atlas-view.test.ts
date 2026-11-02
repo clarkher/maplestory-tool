@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doorList, mapHref, npcHref, labelSides, levelRange, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, openShopCount, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
+import { doorList, mapHref, npcHref, labelSides, levelRange, mobCountNote, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, openShopCount, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap, AtlasNpc } from "@/lib/types";
 
 const map1020000: AtlasMap = {
@@ -276,5 +276,12 @@ describe("mapHref／npcHref（別頁連到地圖頁、NPC 頁）", () => {
     expect(npcHref(12100, index)).toBe("/db/npcs/12100");
     expect(npcHref(9999999, index)).toBeUndefined();
     expect(npcHref(12100, null)).toBeUndefined();
+  });
+});
+
+describe("mobCountNote", () => {
+  it("有位置的怪寫同時在場，沒位置的野王寫定時出現", () => {
+    expect(mobCountNote({ p: [[10, 20]] })).toBe("同時在場");
+    expect(mobCountNote({ p: [] })).toBe("定時出現");
   });
 });

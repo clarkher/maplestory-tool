@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { itemImage, monsterImage, npcImage } from "@/lib/asset-paths";
-import { mobColor, type ShopLine } from "@/lib/atlas-view";
+import { mobColor, mobCountNote, type ShopLine } from "@/lib/atlas-view";
 import type { AtlasMap, AtlasNpc } from "@/lib/types";
 import { Chip } from "@/components/route/bits";
 import { OpenUntil } from "./OpenUntil";
@@ -47,7 +47,7 @@ export function MobRows({ mobs }: { mobs: AtlasMap["mobs"] }) {
           </div>
           <div className="text-right">
             <div className="text-[17px] font-black tabular-nums">{mob.k} 隻</div>
-            <div className="text-[11px] ink-soft">同時在場</div>
+            <div className="text-[11px] ink-soft">{mobCountNote(mob)}</div>
           </div>
         </div>
       ))}
