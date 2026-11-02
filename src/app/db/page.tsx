@@ -4,7 +4,7 @@ import { Sprite } from "@/components/route/bits";
 
 export const metadata: Metadata = {
   title: "查資料｜怪物、道具、任務、技能、練功排行",
-  description: "新楓之谷經典版資料查詢：怪物數值與掉落、道具、任務條件與獎勵、技能逐級數值，以及依等級排的練功地圖、可接任務、打寶地點。",
+  description: "新楓之谷經典版資料查詢：怪物數值與掉落、道具、任務條件與獎勵、技能逐級數值、每張地圖的怪物與 NPC、NPC 商店，以及依等級排的練功地圖、可接任務、打寶地點。",
   alternates: { canonical: "/db" },
 };
 
@@ -13,6 +13,8 @@ const LOOKUPS = [
   { href: "/db/items", title: "道具", lead: "裝備能力、誰會掉、哪個任務要", image: "/assets/items/1302020.png" },
   { href: "/db/quests", title: "任務", lead: "找誰接、要交什麼、拿多少", image: "/assets/npcs/1092000.png" },
   { href: "/db/skills", title: "技能", lead: "每一級的實際數值", image: "/assets/skills/1001004.png" },
+  { href: "/db/maps", title: "地圖", lead: "有哪些怪、各幾隻、NPC、門通哪", image: "/assets/map_marks/Henesys.png" },
+  { href: "/db/npcs", title: "NPC", lead: "在哪、賣什麼、有哪些任務", image: "/assets/npcs/1012100.png" },
 ];
 
 const TOOLS = [
@@ -42,7 +44,7 @@ export default function Page() {
 
       <section aria-label="圖鑑" className="space-y-2">
         <h2 className="px-1 text-sm font-bold ink-soft">圖鑑</h2>
-        <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+        <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
           {LOOKUPS.map(entry => (
             <li key={entry.href}>
               <Link href={entry.href} className="flex h-full flex-col items-center gap-1.5 rounded-[var(--radius-card)] glass wood-frame p-3.5 text-center transition-transform hover:-translate-y-0.5">

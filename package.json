@@ -11,14 +11,15 @@
     "data:artale": "node pipeline/fetch-artale.mjs",
     "data:msio": "node pipeline/fetch-msio.mjs",
     "data:build": "node pipeline/build.mjs",
-    "data:all": "npm run data:artale && npm run data:v83 && npm run data:build && npm run data:guides && npm run data:gear && npm run data:verify",
+    "data:all": "npm run data:artale && npm run data:v83 && npm run data:build && npm run data:renders && npm run data:guides && npm run data:gear && npm run data:verify",
     "data:v83": "node pipeline/extract-v83-maps.mjs",
     "data:verify": "node pipeline/verify.mjs",
     "test": "node --test \"pipeline/**/*.test.mjs\" && vitest run",
     "data:guides": "node pipeline/build-guides.mjs",
     "data:gear": "node pipeline/build-gear.mjs",
     "verify:db": "node scripts/verify-db.mjs",
-    "speed:glyphs": "vitest run -c vitest.gen.config.ts"
+    "speed:glyphs": "vitest run -c vitest.gen.config.ts",
+    "data:renders": "node pipeline/build-map-renders.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
@@ -33,6 +34,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "postcss": "^8.5.25",
+    "sharp": "^0.35.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3"

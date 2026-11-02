@@ -42,6 +42,13 @@
 
 「拍賣買齊就能交的任務」（`/plan/buy`，v1.13）：要交的道具全都能交易、不用打怪的任務，照經驗排，寫要交什麼、經驗、獎勵道具、NPC 商店有沒有賣（商店只列收楓幣、不限時的 NPC 店，活動店收別的幣不算）。
 
+「衝卷模擬」（`/plan/scroll`，v1.23）：挑一件裝備、一張卷軸，一張表比「成功 1～N 張」各要準備多少（平均、九成機率、白衣補次數）；單價自己填，卷軸、裝備（開白衣再加白衣）都填了才算花費。
+網址 `?eq=<裝備 id>&sc=<卷軸 id>`；查資料的卷軸卡、可衝裝備卡有入口。資料在 `public/data/scroll-sim.json`，由 `pipeline/build-gear.mjs`（`pipeline/lib/scroll-sim.mjs`）建置時產：
+`scrolls`（卷軸：成功率、爆裝率、加的數值、能衝的部位或專用裝備）、`white`（白衣）、`equips`（可衝卷的裝備與次數）。計算在 `src/lib/scroll-sim/`。
+驗收：`npx vitest run src/lib/scroll-sim`；畫面用 `node scripts/verify/scroll-shot.mjs <網址，預設 http://localhost:9401> [輸出]`（埠 9402，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
+
+「地圖＋NPC 圖鑑」（`/db/maps`、`/db/maps/<id>`、`/db/npcs`、`/db/npcs/<id>`，v1.24）：查資料的兩個分頁加單筆頁。地圖頁是整張地圖畫面，上面標怪物圓點（同時在場幾隻）、NPC、傳送門，下面列怪物、NPC、門通往；NPC 頁寫在哪、賣什麼（標參考舊版資料）、任務。只收已開放的地圖；資料在 `public/data/atlas-maps.json`、`atlas-index.json`、`npcs.json`，畫面圖在 `public/assets/map_renders/`。怪物卡、任務卡、`/go` 的「看這張圖」都連得進來。驗收：`node scripts/verify/atlas-shot.mjs <網址，預設 http://localhost:9303> [輸出]`（埠 9304，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
+
 「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。活動期間（到 11/11 23:59 台灣）電腦版導覽列多一顆「萬聖節」（`navFor`），首頁角色列下面有入口卡；過了就自動不出現，頁面留著。
 能不能交易看上游道具的 `trade`（`unlimited` 而且沒有 `quest` 標記——上游把任務道具也標成 unlimited，遊戲裡其實不能交易），
 查的是任務原本要的那個編號（同名道具併成一筆時，各編號的狀態在 `tradeVariants`）。建置時 `pipeline/lib/buy-quests.mjs` 挑好寫進 `public/data/buy-quests.json`，
@@ -63,6 +70,7 @@ v1.14（10/24 第二輪拍板「全優化」）：篩選加「全部地區」下
 | 上游某一版漏抽的技能欄位（2.0.0 起：熟練度等 30 個技能） | 前一版站上的數值（`data/upstream-fallback/skills.json`），說明對得上才補 | 人工；要換「前一版」照 `pipeline/snapshot-skill-values.mjs` 開頭重產 |
 | 傳送門連線、地圖英文名、世界地圖區域 | v83 `Map.wz` XML 匯出 | 凍結版本，已進版控，不需重抓 |
 | 小地圖圖檔 | maplestory.io | 一次性抓取，已進版控 |
+| 地圖頁的地圖畫面圖（`public/assets/map_renders/`，v1.24） | 上游資料庫的地圖畫面圖（`fetch-artale` 取回，`pipeline/build-map-renders.mjs` 轉 webp） | 跟遊戲資料一起更新 |
 | 各職業點法、練功點、必解任務、升級經驗表 | 玩家攻略整理（巴哈姆特經典版板、波波攻略島、楓錄等），每條附出處 | 人工研究，放在 `data/guides/` |
 
 ### 玩家攻略（`data/guides/`）
@@ -416,6 +424,7 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - **結構化資料**：全站 WebSite 放 `<body>`（`<head>` 的 script 會被 `scroll-behavior.test.ts` 當程式跑），單筆頁另有麵包屑跟 WebPage。
 - 查資料四頁讀取時伺服器先畫標題（`DbFallback`，標題字在 `src/lib/db-heads.ts`）。
 - 圖檔網址在 `src/lib/asset-paths.ts`：`data.ts` 是 `"use client"`，伺服器頁不能呼叫它的函式。
+- 站內入口（v1.24）：怪物、任務、技能卡片最底下「開成單獨一頁（方便分享）」（`DetailCard` 的 `pageHref`，沒名字的怪不給）；`/guide` 出處上面列 29 個 `/jobs/<職業>`（`page.tsx` 從攻略檔讀職業傳進去）。道具沒有單獨頁。
 
 ### 查資料頁驗收（改查資料四頁之後跑）
 

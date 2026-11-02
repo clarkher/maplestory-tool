@@ -351,3 +351,40 @@ export type GuideCommon = {
   /** 主流點法點完還有剩點時，攻略怎麼說 */
   spLeftover?: { t: string; s: string[] };
 };
+
+/** 地圖＋NPC 圖鑑（pipeline/lib/atlas.mjs → public/data/atlas-maps.json）的一張圖 */
+export type AtlasMap = {
+  id: number;
+  /** 圖名 */
+  n: string;
+  /** 區域（街道名） */
+  st: string;
+  /** 大陸 */
+  rg: string;
+  /** 1 = 城鎮 */
+  t?: 1;
+  /** 回城圖 id */
+  ret?: number;
+  /** 地圖範圍 [left, top, width, height]（遊戲座標） */
+  b?: [number, number, number, number];
+  /** 怪：數量 k、刷怪點 p（上游沒座標的野王不放，k 照算）、pg = 1 有怪物頁、img = 1 有圖 */
+  mobs: { id: number; n: string; lv: number; k: number; p: [number, number][]; pg?: 1; img?: 1 }[];
+  npcs: { id: number; n: string; x: number; y: number }[];
+  /** 門：目的地 to、目的地名 n、對得到的座標（可空） */
+  doors: { to: number; n: string; p: [number, number][] }[];
+};
+
+/** public/data/npcs.json 的一個 NPC */
+export type AtlasNpc = {
+  id: number;
+  n: string;
+  /** 1 = public/assets/npcs 有圖 */
+  img?: 1;
+  maps: number[];
+  /** 商品：道具 id、價格 pr、一次買 k 個、活動幣別 u、結束時間 e、分類 s */
+  shop?: { id: number; pr: number; k?: number; u?: string; e?: string; s: string }[];
+  quests?: { id: string; n: string; r: "接" | "交" | "接・交" | "相關" }[];
+};
+
+/** public/data/atlas-index.json：有頁的圖、NPC */
+export type AtlasIndex = { maps: number[]; npcs: number[] };

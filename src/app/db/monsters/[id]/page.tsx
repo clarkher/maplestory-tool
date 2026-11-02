@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SeoLinks, SeoPage, SeoSection, SeoStats } from "@/components/SeoPage";
+import { mapHref } from "@/lib/atlas-view";
 import { monsterImage } from "@/lib/asset-paths";
 import { elementalNotes, formatNumber } from "@/lib/format";
 import { monsterMaps } from "@/lib/monster-view";
 import { breadcrumbLd, clip, monsterSummary, webPageLd } from "@/lib/seo";
-import { staticItemNames, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
+import { staticAtlasIndex, staticItemNames, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -36,6 +37,7 @@ export default async function Page({ params }: Props) {
   const monster = find((await params).id);
   if (!monster) notFound();
   const maps = staticMaps();
+  const atlasIndex = staticAtlasIndex();
   const itemNames = staticItemNames();
   const path = `/db/monsters/${monster.id}`;
   const summary = monsterSummary(monster, maps);
@@ -84,7 +86,8 @@ export default async function Page({ params }: Props) {
         <SeoSection title={`出沒地圖（${mapRows.length} 張）`}>
           <SeoLinks
             links={mapRows.map(row => ({
-              href: `/go?to=${row.id}`,
+              // 有地圖頁連地圖頁（頁上有帶我去），沒有照舊連帶路
+              href: mapHref(row.id, atlasIndex),
               text: maps[String(row.id)].zh,
               note: row.spawns ? `${row.spawns} 個刷怪點` : undefined,
             }))}

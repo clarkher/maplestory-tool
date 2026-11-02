@@ -27,6 +27,13 @@ export const ASSET_DIRS = ["items", "monster_frames", "npcs", "skills"];
 export const ASSET_EXTENSIONS = ["png", "json"];
 
 /**
+ * 資料更新 publish 那一步收 artifact 時的副檔名白名單（.github/workflows/data-refresh.yml 的 find）：
+ * 上游鏡像的 png、json，再加地圖畫面 public/assets/map_renders/*.webp（pipeline/build-map-renders.mjs 轉的）。
+ * webp 跟 png 一樣是圖檔，瀏覽器不會當網頁執行。
+ */
+export const PUBLISH_EXTENSIONS = [...ASSET_EXTENSIONS, "webp"];
+
+/**
  * 把上游一個圖檔目錄（from）鏡像到 to 的 rsync 參數：
  *  - --no-links：捷徑一律跳過，不順著它去搬別處的檔案（-a 含 -l，要放在 -a 後面才關得掉）
  *  - 規則照順序比對、先中先贏：先擋掉所有子資料夾（前端只用最上層的 <id>.png；

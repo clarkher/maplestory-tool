@@ -9,6 +9,7 @@ import {
   itemImage, loadItems, loadMonsters, loadQuests, monsterImage, peekItems, peekMonsters, peekQuests,
 } from "@/lib/data";
 import type { Prefer } from "@/lib/db-browse";
+import { isSimEquip, isSimScroll } from "@/lib/scroll-sim/linkable";
 import {
   compareItems, equipGroups, fitsJobSearch, hiddenFromList, itemKeywords, itemNote, jobLabel, jobSearchBit, shopGroups, sortCategories,
   subcategoryGroups, usableBy, wearableNow, wearFit, type WearFit,
@@ -217,6 +218,12 @@ function ItemDetail({
 }) {
   const { requirements, stats } = equipGroups(item);
   const shops = shopGroups(item);
+  // 衝卷模擬的入口：只給頁面真的算得了的卷軸／裝備（規則在 lib/scroll-sim/linkable.ts，有測試跟 scroll-sim.json 對齊）
+  const scrollLink = isSimScroll(item)
+    ? { href: `/plan/scroll?sc=${item.id}`, text: "算衝卷要準備多少" }
+    : isSimEquip(item)
+      ? { href: `/plan/scroll?eq=${item.id}`, text: "算衝卷要準備多少" }
+      : null;
 
   return (
     <DetailCard>
@@ -336,6 +343,15 @@ function ItemDetail({
             ))}
           </ul>
         </Section>
+      ) : null}
+
+      {scrollLink ? (
+        <Link
+          href={scrollLink.href}
+          className="tap-safe inline-flex self-start rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
+        >
+          {scrollLink.text}
+        </Link>
       ) : null}
 
       {!item.dm?.length && !item.qr?.length && !item.qq?.length ? (

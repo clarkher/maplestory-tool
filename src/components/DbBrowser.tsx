@@ -697,9 +697,20 @@ function DetailWithCollapse({ id, detail, onCollapse }: { id?: string; detail: R
   );
 }
 
-export function DetailCard({ children }: { children: React.ReactNode }) {
+/** pageHref：這筆有自己的單獨頁（/db/monsters/<id> 等）時，卡片最底下放一行連過去，搜尋引擎也靠這條連到那些頁 */
+export function DetailCard({ children, pageHref }: { children: React.ReactNode; pageHref?: string }) {
   return (
-    <article className="space-y-4 rounded-[var(--radius-card)] glass wood-frame p-4 sm:p-5">{children}</article>
+    <article className="space-y-4 rounded-[var(--radius-card)] glass wood-frame p-4 sm:p-5">
+      {children}
+      {pageHref ? (
+        <p className="border-t border-[color:var(--paper-edge)] pt-3 text-right">
+          <Link href={pageHref} className="inline-flex items-center gap-0.5 text-[13px] font-bold text-[color:var(--sky)] hover:underline">
+            開成單獨一頁（方便分享）
+            <ChevronRight size={13} />
+          </Link>
+        </p>
+      ) : null}
+    </article>
   );
 }
 

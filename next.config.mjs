@@ -36,6 +36,11 @@ const nextConfig = {
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
       },
       {
+        // 衝卷模擬的小檔（build-gear 寫，可單獨重跑、meta 版本號不會動）：每次回伺服器確認
+        source: "/data/scroll-sim.json",
+        headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+      },
+      {
         // 練功測速的名字樣板（手動重產、不跟 meta 的版本號走）：每次回伺服器確認，重產後才不會拿到舊樣板
         source: "/data/speed-names.json",
         headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],

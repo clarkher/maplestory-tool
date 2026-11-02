@@ -52,12 +52,13 @@ const SITE = {
   "public/assets/items/1.png": "png-1",
   "src/app.ts": "export {};",
 };
-// 重建好的：meta 改版、多一個任務檔、items.json 不見了（上游拿掉）、多一張圖、舊圖沒變
+// 重建好的：meta 改版、多一個任務檔、items.json 不見了（上游拿掉）、多一張圖、多一張地圖畫面（webp）、舊圖沒變
 const FRESH = {
   "data/meta.json": JSON.stringify({ gameVersion: "1.15.3", dataGeneratedAt: STAMP }),
   "data/quests.json": "[2]",
   "assets/items/1.png": "png-1",
   "assets/items/2.png": "png-2",
+  "assets/map_renders/1.webp": "webp-1",
 };
 // 被執行到就留下記號檔
 const EVIL_JS = 'require("fs").writeFileSync(process.env.PWNED_MARKER, "pwned"); module.exports = { gameVersion: "1.15.3" };';
@@ -197,7 +198,7 @@ describe("publish 那一步真的跑一次（bash＋git，本機 bare repo 當 o
     const result = await publish();
     assert.equal(result.code, 0, result.out);
     assert.deepEqual(result.branches.sort(), [BRANCH, "main"]);
-    assert.deepEqual(result.files, ["A\tpublic/assets/items/2.png", "A\tpublic/data/quests.json", "D\tpublic/data/items.json", "M\tpublic/data/meta.json"]);
+    assert.deepEqual(result.files, ["A\tpublic/assets/items/2.png", "A\tpublic/assets/map_renders/1.webp", "A\tpublic/data/quests.json", "D\tpublic/data/items.json", "M\tpublic/data/meta.json"]);
     assert.equal(result.message, `data: 同步遊戲版本 1.15.3（${STAMP}）`);
     assert.equal(result.gh.length, 2);
     assert.match(result.gh[0], new RegExp(`^gh pr create --title data: 同步遊戲版本 1\\.15\\.3（${STAMP.replace(/[+.]/g, "\\$&")}） --body .* --base main --head ${BRANCH}$`));
@@ -224,8 +225,8 @@ describe("publish 那一步真的跑一次（bash＋git，本機 bare repo 當 o
   });
 
   // 放上正式機網域就是 stored XSS；.js 可能被當成程式載入
-  for (const file of ["assets/items/x.html", "assets/npcs/x.svg", "data/x.js"]) {
-    test(`artifact 裡有 png、json 以外的檔（${file}）：不收、不動 public/`, async () => {
+  for (const file of ["assets/items/x.html", "assets/npcs/x.svg", "assets/map_renders/x.svg", "data/x.js"]) {
+    test(`artifact 裡有 png、json、webp 以外的檔（${file}）：不收、不動 public/`, async () => {
       const result = await publish({ artifact: { ...FRESH, [file]: "<script>alert(1)</script>" } });
       assertRefused(result, BAD_ARTIFACT);
       assert.ok(result.siteUntouched, "public/ 被動到了");

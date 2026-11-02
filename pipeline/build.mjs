@@ -5,6 +5,12 @@
  *  data/raw/v83-maps.json   v83 Map.wz：傳送門連線、回城點、世界地圖區域；台服客戶端沒有刷怪資料的地圖才用它的刷怪點
  *  data/raw/msio-maps.json  maplestory.io：只用來標記哪些地圖有小地圖圖檔（選用）
  *
+ * 地圖、NPC 圖鑑（v1.24，lib/atlas.mjs）在最後另外寫三個檔：
+ *  public/data/atlas-maps.json   收進圖鑑的每張圖：怪（分組、數量、座標）、NPC、門
+ *  public/data/npcs.json         每個 NPC 在哪幾張圖、賣什麼（items.json 的 sp）、跟哪些任務有關
+ *  public/data/atlas-index.json  收進來的圖 id、NPC id（排好序）
+ * 圖鑑收圖的規則比 maps.json 的 zh 寬（多收各村店面、室內），只用在圖鑑，不回寫 maps.json。
+ *
  * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸用 v83；刷怪以台服客戶端為準，客戶端沒有的圖才用 v83 補。
  * 對不起來的一律標記，不猜、不補假值。
  *
@@ -15,6 +21,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { isClassicJob } from "./lib/classic-jobs.mjs";
+import { buildAtlas, doorEdges } from "./lib/atlas.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
@@ -201,16 +208,43 @@ function main() {
   };
   report["meta.json"] = write("meta.json", meta, true);
 
+  // 地圖、NPC 圖鑑（lib/atlas.mjs）：放在所有既有輸出之後，不影響上面任何一個檔
+  const atlas = buildAtlas({
+    upstreamMaps: artale.maps,
+    mapRecords: maps.records,
+    graphEdges: graph.edges,
+    // graph.json 同一個目的地只留一條邊；地圖頁要每個門都標，另外給完整的門清單（不動 graph.json）
+    portalEdges: doorEdges(v83.maps, maps.records),
+    items: items.list,
+    quests: quests.list,
+    monsterIds: new Set(monsters.list.map(monster => monster.id)),
+    npcImageIds: imageIds(path.join(ROOT, "public", "assets", "npcs")),
+    // 上面 copyMissingFrames 補過借圖的怪之後才讀：還是沒圖的（9100000 超級綠水靈這幾隻）前端放空格
+    monsterImageIds: imageIds(path.join(ROOT, "public", "assets", "monster_frames")),
+    openRegions: RELEASE.mapRegions,
+    heldBackMaps: HELD_BACK_MAPS,
+  });
+  report["atlas-maps.json"] = write("atlas-maps.json", atlas.maps);
+  report["npcs.json"] = write("npcs.json", atlas.npcs);
+  report["atlas-index.json"] = write("atlas-index.json", atlas.index);
+
   console.log("=== 輸出 ===");
   for (const [name, size] of Object.entries(report)) console.log(`  ${name.padEnd(18)} ${humanBytes(size)}`);
   console.log("\n=== 統計 ===");
   console.log(JSON.stringify(meta.counts, null, 2));
   console.log(JSON.stringify(meta.coverage, null, 2));
+  console.log(`\n=== 地圖、NPC 圖鑑 ===\n  圖 ${atlas.maps.length} 張、NPC ${atlas.npcs.length} 個`);
   if (Object.keys(heldBack).length) {
     console.log("\n=== 有中文名但地區尚未開放，沒有收錄 ===");
     for (const [region, count] of Object.entries(heldBack)) console.log(`  ${region.padEnd(8)} ${count} 張`);
     console.log("  官方開放後，把地區名加進 RELEASE.mapRegions 再重建。");
   }
+}
+
+/** 資料夾裡有圖的 id（檔名 <id>.png）：public/assets/npcs 的 NPC、public/assets/monster_frames 的怪 */
+function imageIds(dir) {
+  if (!fs.existsSync(dir)) return new Set();
+  return new Set(fs.readdirSync(dir).map(name => name.match(/^(\d+)\.png$/)?.[1]).filter(Boolean).map(Number));
 }
 
 function write(name, value, pretty = false) {

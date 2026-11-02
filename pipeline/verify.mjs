@@ -253,6 +253,25 @@ function main() {
   check("每種武器種類至少 1 把", missingWeaponTypes.length === 0, missingWeaponTypes.join("、"));
   check("卷軸數量合理", (gear?.scrolls?.length ?? 0) >= Math.floor(106 * 0.8), `${gear?.scrolls?.length ?? 0} 種`);
 
+  // 衝卷模擬小檔（/plan/scroll）：解析壞了會少卷、少部位，或成功率／爆裝率跑出範圍
+  const sim = readJson(path.join(OUT, "scroll-sim.json"), null);
+  check("衝卷模擬小檔存在", Boolean(sim), sim ? "" : "缺 public/data/scroll-sim.json（npm run data:gear）");
+  check("衝卷模擬卷軸數量合理", (sim?.scrolls?.length ?? 0) >= 300, `${sim?.scrolls?.length ?? 0} 種`);
+  const simBadRate = (sim?.scrolls ?? []).filter(scroll => !Number.isInteger(scroll.rate) || scroll.rate < 1 || scroll.rate > 100);
+  check("衝卷模擬成功率都在 1～100", simBadRate.length === 0, simBadRate.slice(0, 5).map(scroll => scroll.n).join("、"));
+  const simBadBoom = (sim?.scrolls ?? []).filter(scroll => !(scroll.boom >= 0 && scroll.boom <= 1));
+  check("衝卷模擬爆裝率都在 0～1", simBadBoom.length === 0, simBadBoom.slice(0, 5).map(scroll => scroll.n).join("、"));
+  const simRateMismatch = (sim?.scrolls ?? []).filter(scroll => {
+    const named = scroll.n.match(/(\d+)\s*%\s*$/);
+    return named && Number(named[1]) !== scroll.rate;
+  });
+  const simNamedCount = (sim?.scrolls ?? []).filter(scroll => /\d+\s*%\s*$/.test(scroll.n)).length;
+  check("衝卷模擬名字的成功率跟 rate 一致", simNamedCount > 0 && simRateMismatch.length === 0, simNamedCount === 0 ? "一筆名字帶 % 的都沒比到" : `${simNamedCount} 筆已比對` + (simRateMismatch.length ? "；不一致：" + simRateMismatch.slice(0, 5).map(scroll => scroll.n).join("、") : ""));
+  check("衝卷模擬帽子對得到卷軸", (sim?.scrolls ?? []).filter(scroll => scroll.slot === "帽子").length > 0, `${(sim?.scrolls ?? []).filter(scroll => scroll.slot === "帽子").length} 種`);
+  check("衝卷模擬白衣卷軸 2 種", (sim?.white?.length ?? 0) === 2, `${sim?.white?.length ?? 0} 種`);
+  check("衝卷模擬白衣成功率是 10 跟 20", JSON.stringify((sim?.white ?? []).map(w => w.rate)) === "[10,20]", JSON.stringify((sim?.white ?? []).map(w => w.rate)));
+  check("衝卷模擬可衝裝備數量合理", (sim?.equips?.length ?? 0) >= 1500, `${sim?.equips?.length ?? 0} 件`);
+
   // 全幸要湊的裝備（kit）：buildKit 對找不到、不收錄、沒來源、卷軸對不上的整件略過並只警告，不會讓建置失敗。
   // 每日資料更新如果因此掉了一件（例如桑那服哪天被標成不收錄），敏捷少了一截，推薦的拳套會悄悄改變，
   // 畫面看起來一切正常——所以拿研究檔當標準，建出來的件數要跟研究檔寫的一樣多，少了就擋下來。研究檔不在就跳過。
@@ -272,6 +291,45 @@ function main() {
     }
     check("全幸要湊的裝備沒少件", kitMismatches.length === 0, kitMismatches.length ? kitMismatches.join("；") : `${kitRules} 條點法的件數都跟研究檔一樣`);
   }
+
+  // 地圖、NPC 圖鑑（v1.24，lib/atlas.mjs）：每張圖、每個 NPC 各有一頁，空的或少一大截都要擋
+  const atlasMaps = readJson(path.join(OUT, "atlas-maps.json")) ?? [];
+  const atlasNpcs = readJson(path.join(OUT, "npcs.json")) ?? [];
+  const atlasIndex = readJson(path.join(OUT, "atlas-index.json"));
+  check("地圖圖鑑圖數合理", atlasMaps.length > 300, `${atlasMaps.length} 張`);
+  check("NPC 圖鑑數量合理", atlasNpcs.length > 200, `${atlasNpcs.length} 個`);
+  const emptyAtlasMaps = atlasMaps.filter(map => !map.mobs?.length && !map.npcs?.length && !map.doors?.length).map(map => map.id);
+  check("地圖圖鑑每張圖都有怪、NPC 或門", emptyAtlasMaps.length === 0, emptyAtlasMaps.length ? emptyAtlasMaps.slice(0, 10).join("、") : "");
+  const sampleMap = atlasMaps.find(map => map.id === 1020000);
+  const sampleWood = sampleMap?.mobs?.find(mob => mob.id === 130100);
+  const sampleTotal = (sampleMap?.mobs ?? []).reduce((sum, mob) => sum + mob.k, 0);
+  check("地圖圖鑑樣本楓葉村東郊平原：4 種怪共 21 隻（木妖 7）、NPC 麥加、4 個門",
+    sampleMap?.mobs?.length === 4 && sampleTotal === 21 && sampleWood?.k === 7
+      && sampleMap.npcs.some(npc => npc.id === 12100) && sampleMap.doors.length === 4,
+    sampleMap ? `${sampleMap.mobs.length} 種怪 ${sampleTotal} 隻、NPC ${sampleMap.npcs.map(npc => npc.n).join("、")}、門 ${sampleMap.doors.length} 個` : "找不到 1020000");
+  // 地圖頁的門、回城都會連 /db/maps/<id>：連過去的圖一定要有頁面
+  const atlasIds = new Set(atlasMaps.map(map => map.id));
+  const deadLinks = atlasMaps.flatMap(map => [
+    ...map.doors.filter(door => !atlasIds.has(door.to)).map(door => `${map.id}→${door.to}`),
+    ...(map.ret !== undefined && !atlasIds.has(map.ret) ? [`${map.id} 回城 ${map.ret}`] : []),
+  ]);
+  check("地圖圖鑑的門、回城都連得到有頁面的圖", deadLinks.length === 0, deadLinks.slice(0, 10).join("、"));
+  const multiDoors = atlasMaps.reduce((sum, map) => sum + map.doors.filter(door => door.p.length >= 2).length, 0);
+  check("地圖圖鑑同一個目的地多個門都有標座標", multiDoors > 0, `${multiDoors} 個門有 2 個以上座標`);
+  // 名字有問號是上游抽不出字的亂碼（1022008「???? ?」）：每個都會變成一頁、進 sitemap
+  const garbled = [
+    ...atlasMaps.filter(map => /[?？]/.test(map.n)).map(map => `圖 ${map.id} ${map.n}`),
+    ...atlasNpcs.filter(npc => /[?？]/.test(npc.n)).map(npc => `NPC ${npc.id} ${npc.n}`),
+    ...atlasMaps.flatMap(map => map.npcs.filter(npc => /[?？]/.test(npc.n)).map(npc => `${map.id} 上的 NPC ${npc.id} ${npc.n}`)),
+  ];
+  check("地圖圖鑑的圖名、NPC 名沒有亂碼（問號）", garbled.length === 0, garbled.slice(0, 10).join("、"));
+  // 野王這類上游沒有座標的怪，上游給 0,0：畫上去就是編一個位置
+  const zeroMobs = atlasMaps.flatMap(map => map.mobs.filter(mob => mob.p.some(([x, y]) => x === 0 && y === 0)).map(mob => `${map.id} ${mob.n}`));
+  check("地圖圖鑑的怪沒有畫在 0,0（沒有座標的只進清單）", zeroMobs.length === 0, zeroMobs.slice(0, 10).join("、"));
+  const sameIds = (a, b) => JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+  check("圖鑑索引跟兩個檔的 id 一致",
+    sameIds(atlasIndex?.maps, atlasMaps.map(map => map.id)) && sameIds(atlasIndex?.npcs, atlasNpcs.map(npc => npc.id)),
+    `${atlasIndex?.maps?.length ?? 0} 張圖、${atlasIndex?.npcs?.length ?? 0} 個 NPC`);
 
   console.log("=== 資料檢查 ===");
   for (const line of notes) console.log(line);

@@ -237,15 +237,20 @@ export type ShopGroup = { price: string; places: ShopPlace[]; until?: string };
  * 標價寫法：楓幣、商城的樂豆點（客戶端「{0}楓幣」「{0}個{1}樂豆點」）、活動貨幣寫它自己的名字（萬聖節硬幣）；
  * 整組賣的寫「10 個 1,980 樂豆點」，件數也加千分位
  */
-function shopPriceText(row: ShopRow): string {
+export function shopPriceText(row: Pick<ShopRow, "pr" | "k" | "c" | "u">): string {
   const amount = `${formatNumber(row.pr)} ${row.u ?? (row.c ? "樂豆點" : "楓幣")}`;
   return row.k ? `${formatNumber(row.k)} 個 ${amount}` : amount;
 }
 
 /** 結束時間 "2026-11-11T23:59+08:00" → "11/11"（直接讀字串裡的台灣日期，不換時區） */
-function untilText(end: string): string {
+export function untilText(end: string): string {
   const [, month, day] = end.slice(0, 10).split("-");
   return `${Number(month)}/${Number(day)}`;
+}
+
+/** 店還開著嗎：常駐的（沒有 e）一直開；限時的到結束時間為止，「23:59 結束」那一分鐘整分鐘都算還開著 */
+export function shopOpen(row: Pick<ShopRow, "e">, now = Date.now()): boolean {
+  return !row.e || Date.parse(row.e) + 60_000 > now;
 }
 
 /**
@@ -255,8 +260,7 @@ function untilText(end: string): string {
  * fromOldData：列出來的店有任何一家取自舊版資料，畫面要標「參考舊版資料，可能有出入」。
  */
 export function shopGroups(item: Item, now = Date.now()): { groups: ShopGroup[]; fromOldData: boolean } {
-  // 「23:59 結束」那一分鐘整分鐘都算還開著
-  const rows = (item.sp ?? []).filter(row => !row.e || Date.parse(row.e) + 60_000 > now);
+  const rows = (item.sp ?? []).filter(row => shopOpen(row, now));
   const groups: ShopGroup[] = [];
   for (const row of [...rows.filter(entry => !entry.e), ...rows.filter(entry => entry.e)]) {
     const price = shopPriceText(row);

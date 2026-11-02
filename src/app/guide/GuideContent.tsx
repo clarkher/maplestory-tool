@@ -14,7 +14,8 @@ import {
   KpqAnswerTable, KpqBarrelDiagram, MoonBunnySeedDiagram, PqEntryBanner, PqStageList,
 } from "./PqVisuals";
 
-export function GuideContent() {
+/** jobs：每個職業 30 等以後的完整攻略頁（/jobs/<職業>），由伺服器讀攻略檔傳進來 */
+export function GuideContent({ jobs }: { jobs: Array<{ job: number; name: string }> }) {
   const [job, setJob] = useState<string>("warrior");
   const current = JOB_GUIDES.find(entry => entry.key === job) ?? JOB_GUIDES[0];
 
@@ -69,6 +70,25 @@ export function GuideContent() {
           ))}
         </ol>
       </section>
+
+      {jobs.length ? (
+        <section aria-label="各職業完整攻略" className="rounded-[var(--radius-card)] glass wood-frame p-4">
+          <h2 className="text-[15px] font-black">30 等以後：各職業完整攻略</h2>
+          <p className="mt-1 mb-2.5 text-[13px] ink-soft">配點、技能點法、每個等級去哪練，一個職業一頁。</p>
+          <ul className="flex flex-wrap gap-1.5">
+            {jobs.map(entry => (
+              <li key={entry.job}>
+                <Link
+                  href={`/jobs/${entry.job}`}
+                  className="tap-safe inline-block rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-[13px] font-bold hover:bg-[color:var(--maple-wash)]"
+                >
+                  {entry.name}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="rounded-[var(--radius-card)] glass wood-frame p-4">
         <h2 className="mb-2 text-[15px] font-black">出處</h2>
