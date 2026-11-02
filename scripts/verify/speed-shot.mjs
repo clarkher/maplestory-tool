@@ -1,10 +1,10 @@
-// 練功測速（/plan/speed，v0.95）驗收：用測試截圖當假的分享畫面，從頭跑一遍，任何一項沒過 exit 1
+// 練功測速（/plan/speed，v0.95；v1.29 改成分享後問「要開始計算嗎？」、結束後補地圖／ID）驗收：用測試截圖當假的分享畫面，從頭跑一遍，任何一項沒過 exit 1
 // 用法：node scripts/verify/speed-shot.mjs [輸出資料夾] [網址，預設 http://localhost:3095] [DevTools 埠，預設 9391]
 //   例：node scripts/verify/speed-shot.mjs "$TEMP/speed-shot" http://localhost:3095
 // 網址用 localhost，不要用 127.0.0.1（next dev 對 127.0.0.1 的互動不理）。
 // 假的分享畫面：頁面在非正式機會先看 window.__speedTestStream；腳本把 src/lib/speed/__fixtures__/window-1364.png
 // 畫進 canvas、captureStream 塞進去，不用真的開遊戲、也不會跳出選視窗的對話框。
-// 輸出：speed.png（整頁，1440 寬）、speed-id.png（按分享時問角色 ID）、speed-choices.png（認不出地圖、列出候選的時候）、
+// 輸出：speed.png（整頁，1440 寬）、speed-start.png（分享後問「要開始計算嗎？」）、speed-fill.png（結束後補地圖、角色 ID）、speed-choices.png（認不出地圖、列出候選的時候）、
 //       speed-share.png（按「產生分享圖」跳出的對話框，v1.22）、speed-share-dark.png（深色主題下產的分享圖本身，要是白天紙張）、
 //       speed-left-light.png／speed-left-dark.png（分享中的左欄，白天／深色主題）、speed-coupon.png（存好一段後問加倍券）、results.json（每一項檢查的結果＋量到的字）
 // 量不到的（靠 tracker.test.ts 跟真人玩）：經驗會不會跟著動、自動停——假畫面是靜止的。
@@ -27,14 +27,15 @@ const READING = process.env.SPEED_READING ?? "Lv.46 · 經驗 406,947（79.73%�
 const JOB = "冰雷巫師"; // jobOption(220).name
 const MATE = 44;
 const STATIONARY_MS = 60_000; // 地圖點好之後，同一張畫面再放這麼久，地圖不能變
-const SETTINGS = { isPublic: false, askId: true, mode: "auto" };
+const SETTINGS = { isPublic: false, askId: true };
 const CHAR_ID = "驗收用";
-const NO_ID_LINE = "這次沒填角色 ID，排行寫匿名玩家。"; // 控制卡上角色那行（v1.10：角色 ID 不記在電腦裡，按分享時問）
+const NO_ID_LINE = "這次沒填角色 ID，排行寫匿名玩家。"; // 控制卡上角色那行（角色 ID 不記在電腦裡；v1.29 起結束後缺了才問）
 const ID_LINE = `這次的角色：${CHAR_ID}`;
-const ID_TITLE = "這次要填角色 ID 嗎？";
+const START_TITLE = "讀到你的角色了，要開始計算嗎？";
+const FILL_TITLE = "這段在哪張圖、哪個角色？";
 const COUPON_TITLE = "上一段有開加倍券嗎？";
-// 靜止的畫面放著、自動模式：狀態列一直是「等經驗一動就開始算」（經驗動了才會是「量中」）；這幾句出現就是停了或認不到
-const ACTIVE_STATUS = /^(等經驗一動就開始算|量中)/;
+// 靜止的畫面放著：按了「開始計算」狀態列一直是「量中」（還沒按是「讀到了…」）；這幾句出現就是停了或認不到
+const ACTIVE_STATUS = /^(讀到了|量中)/;
 const STOPPED_STATUS = /分享停了|認不到遊戲畫面|讀不到經驗|還沒分享畫面/;
 
 const results = { base: BASE, port: PORT, fixture: path.basename(FIXTURE), checks: [] };
@@ -188,35 +189,25 @@ async function openSpeed() {
 const dialogTitle = () => evaluate(`document.querySelector("dialog[open] h2")?.textContent.trim() ?? null`);
 
 /**
- * 按分享：ask 有給就要先跳「要填角色 ID 嗎？」對話框，照 ask 填（id＝空字串就按「不填，直接開始」）、要不要勾「下次不要再問我」；
- * ask 是 null 就是不該跳對話框。等到讀到經驗（最多再多等 20 秒）。回傳 { readAfter: 多久後讀到（沒讀到 null）, dialog: 對話框長怎樣 }
+ * 按分享（v1.29 起不先問角色 ID）：讀到經驗之後應該跳「要開始計算嗎？」。
+ * answer＝"start" 按「開始計算」、"later" 按「先不要」。回傳 { readAfter: 多久後讀到（沒讀到 null）, dialog: 對話框長怎樣 }
  */
-async function shareAndRead(ask = null, shotFile = null) {
+async function shareAndRead(answer = "start", shotFile = null) {
   await click(BUTTON("分享遊戲畫面"));
-  let dialog = null;
-  if (ask) {
-    await ev(`return await __waitFor(() => document.querySelector("dialog[open] h2"), 5000)`);
-    dialog = await evaluate(`(() => {
-      const d = document.querySelector("dialog[open]");
-      if (!d) return null;
-      const input = d.querySelector('input[name="charId"]');
-      return { title: d.querySelector("h2")?.textContent.trim(), value: input?.value ?? null, focused: document.activeElement === input, buttons: [...d.querySelectorAll("button")].map(b => b.textContent.trim()) };
-    })()`);
-    if (shotFile) await shot(shotFile);
-    if (ask.dontAsk) await click(`[...document.querySelectorAll("dialog[open] label")].find(l => l.textContent.includes("下次不要再問我"))?.querySelector("input")`);
-    if (ask.id) {
-      await click(`document.querySelector('dialog[open] input[name="charId"]')`);
-      await page.send("Input.insertText", { text: ask.id });
-      await click(BUTTON("開始分享"));
-    } else await click(BUTTON("不填，直接開始"));
-  } else {
-    await sleep(800);
-    dialog = await dialogTitle();
-  }
   const t0 = Date.now();
-  await sleep(5000);
-  const got = await ev(`return await __waitFor(() => document.body.innerText.includes(${JSON.stringify(READING)}), 20000)`);
-  return { readAfter: got ? Date.now() - t0 : null, dialog };
+  const got = await ev(`return await __waitFor(() => document.body.innerText.includes(${JSON.stringify(READING)}), 25000)`);
+  const readAfter = got ? Date.now() - t0 : null;
+  await ev(`return await __waitFor(() => document.querySelector("dialog[open] h2"), 10000)`);
+  const dialog = await evaluate(`(() => {
+    const d = document.querySelector("dialog[open]");
+    if (!d) return null;
+    return { title: d.querySelector("h2")?.textContent.trim(), text: d.innerText.replace(/\\s+/g, " "), buttons: [...d.querySelectorAll("button")].map(b => b.textContent.trim()) };
+  })()`);
+  if (shotFile) await shot(shotFile);
+  // 卡片上也有一顆「開始計算」（對話框後面點不到）：一定要點對話框裡的
+  if (dialog?.title === START_TITLE) await click(`[...document.querySelectorAll("dialog[open] button")].find(b => b.textContent.trim() === ${JSON.stringify(answer === "start" ? "開始計算" : "先不要")})`);
+  await sleep(500);
+  return { readAfter, dialog };
 }
 
 let crashed = null;
@@ -251,11 +242,22 @@ try {
 
   // 2. 假的分享畫面、按分享
   await installFakeStream();
-  const first = await shareAndRead({ id: CHAR_ID, dontAsk: false }, "speed-id.png");
+  const first = await shareAndRead("start", "speed-start.png");
   const readAfter = first.readAfter;
-  record(`按「分享遊戲畫面」先跳「${ID_TITLE}」，ID 欄是空的、游標在裡面，有「不填，直接開始」「開始分享」`, first.dialog?.title === ID_TITLE && first.dialog.value === "" && first.dialog.focused && first.dialog.buttons.includes("不填，直接開始") && first.dialog.buttons.includes("開始分享"), first.dialog);
+  const startText = first.dialog?.text ?? "";
+  record(
+    `讀到之後跳「${START_TITLE}」：寫職業「${JOB}」、Lv.46、目前經驗 406,947（79.73%），有「開始計算」「先不要」`,
+    first.dialog?.title === START_TITLE && startText.includes(JOB) && startText.includes("Lv.46") && startText.includes("406,947（79.73%）") && first.dialog.buttons.includes("開始計算") && first.dialog.buttons.includes("先不要"),
+    first.dialog,
+  );
   const text = await bodyText();
-  record(`填了「${CHAR_ID}」開始分享：控制卡寫「${ID_LINE}」，對話框關掉`, text.includes(ID_LINE) && (await dialogTitle()) === null);
+  const counting = await evaluate(`document.querySelector('[role="status"]')?.textContent.trim() ?? null`);
+  record(
+    "按「開始計算」：對話框關掉、狀態列寫「量中（按「結束」才停）」、有「結束」那顆、沒有自動／手動切換",
+    (await dialogTitle()) === null && /^量中（按「結束」才停）/.test(counting ?? "") && (await evaluate(`Boolean(${BUTTON("結束")})`)) && !(await evaluate(`Boolean(document.querySelector('[role="radiogroup"][aria-label="模式"]'))`)),
+    counting,
+  );
+  record(`按分享不再先問角色 ID：控制卡寫「${NO_ID_LINE}」`, text.includes(NO_ID_LINE));
   record(`讀到「${READING}」（% 是經驗 ÷ 升級要的經驗算的）`, readAfter !== null, readAfter === null ? text.match(/Lv\.\d+[^\n]*|等級、經驗[^\n]*/)?.[0] ?? "沒讀到" : `${Math.round(readAfter / 1000)} 秒後讀到`);
   record(`職業讀到「${JOB}」`, text.includes(`· ${JOB}`), text.match(/經驗 [\d,]+（[\d.]+%）[^\n]*/)?.[0]);
   record("沒勾組隊時寫「單練」", text.includes("· 單練"));
@@ -420,15 +422,25 @@ try {
   const lowHp = await evaluate(`(() => { const sw = document.querySelector('button[role="switch"][aria-labelledby="speed-low-hp"]'); return sw ? { checked: sw.getAttribute("aria-checked"), label: document.getElementById("speed-low-hp")?.textContent.trim() } : null; })()`);
   record("控制卡有低血開關（「HP 低於 30% 響一聲」，預設關）", lowHp !== null && lowHp.checked === "false" && /HP 低於 30%/.test(lowHp.label ?? ""), lowHp);
 
-  // 8. 存一段、補填加倍券（v1.10）：直接丟一段 12 分鐘、拿到 120,000 的進去存
+  // 8. 按「結束」：靜止畫面這段沒拿到經驗，不存、不問；也不會再跳「要開始計算嗎？」
+  await click(BUTTON("結束"));
+  await sleep(2500);
+  const ended = await evaluate(`document.querySelector('[role="status"]')?.textContent.trim() ?? ""`);
+  record(
+    "按「結束」：狀態列回到「讀到了，按「開始計算」就開始算」，有「開始計算」那顆，沒有再跳對話框",
+    /^讀到了/.test(ended) && (await evaluate(`Boolean(${BUTTON("開始計算")})`)) && (await dialogTitle()) === null,
+    { status: ended, dialog: await dialogTitle() },
+  );
+
+  // 8a. 存一段、補地圖跟角色 ID（v1.29）、補填加倍券（v1.10）：直接丟一段 12 分鐘、拿到 120,000、認不出地圖的進去存
   const canSave = await evaluate("typeof window.__speedTestSave === 'function'");
   record("非正式機掛著驗收用的 __speedTestSave", canSave);
   if (canSave) {
     await evaluate(`(() => {
       const end = Date.now();
       window.__speedTestSave({
-        mode: "auto", startedAt: end - 12 * 60_000, endedAt: end, lastChangeAt: end, startLevel: 46, level: 46, exp: 0, job: 220, party: 1,
-        mapKey: "verify", gained: 120000, levelUps: 0, deaths: 0, byMap: { verify: { mapId: 105040303, gained: 120000 } },
+        mode: "manual", startedAt: end - 12 * 60_000, endedAt: end, lastChangeAt: end, startLevel: 46, level: 46, exp: 0, job: 220, party: 1,
+        mapKey: null, gained: 120000, levelUps: 0, deaths: 0, byMap: {},
       });
       return true;
     })()`);
@@ -436,9 +448,34 @@ try {
     const savedLine = (await bodyText()).match(/上一段：.*/)?.[0] ?? null;
     results.saveLine = savedLine;
     const noDb = /排行還沒開/.test(savedLine ?? "");
-    if (noDb) record("存一段：這裡沒有資料庫（排行還沒開），加倍券那段略過", true, savedLine);
-    else {
-      record("存一段：「上一段」寫存好了", /存好了/.test(savedLine ?? ""), savedLine);
+    if (noDb) {
+      record("存一段：這裡沒有資料庫（排行還沒開），補地圖／ID、加倍券那段略過", true, savedLine);
+      // 分享圖要有地圖：再丟一段認得出地圖的
+      await evaluate(`(() => {
+        const end = Date.now();
+        window.__speedTestSave({
+          mode: "manual", startedAt: end - 12 * 60_000, endedAt: end, lastChangeAt: end, startLevel: 46, level: 46, exp: 0, job: 220, party: 1,
+          mapKey: "verify", gained: 120000, levelUps: 0, deaths: 0, byMap: { verify: { mapId: 105040303, gained: 120000 } },
+        });
+        return true;
+      })()`);
+      await sleep(1500);
+    } else {
+      record("存一段：「上一段」寫存好了、認不出地圖", /存好了。認不出地圖/.test(savedLine ?? ""), savedLine);
+      const filling = await ev(`return await __waitFor(() => document.querySelector("dialog[open] h2")?.textContent.trim() === ${JSON.stringify(FILL_TITLE)}, 10000)`);
+      const fillInfo = await evaluate(`(() => { const d = document.querySelector("dialog[open]"); return d ? { buttons: [...d.querySelectorAll("button")].map(b => b.textContent.trim()), text: d.innerText.replace(/\\s+/g, " ") } : null; })()`);
+      record(`存好、缺地圖跟 ID 就跳「${FILL_TITLE}」，看過的「${MAP}」列在選項裡，有「略過」「記下來」`, filling && fillInfo?.buttons.includes(MAP) && fillInfo.buttons.includes("略過") && fillInfo.buttons.includes("記下來"), fillInfo);
+      await shot("speed-fill.png");
+      await click(`[...document.querySelectorAll("dialog[open] button")].find(b => b.textContent.trim() === ${JSON.stringify(MAP)})`);
+      await click(`[...document.querySelectorAll("dialog[open] label")].find(l => l.textContent.trim() === "角色 ID")?.querySelector("input")`);
+      await page.send("Input.insertText", { text: CHAR_ID });
+      await click(`[...document.querySelectorAll("dialog[open] label")].find(l => l.textContent.includes("下次不要再問我"))?.querySelector("input")`);
+      await click(BUTTON("記下來"));
+      const filled = await ev(`return await __waitFor(() => document.body.innerText.includes(${JSON.stringify(ID_LINE)}) && !/認不出地圖/.test(document.body.innerText.match(/上一段：.*/)?.[0] ?? ""), 15000)`);
+      const filledLine = (await bodyText()).match(/上一段：.*/)?.[0] ?? null;
+      record(`選了「${MAP}」、填「${CHAR_ID}」記下來：「上一段」不再寫認不出地圖，控制卡寫「${ID_LINE}」`, filled, filledLine);
+      const askSaved = JSON.parse(await evaluate(`localStorage.getItem("ms-speed")`));
+      record("勾「下次不要再問我 ID」存進這台電腦（ms-speed 的 askId 是 false），沒有存角色 ID", askSaved.askId === false && !("charId" in askSaved), askSaved);
       const popped = await ev(`return await __waitFor(() => document.querySelector("dialog[open] h2")?.textContent.trim() === ${JSON.stringify(COUPON_TITLE)}, 10000)`);
       record(`存好就跳「${COUPON_TITLE}」`, popped, await dialogTitle());
       await click(`[...document.querySelectorAll("dialog[open] label")].find(l => l.textContent.trim() === "有開加倍券")?.querySelector("input")`);
@@ -508,17 +545,17 @@ try {
     record("點選的長相存進這台電腦", memory !== null && Object.values(JSON.parse(memory)).length > 0, memory);
   }
   await installFakeStream();
-  const second = await shareAndRead({ id: "", dontAsk: true });
-  record("再分享：對話框的 ID 欄是空的（不記在電腦裡）；勾「下次不要再問我」、按「不填，直接開始」照樣讀得到", second.dialog?.value === "" && second.readAfter !== null, second.dialog);
+  const second = await shareAndRead("later");
+  record(
+    `再分享：又問「${START_TITLE}」，按「先不要」關掉、留著「開始計算」那顆`,
+    second.dialog?.title === START_TITLE && second.readAfter !== null && (await dialogTitle()) === null && (await evaluate(`Boolean(${BUTTON("開始計算")})`)),
+    second.dialog,
+  );
   const remembered = await ev(`return await __waitFor(() => [...document.querySelectorAll("h2")].some(h => h.textContent.trim() === ${JSON.stringify(MAP)}), 15000)`);
   record("重新整理再分享：直接認成這張圖，不再問", remembered && !(await mapState()).asking, (await mapState()).titles);
-  const askSaved = JSON.parse(await evaluate(`localStorage.getItem("ms-speed")`));
-  record("「下次不要再問我」存進這台電腦（ms-speed 的 askId 是 false），沒有存角色 ID", askSaved.askId === false && !("charId" in askSaved), askSaved);
+  await sleep(3000);
+  record("按過「先不要」：同一次分享不會再自己跳出來", (await dialogTitle()) === null);
   await click(BUTTON("停止分享"));
-  await openSpeed();
-  await installFakeStream();
-  const third = await shareAndRead(null);
-  record("勾過之後再分享：不跳對話框，直接開始讀", third.dialog === null && third.readAfter !== null, third);
 } catch (error) {
   crashed = error;
   record("腳本跑到一半出錯", false, String(error?.stack ?? error).slice(0, 600));

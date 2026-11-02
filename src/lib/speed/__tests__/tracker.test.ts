@@ -373,3 +373,47 @@ describe("地圖鍵（讀不到的圖不亂記）", () => {
     expect(mainMap(t.seg!)).toEqual({ key: null, mapId: null });
   });
 });
+
+describe("剛升級分不出是哪一級（11/02 使用者：升等會錯亂）", () => {
+  // 剛升級經驗很小：L 跟 L+1 的 % 都對得上，讀數帶 alt（另一個可能的等級），由這裡用上一張接得上的那個
+  const A = (at: number, exp: number, level: number, alt: number) => S(at, exp, level, { alt });
+
+  it("上一張 99%：讀數「10 級或 11 級、經驗 3」→ 算成升級，不斷", () => {
+    const base = run(createTracker("manual"), [S(0, 9900), S(1000, 9900)]).t;
+    const on = startManual(base, 1000);
+    const { t } = run(on, [S(2000, 9950), A(3000, 3, 10, 11), A(4000, 5, 11, 12)]);
+    // 9900→9950 +50；升級 10000−9950+3 = 53；同一級 +2
+    expect(t.seg).toMatchObject({ gained: 105, levelUps: 1, level: 11 });
+    expect(t.last).toMatchObject({ level: 11, exp: 5 });
+    expect(t.misses).toBe(0);
+  });
+
+  it("上一張也在低處（同一級）：照同一級算，不會多算一級", () => {
+    const base = run(createTracker("manual"), [S(0, 2, 11), S(1000, 2, 11)]).t;
+    const on = startManual(base, 1000);
+    const { t } = run(on, [A(2000, 4, 11, 12)]);
+    expect(t.seg).toMatchObject({ gained: 2, levelUps: 0, level: 11 });
+  });
+
+  it("兩個都接得上：拿變動小的那個", () => {
+    // 11 級 1 經驗，隔很久（上限放很寬）讀到「11 或 12 級、經驗 5」：同級 +4，升級 +11004，取 +4
+    const base = run(createTracker("manual"), [S(0, 1, 11), S(1000, 1, 11)]).t;
+    const on = startManual(base, 1000);
+    const { t } = run(on, [A(1_000_000, 5, 11, 12)]);
+    expect(t.seg).toMatchObject({ gained: 4, level: 11 });
+  });
+
+  it("還沒有起點時，分不出等級的讀數不拿來當起點", () => {
+    const { t } = run(createTracker("manual"), [A(0, 3, 10, 11), A(1000, 3, 10, 11)]);
+    expect(t.last).toBeNull();
+    expect(t.pending).toBeNull();
+  });
+
+  it("升級後一直是分不出的讀數，也照樣一直累加（以前讀不到，超過 1 分鐘被當成沒動切掉）", () => {
+    const base = run(createTracker("auto"), [S(0, 9900), S(1000, 9900), S(2000, 9950)]).t;
+    const samples = Array.from({ length: 90 }, (_, i) => A(3000 + i * 1000, i * 2, 10, 11));
+    const { t, closed } = run(base, samples);
+    expect(closed).toEqual([]);
+    expect(t.seg).toMatchObject({ level: 11, levelUps: 1, gained: 50 + 89 * 2 });
+  });
+});
