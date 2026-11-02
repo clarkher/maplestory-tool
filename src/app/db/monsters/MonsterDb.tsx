@@ -220,7 +220,7 @@ function MonsterDetail({
                       <span className="min-w-0 truncate font-bold">
                         <Link
                           href={mapHref(row.id, atlasIndex)}
-                          className="underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]"
+                          className="underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]"
                         >
                           {mapName(maps, row.id)}
                         </Link>

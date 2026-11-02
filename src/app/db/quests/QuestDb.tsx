@@ -231,7 +231,7 @@ function NpcBlock({
         <div className="min-w-0 flex-1">
           <p className="truncate font-bold">
             {href ? (
-              <Link href={href} className="underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]">
+              <Link href={href} className="underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]">
                 {npc.n}
               </Link>
             ) : (

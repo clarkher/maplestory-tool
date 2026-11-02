@@ -296,7 +296,7 @@ function RouteCard({
   const direction = warp ? null : portalDirection(step.via, step.x, step.y, doors);
   // 目的地有地圖頁：接在「到了」（起點就是目的地時接在「出發點」）後面
   const mapPage = isEnd && atlasIndex?.maps.includes(step.map) ? (
-    <Link href={`/db/maps/${step.map}`} className="ml-2 text-[13px] font-bold ink-soft underline decoration-[color:var(--paper-edge)] underline-offset-4 hover:text-[color:var(--maple)]">
+    <Link href={`/db/maps/${step.map}`} className="ml-2 text-[13px] font-bold ink-soft underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]">
       看這張圖
     </Link>
   ) : null;
