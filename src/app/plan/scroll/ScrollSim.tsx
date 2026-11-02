@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
+import { track } from "@/lib/analytics";
 import { loadScrollSim, peekScrollSim } from "@/lib/data";
 import { simTable } from "@/lib/scroll-sim/calc";
 import { defaultScroll, findScroll, scrollsFor } from "@/lib/scroll-sim/pick";
@@ -77,6 +78,8 @@ export function ScrollSim() {
       if (scroll) next.set("sc", String(scroll.id));
       const qs = next.toString();
       router.replace(qs ? `/plan/scroll?${qs}` : "/plan/scroll", { scroll: false });
+      // 裝備跟卷軸都選好才算出結果
+      if (equip && scroll) track("calc_result", { tool: "scroll", equip: equip.n, scroll: scroll.n });
     },
     [router],
   );

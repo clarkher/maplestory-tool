@@ -427,6 +427,25 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - 站內入口（v1.24）：怪物、任務、技能卡片最底下「開成單獨一頁（方便分享）」（`DetailCard` 的 `pageHref`，沒名字的怪不給）；`/guide` 出處上面列 29 個 `/jobs/<職業>`（`page.tsx` 從攻略檔讀職業傳進去）。道具沒有單獨頁。
 
 - 正式網域（v1.28）：`https://maplehelper.tw`（Vercel 買的、DNS 在 Vercel；`www` 在 Vercel 專案設定 308 轉主網域）。`SITE_URL` 在 `src/lib/seo.ts`；舊正式機 `maplestory-tool-three.vercel.app` 由 `next.config.mjs` 的 `redirects` 整站 301 過去（只認那個 host，測試機、分支預覽不轉）。
+- Google Search Console：網域資源 `sc-domain:maplehelper.tw`，驗證用的 TXT 記錄在 Vercel DNS（刪了驗證會掉）；網站地圖提交 `https://maplehelper.tw/sitemap.xml`。
+
+### GA 事件（v1.31）
+
+GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/lib/analytics.ts`）。`GoogleAnalytics` 元件畫面出來後才載，**只有正式網域載**；測試機、分支預覽、本機網址加 `?ga_debug=1` 才載（帶 `debug_mode`，在 GA「管理 → DebugView」看）。新增、改名事件要一起改這張表。
+
+| 事件 | 什麼時候送 | 參數 |
+|---|---|---|
+| `profile_set` | 存角色（拉等級停 1.5 秒才送一次） | `job`（職業名）、`level`、`level_band`（1-10、11-20…） |
+| `calc_result` | 傷害計算機玩家自己改過設定（停 1.5 秒）；衝卷模擬選好裝備＋卷軸 | `tool`（damage／scroll），damage 帶 `job`、`level`、`level_band`、`monster`；scroll 帶 `equip`、`scroll` |
+| `db_search` | 查資料搜尋框停 1.5 秒 | `db`（怪物／任務…頁標題）、`query` |
+| `db_open` | 查資料從清單點開一筆 | `db`、`id`、`name` |
+| `speed_read` | 練功測速開始分享後第一次讀到狀態列 | — |
+| `speed_save` | 練功測速一段存上伺服器 | `job`、`level`、`level_band`、`map`、`minutes`、`ranked` |
+| `boss_room_create` | 野王計時開房間 | — |
+| `boss_room_join` | 加入房間 | `via`（code 打代碼／link 點連結） |
+| `share` | 野王計時複製房間連結、練功測速複製／下載分享圖 | `page`、`method` |
+
+外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。
 
 ### 查資料頁驗收（改查資料四頁之後跑）
 
