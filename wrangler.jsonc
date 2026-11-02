@@ -1,0 +1,35 @@
+// 楓谷幫手在 Cloudflare（v1.33）。網頁是 out/ 的靜態檔（npm run build:cf 產生），API 跟道具圖轉發在 cf/worker.ts。
+// 正式機：maplehelper（APP_ENV=production）；測試機：--env dev → maplehelper-dev（APP_ENV=preview，練功測速／野王的資料跟正式機分開）。
+// 秘密（不進版控）：DATABASE_URL、SPEED_SALT 用 `wrangler secret put <名稱> [--env dev]` 設。
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "maplehelper",
+  "main": "cf/worker.ts",
+  "compatibility_date": "2026-10-01",
+  // nodejs_compat：node:crypto 跟 process.env（vars、secrets 會自動放進 process.env）
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "out",
+    "binding": "ASSETS",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page",
+    "run_worker_first": ["/api/*", "/assets/items/*"]
+  },
+  "services": [{ "binding": "ITEMS", "service": "maplehelper-items" }],
+  "vars": { "APP_ENV": "production" },
+  "observability": { "enabled": true },
+  "env": {
+    "dev": {
+      "name": "maplehelper-dev",
+      "assets": {
+        "directory": "out",
+        "binding": "ASSETS",
+        "html_handling": "auto-trailing-slash",
+        "not_found_handling": "404-page",
+        "run_worker_first": ["/api/*", "/assets/items/*"]
+      },
+      "services": [{ "binding": "ITEMS", "service": "maplehelper-items-dev" }],
+      "vars": { "APP_ENV": "preview" }
+    }
+  }
+}

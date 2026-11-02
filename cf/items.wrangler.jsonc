@@ -1,0 +1,12 @@
+// 道具圖（約 1.7 萬張）單獨一個只放靜態檔的 Worker：Cloudflare 免費方案一個版本最多 2 萬檔，跟網頁放一起會超過。
+// 檔案在 .cf-items/assets/items（npm run build:cf 從 out/ 搬過來），網址維持 /assets/items/<id>.png。
+// 正式網域：maplehelper.tw/assets/items/* 路由直接打這裡；測試機經主 Worker 的 service binding 轉。
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "maplehelper-items",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "../.cf-items" },
+  "env": {
+    "dev": { "name": "maplehelper-items-dev", "assets": { "directory": "../.cf-items" } }
+  }
+}
