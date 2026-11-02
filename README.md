@@ -362,6 +362,28 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
 所以資料 commit 進 `main` 之後不需要另外下指令。
 注意別在本機用還沒 `git pull` 的工作樹跑 `vercel deploy --prod`，那會把新的部署蓋回舊資料。
 
+## 搬到 Cloudflare（v1.33，進行中）
+
+Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改放 Cloudflare 免費方案（11/02 使用者拍板方案 A：整站靜態）。
+**正式機切過去之前，Vercel 照舊在跑**——下面這套跟 Vercel 並存，`next build` 的行為沒變。
+
+- **整站靜態輸出**：`npm run build:cf`（`scripts/cf/build.mjs`）設 `CF_STATIC=1` 跑 `next build`，輸出到 `out/`。
+  `src/app/api` 建置時暫時搬到 `.cf-stash/`（靜態輸出收不了 API），建完一定搬回；型別檢查這時跳過，交給 PR 的「建置」。
+  快取規則在 `cache-headers.mjs`（Vercel 的 `headers()` 跟 Cloudflare 的 `out/_headers` 共用一份）。
+- **API**：`cf/worker.ts` 直接 import `src/app/api` 的 route handler（同一份程式），只有 `/api/*`、`/assets/items/*` 會跑進 Worker，
+  其他全是靜態檔（不算 Worker 請求次數）。網路位址從 `cf-connecting-ip` 換成 handler 讀的 `x-forwarded-for`。
+- **道具圖拆出去**：免費方案一個 Worker 版本最多 20,000 檔，道具圖約 1.7 萬張放另一個只有靜態檔的 Worker（`cf/items.wrangler.jsonc`，
+  檔案在 `.cf-items/`），網址不變。測試機經 service binding 轉；正式網域要加路由 `maplehelper.tw/assets/items/*` 直接打那個 Worker
+  （路由的 Worker 比自訂網域先跑），不然每張圖都算一次 Worker 請求（免費一天 10 萬次）。11/02 量到 `out/` 15,743 檔，超過 19,500 建置會失敗。
+- **環境**：`wrangler.jsonc` 預設是正式機 `maplehelper`（`APP_ENV=production`），`--env dev` 是測試機 `maplehelper-dev`（`APP_ENV=preview`）。
+  `speedEnv()` 先看 `APP_ENV` 再看 `VERCEL_ENV`，練功測速／野王的資料照環境分開；`NEXT_PUBLIC_VERCEL_ENV` 也改從 `APP_ENV` 來（名字先沿用）。
+- **秘密**：`DATABASE_URL`（Neon，跟 Vercel 上同一個）、`SPEED_SALT`，用 `npx wrangler secret put <名稱> [--env dev]` 設，不進版控。
+- **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖再網頁。
+  預定接 Cloudflare Workers Builds（連 GitHub，跟 Vercel 一樣誰推的 commit 都會建，資料自動更新用 github.token 推的也算）。
+- **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
+  驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
+- **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
+
 ## 楓幣匯率收集
 
 `.github/workflows/fx-collect.yml`（workflow「楓幣匯率收集」）每 2 小時（台灣 00:55 起）抓一次參考站

@@ -19,3 +19,8 @@ scripts/verify/**
 !scripts/verify/*.mjs
 !scripts/verify/README.md
 chrome-profile*/
+
+# Cloudflare 建置產物（scripts/cf/build.mjs）
+.cf-stash/
+.cf-items/
+.wrangler/

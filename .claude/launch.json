@@ -4,8 +4,28 @@
     {
       "name": "maplestory-tool",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3000
+    },
+    {
+      "name": "cf-local",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "wrangler",
+        "dev",
+        "-c",
+        "wrangler.jsonc",
+        "-c",
+        "cf/items.wrangler.jsonc",
+        "--env",
+        "dev",
+        "--port",
+        "8791"
+      ],
+      "port": 8791
     }
   ]
 }

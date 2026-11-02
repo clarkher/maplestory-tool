@@ -9,6 +9,9 @@ const AI_BOTS = [
   "Google-Extended", "Applebot-Extended", "CCBot",
 ];
 
+// 建置時產生一次（Cloudflare 上是整站靜態輸出，沒標 force-static 會建不起來）
+export const dynamic = "force-static";
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [

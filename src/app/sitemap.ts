@@ -3,6 +3,9 @@ import { SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
 import { staticAtlasMaps, staticGuideJobs, staticModified, staticMonsters, staticNpcs, staticQuests, staticSkills } from "@/lib/static-data";
 
+// 建置時產生一次（Cloudflare 上是整站靜態輸出，沒標 force-static 會建不起來）
+export const dynamic = "force-static";
+
 export default function sitemap(): MetadataRoute.Sitemap {
   // 資料頁的更新時間用遊戲資料的產生時間，不用建置時間：沒改資料就不會每次部署都說「全站都改了」
   const modified = staticModified() ? new Date(staticModified()!) : new Date();

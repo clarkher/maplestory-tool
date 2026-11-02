@@ -143,10 +143,11 @@ function simulatedRateLimit(): string[] {
   return rows;
 }
 
-const savedEnv = { url: process.env.DATABASE_URL, vercel: process.env.VERCEL_ENV };
+const savedEnv = { url: process.env.DATABASE_URL, vercel: process.env.VERCEL_ENV, app: process.env.APP_ENV };
 beforeEach(() => {
   delete process.env.DATABASE_URL;
   delete process.env.VERCEL_ENV;
+  delete process.env.APP_ENV;
   db.calls.length = 0;
   db.txCount = 0;
   db.txOptions.length = 0;
@@ -160,7 +161,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  for (const [key, value] of [["DATABASE_URL", savedEnv.url], ["VERCEL_ENV", savedEnv.vercel]] as const) {
+  for (const [key, value] of [["DATABASE_URL", savedEnv.url], ["VERCEL_ENV", savedEnv.vercel], ["APP_ENV", savedEnv.app]] as const) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
   }
@@ -267,6 +268,13 @@ describe("資料庫（假的）：建表", () => {
     expect(speedEnv()).toBe("development");
     process.env.VERCEL_ENV = "preview";
     expect(speedEnv()).toBe("preview");
+  });
+
+  it("Cloudflare 上看 APP_ENV，有設就蓋過 VERCEL_ENV", async () => {
+    const { speedEnv } = await load();
+    process.env.VERCEL_ENV = "preview";
+    process.env.APP_ENV = "production";
+    expect(speedEnv()).toBe("production");
   });
 });
 
