@@ -7,6 +7,18 @@ const nextConfig = {
   },
   reactStrictMode: true,
   images: { unoptimized: true },
+  async redirects() {
+    // v1.28 正式網域改 maplehelper.tw：舊的正式機網址整站 301 過去，搜尋引擎的收錄跟分享出去的連結才接得上。
+    // 只認舊正式機這個 host；測試機、分支預覽（*-git-*.vercel.app）照舊不轉
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "maplestory-tool-three.vercel.app" }],
+        destination: "https://maplehelper.tw/:path*",
+        statusCode: 301,
+      },
+    ];
+  },
   async headers() {
     // 同一路徑命中多條時，後面的規則覆蓋前面的——所以通用的長快取放最前面，
     // 需要每次確認的入口檔放後面蓋過去。
