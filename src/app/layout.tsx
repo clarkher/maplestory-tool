@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { HistoryScrollJump } from "@/components/HistoryScrollJump";
 import { HomePrefetch } from "@/components/HomePrefetch";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { restoreScrollBootstrap } from "@/lib/history-scroll";
 import { SITE_URL, websiteLd } from "@/lib/seo";
 
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className={`${notoTC.variable} antialiased`}>
         <HistoryScrollJump />
+        <GoogleAnalytics />
         {/* 結構化資料：告訴搜尋引擎這是什麼網站（各頁的麵包屑在頁面自己那裡）；放 body，<head> 只放畫面出來前要跑的程式 */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteLd()) }} />
         <a

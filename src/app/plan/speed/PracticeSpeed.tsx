@@ -3,6 +3,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
+import { jobParams, track } from "@/lib/analytics";
 import { playBeep, unlockAudio } from "@/lib/boss/sound";
 import { loadGuideCommon, loadItems, loadMaps, loadMonsters, loadSpeedNames, loadTraining, mapName, monsterImage } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
@@ -148,6 +149,8 @@ export function PracticeSpeed() {
   // 讀畫面的回呼在按「分享」那一刻就交出去了，之後不會換：裡面用到的東西都走 ref，才不會拿到舊的
   // （例如之後才填的角色 ID、之後才勾的組隊）
   const trackerRef = useRef(tracker);
+  /** 這次分享畫面送過「讀到狀態列」了沒（GA，每次開始分享送一次） */
+  const readSentRef = useRef(false);
   const dataRef = useRef(data);
   const settingsRef = useRef(settings);
   const profileJobRef = useRef(profile.job);
@@ -258,7 +261,11 @@ export function PracticeSpeed() {
       const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; error?: string; id?: string; token?: string };
       const ok = response.ok && result.ok === true;
       note({ kind: "response", status: response.status, ok, ranked: result.ranked, error: result.error });
-      if (ok) setBoardVersion(Date.now());
+      if (ok) {
+        setBoardVersion(Date.now());
+        const job = seg.job ?? profileJobRef.current;
+        track("speed_save", { ...jobParams(job, seg.level), map: mapId !== null && current ? mapName(current.maps, mapId) : undefined, minutes: Math.round(durationMs(seg) / 60000), ranked: result.ranked === true });
+      }
       // 缺地圖或角色 ID：先問補不補（先存了，選了再改同一筆），再問加倍券
       if (ok && result.id && result.token) {
         const needs = fillNeeds({ mapId, charId }, set.askId);
@@ -347,6 +354,10 @@ export function PracticeSpeed() {
       setReading(next);
       setNow(at);
       setStatus(next.bar ? "reading" : "waiting");
+      if (next.bar && !readSentRef.current) {
+        readSentRef.current = true;
+        track("speed_read");
+      }
 
       // 地圖：標題的長相連續幾張一樣才算換圖（settleTitle）；換了才重新認是哪張圖
       const before = placeRef.current;
@@ -427,6 +438,7 @@ export function PracticeSpeed() {
     if (!data || starting) return;
     setStarting(true);
     try {
+      readSentRef.current = false;
       const handle = await startCapture({ toNext: data.toNext, names: data.names, potionIds: potionPoolIds(data.items.values()) }, onReading);
       slotMissRef.current = null;
       poolReadyAtRef.current = null;

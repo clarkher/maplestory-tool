@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { consistentJob } from "./jobs";
+import { jobParams, trackSettled } from "./analytics";
 import type { Profile } from "./types";
 
 const STORAGE_KEY = "ms-profile";
@@ -89,6 +90,8 @@ export function saveProfile(next: Profile) {
     unsaved = { raw, over };
   }
   for (const listener of [...listeners]) listener();
+  // 拉等級會連續存很多次：停下來才送一次
+  if (next.job >= 0) trackSettled("profile", "profile_set", jobParams(next.job, next.level));
 }
 
 const unknownOnServer = () => null;

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
+import { jobParams, trackSettled } from "@/lib/analytics";
 import { useBuildChoice } from "@/lib/build-choice";
 import { loadGear, loadGuide, loadGuideCommon, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
 import {
@@ -142,7 +143,12 @@ export function DamageCalculator() {
   if (failed) return <Shell><p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">資料讀取失敗，重新整理一次試試。</p></Shell>;
   if (!loaded) return <Shell><LoadingBlock /></Shell>;
 
-  const update = (next: CalcState) => setSaved(JSON.stringify(next));
+  const update = (next: CalcState) => {
+    setSaved(JSON.stringify(next));
+    // 只算玩家自己動過的（一進來的預設結果不算）；一直在調只送停下來那次
+    const monster = next.shared.monsterId !== null ? data?.monsters.find(entry => entry.id === next.shared.monsterId)?.n : undefined;
+    trackSettled("calc-damage", "calc_result", { tool: "damage", ...jobParams(next.shared.job, next.groups[0].level), monster });
+  };
   const pickJob = (next: number) => {
     setLevelNotice(null);
     // ??=：攻略還在載時又換一次職業，留第一次換之前畫面上的等級（那時 state 是 null，savedState 還是換之前那份）
