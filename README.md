@@ -426,6 +426,8 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - 圖檔網址在 `src/lib/asset-paths.ts`：`data.ts` 是 `"use client"`，伺服器頁不能呼叫它的函式。
 - 站內入口（v1.24）：怪物、任務、技能卡片最底下「開成單獨一頁（方便分享）」（`DetailCard` 的 `pageHref`，沒名字的怪不給）；`/guide` 出處上面列 29 個 `/jobs/<職業>`（`page.tsx` 從攻略檔讀職業傳進去）。道具沒有單獨頁。
 
+- 正式網域（v1.28）：`https://maplehelper.tw`（Vercel 買的、DNS 在 Vercel；`www` 在 Vercel 專案設定 308 轉主網域）。`SITE_URL` 在 `src/lib/seo.ts`；舊正式機 `maplestory-tool-three.vercel.app` 由 `next.config.mjs` 的 `redirects` 整站 301 過去（只認那個 host，測試機、分支預覽不轉）。
+
 ### 查資料頁驗收（改查資料四頁之後跑）
 
 `/db/items`、`/db/monsters`、`/db/quests`、`/db/skills` 的捲動、展開、收起、按返回、記住搜尋篩選、自動載入（接到 600 筆換成按鈕）、

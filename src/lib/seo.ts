@@ -7,7 +7,7 @@ import { jobLabel } from "./item-view";
 import { monsterMaps } from "./monster-view";
 import type { GuideJob, MapRecord, Monster, Quest, Skill } from "./types";
 
-export const SITE_URL = "https://maplestory-tool-three.vercel.app";
+export const SITE_URL = "https://maplehelper.tw";
 export const SITE_NAME = "楓谷幫手";
 
 /** 頁面描述切在 150 字內：Google 搜尋結果大約只顯示這麼長 */
