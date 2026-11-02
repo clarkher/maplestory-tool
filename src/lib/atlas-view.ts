@@ -28,6 +28,11 @@ export function levelRange(mobs: AtlasMap["mobs"]): string | undefined {
   return min === max ? `${min} 等` : `${min}～${max} 等`;
 }
 
+/** 數量下面的小字：野王上游沒有位置（定時出現），其他怪是刷怪點數＝同時在場 */
+export function mobCountNote(mob: Pick<AtlasMap["mobs"][number], "p">): string {
+  return mob.p.length ? "同時在場" : "定時出現";
+}
+
 /** NPC 6 個以下圖上寫名字，再多只畫菱形（城鎮不會被字蓋滿） */
 export function showNpcLabels(npcs: AtlasMap["npcs"]): boolean {
   return npcs.length <= 6;
