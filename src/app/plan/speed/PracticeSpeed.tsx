@@ -25,15 +25,15 @@ import { readMapMemory, rememberMap, useSpeedSettings, type SpeedParty, type Spe
 import type { ShareCard } from "@/lib/speed/share-image";
 import {
   createTracker, durationMs, feed, levelHints, mainMap, minutesToLevel, shouldSave, startManual, stopManual, switchMode, tenMinuteExp, tick,
-  type Mode, type Sample, type Segment, type Step, type Tracker,
+  type Sample, type Segment, type Step, type Tracker,
 } from "@/lib/speed/tracker";
 import {
-  backCalcLine, couponMinutes, couponNote, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnIdChange, splitOnPartyChange, statusLine,
+  backCalcLine, couponMinutes, couponNote, fillNeeds, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnIdChange, splitOnPartyChange, statusLine,
   type BlindMap, type Coupon, type HintState, type SaveOutcome, type SpeedStatus,
 } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
 import { CompareCard } from "./CompareCard";
-import { CouponDialog, IdDialog, type IdChoice, type PendingCoupon } from "./Dialogs";
+import { CouponDialog, FillDialog, IdDialog, StartDialog, type FillAnswer, type IdChoice, type PendingCoupon, type PendingFill } from "./Dialogs";
 import { ExpCard } from "./ExpCard";
 import { MesoCard, type PotionRow } from "./MesoCard";
 import { MiniWindow, pipSupported } from "./MiniWindow";
@@ -65,7 +65,7 @@ declare global {
   }
 }
 
-const CLIENT_VER = "v1.10";
+const CLIENT_VER = "v1.29";
 const FRESH_HINTS: HintState = { nullRun: 0, cleared: false };
 const NO_PLACE: Place = { settle: { key: null, candidate: null, streak: 0 }, key: null, guess: null, picked: null, blind: FRESH_BLIND };
 /** 標題讀不到、請玩家從清單選時那張卡的第一句 */
@@ -104,9 +104,14 @@ export function PracticeSpeed() {
   const [starting, setStarting] = useState(false);
   const [reading, setReading] = useState<FrameReading | null>(null);
   const [place, setPlace] = useState<Place>(NO_PLACE);
-  const [tracker, setTracker] = useState<Tracker>(() => createTracker("auto"));
+  // 11/02 使用者選 A：按「開始計算」一路算到按「結束」，只剩手動（自動模式、切換按鈕拿掉）
+  const [tracker, setTracker] = useState<Tracker>(() => createTracker("manual"));
   /** 上一段跟它的結果；net10＝存的那一刻算得出的每 10 分鐘淨賺（分享圖用同一段的數字） */
   const [lastSaved, setLastSaved] = useState<{ seg: Segment; note: string; net10: number | null } | null>(null);
+  const lastSavedRef = useRef(lastSaved);
+  useEffect(() => {
+    lastSavedRef.current = lastSaved;
+  }, [lastSaved]);
   const [board, setBoard] = useState<BoardState>({ kind: "loading" });
   /** 最近一次存成功的時間（0＝還沒存過）：排行跟著重抓，網址帶上它跳過 5 分鐘快取（沒存到的不用重抓） */
   const [boardVersion, setBoardVersion] = useState(0);
@@ -117,6 +122,10 @@ export function PracticeSpeed() {
   const [charId, setCharId] = useState<string | null>(null);
   /** 問角色 ID 的對話框：start＝按分享時問（按了就開始分享）、edit＝從控制卡那行打開來改 */
   const [idDialog, setIdDialog] = useState<"start" | "edit" | null>(null);
+  /** 存好、缺地圖或角色 ID 等玩家補的段（排隊，一次問一段；問完才問加倍券） */
+  const [fills, setFills] = useState<PendingFill[]>([]);
+  /** 這次分享「要開始計算嗎？」按過「先不要」或已經結束一段：不再自己跳出來，要算就按「開始計算」 */
+  const [startDismissed, setStartDismissed] = useState(false);
   /** 存好、等玩家說有沒有開加倍券的段（排隊，一次問一段） */
   const [coupons, setCoupons] = useState<PendingCoupon[]>([]);
   /** 每分鐘經驗曲線跟畫的時間（一段停了留著最後的樣子，下一段開始才換） */
@@ -177,7 +186,7 @@ export function PracticeSpeed() {
   }, []);
   useEffect(() => {
     if (!settingsLoaded) return;
-    trackerRef.current = createTracker(settingsRef.current.mode);
+    trackerRef.current = createTracker("manual");
     setTracker(trackerRef.current);
   }, [settingsLoaded]);
 
@@ -250,6 +259,20 @@ export function PracticeSpeed() {
       const ok = response.ok && result.ok === true;
       note({ kind: "response", status: response.status, ok, ranked: result.ranked, error: result.error });
       if (ok) setBoardVersion(Date.now());
+      // 缺地圖或角色 ID：先問補不補（先存了，選了再改同一筆），再問加倍券
+      if (ok && result.id && result.token) {
+        const needs = fillNeeds({ mapId, charId }, set.askId);
+        if (needs.map || needs.id) {
+          setFills(queue => [
+            ...queue,
+            {
+              id: result.id!, token: result.token!, startedAt: seg.startedAt, duration: durationText(durationMs(seg)), gained: seg.gained,
+              needMap: needs.map, needId: needs.id, choices: [...new Set(knownMaps.current.values())],
+              run: { durationSec: body.durationSec, mapId: body.mapId, charId: body.charId },
+            },
+          ]);
+        }
+      }
       // 存好了就問有沒有開加倍券（先當沒開存，勾了再改同一筆）
       if (ok && result.id && result.token) {
         const pending: PendingCoupon = {
@@ -344,11 +367,13 @@ export function PracticeSpeed() {
       let accepted = false;
       if (next.exp) {
         const sample: Sample = {
-          at, exp: next.exp.exp, level: next.exp.level, mapKey: where.key, mapId: where.mapId, job: next.job, party: partySize(settingsRef.current.party),
+          at, exp: next.exp.exp, level: next.exp.level, alt: next.exp.alt, mapKey: where.key, mapId: where.mapId, job: next.job, party: partySize(settingsRef.current.party),
         };
+        const before = trackerRef.current.last;
         const step = feed(trackerRef.current, sample, current.toNext);
         apply(step);
-        accepted = step.tracker.last === sample;
+        // 剛升級分不出等級時 feed 會換成挑好的那一張，所以不是比同一個物件，是看起點有沒有換
+        accepted = step.tracker.last !== before;
       }
       // 每分鐘經驗：這段還在才跟著長；停了留著最後的樣子
       const curve = nextCurve(curveRef.current, trackerRef.current.seg, at);
@@ -413,6 +438,7 @@ export function PracticeSpeed() {
       placeRef.current = { ...placeRef.current, picked: null, blind: FRESH_BLIND };
       setPlace(placeRef.current);
       hintRef.current = FRESH_HINTS;
+      setStartDismissed(false);
       sentHints.current = "";
       sendHints(levelHints(trackerRef.current));
       setStatus("waiting");
@@ -427,12 +453,6 @@ export function PracticeSpeed() {
     } finally {
       setStarting(false);
     }
-  };
-
-  const onMode = (mode: Mode) => {
-    if (mode === trackerRef.current.mode) return;
-    updateSettings({ mode });
-    apply(switchMode(trackerRef.current, mode, Date.now()));
   };
 
   const onPickMap = (id: number) => {
@@ -456,12 +476,23 @@ export function PracticeSpeed() {
 
   const closeMini = useCallback(() => setMini(false), []);
 
-  /** 按「分享遊戲畫面」：要問角色 ID 就先跳對話框（對話框的按鈕再開始分享），玩家勾過「下次不要再問我」就直接開始 */
+  /** 按「分享遊戲畫面」：直接開始分享（11/02 起不先問角色 ID，結束後缺了再問） */
   const onShareClick = () => {
     // 之後低血要響：趁玩家點的這一下把聲音解鎖
     unlockAudio();
-    if (settingsRef.current.askId) setIdDialog("start");
-    else void onStart();
+    void onStart();
+  };
+
+  const onStartCount = () => {
+    const at = Date.now();
+    setNow(at);
+    setStartDismissed(true);
+    apply({ tracker: startManual(trackerRef.current, at), closed: null });
+  };
+
+  const onEndCount = () => {
+    setStartDismissed(true);
+    apply(stopManual(trackerRef.current, Date.now()));
   };
 
   /** 角色 ID 對話框按下去：ID 只記在這次開著的頁面；公開與否、要不要再問記在電腦裡。start＝接著開始分享（還在玩家點擊的當下） */
@@ -501,6 +532,62 @@ export function PracticeSpeed() {
     } catch {
       return couponNote({ ok: false }, coupon);
     }
+  };
+  /** 結束後補地圖、角色 ID：改同一筆（伺服器照補好的重算排行）；回錯誤訊息，null＝好了 */
+  const onFill = async (pending: PendingFill, answer: FillAnswer): Promise<string | null> => {
+    const fill: Record<string, unknown> = {};
+    if (answer.mapId !== null) {
+      fill.mapId = answer.mapId;
+      fill.mapName = dataRef.current ? mapName(dataRef.current.maps, answer.mapId) : null;
+    }
+    if (answer.charId !== null) {
+      fill.charId = answer.charId;
+      fill.isPublic = answer.isPublic;
+    }
+    try {
+      const response = await fetch("/api/speed/runs", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: pending.id, token: pending.token, fill }),
+      });
+      const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; error?: string };
+      if (!(response.ok && result.ok === true)) return result.error ?? "沒記到，等一下再過來";
+      // 補了 ID：這次分享接下來的段也用它
+      if (answer.charId !== null) {
+        charIdRef.current = answer.charId;
+        setCharId(answer.charId);
+      }
+      const run = { ...pending.run, mapId: answer.mapId ?? pending.run.mapId, charId: answer.charId ?? pending.run.charId };
+      // 加倍券那一題重寫「上一段」時要用補好的地圖、ID
+      setCoupons(queue => queue.map(item => (item.id === pending.id ? { ...item, run } : item)));
+      const note = saveNote({ kind: "response", status: response.status, ok: true, ranked: result.ranked }, run);
+      const picked = answer.mapId;
+      const last = lastSavedRef.current;
+      if (last && last.seg.startedAt === pending.startedAt) {
+        // 補了地圖：「上一段」那段也記到這張圖（跟我之前比、分享圖才找得到圖），這台電腦的紀錄現在才記
+        let seg = last.seg;
+        if (picked !== null) {
+          const key = `pick:${picked}`;
+          seg = { ...seg, mapKey: key, byMap: { [key]: { mapId: picked, gained: seg.gained } } };
+          const exp10 = tenMinuteExp(seg);
+          const store = storage();
+          const current = dataRef.current;
+          if (store && exp10 !== null && current) {
+            const job = seg.job ?? (profileJobRef.current >= 0 ? profileJobRef.current : null);
+            setRecords(addRecord(store, { at: Date.now(), mapId: picked, mapName: mapName(current.maps, picked), level: seg.level, job, charId: run.charId, exp10, net10: last.net10 }));
+          }
+        }
+        setLastSaved({ ...last, seg, note });
+      }
+      setBoardVersion(Date.now());
+      return null;
+    } catch {
+      return "沒記到，等一下再過來";
+    }
+  };
+  const closeFill = (id: string, askId: boolean) => {
+    if (askId !== settingsRef.current.askId) updateSettings({ askId });
+    setFills(queue => queue.filter(item => item.id !== id));
   };
   /** 問完一段就從排隊裡拿掉那一段（照 id，不是拿掉第一個：送出中又按關掉不會多拿掉後面那段） */
   const closeCoupon = (id: string) => setCoupons(queue => queue.filter(item => item.id !== id));
@@ -612,14 +699,23 @@ export function PracticeSpeed() {
     );
   }
 
-  const percent = reading?.exp ? levelPercent(reading.exp.exp, reading.exp.level, data.toNext) : null;
+  // 剛升級分不出是哪一級（alt）：照練功計算挑好的那級寫
+  const shownLevel = reading?.exp ? (reading.exp.alt !== undefined && tracker.last?.exp === reading.exp.exp ? tracker.last.level : reading.exp.level) : null;
+  const percent = reading?.exp && shownLevel !== null ? levelPercent(reading.exp.exp, shownLevel, data.toNext) : null;
   const perLevel = per10 !== null && seg && data.toNext[seg.level] ? (per10 / data.toNext[seg.level]) * 100 : null;
   const job = jobName(jobId);
 
   // 經驗卡：每分鐘長條（只看這一段已經過了幾分鐘，最多 60 根）
   const bars = curveView ? curveBars(curveView.curve, curveView.at) : null;
   const totalMinutes = curveView ? Math.max(0, Math.floor((curveView.at - curveView.curve.startedAt) / 60_000)) + 1 : 0;
-  const readingLine = `${reading?.exp ? `Lv.${reading.exp.level} · 經驗 ${formatNumber(reading.exp.exp)}${percent !== null ? `（${percent.toFixed(2)}%）` : ""}` : "等級、經驗：還沒讀到"}${job ? ` · ${job}` : ""}${reading ? ` · ${partySize(party) > 1 ? `組隊 ${partySize(party)} 人` : "單練"}` : ""}`;
+  const readingLine = `${reading?.exp ? `Lv.${shownLevel} · 經驗 ${formatNumber(reading.exp.exp)}${percent !== null ? `（${percent.toFixed(2)}%）` : ""}` : "等級、經驗：還沒讀到"}${job ? ` · ${job}` : ""}${reading ? ` · ${partySize(party) > 1 ? `組隊 ${partySize(party)} 人` : "單練"}` : ""}`;
+
+  // 「讀到你的角色了，要開始計算嗎？」：這次分享讀到兩張對得上的（起點）、還沒在算、其他對話框都沒開
+  const last = tracker.last;
+  const startRead =
+    sharing && last && !tracker.manualOn && !startDismissed && idDialog === null && shareCard === null && fills.length === 0 && coupons.length === 0
+      ? { job: jobName(reading?.job ?? (profile.job >= 0 ? profile.job : null)), fromProfile: reading?.job == null, level: last.level, exp: last.exp, percent: levelPercent(last.exp, last.level, data.toNext) }
+      : null;
 
   // 楓幣收益卡
   const potionRows: PotionRow[] = summary.uses.map(use => ({
@@ -675,35 +771,13 @@ export function PracticeSpeed() {
                   分享遊戲畫面
                 </button>
               )}
-              <div className="flex rounded-full border border-[color:var(--paper-edge)] p-0.5" role="radiogroup" aria-label="模式">
-                {(["auto", "manual"] as const).map(mode => (
-                  <button
-                    key={mode}
-                    type="button"
-                    role="radio"
-                    aria-checked={tracker.mode === mode}
-                    onClick={() => onMode(mode)}
-                    className={`rounded-full px-3 py-1 text-sm font-bold ${tracker.mode === mode ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "ink-soft"}`}
-                  >
-                    {mode === "auto" ? "自動" : "手動"}
-                  </button>
-                ))}
-              </div>
               {manualButton === "stop" ? (
-                <button type="button" onClick={() => apply(stopManual(trackerRef.current, Date.now()))} className={BUTTON_LINE}>
-                  停止
+                <button type="button" onClick={onEndCount} className={BUTTON_LINE}>
+                  結束
                 </button>
-              ) : manualButton === "start" ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const at = Date.now();
-                    setNow(at);
-                    apply({ tracker: startManual(trackerRef.current, at), closed: null });
-                  }}
-                  className="rounded-full bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]"
-                >
-                  開始
+              ) : manualButton === "start" && tracker.last ? (
+                <button type="button" onClick={onStartCount} className="rounded-full bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]">
+                  開始計算
                 </button>
               ) : null}
               {pipSupported() && status !== "idle" ? (
@@ -714,7 +788,7 @@ export function PracticeSpeed() {
             </div>
             <p className="mt-2 text-sm ink-soft" role="status">
               {statusText}
-              {tracker.mode === "auto" ? "（自動：經驗 1 分鐘沒動就停）" : "（手動：按停止才停）"}
+              {tracker.manualOn ? "（按「結束」才停）" : ""}
             </p>
             <p className="mt-1.5 text-sm">
               {charId ? (
@@ -806,7 +880,15 @@ export function PracticeSpeed() {
       </div>
       <Disclaimer />
       <IdDialog mode={idDialog} initial={{ charId, isPublic: settings.isPublic, askId: settings.askId }} onConfirm={onIdConfirm} onClose={() => setIdDialog(null)} />
-      <CouponDialog pending={idDialog === null && shareCard === null ? coupons[0] ?? null : null} onSubmit={onCoupon} onClose={closeCoupon} />
+      <StartDialog read={startRead} onStart={onStartCount} onClose={() => setStartDismissed(true)} />
+      <FillDialog
+        pending={idDialog === null && shareCard === null ? fills[0] ?? null : null}
+        maps={data.maps}
+        initial={{ isPublic: settings.isPublic, askId: settings.askId }}
+        onSubmit={onFill}
+        onClose={closeFill}
+      />
+      <CouponDialog pending={idDialog === null && shareCard === null && fills.length === 0 ? coupons[0] ?? null : null} onSubmit={onCoupon} onClose={closeCoupon} />
       <ShareDialog card={shareCard} onClose={() => setShareCard(null)} />
       <MiniWindow open={mini} onClose={closeMini}>
         <div className="space-y-1 p-3">

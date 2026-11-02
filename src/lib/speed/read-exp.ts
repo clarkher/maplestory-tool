@@ -181,8 +181,11 @@ export function addYellowInk(frame: Frame, rect: Rect, mask: Mask): void {
   }
 }
 
-/** 經驗、%、等級。等級不是讀的，是拿經驗跟 % 去經驗表反推的（畫面上的 LV 是小圖，不讀） */
-export type ExpReading = { exp: number; percent: number; level: number };
+/**
+ * 經驗、%、等級。等級不是讀的，是拿經驗跟 % 去經驗表反推的（畫面上的 LV 是小圖，不讀）。
+ * alt：剛升級、經驗很小時提示裡相鄰兩級都對得上，level 是低的那級、alt 是高的那級，由練功計算照上一張挑（11/02）。
+ */
+export type ExpReading = { exp: number; percent: number; level: number; alt?: number };
 
 /** 畫面的 % 是四捨五入到小數兩位；再多留一點給百分位認錯 */
 export const PERCENT_TOLERANCE = 0.06;
@@ -201,6 +204,23 @@ export function levelFor(exp: number, percent: number, toNext: number[], hints: 
   }
   const candidates = hints.length ? fits.filter(level => hints.includes(level)) : fits;
   return candidates.length === 1 ? candidates[0] : null;
+}
+
+/**
+ * 跟 levelFor 一樣，另外：有提示、提示裡剛好相鄰兩級都對得上（剛升級、經驗很小），兩級都交出去。
+ * 2026-11-02：以前這種讀數直接丟掉，50 等要練到新一級 1.15% 才分得出來（1～2 分鐘），
+ * 中間一直讀不到，手動模式整段停在升級那一下、自動模式超過 1 分鐘被當成沒動切掉。
+ */
+function levelsFor(exp: number, percent: number, toNext: number[], hints: number[]): { level: number; alt?: number } | null {
+  const level = levelFor(exp, percent, toNext, hints);
+  if (level !== null) return { level };
+  if (!hints.length) return null;
+  const fits = hints.filter(hint => {
+    const need = toNext[hint];
+    return need > 0 && exp < need && Math.abs((exp / need) * 100 - percent) <= PERCENT_TOLERANCE;
+  });
+  const [low, high] = [...new Set(fits)].sort((a, b) => a - b);
+  return fits.length === 2 && high === low + 1 ? { level: low, alt: high } : null;
 }
 
 /**
@@ -236,8 +256,8 @@ export function parseExp(text: string, toNext: number[], hints: number[] = []): 
     const exp = Number(expDigits);
     const percent = Number(percentDigits) / 100;
     if (percent >= 100) continue;
-    const level = levelFor(exp, percent, toNext, hints);
-    if (level !== null) return { exp, percent, level };
+    const found = levelsFor(exp, percent, toNext, hints);
+    if (found) return { exp, percent, ...found };
   }
   return null;
 }

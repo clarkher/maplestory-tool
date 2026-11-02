@@ -962,3 +962,68 @@ describe("資料庫（假的）：補填加倍券（PATCH）", () => {
     }
   });
 });
+
+describe("資料庫（假的）：結束後補地圖、角色 ID（PATCH fill，11/02）", () => {
+  beforeEach(() => {
+    process.env.DATABASE_URL = "postgres://fake";
+  });
+
+  const TOKEN = "0123456789abcdef0123456789abcdef";
+  const stored = (patch: Record<string, unknown> = {}) => ({
+    map_id: null, map_name: null, level: 46, job: 220, char_id: null, is_public: false, party_levels: [], party_hitter: 0, mode: "manual",
+    started_at: new Date("2026-10-13T10:00:00.000Z"), duration_sec: 900, exp_gained: "150000", level_ups: 0, deaths: 0, client_ver: "v1.29",
+    coupon_mult: null, coupon_min: null, ...patch,
+  });
+  function reply(row: Record<string, unknown> | null = stored()) {
+    db.reply = text => {
+      if (text.startsWith("SELECT") && text.includes("edit_hash")) return row ? [row] : [];
+      if (text.startsWith("UPDATE")) return [{ id: "7" }];
+      return [];
+    };
+  }
+  function updated(): Record<string, unknown> {
+    const call = db.calls.find(item => item.text.startsWith("UPDATE"));
+    if (!call) throw new Error("沒有送出 UPDATE");
+    const columns = /SET (.*) WHERE/.exec(call.text)![1].split(",").map(item => item.trim().split(" ")[0]);
+    return Object.fromEntries(columns.map((name, index) => [name, call.values[index]]));
+  }
+  const manual = { ...payload, mode: "manual" as const, clientVer: "v1.29" };
+
+  it("補地圖跟 ID：改地圖、名字、ID、公開，照新地圖重算進不進排行", async () => {
+    const { PATCH } = await load();
+    reply();
+    const response = await PATCH(patch({ id: "7", token: TOKEN, fill: { mapId: MAP, mapName: "森林迷宮III", charId: "芙莉蓮熊芙莉", isPublic: true } }));
+    expect(response.status).toBe(200);
+    const expected = expectedRow({ ...manual, mapId: MAP, mapName: "森林迷宮III", charId: "芙莉蓮熊芙莉", isPublic: true });
+    expect(await response.json()).toEqual({ ok: true, ranked: true, expPer10: expected.expPer10 });
+    expect(updated()).toEqual({
+      map_id: MAP, map_name: "森林迷宮III", char_id: "芙莉蓮熊芙莉", is_public: true, exp_per_10min: expected.expPer10, kills_per_10min: expected.killsPer10, ranked: true,
+    });
+  });
+
+  it("只補地圖：ID 跟公開照原本的；已經填過的加倍券照算", async () => {
+    const { PATCH } = await load();
+    reply(stored({ coupon_mult: 1.5, coupon_min: 15 }));
+    const response = await PATCH(patch({ id: "7", token: TOKEN, fill: { mapId: MAP, mapName: "森林迷宮III" } }));
+    const expected = expectedRow({ ...manual, mapId: MAP, charId: null, isPublic: false }, { mult: 1.5, minutes: 15 });
+    expect((await response.json()).expPer10).toBe(expected.expPer10);
+    expect(updated()).toMatchObject({ map_id: MAP, char_id: null, is_public: false, exp_per_10min: expected.expPer10 });
+  });
+
+  it("只補 ID：地圖照原本的（沒地圖還是不進排行）", async () => {
+    const { PATCH } = await load();
+    reply();
+    const response = await PATCH(patch({ id: "7", token: TOKEN, fill: { charId: "芙莉蓮熊芙莉", isPublic: true } }));
+    expect((await response.json()).ranked).toBe(false);
+    expect(updated()).toMatchObject({ map_id: null, char_id: "芙莉蓮熊芙莉", is_public: true });
+  });
+
+  it("ID 不合規則、地圖不對回 400，不送 UPDATE", async () => {
+    const { PATCH } = await load();
+    reply();
+    expect((await PATCH(patch({ id: "7", token: TOKEN, fill: { charId: "芙" } }))).status).toBe(400);
+    expect((await PATCH(patch({ id: "7", token: TOKEN, fill: { mapId: -3 } }))).status).toBe(400);
+    expect((await PATCH(patch({ id: "7", token: TOKEN, fill: "x" }))).status).toBe(400);
+    expect(db.calls.some(call => call.text.startsWith("UPDATE"))).toBe(false);
+  });
+});

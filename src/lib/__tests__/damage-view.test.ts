@@ -101,7 +101,9 @@ describe("技能等級照主流技能點法", () => {
     const secondJob = skillLevelsAt(410, 69, guides, data.skills).levels;
     for (const [id, level] of Object.entries(secondJob)) if (Number(id) >= 4100000 && Number(id) < 4110000) expect(levels[Number(id)]).toBe(level);
     expect(levels[4101005]).toBe(5);
-    expect(levels[4111005]).toBe(5);
+    // 三轉 80 等有 31 點：主推（v1.30 噗貓 10/26 版）風魔手裏劍 1 → 影分身 30
+    expect(levels[4111005]).toBe(1);
+    expect(levels[4111002]).toBe(30);
   });
   it("海盜分線：格鬥家（打手線）跟神槍手（槍手線）挑到不同的一轉點法", () => {
     const fighter = skillLevelsAt(511, 20, guides, data.skills).levels;

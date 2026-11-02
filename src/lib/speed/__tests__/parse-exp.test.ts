@@ -215,3 +215,24 @@ describe("認錯一個數字：不是 null 就是對的（性質測試）", () =
     expect(wrong.length).toBeLessThanOrEqual(Math.floor(total * 0.005));
   });
 });
+
+describe("剛升級（11/02）：提示裡相鄰兩級都對得上，兩個都交出去", () => {
+  it("50 級升 51 級、經驗 300：level 是 50、alt 是 51（由練功計算挑）", () => {
+    const exp = 300;
+    const percent = Math.round((exp / toNext[51]) * 10000) / 100;
+    const digits = percent.toFixed(2).replace(".", "");
+    expect(parseExp(`${exp}[${digits}%]`, toNext, [50, 51])).toEqual({ exp, percent, level: 50, alt: 51 });
+  });
+
+  it("經驗 0、0.00%：一樣交出兩級", () => {
+    expect(parseExp("0[000%]", toNext, [50, 51])).toEqual({ exp: 0, percent: 0, level: 50, alt: 51 });
+  });
+
+  it("沒提示時好幾級都對得上：還是 null", () => {
+    expect(parseExp("0[000%]", toNext)).toBeNull();
+  });
+
+  it("分得出來的時候沒有 alt", () => {
+    expect(parseExp("%P 406947[7973%]", toNext, [46, 47])).toEqual({ exp: 406947, percent: 79.73, level: 46 });
+  });
+});
