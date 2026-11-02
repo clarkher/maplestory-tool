@@ -6,11 +6,13 @@
  * - 手動：按開始到按停止，中間不停、換圖不停；地圖記拿最多經驗的那張。
  * - 升級：上一級剩的＋新一級的；死掉（少了這級升級經驗 1% 以上）照扣；少一點點、跳兩級、等級變少都當認錯丟掉。
  * - 起點要兩張等級一樣的讀數（第一次反推等級可能剛好對錯）。
+ * - 剛升級分不出是哪一級（讀數帶 alt）：兩個等級都試，用跟上一張接得上的那個；都接得上取變動小的。還沒有起點時不拿它當起點。
  * - 擋認錯（10/13）：讀數偶爾會把一個數字認錯（約 0.4% 會變成「一秒拿半級」），所以一張讀數比上一張多太多、
  *   或往下掉太多（超過這級升級經驗 20%）也當認錯丟掉；連續認錯太久就丟掉起點重來（進行中的那段留著，新起點接著算）。
  */
 export type Mode = "auto" | "manual";
-export type Sample = { at: number; exp: number; level: number; mapKey: string | null; mapId: number | null; job: number | null; party: number };
+/** alt：另一個可能的等級（剛升級、經驗很小時 level 跟 level+1 都對得上），見 ExpReading */
+export type Sample = { at: number; exp: number; level: number; alt?: number; mapKey: string | null; mapId: number | null; job: number | null; party: number };
 export type Segment = {
   mode: Mode;
   startedAt: number;
@@ -116,15 +118,23 @@ export function feed(t: Tracker, sample: Sample, toNext: number[]): Step {
     return { tracker: feed(idle.tracker, sample, toNext).tracker, closed: idle.closed };
   }
   if (!t.last) {
+    // 分不出等級的不能當起點（起點錯一級，之後每張都對不上）
+    if (sample.alt !== undefined) return { tracker: t, closed: null };
     if (t.pending && t.pending.level === sample.level) {
       const seg = t.mode === "manual" && t.manualOn && !t.seg ? newSegment("manual", sample, t.manualStartedAt ?? sample.at) : t.seg;
       return { tracker: { ...t, last: sample, pending: null, seg, misses: 0 }, closed: null };
     }
     return { tracker: { ...t, pending: sample }, closed: null };
   }
-  const gain = gainBetween(t.last, sample, toNext);
   const limit = MAX_STEP_SHARE * levelNeed(toNext, t.last.level) * Math.max(1, (sample.at - t.last.at) / STEP_RELAX_MS);
-  if (!gain || gain.gain > limit) {
+  const prev = t.last;
+  const options = (sample.alt === undefined ? [sample] : [{ ...sample, alt: undefined }, { ...sample, level: sample.alt, alt: undefined }])
+    .map(option => ({ option, gain: gainBetween(prev, option, toNext) }))
+    .filter((row): row is { option: Sample; gain: Gain } => row.gain !== null && row.gain.gain <= limit)
+    .sort((a, b) => Math.abs(a.gain.gain) - Math.abs(b.gain.gain));
+  const gain = options[0]?.gain ?? null;
+  if (options[0]) sample = options[0].option;
+  if (!gain) {
     const misses = t.misses + 1;
     // 認錯太久：丟掉起點，這張當候選，下一張同等級的再當新起點；進行中的那段留著
     if (misses >= MISS_LIMIT) return { tracker: { ...t, last: null, pending: sample, misses: 0 }, closed: null };

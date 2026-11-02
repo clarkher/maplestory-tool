@@ -78,9 +78,17 @@ export function statusLine(s: { status: SpeedStatus; bar: boolean; exp: boolean;
   const prefix = counting ? "手動計時中，" : "";
   if (s.status === "waiting" || !s.bar) return `${prefix}認不到遊戲畫面：選楓之谷的視窗、別縮到最小`;
   if (!s.exp) return `${prefix}讀不到經驗：視窗太小或被擋住，放大一點`;
-  if (s.mode === "manual" && !s.manualOn) return "按「開始」就開始算";
+  if (s.mode === "manual" && !s.manualOn) return "讀到了，按「開始計算」就開始算";
   if (!s.running) return counting ? "手動計時中" : "等經驗一動就開始算";
   return "量中";
+}
+
+/**
+ * 一段存好之後要補什麼（11/02 使用者：結束之後缺 ID 或圖，請選或略過）：
+ * 沒認出地圖就問地圖；沒填角色 ID、而且玩家沒勾過「下次不要再問我」就問 ID。
+ */
+export function fillNeeds(saved: { mapId: number | null; charId: string | null }, askId: boolean): { map: boolean; id: boolean } {
+  return { map: saved.mapId === null, id: saved.charId === null && askId };
 }
 
 /** 算經驗、存紀錄實際用到的隊伍：沒勾、勾了但沒填隊友都是單練（null） */

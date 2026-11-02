@@ -3,7 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import monsterJson from "../../../../../public/data/monsters.json";
 import trainingJson from "../../../../../public/data/training.json";
 import { ensureSchema, getSql, speedEnv } from "@/lib/speed/server/db";
-import { checkCoupon, checkRun, mapCap, RATE_LIMIT_PER_MIN, toRow, type Coupon, type RunPayload, type RunRow } from "@/lib/speed/server/rules";
+import { checkCoupon, checkFill, checkRun, mapCap, RATE_LIMIT_PER_MIN, toRow, type Coupon, type RunPayload, type RunRow } from "@/lib/speed/server/rules";
 import type { Monster, TrainingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -101,12 +101,12 @@ const BIGINT_MAX = 9223372036854775807n;
 const TOKEN_PATTERN = /^[0-9a-f]{32}$/i;
 
 /** PATCH 要改哪一筆：id、token 格式對才查資料庫；token 一律轉小寫（存的雜湊是照小寫算的） */
-function checkTarget(body: unknown): { ok: true; id: string; token: string; coupon: unknown } | { ok: false } {
+function checkTarget(body: unknown): { ok: true; id: string; token: string; coupon: unknown; fill: unknown } | { ok: false } {
   if (!body || typeof body !== "object") return { ok: false };
   const b = body as Record<string, unknown>;
   if (typeof b.id !== "string" || !ID_PATTERN.test(b.id) || BigInt(b.id) > BIGINT_MAX) return { ok: false };
   if (typeof b.token !== "string" || !TOKEN_PATTERN.test(b.token)) return { ok: false };
-  return { ok: true, id: b.id, token: b.token.toLowerCase(), coupon: b.coupon };
+  return { ok: true, id: b.id, token: b.token.toLowerCase(), coupon: b.coupon, fill: b.fill };
 }
 
 /** 資料庫裡那一筆（Neon 回的樣子：bigint 是字串、時間可能是 Date 或字串） */
@@ -126,6 +126,8 @@ type Stored = {
   level_ups: number;
   deaths: number;
   client_ver: string | null;
+  coupon_mult: number | null;
+  coupon_min: number | null;
 };
 
 function storedRun(row: Stored): RunPayload {
@@ -157,6 +159,8 @@ const NOT_FOUND = { ok: false, error: "找不到這筆紀錄（超過一天就�
  * 只改 coupon_mult、coupon_min、exp_per_10min、kills_per_10min、ranked 這五欄，其他欄位不動。
  * 成功回 { ok, ranked, expPer10 }（expPer10 是回推後的真實速度）。
  * 沒設 DATABASE_URL 回 503；格式不對、加倍券不合規則回 400；資料庫出錯回 500（不把錯誤內容送出去）。
+ * 11/02 起也收 { id, token, fill: { mapId, mapName, charId, isPublic } }（結束後補地圖、角色 ID，只改給的欄位），
+ * 改地圖、名字、ID、公開跟重算出來的三欄，加倍券照這筆已經存的。
  * 不另外擋送太快：token 是 128 位元隨機字，猜不到；猜錯的只花一句用主鍵查的 SELECT。
  */
 export async function PATCH(request: Request): Promise<Response> {
@@ -170,11 +174,25 @@ export async function PATCH(request: Request): Promise<Response> {
   try {
     await ensureSchema(sql);
     const found = (await sql`
-      SELECT map_id, map_name, level, job, char_id, is_public, party_levels, party_hitter, mode, started_at, duration_sec, exp_gained, level_ups, deaths, client_ver
+      SELECT map_id, map_name, level, job, char_id, is_public, party_levels, party_hitter, mode, started_at, duration_sec, exp_gained, level_ups, deaths, client_ver, coupon_mult, coupon_min
       FROM speed_runs
       WHERE env = ${speedEnv()} AND id = ${target.id}::bigint AND edit_hash = ${editHash} AND created_at > now() - interval '1 day'`) as Stored[];
     if (found.length === 0) return Response.json(NOT_FOUND, { status: 404 });
     const run = storedRun(found[0]);
+    // 結束後補地圖、角色 ID（11/02）：照補好的重算，加倍券照這筆已經存的
+    if (target.fill !== undefined) {
+      const filled = checkFill(target.fill);
+      if (!filled.ok) return Response.json(filled, { status: 400 });
+      const stored = found[0];
+      const kept: Coupon | null = stored.coupon_mult !== null && stored.coupon_min !== null ? { mult: Number(stored.coupon_mult), minutes: stored.coupon_min } : null;
+      const row = rowOf({ ...run, ...filled.fill }, kept);
+      const changed = await sql`
+        UPDATE speed_runs SET map_id = ${row.mapId}::integer, map_name = ${row.mapName}::text, char_id = ${row.charId}::text, is_public = ${row.isPublic}::boolean, exp_per_10min = ${row.expPer10}::bigint, kills_per_10min = ${row.killsPer10}::real, ranked = ${row.ranked}::boolean
+        WHERE id = ${target.id}::bigint AND edit_hash = ${editHash}
+        RETURNING id`;
+      if (changed.length === 0) return Response.json(NOT_FOUND, { status: 404 });
+      return Response.json({ ok: true, ranked: row.ranked, expPer10: row.expPer10 });
+    }
     const coupon = checkCoupon(target.coupon, run.durationSec);
     if (!coupon.ok) return Response.json(coupon, { status: 400 });
     const row = rowOf(run, coupon.coupon);
