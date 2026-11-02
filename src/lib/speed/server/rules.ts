@@ -37,6 +37,9 @@ export type RunRow = RunPayload & {
   couponMin: number | null;
 };
 
+/** 結束後補的地圖、角色 ID（11/02，PATCH fill）：只有給的欄位才改 */
+export type Fill = { mapId?: number; mapName?: string | null; charId?: string | null; isPublic?: boolean };
+
 /** 加倍券：倍率跟這段裡有開的分鐘數（玩家存好之後才回答，PATCH 改同一筆） */
 export type Coupon = { mult: number; minutes: number };
 
@@ -112,6 +115,25 @@ export function checkRun(body: unknown, now: number = Date.now()): { ok: true; r
       clientVer: cleanText(b.clientVer, 20) ?? "",
     },
   };
+}
+
+/** 補地圖、角色 ID 的檢查：要是物件；地圖、ID 照存一筆的規則；多塞的欄位丟掉 */
+export function checkFill(value: unknown): { ok: true; fill: Fill } | { ok: false; error: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { ok: false, error: "格式不對" };
+  const b = value as Record<string, unknown>;
+  const fill: Fill = {};
+  if ("mapId" in b) {
+    if (!isInt(b.mapId, 0, 999_999_999)) return { ok: false, error: "地圖不對" };
+    fill.mapId = b.mapId;
+    fill.mapName = cleanText(b.mapName, 40) || null;
+  }
+  if ("charId" in b) {
+    const id = checkCharId(b.charId);
+    if (!id.ok) return id;
+    fill.charId = id.charId;
+  }
+  if ("isPublic" in b) fill.isPublic = b.isPublic === true;
+  return { ok: true, fill };
 }
 
 export function expPer10(gained: number, sec: number): number {

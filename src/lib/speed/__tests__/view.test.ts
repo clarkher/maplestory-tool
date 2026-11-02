@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MemberExp } from "../party-exp";
 import { createTracker, feed, startManual, type Sample, type Segment, type Tracker } from "../tracker";
 import {
-  backCalcLine, BLIND_PICK_MS, checkCharId, couponMinutes, couponNote, draftParty, parseCoupon, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnIdChange, splitOnPartyChange,
+  backCalcLine, BLIND_PICK_MS, checkCharId, couponMinutes, couponNote, draftParty, fillNeeds, parseCoupon, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnIdChange, splitOnPartyChange,
   type BlindMap, type HintState,
 } from "../view";
 
@@ -92,6 +92,14 @@ describe("manualControl", () => {
   });
 });
 
+describe("fillNeeds（結束後補地圖、ID）", () => {
+  it("沒地圖問地圖；沒 ID 而且沒勾「下次不要再問我」才問 ID", () => {
+    expect(fillNeeds({ mapId: null, charId: null }, true)).toEqual({ map: true, id: true });
+    expect(fillNeeds({ mapId: 1, charId: null }, false)).toEqual({ map: false, id: false });
+    expect(fillNeeds({ mapId: 1, charId: "芙莉蓮" }, true)).toEqual({ map: false, id: false });
+  });
+});
+
 describe("statusLine", () => {
   const base = { status: "reading" as const, bar: true, exp: true, mode: "auto" as const, manualOn: false, running: false };
 
@@ -114,7 +122,7 @@ describe("statusLine", () => {
   });
 
   it("手動還沒按開始；自動等經驗動", () => {
-    expect(statusLine({ ...base, mode: "manual" })).toBe("按「開始」就開始算");
+    expect(statusLine({ ...base, mode: "manual" })).toBe("讀到了，按「開始計算」就開始算");
     expect(statusLine(base)).toBe("等經驗一動就開始算");
     expect(statusLine({ ...base, running: true })).toBe("量中");
   });
