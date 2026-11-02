@@ -1,5 +1,5 @@
 {
-  "researchedAt": "2026-10-03",
+  "researchedAt": "2026-11-02",
   "jobs": [
     {
       "jobId": 100,
@@ -1221,9 +1221,10 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人，玩家有兩種跑法。經驗團：只跑前面幾關就走（板上說大多只打雲跟唱片），熟練一場約 1.5～2.5 分鐘，玩家回報一場約 13,500 經驗，10/25 有人說比軍營、黑鱷魚還快；高台要靠盜賊的速度激發才跳得上去，隊上一定要有盜賊。王團：打到最後救出女神，一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，熟手約 22 分鐘一場，打一場拿女神的羽翼跟隨機卷軸。前期火力不夠先跑經驗團，要手鐲再打王團。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2330",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
           ],
@@ -1262,14 +1263,15 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找劍士三轉教官泰勒斯。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找武術教練，進螞蟻礦坑的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。舊版說分身會召喚月牛、放法術，多帶萬能藥；70 等敏捷 80 左右打得中。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找劍士三轉教官泰勒斯。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找武術教練，進螞蟻礦坑的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在螞蟻礦坑（從奇幻村右側進螞蟻洞，往最右邊走），分身 HP 150,000。舊版說分身會召喚月牛、放法術，多帶萬能藥；70 等敏捷 80 左右打得中。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2073",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2241",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2242",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277",
+            "https://www.youtube.com/watch?v=y7b-VWge_Ns"
           ]
         }
       ]
@@ -1285,7 +1287,8 @@
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4970",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=2576"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=2576",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2230"
           ],
           "steps": [
             {
@@ -1304,7 +1307,7 @@
               "skillId": 1111003,
               "skillName": "黑暗之劍",
               "to": 30,
-              "note": "單隻高傷害；拿斧頭改點黑暗之斧"
+              "note": "單隻高傷害；拿斧頭改點黑暗之斧；經典版新增：黑暗效果發動時，9 秒內對方的命中率減少 20%"
             },
             {
               "skillId": 1111008,
@@ -1326,7 +1329,8 @@
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=793",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4972"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4972",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2230"
           ],
           "steps": [
             {
@@ -1339,7 +1343,7 @@
               "skillId": 1111003,
               "skillName": "黑暗之劍",
               "to": 30,
-              "note": "一次打一隻、不會引來一大群，藥水錢花得少；拿斧頭改點黑暗之斧"
+              "note": "一次打一隻、不會引來一大群，藥水錢花得少；拿斧頭改點黑暗之斧；經典版新增：黑暗效果發動時，9 秒內對方的命中率減少 20%"
             },
             {
               "skillId": 1111005,
@@ -1365,12 +1369,20 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "台服還沒人寫三轉練功；陸服玩家近 7 天 70 等以上最多人練：寒冰平原、冰雪峽谷Ⅱ、巨人之林（陸服資料，經驗倍率可能不同，只看哪張圖）。",
+          "sources": [
+            "https://mxdc.dvg.cn/api/grind-heat.php?days=7&min=70&max=120&job=111"
           ]
         }
       ]
@@ -2060,9 +2072,10 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人，玩家有兩種跑法。經驗團：只跑前面幾關就走（板上說大多只打雲跟唱片），熟練一場約 1.5～2.5 分鐘，玩家回報一場約 13,500 經驗，10/25 有人說比軍營、黑鱷魚還快；高台要靠盜賊的速度激發才跳得上去，隊上一定要有盜賊。王團：打到最後救出女神，一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，熟手約 22 分鐘一場，打一場拿女神的羽翼跟隨機卷軸。前期火力不夠先跑經驗團，要手鐲再打王團。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2330",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
           ],
@@ -2092,14 +2105,15 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找劍士三轉教官泰勒斯。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找武術教練，進螞蟻礦坑的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。舊版說分身會召喚月牛、放法術，多帶萬能藥；70 等敏捷 80 左右打得中。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找劍士三轉教官泰勒斯。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找武術教練，進螞蟻礦坑的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在螞蟻礦坑（從奇幻村右側進螞蟻洞，往最右邊走），分身 HP 150,000。舊版說分身會召喚月牛、放法術，多帶萬能藥；70 等敏捷 80 左右打得中。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2073",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2241",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2242",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277",
+            "https://www.youtube.com/watch?v=y7b-VWge_Ns"
           ]
         }
       ]
@@ -2201,12 +2215,20 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "台服還沒人寫三轉練功；陸服玩家近 7 天 70 等以上最多人練：寒冰平原、冰雪峽谷Ⅱ、冰雪峽谷Ⅰ，騎士樣本很少，第二名起每張只有幾個人（陸服資料，經驗倍率可能不同，只看哪張圖）。",
+          "sources": [
+            "https://mxdc.dvg.cn/api/grind-heat.php?days=7&min=70&max=120&job=121"
           ]
         }
       ]
@@ -3016,9 +3038,10 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人，玩家有兩種跑法。經驗團：只跑前面幾關就走（板上說大多只打雲跟唱片），熟練一場約 1.5～2.5 分鐘，玩家回報一場約 13,500 經驗，10/25 有人說比軍營、黑鱷魚還快；高台要靠盜賊的速度激發才跳得上去，隊上一定要有盜賊。王團：打到最後救出女神，一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，熟手約 22 分鐘一場，打一場拿女神的羽翼跟隨機卷軸。前期火力不夠先跑經驗團，要手鐲再打王團。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2330",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
           ],
@@ -3056,14 +3079,21 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找劍士三轉教官泰勒斯。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找武術教練，進螞蟻礦坑的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。舊版說分身會召喚月牛、放法術，多帶萬能藥；70 等敏捷 80 左右打得中。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找劍士三轉教官泰勒斯。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找武術教練，進螞蟻礦坑的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在螞蟻礦坑（從奇幻村右側進螞蟻洞，往最右邊走），分身 HP 150,000。舊版說分身會召喚月牛、放法術，多帶萬能藥；70 等敏捷 80 左右打得中。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2073",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2241",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2242",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277"
+            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12526&sn=1277",
+            "https://www.youtube.com/watch?v=y7b-VWge_Ns"
+          ]
+        },
+        {
+          "text": "台服 50 等槍騎兵 10/21 回報：升等加完點後打黑鱷魚被撞從約 180 變 200、青蛇從 9～10 變約 16；板上說是舊公式，有防禦基準值，升等但防禦沒跟上就會被撞得更痛。樓主的結論是把跑速上下衣換成防禦比較高的衣服。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2298"
           ]
         }
       ]
@@ -3195,11 +3225,13 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
           ]
         },
@@ -3209,6 +3241,24 @@
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2275",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2285",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2269"
+          ]
+        },
+        {
+          "text": "吼怪去哪（10/24 板上回答，回答的人寫簡體字，可能是陸服的經驗）：王冠之地、雪人之谷最好，巫婆森林次之；王冠之地頂層、軍營要有人負責掃地，巫婆森林要兩隻龍騎士一上一下；站法是分三層，僧侶站中間、龍騎士站上下。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2328"
+          ]
+        },
+        {
+          "text": "龍咆哮點滿前沒人要組，板上建議先練到 81 等（10/30）；龍咆哮 30 加前置龍之獻祭 3 共 33 點，三轉點數剛好 81 等才夠。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2364"
+          ]
+        },
+        {
+          "text": "台服僧侶 10/27 抱怨：55 等以下的僧侶跟龍騎士去打企鵝、48 等去打獨角獅，幾乎吃不到經驗，補貼又少；找低等僧侶跟補前先講清楚。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2343"
           ]
         }
       ]
@@ -4516,9 +4566,10 @@
           "mapName": "（無可靠出處）",
           "mapId": null,
           "mobs": [],
-          "why": "打手 70 等以後只有「打手 100 等之前都是坐牢」「能把打手練到四轉都能當全服前幾名」這類評價，沒有任何本服練功地點回報。",
+          "why": "打手 70 等以後只有「打手 100 等之前都是坐牢」這類評價，沒有附經驗數字的本服練功回報；10/28 台服格鬥家攻略作者 86 等在巨人之林練，也沒寫經驗。",
           "sources": [
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1170"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1170",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2350"
           ],
           "verified": "community"
         }
@@ -4554,13 +4605,14 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找海盜三轉教官佩特勞。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找卡伊琳，進火獨眼獸洞穴II的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找海盜三轉教官佩特勞。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找卡伊琳，進火獨眼獸洞穴II的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在火獨眼獸洞穴II（從奇幻村右側進螞蟻洞，再往火獨眼獸洞穴走），分身 HP 130,000；分身會叫小分身，先專心打本體。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2073",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2241",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2242"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2242",
+            "https://www.youtube.com/watch?v=y7b-VWge_Ns"
           ]
         }
       ]
@@ -4571,8 +4623,215 @@
       "statBuild": [],
       "skillBuilds": [
         {
-          "label": "舊版主流點法：致命暗襲、蓄能激發先滿（巴哈姆特 2008）",
+          "label": "台服 10/28 攻略：練等效率，蓄能激發先滿",
           "mainstream": true,
+          "verified": "tw",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2350",
+            "https://www.youtube.com/watch?v=5OpgKvksDqk"
+          ],
+          "steps": [
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 4,
+              "note": "先點 4 級，能量暴擊、損人利己都要先有它"
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 1,
+              "note": "先點 1 級"
+            },
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 40,
+              "note": "台服實測：1 級要打 134 下才集滿能量，40 級只要 53 下，約快 2.5 倍"
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 30,
+              "note": "能量滿才能放的群體攻擊，經典版多了 40% 打暈"
+            },
+            {
+              "skillId": 5110000,
+              "skillName": "致命暗襲",
+              "to": 20,
+              "note": "怪被暈住時有機率爆擊，配能量暴擊的打暈"
+            },
+            {
+              "skillId": 5111004,
+              "skillName": "損人利己",
+              "to": 20,
+              "note": "吸血招；配二轉的魔力再生，攻略作者 86 等在巨人之林全程沒喝水"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 1,
+              "note": "衝擊波的前置"
+            },
+            {
+              "skillId": 5111006,
+              "skillName": "衝擊波",
+              "to": 21,
+              "note": "變身後才能放的群體高傷害招，先停 21"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 20,
+              "note": "作者實測：變身後攻速會掉回普通（6），已回報官方"
+            }
+          ]
+        },
+        {
+          "label": "台服 10/28 攻略：省水錢，損人利己提早 1 級",
+          "mainstream": false,
+          "verified": "tw",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2350",
+            "https://www.youtube.com/watch?v=5OpgKvksDqk"
+          ],
+          "steps": [
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 4,
+              "note": "先點 4 級，能量暴擊、損人利己都要先有它"
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 1,
+              "note": "先點 1 級"
+            },
+            {
+              "skillId": 5111004,
+              "skillName": "損人利己",
+              "to": 1,
+              "note": "提早點 1 級，配魔力再生比較不用喝水"
+            },
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 40,
+              "note": "台服實測：1 級要打 134 下才集滿能量，40 級只要 53 下，約快 2.5 倍"
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 30,
+              "note": "能量滿才能放的群體攻擊，經典版多了 40% 打暈"
+            },
+            {
+              "skillId": 5110000,
+              "skillName": "致命暗襲",
+              "to": 20,
+              "note": "怪被暈住時有機率爆擊，配能量暴擊的打暈"
+            },
+            {
+              "skillId": 5111004,
+              "skillName": "損人利己",
+              "to": 20,
+              "note": "吸血招，補滿"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 1,
+              "note": "衝擊波的前置"
+            },
+            {
+              "skillId": 5111006,
+              "skillName": "衝擊波",
+              "to": 21,
+              "note": "變身後才能放的群體高傷害招，先停 21"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 20,
+              "note": "作者實測：變身後攻速會掉回普通（6），已回報官方"
+            }
+          ]
+        },
+        {
+          "label": "台服 10/28 攻略：鬥神附體、衝擊波先點",
+          "mainstream": false,
+          "verified": "tw",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2350",
+            "https://www.youtube.com/watch?v=5OpgKvksDqk"
+          ],
+          "steps": [
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 4,
+              "note": "先點 4 級，能量暴擊、損人利己都要先有它"
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 1,
+              "note": "先點 1 級"
+            },
+            {
+              "skillId": 5110001,
+              "skillName": "蓄能激發",
+              "to": 40,
+              "note": ""
+            },
+            {
+              "skillId": 5111002,
+              "skillName": "能量暴擊",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 5111004,
+              "skillName": "損人利己",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 1,
+              "note": "衝擊波的前置"
+            },
+            {
+              "skillId": 5111006,
+              "skillName": "衝擊波",
+              "to": 30,
+              "note": "先點滿；作者打算四轉後洗回 21、把損人利己補滿"
+            },
+            {
+              "skillId": 5111005,
+              "skillName": "鬥神附體",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5110000,
+              "skillName": "致命暗襲",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 5111004,
+              "skillName": "損人利己",
+              "to": 11,
+              "note": "拿剩下的點"
+            }
+          ]
+        },
+        {
+          "label": "舊版主流點法：致命暗襲、蓄能激發先滿（巴哈姆特 2008）",
+          "mainstream": false,
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3466",
@@ -4589,7 +4848,7 @@
               "skillId": 5110000,
               "skillName": "致命暗襲",
               "to": 20,
-              "note": "怪被暈住時有機率爆擊，舊版三轉後盡快點滿；經典版能量暴擊多了打暈（點滿 40%），剛好讓它發動。板上也有人主張先點滿蓄能激發，還沒人實測"
+              "note": "怪被暈住時有機率爆擊，舊版三轉後盡快點滿；經典版能量暴擊多了打暈（點滿 40%），剛好讓它發動。台服 10/28 攻略改成先點滿蓄能激發（集氣快約 2.5 倍），見上面的主推"
             },
             {
               "skillId": 5110001,
@@ -4685,12 +4944,21 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "台服第一篇格鬥家三轉攻略（10/28 發、11/01 更新）：86 等在巨人之林用二轉的魔力再生配損人利己，一輪約 2 分半，全程沒喝水，打完 HP、MP 都是滿的，作者說更高等的圖不一定撐得住；開鬥神附體時攻速會掉回普通（6），作者已回報官方。整篇沒有經驗數字。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2350",
+            "https://www.youtube.com/watch?v=5OpgKvksDqk"
           ]
         }
       ]
@@ -5134,17 +5402,44 @@
         },
         {
           "levelFrom": 50,
-          "levelTo": 100,
-          "kind": "party",
-          "mapName": "（無可靠出處）",
-          "mapId": null,
-          "mobs": [],
-          "why": "2026 本服槍手心得只到 50 等；舊版槍神攻略 51~60 列夜市娃娃機、101、稻草人、日月光精靈、石巨人、黑鱷魚（多為未開放地區）。板上還有「有槍手 100 等了嗎」的疑問，沒有 50 以上的練功回報。",
-          "sources": [
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1774",
-            "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462"
+          "levelTo": 70,
+          "kind": "solo",
+          "mapName": "第2軍營（骷髏士兵）",
+          "mapId": 101030111,
+          "mobs": [
+            {
+              "name": "骷髏士兵",
+              "id": 5150001,
+              "lv": 57
+            }
           ],
-          "verified": "community"
+          "why": "台服神槍手 10/28 攻略：50～70 等去第2軍營或紅光庭園 II，怪集中、地形不複雜，跑熟後照平台清怪就好；兩張沒有硬性選擇，看人數跟清怪速度。沒寫經驗。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2351"
+          ],
+          "verified": "tw",
+          "current": true
+        },
+        {
+          "levelFrom": 50,
+          "levelTo": 76,
+          "kind": "solo",
+          "mapName": "紅光庭園 II（紅獨角獅）",
+          "mapId": 200010111,
+          "mobs": [
+            {
+              "name": "紅獨角獅",
+              "id": 5120001,
+              "lv": 53
+            }
+          ],
+          "why": "台服神槍手 10/28 攻略：怪多，可以利用平台高低差一直打；三轉後 70～76 等繼續留在這裡，同時把 3連發慢慢點高。另一位槍手 10/26 說紅獨角獅雙人最快，但藥水錢會虧。沒寫經驗。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2351",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342"
+          ],
+          "verified": "tw",
+          "current": true
         }
       ],
       "notes": [
@@ -5179,13 +5474,14 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找海盜三轉教官佩特勞。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找卡伊琳，進火獨眼獸洞穴II的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找海盜三轉教官佩特勞。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找卡伊琳，進火獨眼獸洞穴II的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在火獨眼獸洞穴II（從奇幻村右側進螞蟻洞，再往火獨眼獸洞穴走），分身 HP 130,000；分身會叫小分身，先專心打本體。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2073",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2241",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2242"
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2242",
+            "https://www.youtube.com/watch?v=y7b-VWge_Ns"
           ]
         }
       ]
@@ -5196,8 +5492,55 @@
       "statBuild": [],
       "skillBuilds": [
         {
-          "label": "舊版主流點法（巴哈姆特 2008～2010）",
+          "label": "台服 10/28 攻略：3連發先滿，打殭屍穩定一下",
           "mainstream": true,
+          "verified": "tw",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2351",
+            "https://www.youtube.com/watch?v=dr_lsDgo1PQ"
+          ],
+          "steps": [
+            {
+              "skillId": 5210000,
+              "skillName": "3連發",
+              "to": 20,
+              "note": "點滿後單體傷害上來，進亡者之林比較容易一下打死殭屍"
+            },
+            {
+              "skillId": 5211001,
+              "skillName": "章魚砲台",
+              "to": 30,
+              "note": "放著幫忙打"
+            },
+            {
+              "skillId": 5211004,
+              "skillName": "火焰噴射",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 5211005,
+              "skillName": "寒霜噴射",
+              "to": 26,
+              "note": "先停 26"
+            },
+            {
+              "skillId": 5211006,
+              "skillName": "指定攻擊",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 5211002,
+              "skillName": "海鷗突擊隊",
+              "to": 15,
+              "note": "最後補"
+            }
+          ]
+        },
+        {
+          "label": "舊版主流點法（巴哈姆特 2008～2010）",
+          "mainstream": false,
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=4788",
@@ -5291,14 +5634,38 @@
           ]
         }
       ],
-      "training": [],
+      "training": [
+        {
+          "levelFrom": 77,
+          "levelTo": 90,
+          "kind": "party",
+          "mapName": "亡者之林Ⅱ～Ⅳ（殭屍）",
+          "mapId": 211041200,
+          "mobs": [
+            {
+              "name": "殭屍",
+              "id": 5130107,
+              "lv": 57
+            }
+          ],
+          "why": "台服神槍手 10/28 攻略：3連發點滿後打殭屍，10 分鐘約 20 萬經驗（原文寫含祈禱跟經驗加倍）；三張不固定，挑人少、平台好繞的。還不能穩定一下打死就先回紅光庭園 II 多練幾等；3連發點滿前作者沒測。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2351",
+            "https://www.youtube.com/watch?v=dr_lsDgo1PQ"
+          ],
+          "verified": "tw",
+          "current": true
+        }
+      ],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
           ]
         }
@@ -5345,7 +5712,7 @@
       "jobId": 510,
       "levelFrom": 30,
       "levelTo": 88,
-      "place": "怪物擂台洗經驗、101、天空之城幼獨角獅、沙漠實驗室地鼠、夜市徒步區珍奶／娃娃機、冰原小雪球／野狼、亡者殭屍、河童區、小音響；舊版 3~4 轉拳霸內容",
+      "place": "怪物擂台洗經驗、101、沙漠實驗室地鼠、夜市徒步區珍奶／娃娃機、河童區、小音響；舊版 3~4 轉拳霸內容",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3620",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12563&sn=3486",
@@ -5357,7 +5724,7 @@
       "jobId": 520,
       "levelFrom": 26,
       "levelTo": 120,
-      "place": "惡魔水靈（車廂）、發條白老鼠／褐色發條熊、天空之城幼獨角獅、擂台、泥人、夜市娃娃機、桃花仙境稻草人、日月光精靈、101 小音響、沙漠小仙人掌／沙兔、西門町小狗仔、上海灘、研究所 B-3；槍神 3~4 轉技能",
+      "place": "惡魔水靈（車廂）、發條白老鼠／褐色發條熊、擂台、泥人、夜市娃娃機、桃花仙境稻草人、101 小音響、沙漠小仙人掌／沙兔、西門町小狗仔、上海灘、研究所 B-3；槍神 3~4 轉技能",
       "sources": [
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3462",
         "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12565&sn=3619",
