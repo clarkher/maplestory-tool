@@ -429,7 +429,7 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - 正式網域（v1.28）：`https://maplehelper.tw`（Vercel 買的、DNS 在 Vercel；`www` 在 Vercel 專案設定 308 轉主網域）。`SITE_URL` 在 `src/lib/seo.ts`；舊正式機 `maplestory-tool-three.vercel.app` 由 `next.config.mjs` 的 `redirects` 整站 301 過去（只認那個 host，測試機、分支預覽不轉）。
 - Google Search Console：網域資源 `sc-domain:maplehelper.tw`，驗證用的 TXT 記錄在 Vercel DNS（刪了驗證會掉）；網站地圖提交 `https://maplehelper.tw/sitemap.xml`。
 
-### GA 事件（v1.31）
+### GA 事件（v1.32）
 
 GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/lib/analytics.ts`）。`GoogleAnalytics` 元件畫面出來後才載，**只有正式網域載**；測試機、分支預覽、本機網址加 `?ga_debug=1` 才載（帶 `debug_mode`，在 GA「管理 → DebugView」看）。新增、改名事件要一起改這張表。
 
