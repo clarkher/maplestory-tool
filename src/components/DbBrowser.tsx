@@ -7,6 +7,7 @@ import {
   listSignature, moreRows, needsRescue, samePageTarget, sameRowAction, scrollMotion, searchEntries, sideTopFor, withCard, withSide, type DetailSpot, type Prefer,
 } from "@/lib/db-browse";
 import { useHydrated } from "@/lib/hydrated";
+import { track, trackSettled } from "@/lib/analytics";
 import { reloadRestore } from "@/lib/reload-scroll";
 import { useRemembered } from "@/lib/remember";
 import { ChevronDown, ChevronRight, SearchIcon } from "./Icons";
@@ -251,10 +252,11 @@ export function DbBrowser({
       // push 不用 replace：看完一筆按返回，要回到上一筆，不是直接離開這一頁。
       // 沒開著別筆時留記號，收起時才知道可以用返回回到點之前的清單
       window.history.pushState(fromListMark(openId, window.history.state, id, performance.timeOrigin), "", urlWith(id));
+      track("db_open", { db: title, id, name: entries.find(entry => entry.id === id)?.name });
       // 桌機：右邊那一欄黏著，頁面不跳回上面；新的那一筆畫出來後再看那一欄有沒有被推走（下面的 effect）
       if (isWide()) sideRevealPending.current = true;
     },
-    [collapse],
+    [collapse, entries, title],
   );
 
   // 找不到這一筆時 renderDetail 回 null：細節是空的，下面就不捲過去（免得捲到一片空白）
@@ -518,6 +520,8 @@ export function DbBrowser({
             onChange={event => {
               setQuery(event.target.value);
               setVisible(PAGE_SIZE);
+              const typed = event.target.value.trim();
+              if (typed) trackSettled(`db-search:${title}`, "db_search", { db: title, query: typed });
             }}
             placeholder={searchPlaceholder}
             className="tap-safe w-full bg-transparent py-2.5 outline-none"

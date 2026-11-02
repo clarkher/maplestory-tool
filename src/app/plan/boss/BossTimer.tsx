@@ -10,6 +10,7 @@ import { playBeep, unlockAudio } from "@/lib/boss/sound";
 import { EXPIRE_MS, channelState, latestByChannel, rankNext } from "@/lib/boss/state";
 import { loadEvents, loadFired, loadPrefs, saveEvents, saveFired, savePrefs, type BossPrefs } from "@/lib/boss/store";
 import { BOSSES, SERVERS, type BossEvent, type ChannelState, type ServerKey } from "@/lib/boss/types";
+import { track } from "@/lib/analytics";
 import { ActionButton, BossChip, BossInfo, CARD, ChannelGrid, ChannelRow, NextCard } from "./parts";
 
 const POLL_MS = 20_000;
@@ -266,7 +267,10 @@ export function BossTimer() {
       window.history.replaceState(window.history.state, "", window.location.pathname);
       const code = normalizeRoomCode(param);
       if (code) {
-        if (code !== stored) joinRoom(code);
+        if (code !== stored) {
+          joinRoom(code);
+          track("boss_room_join", { via: "link" });
+        }
         else setRoomBoth({ code, online: null });
       } else {
         setRoomMsg("房間已失效");
@@ -471,6 +475,7 @@ export function BossTimer() {
         return;
       }
       joinRoom(code);
+      track("boss_room_create");
     } catch {
       setRoomMsg("連不上，等一下再過來");
     }
@@ -483,6 +488,7 @@ export function BossTimer() {
       return;
     }
     joinRoom(code);
+    track("boss_room_join", { via: "code" });
   };
 
   const share = async () => {
@@ -490,6 +496,7 @@ export function BossTimer() {
     const url = `${window.location.origin}/plan/boss?room=${room.code}`;
     try {
       await navigator.clipboard.writeText(url);
+      track("share", { page: "boss", method: "copy_link" });
       setRoomMsg("已複製連結，貼給隊友就能一起記");
     } catch {
       setRoomMsg(`把這個連結貼給隊友：${url}`);

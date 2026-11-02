@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useId, useState } from "react";
+import { track } from "@/lib/analytics";
 import { drawShareImage, type ShareCard } from "@/lib/speed/share-image";
 import { Modal, SECOND } from "./Dialogs";
 import { BUTTON_MAIN } from "./parts";
@@ -48,7 +49,10 @@ function ShareBody({ card, titleId, onClose }: { card: ShareCard; titleId: strin
     image.canvas.toBlob(blob => {
       if (!blob) return setCopied("no");
       navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(
-        () => setCopied("ok"),
+        () => {
+          setCopied("ok");
+          track("share", { page: "speed", method: "copy_image" });
+        },
         () => setCopied("no"),
       );
     }, "image/png");
@@ -79,7 +83,7 @@ function ShareBody({ card, titleId, onClose }: { card: ShareCard; titleId: strin
           </button>
         ) : null}
         {image ? (
-          <a href={image.url} download={`練功測速-${card.date.replaceAll("/", "")}.png`} className={BUTTON_MAIN}>
+          <a href={image.url} onClick={() => track("share", { page: "speed", method: "download_image" })} download={`練功測速-${card.date.replaceAll("/", "")}.png`} className={BUTTON_MAIN}>
             下載
           </a>
         ) : (
