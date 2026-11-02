@@ -1,5 +1,5 @@
 {
-  "researchedAt": "2026-10-03",
+  "researchedAt": "2026-11-02",
   "jobs": [
     {
       "jobId": 300,
@@ -1786,7 +1786,7 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找弓箭手三轉教官蕾妮。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找赫麗娜，進森林迷宮V的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找弓箭手三轉教官蕾妮。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找赫麗娜，進森林迷宮V的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在森林迷宮V（從奇幻村下方的屋子進去，在地圖右上方），分身 HP 120,000。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
@@ -1803,8 +1803,61 @@
       "statBuild": [],
       "skillBuilds": [
         {
-          "label": "舊版主流點法：四連箭先滿，再點箭雨（巴哈姆特 2009）",
+          "label": "台服 10/22 影片：箭雨優先",
           "mainstream": true,
+          "verified": "community",
+          "sources": [
+            "https://www.youtube.com/watch?v=E5GH1ZGFBcc",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2291"
+          ],
+          "steps": [
+            {
+              "skillId": 3111006,
+              "skillName": "四連箭",
+              "to": 1,
+              "note": "先點 1"
+            },
+            {
+              "skillId": 3110001,
+              "skillName": "致命箭",
+              "to": 5,
+              "note": "箭雨的前置"
+            },
+            {
+              "skillId": 3111004,
+              "skillName": "箭雨",
+              "to": 30,
+              "note": "主力群攻；陸服的三轉點法也是箭雨先點"
+            },
+            {
+              "skillId": 3110001,
+              "skillName": "致命箭",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 3111006,
+              "skillName": "四連箭",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 3111002,
+              "skillName": "替身術",
+              "to": 20,
+              "note": "接下來疾風步看還差多少到滿速再補（作者沒寫點幾級）；烈火箭看個人，作者自己不點"
+            },
+            {
+              "skillId": 3111005,
+              "skillName": "銀鷹召喚",
+              "to": 15,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "label": "舊版主流點法：四連箭先滿，再點箭雨（巴哈姆特 2009）",
+          "mainstream": false,
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12537&sn=4500",
@@ -1932,15 +1985,95 @@
           ]
         }
       ],
-      "training": [],
+      "training": [
+        {
+          "levelFrom": 70,
+          "levelTo": 120,
+          "kind": "solo",
+          "mapName": "巨人之林（混種石巨人、黑曜石巨人）",
+          "mapId": 105040306,
+          "mobs": [
+            {
+              "name": "混種石巨人",
+              "id": 5150000,
+              "lv": 59
+            },
+            {
+              "name": "黑曜石巨人",
+              "id": 5130102,
+              "lv": 58
+            }
+          ],
+          "why": "台服遊俠單人打 3 樓 10 分鐘 18.8 萬、4 樓 16 萬（影片標題，等級跟加成沒寫，原文寫巨人之森）；另一位無課弓手組隊只打 1～3 樓 10 分鐘 14～16.5 萬（含祈禱，看隊伍配置），說經驗最多、會掉卷、是正收益，最後回來練這裡。10/22 影片說有箭雨就能在 3 樓練到 120。",
+          "sources": [
+            "https://www.youtube.com/watch?v=GoJB568JADE",
+            "https://www.youtube.com/watch?v=S6Mpl9hZSZM",
+            "https://www.youtube.com/watch?v=E5GH1ZGFBcc",
+            "https://www.threads.com/@xuef32240/post/De42TVLE_-P"
+          ],
+          "verified": "tw",
+          "current": true
+        },
+        {
+          "levelFrom": 70,
+          "levelTo": 120,
+          "kind": "party",
+          "mapName": "亡者之林Ⅱ／Ⅳ（殭屍）",
+          "mapId": 211041200,
+          "mobs": [
+            {
+              "name": "殭屍",
+              "id": 5130107,
+              "lv": 57
+            }
+          ],
+          "why": "無課弓手組隊 10 分鐘 12.5～13.5 萬（含祈禱）；難找空圖，掉落不值錢。三轉的箭雨沒有近身限制也能打這張，10/22 影片說有群體技能就能練到 120。",
+          "sources": [
+            "https://www.youtube.com/watch?v=E5GH1ZGFBcc",
+            "https://www.threads.com/@xuef32240/post/De42TVLE_-P",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2294"
+          ],
+          "verified": "tw",
+          "current": true
+        },
+        {
+          "levelFrom": 70,
+          "levelTo": 120,
+          "kind": "party",
+          "mapName": "藍光庭園 II（藍獨角獅）",
+          "mapId": 200010131,
+          "mobs": [
+            {
+              "name": "藍獨角獅",
+              "id": 5120003,
+              "lv": 53
+            }
+          ],
+          "why": "無課弓手打右下，組隊 10 分鐘 11～12 萬（含祈禱）；好找圖、掉落有價值。10/22 影片說天空之城的獨角獅靠箭雨卡位能練到 120。",
+          "sources": [
+            "https://www.youtube.com/watch?v=E5GH1ZGFBcc",
+            "https://www.threads.com/@xuef32240/post/De42TVLE_-P"
+          ],
+          "verified": "tw",
+          "current": true
+        }
+      ],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "冰雪峽谷Ⅱ對弓手是陷阱：無課弓手組隊 10 分鐘 10.5～13.5 萬（含祈禱），一天燒一組冰棒，打不到寶就是虧錢。",
+          "sources": [
+            "https://www.threads.com/@xuef32240/post/De42TVLE_-P"
           ]
         }
       ]
@@ -3110,7 +3243,7 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找弓箭手三轉教官蕾妮。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找赫麗娜，進森林迷宮V的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找弓箭手三轉教官蕾妮。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找赫麗娜，進森林迷宮V的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在森林迷宮V（從奇幻村下方的屋子進去，在地圖右上方），分身 HP 120,000。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
@@ -3288,12 +3421,20 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "台服還沒人寫三轉練功；陸服玩家近 7 天 70 等以上最多人練：寒冰平原、結冰的平原Ⅱ、巨人之林（陸服資料，經驗倍率可能不同，只看哪張圖）。",
+          "sources": [
+            "https://mxdc.dvg.cn/api/grind-heat.php?days=7&min=70&max=120&job=321"
           ]
         }
       ]
@@ -5207,9 +5348,10 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人，玩家有兩種跑法。經驗團：只跑前面幾關就走（板上說大多只打雲跟唱片），熟練一場約 1.5～2.5 分鐘，玩家回報一場約 13,500 經驗，10/25 有人說比軍營、黑鱷魚還快；高台要靠盜賊的速度激發才跳得上去，隊上一定要有盜賊。王團：打到最後救出女神，一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，熟手約 22 分鐘一場，打一場拿女神的羽翼跟隨機卷軸。前期火力不夠先跑經驗團，要手鐲再打王團。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2330",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
           ],
@@ -5251,7 +5393,7 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找盜賊三轉教官阿里可。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找達克魯，進猴子沼澤地Ⅱ的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找盜賊三轉教官阿里可。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找達克魯，進猴子沼澤地Ⅱ的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在猴子沼澤地Ⅱ右上方（只有盜賊進得去），分身 HP 120,000。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
@@ -5268,8 +5410,73 @@
       "statBuild": [],
       "skillBuilds": [
         {
-          "label": "舊版主流點法：影分身先滿，藥劑精通、幸運術比風魔手裏劍早（巴哈姆特 2007）",
+          "label": "台服攻略 10/26 更新：影分身先滿，吸血術用三轉點補滿",
           "mainstream": true,
+          "verified": "community",
+          "sources": [
+            "https://home.gamer.com.tw/artwork.php?sn=6375411",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227"
+          ],
+          "steps": [
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 4111002,
+              "skillName": "影分身",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 5,
+              "note": "二段跳的前置"
+            },
+            {
+              "skillId": 4111006,
+              "skillName": "二段跳",
+              "to": 1,
+              "note": ""
+            },
+            {
+              "skillId": 4111005,
+              "skillName": "風魔手裏劍",
+              "to": 30,
+              "note": ""
+            },
+            {
+              "skillId": 4111006,
+              "skillName": "二段跳",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 4110000,
+              "skillName": "藥劑精通",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 4111001,
+              "skillName": "幸運術",
+              "to": 20,
+              "note": ""
+            },
+            {
+              "skillId": 4101005,
+              "skillName": "吸血術",
+              "to": 30,
+              "note": "二轉技能，用三轉的點回頭補滿（二轉已經點過的不用重點）；剩下約 19 點給影網術或楓幣攻擊"
+            }
+          ]
+        },
+        {
+          "label": "舊版主流點法：影分身先滿，藥劑精通、幸運術比風魔手裏劍早（巴哈姆特 2007）",
+          "mainstream": false,
           "verified": "legacy",
           "sources": [
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12552&sn=958"
@@ -5426,15 +5633,66 @@
           ]
         }
       ],
-      "training": [],
+      "training": [
+        {
+          "levelFrom": 70,
+          "levelTo": 120,
+          "kind": "party",
+          "mapName": "亡者之林Ⅳ（殭屍）",
+          "mapId": 211041400,
+          "mobs": [
+            {
+              "name": "殭屍",
+              "id": 5130107,
+              "lv": 57
+            }
+          ],
+          "why": "台服鏢賊攻略 10/26 更新：70 等以上打亡者之林殭屍，推薦Ⅳ＞Ⅱ＞Ⅲ，原文寫一小時 70 萬起跳；建議至少 3 人組隊。另一篇殭屍心得說鏢賊適合打亡者之林Ⅳ左邊。",
+          "sources": [
+            "https://home.gamer.com.tw/artwork.php?sn=6375411",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2294"
+          ],
+          "verified": "community",
+          "current": true
+        },
+        {
+          "levelFrom": 78,
+          "levelTo": 84,
+          "kind": "solo",
+          "mapName": "雲彩公園Ⅵ（日光精靈）",
+          "mapId": 200080000,
+          "mobs": [
+            {
+              "name": "日光精靈",
+              "id": 5120000,
+              "lv": 52
+            }
+          ],
+          "why": "台服暗殺者實況練等紀錄：78～84 等打天空之城的日光精靈，配影分身穩定一下、偶爾兩下（74～78 等那時天空之城還沒開，打大幽靈）。沒寫經驗。",
+          "sources": [
+            "https://www.youtube.com/watch?v=SC_Dxy7wZas",
+            "https://www.youtube.com/watch?v=W4FBcssf7pE"
+          ],
+          "verified": "tw",
+          "current": true
+        }
+      ],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "三轉也可以去冰雪峽谷Ⅱ，經驗不錯、可以拚雷之鏢，但攻略作者沒給數字；長時間待冰原要換雪鞋，作者嫌貴、覺得不急。",
+          "sources": [
+            "https://home.gamer.com.tw/artwork.php?sn=6375411"
           ]
         }
       ]
@@ -6170,9 +6428,10 @@
           "mapName": "女神組隊任務（天空之城 疑問之塔）",
           "mapId": null,
           "mobs": [],
-          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人；一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，越早去越划算；熟手約 22 分鐘一場，比打野圖慢一點，打一場拿女神的羽翼跟隨機卷軸。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
+          "why": "板上回覆說賊、僧侶、劍士都滿建議去打。51～70 等、剛好 6 人，玩家有兩種跑法。經驗團：只跑前面幾關就走（板上說大多只打雲跟唱片），熟練一場約 1.5～2.5 分鐘，玩家回報一場約 13,500 經驗，10/25 有人說比軍營、黑鱷魚還快；高台要靠盜賊的速度激發才跳得上去，隊上一定要有盜賊。王團：打到最後救出女神，一場固定 84,000 經驗（不含打怪，含打怪約 9～10 萬），51 等約一級的 11%、60 等 7%、70 等只剩 4%，熟手約 22 分鐘一場，打一場拿女神的羽翼跟隨機卷軸。前期火力不夠先跑經驗團，要手鐲再打王團。隊上劍士、法師、弓箭手、盜賊、海盜都有時，溫莉會給全隊 30 分鐘的隨機增益。",
           "sources": [
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2254",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2330",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=1291"
           ],
@@ -6215,7 +6474,7 @@
           ]
         },
         {
-          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找盜賊三轉教官阿里可。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找達克魯，進猴子沼澤地Ⅱ的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。次元之門在哪是照舊版資料整理的，參考舊版資料。",
+          "text": "三轉怎麼轉（10/15 開放）：二轉、70 等到冰原雪域的長老公館找盜賊三轉教官阿里可。接任務前一、二轉的技能點要剛好點完（一轉 61 點、二轉 121 點），多點的會吃掉三轉的點。① 力量的考驗：回去找達克魯，進猴子沼澤地Ⅱ的次元之門，20 分鐘內打倒 80 等的分身撿黑符，換力量項鍊。② 智慧的考驗：到尖銳的絕壁Ⅱ右上的雪原聖地，交 1 顆黑暗水晶給神聖的石頭答題，全對拿智慧項鍊，答錯一題就燒掉一顆水晶。黑暗水晶是 10 顆黑暗母礦到冰原雪域找伯堅精煉的，大幽靈、巫婆都會掉母礦。台服玩家 10/19 實際走過：次元之門在猴子沼澤地Ⅱ右上方（只有盜賊進得去），分身 HP 120,000。",
           "sources": [
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20209",
             "https://maplestoryclassic.beanfun.com/bulletin?Bid=83960",
@@ -6358,12 +6617,20 @@
       "training": [],
       "notes": [
         {
-          "text": "三轉的技能點跟一、二轉是同一池：拿去點一、二轉的技能，三轉不會退回來。三轉能用的點數＝（等級−70）×3＋1，120 等共 151 點。10/22 維護後，官方在購物商城新增「三轉技能點數重配捲軸」，點錯可以買來重配（價格、限制官方沒寫，以遊戲內商城為準）；菇菇通行證 S2 的新角色 70 等高級獎勵也送一張初始化卷軸交換券。",
+          "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
           "sources": [
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84053",
+            "https://maplestoryclassic.beanfun.com/bulletin?Bid=84067",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2359",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2342",
             "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2227",
-            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2276",
-            "https://maplestoryclassic.beanfun.com/bulletin?bid=84018",
             "https://maplestoryclassic-event.beanfun.com/EventAd/EventAd?eventAdId=20211"
+          ]
+        },
+        {
+          "text": "台服 104 等神偷在冰雪峽谷Ⅱ 10 分鐘 17 萬經驗（影片標題）：5 人隊、2 個祈禱，神偷一個人刷 1、2 樓；爬繩爬到一半就放落葉斬，雪吉拉戰車盡量用迴旋斬，把怪聚起來站在中間放分身術，不要追單隻怪。",
+          "sources": [
+            "https://www.youtube.com/watch?v=GzNNzj5_61o"
           ]
         }
       ]
