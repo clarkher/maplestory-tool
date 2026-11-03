@@ -14,4 +14,9 @@ describe("快取規則轉成 Cloudflare _headers", () => {
     expect(file).toContain("/data/meta.json\n  ! Cache-Control\n  Cache-Control: public, max-age=0, must-revalidate");
     expect(file).not.toContain("/data/*\n  ! Cache-Control");
   });
+
+  it("測試機整站加 noindex，正式機不加", () => {
+    expect(file).not.toContain("X-Robots-Tag");
+    expect(toHeadersFile(CACHE_HEADERS, { noindex: true }).endsWith("\n/*\n  X-Robots-Tag: noindex\n")).toBe(true);
+  });
 });

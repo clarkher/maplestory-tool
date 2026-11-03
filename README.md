@@ -377,7 +377,10 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   （路由的 Worker 比自訂網域先跑），不然每張圖都算一次 Worker 請求（免費一天 10 萬次）。11/02 量到 `out/` 15,743 檔，超過 19,500 建置會失敗。
 - **環境**：`wrangler.jsonc` 預設是正式機 `maplehelper`（`APP_ENV=production`），`--env dev` 是測試機 `maplehelper-dev`（`APP_ENV=preview`）。
   `speedEnv()` 先看 `APP_ENV` 再看 `VERCEL_ENV`，練功測速／野王的資料照環境分開；`NEXT_PUBLIC_VERCEL_ENV` 也改從 `APP_ENV` 來（名字先沿用）。
-- **秘密**：`DATABASE_URL`（Neon，跟 Vercel 上同一個）、`SPEED_SALT`，用 `npx wrangler secret put <名稱> [--env dev]` 設，不進版控。
+- **秘密**：`DATABASE_URL`、`SPEED_SALT`，用 `npx wrangler secret put <名稱> [--env dev]` 設，不進版控。
+  資料庫 11/03 使用者拍板**重建、舊的（Vercel 整合的 Neon）捨棄**：新 Neon 專案 `cold-river-55616355`（新加坡 `aws-ap-southeast-1`，`npx neon claim create` 建的，
+  要使用者用 `npx neon claim accept cold-river-55616355` 拿到的網址登入認領，**沒認領 11/06 08:53 台灣時間會被刪**）。測試機、正式機共用這個庫，靠 `env` 欄位分開；表第一次呼叫 API 自動建。
+- **搜尋引擎**：測試機（`APP_ENV` 不是 production）的 `_headers` 整站加 `X-Robots-Tag: noindex`。
 - **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖再網頁。
   預定接 Cloudflare Workers Builds（連 GitHub，跟 Vercel 一樣誰推的 commit 都會建，資料自動更新用 github.token 推的也算）。
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
