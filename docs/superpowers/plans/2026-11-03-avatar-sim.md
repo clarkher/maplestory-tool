@@ -299,7 +299,7 @@ export type Outfit = { g: Gender; skin: number; hair: number; face: number; wear
 export function defaultOutfit(g: Gender): Outfit;
 export function parseOutfit(params: URLSearchParams, data: AvatarData): Outfit;
 export function outfitQuery(o: Outfit): string;          // 不含「?」；全是預設時回 ""
-export function wearItem(o: Outfit, item: AvatarItem): Outfit;
+export function wearItem(o: Outfit, item: AvatarItem, data: AvatarData): Outfit; // data 用來查目前武器是不是雙手（itemIndex 以 data 為鍵快取，不靠呼叫順序）
 export function takeOff(o: Outfit, k: SlotKey): Outfit;
 export function setGender(o: Outfit, g: Gender, data: AvatarData): Outfit;
 export function itemIndex(data: AvatarData): Map<number, AvatarItem>;      // 給各處用 id 找道具
@@ -331,12 +331,12 @@ it("try：髮型換髮型、女生的點裝換女生預設", () => {
   expect(f.g).toBe(1); expect(f.wear.overall).toBe(FEMALE_OVERALL); expect(f.wear.coat).toBeUndefined();
 });
 it("套服跟上衣褲裙互斥、雙手武器跟盾牌互斥", () => {
-  const withOverall = wearItem(defaultOutfit(0), byId(MALE_OVERALL));
+  const withOverall = wearItem(defaultOutfit(0), byId(MALE_OVERALL), data);
   expect(withOverall.wear).toEqual({ overall: MALE_OVERALL });
-  expect(wearItem(withOverall, byId(1040002)).wear).toEqual({ coat: 1040002 });
-  const shield = wearItem(defaultOutfit(0), byId(1092000));
-  expect(wearItem(shield, byId(TWO_HANDED)).wear.shield).toBeUndefined();
-  expect(wearItem(wearItem(defaultOutfit(0), byId(TWO_HANDED)), byId(1092000)).wear.weapon).toBeUndefined();
+  expect(wearItem(withOverall, byId(1040002), data).wear).toEqual({ coat: 1040002 });
+  const shield = wearItem(defaultOutfit(0), byId(1092000), data);
+  expect(wearItem(shield, byId(TWO_HANDED), data).wear.shield).toBeUndefined();
+  expect(wearItem(wearItem(defaultOutfit(0), byId(TWO_HANDED), data), byId(1092000), data).wear.weapon).toBeUndefined();
 });
 it("換性別：穿不了的換掉、男女都能穿的留著、身上沒衣服就穿新性別預設上衣褲裙", () => {
   const o = setGender({ ...defaultOutfit(0), wear: { overall: MALE_OVERALL, cap: UNISEX_CAP } }, 1, data);
@@ -426,7 +426,7 @@ it("預設角色的網址", () => {
 });
 it("表情放在臉型、日服道具帶 JMS/444", () => {
   const jms = data.items.find((i) => i.r === "j" && i.g !== 1)!;
-  const u = characterUrl({ ...wearItem(defaultOutfit(0), jms), emo: "smile" }, data, { frame: 0, resize: 1 });
+  const u = characterUrl({ ...wearItem(defaultOutfit(0), jms, data), emo: "smile" }, data, { frame: 0, resize: 1 });
   const items = JSON.parse("[" + decodeURIComponent(u.split("/")[5]) + "]");
   expect(items.find((i: { itemId: number }) => i.itemId === 20000).animationName).toBe("smile");
   expect(items.find((i: { itemId: number }) => i.itemId === jms.id)).toMatchObject({ region: "JMS", version: "444" });
