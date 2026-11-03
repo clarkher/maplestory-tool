@@ -387,6 +387,9 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   **測試機自動部署（v1.36，11/03 接好）**：Cloudflare Workers Builds 連 GitHub，`dev` 有新 commit 就建（跟 Vercel 一樣誰推的都算，資料自動更新用 github.token 推的也會建）。
   設定在 Cloudflare 後台 `maplehelper-dev` → Settings → Builds：分支 `dev`、Build `npm run build:cf`、Deploy `npm run deploy:cf:dev`、
   建置變數 `APP_ENV=preview`、`NODE_VERSION=22`；「Builds for Preview branches」關掉（不然 fx-data、price-data 也會建）。
+  **坑（v1.37）**：Workers Builds 會用 `WRANGLER_CI_*` 環境變數把建置裡每次 `wrangler deploy` 的名字都改成 `maplehelper-dev`，
+  道具圖那次被當成整個測試機部署、秘密跟著消失（11/03 第一次自動部署）。`scripts/cf/deploy.mjs` 部署道具圖時拿掉這些變數；
+  部署完 `npx wrangler secret list --env dev` 要看得到 `DATABASE_URL`、`SPEED_SALT`。建置約 10 分鐘（部署道具圖占大半）。
   wrangler 登入的 token 沒有 Workers Builds 權限，API 改不到這些設定，只能後台改。正式機 `maplehelper` 還沒建、還沒接。
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
