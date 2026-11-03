@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
 import {
   avatarSlot, avatarGender, hairStyleOf, hairColorOf, faceStyleOf, faceColorOf,
-  stripHairColor, keepName, isTwoHanded, avatarCandidates, buildAvatar,
+  stripHairColor, keepName, isTwoHanded, avatarCandidates, buildAvatar, avatarCoverage, MIN_DRAWABLE_RATIO,
 } from "./avatar.mjs";
 
 test("分類照 id 前三碼", () => {
@@ -58,7 +60,7 @@ test("buildAvatar：髮型併款、瞳色看凍結檔、畫不出來排最後、
     { id: 1003995, n: "Amdusias Hat", c: "時裝", s: "帽子" },
     { id: 1402000, n: "木製大劍", c: "裝備", s: "雙手劍", eq: { islot: "WpSi" } },
   ];
-  const msio = { twms: [12000, 12001, 12002, 12003, 12004, 12009, 12010, 12011, 20000, 20100, 20200, 30030, 30031, 1040002, 1042311, 1402000], jms: [30037], checked: [] }; // buildAvatar 不看 checked（build-gear 用它算「沒比對過」件數）
+  const msio = { twms: [12000, 12001, 12002, 12003, 12004, 12009, 12010, 12011, 20000, 20100, 20200, 30030, 30031, 1040002, 1042311, 1402000], jms: [30037], checked: [] }; // buildAvatar 不看 checked（avatarCoverage 用它分出「沒比對過」的）
   const a = buildAvatar(items, msio);
   assert.deepEqual(a.hair, [{ id: 30030, n: "活力冒險造型", g: 0, ic: 30030, t: [0, 1], j: [7] }]);
   assert.deepEqual(a.face, [{ id: 20000, n: "挑戰的臉型", g: 0, ic: 20000, t: [0, 1, 2], j: [] }]);
@@ -130,4 +132,94 @@ test("髮型／臉型範圍邊界：臉 20000～29999、50000～59999；髮 3000
   for (const id of [20000, 29990, 50000, 59990]) assert.ok(isFace(id), `臉 ${id}`);
   for (const id of [30000, 49990, 60000, 69990]) assert.ok(isHair(id), `髮 ${id}`);
   for (const id of [19990, 70000, 79990]) assert.equal(cand(id).size, 0, `不收 ${id}`);
+});
+
+// ---- 畫得出來的比例（avatarCoverage）：只算跟 maplestory.io 比對過的（計畫 Review Focus 5）----
+test("avatarCoverage：裝備看 checked、髮型臉型看 8 色有沒有一個在 checked（臉型是款＋c×100）", () => {
+  const avatar = {
+    items: [{ id: 1040002, r: "t" }, { id: 1042999 }, { id: 1049999 }],
+    hair: [
+      { id: 30030, t: [0], j: [] }, // 比對過、畫得出來
+      { id: 30040, t: [], j: [] }, // 比對過（只有 30047 在 checked）、畫不出來
+      { id: 30050, t: [], j: [] }, // 8 色都沒比對過
+    ],
+    face: [
+      { id: 20000, t: [], j: [2] }, // 比對過、只有日服
+      { id: 20001, t: [], j: [] }, // checked 只有 20301（款＋3×100）→ 比對過、畫不出來
+      { id: 20002, t: [], j: [] }, // checked 只有 20003（那是髮型的算法 款＋3）→ 沒比對過
+    ],
+  };
+  const msio = { checked: [1040002, 1042999, 30030, 30047, 20200, 20301, 20003] };
+  const cov = avatarCoverage(avatar, msio);
+  assert.deepEqual(cov.compared, { items: 2, hair: 2, face: 2, total: 6 });
+  assert.deepEqual(cov.drawable, { items: 1, hair: 1, face: 1, total: 3 });
+  assert.deepEqual(cov.undrawable, { items: 1, hair: 1, face: 1, total: 3 });
+  assert.deepEqual(cov.notCompared, { items: 1, hair: 1, face: 1, total: 3 });
+  assert.equal(cov.ratio, 0.5);
+  // 一件都沒比對過（凍結檔不見）＝0，不是 NaN
+  assert.equal(avatarCoverage(avatar, null).ratio, 0);
+  assert.equal(avatarCoverage(avatar, null).notCompared.total, 9);
+  assert.equal(MIN_DRAWABLE_RATIO, 0.9);
+});
+
+// 下面三個用真資料：public/data/items.json、public/data/avatar.json、data/raw/msio-avatar.json 都進版控，CI 有
+const ROOT = path.resolve(import.meta.dirname, "..", "..");
+const readReal = f => JSON.parse(fs.readFileSync(path.join(ROOT, f), "utf8"));
+const realItems = (() => {
+  const raw = readReal("public/data/items.json");
+  return Array.isArray(raw) ? raw : raw.items;
+})();
+const realMsio = readReal("data/raw/msio-avatar.json");
+/** 舊寫法（v1.40 第一版）：沒比對過的也算進分母——上游一次多幾百件就會掉到九成以下 */
+const oldRatio = a => (a.items.filter(i => i.r).length + a.hair.filter(h => h.t.length + h.j.length > 0).length) / (a.items.length + a.hair.length);
+
+test("上游一次多 500 件沒比對過的新點裝（外加 30 款髮型、30 款臉型）：比例照過，沒比對過的件數算得出來", () => {
+  const taken = new Set([...realItems.map(i => i.id), ...realMsio.checked]);
+  const fresh = [];
+  for (let id = 1040000; fresh.length < 500 && id < 1050000; id++) {
+    if (!taken.has(id)) fresh.push({ id, n: `測試新點裝${fresh.length}`, c: "時裝", s: "上衣", eq: { islot: "Ma" } });
+  }
+  assert.equal(fresh.length, 500);
+  const styleFree = (lo, hi, step, colorId) => {
+    const out = [];
+    for (let s = lo; out.length < 30 && s < hi; s += step) {
+      if ([0, 1, 2, 3, 4, 5, 6, 7].every(c => !taken.has(colorId(s, c)))) out.push({ id: s, n: "測試新造型", c: "時裝", s: "外觀/角色" });
+    }
+    return out;
+  };
+  // 髮型款 id 個位數 0；臉型款 id 百位數 0（每 1000 一段裡 0～99 是款）
+  const newHair = styleFree(49000, 50000, 10, (s, c) => s + c);
+  const newFace = [];
+  for (let base = 29000; newFace.length < 30 && base >= 20000; base -= 1000) {
+    for (let s = base; newFace.length < 30 && s < base + 100; s++) {
+      if ([0, 1, 2, 3, 4, 5, 6, 7].every(c => !taken.has(s + c * 100))) newFace.push({ id: s, n: "測試新臉型", c: "時裝", s: "外觀/角色" });
+    }
+  }
+  assert.equal(newHair.length, 30); assert.equal(newFace.length, 30);
+
+  const avatar = buildAvatar([...realItems, ...fresh, ...newHair, ...newFace], realMsio);
+  const cov = avatarCoverage(avatar, realMsio);
+  assert.ok(cov.ratio >= MIN_DRAWABLE_RATIO, `比例 ${cov.ratio}`);
+  assert.deepEqual(cov.notCompared, { items: 500, hair: 30, face: 30, total: 560 });
+  // 對照：舊寫法這時已經掉到九成以下，每日資料更新會整條卡住
+  assert.ok(oldRatio(avatar) < MIN_DRAWABLE_RATIO, `舊寫法 ${oldRatio(avatar)}`);
+});
+
+test("凍結檔被清空（台服日服都空、checked 照舊全滿）：比例 0，照樣擋下來", () => {
+  const avatar = buildAvatar(realItems, { ...realMsio, twms: [], jms: [] });
+  const cov = avatarCoverage(avatar, { ...realMsio, twms: [], jms: [] });
+  assert.ok(cov.compared.total > 4000, `比對過 ${cov.compared.total}`);
+  assert.equal(cov.drawable.total, 0);
+  assert.equal(cov.notCompared.total, 0);
+  assert.ok(cov.ratio < MIN_DRAWABLE_RATIO);
+});
+
+test("現在的 avatar.json＋凍結檔：比例過門檻，印出還沒比對過幾件", t => {
+  const avatar = readReal("public/data/avatar.json");
+  const cov = avatarCoverage(avatar, realMsio);
+  t.diagnostic(`比對過 ${cov.compared.total}、畫得出來 ${cov.drawable.total}（${(cov.ratio * 100).toFixed(1)}%）；還沒比對過 ${cov.notCompared.total}（裝備 ${cov.notCompared.items}、髮型 ${cov.notCompared.hair}、臉型 ${cov.notCompared.face}）`);
+  assert.ok(cov.ratio >= MIN_DRAWABLE_RATIO, `比例 ${cov.ratio}`);
+  // 每件裝備、每款髮型臉型剛好算一次：不是比對過就是還沒比對過
+  assert.equal(cov.compared.total + cov.notCompared.total, avatar.items.length + avatar.hair.length + avatar.face.length);
+  assert.equal(cov.drawable.total + cov.undrawable.total, cov.compared.total);
 });

@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readJson } from "./lib/http.mjs";
 import { WEAPON_TYPES } from "./lib/gear.mjs";
-import { avatarCandidates, SLOT_KEYS as AVATAR_SLOT_KEYS } from "./lib/avatar.mjs";
+import { avatarCoverage, MIN_DRAWABLE_RATIO as AVATAR_MIN_RATIO, SLOT_KEYS as AVATAR_SLOT_KEYS } from "./lib/avatar.mjs";
 import { HELD_BACK_MAPS, OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
 import { missingFrames } from "./lib/monster-frames.mjs";
 import { NPC_WARPS } from "./lib/npc-warps.mjs";
@@ -273,8 +273,8 @@ function main() {
   check("衝卷模擬白衣成功率是 10 跟 20", JSON.stringify((sim?.white ?? []).map(w => w.rate)) === "[10,20]", JSON.stringify((sim?.white ?? []).map(w => w.rate)));
   check("衝卷模擬可衝裝備數量合理", (sim?.equips?.length ?? 0) >= 1500, `${sim?.equips?.length ?? 0} 件`);
 
-  // 紙娃娃小檔（/plan/avatar，lib/avatar.mjs）：髮型、臉型、膚色、12 類裝備都要有，畫得出來的要占九成以上。
-  // 「沒跟 maplestory.io 比對過」的件數只印出來、不用 check——上游加新點裝時資料自動更新不能因此失敗
+  // 紙娃娃小檔（/plan/avatar，lib/avatar.mjs）：髮型、臉型、膚色、12 類裝備都要有，比對過的裡面畫得出來的要占九成以上。
+  // 「沒跟 maplestory.io 比對過」的不算進比例、只印件數——上游加新點裝時資料自動更新不能因此失敗（計數在 avatarCoverage）
   const avatar = readJson(path.join(OUT, "avatar.json"), null);
   check("紙娃娃小檔存在", Boolean(avatar), avatar ? "" : "缺 public/data/avatar.json（npm run data:gear）");
   check("紙娃娃髮型數量合理", (avatar?.hair?.length ?? 0) >= 400, `${avatar?.hair?.length ?? 0} 款`);
@@ -283,16 +283,18 @@ function main() {
   const avatarSlotCounts = AVATAR_SLOT_KEYS.map(k => [k, (avatar?.items ?? []).filter(i => i.k === k).length]);
   const avatarThin = avatarSlotCounts.filter(([, n]) => n < 20);
   check("紙娃娃 12 類裝備每類至少 20 件", avatarThin.length === 0, avatarThin.length ? avatarThin.map(([k, n]) => `${k} ${n}`).join("、") : avatarSlotCounts.map(([k, n]) => `${k} ${n}`).join("、"));
-  const avatarTotal = (avatar?.items?.length ?? 0) + (avatar?.hair?.length ?? 0);
-  const avatarDrawable = (avatar?.items ?? []).filter(i => i.r).length + (avatar?.hair ?? []).filter(h => h.t.length + h.j.length > 0).length;
-  const avatarRatio = avatarTotal ? avatarDrawable / avatarTotal : 0;
-  check("紙娃娃畫得出來的比例 ≥ 0.9", avatarRatio >= 0.9, `${avatarDrawable}／${avatarTotal}（${(avatarRatio * 100).toFixed(1)}%）`);
+  // 凍結檔進版控，CI 一定有；不見了就當一件都沒比對過，比例是 0、擋下來
   const avatarMsio = readJson(path.resolve(import.meta.dirname, "..", "data", "raw", "msio-avatar.json"), null);
-  if (items && avatarMsio) {
-    const checkedIds = new Set(avatarMsio.checked);
-    const notCompared = avatarCandidates(items).filter(id => !checkedIds.has(id)).length;
-    console.log(`[verify] 紙娃娃 還沒跟 maplestory.io 比對過的 id ${notCompared} 個（只提示，不算失敗）`);
-  }
+  const avatarCov = avatarCoverage(avatar, avatarMsio);
+  check(
+    `紙娃娃比對過的裡面畫得出來的比例 ≥ ${AVATAR_MIN_RATIO}`,
+    avatarCov.ratio >= AVATAR_MIN_RATIO,
+    avatarMsio
+      ? `${avatarCov.drawable.total}／${avatarCov.compared.total}（${(avatarCov.ratio * 100).toFixed(1)}%，裝備＋髮型＋臉型）`
+      : "缺 data/raw/msio-avatar.json（凍結檔，node pipeline/fetch-msio-avatar.mjs）",
+  );
+  const nc = avatarCov.notCompared;
+  notes.push(`  --   紙娃娃還沒跟 maplestory.io 比對過 ${nc.total} 件（裝備 ${nc.items}、髮型 ${nc.hair}、臉型 ${nc.face}；只提示，不算失敗${nc.total ? "，重跑 node pipeline/fetch-msio-avatar.mjs 才畫得出來" : ""}）`);
 
   // 全幸要湊的裝備（kit）：buildKit 對找不到、不收錄、沒來源、卷軸對不上的整件略過並只警告，不會讓建置失敗。
   // 每日資料更新如果因此掉了一件（例如桑那服哪天被標成不收錄），敏捷少了一截，推薦的拳套會悄悄改變，

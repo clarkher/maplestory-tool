@@ -7,7 +7,8 @@
  * 道具則用 r 記從哪個伺服器畫（"t" 台服、"j" 日服），沒有 r＝畫不出來，排在每一類最後。
  *
  * 用法：由 pipeline/build-gear.mjs 呼叫 buildAvatar(items, msio)；
- * 要去 maplestory.io 比對的 id 用 avatarCandidates(items) 取得。測試見 avatar.test.mjs。
+ * 要去 maplestory.io 比對的 id 用 avatarCandidates(items) 取得；
+ * 畫得出來幾件、還沒比對過幾件用 avatarCoverage(avatar, msio)（門檻 MIN_DRAWABLE_RATIO）。測試見 avatar.test.mjs。
  */
 
 /** 12 類道具（輸出的 k）。順序＝輸出時各類的排列順序 */
@@ -70,6 +71,9 @@ export const hairColorOf = id => id % 10;
 /** 臉型：百位數是瞳色，其他是款 */
 export const faceStyleOf = id => id - (Math.floor(id / 100) % 10) * 100;
 export const faceColorOf = id => Math.floor(id / 100) % 10;
+/** 一款的第 c 色（0～7）的 id：髮型 款＋c、臉型 款＋c×100 */
+const hairColorId = (style, c) => style + c;
+const faceColorId = (style, c) => style + c * 100;
 
 /** 「棕色活力冒險造型」→「活力冒險造型」（同一款的各色併成一款時要用） */
 export function stripHairColor(name) {
@@ -106,11 +110,11 @@ export function avatarCandidates(items) {
   const ids = new Set();
   for (const i of styleItems(items, isHairId)) {
     const style = hairStyleOf(i.id);
-    for (let c = 0; c < 8; c++) ids.add(style + c);
+    for (let c = 0; c < 8; c++) ids.add(hairColorId(style, c));
   }
   for (const i of styleItems(items, isFaceId)) {
     const style = faceStyleOf(i.id);
-    for (let c = 0; c < 8; c++) ids.add(style + c * 100);
+    for (let c = 0; c < 8; c++) ids.add(faceColorId(style, c));
   }
   for (const i of wearableItems(items)) ids.add(i.id);
   for (const s of SKINS) ids.add(s.id + 10000);
@@ -142,15 +146,15 @@ function buildStyles(items, inRange, styleOf, colorOf, colorId, nameOf, twms, jm
 
 /**
  * 組出 avatar.json。msio 是 { twms, jms, checked }：台服、日服 maplestory.io 畫得出來的 id 陣列
- * （checked 是比對過的 id，這裡不看，build-gear 用它算「沒比對過」的件數）。
+ * （checked 是比對過的 id，這裡不看，avatarCoverage 用它分出「沒比對過」的）。
  */
 export function buildAvatar(items, msio) {
   const twms = new Set(msio.twms);
   const jms = new Set(msio.jms);
 
   const skin = SKINS.filter(s => twms.has(s.id + 10000)).map(s => ({ id: s.id, n: s.n }));
-  const hair = buildStyles(items, isHairId, hairStyleOf, hairColorOf, (style, c) => style + c, stripHairColor, twms, jms);
-  const face = buildStyles(items, isFaceId, faceStyleOf, faceColorOf, (style, c) => style + c * 100, n => n, twms, jms);
+  const hair = buildStyles(items, isHairId, hairStyleOf, hairColorOf, hairColorId, stripHairColor, twms, jms);
+  const face = buildStyles(items, isFaceId, faceStyleOf, faceColorOf, faceColorId, n => n, twms, jms);
 
   const out = [];
   for (const i of wearableItems(items)) {
@@ -170,4 +174,45 @@ export function buildAvatar(items, msio) {
     || b.id - a.id);
 
   return { src: { t: "TWMS/256", j: "JMS/444" }, skin, hair, face, items: out };
+}
+
+/** 「畫得出來」至少要占比對過的幾成（verify.mjs、src/lib/avatar/__tests__/data.test.ts 共用） */
+export const MIN_DRAWABLE_RATIO = 0.9;
+
+/**
+ * 紙娃娃的件數統計（build-gear 印、verify.mjs 擋、data.test.ts 驗，三處都用這一份）。
+ * 只有跟 maplestory.io 比對過的才算進比例；上游新加、凍結檔還沒比對的另外數，不算畫不出來
+ * （前端照樣列、標「暫時看不到樣子」，資料自動更新不能因為上游一次加很多新點裝就卡住）。
+ *
+ *   裝備：一件＝一個 id。比對過＝id 在 msio.checked 裡；畫得出來＝有 r
+ *   髮型、臉型：一款。比對過＝這款 8 個顏色的 id（髮型 款＋0～7、臉型 款＋0、100…700）至少一個在 checked 裡
+ *     （fetch-msio-avatar 一款 8 色一起比對，實際上不是 8 個都在就是都不在）；畫得出來＝t 或 j 不是空的
+ *   膚色不算（verify 另外要 8 種都在）
+ *   ratio＝比對過裡畫得出來的 ÷ 比對過的（裝備件數＋髮型款數＋臉型款數）；一件都沒比對過算 0（凍結檔壞了要擋）
+ *
+ * avatar 是 buildAvatar 的輸出（public/data/avatar.json）；msio 是凍結檔，只看 checked，傳 null 當作一件都沒比對過。
+ * 回傳四組 { items, hair, face, total }：compared 比對過、drawable 畫得出來、undrawable 比對過但畫不出來、notCompared 還沒比對過。
+ */
+export function avatarCoverage(avatar, msio) {
+  const checked = new Set(msio?.checked ?? []);
+  const bucket = () => ({ items: 0, hair: 0, face: 0, total: 0 });
+  const out = { compared: bucket(), drawable: bucket(), undrawable: bucket(), notCompared: bucket() };
+  const add = (name, k) => {
+    out[name][k] += 1;
+    out[name].total += 1;
+  };
+  const count = (k, wasChecked, ok) => {
+    if (!wasChecked) return add("notCompared", k);
+    add("compared", k);
+    add(ok ? "drawable" : "undrawable", k);
+  };
+  for (const i of avatar?.items ?? []) count("items", checked.has(i.id), Boolean(i.r));
+  for (const [k, colorId] of [["hair", hairColorId], ["face", faceColorId]]) {
+    for (const s of avatar?.[k] ?? []) {
+      let seen = false;
+      for (let c = 0; c < 8 && !seen; c++) seen = checked.has(colorId(s.id, c));
+      count(k, seen, (s.t?.length ?? 0) + (s.j?.length ?? 0) > 0);
+    }
+  }
+  return { ...out, ratio: out.compared.total ? out.drawable.total / out.compared.total : 0 };
 }

@@ -45,7 +45,7 @@ import {
   sortArmor,
 } from "./lib/gear.mjs";
 import { buildScrollSim } from "./lib/scroll-sim.mjs";
-import { avatarCandidates, buildAvatar, SLOT_KEYS } from "./lib/avatar.mjs";
+import { avatarCoverage, buildAvatar, SLOT_KEYS } from "./lib/avatar.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DATA = path.join(ROOT, "public", "data");
@@ -179,13 +179,10 @@ function main() {
     const all = avatar.items.filter(i => i.k === k);
     return `${k} ${all.filter(i => i.r).length}／${all.length}`;
   }).join("、")}`);
-  const styleDrawable = s => s.t.length + s.j.length > 0;
-  const undrawable = avatar.items.filter(i => !i.r).length + avatar.hair.filter(s => !styleDrawable(s)).length + avatar.face.filter(s => !styleDrawable(s)).length;
-  console.log(`[gear] 紙娃娃 畫不出來 ${undrawable} 件（裝備 ${avatar.items.filter(i => !i.r).length}、髮型 ${avatar.hair.filter(s => !styleDrawable(s)).length}、臉型 ${avatar.face.filter(s => !styleDrawable(s)).length}），前端會排在後面並標示`);
-  // 上游加了新道具、凍結檔還沒比對過：只提示，不擋建置（每日資料更新不能因為這個失敗）
-  const checked = new Set(msio.checked);
-  const notCompared = avatarCandidates(items).filter(id => !checked.has(id)).length;
-  console.log(`[gear] 紙娃娃 還沒跟 maplestory.io 比對過的 id ${notCompared} 個${notCompared ? "（新道具，重跑 node pipeline/fetch-msio-avatar.mjs 才畫得出來）" : ""}`);
+  // 件數統計只有 avatarCoverage 一份（verify.mjs、data.test.ts 也用它）；沒比對過的只提示，不擋建置（每日資料更新不能因為這個失敗）
+  const cov = avatarCoverage(avatar, msio);
+  console.log(`[gear] 紙娃娃 比對過 ${cov.compared.total} 件，畫得出來 ${cov.drawable.total}（${(cov.ratio * 100).toFixed(1)}%）；畫不出來 ${cov.undrawable.total}（裝備 ${cov.undrawable.items}、髮型 ${cov.undrawable.hair}、臉型 ${cov.undrawable.face}），挑衣服卡照列、標「暫時看不到樣子」`);
+  console.log(`[gear] 紙娃娃 還沒跟 maplestory.io 比對過 ${cov.notCompared.total} 件（裝備 ${cov.notCompared.items}、髮型 ${cov.notCompared.hair}、臉型 ${cov.notCompared.face}）${cov.notCompared.total ? "：新道具，先標「暫時看不到樣子」，重跑 node pipeline/fetch-msio-avatar.mjs 才畫得出來" : ""}`);
   if (warnings.length) {
     console.log(`[gear] ${warnings.length} 筆警告：`);
     for (const line of warnings) console.log(`  - ${line}`);
