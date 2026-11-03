@@ -384,7 +384,10 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   `.claude/skills/neon/` 是 Neon 官方 agent skill（`skills-lock.json` 記來源與雜湊，`neon skills status`／`neon skills update -y` 檢查更新；裝的時候要 Node 22.20 以上）。
 - **搜尋引擎**：測試機（`APP_ENV` 不是 production）的 `_headers` 整站加 `X-Robots-Tag: noindex`。
 - **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖再網頁。
-  預定接 Cloudflare Workers Builds（連 GitHub，跟 Vercel 一樣誰推的 commit 都會建，資料自動更新用 github.token 推的也算）。
+  **測試機自動部署（v1.36，11/03 接好）**：Cloudflare Workers Builds 連 GitHub，`dev` 有新 commit 就建（跟 Vercel 一樣誰推的都算，資料自動更新用 github.token 推的也會建）。
+  設定在 Cloudflare 後台 `maplehelper-dev` → Settings → Builds：分支 `dev`、Build `npm run build:cf`、Deploy `npm run deploy:cf:dev`、
+  建置變數 `APP_ENV=preview`、`NODE_VERSION=22`；「Builds for Preview branches」關掉（不然 fx-data、price-data 也會建）。
+  wrangler 登入的 token 沒有 Workers Builds 權限，API 改不到這些設定，只能後台改。正式機 `maplehelper` 還沒建、還沒接。
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
 - **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
