@@ -36,12 +36,16 @@ test("髮色前綴拿掉", () => {
 test("名字要有中文、不能有韓文、不能是券", () => {
   assert.equal(keepName("Amdusias Hat"), false); assert.equal(keepName("[TW]7주년 기념 모자"), false);
   assert.equal(keepName("費倫髮型券"), false); assert.equal(keepName("6週年慶星光棒"), true);
+  assert.equal(keepName("券面設計師帽"), true);
 });
-test("雙手武器：islot WpSi，或沒寫 islot 時 140～146 開頭", () => {
+test("雙手武器：islot WpSi，或 140～146 開頭（不管 islot）", () => {
   assert.equal(isTwoHanded({ id: 1402000, eq: { islot: "WpSi" } }), true);
   assert.equal(isTwoHanded({ id: 1702059, eq: { islot: "WpSi" } }), true);
   assert.equal(isTwoHanded({ id: 1302000, eq: { islot: "Wp" } }), false);
   assert.equal(isTwoHanded({ id: 1442000 }), true); assert.equal(isTwoHanded({ id: 1472103 }), false);
+  // 槍、矛（143、144）遊戲裡是雙手，但 items.json 的 islot 寫 Wp，所以前三碼也要看
+  assert.equal(isTwoHanded({ id: 1432000, eq: { islot: "Wp" } }), true);
+  assert.equal(isTwoHanded({ id: 1442000, eq: { islot: "Wp" } }), true);
 });
 test("buildAvatar：髮型併款、瞳色看凍結檔、畫不出來排最後、點裝排前面、性別、膚色", () => {
   const items = [

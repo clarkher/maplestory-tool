@@ -72,15 +72,17 @@ export function stripHairColor(name) {
   return name.replace(HAIR_COLOR_RE, "");
 }
 
-/** 名字要有中文、不能有韓文（韓服殘留）、不能是券 */
+/** 名字要有中文、不能有韓文（韓服殘留）、不能是券（名字結尾是「券」才算，「券面設計師帽」不是） */
 export function keepName(name) {
-  return HAN_RE.test(name) && !HANGUL_RE.test(name) && !name.includes("券");
+  return HAN_RE.test(name) && !HANGUL_RE.test(name) && !name.endsWith("券");
 }
 
-/** 雙手武器：islot 寫 WpSi；沒寫 islot 時看 id 140～146 開頭（雙手劍、斧、棍、槍、矛、弓、弩） */
+/**
+ * 雙手武器：islot 寫 WpSi，或 id 前三碼 140～146（雙手劍、斧、棍、槍、矛、弓、弩），兩個條件任一個成立就算。
+ * 槍、矛（143、144）遊戲裡是雙手、不能配盾牌，但 items.json 的 islot 寫 Wp，所以不能只看 islot。
+ */
 export function isTwoHanded(item) {
-  const islot = item.eq?.islot;
-  if (islot) return islot === "WpSi";
+  if (item.eq?.islot === "WpSi") return true;
   const p = Math.floor(item.id / 10000);
   return p >= 140 && p <= 146;
 }
