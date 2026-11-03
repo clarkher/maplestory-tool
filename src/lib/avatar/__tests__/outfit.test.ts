@@ -7,8 +7,12 @@ import {
   HAIR_COLORS,
   POSES,
   defaultOutfit,
+  eyeColour,
   faceDrawable,
+  faceStyle,
+  hairColour,
   hairDrawable,
+  hairStyle,
   itemIndex,
   outfitQuery,
   parseOutfit,
@@ -86,6 +90,14 @@ describe("畫得出來", () => {
     expect(faceDrawable(data, 20300)).toBe(true); // 3 號瞳色
     expect(faceDrawable(data, 20800)).toBe(false);
     expect(faceDrawable(data, 12345)).toBe(false);
+  });
+  it("hairStyle／faceStyle 回那一款（名字不帶顏色），顏色碼另外拆", () => {
+    expect(hairStyle(data, 30035)?.id).toBe(30030);
+    expect(hairColour(30035)).toBe(5);
+    expect(hairStyle(data, 30038)).toBeUndefined();
+    expect(faceStyle(data, 20300)?.id).toBe(20000);
+    expect(eyeColour(20300)).toBe(3);
+    expect(faceStyle(data, 20800)).toBeUndefined();
   });
   it("只有日服畫得出來的顏色也算", () => {
     const h = data.hair.find((s) => s.t.length === 0 && s.j.length > 0)!;

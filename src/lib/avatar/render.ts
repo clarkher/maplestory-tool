@@ -1,10 +1,15 @@
 /**
  * 紙娃娃的角色圖：把穿搭組成 maplestory.io 的角色圖網址（純函式，不碰 DOM）。
- * 網址 = ${MSIO}/<道具陣列去頭尾中括號再 encodeURIComponent>/<動作>/<第幾格>?resize=&renderMode=0&flipX=
+ * 網址 = ${MSIO}/<道具陣列去頭尾中括號再 encodeURIComponent>/<動作>/<第幾格>?resize=&renderMode=&flipX=
  * 道具陣列 [{ itemId, region, version, animationName? }]：台服 TWMS／256、日服 JMS／444，同一張圖可以混。
  * 膚色放身體 skin 跟頭 skin + 10000 兩件（台服）；表情放臉型那件的 animationName（default 不放）。
+ * renderMode（11/03 實測）：
+ *   0 裁到剛好包住角色（照 resize 放大）：每格裁法不同，舞台逐格置中會左右滑，只拿來下載
+ *   2 腳在左右正中間，上下照樣裁到剛好（忽略 resize，一律 1 倍）：腳底下有東西垂著（槍的穗子）時貼底對齊還是會上下跳
+ *   4 腳在整張圖正中間（左右、上下都是；忽略 resize，一律 1 倍）：舞台把圖的中心對到地面線，每格的腳就固定不動
+ *   （1 是固定 96×96、大道具會被切掉，不用）
  */
-import { itemIndex } from "./outfit";
+import { eyeColour, faceStyle, hairColour, hairStyle, itemIndex } from "./outfit";
 import type { Outfit, PoseKey } from "./outfit";
 import type { AvatarData, AvatarItem, Region, SlotKey } from "./types";
 
@@ -48,13 +53,15 @@ export function stanceFor(pose: PoseKey, weapon: AvatarItem | undefined): string
 
 /** 髮型：個位數是髮色；臉型：百位數是瞳色。這個顏色台服有畫就走台服，沒有就走日服 */
 function styleRegion(data: AvatarData, kind: "hair" | "face", id: number): Region {
-  const colour = kind === "hair" ? id % 10 : Math.floor(id / 100) % 10;
-  const styleId = kind === "hair" ? id - colour : id - colour * 100;
-  const style = data[kind].find((s) => s.id === styleId);
+  const colour = kind === "hair" ? hairColour(id) : eyeColour(id);
+  const style = kind === "hair" ? hairStyle(data, id) : faceStyle(data, id);
   return style && !style.t.includes(colour) && style.j.includes(colour) ? "j" : "t";
 }
 
-export function characterUrl(o: Outfit, data: AvatarData, opts: { frame: number; resize: number }): string {
+export type RenderMode = 0 | 2 | 4;
+
+/** mode 沒寫＝0（裁剛好、照 resize 放大） */
+export function characterUrl(o: Outfit, data: AvatarData, opts: { frame: number; resize: number; mode?: RenderMode }): string {
   const items = itemIndex(data);
   const parts: Part[] = [
     part(o.skin, "t"),
@@ -70,5 +77,5 @@ export function characterUrl(o: Outfit, data: AvatarData, opts: { frame: number;
   }
   const weapon = o.wear.weapon === undefined ? undefined : items.get(o.wear.weapon);
   const list = encodeURIComponent(JSON.stringify(parts).slice(1, -1));
-  return `${MSIO}/${list}/${stanceFor(o.pose, weapon)}/${opts.frame}?resize=${opts.resize}&renderMode=0&flipX=${o.flip}`;
+  return `${MSIO}/${list}/${stanceFor(o.pose, weapon)}/${opts.frame}?resize=${opts.resize}&renderMode=${opts.mode ?? 0}&flipX=${o.flip}`;
 }

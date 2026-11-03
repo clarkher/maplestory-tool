@@ -74,6 +74,15 @@ describe("characterUrl", () => {
     expect(u.endsWith("/alert/2?resize=3&renderMode=0&flipX=true")).toBe(true);
   });
 
+  it("mode 進 renderMode：沒寫是 0，舞台用 4（腳在正中間），2 也帶得出去", () => {
+    const o = { ...defaultOutfit(0), pose: "walk" as const };
+    expect(characterUrl(o, data, { frame: 1, resize: 2 })).toContain("/walk1/1?resize=2&renderMode=0&");
+    expect(characterUrl(o, data, { frame: 1, resize: 1, mode: 4 }).endsWith("/walk1/1?resize=1&renderMode=4&flipX=false")).toBe(true);
+    expect(characterUrl(o, data, { frame: 1, resize: 1, mode: 2 }).endsWith("/walk1/1?resize=1&renderMode=2&flipX=false")).toBe(true);
+    // 換模式只改 renderMode，道具陣列不變
+    expect(partsOf(characterUrl(o, data, { frame: 0, resize: 1, mode: 4 }))).toEqual(partsOf(characterUrl(o, data, { frame: 0, resize: 2 })));
+  });
+
   it("武器影響 stance：拿槍站著用 stand2，走路用 walk2", () => {
     const spear = data.items.find((i) => i.k === "weapon" && i.r && i.g !== 1 && Math.floor(i.id / 10000) === 144)!;
     const sword = data.items.find((i) => i.k === "weapon" && i.r && i.g !== 1 && Math.floor(i.id / 10000) === 140)!;

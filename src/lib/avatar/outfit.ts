@@ -104,18 +104,23 @@ function styleIndex(data: AvatarData) {
   return m;
 }
 
-/** 髮型 id：款式 = 去掉個位數，顏色 = 個位數 */
-function hairStyle(data: AvatarData, id: number): AvatarStyle | undefined {
+/** 髮色碼 = 髮型 id 個位數（HAIR_COLORS 的索引） */
+export const hairColour = (id: number) => id % 10;
+/** 瞳色碼 = 臉型 id 百位數（EYE_COLORS 的索引） */
+export const eyeColour = (id: number) => Math.floor(id / 100) % 10;
+
+/** 髮型 id → 那一款（款式 = 個位數歸零）；這個顏色台服、日服都畫不出來就回 undefined */
+export function hairStyle(data: AvatarData, id: number): AvatarStyle | undefined {
   if (!Number.isInteger(id) || id <= 0) return undefined;
-  const s = styleIndex(data).hair.get(Math.floor(id / 10) * 10);
-  const c = id % 10;
+  const c = hairColour(id);
+  const s = styleIndex(data).hair.get(id - c);
   return s && (s.t.includes(c) || s.j.includes(c)) ? s : undefined;
 }
 
-/** 臉型 id：款式 = 百位數歸零，瞳色 = 百位數 */
-function faceStyle(data: AvatarData, id: number): AvatarStyle | undefined {
+/** 臉型 id → 那一款（款式 = 百位數歸零）；這個瞳色台服、日服都畫不出來就回 undefined */
+export function faceStyle(data: AvatarData, id: number): AvatarStyle | undefined {
   if (!Number.isInteger(id) || id <= 0) return undefined;
-  const c = Math.floor(id / 100) % 10;
+  const c = eyeColour(id);
   const s = styleIndex(data).face.get(id - c * 100);
   return s && (s.t.includes(c) || s.j.includes(c)) ? s : undefined;
 }

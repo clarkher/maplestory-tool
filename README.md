@@ -491,7 +491,7 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `boss_room_create` | 野王計時開房間 | — |
 | `boss_room_join` | 加入房間 | `via`（code 打代碼／link 點連結） |
 | `avatar_download` | 紙娃娃按「下載」 | `gender`（男／女） |
-| `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃分享 | `page`（boss／speed／avatar）、`method`（紙娃娃：share 系統分享／copy 複製連結） |
+| `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃分享 | `page`（boss／speed／avatar）、`method`（野王計時、紙娃娃 copy_link 複製連結；紙娃娃 share 系統分享；練功測速 copy_image／download_image） |
 
 外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。
 
