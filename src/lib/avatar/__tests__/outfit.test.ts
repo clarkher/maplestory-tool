@@ -32,6 +32,10 @@ const CAP_F = data.items.find((i) => i.k === "cap" && i.g === 1 && i.r)!.id;
 const UNISEX_CAP = data.items.find((i) => i.k === "cap" && i.g === 2 && i.r)!.id;
 const FEMALE_OVERALL = data.items.find((i) => i.k === "overall" && i.g === 1 && i.r)!.id;
 const MALE_OVERALL = data.items.find((i) => i.k === "overall" && i.g === 0 && i.r)!.id;
+const MALE_COAT = data.items.find((i) => i.k === "coat" && i.g === 0 && i.r)!.id;
+const UNISEX_COAT = data.items.find((i) => i.k === "coat" && i.g === 2 && i.r)!.id;
+const UNISEX_PANTS = data.items.find((i) => i.k === "pants" && i.g === 2 && i.r)!.id;
+const FEMALE_PANTS = data.items.find((i) => i.k === "pants" && i.g === 1 && i.r)!.id;
 // 男生穿得了、但畫不出來：被擋的原因只會是「畫不出來」
 const UNDRAWABLE = data.items.find((i) => !i.r && i.g !== 1)!.id;
 const TWO_HANDED = data.items.find((i) => i.k === "weapon" && i.h && i.r && i.g !== 1)!.id;
@@ -195,6 +199,24 @@ describe("換性別", () => {
     const m = setGender(o, 0, data);
     expect(m).toEqual({ ...defaultOutfit(0), skin: 2004, pose: "sit", emo: "cry", flip: true });
     expect(setGender(m, 0, data)).toBe(m);
+  });
+  it("哪件穿不了就補哪件預設：男上衣＋共用褲換女生，只換上衣、褲子留著", () => {
+    const o = setGender({ ...defaultOutfit(0), wear: { coat: MALE_COAT, pants: UNISEX_PANTS } }, 1, data);
+    expect(o.wear).toEqual({ coat: 1041002, pants: UNISEX_PANTS });
+  });
+  it("哪件穿不了就補哪件預設：女褲＋共用上衣換男生，只換褲子、上衣留著", () => {
+    const o = setGender({ ...defaultOutfit(1), wear: { coat: UNISEX_COAT, pants: FEMALE_PANTS } }, 0, data);
+    expect(o.wear).toEqual({ coat: UNISEX_COAT, pants: 1060002 });
+  });
+  it("其他穿不了的格子（帽子、鞋子…）不補；上衣褲子都穿得了就原樣", () => {
+    const female = data.items.find((i) => i.k === "shoes" && i.g === 1 && i.r)!.id;
+    const o = setGender({ ...defaultOutfit(1), wear: { coat: UNISEX_COAT, pants: UNISEX_PANTS, cap: CAP_F, shoes: female } }, 0, data);
+    expect(o.wear).toEqual({ coat: UNISEX_COAT, pants: UNISEX_PANTS });
+  });
+  it("套服穿不了就上衣＋褲裙都補；共用套服留著就不補", () => {
+    const unisexOverall = data.items.find((i) => i.k === "overall" && i.g === 2 && i.r)!.id;
+    expect(setGender({ ...defaultOutfit(1), wear: { overall: FEMALE_OVERALL } }, 0, data).wear).toEqual({ coat: 1040002, pants: 1060002 });
+    expect(setGender({ ...defaultOutfit(1), wear: { overall: unisexOverall } }, 0, data).wear).toEqual({ overall: unisexOverall });
   });
   it("男女都能用的髮型、臉型換性別時留著（顏色也留）", () => {
     const hs = data.hair.find((h) => h.g === 2 && h.j.includes(3))!;

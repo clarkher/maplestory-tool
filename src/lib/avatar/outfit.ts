@@ -162,21 +162,29 @@ export function takeOff(o: Outfit, k: SlotKey): Outfit {
 }
 
 /**
- * 換性別：穿不了的脫掉（男女都能穿的留著）；髮型、臉型不合就換新性別預設；
- * 脫完身上沒有套服也沒有上衣、褲裙，就穿新性別預設的上衣、褲裙。
+ * 換性別：穿不了的脫掉（男女都能穿的留著）；髮型、臉型不合就換新性別預設。
+ * 衣服哪件被脫掉就補哪件預設：套服被脫 -> 預設上衣＋褲裙；上衣被脫 -> 預設上衣；褲裙被脫 -> 預設褲裙；
+ * 其他格子（帽子、鞋子、武器…）脫了就空著。補完身上還是沒有套服、上衣、褲裙，就穿預設上衣＋褲裙。
  */
 export function setGender(o: Outfit, g: Gender, data: AvatarData): Outfit {
   if (o.g === g) return o;
   const items = itemIndex(data);
   const wear: Partial<Record<SlotKey, number>> = {};
+  const removed = new Set<SlotKey>();
   for (const k of SLOT_ORDER) {
     const id = o.wear[k];
-    if (id !== undefined && wearable(items.get(id), g)) wear[k] = id;
+    if (id === undefined) continue;
+    if (wearable(items.get(id), g)) wear[k] = id;
+    else removed.add(k);
   }
-  if (!wear.overall && !wear.coat && !wear.pants) {
-    const d = DEFAULTS[g].wear;
-    wear.coat = d.coat;
-    wear.pants = d.pants;
+  const d = DEFAULTS[g].wear;
+  if (!wear.overall) {
+    if (removed.has("overall") || removed.has("coat")) wear.coat = d.coat;
+    if (removed.has("overall") || removed.has("pants")) wear.pants = d.pants;
+    if (!wear.coat && !wear.pants) {
+      wear.coat = d.coat;
+      wear.pants = d.pants;
+    }
   }
   const hair = hairStyle(data, o.hair);
   const face = faceStyle(data, o.face);
