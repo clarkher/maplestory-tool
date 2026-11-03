@@ -35,9 +35,13 @@ const HAIR_COLOR_RE = /^(?:黑色|紅色|橘色|黃色|綠色|藍色|紫色|棕�
 const HAN_RE = /[㐀-鿿]/;
 const HANGUL_RE = /[ᄀ-ᇿ㄰-㆏가-힯]/;
 
-/** 髮型、臉型的 id 範圍（臉 2xxxx、髮 3xxxx～6xxxx） */
-const isFaceId = id => id >= 20000 && id < 30000;
-const isHairId = id => id >= 30000 && id < 70000;
+/**
+ * 髮型、臉型的 id 範圍：臉型 20000～29999 加 50000～59999，髮型 30000～49999 加 60000～69999
+ * （maplestory.io 的 typeInfo：Face 的 lowItemId／highItemId 就是 20000～29999、50000～59999）。
+ * 5 字頭曾被當成髮型，items.json 裡的 5 字頭時裝（50032、51043、54038）全是臉型。
+ */
+const isFaceId = id => (id >= 20000 && id < 30000) || (id >= 50000 && id < 60000);
+const isHairId = id => (id >= 30000 && id < 50000) || (id >= 60000 && id < 70000);
 
 /** 這個 id 是哪一類裝備；不是 12 類之一（戒指、墜飾、技能效果…）回 null */
 export function avatarSlot(id) {

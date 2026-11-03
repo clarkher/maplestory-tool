@@ -74,3 +74,60 @@ test("候選 id：髮型每款 0～7 色、臉型每款 0～7 瞳色、12 類道
   for (const id of [30030, 30031, 30037, 20000, 20100, 20700, 1040002, 12000, 12011]) assert.ok(ids.includes(id), String(id));
   assert.equal(ids.includes(20800), false); assert.equal(ids.includes(30038), false);
 });
+
+// ---- 5 字頭臉型（11/03 修：臉型是 20000～29999 加 50000～59999，髮型是 30000～49999 加 60000～69999）----
+// items.json 的 5 字頭時裝只有這三款，全是臉型：燦爛耀眼臉型 50032、穩重臉型 51043、明亮大眼臉型 54038。
+const FACE5 = [
+  { id: 50032, n: "燦爛耀眼臉型", c: "時裝", s: "外觀/角色" },
+  { id: 51043, n: "穩重臉型", c: "時裝", s: "外觀/角色" },
+  { id: 54038, n: "明亮大眼臉型", c: "時裝", s: "外觀/角色" },
+];
+test("5 字頭臉型：拆款（款＝id 扣掉百位數×100）、瞳色＝百位數", () => {
+  for (const [style, color, id] of [[50032, 0, 50032], [50032, 1, 50132], [50032, 7, 50732], [51043, 3, 51343], [54038, 0, 54038], [54038, 7, 54738]]) {
+    assert.equal(faceStyleOf(id), style, String(id)); assert.equal(faceColorOf(id), color, String(id));
+  }
+});
+test("5 字頭臉型的性別照千位數：50 男、51 女、52 不分、53 男、54 女、55 男、56 男（對過 maplestory.io 臉型清單的 requiredGender）", () => {
+  assert.equal(avatarGender(50032), 0); assert.equal(avatarGender(51043), 1); assert.equal(avatarGender(54038), 1);
+  for (const id of [50000, 50999, 53023, 55000, 56055]) assert.equal(avatarGender(id), 0, String(id));
+  for (const id of [51000, 51097, 54000, 54099]) assert.equal(avatarGender(id), 1, String(id));
+  assert.equal(avatarGender(52000), 2);
+});
+test("buildAvatar：5 字頭的三款是臉型，不在髮型裡；4 字頭、6 字頭仍是髮型", () => {
+  const items = [
+    ...FACE5,
+    { id: 20000, n: "挑戰的臉型", c: "時裝", s: "外觀/角色" },
+    { id: 30030, n: "黑色活力冒險造型", c: "時裝", s: "外觀/角色" },
+    { id: 41007, n: "棕色可愛年下髮型", c: "時裝", s: "外觀/角色" },
+    { id: 61050, n: "黑色夢幻長髮", c: "時裝", s: "外觀/角色" },
+  ];
+  const msio = { twms: [20000, 30030, 41000, 61050, 50032, 50132, 51043], jms: [54138], checked: [] };
+  const a = buildAvatar(items, msio);
+  // 髮型：沒有任何 5 字頭；4、6 字頭還在（畫得出來的在前，同組 id 大的在前）
+  assert.deepEqual(a.hair.map(h => h.id), [61050, 41000, 30030]);
+  assert.equal(a.hair.some(h => h.id >= 50000 && h.id < 60000), false);
+  assert.deepEqual(a.hair.find(h => h.id === 41000), { id: 41000, n: "可愛年下髮型", g: 1, ic: 41007, t: [0], j: [] });
+  assert.deepEqual(a.hair.find(h => h.id === 61050), { id: 61050, n: "夢幻長髮", g: 1, ic: 61050, t: [0], j: [] });
+  // 臉型：三款都在，款 id＝50032、51043、54038；台服畫得出來的瞳色／只有日服畫得出來的瞳色
+  assert.deepEqual(a.face.map(f => f.id), [54038, 51043, 50032, 20000]);
+  assert.deepEqual(a.face.find(f => f.id === 50032), { id: 50032, n: "燦爛耀眼臉型", g: 0, ic: 50032, t: [0, 1], j: [] });
+  assert.deepEqual(a.face.find(f => f.id === 51043), { id: 51043, n: "穩重臉型", g: 1, ic: 51043, t: [0], j: [] });
+  assert.deepEqual(a.face.find(f => f.id === 54038), { id: 54038, n: "明亮大眼臉型", g: 1, ic: 54038, t: [], j: [1] });
+});
+test("候選 id：5 字頭臉型走 0～7 瞳色（款＋c×100），不走髮色（款＋c）；4、6 字頭仍走髮色", () => {
+  const ids = avatarCandidates([...FACE5, { id: 41007, n: "棕色可愛年下髮型", c: "時裝", s: "外觀/角色" }, { id: 61050, n: "黑色夢幻長髮", c: "時裝", s: "外觀/角色" }]);
+  for (const id of [50032, 50132, 50732, 51043, 51143, 51743, 54038, 54138, 54738, 41000, 41007, 61050, 61057]) assert.ok(ids.includes(id), String(id));
+  // 把 5 字頭當髮型才會有的候選（款 50030、51040、54030 加 0～7）
+  for (const id of [50030, 50031, 50033, 50037, 51040, 51041, 51047, 54030, 54031, 54037]) assert.equal(ids.includes(id), false, String(id));
+  // 4、6 字頭不會被當臉型
+  for (const id of [41100, 41700, 61150, 61750]) assert.equal(ids.includes(id), false, String(id));
+});
+test("髮型／臉型範圍邊界：臉 20000～29999、50000～59999；髮 30000～49999、60000～69999；其他不收", () => {
+  // 候選裡一定有 8 個膚色的頭（12000～12011），所以只看 20000～99999（髮型、臉型的範圍）
+  const cand = id => new Set(avatarCandidates([{ id, n: "測試造型", c: "時裝", s: "外觀/角色" }]).filter(x => x >= 20000 && x < 100000));
+  const isFace = id => cand(id).has(faceStyleOf(id) + 100) && !cand(id).has(hairStyleOf(id) + 1);
+  const isHair = id => cand(id).has(hairStyleOf(id) + 1) && !cand(id).has(faceStyleOf(id) + 100);
+  for (const id of [20000, 29990, 50000, 59990]) assert.ok(isFace(id), `臉 ${id}`);
+  for (const id of [30000, 49990, 60000, 69990]) assert.ok(isHair(id), `髮 ${id}`);
+  for (const id of [19990, 70000, 79990]) assert.equal(cand(id).size, 0, `不收 ${id}`);
+});
