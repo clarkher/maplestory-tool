@@ -7,13 +7,14 @@
  * - 分頁、搜尋字、看到第幾個都不進網址（重新整理回到髮型）；換分頁清掉搜尋、回到 40 個，改搜尋字回到 40 個
  * - 驗收腳本認 data-tab（分頁）、data-colour（色塊）、data-cell／data-name／data-missing（格子），不認樣式 class
  * - 點格子＝算出下一套交給 onChange；畫不出來的不穿，跳 MISSING；點穿著的裝備＝脫掉（髮型、臉型、膚色不能脫）
+ * - 穿上一件時規則順手脫掉別格（removedSlots 比前後），跳「{類別}跟這件不能一起穿，先脫下來了」
  *
  *   <Picker ref={pickerRef} data={data} outfit={outfit} tab={tab} onTab={setTab} onChange={commit} toast={showToast} />
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon } from "@/components/Icons";
 import { SearchClear, searchKeys } from "@/components/SearchClear";
-import { EYE_COLORS, HAIR_COLORS, eyeColour, faceStyle, hairColour, hairStyle, takeOff, wearItem } from "@/lib/avatar/outfit";
+import { EYE_COLORS, HAIR_COLORS, eyeColour, faceStyle, hairColour, hairStyle, removedSlots, takeOff, wearItem } from "@/lib/avatar/outfit";
 import type { Outfit } from "@/lib/avatar/outfit";
 import type { AvatarData, AvatarItem, AvatarSkin, AvatarStyle, Gender, SlotKey } from "@/lib/avatar/types";
 import { itemImage } from "@/lib/data";
@@ -32,8 +33,13 @@ type Entry =
   | { kind: "skin"; skin: AvatarSkin }
   | { kind: "item"; item: AvatarItem };
 
-/** 一格要畫的樣子；next 是點了之後的下一套（null＝不換） */
-type Cell = { key: string; name: string; icon: number; fallback?: number; on: boolean; ok: boolean; next: () => Outfit | null };
+/** 一格要畫的樣子；next 是點了之後的下一套（null＝不換）；slot 是裝備那一格（髮型、臉型、膚色沒有） */
+type Cell = { key: string; name: string; icon: number; fallback?: number; on: boolean; ok: boolean; slot?: SlotKey; next: () => Outfit | null };
+
+/** 「上衣、褲裙跟這件不能一起穿，先脫下來了」：類別名用 SLOTS 的，「、」接 */
+function takenOffText(slots: SlotKey[]): string {
+  return `${slots.map((k) => SLOTS.find((s) => s.k === k)?.label ?? k).join("、")}跟這件不能一起穿，先脫下來了`;
+}
 
 /** 這款有哪些顏色碼（台服＋日服，小到大）；空的＝畫不出來 */
 const coloursOf = (s: AvatarStyle) => [...new Set([...s.t, ...s.j])].sort((a, b) => a - b);
@@ -87,7 +93,7 @@ function toCell(e: Entry, o: Outfit, data: AvatarData): Cell {
     case "item": {
       const it = e.item;
       const on = o.wear[it.k] === it.id;
-      return { key: String(it.id), name: it.n, icon: it.id, on, ok: !!it.r, next: () => (on ? takeOff(o, it.k) : wearItem(o, it, data)) };
+      return { key: String(it.id), name: it.n, icon: it.id, on, ok: !!it.r, slot: it.k, next: () => (on ? takeOff(o, it.k) : wearItem(o, it, data)) };
     }
   }
 }
@@ -143,7 +149,11 @@ export function Picker({
   const pick = (cell: Cell) => {
     if (!cell.ok) return toast(MISSING);
     const next = cell.next();
-    if (next) onChange(next);
+    if (!next) return;
+    onChange(next);
+    // 規則順手脫掉別格（套服↔上衣褲裙、雙手武器↔盾牌）就說一聲；只有這裡點格子會跳，隨機、換性別、重置不跳
+    const gone = cell.slot ? removedSlots(outfit.wear, next.wear, cell.slot) : [];
+    if (gone.length > 0) toast(takenOffText(gone));
   };
 
   const hair = tab === "hair" ? hairStyle(data, outfit.hair) : undefined;

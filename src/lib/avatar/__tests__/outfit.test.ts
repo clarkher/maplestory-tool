@@ -16,11 +16,16 @@ import {
   itemIndex,
   outfitQuery,
   parseOutfit,
+  removedSlots,
   setGender,
   takeOff,
   wearItem,
 } from "@/lib/avatar/outfit";
+import type { Outfit } from "@/lib/avatar/outfit";
+import { avatarLink } from "@/lib/avatar/linkable";
+import { randomOutfit } from "@/lib/avatar/random";
 import type { AvatarData, AvatarItem } from "@/lib/avatar/types";
+import type { Item } from "@/lib/types";
 
 const data = JSON.parse(readFileSync(join(process.cwd(), "public/data/avatar.json"), "utf8")) as AvatarData;
 const index = itemIndex(data);
@@ -200,6 +205,29 @@ describe("穿脫", () => {
   });
 });
 
+describe("規則順手脫掉了哪幾格（removedSlots，挑衣服卡的提示用）", () => {
+  const changed = (o: Outfit, id: number) => removedSlots(o.wear, wearItem(o, byId(id), data).wear, byId(id).k);
+  it("穿盾牌脫雙手武器、穿雙手武器脫盾牌、穿套服脫上衣褲裙、穿上衣或褲裙脫套服", () => {
+    const base = defaultOutfit(0);
+    expect(changed(wearItem(base, byId(TWO_HANDED), data), 1092000)).toEqual(["weapon"]);
+    expect(changed(wearItem(base, byId(1092000), data), TWO_HANDED)).toEqual(["shield"]);
+    expect(changed(base, MALE_OVERALL)).toEqual(["coat", "pants"]); // 順序照網址 w：上衣在褲裙前
+    const inOverall = wearItem(base, byId(MALE_OVERALL), data);
+    expect(changed(inOverall, MALE_COAT)).toEqual(["overall"]);
+    expect(changed(inOverall, UNISEX_PANTS)).toEqual(["overall"]);
+  });
+  it("同一格換件、穿到空格、單手武器配盾牌、脫下自己那格：沒有別格被脫", () => {
+    const base = defaultOutfit(0);
+    expect(changed(base, UNISEX_COAT)).toEqual([]);
+    expect(changed(base, UNISEX_CAP)).toEqual([]);
+    const one = data.items.find((i) => i.k === "weapon" && !i.h && i.r && i.g !== 1)!;
+    expect(changed(wearItem(base, byId(1092000), data), one.id)).toEqual([]);
+    expect(removedSlots(base.wear, takeOff(base, "coat").wear, "coat")).toEqual([]);
+    // 穿套服時身上本來就沒有上衣褲裙：沒東西被脫
+    expect(changed({ ...base, wear: {} }, MALE_OVERALL)).toEqual([]);
+  });
+});
+
 describe("換性別", () => {
   it("穿不了的換掉、男女都能穿的留著、身上沒衣服就穿新性別預設上衣褲裙", () => {
     const o = setGender({ ...defaultOutfit(0), wear: { overall: MALE_OVERALL, cap: UNISEX_CAP } }, 1, data);
@@ -235,5 +263,86 @@ describe("換性別", () => {
     expect(setGender({ ...defaultOutfit(0), hair: hs.id + 3 }, 1, data).hair).toBe(hs.id + 3);
     const fs = data.face.find((f) => f.g === 2 && f.j.includes(2))!;
     expect(setGender({ ...defaultOutfit(0), face: fs.id + 200 }, 1, data).face).toBe(fs.id + 200);
+  });
+});
+
+describe("網址往返、try 正式化、惡意參數（整條分支審查的探針收進來）", () => {
+  /** 固定種子的亂數（mulberry32，同 random.test.ts）：每次跑出來都一樣 */
+  function mulberry32(seed: number): () => number {
+    let a = seed >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const parse = (q: string) => parseOutfit(new URLSearchParams(q), data);
+  /** 解出來的東西寫回網址再解一次要一模一樣（網址是穩定的） */
+  const canonical = (o: Outfit) => expect(parse(outfitQuery(o)), outfitQuery(o)).toEqual(o);
+
+  it("隨機穿搭 × 6 動作 × 8 表情 × 翻面 × 男女（各 2 套，共 384 套）：outfitQuery → parseOutfit 原樣回來", () => {
+    const rng = mulberry32(20261103);
+    let n = 0;
+    for (const g of [0, 1] as const)
+      for (const p of POSES)
+        for (const e of EMOS)
+          for (const flip of [false, true])
+            for (let k = 0; k < 2; k++) {
+              const o = randomOutfit(data, { ...defaultOutfit(g), pose: p.key, emo: e.key, flip }, rng);
+              expect(o).toMatchObject({ g, pose: p.key, emo: e.key, flip });
+              canonical(o);
+              n += 1;
+            }
+    expect(n).toBe(384);
+  });
+
+  it("每個有「穿上看看」的 id，g=0、g=1 各一次：try= 解出來的寫回網址（不帶 try）再解一次一模一樣", () => {
+    const raw = JSON.parse(readFileSync(join(process.cwd(), "public/data/items.json"), "utf8"));
+    const items: Item[] = Array.isArray(raw) ? raw : raw.items;
+    const linked = items.filter((i) => avatarLink(i, data));
+    expect(linked.length).toBeGreaterThan(1000);
+    for (const it of linked)
+      for (const g of [0, 1]) {
+        const o = parse(`g=${g}&try=${it.id}`);
+        const q = outfitQuery(o);
+        expect(q).not.toContain("try");
+        expect(parse(q), `${it.n}（${it.id}）g=${g}`).toEqual(o);
+      }
+  });
+
+  it("惡意參數不丟錯、壞的那項退回預設，結果一樣能穩定寫回網址", () => {
+    const d0 = defaultOutfit(0);
+    const huge = "9".repeat(400); // Number() 變 Infinity
+    const cases: [string, Outfit][] = [
+      ["h=1e5&f=2e4&s=2.001e3", d0], // 科學記號、小數點都不是純數字
+      ["h=0x7531&f=-20000&s=+2001", d0],
+      ["h=３００３１", d0], // 全形數字
+      [`h=${huge}&f=${huge}&s=${huge}&try=${huge}`, d0],
+      [`h=${Number.MAX_SAFE_INTEGER + 2}&w=${Number.MAX_SAFE_INTEGER + 2}`, { ...d0, wear: {} }],
+      ["p=__proto__&e=constructor", d0],
+      ["p=toString&e=hasOwnProperty&x=true", d0],
+      ["w=__proto__.constructor.prototype", { ...d0, wear: {} }],
+      ["w=" + Array.from({ length: 5000 }, (_, i) => (i % 3 === 0 ? "x" : i % 3 === 1 ? huge : "")).join("."), { ...d0, wear: {} }],
+      ["w=" + Array(5000).fill("1040002").join("."), { ...d0, wear: { coat: 1040002 } }],
+      // 5000 段套服、上衣輪流穿：後穿的蓋掉前面的，最後一段是上衣
+      ["w=" + Array.from({ length: 5000 }, (_, i) => (i % 2 ? 1040002 : MALE_OVERALL)).join("."), { ...d0, wear: { coat: 1040002 } }],
+      // 前面補 0：照數字認，寫回網址就沒有 0 了
+      [`h=0${RED_HAIR_M}&s=02001&w=01040002.001060002`, { ...d0, hair: RED_HAIR_M, skin: 2001 }],
+      ["g=01&x=01", d0], // g、x 只認剛好是 1
+      // 同一個參數寫兩次：照 URLSearchParams.get，認第一個
+      [`p=walk&p=sit&h=${RED_HAIR_M}&h=99999`, { ...d0, pose: "walk", hair: RED_HAIR_M }],
+      ["w=1040002&w=", { ...d0, wear: { coat: 1040002 } }],
+      ["g=1&g=0", defaultOutfit(1)],
+      [`try=${MALE_OVERALL}&try=${UNISEX_CAP}`, { ...d0, wear: { overall: MALE_OVERALL } }],
+    ];
+    for (const [q, want] of cases) {
+      let o: Outfit | undefined;
+      expect(() => (o = parse(q)), q.slice(0, 80)).not.toThrow();
+      expect(o, q.slice(0, 80)).toEqual(want);
+      canonical(o!);
+    }
+    expect(outfitQuery(parse(`h=0${RED_HAIR_M}`))).toBe(`h=${RED_HAIR_M}`);
   });
 });

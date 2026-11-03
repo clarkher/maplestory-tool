@@ -15,6 +15,22 @@ import { LOAD_ERROR, LOAD_TIMEOUT_MS } from "./Stage";
 
 const TOAST_MS = 2_000;
 
+/**
+ * 逾時就中斷的 signal。AbortSignal.timeout 舊 iPhone（Safari 15 以前）沒有，沒有就退回 AbortController＋setTimeout；
+ * 用完一定要呼叫 done() 收掉計時器（AbortSignal.timeout 那條不用收，done 什麼都不做）
+ */
+function timeoutSignal(ms: number): { signal: AbortSignal; done: () => void } {
+  if (typeof AbortSignal.timeout === "function") return { signal: AbortSignal.timeout(ms), done: () => {} };
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return { signal: ctrl.signal, done: () => clearTimeout(timer) };
+}
+
+/** 手指操作的裝置（手機、平板）才跳系統分享；電腦一律複製連結（跟練功測速一樣看 pointer: coarse） */
+function touchDevice(): boolean {
+  return typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+}
+
 export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null) {
   const [toast, setToast] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
@@ -40,12 +56,14 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     if (!outfit || !data || busy.current) return;
     busy.current = true;
     setDownloading(true);
+    // 逾時算到圖整張讀完（blob），所以計時器在 finally 才收
+    const timeout = timeoutSignal(LOAD_TIMEOUT_MS);
     try {
       // 不能拿快取：舞台的 <img> 載過的圖是沒帶 Origin 要的，maplestory.io 只在有 Origin 時才回
       // access-control-allow-origin（也沒寫 Vary: Origin），直接吃快取會被當跨網域擋掉（11/03 實測）
       const res = await fetch(characterUrl(outfit, data, { frame: 0, resize: 2 }), {
         cache: "reload",
-        signal: AbortSignal.timeout(LOAD_TIMEOUT_MS),
+        signal: timeout.signal,
       });
       if (!res.ok) throw new Error(LOAD_ERROR);
       const url = URL.createObjectURL(await res.blob());
@@ -61,15 +79,16 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     } catch {
       showToast(LOAD_ERROR);
     } finally {
+      timeout.done();
       busy.current = false;
       setDownloading(false);
     }
   }, [outfit, data, showToast]);
 
-  /** 有系統分享就用它（使用者自己關掉不算錯），沒有就複製網址 */
+  /** 手機、平板有系統分享就用它（使用者自己關掉不算錯）；電腦、或沒有系統分享就複製網址 */
   const share = useCallback(async () => {
     const url = location.href;
-    if (typeof navigator.share === "function") {
+    if (touchDevice() && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: "紙娃娃", url });
         track("share", { page: "avatar", method: "share" });

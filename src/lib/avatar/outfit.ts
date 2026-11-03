@@ -160,6 +160,14 @@ export function wearItem(o: Outfit, item: AvatarItem, data: AvatarData): Outfit 
   return { ...o, wear };
 }
 
+/**
+ * 穿上 wornSlot 那一格之後，規則順手脫掉了哪幾格（before 有、after 沒有；wornSlot 自己換件不算），照網址 w 的固定順序。
+ * 挑衣服卡拿來跳「上衣、褲裙跟這件不能一起穿，先脫下來了」；不管是哪條互斥規則，比前後就知道。
+ */
+export function removedSlots(before: Outfit["wear"], after: Outfit["wear"], wornSlot: SlotKey): SlotKey[] {
+  return SLOT_ORDER.filter((k) => k !== wornSlot && before[k] !== undefined && after[k] === undefined);
+}
+
 export function takeOff(o: Outfit, k: SlotKey): Outfit {
   const wear = { ...o.wear };
   delete wear[k];
