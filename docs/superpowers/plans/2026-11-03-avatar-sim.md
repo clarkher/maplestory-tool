@@ -478,7 +478,7 @@ git commit -m "v1.40: 紙娃娃隨機穿搭、maplestory.io 角色圖網址"
 
 ```ts
 it("點裝畫得出來才有、一般裝備沒有", () => {
-  expect(avatarLink({ id: 1042311, c: "時裝" }, data)).toBe("/plan/avatar?try=1042311");
+  expect(avatarLink({ id: 1042029, c: "時裝" }, data)).toBe("/plan/avatar?try=1042029"); // 三眼章魚T恤：台服畫得出來、男女都能穿
   expect(avatarLink({ id: 1040002, c: "裝備" }, data)).toBeNull();
   expect(avatarLink({ id: UNDRAWABLE_CASH, c: "時裝" }, data)).toBeNull(); // UNDRAWABLE_CASH = data.items.find((i) => i.cash && !i.r)!.id
   expect(avatarLink({ id: 30030, c: "時裝" }, data)).toBe("/plan/avatar?try=30030");
@@ -585,7 +585,7 @@ git commit -m "v1.40: 紙娃娃頁面：角色卡、隨機穿搭、下載、分�
 4. 按「隨機穿搭」3 次：每次網址都變、舞台圖載好。
 5. 切「女」：網址有 `g=1`、髮型分頁第一格是女生髮型（用 avatar.json 對）。
 6. 開 `/plan/avatar?try=<一件畫不出來的點裝>`：頁面正常、穿的是預設；在那一類分頁看到「暫時看不到樣子」→ 截 `avatar-missing.png`。
-7. 開 `/db/items?id=1042311`：看到「穿上看看」，點下去到 `/plan/avatar?try=1042311`，穿了什麼裡有「糖果T恤」→ 截 `avatar-from-db.png`。
+7. 開 `/db/items?id=1042029`：看到「穿上看看」，點下去到 `/plan/avatar?try=1042029`，穿了什麼裡有「三眼章魚T恤」→ 截 `avatar-from-db.png`。
 8. 用 `Fetch.enable` 把 `maplestory.io` 的請求全回 503，重開頁：看到「角色圖載不出來，等一下再過來」跟「再試一次」→ 截 `avatar-error.png`。
 9. 1280 寬：左右排、沒有小窗 → 截 `avatar-1280.png`；深色主題（`data-theme="dark"`）再截一張。
 10. 頁面沒有 console error、沒有例外。
