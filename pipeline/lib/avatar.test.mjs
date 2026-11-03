@@ -197,10 +197,12 @@ test("上游一次多 500 件沒比對過的新點裝（外加 30 款髮型、30
   }
   assert.equal(newHair.length, 30); assert.equal(newFace.length, 30);
 
+  // 基準＝現在的 items.json 本來就有幾件沒比對過（每日更新加了新點裝就不是 0，不能寫死）
+  const base = avatarCoverage(buildAvatar(realItems, realMsio), realMsio).notCompared;
   const avatar = buildAvatar([...realItems, ...fresh, ...newHair, ...newFace], realMsio);
   const cov = avatarCoverage(avatar, realMsio);
   assert.ok(cov.ratio >= MIN_DRAWABLE_RATIO, `比例 ${cov.ratio}`);
-  assert.deepEqual(cov.notCompared, { items: 500, hair: 30, face: 30, total: 560 });
+  assert.deepEqual(cov.notCompared, { items: base.items + 500, hair: base.hair + 30, face: base.face + 30, total: base.total + 560 });
   // 對照：舊寫法這時已經掉到九成以下，每日資料更新會整條卡住
   assert.ok(oldRatio(avatar) < MIN_DRAWABLE_RATIO, `舊寫法 ${oldRatio(avatar)}`);
 });
@@ -210,7 +212,6 @@ test("凍結檔被清空（台服日服都空、checked 照舊全滿）：比例
   const cov = avatarCoverage(avatar, { ...realMsio, twms: [], jms: [] });
   assert.ok(cov.compared.total > 4000, `比對過 ${cov.compared.total}`);
   assert.equal(cov.drawable.total, 0);
-  assert.equal(cov.notCompared.total, 0);
   assert.ok(cov.ratio < MIN_DRAWABLE_RATIO);
 });
 
