@@ -37,6 +37,8 @@
   ],
   "exclude": [
     "node_modules",
-    "pipeline"
+    "pipeline",
+    "cf",
+    ".cf-stash"
   ]
 }

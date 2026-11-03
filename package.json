@@ -19,7 +19,10 @@
     "data:gear": "node pipeline/build-gear.mjs",
     "verify:db": "node scripts/verify-db.mjs",
     "speed:glyphs": "vitest run -c vitest.gen.config.ts",
-    "data:renders": "node pipeline/build-map-renders.mjs"
+    "data:renders": "node pipeline/build-map-renders.mjs",
+    "build:cf": "node scripts/cf/build.mjs",
+    "deploy:cf": "node scripts/cf/deploy.mjs",
+    "deploy:cf:dev": "node scripts/cf/deploy.mjs --env dev"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.2.0",
@@ -37,6 +40,7 @@
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "wrangler": "4.156.1"
   }
 }

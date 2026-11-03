@@ -362,6 +362,45 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
 所以資料 commit 進 `main` 之後不需要另外下指令。
 注意別在本機用還沒 `git pull` 的工作樹跑 `vercel deploy --prod`，那會把新的部署蓋回舊資料。
 
+## 搬到 Cloudflare（v1.33，進行中）
+
+Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改放 Cloudflare 免費方案（11/02 使用者拍板方案 A：整站靜態）。
+**正式機切過去之前，Vercel 照舊在跑**——下面這套跟 Vercel 並存，`next build` 的行為沒變。
+
+- **整站靜態輸出**：`npm run build:cf`（`scripts/cf/build.mjs`）設 `CF_STATIC=1` 跑 `next build`，輸出到 `out/`。
+  `src/app/api` 建置時暫時搬到 `.cf-stash/`（靜態輸出收不了 API），建完一定搬回；型別檢查這時跳過，交給 PR 的「建置」。
+  快取規則在 `cache-headers.mjs`（Vercel 的 `headers()` 跟 Cloudflare 的 `out/_headers` 共用一份）。
+- **API**：`cf/worker.ts` 直接 import `src/app/api` 的 route handler（同一份程式），只有 `/api/*`、`/assets/items/*` 會跑進 Worker，
+  其他全是靜態檔（不算 Worker 請求次數）。網路位址從 `cf-connecting-ip` 換成 handler 讀的 `x-forwarded-for`。
+- **道具圖拆出去**：免費方案一個 Worker 版本最多 20,000 檔，道具圖約 1.7 萬張放另一個只有靜態檔的 Worker（`cf/items.wrangler.jsonc`，
+  檔案在 `.cf-items/`），網址不變。測試機經 service binding 轉；正式網域要加路由 `maplehelper.tw/assets/items/*` 直接打那個 Worker
+  （路由的 Worker 比自訂網域先跑），不然每張圖都算一次 Worker 請求（免費一天 10 萬次）。11/02 量到 `out/` 15,743 檔，超過 19,500 建置會失敗。
+- **環境**：`wrangler.jsonc` 預設是正式機 `maplehelper`（`APP_ENV=production`），`--env dev` 是測試機 `maplehelper-dev`（`APP_ENV=preview`）。
+  `speedEnv()` 先看 `APP_ENV` 再看 `VERCEL_ENV`，練功測速／野王的資料照環境分開；`NEXT_PUBLIC_VERCEL_ENV` 也改從 `APP_ENV` 來（名字先沿用）。
+- **秘密**：`DATABASE_URL`、`SPEED_SALT`，用 `npx wrangler secret put <名稱> [--env dev]` 設，不進版控。
+  資料庫 11/03 使用者拍板**重建、舊的（Vercel 整合的 Neon）捨棄**：新 Neon 專案 `cold-river-55616355`（新加坡 `aws-ap-southeast-1`，`npx neon claim create` 建的，
+  11/03 已認領進使用者的 Neon 帳號）。測試機用 `main` 分支、正式機用 `production` 分支（v1.38 開的，各自一份資料，測試機寫壞也碰不到正式機）；
+  表第一次呼叫 API 自動建，`env` 欄位照舊分環境。連線字串用 `npx neon@latest connection-string <分支> --project-id cold-river-55616355 --pooled` 抓，直接 pipe 進 `wrangler secret put`、不印。
+  正式機的 `SPEED_SALT` 是新產的（舊資料捨棄，不用跟 Vercel 那把一樣）。
+- **Claude Code 的 Neon 工具**（v1.35）：`.mcp.json` 接 Neon MCP（`https://mcp.neon.tech/mcp`，OAuth，第一次用時跳 Neon 登入，檔案裡沒有金鑰）；
+  `.claude/skills/neon/` 是 Neon 官方 agent skill（`skills-lock.json` 記來源與雜湊，`neon skills status`／`neon skills update -y` 檢查更新；裝的時候要 Node 22.20 以上）。
+- **搜尋引擎**：測試機（`APP_ENV` 不是 production）的 `_headers` 整站加 `X-Robots-Tag: noindex`。
+- **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖再網頁。
+  **測試機自動部署（v1.36，11/03 接好）**：Cloudflare Workers Builds 連 GitHub，`dev` 有新 commit 就建（跟 Vercel 一樣誰推的都算，資料自動更新用 github.token 推的也會建）。
+  設定在 Cloudflare 後台 `maplehelper-dev` → Settings → Builds：分支 `dev`、Build `npm run build:cf`、Deploy `npm run deploy:cf:dev`、
+  建置變數 `APP_ENV=preview`、`NODE_VERSION=22`；「Builds for Preview branches」關掉（不然 fx-data、price-data 也會建）。
+  **坑（v1.37）**：Workers Builds 會用 `WRANGLER_CI_*` 環境變數把建置裡每次 `wrangler deploy` 的名字都改成 `maplehelper-dev`，
+  道具圖那次被當成整個測試機部署、秘密跟著消失（11/03 第一次自動部署）。`scripts/cf/deploy.mjs` 部署道具圖時拿掉這些變數；
+  部署完 `npx wrangler secret list --env dev` 要看得到 `DATABASE_URL`、`SPEED_SALT`。建置約 10 分鐘（部署道具圖占大半）。
+  wrangler 登入的 token 沒有 Workers Builds 權限，API 改不到這些設定，只能後台改。
+  **正式機（v1.38，11/03）**：`maplehelper`＋`maplehelper-items` 已建，先手動 `APP_ENV=production npm run build:cf && npm run deploy:cf`，
+  網址 https://maplehelper.pipicards.workers.dev（cf-shot 13/13）。秘密已設。**還沒接自動部署**：Workers Builds 要從 `main` 建，
+  得等 dev 這幾版（v1.33 起）合進 `main` 才有 Cloudflare 的建置腳本；接的時候分支 `main`、Build `npm run build:cf`、Deploy `npm run deploy:cf`、
+  變數 `APP_ENV=production`、`NODE_VERSION=22`。這個網址沒加 noindex，但每頁 canonical 都指 `https://maplehelper.tw`，搜尋引擎會算在正式網域；切完網域把 workers.dev 網址關掉。
+- **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
+  驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
+- **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
+
 ## 楓幣匯率收集
 
 `.github/workflows/fx-collect.yml`（workflow「楓幣匯率收集」）每 2 小時（台灣 00:55 起）抓一次參考站

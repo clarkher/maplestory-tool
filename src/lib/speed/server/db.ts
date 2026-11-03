@@ -10,9 +10,12 @@ export function getSql(): NeonQueryFunction<false, false> | null {
   return url ? neon(url) : null;
 }
 
-/** 排行只看同一個環境：測試機（preview）的資料不會混進正式機 */
+/**
+ * 排行只看同一個環境：測試機（preview）的資料不會混進正式機。
+ * Cloudflare 上看 APP_ENV（wrangler.jsonc 的 vars）；還在 Vercel 的時候看 VERCEL_ENV。
+ */
 export function speedEnv(): string {
-  return process.env.VERCEL_ENV ?? "development";
+  return process.env.APP_ENV ?? process.env.VERCEL_ENV ?? "development";
 }
 
 let ready: Promise<void> | null = null;
