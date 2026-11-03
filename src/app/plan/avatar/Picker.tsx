@@ -4,7 +4,8 @@
  * 紙娃娃的挑衣服卡：15 個分頁（髮型、臉型、膚色＋12 類）、搜尋、髮色／瞳色色塊、四欄格子、一次 40 個。
  * - 只列這個性別穿得到的（g 是這個性別或 2）
  * - 裝備：點裝在前、一般裝備在後，各自畫得出來的在前，其他照資料順序；髮型、臉型：畫得出來的照資料順序，畫不出來的接在最後
- * - 分頁、搜尋字、看到第幾個都不進網址（重新整理回到髮型）；換分頁清掉搜尋，換分頁或改搜尋回到 40 個
+ * - 分頁、搜尋字、看到第幾個都不進網址（重新整理回到髮型）；換分頁清掉搜尋、回到 40 個，改搜尋字回到 40 個
+ * - 驗收腳本認 data-tab（分頁）、data-colour（色塊）、data-cell／data-name／data-missing（格子），不認樣式 class
  * - 點格子＝算出下一套交給 onChange；畫不出來的不穿，跳 MISSING；點穿著的裝備＝脫掉（髮型、臉型、膚色不能脫）
  *
  *   <Picker ref={pickerRef} data={data} outfit={outfit} tab={tab} onTab={setTab} onChange={commit} toast={showToast} />
@@ -109,16 +110,24 @@ export function Picker({
   toast: (msg: string) => void;
 }) {
   const label = TABS.find((t) => t.k === tab)?.label ?? "";
-  // 搜尋字記著是哪一頁打的：換頁就當沒打（不用 effect 清）
-  const [query, setQuery] = useState({ tab, text: "" });
-  const text = query.tab === tab ? query.text : "";
-  // 看到第幾個也一樣：分頁、搜尋字、性別換了就回到 40
-  const listKey = `${tab}\n${text}\n${outfit.g}`;
-  const [more, setMore] = useState({ key: listKey, n: PAGE });
-  const limit = more.key === listKey ? more.n : PAGE;
+  const [text, setText] = useState("");
+  const [limit, setLimit] = useState(PAGE);
+  // 分頁、性別一換（不管換去哪、換回來）：清掉搜尋字、回到 40 個。
+  // 畫面算到一半就重設、不等 effect（React「props 變了就調整 state」的寫法），換過去那一格不會先閃出舊的字
+  const [seen, setSeen] = useState({ tab, g: outfit.g });
+  if (seen.tab !== tab || seen.g !== outfit.g) {
+    setSeen({ tab, g: outfit.g });
+    if (seen.tab !== tab) setText("");
+    setLimit(PAGE);
+  }
+  /** 改搜尋字（打字、刪字、按叉叉）一律回到 40 個 */
+  const search = (next: string) => {
+    setText(next);
+    setLimit(PAGE);
+  };
 
   const list = useMemo(() => candidates(data, outfit.g, tab, text), [data, outfit.g, tab, text]);
-  const cells = list.slice(0, limit).map((e) => toCell(e, outfit, data));
+  const cells = useMemo(() => list.slice(0, limit).map((e) => toCell(e, outfit, data)), [list, limit, outfit, data]);
 
   // 從穿了什麼小卡跳過來、分頁在橫捲列外面：把那顆捲進來（只捲這一列，不動整頁）
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -145,7 +154,7 @@ export function Picker({
       ref={ref}
       aria-label="挑衣服"
       // 捲到這張卡時讓出頁首＋小窗（小窗 128px＋上下空隙）；電腦版沒有小窗，只讓頁首
-      className={`${CARD} scroll-mt-[calc(var(--header-offset)+148px)] lg:scroll-mt-[80px]`}
+      className={`${CARD} scroll-mt-[calc(var(--header-offset)+148px)] lg:scroll-mt-header`}
     >
       <div ref={tabsRef} role="group" aria-label="類別" className="scroll-x flex gap-1.5 pb-1">
         {TABS.map((t) => {
@@ -155,6 +164,7 @@ export function Picker({
               key={t.k}
               type="button"
               aria-pressed={on}
+              data-tab={t.k}
               onClick={() => onTab(t.k)}
               className={`tap-safe shrink-0 whitespace-nowrap rounded-full px-4 text-[15px] font-black ${
                 on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
@@ -171,13 +181,13 @@ export function Picker({
         <input
           type="search"
           value={text}
-          onChange={(e) => setQuery({ tab, text: e.target.value })}
+          onChange={(e) => search(e.target.value)}
           placeholder={`搜尋${label}名稱`}
           aria-label={`搜尋${label}名稱`}
           {...searchKeys}
           className="min-h-11 min-w-0 flex-1 bg-transparent text-[16px] outline-none"
         />
-        {text ? <SearchClear onClear={() => setQuery({ tab, text: "" })} /> : null}
+        {text ? <SearchClear onClear={() => search("")} /> : null}
       </div>
 
       {hair ? (
@@ -214,7 +224,7 @@ export function Picker({
       {list.length > limit ? (
         <button
           type="button"
-          onClick={() => setMore({ key: listKey, n: limit + PAGE })}
+          onClick={() => setLimit(limit + PAGE)}
           className="tap-safe mt-3 w-full rounded-2xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] text-[15px] font-black"
         >
           再看 40 個
@@ -252,6 +262,7 @@ function Swatches({
                 type="button"
                 aria-label={palette[c].n}
                 aria-pressed={on}
+                data-colour={c}
                 onClick={() => (on ? undefined : onPick(c))}
                 className="tap-safe grid place-items-center rounded-full"
               >
@@ -276,6 +287,8 @@ function CellButton({ cell, onClick }: { cell: Cell; onClick: () => void }) {
     <button
       type="button"
       aria-pressed={cell.on}
+      data-cell={cell.key}
+      data-missing={cell.ok ? undefined : ""}
       onClick={onClick}
       className={`flex h-full w-full flex-col items-center gap-1 rounded-2xl border px-1 pb-2 pt-2 text-center ${
         cell.on
@@ -307,7 +320,9 @@ function CellButton({ cell, onClick }: { cell: Cell; onClick: () => void }) {
           }}
         />
       </span>
-      <span className={`line-clamp-2 text-[13px] leading-snug ${cell.on ? "font-black" : "font-bold"}`}>{cell.name}</span>
+      <span data-name className={`line-clamp-2 text-[13px] leading-snug ${cell.on ? "font-black" : "font-bold"}`}>
+        {cell.name}
+      </span>
       {cell.ok ? null : <span className="text-[12px] leading-tight ink-faint">暫時看不到樣子</span>}
     </button>
   );

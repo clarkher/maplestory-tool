@@ -8,7 +8,7 @@
  * 標題、副標在 page.tsx（靜態 HTML 就有，資料載好時不跳）。
  */
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ChevronRight, CloseIcon } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
 import {
@@ -24,8 +24,6 @@ import { Stage } from "./Stage";
 import { useAvatarActions } from "./useAvatarActions";
 
 const PATH = "/plan/avatar";
-/** 頁首高度：角色卡下緣捲過這條線就出小窗 */
-const HEADER_H = 65;
 
 const GENDERS: { g: Gender; label: string }[] = [
   { g: 0, label: "男" },
@@ -81,6 +79,15 @@ export function AvatarSim() {
   // 角色卡用 state 接（資料載好才掛上去，掛上去才開始看它有沒有捲出去）
   const [card, setCard] = useState<HTMLElement | null>(null);
   const mini = useScrolledPast(card);
+  // 穿了什麼小卡要跳去哪一頁（n 每按一次加 1：已經在那一頁再按也會捲）
+  const [jumpTo, setJumpTo] = useState<{ tab: TabKey; n: number } | null>(null);
+  // 新分頁畫好之後才捲過去，焦點放到那顆分頁上（用 data-tab 找，見 Picker）
+  useEffect(() => {
+    const el = picker.current;
+    if (!jumpTo || !el) return;
+    el.scrollIntoView({ block: "start", behavior: "instant" });
+    el.querySelector<HTMLElement>(`[data-tab="${jumpTo.tab}"]`)?.focus({ preventScroll: true });
+  }, [jumpTo]);
 
   const commit = useCallback(
     (next: Outfit) => {
@@ -99,10 +106,10 @@ export function AvatarSim() {
   if (error) return <p className={`${CARD} text-center text-[15px] ink-soft`}>紙娃娃資料讀不到，等一下再過來重新整理。</p>;
   if (!data || !outfit) return <LoadingBlock label="載入紙娃娃…" />;
 
-  /** 穿了什麼的髮型、臉型、膚色小卡：切到那一頁，捲到挑衣服卡（不用動畫，馬上到） */
+  /** 穿了什麼的髮型、臉型、膚色小卡：切到那一頁，畫好後捲到挑衣服卡（不用動畫，馬上到） */
   const jump = (t: TabKey) => {
     setTab(t);
-    picker.current?.scrollIntoView({ block: "start", behavior: "instant" });
+    setJumpTo((j) => ({ tab: t, n: (j?.n ?? 0) + 1 }));
   };
 
   return (
@@ -170,27 +177,34 @@ export function AvatarSim() {
         <Picker ref={picker} data={data} outfit={outfit} tab={tab} onTab={setTab} onChange={commit} toast={showToast} />
       </div>
 
-      {/* 小窗：角色卡整張捲到頁首底下才出來；頁首收起來時跟著貼到最上面。電腦版角色卡黏著，不出小窗 */}
-      {mini ? (
-        <div className="fixed inset-x-0 top-[var(--header-offset)] z-30 px-4 pt-2 transition-[top] duration-200 ease-out sm:px-6 lg:hidden">
-          <div role="region" aria-label="角色小窗" className="mx-auto flex max-w-2xl gap-2 rounded-[var(--radius-card)] glass-solid p-2">
-            <div className="min-w-0 flex-1">
-              <Stage outfit={outfit} data={data} compact />
-            </div>
-            <div className="grid w-[136px] shrink-0 grid-cols-2 grid-rows-2 gap-1.5">
-              <Action onClick={download} busy={downloading}>
-                下載
-              </Action>
-              <Action primary onClick={share}>
-                分享
-              </Action>
-              <div className="col-span-2 grid">
-                <Action onClick={() => window.scrollTo({ top: 0, behavior: "instant" })}>回到上面</Action>
-              </div>
+      {/*
+        小窗：角色卡整張捲到頁首底下才出來；頁首收起來時跟著貼到最上面。電腦版角色卡黏著，不出小窗。
+        一直掛著、只切看得到看不到：小舞台不用每次出來都重新要圖、重算 15 秒逾時。收著時 inert（按不到、Tab 跳不到、讀屏不唸）。
+        外層透明的那圈不吃點擊（點得到底下的格子），只有那條小窗本身接點擊
+      */}
+      <div
+        inert={!mini}
+        className={`pointer-events-none fixed inset-x-0 top-[var(--header-offset)] z-30 px-4 pt-2 transition-[top] duration-200 ease-out sm:px-6 lg:hidden ${
+          mini ? "visible" : "invisible"
+        }`}
+      >
+        <div role="region" aria-label="角色小窗" className="pointer-events-auto mx-auto flex max-w-2xl gap-2 rounded-[var(--radius-card)] glass-solid p-2">
+          <div className="min-w-0 flex-1">
+            <Stage outfit={outfit} data={data} compact />
+          </div>
+          <div className="grid w-[136px] shrink-0 grid-cols-2 grid-rows-2 gap-1.5">
+            <Action onClick={download} busy={downloading}>
+              下載
+            </Action>
+            <Action primary onClick={share}>
+              分享
+            </Action>
+            <div className="col-span-2 grid">
+              <Action onClick={() => window.scrollTo({ top: 0, behavior: "instant" })}>回到上面</Action>
             </div>
           </div>
         </div>
-      ) : null}
+      </div>
 
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
         {toast ? (
@@ -203,21 +217,34 @@ export function AvatarSim() {
   );
 }
 
+/** 頁首下緣在哪：globals.css 的 --header-offset（頁首在＝它量到的高度，手機手指往下滑收起來＝0） */
+const readHeaderOffset = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-offset")) || 0;
+/** SiteHeader 改 <html> 的 style（--header-h）、data-header-hidden 時重讀 */
+function subscribeHeader(onChange: () => void) {
+  const mo = new MutationObserver(onChange);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ["style", "data-header-hidden"] });
+  return () => mo.disconnect();
+}
+/** 伺服器上沒有畫面可量，先當 0；掛上去馬上換成真的值，看捲動的 observer 也是那時才建 */
+const useHeaderOffset = () => useSyncExternalStore(subscribeHeader, readHeaderOffset, () => 0);
+
 /**
  * 角色卡整張捲到頁首底下了沒（往下捲過去才算；還沒捲到的不算）。
- * 看的範圍上緣扣掉頁首高度：角色卡被頁首蓋住就當看不到了。
+ * 看的範圍上緣扣掉頁首（當下的 --header-offset）：角色卡被頁首蓋住就當看不到了；
+ * 頁首收起來時上緣是 0，角色卡還露在螢幕上就不出小窗。頁首位置一變就重新看。
  */
 function useScrolledPast(el: HTMLElement | null) {
   const [past, setPast] = useState(false);
+  const offset = useHeaderOffset();
   useEffect(() => {
     if (!el) return;
     const io = new IntersectionObserver(
-      ([entry]) => setPast(!entry.isIntersecting && entry.boundingClientRect.bottom <= (entry.rootBounds?.top ?? HEADER_H)),
-      { rootMargin: `-${HEADER_H}px 0px 0px 0px` },
+      ([entry]) => setPast(!entry.isIntersecting && entry.boundingClientRect.bottom <= (entry.rootBounds?.top ?? offset)),
+      { rootMargin: `-${offset}px 0px 0px 0px` },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [el]);
+  }, [el, offset]);
   return past;
 }
 
