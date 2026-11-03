@@ -379,7 +379,9 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   `speedEnv()` 先看 `APP_ENV` 再看 `VERCEL_ENV`，練功測速／野王的資料照環境分開；`NEXT_PUBLIC_VERCEL_ENV` 也改從 `APP_ENV` 來（名字先沿用）。
 - **秘密**：`DATABASE_URL`、`SPEED_SALT`，用 `npx wrangler secret put <名稱> [--env dev]` 設，不進版控。
   資料庫 11/03 使用者拍板**重建、舊的（Vercel 整合的 Neon）捨棄**：新 Neon 專案 `cold-river-55616355`（新加坡 `aws-ap-southeast-1`，`npx neon claim create` 建的，
-  要使用者用 `npx neon claim accept cold-river-55616355` 拿到的網址登入認領，**沒認領 11/06 08:53 台灣時間會被刪**）。測試機、正式機共用這個庫，靠 `env` 欄位分開；表第一次呼叫 API 自動建。
+  11/03 已認領進使用者的 Neon 帳號）。測試機用 `main` 分支、正式機用 `production` 分支（v1.38 開的，各自一份資料，測試機寫壞也碰不到正式機）；
+  表第一次呼叫 API 自動建，`env` 欄位照舊分環境。連線字串用 `npx neon@latest connection-string <分支> --project-id cold-river-55616355 --pooled` 抓，直接 pipe 進 `wrangler secret put`、不印。
+  正式機的 `SPEED_SALT` 是新產的（舊資料捨棄，不用跟 Vercel 那把一樣）。
 - **Claude Code 的 Neon 工具**（v1.35）：`.mcp.json` 接 Neon MCP（`https://mcp.neon.tech/mcp`，OAuth，第一次用時跳 Neon 登入，檔案裡沒有金鑰）；
   `.claude/skills/neon/` 是 Neon 官方 agent skill（`skills-lock.json` 記來源與雜湊，`neon skills status`／`neon skills update -y` 檢查更新；裝的時候要 Node 22.20 以上）。
 - **搜尋引擎**：測試機（`APP_ENV` 不是 production）的 `_headers` 整站加 `X-Robots-Tag: noindex`。
@@ -390,7 +392,11 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   **坑（v1.37）**：Workers Builds 會用 `WRANGLER_CI_*` 環境變數把建置裡每次 `wrangler deploy` 的名字都改成 `maplehelper-dev`，
   道具圖那次被當成整個測試機部署、秘密跟著消失（11/03 第一次自動部署）。`scripts/cf/deploy.mjs` 部署道具圖時拿掉這些變數；
   部署完 `npx wrangler secret list --env dev` 要看得到 `DATABASE_URL`、`SPEED_SALT`。建置約 10 分鐘（部署道具圖占大半）。
-  wrangler 登入的 token 沒有 Workers Builds 權限，API 改不到這些設定，只能後台改。正式機 `maplehelper` 還沒建、還沒接。
+  wrangler 登入的 token 沒有 Workers Builds 權限，API 改不到這些設定，只能後台改。
+  **正式機（v1.38，11/03）**：`maplehelper`＋`maplehelper-items` 已建，先手動 `APP_ENV=production npm run build:cf && npm run deploy:cf`，
+  網址 https://maplehelper.pipicards.workers.dev（cf-shot 13/13）。秘密已設。**還沒接自動部署**：Workers Builds 要從 `main` 建，
+  得等 dev 這幾版（v1.33 起）合進 `main` 才有 Cloudflare 的建置腳本；接的時候分支 `main`、Build `npm run build:cf`、Deploy `npm run deploy:cf`、
+  變數 `APP_ENV=production`、`NODE_VERSION=22`。這個網址沒加 noindex，但每頁 canonical 都指 `https://maplehelper.tw`，搜尋引擎會算在正式網域；切完網域把 workers.dev 網址關掉。
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
 - **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
