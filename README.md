@@ -380,6 +380,8 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **秘密**：`DATABASE_URL`、`SPEED_SALT`，用 `npx wrangler secret put <名稱> [--env dev]` 設，不進版控。
   資料庫 11/03 使用者拍板**重建、舊的（Vercel 整合的 Neon）捨棄**：新 Neon 專案 `cold-river-55616355`（新加坡 `aws-ap-southeast-1`，`npx neon claim create` 建的，
   要使用者用 `npx neon claim accept cold-river-55616355` 拿到的網址登入認領，**沒認領 11/06 08:53 台灣時間會被刪**）。測試機、正式機共用這個庫，靠 `env` 欄位分開；表第一次呼叫 API 自動建。
+- **Claude Code 的 Neon 工具**（v1.35）：`.mcp.json` 接 Neon MCP（`https://mcp.neon.tech/mcp`，OAuth，第一次用時跳 Neon 登入，檔案裡沒有金鑰）；
+  `.claude/skills/neon/` 是 Neon 官方 agent skill（`skills-lock.json` 記來源與雜湊，`neon skills status`／`neon skills update -y` 檢查更新；裝的時候要 Node 22.20 以上）。
 - **搜尋引擎**：測試機（`APP_ENV` 不是 production）的 `_headers` 整站加 `X-Robots-Tag: noindex`。
 - **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖再網頁。
   預定接 Cloudflare Workers Builds（連 GitHub，跟 Vercel 一樣誰推的 commit 都會建，資料自動更新用 github.token 推的也算）。
