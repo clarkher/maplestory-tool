@@ -14,6 +14,7 @@
  *                          給法師「裝備法」列每個部位穿得上的防具；排序見 lib/gear.mjs 的 sortArmor（前端同等級取第一件）
  *  public/data/scroll-sim.json  衝卷模擬（/plan/scroll）用：卷軸（含詛咒卷、爆裝率）、白衣卷軸、可衝的裝備；解析見 lib/scroll-sim.mjs
  *                          ammo（彈藥）：飛鏢、箭矢、弩箭、子彈的攻擊力（道具說明抽）、等級限制、拿法，傷害計算機算總攻擊用
+ *  public/data/avatar.json      紙娃娃（/plan/avatar）用：膚色、髮型、臉型、12 類裝備（含點裝）；畫得出來的清單來自 data/raw/msio-avatar.json（凍結檔，pipeline/fetch-msio-avatar.mjs 重抓），解析見 lib/avatar.mjs
  *
  * 研究檔是另一個 Task 平行在做的，這支腳本不能假設它存在：缺檔或缺欄位時 rules／notes 給空陣列、
  * before 不給，照樣把武器／卷軸（遊戲資料算得出來的部分）建出來，不能失敗。
@@ -44,6 +45,7 @@ import {
   sortArmor,
 } from "./lib/gear.mjs";
 import { buildScrollSim } from "./lib/scroll-sim.mjs";
+import { avatarCandidates, buildAvatar, SLOT_KEYS } from "./lib/avatar.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const DATA = path.join(ROOT, "public", "data");
@@ -52,6 +54,9 @@ const RESEARCH_FILE = path.join(ROOT, "data", "guides", "gear.json");
 const RAW_FILE = path.join(ROOT, "data", "raw", "artale.json");
 const OUT_FILE = path.join(DATA, "gear.json");
 const SIM_FILE = path.join(DATA, "scroll-sim.json");
+const AVATAR_FILE = path.join(DATA, "avatar.json");
+/** maplestory.io 台服／日服畫得出來的 id 清單（進版控的凍結檔，CI 一定有） */
+const MSIO_AVATAR_FILE = path.join(ROOT, "data", "raw", "msio-avatar.json");
 
 function main() {
   const items = readJson(path.join(DATA, "items.json"));
@@ -164,6 +169,23 @@ function main() {
   for (const slot of [...new Set([...simScrollSlots.keys(), ...simEquipSlots.keys()])].sort()) {
     console.log(`  ${slot.padEnd(6, "　")} 卷 ${simScrollSlots.get(slot) ?? 0}／裝備 ${simEquipSlots.get(slot) ?? 0}`);
   }
+  // 紙娃娃：另寫一個小檔。畫得出來的清單是凍結檔（不在建置時連外），缺檔就丟錯
+  const msio = readJson(MSIO_AVATAR_FILE, null);
+  if (!msio) throw new Error("缺 data/raw/msio-avatar.json，先跑 node pipeline/fetch-msio-avatar.mjs");
+  const avatar = buildAvatar(items, msio);
+  const avatarSize = writeJson(AVATAR_FILE, avatar);
+  console.log(`[gear] avatar.json ${humanBytes(avatarSize)}：膚色 ${avatar.skin.length} 種、髮型 ${avatar.hair.length} 款、臉型 ${avatar.face.length} 款、裝備 ${avatar.items.length} 件`);
+  console.log(`[gear] 紙娃娃 各類件數（畫得出來／全部）：${SLOT_KEYS.map(k => {
+    const all = avatar.items.filter(i => i.k === k);
+    return `${k} ${all.filter(i => i.r).length}／${all.length}`;
+  }).join("、")}`);
+  const styleDrawable = s => s.t.length + s.j.length > 0;
+  const undrawable = avatar.items.filter(i => !i.r).length + avatar.hair.filter(s => !styleDrawable(s)).length + avatar.face.filter(s => !styleDrawable(s)).length;
+  console.log(`[gear] 紙娃娃 畫不出來 ${undrawable} 件（裝備 ${avatar.items.filter(i => !i.r).length}、髮型 ${avatar.hair.filter(s => !styleDrawable(s)).length}、臉型 ${avatar.face.filter(s => !styleDrawable(s)).length}），前端會排在後面並標示`);
+  // 上游加了新道具、凍結檔還沒比對過：只提示，不擋建置（每日資料更新不能因為這個失敗）
+  const checked = new Set(msio.checked);
+  const notCompared = avatarCandidates(items).filter(id => !checked.has(id)).length;
+  console.log(`[gear] 紙娃娃 還沒跟 maplestory.io 比對過的 id ${notCompared} 個${notCompared ? "（新道具，重跑 node pipeline/fetch-msio-avatar.mjs 才畫得出來）" : ""}`);
   if (warnings.length) {
     console.log(`[gear] ${warnings.length} 筆警告：`);
     for (const line of warnings) console.log(`  - ${line}`);

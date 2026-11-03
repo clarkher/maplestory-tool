@@ -7,6 +7,7 @@ import type {
 import type { GearData } from "./gear";
 import type { RawSpeedNames } from "./speed/names";
 import type { ScrollSimData } from "./scroll-sim/types";
+import type { AvatarData } from "./avatar/types";
 
 /**
  * 資料檔全部是編譯期產生的靜態 JSON，第一次用到才抓、抓過就留著。
@@ -182,6 +183,31 @@ export function loadScrollSim(): Promise<ScrollSimData> {
   return scrollSimPromise;
 }
 export const peekScrollSim = () => peek<ScrollSimData>("scroll-sim");
+
+/**
+ * 紙娃娃的小檔（膚色、髮型、臉型、12 類裝備）：跟 scroll-sim.json 一樣由 build-gear 寫、可以單獨重跑，
+ * 所以每次回伺服器確認（cache-headers 對 /data/avatar.json 設 must-revalidate），沒變就 304。
+ */
+let avatarPromise: Promise<AvatarData> | null = null;
+export function loadAvatar(): Promise<AvatarData> {
+  if (!avatarPromise) {
+    avatarPromise = fetch("/data/avatar.json", { cache: "no-cache" })
+      .then(response => {
+        if (!response.ok) throw new Error(`載入紙娃娃資料失敗（${response.status}）`);
+        return response.json() as Promise<AvatarData>;
+      })
+      .then(data => {
+        ready.set("avatar", data);
+        return data;
+      });
+    // 載失敗不要記住，下次再試
+    avatarPromise.catch(() => {
+      avatarPromise = null;
+    });
+  }
+  return avatarPromise;
+}
+export const peekAvatar = () => peek<AvatarData>("avatar");
 
 /**
  * 玩家攻略跟遊戲資料是兩條獨立的更新線，不能共用 meta 的版本號——
