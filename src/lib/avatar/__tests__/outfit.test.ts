@@ -141,21 +141,38 @@ describe("網址", () => {
 
 describe("穿脫", () => {
   it("套服跟上衣褲裙互斥、雙手武器跟盾牌互斥", () => {
-    const withOverall = wearItem(defaultOutfit(0), byId(MALE_OVERALL));
+    const withOverall = wearItem(defaultOutfit(0), byId(MALE_OVERALL), data);
     expect(withOverall.wear).toEqual({ overall: MALE_OVERALL });
-    expect(wearItem(withOverall, byId(1040002)).wear).toEqual({ coat: 1040002 });
-    const shield = wearItem(defaultOutfit(0), byId(1092000));
-    expect(wearItem(shield, byId(TWO_HANDED)).wear.shield).toBeUndefined();
-    expect(wearItem(wearItem(defaultOutfit(0), byId(TWO_HANDED)), byId(1092000)).wear.weapon).toBeUndefined();
+    expect(wearItem(withOverall, byId(1040002), data).wear).toEqual({ coat: 1040002 });
+    const shield = wearItem(defaultOutfit(0), byId(1092000), data);
+    expect(wearItem(shield, byId(TWO_HANDED), data).wear.shield).toBeUndefined();
+    expect(wearItem(wearItem(defaultOutfit(0), byId(TWO_HANDED), data), byId(1092000), data).wear.weapon).toBeUndefined();
+  });
+  it("不靠呼叫順序：全新的資料副本（沒先跑過 itemIndex／parseOutfit）也判得出雙手武器", () => {
+    const fresh = JSON.parse(JSON.stringify(data)) as AvatarData;
+    const twoHanded = fresh.items.find((i) => i.id === TWO_HANDED)!;
+    const shield = fresh.items.find((i) => i.id === 1092000)!;
+    expect(wearItem(wearItem(defaultOutfit(0), twoHanded, fresh), shield, fresh).wear.weapon).toBeUndefined();
+  });
+  it("雙手與否看傳進去的資料，不是全域記憶：副本裡把某把單手武器改成雙手，穿盾牌就會脫掉它", () => {
+    const fresh = JSON.parse(JSON.stringify(data)) as AvatarData;
+    const one = fresh.items.find((i) => i.k === "weapon" && !i.h && i.r && i.g !== 1)!;
+    const shield = fresh.items.find((i) => i.id === 1092000)!;
+    const holding = wearItem(wearItem(defaultOutfit(0), one, fresh), shield, fresh);
+    expect(holding.wear).toMatchObject({ weapon: one.id, shield: 1092000 }); // 原資料：單手可以拿盾
+    one.h = 1;
+    expect(wearItem(wearItem(defaultOutfit(0), one, fresh), shield, fresh).wear.weapon).toBeUndefined();
+    const before = wearItem(defaultOutfit(0), one, data); // 原資料那把還是單手：不受副本影響
+    expect(wearItem(before, byId(1092000), data).wear.weapon).toBe(one.id);
   });
   it("同一格換件；不改到原本的物件", () => {
     const o = defaultOutfit(0);
     const before = JSON.stringify(o);
-    const n = wearItem(o, byId(UNISEX_CAP));
+    const n = wearItem(o, byId(UNISEX_CAP), data);
     expect(n.wear).toEqual({ ...o.wear, cap: UNISEX_CAP });
     expect(JSON.stringify(o)).toBe(before);
     const one = data.items.find((i) => i.k === "weapon" && !i.h && i.r && i.g !== 1)!;
-    const holding = wearItem(wearItem(o, byId(1092000)), one);
+    const holding = wearItem(wearItem(o, byId(1092000), data), one, data);
     expect(holding.wear.shield).toBe(1092000); // 單手武器跟盾牌可以一起
   });
   it("脫下", () => {

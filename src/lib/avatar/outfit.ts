@@ -81,37 +81,33 @@ export function defaultOutfit(g: Gender): Outfit {
 
 // ---------- 查表 ----------
 
-type Lookup = { items: Map<number, AvatarItem>; hair: Map<number, AvatarStyle>; face: Map<number, AvatarStyle> };
-const lookups = new WeakMap<AvatarData, Lookup>();
-/**
- * 雙手武器的 id。wearItem(o, item) 沒帶資料，穿盾牌時得知道身上那把是不是雙手，
- * 所以建 itemIndex 時順便記下（道具 id 全域不變，記在模組層沒有衝突）。
- */
-const twoHandedIds = new Set<number>();
-
-function lookup(data: AvatarData): Lookup {
-  let l = lookups.get(data);
-  if (!l) {
-    l = {
-      items: new Map(data.items.map((i) => [i.id, i])),
-      hair: new Map(data.hair.map((s) => [s.id, s])),
-      face: new Map(data.face.map((s) => [s.id, s])),
-    };
-    for (const i of data.items) if (i.k === "weapon" && i.h) twoHandedIds.add(i.id);
-    lookups.set(data, l);
-  }
-  return l;
-}
+// 純記憶化：以資料物件當 key 快取查表，沒有其他隱藏狀態（呼叫順序不影響結果）
+const itemMaps = new WeakMap<AvatarData, Map<number, AvatarItem>>();
+const styleMaps = new WeakMap<AvatarData, { hair: Map<number, AvatarStyle>; face: Map<number, AvatarStyle> }>();
 
 /** 給各處用 id 找道具 */
 export function itemIndex(data: AvatarData): Map<number, AvatarItem> {
-  return lookup(data).items;
+  let m = itemMaps.get(data);
+  if (!m) {
+    m = new Map(data.items.map((i) => [i.id, i]));
+    itemMaps.set(data, m);
+  }
+  return m;
+}
+
+function styleIndex(data: AvatarData) {
+  let m = styleMaps.get(data);
+  if (!m) {
+    m = { hair: new Map(data.hair.map((s) => [s.id, s])), face: new Map(data.face.map((s) => [s.id, s])) };
+    styleMaps.set(data, m);
+  }
+  return m;
 }
 
 /** 髮型 id：款式 = 去掉個位數，顏色 = 個位數 */
 function hairStyle(data: AvatarData, id: number): AvatarStyle | undefined {
   if (!Number.isInteger(id) || id <= 0) return undefined;
-  const s = lookup(data).hair.get(Math.floor(id / 10) * 10);
+  const s = styleIndex(data).hair.get(Math.floor(id / 10) * 10);
   const c = id % 10;
   return s && (s.t.includes(c) || s.j.includes(c)) ? s : undefined;
 }
@@ -120,7 +116,7 @@ function hairStyle(data: AvatarData, id: number): AvatarStyle | undefined {
 function faceStyle(data: AvatarData, id: number): AvatarStyle | undefined {
   if (!Number.isInteger(id) || id <= 0) return undefined;
   const c = Math.floor(id / 100) % 10;
-  const s = lookup(data).face.get(id - c * 100);
+  const s = styleIndex(data).face.get(id - c * 100);
   return s && (s.t.includes(c) || s.j.includes(c)) ? s : undefined;
 }
 
@@ -143,8 +139,8 @@ function wearable(item: AvatarItem | undefined, g: Gender): item is AvatarItem {
 
 // ---------- 穿脫 ----------
 
-/** 穿上一件：同一格換掉；套服跟上衣、褲裙互斥；雙手武器跟盾牌互斥 */
-export function wearItem(o: Outfit, item: AvatarItem): Outfit {
+/** 穿上一件：同一格換掉；套服跟上衣、褲裙互斥；雙手武器跟盾牌互斥（身上那把是不是雙手，查傳進來的 data） */
+export function wearItem(o: Outfit, item: AvatarItem, data: AvatarData): Outfit {
   const wear = { ...o.wear, [item.k]: item.id };
   if (item.k === "overall") {
     delete wear.coat;
@@ -153,7 +149,7 @@ export function wearItem(o: Outfit, item: AvatarItem): Outfit {
     delete wear.overall;
   } else if (item.k === "weapon" && item.h) {
     delete wear.shield;
-  } else if (item.k === "shield" && o.wear.weapon !== undefined && twoHandedIds.has(o.wear.weapon)) {
+  } else if (item.k === "shield" && o.wear.weapon !== undefined && itemIndex(data).get(o.wear.weapon)?.h) {
     delete wear.weapon;
   }
   return { ...o, wear };
@@ -171,11 +167,11 @@ export function takeOff(o: Outfit, k: SlotKey): Outfit {
  */
 export function setGender(o: Outfit, g: Gender, data: AvatarData): Outfit {
   if (o.g === g) return o;
-  const l = lookup(data);
+  const items = itemIndex(data);
   const wear: Partial<Record<SlotKey, number>> = {};
   for (const k of SLOT_ORDER) {
     const id = o.wear[k];
-    if (id !== undefined && wearable(l.items.get(id), g)) wear[k] = id;
+    if (id !== undefined && wearable(items.get(id), g)) wear[k] = id;
   }
   if (!wear.overall && !wear.coat && !wear.pants) {
     const d = DEFAULTS[g].wear;
@@ -218,16 +214,16 @@ export function outfitQuery(o: Outfit): string {
 
 /** 壞網址不壞頁：每個欄位各自驗，不合就回預設 */
 export function parseOutfit(params: URLSearchParams, data: AvatarData): Outfit {
-  const l = lookup(data);
+  const items = itemIndex(data);
 
   // try：查資料進來，在該性別的預設角色身上穿上那件（男女都能穿的看 g，沒寫就男）
   const tryRaw = params.get("try");
   if (isNum(tryRaw)) {
     const id = Number(tryRaw);
     const given: Gender = params.get("g") === "1" ? 1 : 0;
-    const item = l.items.get(id);
+    const item = items.get(id);
     if (item && item.r) {
-      return wearItem(defaultOutfit(item.g === 2 ? given : item.g), item);
+      return wearItem(defaultOutfit(item.g === 2 ? given : item.g), item, data);
     }
     const hair = hairStyle(data, id);
     if (hair) return { ...defaultOutfit(hair.g === 2 ? given : hair.g), hair: id };
@@ -258,8 +254,8 @@ export function parseOutfit(params: URLSearchParams, data: AvatarData): Outfit {
     o = { ...o, wear: {} };
     for (const tok of (params.get("w") ?? "").split(".")) {
       if (!isNum(tok)) continue;
-      const item = l.items.get(Number(tok));
-      if (wearable(item, g)) o = wearItem(o, item);
+      const item = items.get(Number(tok));
+      if (wearable(item, g)) o = wearItem(o, item, data);
     }
   }
 
