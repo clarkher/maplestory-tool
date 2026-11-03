@@ -11,7 +11,8 @@ export const metadata: Metadata = {
 
 export default function Page() {
   return (
-    <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
+    // 電腦版（lg）角色卡、挑衣服卡左右排，容器放寬；手機照舊
+    <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6 lg:max-w-5xl">
       {/* 標題放在 Suspense 外面：靜態 HTML 就有，資料載好時版面不跳 */}
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">紙娃娃</h1>

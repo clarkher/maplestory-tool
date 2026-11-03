@@ -2,9 +2,9 @@
 
 /**
  * 紙娃娃的「下載」「分享」：角色卡跟捲下去的小窗按的是同一份（AvatarSim 呼叫一次、往下傳），
- * 提示條（toast）也只由 AvatarSim 畫一次。
+ * 提示條（toast）也只由 AvatarSim 畫一次；挑衣服卡要跳提示也用這裡的 showToast（2 秒）。
  *
- *   const { download, share, downloading, toast } = useAvatarActions(outfit, data);
+ *   const { download, share, downloading, toast, showToast } = useAvatarActions(outfit, data);
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
@@ -88,5 +88,5 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     }
   }, [showToast]);
 
-  return { download, share, downloading, toast };
+  return { download, share, downloading, toast, showToast };
 }
