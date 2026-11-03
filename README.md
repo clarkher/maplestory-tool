@@ -192,6 +192,14 @@ npm run data:guides   # 把 data/guides/ 的玩家攻略編成前端用的檔案
 npm run data:all      # 以上全跑
 ```
 
+#### 紙娃娃的道具清單（`public/data/avatar.json`，v1.40）
+
+`npm run data:gear`（`pipeline/build-gear.mjs`，邏輯在 `pipeline/lib/avatar.mjs`）從 `items.json` 產生：膚色 8 種、髮型（同一款不同髮色併一筆）、臉型（同一款不同瞳色併一筆）、
+12 類裝備＋點裝（帽子、套服、上衣、褲裙、鞋子、手套、披風、武器、眼飾、臉飾、耳環、盾牌），每筆記性別、是不是點裝、雙手武器，還有 maplestory.io 從台服或日服畫得出來。
+
+畫不畫得出來看凍結檔 `data/raw/msio-avatar.json`（進版控）：maplestory.io 遇到沒有的道具會默默不畫、照回 200，所以先比對它台服 TWMS 256、日服 JMS 444 的道具清單存起來，排程不打 maplestory.io。
+上游加了新點裝（`verify.mjs` 會印有幾件沒比對過）就手動 `node pipeline/fetch-msio-avatar.mjs`，再重跑 `npm run data:gear`。
+
 #### 用自己電腦上的客戶端資料（優先來源）
 
 把從 `maplestory_classic.zip` 抽出來的 JSON 放成 `data/raw/artale.local.json`，
@@ -482,7 +490,8 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `speed_save` | 練功測速一段存上伺服器 | `job`、`level`、`level_band`、`map`、`minutes`、`ranked` |
 | `boss_room_create` | 野王計時開房間 | — |
 | `boss_room_join` | 加入房間 | `via`（code 打代碼／link 點連結） |
-| `share` | 野王計時複製房間連結、練功測速複製／下載分享圖 | `page`、`method` |
+| `avatar_download` | 紙娃娃按「下載」 | `gender`（男／女） |
+| `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃分享 | `page`（boss／speed／avatar）、`method`（紙娃娃：share 系統分享／copy 複製連結） |
 
 外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。
 
