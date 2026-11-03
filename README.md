@@ -393,10 +393,10 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   道具圖那次被當成整個測試機部署、秘密跟著消失（11/03 第一次自動部署）。`scripts/cf/deploy.mjs` 部署道具圖時拿掉這些變數；
   部署完 `npx wrangler secret list --env dev` 要看得到 `DATABASE_URL`、`SPEED_SALT`。建置約 10 分鐘（部署道具圖占大半）。
   wrangler 登入的 token 沒有 Workers Builds 權限，API 改不到這些設定，只能後台改。
-  **正式機（v1.38，11/03）**：`maplehelper`＋`maplehelper-items` 已建，先手動 `APP_ENV=production npm run build:cf && npm run deploy:cf`，
-  網址 https://maplehelper.pipicards.workers.dev（cf-shot 13/13）。秘密已設。**還沒接自動部署**：Workers Builds 要從 `main` 建，
-  得等 dev 這幾版（v1.33 起）合進 `main` 才有 Cloudflare 的建置腳本；接的時候分支 `main`、Build `npm run build:cf`、Deploy `npm run deploy:cf`、
-  變數 `APP_ENV=production`、`NODE_VERSION=22`。這個網址沒加 noindex，但每頁 canonical 都指 `https://maplehelper.tw`，搜尋引擎會算在正式網域；切完網域把 workers.dev 網址關掉。
+  **正式機（v1.38 建、v1.39 接自動部署，11/03）**：`maplehelper`＋`maplehelper-items`，網址 https://maplehelper.pipicards.workers.dev。
+  `main` 有新 commit 就建（跟 Vercel 正式機同一個觸發點）：後台 `maplehelper` → Settings → Builds，分支 `main`、Build `npm run build:cf`、
+  Deploy `npm run deploy:cf`、變數 `APP_ENV=production`、`NODE_VERSION=22`、Preview builds 關掉。11/03 #194 合進 main 第一次自動建成功、秘密還在、cf-shot 13/13。
+  手動部署：`APP_ENV=production npm run build:cf && npm run deploy:cf`。這個網址沒加 noindex，但每頁 canonical 都指 `https://maplehelper.tw`，搜尋引擎會算在正式網域；切完網域把 workers.dev 網址關掉。
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
 - **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
