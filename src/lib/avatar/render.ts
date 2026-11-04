@@ -11,7 +11,7 @@
  */
 import { eyeColour, faceStyle, hairColour, hairStyle, itemIndex } from "./outfit";
 import type { Outfit, PoseKey } from "./outfit";
-import type { AvatarData, AvatarItem, Region, SlotKey } from "./types";
+import type { AvatarData, Region, SlotKey } from "./types";
 
 export const MSIO = "https://maplestory.io/api/character";
 
@@ -30,35 +30,47 @@ const SERVER: Record<Region, { region: string; version: string }> = {
   j: { region: "JMS", version: "444" },
 };
 
-type Part = { itemId: number; region: string; version: string; animationName?: string };
-const part = (itemId: number, r: Region, animationName?: string): Part => ({
+export type Part = { itemId: number; region: string; version: string; animationName?: string };
+/** 一件道具在網址道具陣列裡的樣子；r 是台服還是日服 */
+export const part = (itemId: number, r: Region, animationName?: string): Part => ({
   itemId,
   ...SERVER[r],
   ...(animationName ? { animationName } : {}),
 });
 
 /** 道具在陣列裡的順序（固定，同一套穿搭網址才一樣） */
-const WEAR_ORDER: SlotKey[] = ["cap", "overall", "coat", "pants", "shoes", "glove", "cape", "weapon", "shield", "eyeAcc", "faceAcc", "earrings"];
+export const WEAR_ORDER: SlotKey[] = ["cap", "overall", "coat", "pants", "shoes", "glove", "cape", "weapon", "shield", "eyeAcc", "faceAcc", "earrings"];
 
 /**
  * 站著、走路的 stance：槍、矛（武器 id 前三碼 143、144）要用 stand2／walk2 才畫得出武器，
  * 其他（含沒拿武器、點裝武器）用 stand1／walk1（雙手劍、弓、火槍、點裝武器在 stand1 才畫得出）；
  * 警戒、跳、趴下、坐下照動作名字。
  */
-export function stanceFor(pose: PoseKey, weapon: AvatarItem | undefined): string {
+export function stanceFor(pose: PoseKey, weapon: { id: number } | undefined): string {
   if (pose !== "stand" && pose !== "walk") return pose;
   const type = weapon ? Math.floor(weapon.id / 10000) : 0;
   return pose + (type === 143 || type === 144 ? "2" : "1");
 }
 
 /** 髮型：個位數是髮色；臉型：百位數是瞳色。這個顏色台服有畫就走台服，沒有就走日服 */
-function styleRegion(data: AvatarData, kind: "hair" | "face", id: number): Region {
+export function styleRegion(data: AvatarData, kind: "hair" | "face", id: number): Region {
   const colour = kind === "hair" ? hairColour(id) : eyeColour(id);
   const style = kind === "hair" ? hairStyle(data, id) : faceStyle(data, id);
   return style && !style.t.includes(colour) && style.j.includes(colour) ? "j" : "t";
 }
 
 export type RenderMode = 0 | 2 | 4;
+
+/** 舞台要的那一格（1 倍、renderMode=4）。舞台跟預載都走這支：舞台靠網址查預載，兩邊要一字不差 */
+export function stageUrl(o: Outfit, data: AvatarData, frame: number): string {
+  return characterUrl(o, data, { frame, resize: 1, mode: 4 });
+}
+
+/** 道具陣列＋動作＋第幾格 → maplestory.io 角色圖網址。分享連結的 route 沒有資料檔，直接餵自己組好的陣列，所以獨立出來 */
+export function msioUrl(parts: Part[], stance: string, frame: number, opts: { resize: number; mode: RenderMode; flip: boolean }): string {
+  const list = encodeURIComponent(JSON.stringify(parts).slice(1, -1));
+  return `${MSIO}/${list}/${stance}/${frame}?resize=${opts.resize}&renderMode=${opts.mode}&flipX=${opts.flip}`;
+}
 
 /** mode 沒寫＝0（裁剛好、照 resize 放大） */
 export function characterUrl(o: Outfit, data: AvatarData, opts: { frame: number; resize: number; mode?: RenderMode }): string {
@@ -76,6 +88,5 @@ export function characterUrl(o: Outfit, data: AvatarData, opts: { frame: number;
     if (item?.r) parts.push(part(item.id, item.r));
   }
   const weapon = o.wear.weapon === undefined ? undefined : items.get(o.wear.weapon);
-  const list = encodeURIComponent(JSON.stringify(parts).slice(1, -1));
-  return `${MSIO}/${list}/${stanceFor(o.pose, weapon)}/${opts.frame}?resize=${opts.resize}&renderMode=${opts.mode ?? 0}&flipX=${o.flip}`;
+  return msioUrl(parts, stanceFor(o.pose, weapon), opts.frame, { resize: opts.resize, mode: opts.mode ?? 0, flip: o.flip });
 }

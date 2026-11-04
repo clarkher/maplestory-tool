@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import type { Outfit } from "@/lib/avatar/outfit";
 import { characterUrl } from "@/lib/avatar/render";
+import { readShare, shareQuery } from "@/lib/avatar/share";
 import type { AvatarData } from "@/lib/avatar/types";
 import { LOAD_ERROR, LOAD_TIMEOUT_MS } from "./Stage";
 
@@ -51,7 +52,7 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  /** 存第 0 格、2 倍、裁剛好（renderMode=0）的透明 PNG */
+  /** 存第 0 格、4 倍、裁剛好（renderMode=0）的透明 PNG */
   const download = useCallback(async () => {
     if (!outfit || !data || busy.current) return;
     busy.current = true;
@@ -59,9 +60,9 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     // 逾時算到圖整張讀完（blob），所以計時器在 finally 才收
     const timeout = timeoutSignal(LOAD_TIMEOUT_MS);
     try {
-      // 不能拿快取：舞台的 <img> 載過的圖是沒帶 Origin 要的，maplestory.io 只在有 Origin 時才回
+      // 不能拿快取：快取裡可能是沒帶 Origin 要的版本，maplestory.io 只在有 Origin 時才回
       // access-control-allow-origin（也沒寫 Vary: Origin），直接吃快取會被當跨網域擋掉（11/03 實測）
-      const res = await fetch(characterUrl(outfit, data, { frame: 0, resize: 2 }), {
+      const res = await fetch(characterUrl(outfit, data, { frame: 0, resize: 4 }), {
         cache: "reload",
         signal: timeout.signal,
       });
@@ -85,9 +86,20 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     }
   }, [outfit, data, showToast]);
 
-  /** 手機、平板有系統分享就用它（使用者自己關掉不算錯）；電腦、或沒有系統分享就複製網址 */
+  /**
+   * 手機、平板有系統分享就用它（使用者自己關掉不算錯）；電腦、或沒有系統分享就複製網址。
+   * 分享出去的是 /api/avatar/share 連結（貼到 LINE、Discord 有預覽圖，人點開轉回這頁）；穿搭或資料還沒好時（按鈕那時按不到）退回目前網址。
+   */
   const share = useCallback(async () => {
-    const url = location.href;
+    let url = location.href;
+    if (outfit && data) {
+      const query = shareQuery(outfit, data);
+      url = `${location.origin}/api/avatar/share?${query}`;
+      // 順手向 maplestory.io 要一次預覽圖：它第一次畫要好幾秒，先畫好，爬蟲來要才不會等到逾時。不管成敗。
+      // 不帶 crossOrigin 沒關係：下載走 cache: "reload"，舞台用的是另一個網址（1 倍、renderMode=4），都不會吃到這份快取
+      const { image } = readShare(new URLSearchParams(query));
+      if (image) new Image().src = image;
+    }
     if (touchDevice() && typeof navigator.share === "function") {
       try {
         await navigator.share({ title: "紙娃娃", url });
@@ -105,7 +117,7 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     } catch {
       showToast("複製不了，請直接複製網址列的網址");
     }
-  }, [showToast]);
+  }, [outfit, data, showToast]);
 
   return { download, share, downloading, toast, showToast };
 }

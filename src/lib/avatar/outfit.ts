@@ -67,7 +67,7 @@ export type Outfit = {
 };
 
 /** 網址 w 的寫入順序（固定，網址才穩定） */
-const SLOT_ORDER: SlotKey[] = ["cap", "overall", "coat", "pants", "shoes", "glove", "cape", "weapon", "shield", "eyeAcc", "faceAcc", "earrings"];
+export const SLOT_ORDER: SlotKey[] = ["cap", "overall", "coat", "pants", "shoes", "glove", "cape", "weapon", "shield", "eyeAcc", "faceAcc", "earrings"];
 
 const DEFAULTS: Record<Gender, { hair: number; face: number; wear: Partial<Record<SlotKey, number>> }> = {
   0: { hair: 30030, face: 20000, wear: { coat: 1040002, pants: 1060002 } },

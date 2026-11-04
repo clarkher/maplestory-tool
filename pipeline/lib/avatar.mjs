@@ -4,7 +4,8 @@
  *
  * 一款髮型／臉型在 items.json 裡是「一個顏色一筆」（id 個位數是髮色、百位數是瞳色），
  * 這裡併成一款，用 t／j 記台服畫得出的顏色碼、只有日服畫得出的顏色碼；兩個都空＝畫不出來。
- * 道具則用 r 記從哪個伺服器畫（"t" 台服、"j" 日服），沒有 r＝畫不出來，排在每一類最後。
+ * 道具則用 r 記從哪個伺服器畫（"t" 台服、"j" 日服），沒有 r＝畫不出來，排在每一類最後；
+ * pr 記商城單件的樂豆點（items.json 的 sp 算出來，沒在商城賣單件就沒有）。
  *
  * 用法：由 pipeline/build-gear.mjs 呼叫 buildAvatar(items, msio)；
  * 要去 maplestory.io 比對的 id 用 avatarCandidates(items) 取得；
@@ -145,6 +146,18 @@ function buildStyles(items, inRange, styleOf, colorOf, colorId, nameOf, twms, jm
 }
 
 /**
+ * 商城單件的樂豆點（多個價錢取最低）；沒有就回 undefined。
+ * 只收 p 是「商城」且 c 是 1（樂豆點）的單件：k 大於 1 是一組好幾個（價錢不是單件的），
+ * 楓幣店、活動店（硬幣）的價錢是別種錢，都不算。
+ */
+function shopPrice(item) {
+  const prices = (item.sp ?? [])
+    .filter(s => s.p === "商城" && s.c === 1 && (s.k ?? 1) === 1 && s.pr > 0)
+    .map(s => s.pr);
+  return prices.length ? Math.min(...prices) : undefined;
+}
+
+/**
  * 組出 avatar.json。msio 是 { twms, jms, checked }：台服、日服 maplestory.io 畫得出來的 id 陣列
  * （checked 是比對過的 id，這裡不看，avatarCoverage 用它分出「沒比對過」的）。
  */
@@ -161,6 +174,8 @@ export function buildAvatar(items, msio) {
     const k = avatarSlot(i.id);
     const o = { id: i.id, n: i.n, k, g: avatarGender(i.id) };
     if (i.c === "時裝") o.cash = 1;
+    const pr = shopPrice(i);
+    if (pr !== undefined) o.pr = pr;
     if (twms.has(i.id)) o.r = "t";
     else if (jms.has(i.id)) o.r = "j";
     if (k === "weapon" && isTwoHanded(i)) o.h = 1;
@@ -178,6 +193,9 @@ export function buildAvatar(items, msio) {
 
 /** 「畫得出來」至少要占比對過的幾成（verify.mjs、src/lib/avatar/__tests__/data.test.ts 共用） */
 export const MIN_DRAWABLE_RATIO = 0.9;
+
+/** 有商城價（pr）的道具至少幾件（2026-11-04 是 587 件）；低很多＝上游改版 sp 漏抽（verify.mjs、data.test.ts 共用） */
+export const MIN_SHOP_PRICED = 300;
 
 /**
  * 紙娃娃的件數統計（build-gear 印、verify.mjs 擋、data.test.ts 驗，三處都用這一份）。
