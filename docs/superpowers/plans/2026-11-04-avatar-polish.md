@@ -214,7 +214,7 @@ Expected: FAIL
   - `Frame` 多 `reach: Reach`、`cors: boolean`。`loadFrame`：先 `crossOrigin="anonymous"` 載，用 canvas 量 `alphaReach`（量失敗或全透明就 `unmeasured`）；帶 crossOrigin 載失敗就不帶再要一次（`cors: false`、`unmeasured`）；兩次都失敗才 reject；`LOAD_TIMEOUT_MS` 算整趟。
   - `<img>` 的 `crossOrigin` 跟 `frame.cors` 一致；`bottom` 用 `fitStage` 的 `ground`；拿掉舊的 `fitScale`。
   - `preloadFrame`：模組層一個 `Map<string, Promise<Frame>>`，新預載先 `clear()`；Stage 要第 0 格時先看 Map，有就直接用、也不等 `WAIT_MS`。Promise 要接 catch 免得未處理的 rejection。
-  - 換裝中：`status === "loading"` 持續超過 150ms 才算（內部一個延遲旗標）：舊圖 `opacity: 0.45`、舞台中間大轉圈（取代角落小轉圈）；同一個旗標變化時呼叫 `onBusy`。快的不閃。
+  - 換裝中：`status === "loading"` 從換穿搭那一刻起（含 `WAIT_MS` 的等待）持續超過 150ms 才算（內部一個延遲旗標）：沒有舊圖時照舊中間大轉圈；舊圖 `opacity: 0.45`、舞台中間大轉圈（取代角落小轉圈）；同一個旗標變化時呼叫 `onBusy`。快的不閃。
   - `useAvatarActions`：下載 `resize: 4`，註解同步（「存第 0 格、4 倍、裁剛好」）。
 
 - [ ] **Step 4: 跑測試確認通過**
@@ -229,15 +229,15 @@ Expected: PASS
 ### Task 4: 角色卡：上一套、鎖、兩欄小卡、開場隨機、預載
 
 **Files:**
-- Create: `src/app/plan/avatar/useRandomDeck.ts`
+- Create: `src/app/plan/avatar/useRandomDeck.ts`、`src/app/plan/avatar/useSessionText.ts`
 - Modify: `src/app/plan/avatar/AvatarSim.tsx`、`src/components/Icons.tsx`
 
 **Interfaces:**
-- Consumes: Task 2 的 `looks.ts`、`randomOutfit(data, base, rng, locks)`；Task 3 的 `preloadFrame`、`Stage` 的 `onBusy`；`useVisitState`（`@/lib/visit-state`，只放字串）。
-- Produces: `LockIcon({ open, size, className })`（`Icons.tsx`，同 `base()` 寫法）；`useRandomDeck(data, outfit, locks, idle): { draw: () => Outfit }`；鎖頭按鈕掛 `data-lock={key}`（Task 8 認它）。
+- Consumes: Task 2 的 `looks.ts`、`randomOutfit(data, base, rng, locks)`；Task 3 的 `preloadFrame`、`Stage` 的 `onBusy`。
+- Produces: `useSessionText(key: string): [string, (next: string) => void]`（sessionStorage 固定 key、初值空字串、讀寫都 try/catch，第一次畫跟伺服器一樣是空字串，掛上去再讀）；`LockIcon({ open, size, className })`（`Icons.tsx`，同 `base()` 寫法）；`useRandomDeck(data, outfit, locks, idle): { draw: () => Outfit }`；鎖頭按鈕掛 `data-lock={key}`（Task 8 認它）。
 
 - [ ] **Step 1: 接線**（這個任務是接線，邏輯都在 Task 2、3 測過；驗收在 Task 8）
-  - `useVisitState("avatar:history", "")`、`useVisitState("avatar:locks", "")`。
+  - `useSessionText("avatar:history")`、`useSessionText("avatar:locks")`（不能用 `useVisitState`：沒有 Navigation API 的瀏覽器它照網址記，這頁每換一件網址就變）。
   - `commit(next)`：`sameLook` 不一樣才 `pushLook(history, 現在)`；鎖用 `liveLocks` 修剪；換網址。查資料 `try=` 換正式網址、開場隨機走不記上一套的路（直接 `router.replace`）。
   - 「上一套」：`peekLook` 拿到才 `restoreLook`、`popLook`、換網址（不再 push）；沒有就 `disabled`（樣式同 `Action` 的 disabled 變淡，但游標不是 wait）。
   - 「重置」：`commit(defaultOutfit(g))`，鎖清空。
