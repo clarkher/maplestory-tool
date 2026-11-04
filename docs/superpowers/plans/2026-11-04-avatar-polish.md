@@ -214,7 +214,7 @@ Expected: FAIL
   - `Frame` 多 `reach: Reach`、`cors: boolean`。`loadFrame`：先 `crossOrigin="anonymous"` 載，用 canvas 量 `alphaReach`（量失敗或全透明就 `unmeasured`）；帶 crossOrigin 載失敗就不帶再要一次（`cors: false`、`unmeasured`）；兩次都失敗才 reject；`LOAD_TIMEOUT_MS` 算整趟。
   - `<img>` 的 `crossOrigin` 跟 `frame.cors` 一致；`bottom` 用 `fitStage` 的 `ground`；拿掉舊的 `fitScale`。
   - `preloadFrame`：模組層一個 `Map<string, Promise<Frame>>`，新預載先 `clear()`；Stage 要第 0 格時先看 Map，有就直接用、也不等 `WAIT_MS`。Promise 要接 catch 免得未處理的 rejection。
-  - 換裝中：`status === "loading"` 從換穿搭那一刻起（含 `WAIT_MS` 的等待）持續超過 150ms 才算（內部一個延遲旗標）：沒有舊圖時照舊中間大轉圈；舊圖 `opacity: 0.45`、舞台中間大轉圈（取代角落小轉圈）；同一個旗標變化時呼叫 `onBusy`。快的不閃。
+  - 換裝中：`status === "loading"` 從真的去要圖算起（不含 `WAIT_MS` 的等待）持續超過 150ms 才算（內部一個延遲旗標）：沒有舊圖時照舊中間大轉圈；舊圖 `opacity: 0.45`、舞台中間大轉圈（取代角落小轉圈）；同一個旗標變化時呼叫 `onBusy`。快的不閃。
   - `useAvatarActions`：下載 `resize: 4`，註解同步（「存第 0 格、4 倍、裁剛好」）。
 
 - [ ] **Step 4: 跑測試確認通過**
