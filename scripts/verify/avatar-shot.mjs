@@ -12,6 +12,7 @@
 //       avatar-1280.png／avatar-1280-dark.png（電腦版左右排）、avatar-1280-full.png（穿滿一身、角色卡裡面自己捲）、results.json（每一項檢查的結果＋量到的東西）
 // 期望值從「被測的那個站」的 /data/avatar.json 算（不讀本機檔，驗測試機時才對得上那邊的資料），道具 id 也從那裡挑（每日資料更新可能讓某件消失）。
 // 頁面上的東西用 Picker 掛的 data-tab、data-colour、data-cell、data-name、data-missing、data-group 跟角色卡的 data-lock 找，不認樣式 class。
+// 只有一個例外：watchChange（第 30、31 項）認大轉圈的 .motion-safe:animate-spin 跟它外層的 inset-0（大轉圈沒有別的東西可認），改大轉圈的寫法這兩項要跟著改。
 import fs from "node:fs";
 import path from "node:path";
 import { chromePort, outDir } from "./config.mjs";
@@ -23,14 +24,28 @@ const PORT = chromePort(9382, process.argv[4]);
 /** 本機：按「隨機穿搭」到圖換好可以連換網址的時間一起算（遠端換網址要等網路，只算網址換好之後） */
 const LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE);
 
-const results = { base: BASE, port: PORT, upstreamRetries: 0, checks: [] };
+/** 舞台一趟等 15 秒才放棄（Stage.tsx 的 LOAD_TIMEOUT_MS）。等到這個數字以上才算 maplestory.io 真的慢；比這早就放棄是請求被擋、回錯或程式壞了，那一項沒過 */
+const SLOW_MS = 14000;
+/** 整趟幫忙按「再試一次」幾次（超過就當 maplestory.io 真的掛了）、第 29 項換幾次預載。分開數：第 29 項用不到前者的額度 */
+const DRAWN_BUDGET = 6;
+const PRELOAD_BUDGET = 3;
+
+// upstreamRetries：真的慢、幫忙重來的每一次（哪一項、等多久、哪張圖）。earlyErrors：太早放棄、讓那一項沒過的每一次
+const results = { base: BASE, port: PORT, upstreamRetries: [], earlyErrors: [], checks: [] };
+const saveResults = () => {
+  fs.mkdirSync(OUT, { recursive: true });
+  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
+};
 const record = (name, ok, detail) => {
   results.checks.push({ name, ok: Boolean(ok), ...(detail === undefined ? {} : { detail }) });
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail === undefined ? "" : `  ${typeof detail === "string" ? detail : JSON.stringify(detail)}`}`);
   return Boolean(ok);
 };
+/** 正在跑哪一項（記 upstreamRetries、earlyErrors 用） */
+let currentCheck = null;
 /** 一項檢查：fn 回 [ok, detail]；中途丟錯（例如點不到）就記這一項沒過、寫原因，接著跑下一項 */
 async function check(name, fn) {
+  currentCheck = name;
   try {
     const [ok, detail] = await fn();
     return record(name, ok, detail);
@@ -112,16 +127,58 @@ const SETTLED = `(() => {
   return [q.get("s"), q.get("h"), q.get("f"), ...(q.get("w") ?? "").split(".")].filter(Boolean).every(id => src.includes('"itemId":' + id));
 })()`;
 const RETRY = button(CARD, "再試一次");
+/** 舞台要第 0 格的紀錄（都是 1 倍；下載是 4 倍，不在裡面） */
+const FRAME0_ENTRIES = `performance.getEntriesByType("resource").filter(e => e.name.includes("/api/character/") && e.name.includes("/0?resize=1&"))`;
 /**
- * 等舞台畫好。maplestory.io 偶爾一張圖要 20 秒以上（直接問它也一樣，隔一下同一張不到 1 秒）：舞台一輪 15 秒、兩輪都逾時就寫「載不出來」。
- * 那是照設計的樣子，不是這些項目要驗的：這裡幫忙按「再試一次」，次數記在 results.upstreamRetries、印出來；太多次（maplestory.io 真的掛了）就不按，那一項等到時間到沒過。
+ * 舞台這張圖等了多久，從真的開始要算（Resource Timing，放棄的請求也有一筆，結束時間是放棄的時候）。
+ * 網址上這一套最後結束的那筆；帶 crossOrigin 失敗馬上退回不帶，兩次共用一個 15 秒，網址一樣又接得上的算同一趟。「再試一次」網址多 &_r=，是另一趟。
+ */
+const STAGE_WAIT = `(() => {
+  const q = new URLSearchParams(location.search);
+  const ids = [q.get("s"), q.get("h"), q.get("f"), ...(q.get("w") ?? "").split(".")].filter(Boolean);
+  const mine = ${FRAME0_ENTRIES}.filter(e => { const s = decodeURIComponent(e.name); return ids.every(id => s.includes('"itemId":' + id)); }).sort((a, b) => a.responseEnd - b.responseEnd);
+  const last = mine.at(-1);
+  if (!last) return null;
+  let start = last.startTime;
+  for (const e of mine.filter(x => x !== last && x.name === last.name).reverse()) {
+    if (start - e.responseEnd > 500) break;
+    start = e.startTime;
+  }
+  return { ms: Math.round(last.responseEnd - start), status: last.responseStatus, url: last.name };
+})()`;
+/** 舞台剛放棄：等放棄的那筆紀錄進 Resource Timing 再讀（比畫面晚一點） */
+async function stageWait() {
+  await sleep(300);
+  for (let i = 0; i < 4; i++) {
+    const wait = await evaluate(STAGE_WAIT);
+    if (wait) return wait;
+    await sleep(250);
+  }
+  return null;
+}
+/** 真的慢：記一筆（哪一項、哪一種、等多久、哪張圖）。wait 是 { ms, url } */
+const logRetry = (kind, wait) => results.upstreamRetries.push({ check: currentCheck, kind, waitMs: wait.ms, url: decodeURIComponent(wait.url) });
+/** 不到 SLOW_MS 就放棄，或查不到等了多久：記一筆，回傳要丟的錯（那一項沒過） */
+function earlyError(what, wait) {
+  results.earlyErrors.push({ check: currentCheck, what, waitMs: wait?.ms ?? null, status: wait?.status ?? null, url: wait ? decodeURIComponent(wait.url) : null });
+  return new Error(wait
+    ? `${what}：只等了 ${wait.ms}ms、狀態 ${wait.status}（舞台一趟 15 秒才放棄，這不是 maplestory.io 慢）`
+    : `${what}：Resource Timing 查不到這張圖，證明不了是 maplestory.io 慢`);
+}
+/**
+ * 等舞台畫好。maplestory.io 偶爾一張圖要 20 秒以上（直接問它也一樣，隔一下同一張不到 1 秒）：舞台等 15 秒就寫「載不出來」。
+ * 那是照設計的樣子，不是這些項目要驗的：真的等滿了（≥ SLOW_MS）才幫忙按「再試一次」、記在 results.upstreamRetries；按超過 DRAWN_BUDGET 次（maplestory.io 真的掛了）就不按，那一項沒過。
+ * 比 SLOW_MS 早就寫「載不出來」不是它慢（請求被擋、回錯、程式壞了）：記在 results.earlyErrors、丟錯，那一項沒過。
  * 第 8、9 項要驗載不出來、退回不帶 crossOrigin，不靠這個（第 9 項有看 upstreamRetries 沒增加）。
  */
 async function drawn(expression, ms = 60000) {
   for (let t = 0; t < ms; t += 250) {
     if (await evaluate(`Boolean(${expression})`)) return true;
-    if (results.upstreamRetries < 6 && (await evaluate(`Boolean(${RETRY})`))) {
-      results.upstreamRetries++;
+    if (await evaluate(`Boolean(${RETRY})`)) {
+      const wait = await stageWait();
+      if (!wait || wait.ms < SLOW_MS) throw earlyError("舞台太早寫「載不出來」", wait);
+      if (results.upstreamRetries.filter(r => r.kind === "再試一次").length >= DRAWN_BUDGET) return false;
+      logRetry("再試一次", wait);
       await evaluate(`(${RETRY}).click(), true`);
     }
     await sleep(250);
@@ -249,7 +306,7 @@ const stageClip = frames => evaluate(`(async () => {
 /**
  * 做一個動作、頁面裡記到換好為止（不靠截圖，也不會漏掉兩格之間的變化）：
  * MutationObserver：<img> 的 opacity 每一次改動、大轉圈每一次出現、aria-busy 每一次變化；requestAnimationFrame：每一格算出來的 opacity。
- * requestStart：Resource Timing 記的「真的開始要第 0 格」（跟 performance.now 同一個時鐘）
+ * requestStart：Resource Timing 記的「真的開始要第 0 格」（跟 performance.now 同一個時鐘）；舞台放棄了（img 不見了）就看按下去之後第一筆第 0 格
  */
 const watchChange = action => evaluate(`new Promise(res => {
   const stage = ${STAGE};
@@ -286,8 +343,9 @@ const watchChange = action => evaluate(`new Promise(res => {
     if (label && !label.disabled) ev.busyLabel = true;
     if ((ev.ariaFalse !== null && at() - ev.ariaFalse > 300) || at() > 30000) {
       mo.disconnect();
-      const entry = img ? performance.getEntriesByName(${FRAME0_JS}(img.src)).at(-1) : null;
+      const entry = img ? performance.getEntriesByName(${FRAME0_JS}(img.src)).at(-1) : ${FRAME0_ENTRIES}.find(e => e.startTime >= t0);
       ev.requestStart = entry ? Math.round(entry.startTime - t0) : null;
+      ev.requestUrl = entry?.name ?? null;
       ev.endOpacity = img?.style.opacity ?? null;
       ev.endSpin = Boolean(stage.querySelector(SPIN));
       res(ev);
@@ -345,6 +403,8 @@ try {
     if (msg.method === "Network.requestWillBeSent" && msg.params.request.url.includes("/api/character/")) characterRequests.push(msg.params.request.url);
   });
   await page.send("Network.enable");
+  // Resource Timing 預設 250 筆一下就滿，後面的圖量不到（第 29、31 項、舞台等了多久都靠它）：每一頁一開始就調大
+  await page.send("Page.addScriptToEvaluateOnNewDocument", { source: "performance.setResourceTimingBufferSize(5000)" });
   await viewport(375, 812);
 
   // 1. 一打開：舞台圖載好、不橫捲（帶參數開：不帶會開場隨機，第 2 項要從白 T 開始）
@@ -505,11 +565,11 @@ try {
       }
     },
     () => check("帶 Origin 要圖都失敗（快取裡沒有 CORS 標頭）：舞台退回不帶 crossOrigin 照畫、沒有「載不出來」", async () => {
-      const retriesBefore = results.upstreamRetries;
+      const retriesBefore = results.upstreamRetries.length;
       // 用別的項目不會碰到的膚色：這一項會真的在快取留下沒 CORS 標頭的版本（關掉快取只是不讀，照樣寫），後面的項目碰到同一張網址每次都要繞一圈，第 30 項就量不準
       await open(`?p=jump&s=2003`);
       await settled(30000);
-      const retried = results.upstreamRetries - retriesBefore;
+      const retried = results.upstreamRetries.length - retriesBefore;
       const s = await evaluate(`(() => {
         const img = ${STAGE_IMG};
         const scale = parseFloat(img.style.width) / img.naturalWidth;
@@ -544,6 +604,7 @@ try {
     return [ok, { url, opening: opening.search.slice(0, 60), previous: previous.split("/").pop(), emptied, white, stillEmpty, flashed, requested }];
   }));
 
+  // 11. 帶參數不隨機
   await check("帶參數打開不隨機：?g=1、?p=sit 等 1.5 秒網址都沒變", async () => {
     const out = {};
     for (const q of ["?g=1", "?p=sit"]) {
@@ -555,6 +616,7 @@ try {
     return [Object.entries(out).every(([q, now]) => q === now), out];
   });
 
+  // 12. ?try 不多一筆紀錄
   await check(`?try=${TRY} 進來：網址換成正式寫法、不多一筆瀏覽紀錄、不記上一套`, async () => {
     await fresh("?g=0");
     await settled();
@@ -569,7 +631,7 @@ try {
     return [rewritten && previous.endsWith("/plan/avatar?g=0") && looks.length === 0 && off, { rewritten, now: await search(), previous: previous.split("/").pop(), looks, off }];
   });
 
-  // 11. 上一套
+  // 13. 上一套
   await check("上一套：一開始按不了；按隨機再按上一套，網址回到按之前（動作、表情不變）；重新整理後還按得了；換動作不算一步、還原時動作留著", async () => {
     const start = `?h=${hairA}&p=walk&e=smile`;
     await fresh(start);
@@ -594,6 +656,7 @@ try {
     return [first && enabled && survived && restored && off && depth === 1 && keptPose, { first, afterRandom: afterRandom.slice(0, 40), enabled, survived, restored, off, depth, keptPose, end: await search() }];
   });
 
+  // 14. 連按隨機
   await check("連按隨機 5 下：上一套只記舞台真的畫過的，按一次回到畫過的最後一套", async () => {
     const start = `?h=${hairA}`;
     await fresh(start);
@@ -607,16 +670,16 @@ try {
     await wait("連按後網址換了", `location.search !== ${JSON.stringify(start)}`, 15000);
     await settled();
     const looks = await storedLooks();
-    const drawn = (await evaluate("window.__drawn")).map(s => decodeURIComponent(s));
+    const drawnSrcs = (await evaluate("window.__drawn")).map(s => decodeURIComponent(s));
     const hairsOf = q => new URLSearchParams(q).get("h");
-    const everyDrawn = looks.every(q => { const h = hairsOf(q); return h === null || drawn.some(s => s.includes(`"itemId":${h}`)); });
+    const everyDrawn = looks.every(q => { const h = hairsOf(q); return h === null || drawnSrcs.some(s => s.includes(`"itemId":${h}`)); });
     const top = looks.at(-1);
     await click("上一套", BACK);
     const back = await until(`location.search === ${JSON.stringify(top === "" ? "" : `?${top}`)}`, 15000);
-    return [looks.length >= 1 && looks.length < 5 && everyDrawn && back, { looks: looks.map(q => q.slice(0, 40)), everyDrawn, back, drawnFrames: drawn.length }];
+    return [looks.length >= 1 && looks.length < 5 && everyDrawn && back, { looks: looks.map(q => q.slice(0, 40)), everyDrawn, back, drawnFrames: drawnSrcs.length }];
   });
 
-  // 12. 鎖定
+  // 15. 鎖髮型
   await check("鎖髮型：隨機 3 次 h 都不變、鎖不進網址；按「重置」鎖解開", async () => {
     const start = `?h=${hairA}`;
     await fresh(start);
@@ -642,6 +705,7 @@ try {
     return [unchanged && hs.every(h => h === String(hairA)) && released && !after && box.w >= 36 && box.h >= 44 && !box.nested && w.scrollWidth <= w.clientWidth, { unchanged, hs, released, after, box, ...w }];
   });
 
+  // 16. 鎖了再換性別
   await check("鎖上衣、褲裙、帽子再換性別：男生限定的那兩件被換掉、鎖解開；男女都能穿的帽子鎖留著", async () => {
     if (!MALE_COAT || !MALE_PANTS || !BOTH_CAP) throw new Error("資料裡沒有男生限定的上衣、褲裙或男女都能穿的帽子");
     await fresh(LOOK);
@@ -655,6 +719,7 @@ try {
     return [released && capKept && locks === "cap", { released, capKept, locks }];
   });
 
+  // 17. 鎖帽子再脫掉
   await check("鎖帽子再脫掉：鎖解開、存的也清了；重新整理前鎖還在", async () => {
     if (!BOTH_CAP) throw new Error("資料裡沒有男女都能穿的帽子");
     await fresh(LOOK);
@@ -670,6 +735,7 @@ try {
     return [survived && gone && !locks, { survived, gone, locks }];
   });
 
+  // 18. 鎖了再開乾淨的頁
   await check("鎖髮型後開乾淨的 /plan/avatar（開場隨機）：從頭到尾沒亮過鎖、存的也清了", async () => {
     await fresh(`?h=${hairA}`);
     await settled();
@@ -687,7 +753,7 @@ try {
     });
   });
 
-  // 13. 超大武器：舞台圖的不透明範圍（讀圖的像素，換算到畫面）上下左右都不超出舞台
+  // 19、20. 超大武器、拿槍趴下：舞台圖的不透明範圍（讀圖的像素，換算到畫面）上下左右都不超出舞台
   for (const [what, query, frames, file] of [
     [`超大武器 ${BIG_WEAPON?.n}`, `?w=${BIG_WEAPON?.id}`, 3, "avatar-weapon.png"],
     [`拿槍趴下 ${SPEAR?.n}`, `?w=${SPEAR?.id}&p=prone`, 1, "avatar-spear.png"],
@@ -706,10 +772,10 @@ try {
     });
   }
 
-  // 14. 跨類別搜尋
+  // 21. 跨類別搜尋（要的是分頁，不等舞台的圖：這裡不在任何一項裡面，丟錯後面的項目就都跑不到）
   const TABS = await (async () => {
     await open("?g=0");
-    await ready(40);
+    await wait("挑衣服卡格子", `${CELLS}.length >= 40`, 30000);
     return evaluate(`[...${PICKER}.querySelectorAll("[data-tab]")].map(b => b.dataset.tab)`);
   })();
   const GROUPS = groupsOf(WORD, TABS);
@@ -743,6 +809,7 @@ try {
     return [ok, { heads: s.heads, wantHeads, found: s.found, cells: s.cells, more: s.more, pressed: s.pressedTabs, backOn, after: after.pressedTabs, ...w }];
   });
 
+  // 22. 再看 40 個
   await check("搜尋結果一次 40 個（跨類別加起來）、「再看 40 個」接著列，總數不變", async () => {
     // 這個字有 40 件以上才切得到（楓葉 66 件；資料少了就換一個）
     const word = [WORD, "帽", "造型"].find(x => groupsOf(x, TABS).reduce((n, g) => n + g.n, 0) > 40);
@@ -757,6 +824,7 @@ try {
     return [ok, { word, total, first: first.cells, second: second.cells, heads: second.heads }];
   });
 
+  // 23. 搜尋時點小卡
   await check("搜尋時點穿了什麼的髮型小卡：搜尋清掉、髮型分頁亮、色塊回來（分頁本來就是髮型也一樣）", async () => {
     await click("髮型分頁", TAB("hair"));
     await typeSearch(WORD);
@@ -767,7 +835,7 @@ try {
     return [before.text === WORD && before.pressedTabs.length === 0 && s.pressedTabs.join() === "hair" && s.swatches > 0 && s.heads.length === 0 && s.found === null, { before: before.pressedTabs, after: s.pressedTabs, swatches: s.swatches, heads: s.heads.length }];
   });
 
-  // 15. 只看商城有賣
+  // 24. 只看商城有賣
   await check(`帽子分頁開「只看商城有賣」（${SHOP_CAPS} 件）：每格都有「樂豆點」、旁邊寫件數；切髮型分頁鈕不見`, async () => {
     await fresh("?g=0");
     await ready(40);
@@ -789,8 +857,10 @@ try {
     return [ok, { onHair: onHair.toggle, off: [off.priced, off.cells], on: [on.priced, on.cells, on.count], back: back.toggle, ...w }];
   });
 
-  // 16. 下載：攔 createObjectURL 跟 a.click（不真的存檔），量拿到的那張圖
-  await check("下載：檔名 紙娃娃.png、PNG、四角透明、預設角色寬 ≥ 150px（4 倍）", async () => {
+  // 25. 下載：攔 createObjectURL 跟 a.click（不真的存檔），量拿到的那張圖。
+  // 4 倍不用固定寬度驗：renderMode=0 裁到剛好包住角色，寬度看穿什麼（預設角色 1 倍 43×68、4 倍 172×272，11/04 量；舞台用的 renderMode=4 是 51×128）。
+  // 改跟同一套同一格的 1 倍比，要正好 4 倍：拿到 1 倍或舞台那張都過不了。
+  await check("下載：檔名 紙娃娃.png、PNG、四角透明、寬高正好是同一套 1 倍的 4 倍", async () => {
     await fresh("?g=0");
     await settled();
     await evaluate(`(() => {
@@ -815,11 +885,17 @@ try {
       const alpha = (px, py) => x.getImageData(px, py, 1, 1).data[3];
       return { name, type: blob.type, size: blob.size, w: bmp.width, h: bmp.height, corners: [alpha(0, 0), alpha(bmp.width - 1, 0), alpha(0, bmp.height - 1), alpha(bmp.width - 1, bmp.height - 1)] };
     })()`);
-    const requested = characterRequests.some(u => u.includes("resize=4&renderMode=0"));
-    return [m.name === "紙娃娃.png" && m.type === "image/png" && m.corners.every(a => a === 0) && m.w >= 150 && requested, { ...m, requested }];
+    const requestedUrl = characterRequests.find(u => u.includes("resize=4&renderMode=0"));
+    if (!requestedUrl) throw new Error("沒有要過 resize=4&renderMode=0 的圖");
+    // 讀 PNG 檔頭的寬高（Node 直接問，不會碰到瀏覽器快取）
+    const one = await fetch(requestedUrl.replace("resize=4&", "resize=1&"), { signal: AbortSignal.timeout(40000) });
+    if (!one.ok) throw new Error(`同一套的 1 倍要不到：${one.status}`);
+    const png = Buffer.from(await one.arrayBuffer());
+    const base = { w: png.readUInt32BE(16), h: png.readUInt32BE(20) };
+    return [m.name === "紙娃娃.png" && m.type === "image/png" && m.corners.every(a => a === 0) && m.w === base.w * 4 && m.h === base.h * 4, { ...m, base }];
   });
 
-  // 17. 分享：攔 clipboard；連結在 Vercel、Cloudflare 都走同一支 route（快取標頭兩邊可能不同，不驗）
+  // 26. 分享：攔 clipboard；連結在 Vercel、Cloudflare 都走同一支 route（快取標頭兩邊可能不同，不驗）
   await check("分享：複製的是 /api/avatar/share?…；連結的文字有 og:image、maplestory.io、noindex；開起來落在 /plan/avatar、穿了什麼一樣；HEAD、缺 h、亂改、robots", async () => {
     const start = `?h=${hairA}&w=${[JP_CAP?.id, MALE_COAT?.id, MALE_PANTS?.id].filter(Boolean).join(".")}&p=walk&e=smile`;
     await fresh(start);
@@ -863,7 +939,7 @@ try {
     return [ok, { link: link.slice(0, 120), keys, toast, status: got.status, og, head: head.status, headBody: headBody.length, noHair: [noHair.status, noHairTo.pathname + noHairTo.search], robots: robots.includes("Allow: /api/avatar/share"), landed, landedSearch: landedSearch.slice(0, 80), sameWorn: JSON.stringify(wornBefore) === JSON.stringify(wornAfter), sameFrame: frameBefore === frameAfter }];
   });
 
-  // 18. 一般裝備也能穿上看看
+  // 27. 一般裝備也能穿上看看
   await check(`/db/items?id=${PLAIN?.id}（一般裝備 ${PLAIN?.n}）有「穿上看看」`, async () => {
     await navigate(`${BASE}/db/items?id=${PLAIN.id}`);
     const linkFinder = `[...document.querySelectorAll("a")].find(a => a.textContent.trim() === "穿上看看")`;
@@ -872,7 +948,7 @@ try {
     return [linked && href === `/plan/avatar?try=${PLAIN.id}`, { href }];
   });
 
-  // 19. 首頁入口
+  // 28. 首頁入口
   await check("首頁有連到 /plan/avatar 的「紙娃娃」入口", async () => {
     await navigate(`${BASE}/`);
     const linkFinder = `[...document.querySelectorAll("a[href='/plan/avatar']")].find(a => a.textContent.includes("紙娃娃") && a.textContent.includes("換髮型、穿點裝，看角色穿起來的樣子"))`;
@@ -881,12 +957,11 @@ try {
     return [linked && w.scrollWidth <= w.clientWidth, { linked, ...w }];
   });
 
-  // 20. 預載：按過一次之後，舞台閒下來就先要下一套的第 0 格，下一次按直接用（不等 250ms）。
+  // 29. 預載：按過一次之後，舞台閒下來就先要下一套的第 0 格，下一次按直接用（不等 250ms）。
   // 不用固定秒數等：要圖第一次畫要好幾秒，Resource Timing 有那張（預載結束才有）才按，不然量到的是「還在等圖」
   await check("預載：按過一次隨機之後下一套先要好；再按：新圖在按之前就開始要、預載好的 250ms 內換上（3 輪）", async () => {
     await fresh(`?h=${hairA}`);
     await settled();
-    await evaluate("performance.setResourceTimingBufferSize(5000)");
     const before = characterRequests.length;
     await sleep(1000);
     const notYet = characterRequests.slice(before).filter(u => /\/0\?resize=/.test(u)).length;
@@ -894,13 +969,19 @@ try {
     await pressRandom();
     const rounds = [];
     let since = armAt;
-    for (let tries = 0; rounds.length < 3 && tries < 8; tries++) {
+    let replaced = 0;
+    while (rounds.length < 3) {
       const current = await stageFrame0();
-      const preloadEntries = `performance.getEntriesByType("resource").filter(e => e.name.includes("/api/character/") && e.name.includes("/0?resize=1&") && e.name !== ${JSON.stringify(current)} && e.startTime > ${since})`;
+      const preloadEntries = `${FRAME0_ENTRIES}.filter(e => e.name !== ${JSON.stringify(current)} && e.startTime > ${since})`;
       await wait("下一套預載結束", `${preloadEntries}.length > 0`, 60000);
-      // maplestory.io 太慢（預載等 15 秒放棄，也會留一筆紀錄，狀態是 0）或回錯：這一下沒東西可驗，舞台照常自己要。再按一次換下一套，不算一輪
-      if ((await evaluate(`${preloadEntries}.at(-1).responseStatus`)) !== 200) {
-        results.upstreamRetries++;
+      const preload = await evaluate(`(e => ({ ms: Math.round(e.responseEnd - e.startTime), status: e.responseStatus, url: e.name }))(${preloadEntries}.at(-1))`);
+      if (preload.status !== 200) {
+        // 太早就失敗（被擋、回錯）是有問題，不是 maplestory.io 慢
+        if (preload.ms < SLOW_MS) throw earlyError("預載太早失敗", preload);
+        // 真的慢（預載等 15 秒放棄，也會留一筆紀錄，狀態是 0）：這一下沒東西可驗，舞台照常自己要。再按一次換下一套，不算一輪；換太多次就沒過
+        if (replaced >= PRELOAD_BUDGET) throw new Error(`預載連續放棄超過 ${PRELOAD_BUDGET} 次，這次驗不到（maplestory.io 太慢）`);
+        replaced++;
+        logRetry("預載", preload);
         since = await evaluate("performance.now()");
         await pressRandom();
         continue;
@@ -933,14 +1014,13 @@ try {
       await settled();
     }
     const ok = notYet === 0 && rounds.length === 3 && rounds.every(r => r.requestStart !== null && r.requestStart < 0 && r.requestEnd !== null && r.requestEnd <= 0 && r.sinceUrl !== null && r.sinceUrl <= 250 && (!LOCAL || r.upMs <= 250));
-    return [ok, { notYet, rounds: rounds.map(({ pressAt, ...r }) => r) }];
+    return [ok, { notYet, replaced, rounds: rounds.map(({ pressAt, ...r }) => r) }];
   });
 
-  // 21. 換裝中
+  // 30. 換裝中，快取裡的圖
   await check("換裝中：快取裡的圖（來回切動作 4 次）完全不變淡、沒有大轉圈、字不變", async () => {
     await fresh("?p=jump");
     await settled();
-    await evaluate("performance.setResourceTimingBufferSize(5000)");
     // 兩個動作先都載過，之後來回切都在快取裡
     await click("動作「坐下」", SEGMENT("動作", "坐下"));
     if (!(await drawn(`${SETTLED} && ${STAGE_IMG}.src.includes("/sit/")`))) throw new Error("等不到：坐下畫好");
@@ -957,25 +1037,35 @@ try {
     return [ok, rounds];
   });
 
+  // 31. 換裝中，慢的圖
   await check("換裝中：慢的圖（拖 1.2 秒）開始要圖約 150ms 後舊圖 0.45＋中間大轉圈、字變「換裝中…」還按得下去；好了全收掉", async () => {
-    await fresh("?g=0");
-    await settled();
-    await evaluate("performance.setResourceTimingBufferSize(5000)");
-    await sleep(300);
-    const measure = () => intercepting(
-      params => { setTimeout(() => pass(params), 1200); },
-      async () => {
-        const watching = watchChange(RANDOM);
-        await sleep(1000);
-        await shot("avatar-busy.png");
-        return watching;
-      },
-    );
-    let ev = await measure();
-    // 30 秒都沒畫好，或舞台已經寫載不出來（img 不見了）：maplestory.io 這次沒給，量不到「好了全收掉」，換一套再量一次
-    if (ev.ariaFalse === null || ev.endOpacity === null) {
-      results.upstreamRetries++;
-      await drawn(SETTLED);
+    // 每次都開新的一頁：按過隨機就會預載，再按不會變淡
+    const measure = async () => {
+      await fresh("?g=0");
+      await settled();
+      await sleep(300);
+      return intercepting(
+        params => { setTimeout(() => pass(params), 1200); },
+        async () => {
+          const watching = watchChange(RANDOM);
+          await sleep(1000);
+          await shot("avatar-busy.png");
+          return watching;
+        },
+      );
+    };
+    const first = await measure();
+    let ev = first;
+    // 舞台寫了載不出來（img 不見了）。拖 1.2 秒遠遠不到 SLOW_MS，不會自己絆到這裡
+    if (ev.endOpacity === null) {
+      // 重量之前先把第一次量到的存進 results.json，真的出事才查得到
+      results.slowDimFirstAttempt = first;
+      saveResults();
+      const waited = ev.requestStart === null || ev.ariaFalse === null ? null : ev.ariaFalse - ev.requestStart;
+      const wait = waited === null ? null : { ms: waited, status: 0, url: ev.requestUrl ?? "" };
+      if (!wait || wait.ms < SLOW_MS) throw earlyError("舞台太早寫「載不出來」", wait);
+      // 真的慢：maplestory.io 這次沒給，量不到「好了全收掉」，開新的一頁再量一次（只一次）
+      logRetry("慢的圖", wait);
       ev = await measure();
     }
     const dimAt = ev.opacityWrites.find(w => w[1] === "0.45")?.[0] ?? null;
@@ -984,10 +1074,10 @@ try {
     const label = await until(`${button(CARD, "隨機穿搭")}`, 5000);
     const ok = sinceRequest !== null && sinceRequest >= 130 && sinceRequest <= 300 && ev.minOpacity === 0.45 && spin && Math.abs(spin[0] - dimAt) <= 30 && spin[1] === 32 && spin[2] === true
       && ev.busyLabel && label && ev.endOpacity === "" && !ev.endSpin;
-    return [ok, { requestStart: ev.requestStart, dimAt, sinceRequest, minOpacity: ev.minOpacity, spinner: spin, busyLabel: ev.busyLabel, label, ariaFalse: ev.ariaFalse, endOpacity: ev.endOpacity, endSpin: ev.endSpin }];
+    return [ok, { requestStart: ev.requestStart, dimAt, sinceRequest, minOpacity: ev.minOpacity, spinner: spin, busyLabel: ev.busyLabel, label, ariaFalse: ev.ariaFalse, endOpacity: ev.endOpacity, endSpin: ev.endSpin, measured: ev === first ? 1 : 2 }];
   });
 
-  // 22. 1280 寬：左右排、沒有小窗（左邊角色卡黏著）；角色卡黏住後下緣在視窗裡（頁面在最上面時會超出，捲不到 120px 就黏住，照設計）
+  // 32. 1280 寬：左右排、沒有小窗（左邊角色卡黏著）；角色卡黏住後下緣在視窗裡（頁面在最上面時會超出，捲不到 120px 就黏住，照設計）
   await check("1280 寬：角色卡、挑衣服卡左右排；往下捲角色卡黏在上面（80px）、下緣 ≤ 視窗高；捲到底都沒有小窗", async () => {
     await viewport(1280, 900);
     await open("?g=0");
@@ -1011,9 +1101,12 @@ try {
     return [loaded && sideBySide && Math.abs(sticky.cardTop - 80) <= 1 && sticky.cardBottom <= sticky.vh && !sticky.mini && !bottom.mini, { layout, sticky, bottom }];
   });
 
-  await check("1280×800 穿滿一身：角色卡黏住後下緣 ≤ 視窗高、裡面自己捲、捲到底最後一張小卡看得到、頁面不動", async () => {
+  // 33. 1280×800 穿滿一身
+  await check("1280×800 穿滿一身（10 件）：角色卡黏住後下緣 ≤ 視窗高、裡面真的要捲、捲到底最後一張小卡看得到、頁面不動", async () => {
     await viewport(1280, 800);
-    const full = ["cap", "coat", "pants", "shoes", "glove", "cape", "weapon", "eyeAcc", "faceAcc", "earrings"].map(k => data.items.find(i => i.k === k && fits(i, 0) && i.r && !i.h)?.id).filter(Boolean);
+    const slots = ["cap", "coat", "pants", "shoes", "glove", "cape", "weapon", "eyeAcc", "faceAcc", "earrings"];
+    const full = slots.map(k => data.items.find(i => i.k === k && fits(i, 0) && i.r && !i.h)?.id).filter(Boolean);
+    if (full.length !== slots.length) throw new Error(`資料裡湊不滿一身：${full.length}/${slots.length} 件`);
     await open(`?w=${full.join(".")}`);
     await settled();
     await wait("穿了什麼列出來", `document.querySelectorAll("ul[aria-label='穿了什麼'] li").length >= ${full.length}`, 15000);
@@ -1029,11 +1122,13 @@ try {
     await painted();
     await shot("avatar-1280-full.png");
     await evaluate(`${CARD}.scrollTo({ top: 0, behavior: "instant" })`);
+    // 這一身放得下就驗不到「裡面自己捲」：寫出來、算沒過，不要默默過
     const scrolls = m.scrollH > m.clientH;
-    const ok = m.top === 80 && m.bottom <= m.vh && m.overflowY === "auto" && m.lastBottom <= m.vh && m.pageAfter === m.pageY && (!scrolls || m.innerTop > 0);
-    return [ok, { ...m, scrolls, worn: full.length }];
+    const ok = scrolls && m.innerTop > 0 && m.top === 80 && m.bottom <= m.vh && m.overflowY === "auto" && m.lastBottom <= m.vh && m.pageAfter === m.pageY;
+    return [ok, { ...m, scrolls, worn: full.length, ...(scrolls ? {} : { note: "這一身在 1280×800 放得下、不用捲，驗不到裡面自己捲" }) }];
   });
 
+  // 34. 整趟
   record("整趟 console 沒有例外或錯誤", problems.exceptions.length === 0 && problems.errors.length === 0, problems);
 } catch (error) {
   record("腳本中途出錯", false, String(error?.message ?? error).slice(0, 400));
@@ -1041,9 +1136,15 @@ try {
 } finally {
   const passed = results.checks.filter(c => c.ok).length;
   results.summary = `${passed}/${results.checks.length}`;
-  fs.mkdirSync(OUT, { recursive: true });
-  fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
-  if (results.upstreamRetries) console.log(`\nmaplestory.io 慢到舞台逾時 ${results.upstreamRetries} 次（已按「再試一次」，不算沒過）`);
+  saveResults();
+  if (results.upstreamRetries.length) {
+    console.log(`\nmaplestory.io 真的慢（等滿才放棄）${results.upstreamRetries.length} 次，重來過、不算沒過：`);
+    for (const r of results.upstreamRetries) console.log(`  ${r.kind}  等了 ${r.waitMs}ms  ${r.check.slice(0, 30)}`);
+  }
+  if (results.earlyErrors.length) {
+    console.log(`\n太早放棄 ${results.earlyErrors.length} 次（不是 maplestory.io 慢，那一項沒過）：`);
+    for (const r of results.earlyErrors) console.log(`  ${r.what}  等了 ${r.waitMs ?? "查不到"}ms  狀態 ${r.status ?? "查不到"}  ${r.check.slice(0, 30)}`);
+  }
   console.log(`\n${results.summary} 項通過，輸出在 ${OUT}`);
   if (close) await close();
   process.exit(passed === results.checks.length && results.checks.length > 0 ? 0 : 1);

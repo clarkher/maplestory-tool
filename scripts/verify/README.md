@@ -526,7 +526,7 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
 - 網址用 `localhost`；本機要用 `npx next dev --webpack -p 9381`（或 `npx next build` 後 `npx next start -p 9381`，開場隨機、預載要在正式 build 也驗一次）。要驗測試機就把網址換成測試機（例 `https://maplehelper-dev.pipicards.workers.dev`），其他不用改。第一次開頁 dev 要編譯，最多等 1 分鐘。
 - 角色圖是瀏覽器向 maplestory.io 即時要的，**要連得到網路**；maplestory.io 掛了大多數項目會沒過（那是真的畫不出來，不是程式壞）。
 - 期望值從**被測的那個站**的 `/data/avatar.json` 算（不讀本機的 `public/data/avatar.json`，驗測試機時才對得上那邊的資料），道具 id 也從那裡挑、資料更新消失了就換同類的：男生髮型清單、女生第 1 款髮型、第一頂男生能穿的點裝帽子、第一頂畫不出來的點裝帽子、超大武器、槍、一般裝備、搜尋結果件數、有商城價的帽子件數。挑了什麼寫在 `results.json` 的 `expect`。
-- 頁面上的東西用挑衣服卡掛的 `data-tab`（分頁）、`data-colour`（色塊）、`data-cell`／`data-name`／`data-missing`（格子）、`data-group`（搜尋區頭）跟角色卡的 `data-lock`（鎖頭）找，不認 Tailwind class；改版面時這幾個屬性要留著。鎖頭的 `aria-label` 固定是「鎖住{類別}」，狀態看 `aria-pressed`。
+- 頁面上的東西用挑衣服卡掛的 `data-tab`（分頁）、`data-colour`（色塊）、`data-cell`／`data-name`／`data-missing`（格子）、`data-group`（搜尋區頭）跟角色卡的 `data-lock`（鎖頭）找，不認 Tailwind class；改版面時這幾個屬性要留著。**只有一個例外**：第 30、31 項的 `watchChange` 認大轉圈的 `.motion-safe:animate-spin` 跟它外層的 `inset-0`（大轉圈沒有別的東西可認），改大轉圈的寫法這兩項要跟著改。鎖頭的 `aria-label` 固定是「鎖住{類別}」，狀態看 `aria-pressed`。
 - 每一項各自判：點不到東西（`click()` 找不到元素）、等不到東西，那一項直接 FAIL、`detail` 寫「點不到：…」「等不到：…」，接著跑下一項。讀畫面之前都用 `until` 等條件，不用固定秒數。v1.41 的項目用 `fresh()` 開頭：先開同網域的 `/brand-emblem.png` 清 `sessionStorage`（上一套、鎖都存在那裡），每一項從乾淨的狀態開始。
 - 檢查（34 項，任何一項沒過 exit 1）：
   1. 375 寬一打開（帶 `?g=0`，不帶會開場隨機）：舞台圖載好（`naturalWidth > 0`）、頁面不橫捲。
@@ -555,22 +555,22 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
   22. 「再看 40 個」：40 → `min(80, 總數)`，「找到 N 件」不變。
   23. 髮型分頁搜尋時點穿了什麼的髮型小卡：搜尋清掉、髮型分頁亮、色塊回來。
   24. 帽子分頁開「只看商城有賣」：每格都有「N 樂豆點」、格子 `min(40, 件數)`、旁邊寫「N 件」、不橫捲；髮型分頁沒有這顆鈕。
-  25. 下載：攔 `URL.createObjectURL`、`HTMLAnchorElement.prototype.click`（**不真的存檔**），檔名 `紙娃娃.png`、PNG、四角透明、寬 ≥ 150、要的是 `resize=4&renderMode=0`。
+  25. 下載：攔 `URL.createObjectURL`、`HTMLAnchorElement.prototype.click`（**不真的存檔**），檔名 `紙娃娃.png`、PNG、四角透明、要的是 `resize=4&renderMode=0`，寬高**正好是同一套同一格 1 倍的 4 倍**（Node 直接要 `resize=1` 讀 PNG 檔頭比）。不用固定寬度驗：`renderMode=0` 裁到剛好包住角色，寬度看穿什麼（預設角色 1 倍 43×68、4 倍 172×272；舞台的 `renderMode=4` 是 51×128，2026-11-04 量），拿到 1 倍或舞台那張都過不了。
   26. 分享：攔 `navigator.clipboard.writeText`，連結是 `/api/avatar/share`、有 `s,h,f,w`；用 Node `fetch` 拿連結的文字，200、有 `og:image`、`maplestory.io`、`x-robots-tag` 有 `noindex`；HEAD 200 沒內容；缺 `h` 302 到 `/plan/avatar`；`w=<script>` 整頁只有自己那段 `<script`；`robots.txt` 有 `Allow: /api/avatar/share`；瀏覽器打開落在 `/plan/avatar`、穿了什麼跟第 0 格都跟分享前一樣、沒有 `j=`。**不驗 `cache-control`**（Vercel、Cloudflare 對外不一定一樣），其他 Vercel、Cloudflare 都驗得過。
   27. `/db/items?id=1040002`（一般裝備，資料沒有就換一件）有「穿上看看」。
   28. 首頁有連到 `/plan/avatar` 的「紙娃娃」入口、不橫捲。
-  29. 預載：一開始不預載（1 秒內沒要過第 0 格）；按過一次之後等 Resource Timing 出現下一套的第 0 格才按（不等固定秒數；`responseStatus` 不是 200 表示這次預載失敗，再按一次換下一套，不算一輪），3 輪都要：新圖在按之前就開始要、也要好了，網址換好到圖換上 ≤ 250ms；本機（`localhost`）還要按下去到圖換上 ≤ 250ms（遠端換網址要等網路，不算）。
+  29. 預載：一開始不預載（1 秒內沒要過第 0 格）；按過一次之後等 Resource Timing 出現下一套的第 0 格才按（不等固定秒數；`responseStatus` 不是 200 表示這次預載失敗：等了 14 秒以上才算 maplestory.io 慢，再按一次換下一套、不算一輪，最多換 3 次，超過沒過；不到 14 秒就失敗直接沒過），3 輪都要：新圖在按之前就開始要、也要好了，網址換好到圖換上 ≤ 250ms；本機（`localhost`）還要按下去到圖換上 ≤ 250ms（遠端換網址要等網路，不算）。
   30. 換裝中，快取裡的圖：來回切「坐下」「跳」4 次，最低 opacity 1、沒寫過 opacity、沒有大轉圈、字不變。
-  31. 換裝中，慢的圖：`Fetch` 把請求拖 1.2 秒，真的開始要圖之後 130～300ms 內 opacity 變 0.45、大轉圈 ±30ms 內出現（32px、舞台中間）、字變「換裝中…」還按得下去；好了全收掉。
+  31. 換裝中，慢的圖：`Fetch` 把請求拖 1.2 秒，真的開始要圖之後 130～300ms 內 opacity 變 0.45、大轉圈 ±30ms 內出現（32px、舞台中間）、字變「換裝中…」還按得下去；好了全收掉。舞台寫了載不出來：開始要圖 14 秒以後才寫的才重量一次（開新的一頁，第一次量到的先存進 `results.json` 的 `slowDimFirstAttempt`），比這早直接沒過。
   32. 1280 寬：角色卡、挑衣服卡左右排、上緣對齊；往下捲 200px 角色卡黏在 80px、下緣 ≤ 視窗高（`scrollY` 0 時下緣超出視窗是設計如此，捲一點就黏住）；捲到底都沒有小窗。
-  33. 1280×800 穿滿一身：角色卡黏在 80px、下緣 ≤ 視窗高、`overflow-y: auto`、裡面捲到底最後一張小卡在視窗裡、頁面沒動。
+  33. 1280×800 穿滿一身（10 件，資料湊不滿沒過）：角色卡黏在 80px、下緣 ≤ 視窗高、`overflow-y: auto`、裡面**真的要捲**（`scrollHeight > clientHeight`，放得下就沒過、`detail` 寫出來，2026-11-04 量到 1017 比 702）、捲到底最後一張小卡在視窗裡、頁面沒動。
   34. 整趟沒有沒接住的例外、`console.error`。
 - 輸出：`avatar-375.png`、`avatar-hair.png`、`avatar-mini.png`／`avatar-mini-dark.png`、`avatar-missing.png`、`avatar-from-db.png`、`avatar-error.png`、`avatar-opening.png`、`avatar-locked.png`／`avatar-locked-dark.png`、`avatar-weapon.png`、`avatar-spear.png`、`avatar-search.png`、`avatar-shop.png`、`avatar-busy.png`、`avatar-shared.png`、`avatar-1280.png`／`avatar-1280-dark.png`、`avatar-1280-full.png`、`results.json`（`expect` 是從站上資料算出的期望值）；整支跑不下去另存 `crash.png`。
 - 小窗只在手機寬度（`lg` 以下）、角色卡整張捲到頁首底下時出現（頁首被手指收起來時是整張捲出螢幕才出現）。腳本的 `click()` 會先把目標捲到畫面中間，點小窗以外的東西可能把角色卡捲回畫面、小窗就收掉了：要點小窗的按鈕就先點，再點別的。
 - **第 9 項怎麼模擬**：真實情況是快取裡有一份沒帶 `Origin` 要到的版本（maplestory.io 沒寫 `Vary: Origin`），帶 `crossOrigin` 會被擋。用 `Fetch.requestPaused` 看請求標頭（看得到 `Origin`）：有就 `failRequest`，沒有就放行，快取關著才一定走到這裡；舞台要自己退回不帶 `crossOrigin` 再要一次。**這會真的汙染快取**：`Network.setCacheDisabled` 只是不讀、照樣寫，那張網址之後帶 `crossOrigin` 要都會先失敗再繞一圈，所以這項用別的項目碰不到的膚色（`s=2003`）；2026-11-04 共用 `?p=jump` 時，第 30 項的「跳」偶爾多等 300～650ms、變淡。同一個原因，第 19、20 項讀像素的 `fetch` 要帶 `cache: "reload"`，不然拿到快取裡沒標頭的版本會被擋。
 - **`img.src` 會輪播**：站著、走路、警戒的 `src` 在幾格之間換，要比穿搭有沒有換一律比第 0 格（`frame0()`、`STAGE_FRAME0`），等畫好用 `SETTLED`（第 0 格載好、`aria-busy` 是 false、網址寫的 `s,h,f,w` 都在圖裡）。「隨機穿搭」字會變「換裝中…」，用 `RANDOM` 認兩種字。
-- **第 29、31 項的時間是在頁面裡量的**（`requestAnimationFrame`＋`MutationObserver`＋Resource Timing），不能用 CDP 來回量：來回本身就要幾十毫秒。開頭要 `performance.setResourceTimingBufferSize(5000)`，預設 250 筆一下就滿，後面的圖量不到。第 31 項的 150ms 是從「真的開始要圖」算（換網址要等 RSC），不是從按下去。
-- **maplestory.io 偶爾一張圖要 20 秒以上**（Node 直接問也量到 23.5 秒，隔一下同一張不到 1 秒；11/04 40 下隨機碰到 1 次），舞台等 15 秒就寫「載不出來」，這是照設計。不是這些項目要驗的，所以 `drawn()`／`settled()` 看到「再試一次」會幫忙按，第 29 項預載沒成功、第 31 項這次沒畫出來也換一套再量，次數都記在 `results.json` 的 `upstreamRetries` 並印出來；「再試一次」超過 6 次就不再按（真的掛了那一項會沒過）。第 8、9 項不靠這個。
+- **第 29、31 項的時間是在頁面裡量的**（`requestAnimationFrame`＋`MutationObserver`＋Resource Timing），不能用 CDP 來回量：來回本身就要幾十毫秒。每一頁一開始都先 `performance.setResourceTimingBufferSize(5000)`（`Page.addScriptToEvaluateOnNewDocument`），預設 250 筆一下就滿，後面的圖量不到。第 31 項的 150ms 是從「真的開始要圖」算（換網址要等 RSC），不是從按下去。
+- **maplestory.io 偶爾一張圖要 20 秒以上**（Node 直接問也量到 23.5 秒，隔一下同一張不到 1 秒；11/04 40 下隨機碰到 1 次），舞台等 15 秒就寫「載不出來」，這是照設計，不是這些項目要驗的，所以可以重來，**但只有真的等滿才算**：用 Resource Timing 量從真的開始要圖到放棄多久（放棄的請求也有一筆；帶 `crossOrigin` 失敗馬上退回不帶，兩次共用 15 秒，算同一趟），**≥ 14 秒**才算 maplestory.io 慢；比這早放棄（被擋、回錯、程式壞了）或查不到紀錄，那一項直接沒過，記在 `results.json` 的 `earlyErrors`、印出等了多久。真的慢的時候：`drawn()`／`settled()` 幫忙按「再試一次」（整趟最多 6 次，超過不按、那一項沒過）、第 29 項換下一套（這項最多 3 次，超過沒過，跟前者分開數）、第 31 項開新的一頁重量一次。每一次都記在 `upstreamRetries`（`check` 哪一項、`kind` 哪一種、`waitMs` 等多久、`url` 哪張圖）並印出來。第 8、9 項不靠這個。
 - 第 12 項看前一筆瀏覽紀錄用 `Page.getNavigationHistory` 的 `entries[currentIndex - 1]`，不比 `length`：瀏覽紀錄滿 50 筆就不會再長。
 - 測試機要等 v1.41 進 `dev` 才過得了第 10 項之後的項目（沒進之前是真的沒有這些功能）。
 - 耗時：本機正式 build（`next start`）約 1 分 15 秒～1 分 35 秒，dev server（已編譯過）約 2 分 20 秒（2026-11-04 量）；碰到 maplestory.io 慢會多等一輪舞台逾時（量到 2 分 15 秒）。
