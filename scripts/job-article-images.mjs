@@ -84,7 +84,7 @@ const PERSONAS = {
 
 /** 地圖→背景主題。背景只墊在透明處，模糊過，不會蓋住地圖 */
 const BACKDROP_OF = {
-  101040001: "canyon", 106000110: "burnt", 106000140: "burnt", 101030103: "ruins",
+  101040001: "canyon", 101030001: "canyon", 106000101: "burnt", 106000110: "burnt", 106000140: "burnt", 101030103: "ruins",
   107000000: "swamp", 107000200: "swamp", 107000403: "swamp",
   100040103: "monkey-forest", 100040110: "monkey-forest",
   101020009: "tree-hollow", 101020010: "tree-hollow",
@@ -151,12 +151,12 @@ const ARTICLES = {
   },
   "420-31-50": {
     weapon: 1332012,
-    cards: { 101040001: { x: 1100, y: 2055 }, 106000140: { x: 1950, y: 1905 }, 101020009: { x: 45, y: 285 } },
+    cards: { 101040001: { x: 1100, y: 2055 } },
     hero: {
-      map: 106000140, mob: 3210100, pose: "alert",
-      pick: { x: 1950, y: 1905 },
+      map: 101040001, mob: 2230102, pose: "alert",
+      pick: { x: 1100, y: 2055 },
       char: { x: 0.8, right: false }, mobs: [{ x: 0.3, right: true }],
-      idea: "Dramatic dusk silhouette: he stands alone on the right with his cloak sweeping in the wind, facing left, one fire boar on the left with flaming mane across burnt ground, large orange sunset behind, long shadows. Lonely and cool.",
+      idea: "Dramatic dusk silhouette: he stands alone on the right with his cloak sweeping in the wind, facing left, one black wild boar on the left across rocky ground, large orange sunset behind, long shadows. Lonely and cool.",
     },
   },
 };

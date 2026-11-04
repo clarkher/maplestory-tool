@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
-import { articleDamageHref, assumptionLines, hitLvText, stepImageAlt, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
+import { articleDamageHref, assumptionLines, avgText, hitLvText, stepImageAlt, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { SeoLinks, SeoPage } from "./SeoPage";
 
@@ -114,8 +114,8 @@ export function JobArticleTable({ table }: { table: CalcTable }) {
                   {row.name}
                 </Link>
               </td>
-              {heal ? <td className={NUMBER_CELL}>{row.hitsOne === null ? "算不出來" : `約 ${row.hitsOne}`}</td> : null}
-              <td className={`${NUMBER_CELL} font-bold`}>{row.hits === null ? "算不出來" : `約 ${row.hits}`}</td>
+              {heal ? <td className={NUMBER_CELL}>{avgText(row.avgOne)}</td> : null}
+              <td className={`${NUMBER_CELL} font-bold`}>{avgText(row.avg)}</td>
               <td className={NUMBER_CELL}>{hitLvText(row, table)}</td>
               <td className={NUMBER_CELL}>{row.lv ?? "—"}</td>
               <td className={NUMBER_CELL}>{formatNumber(row.hp)}</td>

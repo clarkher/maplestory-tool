@@ -4,8 +4,10 @@
  * 數字一律由程式算（傷害計算機的預設角色＋computeGroup），文字裡用代號引用，資料更新就跟著變；文字本身存 src/data/job-articles/。
  * 這支建置時在伺服器跑：不能 import "use client" 的模組（拿到假值，等級上限會變 NaN），測試有掃。
  */
-import { BASIC_ATTACK, HEAL, masterySkillFor } from "./damage-skills";
-import { computeGroup, damageLinkHref, defaultAmmo, defaultSkill, defaultState, HEAL_ASSUMPTION, MASTERY_EDIT_HINT, type CalcData, type CalcState, type GroupConfig, type SharedConfig } from "./damage-view";
+import { killStats, type Range } from "./damage";
+import { BASIC_ATTACK, HEAL, HEAL_TARGETS_MAX, masterySkillFor } from "./damage-skills";
+import { expPerSecond } from "./damage-speed";
+import { computeGroup, damageLinkHref, defaultAmmo, defaultSkill, defaultState, HEAL_ASSUMPTION, MASTERY_EDIT_HINT, type CalcData, type CalcState, type GroupConfig, type GroupResult, type SharedConfig } from "./damage-view";
 import { isMagicJob, rulesFor, weaponPicks, weaponTypesFor, type StatKey } from "./gear";
 import { monsterSuitsJob, undeadOnlyStage } from "./job-rules";
 import { jobOption, jobTier, previousJob } from "./jobs";
@@ -268,10 +270,14 @@ export type CalcRow = {
   exp: number;
   /** 魔法職魔防、物理職物防 */
   def: number;
-  /** 範圍中段等級時約幾下打死（群體治癒是範圍 3 隻）；算不出來 null */
+  /** 範圍中段等級時計算機畫面寫的幾下（平均傷害無條件進位，群體治癒是範圍 3 隻）；算不出來 null。只給 assumes、{{hits}} 用，畫面印 avg */
   hits: number | null;
-  /** 群體治癒打 1 隻約幾下；別的技能 null */
+  /** 群體治癒打 1 隻，計算機畫面寫的幾下；別的技能 null */
   hitsOne: number | null;
+  /** 真的平均幾下（killStats，不進位）：表上印這個；算不出來 null */
+  avg: number | null;
+  /** 群體治癒打 1 隻的平均幾下；別的技能 null */
+  avgOne: number | null;
   /** 從這一級到範圍結束都不 MISS；範圍最後一級還打不中是 null，畫面寫「超過 N 等」。武器固定用中段那把（假設行寫的那把） */
   hitLv: number | null;
 };
@@ -372,6 +378,11 @@ function isFarmTarget(monster: Monster): boolean {
 
 const finiteOrNull = (value: number | undefined) => (value !== undefined && Number.isFinite(value) ? value : null);
 
+/** computeGroup 算好的範圍、爆擊、一次幾下，算成真的平均下數；算不出來 null */
+function statsOfResult(result: GroupResult, hp: number): { avg: number; oneShot: number } | null {
+  return result.ok && result.vs ? killStats(hp, result.vs.hit, result.vs.crit?.hit ?? null, result.critRate ?? 0, result.hits) : null;
+}
+
 /** 範圍內 guide.train 列的怪（去重、地圖是 null 的列不算），每隻算幾下打死、幾等不 MISS，順便回傳算表用的假設 */
 export function buildCalcTable({ job, from, to, data, weaponTypes, statCap }: { job: number; from: number; to: number; data: CalcData; weaponTypes?: string[]; statCap?: JobArticle["statCap"] }): CalcTable {
   const midLevel = Math.floor((from + to) / 2);
@@ -381,10 +392,9 @@ export function buildCalcTable({ job, from, to, data, weaponTypes, statCap }: { 
   const heal = skill.skillId === HEAL;
   const magic = isMagicJob(job);
   const shared = (monster: Monster, targets?: number): SharedConfig => ({ job, ...skill, monsterId: monster.id, ...(targets === undefined ? {} : { targets }) });
-  const killsWith = (monster: Monster, targets?: number) => {
-    const result = computeGroup(data, shared(monster, targets), group, monster);
-    return result.ok ? finiteOrNull(result.vs?.kills.avg) : null;
-  };
+  const resultWith = (monster: Monster, targets?: number) => computeGroup(data, shared(monster, targets), group, monster);
+  const killsOf = (result: GroupResult) => (result.ok ? finiteOrNull(result.vs?.kills.avg) : null);
+  const averageOf = (result: GroupResult, hp: number) => statsOfResult(result, hp)?.avg ?? null;
   // 預設角色每級會換武器，命中被動跟著跳（狂戰士斧頭 50、劍 69）：固定用中段那把算，才對得上假設行
   const hitsAt = (monster: Monster, level: number): boolean => {
     const levelGroup = { ...stateAt(data, job, level).groups[0], weaponId: group.weaponId, weaponAtk: group.weaponAtk, ammoId: group.ammoId };
@@ -413,8 +423,10 @@ export function buildCalcTable({ job, from, to, data, weaponTypes, statCap }: { 
         hp: monster.hp,
         exp: monster.exp,
         def: magic ? monster.mdd : monster.pdd,
-        hits: killsWith(monster, heal ? HEAL_TABLE_TARGETS : undefined),
-        hitsOne: heal ? killsWith(monster, 1) : null,
+        hits: killsOf(resultWith(monster, heal ? HEAL_TABLE_TARGETS : undefined)),
+        hitsOne: heal ? killsOf(resultWith(monster, 1)) : null,
+        avg: averageOf(resultWith(monster, heal ? HEAL_TABLE_TARGETS : undefined), monster.hp),
+        avgOne: heal ? averageOf(resultWith(monster, 1), monster.hp) : null,
         hitLv: firstHitLevel(monster),
       }),
     );
@@ -450,6 +462,28 @@ export function hitLvText(row: Pick<CalcRow, "hitLv">, table: Pick<CalcTable, "t
   return row.hitLv === null ? `超過 ${table.to} 等` : String(row.hitLv);
 }
 
+const roundTo = (value: number, digits: number) => Math.round(value * 10 ** digits) / 10 ** digits;
+/** 平均下數的寫法：一位小數（表、{{avg}} 同一個），1.45 寫 1.5（toFixed 會被二進位小數帶成 1.4） */
+export const avgText = (value: number | null) => (value === null ? "算不出來" : roundTo(value, 1).toFixed(1));
+
+/** 一下打死的機率（整數 %）：沒到必死不准寫 100，有機會不准寫 0，比較時才不會把「幾乎」當「一定」 */
+export function oneShotPercent(chance: number): number {
+  if (chance >= 1) return 100;
+  if (chance <= 0) return 0;
+  return Math.min(99, Math.max(1, Math.round(chance * 100)));
+}
+
+/** 10 分鐘經驗進位到畫面上的精度：一萬以上到千位（0.1 萬），以下到百位 */
+const xp10Rounded = (value: number) => (value >= 10000 ? Math.round(value / 1000) * 1000 : Math.round(value / 100) * 100);
+/** 「約 3.1 萬」「約 8,600」 */
+export function xp10Text(value: number): string {
+  const rounded = xp10Rounded(value);
+  return rounded >= 10000 ? `約 ${(rounded / 10000).toFixed(1)} 萬` : `約 ${rounded.toLocaleString("en-US")}`;
+}
+
+/** 表上「幾下打死」印的是平均值，連到計算機會看到進位後的整數：假設行要先講 */
+const AVERAGE_NOTE = "幾下打死：平均值；計算機畫面會進位成整數";
+
 /** 算表用的假設，一條一行；畫面跟給寫手看的都用這幾行，不另外編 */
 export function assumptionLines(table: CalcTable): string[] {
   const { assumptions: a } = table;
@@ -460,7 +494,7 @@ export function assumptionLines(table: CalcTable): string[] {
   const accuracy = magic
     ? `命中：魔法命中＝智力÷10＋幸運÷10（Lv.${a.level} 是 ${a.accuracy.value}），裝備上的智力、幸運沒算，實際會更早打得中`
     : `命中：敏捷×0.8＋幸運×0.5＋命中被動（Lv.${a.level} 是 ${a.accuracy.value}，${a.weapon?.name ?? "武器"}整段都用這把算），裝備上的命中沒算，實際會更早打得中`;
-  return [stats, weapon, skill, accuracy, ...a.notes];
+  return [stats, weapon, skill, AVERAGE_NOTE, accuracy, ...a.notes];
 }
 
 /** 表下面連到計算機：帶這張表的武器、招式、隻數，開出來就是表上那一組 */
@@ -476,30 +510,89 @@ const TOKEN = /\{\{(.*?)\}\}/g;
 /** 楓幣寫成玩家講的樣子：250000 → 25 萬、375000 → 37.5 萬 */
 const mesoText = (value: number) => (value >= 10000 ? `${value / 10000} 萬` : String(value));
 
-/** 那一級拿那把武器打這隻怪約幾下（跟表同一套）；算不出來丟錯 */
-function killsAtLevel(raw: string, kind: string, mobId: number, level: number, weaponId: number, table: CalcTable, data: CalcData): number {
+/** 那一級拿那把武器打這隻怪：計算機同一套算出來的結果；怪、武器、等級不對丟錯。targets 是群體治癒範圍內幾隻（別的技能不能寫） */
+function resultAtLevel(raw: string, mobId: number, level: number, weaponId: number, targets: number | undefined, table: CalcTable, data: CalcData) {
   checkTokenLevel(raw, level, table);
   const monster = data.monsters.find(entry => entry.id === mobId);
   if (!monster || monster.un) throw new Error(`代號 ${raw}：怪 ${mobId} 不在怪物資料裡`);
   const character = characterWith(raw, weaponId, level, table, data);
   const heal = character.skill.skillId === HEAL;
+  if (targets !== undefined && !heal) throw new Error(`代號 ${raw}：${level} 等用的不是群體治癒，不能寫隻數`);
+  if (targets !== undefined && (!Number.isInteger(targets) || targets < 1 || targets > HEAL_TARGETS_MAX)) throw new Error(`代號 ${raw}：隻數要 1～${HEAL_TARGETS_MAX}`);
+  const count = heal ? targets ?? HEAL_TABLE_TARGETS : undefined;
+  const result = computeGroup(data, { job: table.job, ...character.skill, monsterId: mobId, ...(count === undefined ? {} : { targets: count }) }, character.group, monster);
+  return { monster, character, heal, result };
+}
+
+/** 那一級拿那把武器打這隻怪，計算機畫面寫的幾下（平均傷害無條件進位，跟表的 hits 同一套）；算不出來丟錯 */
+function killsAtLevel(raw: string, kind: string, mobId: number, level: number, weaponId: number, table: CalcTable, data: CalcData): number {
+  const { monster, heal, result } = resultAtLevel(raw, mobId, level, weaponId, undefined, table, data);
   if (kind === "hitsOne" && !heal) throw new Error(`代號 ${raw}：${level} 等用的不是群體治癒，沒有「打 1 隻」這一欄，用 hits`);
-  const targets = heal ? (kind === "hitsOne" ? 1 : HEAL_TABLE_TARGETS) : undefined;
-  const result = computeGroup(data, { job: table.job, ...character.skill, monsterId: mobId, ...(targets === undefined ? {} : { targets }) }, character.group, monster);
-  const kills = result.ok ? finiteOrNull(result.vs?.kills.avg) : null;
-  if (kills === null) throw new Error(`代號 ${raw}：${monster.n}算不出幾下${result.ok ? "" : `（${result.reason}）`}`);
+  const final = kind === "hitsOne" ? resultAtLevel(raw, mobId, level, weaponId, 1, table, data).result : result;
+  const kills = final.ok ? finiteOrNull(final.vs?.kills.avg) : null;
+  if (kills === null) throw new Error(`代號 ${raw}：${monster.n}算不出幾下${final.ok ? "" : `（${final.reason}）`}`);
   return kills;
+}
+
+export type ArticleKillStats = {
+  /** 平均幾下打死（不進位） */
+  avg: number;
+  /** 一下打死的機率 0～1 */
+  oneShot: number;
+  /** 打死一隻平均幾毫秒＝平均下數×出手時間；出手時間查不到（海盜）null */
+  killMs: number | null;
+  /** 不停手不找怪 10 分鐘的經驗上限（用平均下數算；群體治癒範圍內每隻都算，跟計算機同一條 expPerSecond）；出手時間查不到 null */
+  xp10: number | null;
+  /** 算的時候用的東西（computeGroup 算的）：驗證、Monte Carlo 對照用 */
+  hit: Range;
+  crit: Range | null;
+  critRate: number;
+  hits: number;
+  ms: number | null;
+  /** 群體治癒範圍內幾隻；別的技能 1 */
+  targets: number;
+  skillId: number;
+  skillLevel: number;
+  /** 角色命中跟不 MISS 要的命中：下數沒算 MISS，have 小於 need 時平均下數是樂觀的。裝備上的命中不知道，have 會偏低 */
+  accuracy: { have: number; need: number };
+};
+
+/**
+ * {{avg}}、{{oneShot}}、{{killTime}}、{{xp10}} 算的東西。角色跟 {{hits:…@等級#武器id}} 同一套（預設角色、statCap、那把武器、招式重挑）。
+ * 群體治癒沒給 targets 照表的 3 隻。算不出來丟錯。
+ */
+export function articleKillStats({ mobId, level, weaponId, targets, table, data, raw = `{{${mobId}@${level}#${weaponId}}}` }: { mobId: number; level: number; weaponId: number; targets?: number; table: CalcTable; data: CalcData; raw?: string }): ArticleKillStats {
+  const { monster, character, result } = resultAtLevel(raw, mobId, level, weaponId, targets, table, data);
+  const stats = statsOfResult(result, monster.hp);
+  if (!result.ok || !result.vs || !stats) throw new Error(`代號 ${raw}：${monster.n}算不出幾下${result.ok ? "" : `（${result.reason}）`}`);
+  const ms = result.speed?.ms ?? null;
+  return {
+    ...stats,
+    killMs: ms === null ? null : stats.avg * ms,
+    xp10: ms === null ? null : expPerSecond(monster.exp, stats.avg, ms, result.targets) * 600,
+    hit: result.vs.hit,
+    crit: result.vs.crit?.hit ?? null,
+    critRate: result.critRate ?? 0,
+    hits: result.hits,
+    ms,
+    targets: result.targets,
+    skillId: character.skill.skillId,
+    skillLevel: character.skill.skillLevel,
+    accuracy: { have: characterAccuracy(data, table.job, character.group).value, need: result.vs.accuracy },
+  };
 }
 
 function checkTokenLevel(raw: string, level: number, table: CalcTable): void {
   if (level < table.from || level > table.to) throw new Error(`代號 ${raw}：等級 ${level} 不在文章範圍 ${table.from}～${table.to} 內`);
 }
 
+const DATA_TOKEN = /^(hits|hitsOne):\d+@|^(avg|oneShot|killTime|xp10|acc|exp|spawn|weapon|req|price|spd):/;
+
 /**
  * 會跟著資料變的代號（不用看表）：回傳畫面的字跟要比對的值，不是這一種回 null。比對的值進 assumes.pinned、assumes.relies，一變這篇就下架。
  */
 function dataToken(raw: string, body: string, table: CalcTable, data: CalcData | undefined): { text: string; value: number } | null {
-  if (!/^(hits|hitsOne):\d+@|^(acc|exp|spawn|weapon|req|price|spd):/.test(body)) return null;
+  if (!DATA_TOKEN.test(body)) return null;
   if (!data) throw new Error(`代號 ${raw}：要給計算資料`);
   const number = (value: number) => ({ text: String(value), value });
   const weaponOf = (id: number) => {
@@ -516,6 +609,23 @@ function dataToken(raw: string, body: string, table: CalcTable, data: CalcData |
   if ((match = /^(hits|hitsOne):(\d+)@(\d+)(?:#(\d+))?$/.exec(body))) {
     if (!match[4]) throw new Error(`代號 ${raw}：指定等級要寫哪把武器，${match[1]}:${match[2]}@${match[3]}#武器id，文字寫哪把就算哪把`);
     return number(killsAtLevel(raw, match[1], Number(match[2]), Number(match[3]), Number(match[4]), table, data));
+  }
+  if ((match = /^(avg|oneShot|killTime|xp10):(.*)$/.exec(body))) {
+    const kind = match[1];
+    const parts = /^(\d+)@(\d+)#(\d+)(?:\*(\d+))?$/.exec(match[2]);
+    if (!parts) throw new Error(`代號 ${raw}：要寫 ${kind}:怪物id@等級#武器id（群體治癒可以再加 *隻數），文字寫哪把武器就算哪把`);
+    const stats = articleKillStats({ raw, mobId: Number(parts[1]), level: Number(parts[2]), weaponId: Number(parts[3]), targets: parts[4] === undefined ? undefined : Number(parts[4]), table, data });
+    if (kind === "avg") return { text: avgText(stats.avg), value: roundTo(stats.avg, 1) };
+    if (kind === "oneShot") {
+      const percent = oneShotPercent(stats.oneShot);
+      return { text: `${percent}%`, value: percent };
+    }
+    if (stats.killMs === null || stats.xp10 === null) throw new Error(`代號 ${raw}：這一招的出手時間查不到，算不出時間`);
+    if (kind === "killTime") {
+      const seconds = roundTo(stats.killMs / 1000, 2);
+      return { text: seconds.toFixed(2), value: seconds };
+    }
+    return { text: xp10Text(stats.xp10), value: xp10Rounded(stats.xp10) };
   }
   if ((match = /^acc:(\d+)#(\d+)$/.exec(body))) {
     checkTokenLevel(raw, Number(match[1]), table);
@@ -554,6 +664,9 @@ function dataToken(raw: string, body: string, table: CalcTable, data: CalcData |
  * {{hitsOne:怪物id}} 是群體治癒「打 1 隻」那一欄（hits 是範圍 3 隻那一欄）。
  * {{hits:怪物id@等級#武器id}}、{{hitsOne:…}} 換成那一級的預設角色、預設技能等級、拿那把武器算的下數；{{acc:等級#武器id}} 是那一級拿那把的命中。
  * {{exp:怪物id}} 每隻經驗、{{spawn:怪物id@地圖id}} 那張圖刷幾隻、{{weapon:武器id}} 武器名、{{req:武器id:DEX}} 能力需求、{{price:武器id}} 店價（25 萬）、{{map:地圖id}} 圖名。
+ * 比較誰快誰慢要用平均，不准比 hits（進位過，1.45 跟 1.15 都是 2，hitComparisonProblems 擋）：{{avg:怪物id@等級#武器id}} 平均幾下（一位小數）、
+ * {{oneShot:…}} 一下打死機率（整數加 %）、{{killTime:…}} 打死一隻平均秒數（含出手時間，兩位小數，後面寫「秒」）、{{xp10:…}} 不停手不找怪 10 分鐘的經驗上限（約 3.1 萬）。
+ * 這四個群體治癒沒寫隻數照表的 3 隻，打 1 隻寫 {{avg:怪物id@等級#武器id*1}}（*1～*5，別的技能不能寫）；下數都假設全部打中，MISS 不算。
  * 這些都要給 data，等級要在文章範圍內，怪不用在表上。
  * {{mob:怪名}}、{{mobs:怪名的一部分}} 換成字本身，名字查不查得到由 validateArticle 擋。換不掉就丟錯，不留原文。
  */
@@ -570,7 +683,7 @@ export function fillTokens(text: string, table: CalcTable, data?: CalcData): str
       return zh;
     }
     const match = /^(hits|hitsOne|hitLv|def):(\d+)$/.exec(body);
-    if (!match) throw new Error(`認不得的代號 ${raw}（只有 hits、hitsOne、hitLv、def、mob、mobs、map、acc、exp、spawn、weapon、req、price、spd；hits、hitsOne 可以加 @等級#武器id）`);
+    if (!match) throw new Error(`認不得的代號 ${raw}（只有 hits、hitsOne、hitLv、def、mob、mobs、map、acc、exp、spawn、weapon、req、price、spd、avg、oneShot、killTime、xp10；hits、hitsOne 可以加 @等級#武器id，avg、oneShot、killTime、xp10 一定要加）`);
     const row = table.rows.find(entry => entry.id === Number(match[2]));
     if (!row) throw new Error(`代號 ${raw} 指到計算表沒有的怪 ${match[2]}（表上：${table.rows.map(entry => entry.name).join("、")}）`);
     if (match[1] === "def") return String(row.def);
@@ -859,7 +972,7 @@ function pinnedValues(article: unknown, table: CalcTable, data: CalcData): Recor
   for (const { where, text } of strings) {
     if (where.startsWith("assumes")) continue;
     for (const match of text.matchAll(TOKEN)) {
-      if (match[1] in values || !/^(hits|hitsOne):\d+@|^(acc|exp|spawn|weapon|req|price|spd):/.test(match[1])) continue;
+      if (match[1] in values || !DATA_TOKEN.test(match[1])) continue;
       values[match[1]] = keyValue(match[1], table, data);
     }
   }
@@ -907,7 +1020,7 @@ function checkPinned(article: Record<string, unknown>, assumes: Record<string, u
   const relies = isRecord(assumes.relies) ? assumes.relies : {};
   for (const [key, value] of Object.entries(relies)) {
     const now = keyValue(key, table, data);
-    if (!/^(hits|hitsOne):\d+@|^(acc|exp|spawn|weapon|req|price|spd):/.test(key)) errors.push(`assumes.relies：認不得 ${key}（要是 exp:怪物id 這種代號本體）`);
+    if (!DATA_TOKEN.test(key)) errors.push(`assumes.relies：認不得 ${key}（要是 exp:怪物id 這種代號本體）`);
     else if (now !== value) errors.push(`assumes.relies：${key} 文字寫的時候是 ${String(value)}，現在是 ${String(now)}，文字要重看`);
   }
   for (const { where, id, name } of expClaimMobs(article, data)) {
@@ -1019,6 +1132,35 @@ function checkSpawnClaims(article: Record<string, unknown>, errors: string[]): v
       lines(`sections[${index}].items`, section.items);
     });
   }
+}
+
+/** 比較字眼：查核最常錯的那些；「至少」「大多」這種不是在比的先拿掉（對五篇真檔試過，規格 v1.50） */
+const COMPARE_WORD = /贏|輸|一樣|打平|差|少|多|快|慢|省|才值得|追平|不虧|比/;
+const NOT_COMPARE = /多少|至少|最少|最多|很多|好多|許多|大多|多數|多半|不少|很少|少數|趕快|慢慢|差一點|比較/g;
+/** 這些字一出現就是在比：只有一個 {{hits}} 也算（「跟那把一樣 {{hits}} 下」是查核抓到最多的句型，另一邊沒寫成代號） */
+const STRONG_COMPARE = /贏|輸|一樣|打平|差不多|省|才值得|追平|不虧|比(?!較)/;
+/** 寫死的下數：「3 下」「兩下」「一下死」「少一下」。單獨的「一下」太常是「看一下」、「第二下」是順序、「2～3 下」是範圍、「下面」「下層」不是下數 */
+const FIXED_HITS = /(?<![\d～~-])\d+\s*下(?![面方去來層午])|(?<![第一])[兩二三四五六七八九十]下(?![面方去來層午])|一下(?:打)?死|[少多]一下/;
+
+/**
+ * 比較句不准比進位過的下數（三輪查核最多的錯）：計算機的 kills.avg 是平均傷害無條件進位，1.45 跟 1.15 都寫 2，「都 2 下所以一樣」差了兩成，也會翻盤。
+ * 同一句（以「。」切）有比較字眼，又有 2 個以上 {{hits、{{hitsOne 代號，或寫死的下數，就擋；有 STRONG_COMPARE 的字時 1 個代號就擋。
+ * {{avg}}、{{killTime}} 放行。來源標題、assumes 不管。
+ */
+export function hitComparisonProblems(strings: Array<{ where: string; text: string }>): string[] {
+  const problems: string[] = [];
+  for (const { where, text } of strings) {
+    if (where.startsWith("sources") || where.startsWith("assumes")) continue;
+    for (const sentence of text.split("。")) {
+      const words = sentence.replace(TOKEN, "\0");
+      const tokens = (sentence.match(/\{\{hits(?:One)?:/g) ?? []).length;
+      const compares = COMPARE_WORD.test(words.replace(NOT_COMPARE, "\0"));
+      const blocked = compares && (tokens >= 2 || FIXED_HITS.test(words));
+      if (!blocked && !(tokens === 1 && STRONG_COMPARE.test(words))) continue;
+      problems.push(`${where}：這句在比較，下數是進位過的（1.45 跟 1.15 都寫 2），改用 {{avg}} 或 {{killTime}}（{{avg:怪物id@等級#武器id}}）：「${sentence.trim().slice(0, 60)}」`);
+    }
+  }
+  return problems;
 }
 
 /** 主推步驟（不是 alt）要涵蓋整段：玩家每一級都要有地方去，備案不算 */
@@ -1193,6 +1335,7 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
   checkMobNames(strings, data, errors);
   checkNamedThings(strings, ctx, errors);
   checkSpawnClaims(article, errors);
+  errors.push(...hitComparisonProblems(strings));
   for (const { where, text } of strings) {
     if (EMOJI.test(text)) errors.push(`${where}：不准有 emoji`);
     if (!/\.url$/.test(where)) for (const word of BANNED_WORDS) if (text.includes(word)) errors.push(`${where}：不准寫「${word}」`);
@@ -1271,6 +1414,45 @@ export function writerBrief({ job, from, to, data, weaponTypes, statCap }: { job
   };
 }
 
+/** 表上每隻怪四個平均代號的寫法跟現在的值，寫手照抄改等級、武器。文章有 statCap 時代號照它算，可能跟表（照預設）差一點 */
+function statTokenLines(table: CalcTable, data: CalcData): string[] {
+  const weapon = table.assumptions.weapon?.id;
+  if (weapon === undefined) return ["武器查不到，算不出來"];
+  try {
+    characterWith(table.assumptions.weapon!.name, weapon, table.midLevel, table, data);
+  } catch (error) {
+    return [`${(error as Error).message}；代號的 #武器id 換成文字寫的那把`];
+  }
+  return table.rows.map(row => {
+    const tail = `${row.id}@${table.midLevel}#${weapon}`;
+    const shown = (kind: string, unit = "") => {
+      const body = `${kind}:${tail}`;
+      try {
+        return `{{${body}}} = ${dataToken(`{{${body}}}`, body, table, data)?.text}${unit}`;
+      } catch (error) {
+        return `{{${body}}} 算不出來（${(error as Error).message}）`;
+      }
+    };
+    return `${row.name}：${shown("avg", " 下")} | ${shown("oneShot")} | ${shown("killTime", " 秒")} | ${shown("xp10")}`;
+  });
+}
+
+/** 文字用的平均代號裡，角色命中不到不 MISS 門檻的：下數沒算 MISS，這幾個是樂觀的（裝備上的命中沒算，實際可能其實夠） */
+function missLines(article: JobArticle, table: CalcTable, data: CalcData): string[] {
+  const out: string[] = [];
+  for (const key of Object.keys(pinnedValues(article, table, data))) {
+    const parts = /^(?:avg|oneShot|killTime|xp10):(\d+)@(\d+)#(\d+)(?:\*(\d+))?$/.exec(key);
+    if (!parts) continue;
+    try {
+      const { have, need } = articleKillStats({ mobId: Number(parts[1]), level: Number(parts[2]), weaponId: Number(parts[3]), targets: parts[4] === undefined ? undefined : Number(parts[4]), table, data }).accuracy;
+      if (have < need) out.push(`${key}：角色命中 ${have}，不 MISS 要 ${need}`);
+    } catch {
+      // 代號的錯防呆那段會報
+    }
+  }
+  return out.length ? ["== 下數沒算 MISS，這幾個代號命中不夠（裝備上的命中沒算），文字要交代 ==", ...out, ""] : [];
+}
+
 /**
  * npm run article:show 印的東西：換完代號的整篇文字（玩家看到的順序）、表、假設、該貼的 assumes、防呆。
  * 代號換不掉不丟錯，那一格寫「代號錯」，寫手才看得到全部哪裡有問題。
@@ -1313,7 +1495,7 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
     "",
     `== 幾下打死、打不打得中（Lv.${table.midLevel}）==`,
     `怪${heal ? " | 打 1 隻幾下" : ""} | ${heal ? `範圍 ${table.assumptions.targets} 隻幾下` : "幾下打死"} | 幾等不 MISS | 等級 | HP | 防禦 | 經驗`,
-    ...table.rows.map(row => [row.name, ...(heal ? [row.hitsOne ?? "算不出來"] : []), row.hits ?? "算不出來", hitLvText(row, table), row.lv ?? "—", row.hp, row.def, row.exp].join(" | ")),
+    ...table.rows.map(row => [row.name, ...(heal ? [avgText(row.avgOne)] : []), avgText(row.avg), hitLvText(row, table), row.lv ?? "—", row.hp, row.def, row.exp].join(" | ")),
     "",
     "== 這張表的假設 ==",
     ...assumptionLines(table),
@@ -1327,6 +1509,7 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
     "== 資料來源 ==",
     ...article.sources.map(source => `${fill(source.label)}：${source.url}`),
     "",
+    ...missLines(article, table, data),
     "== 該貼進文章檔的 assumes ==",
     JSON.stringify(articleAssumes(article, table, data)),
     "",
@@ -1334,5 +1517,6 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
   ];
   const errors = validateArticle(article, { job, from, to, data, openMaps });
   out.push(...(errors.length ? errors : ["全部通過"]));
+  out.push("", `== 平均代號怎麼寫（表上的怪、Lv.${table.midLevel}、表上那把；等級、武器照文字改${heal ? "；打 1 隻加 *1" : ""}）==`, ...statTokenLines(table, data));
   return out.join("\n");
 }
