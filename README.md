@@ -486,6 +486,7 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - 站內入口（v1.24）：怪物、任務、技能卡片最底下「開成單獨一頁（方便分享）」（`DetailCard` 的 `pageHref`，沒名字的怪不給）；`/guide` 出處上面列 29 個 `/jobs/<職業>`（`page.tsx` 從攻略檔讀職業傳進去）。道具沒有單獨頁。
 
 - 正式網域（v1.28）：`https://maplehelper.tw`（Vercel 買的、DNS 在 Vercel；`www` 在 Vercel 專案設定 308 轉主網域）。`SITE_URL` 在 `src/lib/seo.ts`；舊正式機 `maplestory-tool-three.vercel.app` 由 `next.config.mjs` 的 `redirects` 整站 301 過去（只認那個 host，測試機、分支預覽不轉）。
+- 全站標題（v1.42，拍板 A）：模板 `%s｜楓之谷經典版｜楓谷幫手`（`TITLE_TEMPLATE`，`src/lib/seo.ts`），各頁自己的標題不要再寫經典版。
 - Google Search Console：網域資源 `sc-domain:maplehelper.tw`，驗證用的 TXT 記錄在 Vercel DNS（刪了驗證會掉）；網站地圖提交 `https://maplehelper.tw/sitemap.xml`。
 
 ### GA 事件（v1.32）
