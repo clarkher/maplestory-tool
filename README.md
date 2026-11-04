@@ -422,6 +422,13 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
 - **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
+- **切 DNS 前先量機房**：11/04 從台灣量，`*.workers.dev` 走聖荷西（`/cdn-cgi/trace` 寫 `colo=SJC`，連線約 160ms），同一時間 `*.pages.dev`、`www.cloudflare.com` 走台北（TPE）；Vercel 走香港（hkg1，連線約 30ms）。
+  還沒預先載入的換頁比 Vercel 慢：P2「查資料 → 練功地圖排行」連跑 4 次，Cloudflare 478～728ms、Vercel 90～924ms（中位數 608 對 214）。P4、P6 差距小（中位數 283 對 269、39 對 26），第一格內容兩邊都對。機房距離是最可能的原因，還沒單獨驗證。
+  自訂網域會走哪個機房 workers.dev 量不出來，`maplehelper.tw` 綁上後先看 `https://maplehelper.tw/cdn-cgi/trace` 再重量一次。
+- **預先載入的檔案（11/04 真機量過，`scripts/verify/cf-segments.mjs`）**：測試機、正式機（workers.dev）都沒有 404，換頁整頁重載 0 次。測試機 648 個 `.txt` 請求：200 共 544 個、307 共 104 個；`check-first-frame` 7 項全過。
+  已預先載入的換頁跟 Vercel 差不多（`/jobs/110` ↔ `/jobs/110/31-50`：Cloudflare 28～123ms、Vercel 33～120ms）。
+  - **只有 Windows 建置才 404**：Next 16.3 匯出時用 `path.relative` 取路徑，Windows 拿到反斜線，程式只把 `/` 換成點，檔案變成 `__next.guide/__PAGE__.txt`（Linux 是 `__next.guide.__PAGE__.txt`，瀏覽器要的是這個）。Workers Builds 是 Linux 所以沒事；**別從 Windows 手動 `npm run deploy:cf`**，本機靜態伺服器看到的 404 也是這個原因。
+  - **動態路由多繞一次**：`__next.jobs.$d$id.__PAGE__.txt` 這種檔名，Cloudflare 會 307 轉到 `%24` 寫法才回 200，多一次來回（curl 冷連線 10 次中位數約 0.99 秒對 0.79 秒）。都是背景預先載入，上面量到的換頁沒有變慢，先不處理。
 
 ## 楓幣匯率收集
 

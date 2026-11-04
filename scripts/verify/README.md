@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -93,6 +93,16 @@ node scripts/verify/pages-first-frame.mjs <輸出> <網址>
 - 每一格記兩份：rAF（畫出來之前）跟 MutationObserver（DOM 每次變動）。`painted`／`dom` 只留跟上一格不一樣的狀態，
   只有一個狀態＝第一格就是結果。
 - 輸出：`P*-*.png` 截圖、`results.json`（含 console 跟 hydration 警告）。console 印整份 JSON，自己判讀。
+
+#### `cf-segments.mjs`：靜態輸出的預先載入檔有沒有壞、換頁有沒有整頁重載（v1.47）
+
+```bash
+node scripts/verify/cf-segments.mjs <輸出> <網址> [埠]
+```
+
+- 每頁整頁打開、捲到底觸發預先載入，記所有 `.txt` 請求的狀態碼；再站內換到下一頁（有連結就點，沒有就 `router.push`），留記號判斷有沒有整頁重載。
+- `REPEAT=3` 每組量幾次、`CPU=4` CPU 慢 4 倍、`PAGES=/a,/b` 換頁順序（Git Bash 要加 `MSYS_NO_PATHCONV=1`）。
+- 有 `.txt` 回 4xx／5xx 或整頁重載就 exit 1。Vercel 不走 `.txt`，請求數是 0，只比換頁時間。輸出 `results.json`。
 
 ### 捲動、按返回、重新整理
 
