@@ -5,8 +5,10 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { FilterTag } from "@/components/FilterTag";
+import { avatarLink } from "@/lib/avatar/linkable";
+import type { AvatarData } from "@/lib/avatar/types";
 import {
-  itemImage, loadItems, loadMonsters, loadQuests, monsterImage, peekItems, peekMonsters, peekQuests,
+  itemImage, loadAvatar, loadItems, loadMonsters, loadQuests, monsterImage, peekAvatar, peekItems, peekMonsters, peekQuests,
 } from "@/lib/data";
 import type { Prefer } from "@/lib/db-browse";
 import { isSimEquip, isSimScroll } from "@/lib/scroll-sim/linkable";
@@ -225,6 +227,36 @@ function ItemDetail({
       ? { href: `/plan/scroll?eq=${item.id}`, text: "算衝卷要準備多少" }
       : null;
 
+  // 紙娃娃的入口：只有時裝才載 avatar.json（/db/items 第一格保持輕）；載失敗就不放按鈕
+  const isFashion = item.c === "時裝";
+  const [avatar, setAvatar] = useState<AvatarData | null>(() => (isFashion ? peekAvatar() : null));
+  useEffect(() => {
+    if (!isFashion) return;
+    let cancelled = false;
+    loadAvatar().then(
+      data => {
+        if (!cancelled) setAvatar(data);
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [isFashion]);
+  const avatarHref = isFashion && avatar ? avatarLink(item, avatar) : null;
+  const actionLinks = [scrollLink, avatarHref ? { href: avatarHref, text: "穿上看看" } : null].filter(
+    (link): link is { href: string; text: string } => link !== null,
+  );
+  const actionButtons = actionLinks.map(link => (
+    <Link
+      key={link.href}
+      href={link.href}
+      className="tap-safe inline-flex self-start rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
+    >
+      {link.text}
+    </Link>
+  ));
+
   return (
     <DetailCard>
       <header className="flex items-start gap-3">
@@ -345,14 +377,7 @@ function ItemDetail({
         </Section>
       ) : null}
 
-      {scrollLink ? (
-        <Link
-          href={scrollLink.href}
-          className="tap-safe inline-flex self-start rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
-        >
-          {scrollLink.text}
-        </Link>
-      ) : null}
+      {actionLinks.length > 1 ? <div className="flex flex-wrap gap-2">{actionButtons}</div> : actionButtons}
 
       {!item.dm?.length && !item.qr?.length && !item.qq?.length ? (
         <p className="rounded-xl bg-[color:var(--paper-deep)] px-3 py-2.5 text-sm ink-soft">

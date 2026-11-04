@@ -27,6 +27,7 @@ export type EventName =
   | "speed_save"
   | "boss_room_create"
   | "boss_room_join"
+  | "avatar_download"
   | "share";
 
 type Params = Record<string, string | number | boolean | undefined>;

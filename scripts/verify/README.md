@@ -19,14 +19,14 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
   check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
-  speed-shot、scroll-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
+  speed-shot、scroll-shot、avatar-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
 - 測試機實測時間（2026-10-07）：scroll-proof 45 秒、crossdoc（plain）75 秒、
   after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
   gear-source-shot 三個角色 13 秒。
@@ -514,6 +514,36 @@ node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3000]
 - 輸出：`fx-390.png`、`fx-1280.png`、`fx-390-dark.png`、`fx-broken-390.png`、`results.json`（每張的寬、高、`scrollWidth`／`innerWidth`、`data-theme`、讀數開頭、頁面開頭的字）。
 - 耗時：本機 dev server（已編譯過）約 27～36 秒（2026-10-15 量到兩次：36 秒、27 秒）。
 - 網址用 `localhost`，不要用 `127.0.0.1`。
+
+### 紙娃娃
+
+#### `avatar-shot.mjs`：跑一次紙娃娃頁 `/plan/avatar`（v1.40，埠 9382）
+
+```bash
+node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸出] [DevTools 埠，預設 9382]
+```
+
+- 網址用 `localhost`；本機要用 `npx next dev --webpack -p 9381`。要驗測試機就把網址換成測試機（例 `https://maplehelper-dev.pipicards.workers.dev`），其他不用改。第一次開頁 dev 要編譯，最多等 1 分鐘。
+- 角色圖是瀏覽器向 maplestory.io 即時要的，**要連得到網路**；maplestory.io 掛了第 1～7、9 項會沒過（那是真的畫不出來，不是程式壞）。
+- 期望值從**被測的那個站**的 `/data/avatar.json` 算（不讀本機的 `public/data/avatar.json`，驗測試機時才對得上那邊的資料）：男生髮型清單、女生第 1 款髮型、第一頂男生能穿的點裝帽子、第一頂畫不出來的點裝帽子。
+- 頁面上的東西用挑衣服卡掛的 `data-tab`（分頁）、`data-colour`（色塊）、`data-cell`／`data-name`／`data-missing`（格子）找，不認 Tailwind class；改版面時這幾個屬性要留著。
+- 每一項各自判：點不到東西（`click()` 找不到元素）、等不到東西，那一項直接 FAIL、`detail` 寫「點不到：…」「等不到：…」，接著跑下一項。讀畫面之前都用 `until` 等條件，不用固定秒數。
+- 檢查（10 項，任何一項沒過 exit 1）：
+  1. 375 寬一打開：舞台圖載好（`naturalWidth > 0`）、頁面不橫捲。
+  2. 點髮型第 N 格（從第 3 格起第一款有兩種以上顏色的，照資料算）：網址 `h=` 換成那一款（保留目前顏色，這款沒有就用最小的；目前顏色讀選中的色塊），舞台圖的網址有那個 id 而且載好、那格框起來；
+     再點一個這款有、跟現在不同的顏色：`h` 尾數跟著變、那個色塊 `aria-pressed`。不寫死第 3 款、紅色、黑色。
+  3. 捲到挑衣服卡底：小窗看得到（小窗一直掛著，收起來時 `visibility: hidden`＋`inert`，所以看的是 `visibility` 不是有沒有這個元素）、有「下載」「分享」「回到上面」、小窗裡的角色圖載好、**最後一排格子在小窗下面**（沒被蓋住）、不橫捲；
+     點「回到上面」回到頂端、小窗收起來而且是 `inert`。
+  4. 按「隨機穿搭」3 次：每次網址都變、舞台圖換成新的而且載好。
+  5. 切「女」：網址有 `g=1`、髮型第一格是女生第一款髮型、40 格全是女生（或不分男女）的髮型名字。
+  6. `?try=<畫不出來的點裝帽子>`：頁面正常、網址回到預設（`?try` 被換掉）、穿了什麼沒有它；帽子頁第一格是第一頂點裝（點裝排前面）；搜它的名字，格子有 `data-missing`、寫「暫時看不到樣子」；點了跳「這件暫時看不到樣子，先挑別件」、網址不變。
+  7. `/db/items?id=1042029` 有「穿上看看」、連結是 `/plan/avatar?try=1042029`，點下去穿了什麼裡有「三眼章魚T恤」、舞台圖有它。
+  8. 用 DevTools `Fetch.enable` 把 `maplestory.io` 的請求全回 503（同時關掉快取、開沒載過的「坐下」動作），角色卡上看到「角色圖載不出來，等一下再過來」跟「再試一次」。
+  9. 1280 寬：角色卡、挑衣服卡左右排、上緣對齊；往下捲 200px 角色卡黏在 80px；捲到底都沒有小窗。
+  10. 整趟沒有沒接住的例外、`console.error`。
+- 輸出：`avatar-375.png`、`avatar-hair.png`、`avatar-mini.png`／`avatar-mini-dark.png`、`avatar-missing.png`、`avatar-from-db.png`、`avatar-error.png`、`avatar-1280.png`／`avatar-1280-dark.png`、`results.json`（`expect` 是從站上資料算出的期望值）；整支跑不下去另存 `crash.png`。
+- 小窗只在手機寬度（`lg` 以下）、角色卡整張捲到頁首底下時出現（頁首被手指收起來時是整張捲出螢幕才出現）。腳本的 `click()` 會先把目標捲到畫面中間，點小窗以外的東西可能把角色卡捲回畫面、小窗就收掉了：要點小窗的按鈕就先點，再點別的。
+- 耗時：本機 dev server（已編譯過）約 16～22 秒（2026-11-03 量）。
 
 ### 沒收進來的
 
