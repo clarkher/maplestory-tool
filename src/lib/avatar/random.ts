@@ -7,9 +7,16 @@
  *   眼飾、臉飾、耳環各 50% 機率穿一件
  *   武器是單手時 50% 配一個盾牌，雙手不配
  *   只挑畫得出來（r 有值）、性別合的；性別、動作、表情、翻面沿用 base，其他（含 base 身上的衣服）全部重挑
+ * 鎖定（locks，沒傳＝都沒鎖，亂數消耗順序跟沒有這個參數時一模一樣）：
+ *   鎖住的格子留 base 那一件，不挑也不吃亂數；髮型連髮色、臉型連瞳色、膚色一起留
+ *   空格子的鎖不算數（liveLocks），照常挑
+ *   鎖套服 -> 不挑上衣褲裙；鎖上衣或褲裙 -> 不挑套服、沒鎖的那件照挑
+ *   鎖盾牌 -> 武器只挑單手；鎖雙手武器 -> 不配盾牌；鎖單手武器 -> 照舊 50% 配盾牌
  */
-import { defaultOutfit, itemIndex, wearItem } from "./outfit";
+import { SLOT_ORDER, defaultOutfit, itemIndex, wearItem } from "./outfit";
 import type { Outfit } from "./outfit";
+import { liveLocks } from "./looks";
+import type { LockKey } from "./looks";
 import type { AvatarData, AvatarItem, AvatarStyle, Gender, SlotKey } from "./types";
 
 type Rng = () => number;
@@ -51,36 +58,65 @@ function pickStyle(styles: AvatarStyle[], g: Gender, rng: Rng): { id: number; co
   return style && colour !== undefined ? { id: style.id, colour } : undefined;
 }
 
-export function randomOutfit(data: AvatarData, base: Outfit, rng: Rng = Math.random): Outfit {
+export function randomOutfit(
+  data: AvatarData,
+  base: Outfit,
+  rng: Rng = Math.random,
+  locks: ReadonlySet<LockKey> = new Set(),
+): Outfit {
   const g = base.g;
   const fallback = defaultOutfit(g);
+  // 空格子的鎖不算數；鎖住的格子整格跳過（不挑、不吃亂數），沒鎖的照舊順序挑
+  const lock = liveLocks(locks, base);
 
-  // 款式 id 是黑色（0 號）那個：髮型個位數是髮色、臉型百位數是瞳色
-  const h = pickStyle(data.hair, g, rng);
-  const f = pickStyle(data.face, g, rng);
-  const hair = h ? h.id + h.colour : fallback.hair;
-  const face = f ? f.id + f.colour * 100 : fallback.face;
-  const skin = pick(data.skin, rng)?.id ?? fallback.skin;
+  // 款式 id 是黑色（0 號）那個：髮型個位數是髮色、臉型百位數是瞳色；鎖住的連顏色一起留著
+  let hair = base.hair;
+  if (!lock.has("hair")) {
+    const h = pickStyle(data.hair, g, rng);
+    hair = h ? h.id + h.colour : fallback.hair;
+  }
+  let face = base.face;
+  if (!lock.has("face")) {
+    const f = pickStyle(data.face, g, rng);
+    face = f ? f.id + f.colour * 100 : fallback.face;
+  }
+  const skin = lock.has("skin") ? base.skin : (pick(data.skin, rng)?.id ?? fallback.skin);
 
-  // wear 從空白開始，一件件用 wearItem 穿（它會擋套服 vs 上衣褲裙、雙手武器 vs 盾牌）
-  let o: Outfit = { ...base, skin, hair, face, wear: {} };
-  const put = (k: SlotKey) => {
-    const item = pick(candidates(data, k, g), rng);
+  // wear 從鎖住的那幾件開始，其餘空白，一件件用 wearItem 穿（它會擋套服 vs 上衣褲裙、雙手武器 vs 盾牌）
+  const wear: Outfit["wear"] = {};
+  for (const k of SLOT_ORDER) {
+    const id = base.wear[k];
+    if (lock.has(k) && id !== undefined) wear[k] = id;
+  }
+  let o: Outfit = { ...base, skin, hair, face, wear };
+  const put = (k: SlotKey, only?: (i: AvatarItem) => boolean) => {
+    const pool = candidates(data, k, g);
+    const item = pick(only ? pool.filter(only) : pool, rng);
     if (item) o = wearItem(o, item, data);
   };
 
-  if (rng() < 0.5) {
+  if (lock.has("overall")) {
+    // 鎖套服：不挑上衣、褲裙
+  } else if (lock.has("coat") || lock.has("pants")) {
+    // 鎖上衣或褲裙：不挑套服，沒鎖的那件照挑
+    if (!lock.has("coat")) put("coat");
+    if (!lock.has("pants")) put("pants");
+  } else if (rng() < 0.5) {
     put("overall");
   } else {
     put("coat");
     put("pants");
   }
-  for (const k of ["shoes", "glove", "cap", "cape", "weapon"] as const) put(k);
-  for (const k of ["eyeAcc", "faceAcc", "earrings"] as const) if (rng() < 0.5) put(k);
+  for (const k of ["shoes", "glove", "cap", "cape"] as const) if (!lock.has(k)) put(k);
+  // 鎖了盾牌，武器只能挑單手（雙手武器會把盾牌擠掉）
+  if (!lock.has("weapon")) put("weapon", lock.has("shield") ? (i) => !i.h : undefined);
+  for (const k of ["eyeAcc", "faceAcc", "earrings"] as const) if (!lock.has(k) && rng() < 0.5) put(k);
 
-  // 單手武器才有機會配盾牌，雙手不配
-  const weapon = o.wear.weapon === undefined ? undefined : itemIndex(data).get(o.wear.weapon);
-  if (weapon && !weapon.h && rng() < 0.5) put("shield");
+  // 沒鎖盾牌、而且武器是單手才有機會配盾牌，雙手不配
+  if (!lock.has("shield")) {
+    const weapon = o.wear.weapon === undefined ? undefined : itemIndex(data).get(o.wear.weapon);
+    if (weapon && !weapon.h && rng() < 0.5) put("shield");
+  }
 
   return o;
 }
