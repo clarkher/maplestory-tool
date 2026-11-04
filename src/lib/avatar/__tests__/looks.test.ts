@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SLOT_ORDER, defaultOutfit, outfitQuery } from "@/lib/avatar/outfit";
+import { SLOT_ORDER, defaultOutfit, outfitQuery, takeOff } from "@/lib/avatar/outfit";
 import type { Outfit } from "@/lib/avatar/outfit";
-import { liveLocks, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, sameLook } from "@/lib/avatar/looks";
+import { deckKey, liveLocks, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, sameLook } from "@/lib/avatar/looks";
 import type { LockKey } from "@/lib/avatar/looks";
 import { randomOutfit } from "@/lib/avatar/random";
 import type { AvatarData } from "@/lib/avatar/types";
@@ -172,5 +172,36 @@ describe("sameLook / restoreLook", () => {
       expect(o.pose).toBe("alert");
       expect(Number.isInteger(o.hair)).toBe(true);
     }
+  });
+});
+
+describe("deckKey（先算好的下一套還能不能用）", () => {
+  const worn: Outfit = { ...defaultOutfit(0), hair: 30030, wear: { cap: 1000016, coat: 1040002, pants: 1060002 } };
+  const hair = new Set<LockKey>(["hair"]);
+
+  it("性別、動作、表情、翻面任何一個變了，key 就變", () => {
+    const key = deckKey(worn, hair);
+    expect(deckKey({ ...worn, g: 1 }, hair)).not.toBe(key);
+    expect(deckKey({ ...worn, pose: "walk" }, hair)).not.toBe(key);
+    expect(deckKey({ ...worn, emo: "smile" }, hair)).not.toBe(key);
+    expect(deckKey({ ...worn, flip: true }, hair)).not.toBe(key);
+  });
+
+  it("鎖多一格、少一格，key 就變", () => {
+    const key = deckKey(worn, hair);
+    expect(deckKey(worn, new Set<LockKey>(["hair", "cap"]))).not.toBe(key);
+    expect(deckKey(worn, new Set<LockKey>())).not.toBe(key);
+  });
+
+  it("鎖住的那件換了，key 就變；沒鎖的那幾件換了，key 不變（反正會重挑）", () => {
+    const capLocked = new Set<LockKey>(["cap"]);
+    const key = deckKey(worn, capLocked);
+    expect(deckKey({ ...worn, wear: { ...worn.wear, cap: 1000017 } }, capLocked)).not.toBe(key);
+    expect(deckKey({ ...worn, hair: 30040, wear: { ...worn.wear, coat: 1040003 } }, capLocked)).toBe(key);
+  });
+
+  it("空格子的鎖不算數（隨機穿搭也不看它）", () => {
+    const bare = takeOff(worn, "cap");
+    expect(deckKey(bare, new Set<LockKey>(["cap"]))).toBe(deckKey(bare, new Set<LockKey>()));
   });
 });

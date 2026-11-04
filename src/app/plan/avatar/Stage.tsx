@@ -130,17 +130,22 @@ function Spinner() {
   );
 }
 
-/** onBusy：「換裝中」旗標變了就通知（快的不會通知），最後一定回到 false（好了、失敗、舞台拿掉都算） */
+/**
+ * onBusy：「換裝中」旗標變了就通知（快的不會通知），最後一定回到 false（好了、失敗、舞台拿掉都算）
+ * onReady：這套的第 0 格好了（大舞台才接；隨機穿搭等這個才預載下一套，見 useRandomDeck）
+ */
 export function Stage({
   outfit,
   data,
   compact = false,
   onBusy,
+  onReady,
 }: {
   outfit: Outfit;
   data: AvatarData;
   compact?: boolean;
   onBusy?: (busy: boolean) => void;
+  onReady?: () => void;
 }) {
   const { n: count, ms } = FRAMES[outfit.pose];
   // 這套每一格的網址接成一個字串：穿搭沒變就不重新要圖（outfit 物件每次換網址都是新的）
@@ -160,6 +165,13 @@ export function Stage({
   const drawn = useRef(false);
   const box = useRef<HTMLDivElement>(null);
   const boxSize = useBoxSize(box);
+  // onBusy、onReady 放 ref：父層每次畫面給新函式也不會多通知、不會重新要圖
+  const onBusyRef = useRef(onBusy);
+  const onReadyRef = useRef(onReady);
+  useEffect(() => {
+    onBusyRef.current = onBusy;
+    onReadyRef.current = onReady;
+  }, [onBusy, onReady]);
 
   useEffect(() => {
     let alive = true;
@@ -180,8 +192,13 @@ export function Stage({
       busyTimer = setTimeout(() => setBusy(true), BUSY_AFTER_MS);
       let first: Frame;
       try {
-        // 預載失敗不算舞台壞掉：自己正常要一次
-        first = await (preloaded ? preloaded.catch(() => loadFrame(urls[0])) : loadFrame(urls[0]));
+        // 預載失敗不算舞台壞掉：自己正常要一次（這一趟已經換掉就不要了）
+        first = await (preloaded
+          ? preloaded.catch((error) => {
+              if (!alive) throw error;
+              return loadFrame(urls[0]);
+            })
+          : loadFrame(urls[0]));
       } catch {
         if (!alive) return;
         settle();
@@ -197,6 +214,7 @@ export function Stage({
       setLoaded({ frames: [first], ms });
       setFrame(0);
       setStatus("ready");
+      onReadyRef.current?.();
       if (urls.length < 2 || reduced) return;
       try {
         const rest = await Promise.all(urls.slice(1).map(loadFrame));
@@ -220,11 +238,6 @@ export function Stage({
     return () => clearInterval(id);
   }, [loaded, reduced]);
 
-  // onBusy 放 ref：父層每次畫面給新函式也不會多通知
-  const onBusyRef = useRef(onBusy);
-  useEffect(() => {
-    onBusyRef.current = onBusy;
-  }, [onBusy]);
   useEffect(() => {
     if (!busy) return;
     onBusyRef.current?.(true);

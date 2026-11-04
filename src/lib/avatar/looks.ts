@@ -35,6 +35,16 @@ export function liveLocks(locks: ReadonlySet<LockKey>, o: Outfit): Set<LockKey> 
   return new Set(LOCK_ORDER.filter((k) => locks.has(k) && (k === "hair" || k === "face" || k === "skin" || o.wear[k] !== undefined)));
 }
 
+/**
+ * 先算好的下一套（useRandomDeck）還能不能用：性別、動作、表情、翻面、鎖、鎖住的那幾件，任何一個變了就不能用。
+ * 沒鎖的格子不算（隨機穿搭反正會重挑）；空格子的鎖也不算（隨機穿搭不看它）。
+ */
+export function deckKey(o: Outfit, locks: ReadonlySet<LockKey>): string {
+  const live = liveLocks(locks, o);
+  const held = [...live].map((k) => (k === "hair" ? o.hair : k === "face" ? o.face : k === "skin" ? o.skin : o.wear[k]));
+  return [o.g, o.pose, o.emo, o.flip, locksText(live), held.join(".")].join("|");
+}
+
 // ---------- 上一套 ----------
 
 /** 兩套穿得一樣：性別、膚色、髮型、臉型、每一格都一樣（不看動作、表情、翻面） */

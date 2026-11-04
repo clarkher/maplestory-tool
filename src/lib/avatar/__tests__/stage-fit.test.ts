@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { alphaReach, fitStage, unmeasured } from "@/lib/avatar/stage-fit";
 
 const BOX = { w: 309, h: 248 };
-/** 1702861 索命之鐮實際量到的（11/04） */
+/** 超大武器的測試數字（計畫寫的，不是量到的；1702861 索命之鐮 11/04 實際量到約 up 62、down 63、half 75） */
 const SCYTHE = { up: 87, down: 46, half: 77 };
 
 describe("fitStage", () => {
@@ -14,7 +14,7 @@ describe("fitStage", () => {
     expect(fitStage([{ up: 60, down: 5, half: 40 }], { w: 150, h: 112 }, 1, 14, 2)).toEqual({ scale: 1, ground: 14 });
   });
 
-  it("超大武器（1702861 量到的）：下面不切、上面不切、左右不切", () => {
+  it("超大武器：下面不切、上面不切、左右不切", () => {
     for (const dpr of [1, 2, 3]) {
       const { scale, ground } = fitStage([SCYTHE], BOX, 2, 40, dpr);
       expect(SCYTHE.down * scale).toBeLessThanOrEqual(ground);
