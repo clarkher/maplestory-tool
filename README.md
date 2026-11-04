@@ -55,7 +55,13 @@
 網址只寫跟預設不一樣的，順序 `g,s,h,f,w,p,e,x`（`src/lib/avatar/outfit.ts`）：`g=1` 女（男不寫）、`s` 膚色（身體 id，2000 起）、`h` 髮型 id（個位數是髮色）、`f` 臉型 id（百位數是瞳色）、
 `w` 身上的道具 id 用「.」接（有寫就只穿這幾件，`w=` 是全脫；沒寫是預設衣服）、`p` 動作（stand／walk／alert／jump／prone／sit）、`e` 表情（default／smile／wink／angry／cry／troubled／bewildered／love）、`x=1` 翻面；
 `try=<id>` 是查資料進來用的：在那件的性別的預設角色身上穿上它（男女都能穿的看 `g`，沒寫就男），進來後網址改寫成上面那套。壞掉的參數各自退回預設，頁面照開。
-設計：`docs/superpowers/specs/2026-11-03-avatar-sim-design.md`。驗收：`npx vitest run src/lib/avatar`、`node --test pipeline/lib/avatar.test.mjs`；畫面用 `node scripts/verify/avatar-shot.mjs <網址，預設 http://localhost:9381> [輸出]`（埠 9382，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
+分享連結（v1.41）：按「分享」複製的是 `/api/avatar/share?<穿搭>`（route 在 `src/app/api/avatar/share/route.ts`，邏輯在 `src/lib/avatar/share.ts`），貼到 LINE、Discord 才有預覽圖：
+回一小頁 og 標籤（`og:image` 是 maplestory.io 第 0 格、`resize=4&renderMode=0`、動作表情翻面照這套），人打開馬上轉去 `/plan/avatar?<穿搭>`（`location.replace`＋`meta refresh`）；`x-robots-tag: noindex`、快取一天，`robots.txt` 開放這一條。
+參數比一般網址多寫：`s,h,f,w` 一定寫（route 手上沒有資料檔，不讀 `avatar.json`、不連資料庫，不知道預設），再加 `j`＝這套裡要用日服畫的 id（髮型、臉型、日服裝備，用「.」接）。
+route 把進來的當壞人：只認不超過 8 位的數字（壞的逐個丟）、`w` 最多 12 件、`p`、`e` 只認已知的鍵、`g` 只認 1，圖片網址跟開頁網址全由我們自己組；缺 `s,h,f` 就 302 到 `/plan/avatar`（有什麼帶什麼）。
+按分享時順手向 maplestory.io 要一次那張圖（它第一次畫要好幾秒，先畫好爬蟲才不會等到逾時）。網址列手動複製的連結沒有預覽，照舊可以開。
+Cloudflare 上這支算 Worker 請求，跟 API、測試機道具圖共用免費額度（一天 10 萬次）；正式網域還在 Vercel 時先跑在 Vercel。
+設計：`docs/superpowers/specs/2026-11-03-avatar-sim-design.md`、`docs/superpowers/specs/2026-11-04-avatar-polish-design.md`。驗收：`npx vitest run src/lib/avatar`、`node --test pipeline/lib/avatar.test.mjs`；畫面用 `node scripts/verify/avatar-shot.mjs <網址，預設 http://localhost:9381> [輸出]`（埠 9382，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
 
 「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。活動期間（到 11/11 23:59 台灣）電腦版導覽列多一顆「萬聖節」（`navFor`），首頁角色列下面有入口卡；過了就自動不出現，頁面留著。
 能不能交易看上游道具的 `trade`（`unlimited` 而且沒有 `quest` 標記——上游把任務道具也標成 unlimited，遊戲裡其實不能交易），
@@ -480,7 +486,7 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - **單筆靜態頁**：`/db/monsters/<id>`、`/db/quests/<id>`、`/db/skills/<id>`、`/jobs/<職業>`，建置時從 `public/data` 讀（`src/lib/static-data.ts`）
   先畫好，不跑 JavaScript 也讀得到。開頭那段話在 `src/lib/seo.ts`，只用資料裡有的欄位組句子。查資料清單、卡片照舊用 `?id=`。
 - **固定頁清單**：`src/lib/site-pages.ts`，`sitemap.xml` 跟 `/llms.txt`（給 AI 讀的網站說明）共用；**新增頁面要加在這裡**。
-- **robots**：明列 AI 爬蟲（GPTBot、ClaudeBot、PerplexityBot…）允許，`/api/` 不給爬。
+- **robots**：明列 AI 爬蟲（GPTBot、ClaudeBot、PerplexityBot…）允許，`/api/` 不給爬（只開 `/api/avatar/share`，紙娃娃分享連結要給爬蟲讀 og 標籤；爬蟲取最長規則，那頁自己回 `x-robots-tag: noindex`）。
 - **結構化資料**：全站 WebSite 放 `<body>`（`<head>` 的 script 會被 `scroll-behavior.test.ts` 當程式跑），單筆頁另有麵包屑跟 WebPage。
 - 查資料四頁讀取時伺服器先畫標題（`DbFallback`，標題字在 `src/lib/db-heads.ts`）。
 - 圖檔網址在 `src/lib/asset-paths.ts`：`data.ts` 是 `"use client"`，伺服器頁不能呼叫它的函式。

@@ -36,8 +36,8 @@ describe("Cloudflare Worker 分流", () => {
     expect(await response.text()).toBe("assets /api/nope");
   });
 
-  it("五支 API 都有接上", async () => {
+  it("六支 API 都有接上", async () => {
     const { ROUTES } = await import("./worker");
-    expect(Object.keys(ROUTES).sort()).toEqual(["/api/boss/events", "/api/boss/intervals", "/api/boss/rooms", "/api/speed/board", "/api/speed/runs"]);
+    expect(Object.keys(ROUTES).sort()).toEqual(["/api/avatar/share", "/api/boss/events", "/api/boss/intervals", "/api/boss/rooms", "/api/speed/board", "/api/speed/runs"]);
   });
 });
