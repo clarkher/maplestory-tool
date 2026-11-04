@@ -163,6 +163,9 @@ export function RouteHome() {
     return <p className="py-10 text-center text-sm ink-soft">資料讀取失敗：{error}。重新整理一次試試。</p>;
   }
 
+  // 下面兩張入口卡：存過角色的人硬重新整理時，路線長出來會把它們往下推（首頁跳一下）。跟大標一樣先藏著，第一次來的人第一眼照樣看得到；藏著的元素不算位移
+  const entryClass = `tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]${loaded ? "" : " [[data-profile=saved]_&]:invisible"}`;
+
   return (
     <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
       {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
@@ -183,10 +186,7 @@ export function RouteHome() {
 
       {/* v1.19：萬聖節活動期間的入口（手機導覽列放不下，從這裡進）；11/11 23:59 後不出現 */}
       {halloweenOn(Date.now()) ? (
-        <Link
-          href="/event/halloween"
-          className="tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]"
-        >
+        <Link href="/event/halloween" className={entryClass}>
           <span>
             萬聖節面具祭典攻略
             <span className="block text-[13px] font-medium ink-soft">三章任務照順序、要打的怪去哪打</span>
@@ -196,10 +196,7 @@ export function RouteHome() {
       ) : null}
 
       {/* v1.41：紙娃娃的入口（使用者選放角色列下面、跟萬聖節同樣式）；不看日期、不等資料，導覽列不放（第一版拍板不變） */}
-      <Link
-        href="/plan/avatar"
-        className="tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]"
-      >
+      <Link href="/plan/avatar" className={entryClass}>
         <span>
           紙娃娃
           <span className="block text-[13px] font-medium ink-soft">換髮型、穿點裝，看角色穿起來的樣子</span>
