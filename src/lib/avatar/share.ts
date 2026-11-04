@@ -18,6 +18,12 @@ const TITLE = "看看我的紙娃娃";
 const DESCRIPTION = "楓谷幫手紙娃娃：換髮型、穿點裝，看角色穿起來的樣子";
 const SITE_NAME = "楓谷幫手";
 
+/**
+ * 預覽圖放大幾倍：Facebook 不收 200px 以下的圖，預設角色 4 倍只有 172×272，6 倍 258×408（實測）。
+ * 下載還是 4 倍（useAvatarActions），這裡只管分享連結的 og:image。
+ */
+const OG_RESIZE = 6;
+
 /** w 最多幾件：12 格各一件 */
 const MAX_WEAR = WEAR_ORDER.length;
 /** j 最多看幾個：12 件裝備加髮型、臉型 */
@@ -104,7 +110,7 @@ export function readShare(params: URLSearchParams): { page: string; image: strin
   ];
   // 槍、矛（武器 id 前三碼 143、144）才要 stand2／walk2；沒有資料檔看不出哪件是武器，直接看前三碼
   const spear = wear.find((id) => Math.floor(id / 10000) === 143 || Math.floor(id / 10000) === 144);
-  const image = msioUrl(parts, stanceFor(pose, spear === undefined ? undefined : { id: spear }), 0, { resize: 4, mode: 0, flip });
+  const image = msioUrl(parts, stanceFor(pose, spear === undefined ? undefined : { id: spear }), 0, { resize: OG_RESIZE, mode: 0, flip });
   return { page, image };
 }
 

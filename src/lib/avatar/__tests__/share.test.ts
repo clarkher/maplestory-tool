@@ -43,7 +43,7 @@ const jItem = (k: string, g: 0 | 1 = 0) => data.items.find((i) => i.k === k && i
 /** page 只准出現我們自己寫的字：路徑、鍵、數字、點、等號、&、? */
 const PAGE_OK = /^\/plan\/avatar(\?[a-z0-9=&.]+)?$/;
 /** image 只准是 maplestory.io 的角色圖，道具陣列部分全被編成 %xx */
-const IMAGE_OK = /^https:\/\/maplestory\.io\/api\/character\/[A-Za-z0-9%]+\/(stand[12]|walk[12]|alert|jump|prone|sit)\/0\?resize=4&renderMode=0&flipX=(true|false)$/;
+const IMAGE_OK = /^https:\/\/maplestory\.io\/api\/character\/[A-Za-z0-9%]+\/(stand[12]|walk[12]|alert|jump|prone|sit)\/0\?resize=6&renderMode=0&flipX=(true|false)$/;
 
 describe("shareQuery／readShare 來回", () => {
   it("shareQuery 給 readShare，page 開起來穿搭一樣", () => {
@@ -60,13 +60,13 @@ describe("shareQuery／readShare 來回", () => {
     }
   });
 
-  it("一批隨機穿搭：route 沒有資料檔畫出來的圖，跟頁面（characterUrl 第 0 格、4 倍）一字不差", () => {
+  it("一批隨機穿搭：route 沒有資料檔畫出來的圖，跟頁面（characterUrl 第 0 格、6 倍）一字不差", () => {
     const seen = { jHair: 0, jFace: 0, jItem: 0, spear: 0, female: 0, emo: 0, flip: 0 };
     const items = itemIndex(data);
     const poses = new Set<string>();
     for (const o of outfits(400)) {
       const { image } = read(shareQuery(o, data));
-      expect(image).toBe(characterUrl(o, data, { frame: 0, resize: 4 }));
+      expect(image).toBe(characterUrl(o, data, { frame: 0, resize: 6 }));
       const parts = partsOf(image!);
       if (parts.find((p) => p.itemId === o.hair)?.region === "JMS") seen.jHair++;
       if (parts.find((p) => p.itemId === o.face)?.region === "JMS") seen.jFace++;
@@ -89,7 +89,7 @@ describe("shareQuery／readShare 來回", () => {
     const { page, image } = read(q);
     expect(page).toBe("/plan/avatar?s=2000&h=30030&f=20000&w=");
     expect(parseOutfit(new URL(page, "https://x").searchParams, data)).toEqual(o);
-    expect(image).toBe(characterUrl(o, data, { frame: 0, resize: 4 }));
+    expect(image).toBe(characterUrl(o, data, { frame: 0, resize: 6 }));
     expect(partsOf(image!).map((p) => p.itemId)).toEqual([2000, 12000, 30030, 20000]);
   });
 
@@ -99,7 +99,7 @@ describe("shareQuery／readShare 來回", () => {
     const q = shareQuery(o, data);
     expect(q).not.toContain(String(undrawable.id));
     expect(q).not.toContain("9999999");
-    expect(read(q).image).toBe(characterUrl(o, data, { frame: 0, resize: 4 }));
+    expect(read(q).image).toBe(characterUrl(o, data, { frame: 0, resize: 6 }));
   });
 });
 
@@ -124,7 +124,7 @@ describe("shareQuery 寫什麼", () => {
 });
 
 describe("readShare 的圖", () => {
-  it("每件照 j 分台服日服、膚色兩件、resize=4、renderMode=0、flipX、stand2（拿槍）、表情放臉型", () => {
+  it("每件照 j 分台服日服、膚色兩件、resize=6、renderMode=0、flipX、stand2（拿槍）、表情放臉型", () => {
     const hs = data.hair.find((h) => h.g !== 1 && h.j.some((c) => !h.t.includes(c)))!;
     const hairJ = hs.id + hs.j.find((c) => !hs.t.includes(c))!;
     const spear = data.items.find((i) => i.k === "weapon" && i.r === "t" && i.g !== 1 && Math.floor(i.id / 10000) === 144)!;
@@ -132,8 +132,8 @@ describe("readShare 的圖", () => {
     let o = { ...defaultOutfit(0), skin: 2003, hair: hairJ, emo: "wink", flip: true } as Outfit;
     o = wearItem(wearItem(o, spear, data), cap, data);
     const { image } = read(shareQuery(o, data));
-    expect(image).toBe(characterUrl(o, data, { frame: 0, resize: 4 }));
-    expect(image!.endsWith("/stand2/0?resize=4&renderMode=0&flipX=true")).toBe(true);
+    expect(image).toBe(characterUrl(o, data, { frame: 0, resize: 6 }));
+    expect(image!.endsWith("/stand2/0?resize=6&renderMode=0&flipX=true")).toBe(true);
     const parts = partsOf(image!);
     expect(parts.slice(0, 2)).toEqual([
       { itemId: 2003, region: "TWMS", version: "256" },
@@ -175,7 +175,7 @@ describe("readShare 的圖", () => {
     const { image, page } = read("g=1&s=2000&h=31470&f=21058");
     expect(page).not.toContain("w=");
     expect(partsOf(image!).map((p) => p.itemId)).toEqual([2000, 12000, 31470, 21058, 1041002, 1061002]);
-    expect(image).toBe(characterUrl(defaultOutfit(1), data, { frame: 0, resize: 4 }));
+    expect(image).toBe(characterUrl(defaultOutfit(1), data, { frame: 0, resize: 6 }));
   });
 });
 
@@ -300,7 +300,7 @@ describe("壞值丟掉", () => {
 
 describe("shareHtml", () => {
   const page = "/plan/avatar?g=1&s=2000&h=31470&f=21058&w=1041002.1061002";
-  const image = `${MSIO}/%7B%22itemId%22%3A2000%7D/stand1/0?resize=4&renderMode=0&flipX=false`;
+  const image = `${MSIO}/%7B%22itemId%22%3A2000%7D/stand1/0?resize=6&renderMode=0&flipX=false`;
   const html = shareHtml(page, image);
 
   it("og:title、og:description 逐字、og:site_name、og:image、twitter:card=summary、title", () => {
@@ -343,7 +343,7 @@ describe("route：GET /api/avatar/share", () => {
     const body = await res.text();
     expect(body).toContain('content="看看我的紙娃娃"');
     expect(body).toContain('content="楓谷幫手紙娃娃：換髮型、穿點裝，看角色穿起來的樣子"');
-    expect(body).toContain(characterUrl(o, data, { frame: 0, resize: 4 }).replace(/&/g, "&amp;"));
+    expect(body).toContain(characterUrl(o, data, { frame: 0, resize: 6 }).replace(/&/g, "&amp;"));
     expect(body).toContain("location.replace(" + JSON.stringify(read(shareQuery(o, data)).page) + ")");
   });
 
