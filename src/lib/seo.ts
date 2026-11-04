@@ -8,6 +8,10 @@ import { monsterMaps } from "./monster-view";
 import type { GuideJob, MapRecord, Monster, Quest, Skill } from "./types";
 
 export const SITE_URL = "https://maplehelper.tw";
+
+// 玩家搜尋幾乎都帶「楓之谷經典版」（11/04 拍板 A）；各頁自己的標題不用再寫，模板會補
+export const HOME_TITLE = "楓谷幫手｜楓之谷經典版 各職業升級路線、技能配點、必解任務";
+export const TITLE_TEMPLATE = "%s｜楓之谷經典版｜楓谷幫手";
 export const SITE_NAME = "楓谷幫手";
 
 /** 頁面描述切在 150 字內：Google 搜尋結果大約只顯示這麼長 */
