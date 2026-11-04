@@ -7,7 +7,7 @@ import { HistoryScrollJump } from "@/components/HistoryScrollJump";
 import { HomePrefetch } from "@/components/HomePrefetch";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { restoreScrollBootstrap } from "@/lib/history-scroll";
-import { HOME_TITLE, OG_BASE, SITE_URL, TITLE_TEMPLATE, websiteLd } from "@/lib/seo";
+import { HOME_TITLE, OG_BASE, SITE_ROBOTS, SITE_URL, TITLE_TEMPLATE, websiteLd } from "@/lib/seo";
 
 const notoTC = Noto_Sans_TC({
   subsets: ["latin"],
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     description: "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解。",
     images: ["/og.jpg"],
   },
-  robots: { index: true, follow: true },
+  robots: SITE_ROBOTS,
   // Google Search Console 網域擁有權驗證（token 存在 ~/.claude/analytics-ids.json）
   verification: { google: "cl86r4pMdVHkk9oV0qw9WO577cGYmbrB05aSwjeFXww" },
 };

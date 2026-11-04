@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { CalcData } from "./damage-view";
 import type { GearData } from "./gear";
-import { parseArticleFile, splitArticles, type ArticleKey, type JobArticle } from "./job-article";
+import { parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
 import type { AtlasIndex, AtlasMap, AtlasNpc, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, Quest, Skill, TrainingRow } from "./types";
 
 const cache = new Map<string, unknown>();
@@ -114,6 +114,12 @@ export function staticJobArticle(job: number, from: number, to: number): JobArti
   const file = path.join(ARTICLE_DIR, `${job}-${from}-${to}.json`);
   if (!fs.existsSync(file)) return undefined;
   return JSON.parse(fs.readFileSync(file, "utf8")) as JobArticle;
+}
+
+/** 攻略文的圖片清單 src/data/job-articles/images.gen.json（圖片腳本產生）；頁面只畫清單裡有的圖 */
+export function staticArticleImages(): ArticleImageManifest {
+  const file = path.join(ARTICLE_DIR, "images.gen.json");
+  return fs.existsSync(file) ? (JSON.parse(fs.readFileSync(file, "utf8")) as ArticleImageManifest) : {};
 }
 
 /** 資料更新時間（ISO），給結構化資料的 dateModified */

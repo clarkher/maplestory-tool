@@ -216,6 +216,49 @@ export function killCounts(hp: number, expectedUse: number, bestUse: number, wor
   return { avg: Math.ceil(hp / expectedUse), fastest: Math.ceil(hp / bestUse), slowest: Math.ceil(hp / worstUse) };
 }
 
+/**
+ * 平均幾次打死、一次打死的機率（v1.50，攻略文用；killCounts 的 avg 是平均傷害無條件進位，1.45 跟 1.15 都寫 2，不能拿來比較）。
+ * 跟計算機同一套假設：每下在範圍裡均勻（expectedHit 的上下限平均就是這個）、每下各擲一次爆擊（critSpread 同一條）、全部打中（MISS 不算）。
+ * 不用亂數：每打一下更新一次「累積傷害還沒到 HP」的機率分布（每下是一段或兩段均勻，用前綴和一輪 O(HP)）。
+ * P(一次打不死後還要再一次)＝P(打完 k 次的累積 < HP)，平均次數＝把這些機率加起來；一次裡第一下就打死，剩下的不另外算。
+ */
+export function killStats(hp: number, normal: Range, crit: Range | null, rate: number, hits: number): { avg: number; oneShot: number } {
+  const size = Math.ceil(hp);
+  if (size <= 0) return { avg: 1, oneShot: 1 };
+  const critRate = crit ? rate : 0;
+  // 傷害固定：不用算分布（免疫每下 1、HP 3 萬的怪不要跑 3 萬輪×3 萬格）
+  if (normal.min === normal.max && critRate === 0) {
+    const avg = Math.ceil(size / (normal.min * hits));
+    return { avg, oneShot: avg === 1 ? 1 : 0 };
+  }
+  const bands = [
+    { weight: 1 - critRate, range: normal },
+    { weight: critRate, range: crit ?? normal },
+  ].filter(band => band.weight > 0);
+  let below = new Float64Array(size);
+  below[0] = 1;
+  const prefix = new Float64Array(size + 1);
+  const oneHit = () => {
+    for (let at = 0; at < size; at++) prefix[at + 1] = prefix[at] + below[at];
+    const next = new Float64Array(size);
+    for (const { weight, range } of bands) {
+      const each = weight / (range.max - range.min + 1);
+      for (let at = range.min; at < size; at++) next[at] += each * (prefix[at - range.min + 1] - prefix[Math.max(0, at - range.max)]);
+    }
+    below = next;
+  };
+  let avg = 1;
+  let oneShot = 0;
+  for (let use = 1; ; use++) {
+    for (let hit = 0; hit < hits; hit++) oneHit();
+    const alive = below.reduce((sum, value) => sum + value, 0);
+    if (use === 1) oneShot = 1 - alive;
+    if (alive < 1e-12) break;
+    avg += alive;
+  }
+  return { avg, oneShot: oneShot < 1e-12 ? 0 : oneShot > 1 - 1e-12 ? 1 : oneShot };
+}
+
 /** a 比 b 多幾 %（四捨五入到整數，b 比較大時是負的；差不到 0.5% 回 0，不回 -0） */
 export function diffPercent(a: number, b: number): number {
   return Math.round((a / b - 1) * 100) || 0;
