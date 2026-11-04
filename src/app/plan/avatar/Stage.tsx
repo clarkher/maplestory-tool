@@ -8,7 +8,7 @@
  * - 讀像素要帶 crossOrigin 載；maplestory.io 沒寫 Vary: Origin，快取裡如果是沒帶 Origin 的版本就會被擋：
  *   這時不帶再要一次、這張當沒量到（照 v1.40 算法），畫上去的 <img> 也跟著不帶（Frame.cors），不算載不出來
  * - 換穿搭停 250ms 才去要新圖（預載過的第 0 格不等，見 preloadFrame）；新圖用 new Image() 先載好才換上，舊圖留著不閃白
- * - 從換穿搭那一刻算，超過 150ms 還沒好才算「換裝中」（快的不閃）：舊圖變淡、舞台中間大轉圈、通知 onBusy；沒有舊圖時馬上大轉圈
+ * - 真的去要圖之後（250ms 的等待不算）超過 150ms 還沒好才算「換裝中」（快取裡的圖不會閃）：舊圖變淡、舞台中間大轉圈、通知 onBusy；沒有舊圖時馬上大轉圈
  * - 多格動作（站著、走路、警戒）每格都載好才開始輪播；系統設定「減少動態效果」只放第 0 格
  * - 載不出來（兩種要法都失敗，或整趟 15 秒還沒載好）就照實說，給「再試一次」（同一張網址加 &_r=<次數>）；舊圖清掉，不放假圖
  * compact：小窗用（舞台小一號、不放下面那行小字）
@@ -25,7 +25,7 @@ export const LOAD_ERROR = "角色圖載不出來，等一下再過來";
 export const LOAD_TIMEOUT_MS = 15_000;
 /** 連續換很快時，停多久才送出去要圖 */
 const WAIT_MS = 250;
-/** 從換穿搭那一刻算，超過這麼久還沒好才算「換裝中」（快的不閃） */
+/** 真的去要圖之後（WAIT_MS 不算），超過這麼久還沒好才算「換裝中」（快取裡的圖不會閃） */
 const BUSY_AFTER_MS = 150;
 
 /** cors：這張是帶 crossOrigin 載到的（畫上去的 <img> 要一致，不然快取對不上會載不出來） */
@@ -154,6 +154,8 @@ export function Stage({
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [frame, setFrame] = useState(0);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  /** 換裝中：要圖要了超過 150ms 還沒好（aria-busy 不等這個，看 status） */
+  const [busy, setBusy] = useState(false);
   /** 舞台上已經有過一張圖（之後換穿搭才要等 250ms） */
   const drawn = useRef(false);
   const box = useRef<HTMLDivElement>(null);
@@ -167,13 +169,22 @@ export function Stage({
     const preloaded = preloads.get(urls[0]);
     // 第一次開、按「再試一次」、預載過的馬上要；其他換穿搭才等 250ms
     const wait = drawn.current && !tries && !preloaded ? WAIT_MS : 0;
+    let busyTimer: ReturnType<typeof setTimeout> | undefined;
+    /** 第 0 格有結果了（好了或失敗）：不用再數，「換裝中」收掉 */
+    const settle = () => {
+      clearTimeout(busyTimer);
+      setBusy(false);
+    };
     const timer = setTimeout(async () => {
+      // 真的去要圖才開始數：快取裡的圖 150ms 內就好了，舊圖不會閃
+      busyTimer = setTimeout(() => setBusy(true), BUSY_AFTER_MS);
       let first: Frame;
       try {
         // 預載失敗不算舞台壞掉：自己正常要一次
         first = await (preloaded ? preloaded.catch(() => loadFrame(urls[0])) : loadFrame(urls[0]));
       } catch {
         if (!alive) return;
+        settle();
         // 舊那套也清掉：「再試一次」、換下一套都不會先閃出別套
         setLoaded(null);
         setFrame(0);
@@ -181,6 +192,7 @@ export function Stage({
         return;
       }
       if (!alive) return;
+      settle();
       drawn.current = true;
       setLoaded({ frames: [first], ms });
       setFrame(0);
@@ -196,6 +208,8 @@ export function Stage({
     return () => {
       alive = false;
       clearTimeout(timer);
+      // 只停數到一半的；已經亮著就留著，連續換穿搭時舊圖一直淡到新圖好，不會中間亮回來
+      clearTimeout(busyTimer);
     };
   }, [sig, tries, ms, reduced]);
 
@@ -205,18 +219,6 @@ export function Stage({
     const id = setInterval(() => setFrame((f) => (f + 1) % loaded.frames.length), loaded.ms);
     return () => clearInterval(id);
   }, [loaded, reduced]);
-
-  // 「換裝中」的延遲旗標：status 一變 loading 就開始數（含 250ms 的等待）；連續換穿搭時 status 一直是 loading，不會重數
-  const [slow, setSlow] = useState(false);
-  useEffect(() => {
-    if (status !== "loading") return;
-    const timer = setTimeout(() => setSlow(true), BUSY_AFTER_MS);
-    return () => {
-      clearTimeout(timer);
-      setSlow(false);
-    };
-  }, [status]);
-  const busy = status === "loading" && slow;
 
   // onBusy 放 ref：父層每次畫面給新函式也不會多通知
   const onBusyRef = useRef(onBusy);
