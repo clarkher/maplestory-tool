@@ -51,7 +51,7 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     toastTimer.current = setTimeout(() => setToast(null), TOAST_MS);
   }, []);
 
-  /** 存第 0 格、2 倍、裁剛好（renderMode=0）的透明 PNG */
+  /** 存第 0 格、4 倍、裁剛好（renderMode=0）的透明 PNG */
   const download = useCallback(async () => {
     if (!outfit || !data || busy.current) return;
     busy.current = true;
@@ -59,9 +59,9 @@ export function useAvatarActions(outfit: Outfit | null, data: AvatarData | null)
     // 逾時算到圖整張讀完（blob），所以計時器在 finally 才收
     const timeout = timeoutSignal(LOAD_TIMEOUT_MS);
     try {
-      // 不能拿快取：舞台的 <img> 載過的圖是沒帶 Origin 要的，maplestory.io 只在有 Origin 時才回
+      // 不能拿快取：快取裡可能是沒帶 Origin 要的版本，maplestory.io 只在有 Origin 時才回
       // access-control-allow-origin（也沒寫 Vary: Origin），直接吃快取會被當跨網域擋掉（11/03 實測）
-      const res = await fetch(characterUrl(outfit, data, { frame: 0, resize: 2 }), {
+      const res = await fetch(characterUrl(outfit, data, { frame: 0, resize: 4 }), {
         cache: "reload",
         signal: timeout.signal,
       });
