@@ -16,6 +16,7 @@
     "data:verify": "node pipeline/verify.mjs",
     "test": "node --test \"pipeline/**/*.test.mjs\" && vitest run",
     "data:guides": "node pipeline/build-guides.mjs",
+    "data:spawn-audit": "node pipeline/snapshot-spawn-audit.mjs",
     "data:gear": "node pipeline/build-gear.mjs",
     "verify:db": "node scripts/verify-db.mjs",
     "speed:glyphs": "vitest run -c vitest.gen.config.ts",

@@ -20,7 +20,8 @@
  *   - 地圖 id 沒有中文名（未開放或不存在）→ 保留文字但拿掉 id（不能導航），列警告
  *   - 任務 id 不在 quests.json → 必解清單丟掉那筆，列警告
  *   - 組隊任務各職業的等級範圍超出遊戲任務的 minLv／maxLv → 裁進去，整段在外就拿掉，列警告
- *   - 練功段落寫的怪在那張圖一隻都不出（台服出怪）→ 列警告，研究檔要再對一次
+ *   - 練功段落寫的怪不在那張圖、也不在這段寫到的其他圖（台服出怪）→ 丟掉那隻怪，列警告，研究檔要再對一次
+ *   - 練功段落的文字寫「地圖（怪）」對不上出怪 → 列警告（文字不能自動改）。上面這兩種在 GitHub Actions 上也寫進執行摘要
  *
  * 研究檔的練功清單裡混了兩種不是練功點的條目，這裡分出去：
  *   - 名稱「（無可靠出處）」：那段等級找不到攻略的說明 → gaps，畫面上照實寫「沒有攻略」
@@ -31,7 +32,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { inheritParentTrain, lintResearch, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./lib/guides.mjs";
+import { inheritParentTrain, lintResearch, mobsNotOnRow, normalizeReward, pqKeyOf, pqWindows, rowTextIssues, spawnTable } from "./lib/guides.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const SRC = path.join(ROOT, "data", "guides");
@@ -54,20 +55,15 @@ function main() {
   const monsterList = readJson(path.join(DATA, "monsters.json"));
   const monsters = new Set(monsterList.map(monster => monster.id));
   const monsterName = new Map(monsterList.map(monster => [monster.id, monster.n]));
-  // 地圖 → 台服客戶端在這張圖出的怪（monsters.json 的 sp），用來抓「攻略寫的怪在那張圖根本不出」
-  const spawnedOn = new Map();
-  for (const monster of monsterList) {
-    for (const [map] of monster.sp ?? []) {
-      if (!spawnedOn.has(map)) spawnedOn.set(map, new Set());
-      spawnedOn.get(map).add(monster.id);
-    }
-  }
+  // 地圖 → 台服客戶端在這張圖出的怪，用來抓「攻略寫的怪在那張圖根本不出」
+  const spawns = spawnTable(maps, monsterList);
   const quests = new Map(readJson(path.join(DATA, "quests.json")).map(quest => [quest.id, quest]));
   const levelCap = readJson(path.join(DATA, "meta.json")).release?.levelCap;
   if (!Number.isFinite(levelCap)) throw new Error("meta.json 缺 release.levelCap，先跑 npm run data:build");
   const openMap = id => (id && maps[String(id)]?.zh ? Number(id) : null);
 
   const warnings = [];
+  const spawnWarnings = [];
   // 先全部算完、驗完才寫檔：中途出錯不能留下一個缺 common.json 的半成品資料夾
   const outputs = new Map();
 
@@ -110,15 +106,21 @@ function main() {
       const train = job.training.filter(segment => !GAP.test(segment.mapName) && !NOT_A_MAP.test(segment.mapName)).map(segment => {
         const map = openMap(segment.mapId);
         if (segment.mapId && !map) warnings.push(`${where} 練功「${segment.mapName}」：地圖 ${segment.mapId} 沒有中文名，拿掉導航`);
-        const mobs = (segment.mobs || [])
+        const known = (segment.mobs || [])
           .filter(mob => {
             if (mob.id && monsters.has(mob.id)) return true;
             warnings.push(`${where} 練功「${segment.mapName}」：怪物 ${mob.name}（${mob.id}）不在站內資料`);
             return false;
           })
           .map(mob => mob.id);
-        if (map && mobsMissingOnMap(mobs, spawnedOn.get(map) ?? new Set())) {
-          warnings.push(`${where} 練功「${segment.mapName}」：寫的怪（${mobs.map(id => monsterName.get(id)).join("、")}）在${maps[String(map)].zh}一隻都不出（台服出怪），研究檔要再對一次`);
+        const pq = pqKeyOf(pqResearch.pq, { kind: segment.kind, name: segment.mapName });
+        const offMap = new Set(mobsNotOnRow({ name: segment.mapName, map, mobs: known, pq }, spawns));
+        const mobs = known.filter(id => !offMap.has(id));
+        if (offMap.size) {
+          spawnWarnings.push(`${where} 練功「${segment.mapName}」：${[...offMap].map(id => monsterName.get(id)).join("、")}不在${maps[String(map)].zh}，拿掉（台服出怪），研究檔要再對一次`);
+        }
+        for (const issue of rowTextIssues({ name: segment.mapName, why: segment.why }, spawns)) {
+          spawnWarnings.push(`${where} 練功${issue}（台服出怪），研究檔要再對一次`);
         }
         return {
           from: segment.levelFrom,
@@ -130,7 +132,7 @@ function main() {
           why: segment.why,
           v: segment.verified,
           s: segment.sources,
-          pq: pqKeyOf(pqResearch.pq, { kind: segment.kind, name: segment.mapName }),
+          pq,
           ...(segment.current ? { current: true } : {}),
         };
       });
@@ -236,9 +238,14 @@ function main() {
   console.log(`[guides] ${summary.length} 個職業`);
   for (const line of summary) console.log(`  ${line}`);
   console.log(`[guides] 必解 ${common.mustDo.length}（含關鍵獎勵 ${common.mustDo.filter(entry => entry.reward).length}）、不值得解 ${common.notWorth.length}、組隊任務 ${common.pq.length}、升級表 Lv.1–${levelCap - 1}`);
+  warnings.push(...spawnWarnings);
   if (warnings.length) {
     console.log(`[guides] ${warnings.length} 筆以遊戲資料為準調整：`);
     for (const line of warnings) console.log(`  - ${line}`);
+  }
+  // 資料自動更新時出怪變了不能擋（新資料有可能才是對的），但要有人看得到：寫進這次 Actions 執行的摘要
+  if (process.env.GITHUB_STEP_SUMMARY && spawnWarnings.length) {
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### 攻略的練功列跟新出怪對不上\n\n\`\`\`\n${spawnWarnings.join("\n")}\n\`\`\`\n`);
   }
 }
 

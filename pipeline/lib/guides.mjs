@@ -110,12 +110,118 @@ export function pqWindows(pqList, trainByJob, { quests = new Map(), levelCap = I
 }
 
 /**
- * 攻略段落寫的怪，在那張圖（台服客戶端的出怪）一隻都不出 → true（例：森林迷宮III 寫冰獨眼獸，台服出的是風獨眼獸）。
- * 段落常一次寫好幾張圖，所以只要有一隻對得上就不算；段落沒寫怪、地圖沒有出怪資料時不判斷。
+ * 地圖 → 出的怪，給 mobsNotOnRow／rowTextIssues 對照：{ maps: { 地圖 id: { zh, mobs: [怪 id] } }, mobs: { 怪 id: 名字 } }。
+ * 出怪看 monsters.json 的 sp（台服客戶端，客戶端沒有才是 v83，build.mjs 的 mergeSpawns）；
+ * sp 整個沒有的怪（樹妖王這類首領）才看 maps（上游宣告它出在哪）。沒中文名的圖玩家去不了，不收。
  */
-export function mobsMissingOnMap(mobIds, spawnedIds) {
-  if (!mobIds.length || !spawnedIds.size) return false;
-  return !mobIds.some(id => spawnedIds.has(id));
+export function spawnTable(maps, monsterList) {
+  const table = { maps: {}, mobs: {} };
+  for (const monster of monsterList) {
+    const where = monster.sp?.length ? monster.sp.map(([map]) => map) : monster.maps ?? [];
+    for (const map of new Set(where)) {
+      const zh = maps[String(map)]?.zh;
+      if (!zh) continue;
+      (table.maps[map] ??= { zh, mobs: [] }).mobs.push(monster.id);
+      table.mobs[monster.id] = monster.n;
+    }
+  }
+  return table;
+}
+
+const ROMAN = { I: "Ⅰ", II: "Ⅱ", III: "Ⅲ", IV: "Ⅳ", V: "Ⅴ", VI: "Ⅵ", VII: "Ⅶ", VIII: "Ⅷ", IX: "Ⅸ" };
+const NUMERALS = "ⅠⅡⅢⅣⅤⅥⅦⅧⅨ";
+
+/** 森林迷宮III 跟森林迷宮Ⅲ 算同一個字；「火焰之地（Ⅰ／Ⅴ）」「火焰之地Ⅰ／Ⅴ」「沼澤地Ⅰ～Ⅲ」展開成每張圖的全名 */
+function normalizeMapText(text) {
+  const series = (base, list) => list.map(numeral => base + numeral).join("／");
+  return String(text)
+    .replace(/(?<![A-Za-z0-9])[IVX]+(?![A-Za-z0-9])/g, roman => ROMAN[roman] ?? roman)
+    .replace(/([\u4e00-\u9fff]+)（([Ⅰ-Ⅸ](?:／[Ⅰ-Ⅸ])+)）/g, (_, base, list) => series(base, list.split("／")))
+    .replace(/([\u4e00-\u9fff]+)([Ⅰ-Ⅸ])[～~]([Ⅰ-Ⅸ])/g, (_, base, from, to) => series(base, [...NUMERALS.slice(NUMERALS.indexOf(from), NUMERALS.indexOf(to) + 1)]))
+    .replace(/([\u4e00-\u9fff]+)([Ⅰ-Ⅸ](?:／[Ⅰ-Ⅸ])+)/g, (_, base, list) => series(base, list.split("／")));
+}
+
+/** 正規化後的地圖名 → 地圖 id（同名的圖不只一張），長的在前：「猴子沼澤地Ⅲ」不能被認成「沼澤地Ⅲ」 */
+function mapNameIndex(table) {
+  const index = new Map();
+  for (const [id, { zh }] of Object.entries(table.maps)) {
+    const name = normalizeMapText(zh);
+    index.set(name, [...(index.get(name) ?? []), id]);
+  }
+  return new Map([...index].sort(([a], [b]) => b.length - a.length));
+}
+
+const escapeRegExp = text => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** 這段文字寫到哪幾張圖（地圖 id 字串）。名字比對是逐字的，「地鐵一號線」這種簡寫不算 */
+export function mapsNamedIn(text, table) {
+  const ids = [];
+  let rest = normalizeMapText(text);
+  for (const [name, mapIds] of mapNameIndex(table)) {
+    if (!rest.includes(name)) continue;
+    ids.push(...mapIds);
+    rest = rest.split(name).join("＿");
+  }
+  return ids;
+}
+
+/**
+ * 練功列（{ name, map, mobs, pq }）寫的怪，哪些不在這張圖、也不在這列寫到的其他圖 → 回傳那些怪的 id。
+ * 例：龍族狩獵場 寫青龍、土龍，台服只出青龍；森林迷宮IV 寫石巨人、黑曜石巨人，台服只出黑曜石巨人。
+ * 不判斷的列：沒有地圖（map 是 null，沒講在哪打）、組隊任務（關卡裡的怪是任務叫出來的，刷怪表沒有）、寫到的圖都沒有出怪資料。
+ */
+export function mobsNotOnRow(row, table) {
+  if (!row.map || row.pq) return [];
+  const here = new Set();
+  for (const id of [String(row.map), ...mapsNamedIn(row.name, table)]) {
+    for (const mob of table.maps[id]?.mobs ?? []) here.add(mob);
+  }
+  if (!here.size) return [];
+  return row.mobs.filter(id => !here.has(id));
+}
+
+/** 一段字裡提到哪些怪（長的名字先比，「黑鱷魚」不會多算一隻「鱷魚」）；後面接「系」是整類（石巨人系＝名字有石巨人的都算） */
+function mobClaims(claim, table) {
+  const names = [...new Set(Object.values(table.mobs))].filter(Boolean).sort((a, b) => b.length - a.length);
+  const found = [];
+  let rest = claim;
+  for (const name of names) {
+    if (!rest.includes(name)) continue;
+    found.push({ name, family: rest.includes(`${name}系`) });
+    rest = rest.split(name).join("＿");
+  }
+  return found;
+}
+
+/**
+ * 練功列文字裡「地圖名接怪名」的寫法對不對得上出怪，回傳問題清單（字串）。
+ * 認的寫法：名稱的「地圖（怪）」「地圖 怪」、說明的「地圖（怪）」；幾張圖用／連著共用一組怪時，每張圖都要出得到其中一隻、每隻都要有一張圖出。
+ * 說明內文順口提到的（「鱷魚潭Ⅱ 經驗遠比石巨人高」）不是在講這張圖有什麼，不抓；這也是為什麼不比整句。
+ */
+export function rowTextIssues(row, table) {
+  const index = mapNameIndex(table);
+  if (!index.size) return [];
+  const names = [...index.keys()].map(escapeRegExp).join("|");
+  const issues = [];
+  const scan = (text, label, tail) => {
+    const pattern = new RegExp(`((?:${names})(?:／(?:${names}))*)${tail}`, "g");
+    for (const match of normalizeMapText(text).matchAll(pattern)) {
+      const claims = mobClaims(match.slice(2).find(Boolean) ?? "", table);
+      if (!claims.length) continue;
+      const spawnsOf = name => new Set((index.get(name) ?? []).flatMap(id => table.maps[id].mobs.map(mob => table.mobs[mob])));
+      const matches = (claim, spawned) => (claim.family ? [...spawned].some(name => name.includes(claim.name)) : spawned.has(claim.name));
+      const groupMaps = match[1].split("／");
+      for (const name of groupMaps) {
+        if (!claims.some(claim => matches(claim, spawnsOf(name)))) issues.push(`${label}「${match[0]}」：${name}不出${claims.map(claim => claim.name).join("、")}`);
+      }
+      for (const claim of claims) {
+        if (!groupMaps.some(name => matches(claim, spawnsOf(name)))) issues.push(`${label}「${match[0]}」：${groupMaps.join("、")}不出${claim.name}`);
+      }
+    }
+  };
+  scan(row.name ?? "", "名稱", "(?:（([^）]*)）|\\s+([^；。（]*))");
+  scan(row.why ?? "", "說明", "（([^）]*)）");
+  return [...new Set(issues)];
 }
 
 /** 關鍵獎勵：label 必填；items 只留站內有的道具 id，其餘回報；permanent（永久有用、不會過期）照帶。questName 只用在錯誤訊息 */
