@@ -440,7 +440,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   還沒預先載入的換頁比 Vercel 慢：P2「查資料 → 練功地圖排行」連跑 4 次，Cloudflare 478～728ms、Vercel 90～924ms（中位數 608 對 214）。P4、P6 差距小（中位數 283 對 269、39 對 26），第一格內容兩邊都對。機房距離是最可能的原因，還沒單獨驗證。
   自訂網域會走哪個機房 workers.dev 量不出來，`maplehelper.tw` 綁上後先看 `https://maplehelper.tw/cdn-cgi/trace` 再重量一次。
 - **預先載入的檔案（11/04 真機量過，`scripts/verify/cf-segments.mjs`）**：測試機、正式機（workers.dev）都沒有 404，換頁整頁重載 0 次。測試機 648 個 `.txt` 請求：200 共 544 個、307 共 104 個；`check-first-frame` 7 項全過。
-  已預先載入的換頁跟 Vercel 差不多（`/jobs/110` ↔ `/jobs/110/31-50`：Cloudflare 28～123ms、Vercel 33～120ms）。
+  已預先載入的換頁跟 Vercel 差不多（`/jobs/110` ↔ 當時的文章網址 `/jobs/110/31-50`，現在是 `/guides/berserker-31-50`：Cloudflare 28～123ms、Vercel 33～120ms）。
   - **只有 Windows 建置才 404**：Next 16.3 匯出時用 `path.relative` 取路徑，Windows 拿到反斜線，程式只把 `/` 換成點，檔案變成 `__next.guide/__PAGE__.txt`（Linux 是 `__next.guide.__PAGE__.txt`，瀏覽器要的是這個）。Workers Builds 是 Linux 所以沒事；**別從 Windows 手動 `npm run deploy:cf`**，本機靜態伺服器看到的 404 也是這個原因。
   - **動態路由多繞一次**：`__next.jobs.$d$id.__PAGE__.txt` 這種檔名，Cloudflare 會 307 轉到 `%24` 寫法才回 200，多一次來回（curl 冷連線 10 次中位數約 0.99 秒對 0.79 秒）。都是背景預先載入，上面量到的換頁沒有變慢，先不處理。
 
@@ -512,13 +512,14 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - 全站標題（v1.42，拍板 A）：模板 `%s｜楓之谷經典版｜楓谷幫手`（`TITLE_TEMPLATE`，`src/lib/seo.ts`），各頁自己的標題不要再寫經典版。
 - Google Search Console：網域資源 `sc-domain:maplehelper.tw`，驗證用的 TXT 記錄在 Vercel DNS（刪了驗證會掉）；網站地圖提交 `https://maplehelper.tw/sitemap.xml`。
 
-### 職業×等級攻略文（`/jobs/<職業>/<起>-<迄>`，v1.43）
+### 職業×等級攻略文（`/guides/<英文職業>-<起>-<迄>`，v1.43，v1.49 換網址）
 
 一篇講一個職業一段等級去哪練、幾下打死、幾等不 MISS。規格在 `docs/superpowers/specs/2026-11-04-job-articles-design.md`。
 
+- **網址（v1.49）**：`/guides/priest-31-50`，英文職業名在 `src/lib/job-article.ts` 的 `JOB_SLUGS`（站上 29 職加 232，不重複，測試有驗）；路由 `src/app/guides/[slug]/page.tsx`。`/jobs/<職業>` 職業頁網址不動。舊網址沒上過正式機，不做轉址。
 - **範圍**：一轉 10～30；二轉 31～50、51～70；三轉 71～90、91～120（`articleRanges`）。不做每 10 等一篇、不開總表、不進導覽列。
 - **門檻**：這個範圍至少 2 張不同地圖、來源不是舊版、地圖不是 null 的練功段；三轉把接它的二轉攻略也算（`articleEligible`，寫這段時 53 個範圍過 35 個，資料更新會變）。沒過的不要寫。
-- **檔案**：文字放 `src/data/job-articles/<職業>-<起>-<迄>.json`，沒有檔案就沒有頁面；職業頁「分等級攻略」、`sitemap.xml` 都照這個資料夾自動列（`/llms.txt` 不列，規格沒拍板）。**`next build` 的 Cloudflare 靜態輸出要求至少一篇**：資料夾全空時 `/jobs/[id]/[range]` 會報 missing `generateStaticParams`。
+- **檔案**：文字放 `src/data/job-articles/<職業>-<起>-<迄>.json`，沒有檔案就沒有頁面；職業頁「分等級攻略」、`sitemap.xml`、`/llms.txt` 都照這個資料夾自動列。`/guides` 本身沒有總表，用 meta refresh 轉去 `/guide`、noindex（`src/app/guides/page.tsx`；全靜態輸出的 `redirect()` 只寫進 RSC，HTML 沒有轉址）。**`next build` 的 Cloudflare 靜態輸出要求至少一篇**：資料夾全空時 `/guides/[slug]` 會報 missing `generateStaticParams`。
 - **數字不寫死**：表用傷害計算機同一套算（`buildCalcTable`，`src/lib/job-article.ts`：預設角色、範圍中段等級、計算機的預設技能；僧侶 31～70 例外固定群體治癒、只列不死系、範圍 3 隻；王級怪不列）。文字要引用數字用代號 `{{hits:怪物id}}`（幾下打死；僧侶是範圍 3 隻那一欄）、`{{hitsOne:怪物id}}`（僧侶打 1 隻那一欄）、`{{hitLv:怪物id}}`（幾等不 MISS，範圍內打不中會換成「超過 N」，後面寫「等」）、`{{def:怪物id}}`（防禦），資料更新就跟著變。
 - **指定等級的下數（v1.44）**：`{{hits:怪物id@等級#武器id}}`、`{{hitsOne:怪物id@等級#武器id}}`，用那一級的預設角色、預設技能等級、**文字寫的那把武器**算；一定要寫 `#武器id`，等級拿不到或點數不夠穿就報錯。等級要在文章範圍內，怪不用在表上；僧侶打不是不死系算不出來，會報錯。
 - **其他資料代號（v1.44）**：`{{acc:等級#武器id}}` 命中、`{{exp:怪物id}}` 每隻經驗、`{{spawn:怪物id@地圖id}}` 那張圖刷幾隻、`{{weapon:武器id}}` 武器名、`{{req:武器id:DEX}}` 能力需求、`{{price:武器id}}` 店價（25 萬、37.5 萬）、`{{spd:武器id}}` 出手速度、`{{map:地圖id}}` 圖名。**內文（來源標題以外）打字的完整圖名、武器名直接擋**，因為只有走代號才查得到關掉、拿掉；`{{map:}}` 提到的圖也要開放。遊戲資料（`game`）的句子寫「N 隻」要用 `spawn`。
@@ -531,13 +532,30 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - **怪名走代號**：`{{mob:完整怪名}}`，玩家講一整個家族用 `{{mobs:獨角獅}}`（要有怪的名字含這幾個字）。查不到就擋；直接打字的怪名、3 個字以上的部分怪名也擋（地圖名裡的不算）。資料裡完全沒有的字機器看不到，所以尚未開放地區的怪不寫名字，寫地區。
 - **文字的前提（`assumes`）**：文字裡寫死的東西（拿哪把武器、幾級技能、哪幾隻打不中、誰比誰快）靠這包比對。內容是 `article:table` 印的 `assumes`，整包貼進文章檔。武器、彈藥、技能、命中不一樣，或幾下打死、幾等不 MISS 的先後變了，這篇就算壞；數字小動、先後沒變放行（代號會跟著變）。
 - **資料更新打壞文章**：只拿掉那一篇（頁面、職業頁連結、網站地圖都不列，`staticJobArticleCheck`），其他照常更新；`data-refresh.yml` 的全套測試不跑 `job-article.test.ts`，另外跑 `npm run article:check`，有壞的開一張 issue「攻略文跟新資料對不上」。開發時 `job-article.test.ts` 照紅。只拿得掉不是全部：Cloudflare 靜態輸出至少要留一篇（見上）。
-- **來源等級每一條都要標**：`tw` 台服回報、`community` 社群整理、`legacy` 舊版路線、`calc` 站上計算、`game` 遊戲資料（客戶端數值、技能說明）、`official` 官方公告。步驟只能用前三種。
+- **來源等級每一條都要標**：`tw` 台服回報、`community` 社群整理、`legacy` 舊版路線、`calc` 站上計算、`game` 遊戲資料（客戶端數值、技能說明；**店價、商店地點是舊版資料，標 `legacy` 或寫「舊版店價」，不算遊戲資料**）、`official` 官方公告。步驟可以用前五種（v1.49 起可標 `calc`、`game`，不能標 `official`）。標籤照實際來源標：主推是站上算的就標 `calc`，不要因為路線舊就寫舊版路線。
 - **命中的算法**：法師魔法命中＝智力÷10＋幸運÷10；物理＝敏捷×0.8＋幸運×0.5＋命中被動（`characterAccuracy`），都是舊版玩家整理、裝備上的命中不算，畫面照實寫。
 - **加一篇**：
   1. `npm run --silent article:table -- 230 31 50` 看計算表、假設、這個範圍的攻略列、能用的出處（`scripts/job-article-table.mjs`，看 `eligible` 是不是 true）。
-  2. 照格式寫檔（型別是 `JobArticle`）：`title`（不寫經典版，模板會補；23 字內，後面的「楓之谷經典版」才不會被搜尋結果截掉）、`description`（150 字內）、`answer`（2～4 條，每條標來源等級）、`intro`、`steps`（`from`、`to`、`kind`、`map`、`mobs`、`title`、`text`、`tag`，不是主推標 `alt: true`）、`sections`（`heading`＋`paragraphs`／`items`，每條 `text`、`tag`）、`sources`（`label`、`url`）、`assumes`（`article:table` 印的整包貼上）。
+  2. 照格式寫檔（型別是 `JobArticle`）：`title`（不寫經典版，模板會補；23 字內，後面的「楓之谷經典版」才不會被搜尋結果截掉）、`description`（150 字內）、`published`、`updated`（YYYY-MM-DD）、`persona`（`name`、`line`）、`heroAlt`（主圖替代文字）、`answer`（2～4 條，每條標來源等級）、`intro`、`steps`（`from`、`to`、`kind`、`map`、`mobs`、`title`、`text`、`tag`，不是主推標 `alt: true`）、`sections`（`heading`＋`paragraphs`／`items`，每條 `text`、`tag`）、`sources`（`label`、`url`）、`assumes`（`article:table` 印的整包貼上）。
   3. `npm run article:show 110 31 50` 看換完代號的完整文字、表、假設、該貼的 `assumes`、防呆結果（`scripts/job-article-show.mjs`）。文章指定了 `weaponTypes` 時 `article:table` 也會照它算。
-  4. `npx vitest run src/lib/__tests__/job-article.test.ts`：掃資料夾全部真檔跑 `validateArticle`。擋的東西：地圖要有中文名、怪要在資料裡、地圖要在這個職業的攻略練功段、尚未開放的圖、出處要在攻略來源或官方 `beanfun.com`、範圍要過門檻、標題不寫經典版、標題 23 字內、emoji、代號換不掉、怪名查不到或直接打字、每條要標來源等級、`assumes` 對不上、僧侶 31～70 主推要有不死系。
+  4. `npx vitest run src/lib/__tests__/job-article.test.ts`：掃資料夾全部真檔跑 `validateArticle`。擋的東西：地圖要有中文名、怪要在資料裡、地圖要在這個職業的攻略練功段、尚未開放的圖、出處要在攻略來源或官方 `beanfun.com`、範圍要過門檻、標題不寫經典版、標題 23 字內、emoji、內文（來源網址不算）寫真實品牌或「私服」（`BANNED_WORDS`，對外寫「參考舊版資料」）、日期是未來、代號換不掉、怪名查不到或直接打字、每條要標來源等級、`assumes` 對不上、僧侶 31～70 主推要有不死系。
+- **Google Discover 規格（v1.49）**：目標是被 Discover 收錄（大圖預覽、圖寬至少 1200、16:9、不要 logo 或字多的圖、og:image／schema 指定圖）。
+  - 全站 `SITE_ROBOTS`（`seo.ts`）輸出 `max-image-preview:large`。
+  - 每篇 `og:image`、`twitter:image` 用 `hero.jpg` 絕對網址（`articleHeroPath`），`twitter:card` 是 `summary_large_image`，`og:type` 是 `article`，帶 `article:published_time`、`article:modified_time`。主圖還沒進清單時退回全站 `/og.jpg`，不指到不存在的檔案。
+  - Article JSON-LD（`articleLd`，`seo.ts`）：作者、發布者都是 Organization「楓谷幫手」＋`SITE_URL`，**虛構寫手不准填進去**。跟其他 JSON-LD 一樣由 `SeoPage` 放在 body，不放 head。
+  - 文章日期只讀 `published`、`updated`（YYYY-MM-DD，必填，不能是未來）：畫面、og、JSON-LD、`sitemap.xml` 的 lastmod 都是，不用 `staticModified`；og、JSON-LD 加台灣時區（`taiwanDateTime`，`T00:00:00+08:00`），不然搜尋引擎照自己時區讀可能差一天。真的改了文字才動 `updated`。`published` 手寫，晚幾天才上正式機要改成實際上線日。`sitemap.xml` 該篇有主圖才列 `images`。資料版本那句放在計算表那段（「依遊戲資料 X 計算。」），不帶日期。
+- **寫手與聲明（v1.49，使用者拍板）**：文章必填 `persona: { name, line }`，`name` 是個性當名字（毒舌奶媽），`line` 是一句自介。寫手是虛構角色。署名區塊在標題、主圖下、結論框上（`Byline`，`JobArticleView.tsx`），內容：站名、發布／更新日期；「本篇寫手：<name>」＋ `line` ＋小頭像；聲明兩句照寫，不准改字：「寫手是站上虛構的角色，數字和來源都查得到。」「文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。」手機 390 寬的第一屏要看得到結論框開頭。
+- **放圖（v1.49，版面 B1：頂部大圖；路線卡右側小圖）**：
+  - 檔案放 `public/assets/guides/<slug>/`：`hero.webp`（寬至少 1200、16:9）、`hero.jpg`（同一張，給 og）、`author.webp`（小頭像，顯示 24px）、`<地圖id>.webp`（路線卡圖）。
+  - 清單 `src/data/job-articles/images.gen.json`，形狀 `{ "<slug>": { hero:{w,h}, author:{w,h}, steps:{ "<地圖id>":{w,h} } } }`，由圖片腳本產生；頁面只畫清單裡有的圖（不用 onerror 藏圖，`staticArticleImages`、`articleImages`）。這個檔不是文章，`parseArticleFile` 會跳過。
+  - 主圖在 H1 之後，手機整欄寬，電腦版（`md` 起）跟署名並排佔 6 成（整欄的話 1280 寬圖就 597 高，筆電第一屏看不到結論框）；`aspect-video`、`fetchPriority="high"`、不 lazy，替代文字是文章的 `heroAlt`（必填，要寫主推步驟的圖跟那一步的怪，`{{map:}}`、`{{mob:}}`，防呆有查）。
+  - 路線卡圖：文字右側 `float-right`、寬 42%（手機也一樣，文字繞圖；電腦版 28%，不然圖比字高一大截）、圓角、lazy、帶尺寸，同一張圖連寫兩步只放第一步（獵人），替代文字程式組「<職業>在<地圖名>打<第一隻怪>」（`stepImageAlt`）；`image-rendering: pixelated`。**來源要是真的像素圖（格子粗的原始像素）**：11/04 用同一張地圖在顯示寬 137px、3 倍螢幕比過，來源 160、240、480、1024 寬（都是 160 格放大）加 `pixelated` 都清楚，拿掉就糊；細緻的 1024 寬圖加 `pixelated` 細線會碎（藤蔓變一點一點），這種圖不適合放這格。
+  - **產圖腳本 `npm run article:images`（`scripts/job-article-images.mjs`，用法在檔頭）**：讀文章 `steps`，每張圖（含備案）一張路線卡，真地圖＋真怪＋紙娃娃角色，地圖透明處墊 AI 背景，400×225 原始像素不放大（頁面 pixelated 顯示，畫面跟檔案先放大一樣，19 張從 2.5MB 變 0.5MB）；主圖是把合成底稿丟 AI 重繪（1536×864）；小頭像 96×96 素底。可重跑：主圖原檔在 `data/cache/guide-images/`（gitignore），`public/` 已有就不重畫，要重畫用 `--regen-hero --ai`（一定真的打 AI，不看快取；沒加 `--ai` 列出來停下，舊圖不動）；背景存 `data/guide-backdrops/`（進版控，地圖透明處墊這張）。缺 AI 圖又沒加 `--ai` 會列出來停下，不會偷花錢。
+  - 站位用地圖 JSON 的真落腳線（maplestory.io GMS/83 的 `footholds`，render 的位移用落腳線校正），所以不會飄空或站進牆；挑到不好看的地方用腳本 `ARTICLES` 的 `cards` 指定平台。角色用 `renderMode=4`（腳在圖正中間），`flipX` 在這個模式不可靠，腳本自己翻。
+  - 新文章要在腳本加：寫手外觀 `PERSONAS`（鍵是 `persona.name`）、武器與主圖構圖 `ARTICLES`（武器要是文章寫到的）、新地圖的背景主題 `BACKDROP_OF`、新怪的外觀 `HERO_MOB_LOOK`。腳本會查項目在 `avatar.json`、每件拿掉要真的少東西（maplestory.io 缺圖只會默默不畫）。跑完每張都要用眼睛看。
+  - 防呆 `src/lib/__tests__/job-article-images.test.ts`（`articleImageProblems`）：每篇的主圖、小頭像、每個非備案步驟的圖都要在清單裡，清單列的檔案要真的在，主圖寬至少 1200、比例 16:9；真檔尺寸要跟清單一樣、大小不超過上限（`hero` 300KB、路線卡 200KB），手動換圖沒更新清單也擋得到。缺圖不會讓文章下架，只擋合併。
+  - 快取（`cache-headers.mjs`）：`/assets/` 是一年 immutable，但 `/assets/guides/` 檔名固定、重畫就蓋掉原檔，另外設每次回伺服器確認（沒變 304），換圖不用改檔名。
+  - **聲明跟實際的落差（待使用者拍板）**：路線卡的背景也是 AI 畫的，聲明只寫「主圖由 AI 繪製」；字句是使用者拍板、測試有鎖，不自己改。
 - **伺服器頁的坑**：`src/lib/job-article.ts`、`static-data.ts` 一路 import 不能碰 `"use client"` 的模組，伺服器拿到的是假值（`LEVEL_CAP` 曾經從 `profile.ts` 來，會算成 NaN，所以搬到 `jobs.ts`），測試有掃。
 
 ### GA 事件（v1.32）

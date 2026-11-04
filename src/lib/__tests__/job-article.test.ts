@@ -9,10 +9,9 @@ import { fileURLToPath } from "node:url";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HEAL } from "@/lib/damage-skills";
-import { dataSyncedText } from "@/lib/format";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
 import { JobArticleView } from "@/components/JobArticleView";
-import { applyDamageLink, computeGroup, damageLinkHref, defaultState, HEAL_ASSUMPTION, linkStartLevel, parseDamageLink, type CalcData } from "@/lib/damage-view";
+import { applyDamageLink, computeGroup, damageLinkHref, defaultState, HEAL_ASSUMPTION, linkStartLevel, parseDamageLink, parseState, type CalcData } from "@/lib/damage-view";
 import { weaponPicks, type GearData } from "@/lib/gear";
 import {
   ANSWER_MAX,
@@ -21,8 +20,14 @@ import {
   articleShowText,
   articleEligible,
   articleGuides,
+  articleHeroPath,
+  articleImageProblems,
+  articleImages,
   articlePath,
   articleRanges,
+  articleSlug,
+  JOB_SLUGS,
+  stepImageAlt,
   assumptionLines,
   buildCalcTable,
   characterAccuracy,
@@ -35,21 +40,26 @@ import {
   tableAssumes,
   validateArticle,
   writerBrief,
+  type ArticleImageManifest,
   type JobArticle,
 } from "@/lib/job-article";
 import { undeadOnlyStage } from "@/lib/job-rules";
+import { JOB_OPTIONS } from "@/lib/jobs";
+import { articleLd, SITE_ROBOTS } from "@/lib/seo";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, Skill, TrainingRow } from "@/lib/types";
 
 // 頁面、網站地圖、llms.txt 讀的文章清單換成這裡的假資料；掃真檔那段用 importActual
 const mockArticles = vi.hoisted(() => ({
   keys: [] as Array<{ job: number; from: number; to: number }>,
   article: undefined as unknown,
+  images: {} as Record<string, unknown>,
 }));
 vi.mock("@/lib/static-data", async importOriginal => ({
   ...(await importOriginal<typeof import("@/lib/static-data")>()),
   staticJobArticleKeys: () => mockArticles.keys,
   staticJobArticleRanges: (job: number) => mockArticles.keys.filter(key => key.job === job),
   staticJobArticle: () => mockArticles.article,
+  staticArticleImages: () => mockArticles.images,
 }));
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
@@ -95,8 +105,9 @@ describe("範圍：照轉職切（拍板 1A）", () => {
     expect(articleRanges(0)).toEqual([]);
     expect(articleRanges(1110)).toEqual([]);
   });
-  it("網址跟檔名：/jobs/230/31-50、230-31-50.json", () => {
-    expect(articlePath(230, 31, 50)).toBe("/jobs/230/31-50");
+  it("網址跟檔名：/guides/priest-31-50、230-31-50.json", () => {
+    expect(articlePath(230, 31, 50)).toBe("/guides/priest-31-50");
+    expect(articleSlug(230, 31, 50)).toBe("priest-31-50");
     expect(parseArticleFile("230-31-50.json")).toEqual({ job: 230, from: 31, to: 50 });
     expect(parseArticleFile("readme.md")).toBeNull();
     expect(parseArticleFile("230-31.json")).toBeNull();
@@ -404,6 +415,10 @@ function validCleric(): JobArticle {
   return {
     title: "僧侶 31～50 等怎麼練",
     description: "僧侶 31 到 50 等先打{{mob:殭屍菇菇}}，再打{{mob:天使猴}}。",
+    published: "2026-11-04",
+    updated: "2026-11-04",
+    persona: { name: "毒舌奶媽", line: "專講僧侶怎麼用治癒打不死系。" },
+    heroAlt: "僧侶在{{map:105050000}}面對{{mob:殭屍菇菇}}",
     answer: [
       { text: `31～39 打{{mob:殭屍菇菇}}`, tag: "tw", from: 31, to: 39 },
       { text: `40～50 打{{mob:天使猴}} {{hits:${monkey}}} 下、{{hitLv:${monkey}}} 等不 MISS`, tag: "calc", from: 40, to: 50 },
@@ -541,8 +556,8 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     expect(broken(article => { article.steps[0].to = 51; })).toMatch(/範圍/);
     expect(broken(article => { article.steps[0].from = 45; })).toMatch(/範圍/);
   });
-  it("來源等級只能是講好的那幾種；步驟不能標站上計算", () => {
-    expect(broken(article => { (article.steps[0] as { tag: string }).tag = "calc"; })).toMatch(/tag/);
+  it("來源等級只能是講好的那幾種；步驟不能標官方公告", () => {
+    expect(broken(article => { (article.steps[0] as { tag: string }).tag = "official"; })).toMatch(/tag/);
     expect(broken(article => { (article.answer[0] as { tag?: string }).tag = "亂寫"; })).toMatch(/tag/);
     expect(broken(article => { (article.sections[0].items![0] as { tag?: string }).tag = "亂寫"; })).toMatch(/tag/);
   });
@@ -551,7 +566,6 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     expect(broken(article => { delete (article.sections[0].paragraphs![0] as { tag?: string }).tag; })).toMatch(/paragraphs\[0\].*tag/);
     expect(TAG_LABEL.game).toBe("遊戲資料");
     expect(TAG_LABEL.official).toBe("官方公告");
-    expect(broken(article => { (article.steps[0] as { tag: string }).tag = "game"; })).toMatch(/tag/);
   });
   it("不准有 emoji：每個範圍的字、每個欄位都掃", () => {
     for (const code of [0x2300, 0x23ff, 0x25a0, 0x25ff, 0x2600, 0x27bf, 0x1f300, 0x1f600]) {
@@ -577,6 +591,7 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     article.steps = [{ from: 31, to: 50, kind: "solo", map: assassin[0].map!, mobs: assassin[0].mobs, title: "圖", text: "字", tag: "tw" }];
     article.answer = [{ text: "31～50 一", tag: "tw", from: 31, to: 50 }, { text: "二", tag: "tw" }];
     article.sources = [{ label: "來源", url: assassin[0].s[0] }];
+    article.heroAlt = `刺客在{{map:${assassin[0].map}}}面對{{mob:${data.monsters.find(monster => monster.id === assassin[0].mobs[0])!.n}}}`;
     article.description = "刺客。";
     article.steps[0].title = "圖";
     article.sections = [];
@@ -603,41 +618,44 @@ describe("給寫手看的資料", () => {
 
 describe("頁面（文章清單換成假資料）", () => {
   const key = { job: 230, from: 31, to: 50 };
-  const params = (range: string) => ({ params: Promise.resolve({ id: "230", range }) });
+  const params = (slug: string) => ({ params: Promise.resolve({ slug }) });
   beforeEach(() => {
     mockArticles.keys = [key];
     mockArticles.article = validCleric();
+    mockArticles.images = {};
   });
 
   it("只出有檔案的範圍；沒有檔案的範圍 404", async () => {
-    const { default: Page, dynamicParams, generateStaticParams } = await import("@/app/jobs/[id]/[range]/page");
+    const { default: Page, dynamicParams, generateStaticParams } = await import("@/app/guides/[slug]/page");
     expect(dynamicParams).toBe(false);
-    expect(generateStaticParams()).toEqual([{ id: "230", range: "31-50" }]);
+    expect(generateStaticParams()).toEqual([{ slug: "priest-31-50" }]);
     mockArticles.article = undefined;
-    await expect(Page(params("31-50"))).rejects.toThrow();
+    await expect(Page(params("priest-31-50"))).rejects.toThrow();
+    mockArticles.article = validCleric();
+    await expect(Page(params("230-31-50"))).rejects.toThrow();
   });
 
   it("標題、描述、canonical、openGraph", async () => {
-    const { generateMetadata } = await import("@/app/jobs/[id]/[range]/page");
-    const meta = await generateMetadata(params("31-50"));
+    const { generateMetadata } = await import("@/app/guides/[slug]/page");
+    const meta = await generateMetadata(params("priest-31-50"));
     expect(meta.title).toBe("僧侶 31～50 等怎麼練");
     expect(meta.description).toBe("僧侶 31 到 50 等先打殭屍菇菇，再打天使猴。");
-    expect(meta.alternates?.canonical).toBe("/jobs/230/31-50");
-    expect(meta.openGraph?.url).toBe("/jobs/230/31-50");
+    expect(meta.alternates?.canonical).toBe("/guides/priest-31-50");
+    expect(meta.openGraph?.url).toBe("/guides/priest-31-50");
     expect(meta.openGraph?.title).toContain("僧侶 31～50 等怎麼練");
-    // 頁面的 openGraph 會整包蓋掉 layout：分享要有預覽圖
-    expect(meta.openGraph).toMatchObject({ siteName: "楓谷幫手", type: "website", locale: "zh_TW", images: [{ url: "/og.jpg" }] });
+    // 頁面的 openGraph 會整包蓋掉 layout：還沒有主圖時退回全站預覽圖，不指到不存在的檔案
+    expect(meta.openGraph).toMatchObject({ siteName: "楓谷幫手", type: "article", locale: "zh_TW", images: [{ url: "/og.jpg" }], publishedTime: "2026-11-04T00:00:00+08:00", modifiedTime: "2026-11-04T00:00:00+08:00" });
   });
 
   it("畫面：結論、步驟、計算表、假設、來源標籤、來源清單、連結都在；代號都換掉了", async () => {
-    const { default: Page } = await import("@/app/jobs/[id]/[range]/page");
-    const html = renderToString(await Page(params("31-50")));
+    const { default: Page } = await import("@/app/guides/[slug]/page");
+    const html = renderToString(await Page(params("priest-31-50")));
     const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
     expect(html).not.toContain("{{");
     expect(html).toContain("先講結論");
-    // 表上的數字是新資料算的：寫同步時間（跟頁尾同一個），不寫上游的產生時間，也不給玩家看 GMT+8
+    // 文章日期只用文章自己的欄位；遊戲資料只講版本，不再帶日期冒充文章日期
     const meta = read<Meta>("meta.json");
-    expect(html.replace(/<!-- -->/g, "")).toContain(`依遊戲資料 ${meta.gameVersion}（${dataSyncedText(meta).slice(0, 10)}）計算`);
+    expect(html.replace(/<!-- -->/g, "")).toContain(`依遊戲資料 ${meta.gameVersion} 計算`);
     expect(html).not.toContain("GMT");
     expect(html).toContain("僧侶這段靠群體治癒打不死系");
     expect(html).toContain("螞蟻洞Ⅰ：殭屍菇菇");
@@ -667,17 +685,17 @@ describe("頁面（文章清單換成假資料）", () => {
     // 結構化資料在 article 外的 body 裡（SeoPage 放的），不是 head
     expect(html).toContain('"@type":"BreadcrumbList"');
     expect(html).toContain('"@type":"WebPage"');
-    expect(html).toContain("https://maplehelper.tw/jobs/230/31-50");
+    expect(html).toContain("https://maplehelper.tw/guides/priest-31-50");
     // 不准有 emoji
     expect(html).not.toMatch(/[\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF]|[\u{1F300}-\u{10FFFF}]/u);
   });
 
   it("文章裡代號換不掉，整頁建不起來（不會把代號原文放上線）", async () => {
-    const { default: Page } = await import("@/app/jobs/[id]/[range]/page");
+    const { default: Page } = await import("@/app/guides/[slug]/page");
     const bad = validCleric();
     bad.intro = "{{hits:999999999}}";
     mockArticles.article = bad;
-    await expect(Page(params("31-50"))).rejects.toThrow(/999999999/);
+    await expect(Page(params("priest-31-50"))).rejects.toThrow(/999999999/);
   });
 
   it("手機：站上算的數字排在最前面、第一欄固定、有往右滑的提示", async () => {
@@ -711,21 +729,23 @@ describe("頁面（文章清單換成假資料）", () => {
     const { default: JobPage } = await import("@/app/jobs/[id]/page");
     const shown = renderToString(await JobPage({ params: Promise.resolve({ id: "230" }) }));
     expect(shown).toContain("分等級攻略");
-    expect(shown).toContain('href="/jobs/230/31-50"');
-    expect(shown).not.toContain('href="/jobs/230/51-70"');
+    expect(shown).toContain('href="/guides/priest-31-50"');
+    expect(shown).not.toContain('href="/guides/priest-51-70"');
     mockArticles.keys = [];
     const hidden = renderToString(await JobPage({ params: Promise.resolve({ id: "230" }) }));
     expect(hidden).not.toContain("分等級攻略");
   });
 
-  it("網站地圖列這些頁、沒有文章就不列；llms.txt 不多開一區（規格沒拍板）", async () => {
+  it("網站地圖、llms.txt 列這些頁、沒有文章就不列", async () => {
     const { default: sitemap } = await import("@/app/sitemap");
     const { GET } = await import("@/app/llms.txt/route");
     const urls = sitemap().map(entry => entry.url);
-    expect(urls).toContain("https://maplehelper.tw/jobs/230/31-50");
-    expect(await GET().text()).not.toContain("/jobs/230/31-50");
+    expect(urls).toContain("https://maplehelper.tw/guides/priest-31-50");
+    expect(urls.some(url => /\/jobs\/\d+\/\d+-\d+/.test(url))).toBe(false);
+    expect(await GET().text()).toContain("https://maplehelper.tw/guides/priest-31-50");
     mockArticles.keys = [];
-    expect(sitemap().map(entry => entry.url).some(url => /\/jobs\/\d+\/\d+-\d+/.test(url))).toBe(false);
+    expect(sitemap().map(entry => entry.url).some(url => url.includes("/guides/"))).toBe(false);
+    expect(await GET().text()).not.toContain("分等級攻略文");
   });
 });
 
@@ -763,7 +783,7 @@ describe("來源標籤的對比（全站小字 AA，v0.81）", () => {
   it("「先講結論」框裡的標籤用實心底，不跟框的洗色疊在一起（深色模式社群整理曾經只有 4.08）", async () => {
     const { JobArticleView } = await import("@/components/JobArticleView");
     const article = { ...validCleric(), answer: [{ text: "一", tag: "community" as const }, { text: "二", tag: "tw" as const }] };
-    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/jobs/230/31-50", article, table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: {}, dataNote: "", jsonLd: [] }));
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: {}, dataNote: "", jsonLd: [] }));
     const box = html.slice(html.indexOf("先講結論"), html.indexOf("</ol>"));
     expect(box).toContain("社群整理");
     expect(box).not.toContain("--maple-wash");
@@ -795,7 +815,7 @@ describe("伺服器頁不能吃到瀏覽器專用的模組", () => {
 
 describe("src/data/job-articles/ 的真檔全部要過", () => {
   const dir = path.join(ROOT, "src/data/job-articles");
-  const files = fs.existsSync(dir) ? fs.readdirSync(dir) : [];
+  const files = fs.existsSync(dir) ? fs.readdirSync(dir).filter(file => file !== "images.gen.json") : [];
 
   it("檔名都是 <職業>-<起>-<迄>.json，而且是拍板的範圍", () => {
     for (const file of files) {
@@ -1036,7 +1056,7 @@ describe("結論帶地圖連結：go", () => {
   it("畫面：結論框裡有「帶我去 XX」，連結跟步驟卡同一種；沒寫 go 的條不出連結", () => {
     const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
     const article = resolveArticle({ ...realArticle(230, 31, 50), answer: goodAnswer({ go: 105050200 }) }, table, data);
-    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/jobs/230/31-50", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
     const box = html.slice(html.indexOf("先講結論"), html.indexOf("</ol>"));
     expect(box).toContain('href="/go?to=105050200"');
     expect(box).toContain(`帶我去${data.maps["105050200"].zh}`);
@@ -1068,7 +1088,7 @@ describe("連到傷害計算機帶職業、等級", () => {
     expect(damageLinkHref(230, 40)).toBe("/plan/damage?job=230&level=40");
     const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
     const article = resolveArticle(realArticle(230, 31, 50), table, data);
-    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/jobs/230/31-50", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] }));
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] }));
     expect(html).toContain(`href="/plan/damage?job=230&amp;level=40&amp;weapon=${table.assumptions.weapon!.id}&amp;skill=${HEAL}&amp;targets=3"`);
     expect(html).not.toContain('href="/plan/damage"');
   });
@@ -1276,6 +1296,16 @@ describe("連到計算機：開出來的就是表上那組", () => {
     expect(parseDamageLink("?job=110&level=40")).toEqual({ job: 110, level: 40, weapon: null, skill: null, targets: null });
     expect(parseDamageLink("?job=110&weapon=abc&skill=-1&targets=0")).toEqual({ job: 110, level: null, weapon: null, skill: null, targets: null });
   });
+  it("手改網址的隻數不是 1～5 的整數當沒帶，不然存檔讀回來會壞、畫面改不動", () => {
+    for (const bad of ["999", "6", "2.5", "abc"]) expect(parseDamageLink(`?job=230&skill=${HEAL}&targets=${bad}`)!.targets, bad).toBeNull();
+    expect(parseDamageLink(`?job=230&skill=${HEAL}&targets=5`)!.targets).toBe(5);
+    const state = applyDamageLink(defaultState(data, 230, 40, null), data, parseDamageLink(`?job=230&skill=${HEAL}&targets=999`));
+    expect(parseState(JSON.stringify(state))).not.toBeNull();
+  });
+  it("別的職業才能拿的武器當沒帶：狂戰士連結帶短杖不會變成算不出來", () => {
+    const state = defaultState(data, 110, 40, null);
+    expect(applyDamageLink(state, data, parseDamageLink("?job=110&weapon=1372005"))).toBe(state);
+  });
   it("5 篇：連結開的計算機，每隻怪的下數都跟表一樣", () => {
     for (const job of FIVE) {
       const article = realArticle(job, 31, 50);
@@ -1315,10 +1345,272 @@ describe("連到計算機：開出來的就是表上那組", () => {
   it("頁面：連結文字講開出來的是這組、可以改；結論的帶我去不在字中間斷行", () => {
     const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
     const article = resolveArticle(realArticle(230, 31, 50), table, data);
-    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/jobs/230/31-50", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
     expect(html).toContain("開計算機改成自己的數值");
     expect(html).not.toContain("用自己的數值算一次");
     const box = html.slice(html.indexOf("先講結論"), html.indexOf("</ol>"));
     expect(box).toMatch(/inline-block[^>]*>帶我去/);
+  });
+});
+
+/* ------------------------------------------------------------------ v1.49 Google Discover：新網址、大圖、結構化資料、寫手與聲明、放圖 */
+
+const FULL_IMAGES = { hero: { w: 1536, h: 864 }, author: { w: 96, h: 96 }, steps: { "105050000": { w: 240, h: 135 } } };
+const ldOf = (html: string) => [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)].map(match => JSON.parse(match[1]) as Record<string, unknown>);
+
+describe("網址：/guides/<英文職業>-<起>-<迄>", () => {
+  it("全部職業都有 slug、不重複、都是小寫英文", () => {
+    const ids = [...JOB_OPTIONS.map(job => job.id), ...ALL_JOBS, 232];
+    for (const id of ids) expect(JOB_SLUGS[id], String(id)).toMatch(/^[a-z]+(-[a-z]+)*$/);
+    const slugs = Object.values(JOB_SLUGS);
+    expect(new Set(slugs).size).toBe(slugs.length);
+  });
+  it("拍板的幾個", () => {
+    expect(JOB_SLUGS).toMatchObject({ 110: "berserker", 230: "priest", 231: "high-priest", 232: "bishop", 310: "hunter", 410: "assassin", 420: "bandit" });
+    expect(articlePath(110, 31, 50)).toBe("/guides/berserker-31-50");
+    expect(articleHeroPath("priest-31-50")).toBe("/assets/guides/priest-31-50/hero.jpg");
+  });
+  it("沒有 slug 的職業直接丟錯，不會做出 undefined-31-50", () => {
+    expect(() => articlePath(999, 31, 50)).toThrow(/999/);
+  });
+  it("舊路由整支搬走了", () => {
+    expect(fs.existsSync(`${ROOT}src/app/jobs/[id]/[range]`)).toBe(false);
+    expect(fs.existsSync(`${ROOT}src/app/guides/[slug]/page.tsx`)).toBe(true);
+  });
+  it("畫面的職業頁連結是傳進來的，不是從文章網址切", () => {
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article: validCleric(), table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] }));
+    expect(html).toMatch(/href="\/jobs\/230"[^>]*>僧侶/);
+    expect(html).not.toContain('href="/guides"');
+    expect(fs.readFileSync(`${ROOT}src/components/JobArticleView.tsx`, "utf8")).not.toContain("path.slice");
+  });
+});
+
+describe("Discover 規格", () => {
+  const params = { params: Promise.resolve({ slug: "priest-31-50" }) };
+  beforeEach(() => {
+    mockArticles.keys = [{ job: 230, from: 31, to: 50 }];
+    mockArticles.article = validCleric();
+    mockArticles.images = { "priest-31-50": FULL_IMAGES };
+  });
+
+  it("全站 robots 開大圖預覽", () => {
+    expect(SITE_ROBOTS).toMatchObject({ index: true, follow: true, "max-image-preview": "large" });
+    expect(fs.readFileSync(`${ROOT}src/app/layout.tsx`, "utf8")).toContain("robots: SITE_ROBOTS");
+  });
+  it("og、twitter 都用該篇主圖（絕對網址），article 型別、日期", async () => {
+    const { generateMetadata } = await import("@/app/guides/[slug]/page");
+    const meta = await generateMetadata(params);
+    const hero = "https://maplehelper.tw/assets/guides/priest-31-50/hero.jpg";
+    expect(meta.openGraph).toMatchObject({ type: "article", publishedTime: "2026-11-04T00:00:00+08:00", modifiedTime: "2026-11-04T00:00:00+08:00", images: [{ url: hero, width: 1536, height: 864, alt: "僧侶在螞蟻洞Ⅰ面對殭屍菇菇" }] });
+    expect(meta.twitter).toMatchObject({ card: "summary_large_image", title: "僧侶 31～50 等怎麼練", images: [hero] });
+  });
+  it("還沒有主圖時退回全站預覽圖，不指到不存在的檔案", async () => {
+    mockArticles.images = {};
+    const { generateMetadata, default: Page } = await import("@/app/guides/[slug]/page");
+    const meta = await generateMetadata(params);
+    expect(JSON.stringify(meta)).not.toContain("hero.jpg");
+    expect(meta.twitter).toMatchObject({ card: "summary_large_image", images: ["/og.jpg"] });
+    const html = renderToString(await Page(params));
+    expect(html).not.toContain("hero.jpg");
+    expect(html).not.toContain("hero.webp");
+  });
+  it("Article JSON-LD：作者跟發布者是站，不是虛構寫手；放在 body，不進 head", async () => {
+    const { default: Page } = await import("@/app/guides/[slug]/page");
+    const html = renderToString(await Page(params));
+    const ld = ldOf(html).find(entry => entry["@type"] === "Article")!;
+    const org = { "@type": "Organization", name: "楓谷幫手", url: "https://maplehelper.tw" };
+    expect(ld).toMatchObject({
+      "@context": "https://schema.org",
+      headline: "僧侶 31～50 等怎麼練",
+      description: "僧侶 31 到 50 等先打殭屍菇菇，再打天使猴。",
+      image: ["https://maplehelper.tw/assets/guides/priest-31-50/hero.jpg"],
+      datePublished: "2026-11-04T00:00:00+08:00",
+      dateModified: "2026-11-04T00:00:00+08:00",
+      author: org,
+      publisher: org,
+      mainEntityOfPage: { "@type": "WebPage", "@id": "https://maplehelper.tw/guides/priest-31-50" },
+    });
+    expect(JSON.stringify(ld)).not.toContain("毒舌奶媽");
+    expect(ldOf(html).find(entry => entry["@type"] === "WebPage")).toMatchObject({ dateModified: "2026-11-04T00:00:00+08:00" });
+    expect(fs.readFileSync(`${ROOT}src/app/guides/[slug]/page.tsx`, "utf8")).not.toContain("staticModified");
+  });
+  it("articleLd 內容裡的 < 不會把 script 關掉（SeoPage 換掉）", async () => {
+    const { SeoPage } = await import("@/components/SeoPage");
+    const ld = articleLd({ headline: "</script>", description: "d", path: "/guides/x", images: [], published: "2026-11-04", modified: "2026-11-04" });
+    expect(renderToString(SeoPage({ trail: [], title: "t", jsonLd: [ld], children: null }))).not.toContain('"headline":"</script>');
+  });
+  it("網站地圖：lastmod 讀文章的 updated，有主圖才列圖", async () => {
+    const { default: sitemap } = await import("@/app/sitemap");
+    const entry = () => sitemap().find(row => row.url === "https://maplehelper.tw/guides/priest-31-50")!;
+    mockArticles.article = { ...validCleric(), updated: "2026-12-01" };
+    expect(entry().lastModified).toBe("2026-12-01");
+    expect(entry().images).toEqual(["https://maplehelper.tw/assets/guides/priest-31-50/hero.jpg"]);
+    mockArticles.images = {};
+    expect(entry().images).toBeUndefined();
+  });
+});
+
+describe("文章新的必填欄位：日期、寫手、主圖替代文字", () => {
+  const ctx = { job: 230, from: 31, to: 50, data, openMaps };
+  const broken = (change: (article: JobArticle) => void) => {
+    const article = validCleric();
+    change(article);
+    return validateArticle(article, ctx).join("\n");
+  };
+  it("published、updated 要是真的日期，更新不能早於發布", () => {
+    expect(broken(article => { delete (article as Partial<JobArticle>).published; })).toMatch(/published/);
+    expect(broken(article => { delete (article as Partial<JobArticle>).updated; })).toMatch(/updated/);
+    expect(broken(article => { article.published = "2026-13-40"; })).toMatch(/published/);
+    expect(broken(article => { article.updated = "2026-02-30"; })).toMatch(/updated/);
+    expect(broken(article => { article.updated = "2026-11-03"; })).toMatch(/updated.*published/);
+  });
+  it("日期不能是未來（手誤寫錯年月），今天算今天（台灣時間，CI 在 UTC 上跑）", () => {
+    vi.useFakeTimers();
+    try {
+      // 台灣 11/05 01:00，UTC 還是 11/04
+      vi.setSystemTime(new Date("2026-11-04T17:00:00Z"));
+      expect(broken(article => { article.published = "2026-11-05"; article.updated = "2026-11-05"; })).not.toMatch(/未來/);
+      expect(broken(article => { article.updated = "2026-11-06"; })).toMatch(/updated.*未來/);
+      expect(broken(article => { article.published = "2027-11-04"; article.updated = "2027-11-04"; })).toMatch(/published.*未來/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it("內文不准有真實品牌、站名，也不准講私服；來源網址不算", () => {
+    for (const word of ["楓錄", "巴哈", "beanfun", "Artale", "私服"]) {
+      expect(broken(article => { article.sections[0].items![0].text += word; }), word).toContain(`不准寫「${word}」`);
+      expect(broken(article => { article.sources[0].label += word; }), word).toContain(`不准寫「${word}」`);
+    }
+    expect(broken(article => { article.sources.push({ label: "官方公告", url: "https://maplestoryclassic-event.beanfun.com/x" }); })).not.toMatch(/不准寫/);
+  });
+  it("persona 要有 name、line", () => {
+    expect(broken(article => { delete (article as Partial<JobArticle>).persona; })).toMatch(/persona/);
+    expect(broken(article => { article.persona = { name: "", line: "一句" }; })).toMatch(/persona/);
+    expect(broken(article => { article.persona = { name: "奶媽", line: "" }; })).toMatch(/persona/);
+  });
+  it("heroAlt 必填，地圖跟怪要是主推步驟的", () => {
+    expect(broken(article => { delete (article as Partial<JobArticle>).heroAlt; })).toMatch(/heroAlt/);
+    expect(broken(article => { article.heroAlt = "僧侶站著"; })).toMatch(/heroAlt/);
+    expect(broken(article => { article.heroAlt = "僧侶在{{map:107000403}}面對{{mob:殭屍菇菇}}"; })).toMatch(/heroAlt/);
+    expect(broken(article => { article.steps[0].alt = true; })).toMatch(/heroAlt/);
+  });
+  it("步驟可以標站上計算、遊戲資料；官方公告不行", () => {
+    expect(TAG_LABEL.calc).toBe("站上計算");
+    expect(broken(article => { article.steps[0].tag = "calc"; })).not.toMatch(/tag/);
+    expect(broken(article => { article.steps[0].tag = "game"; })).not.toMatch(/tag/);
+    expect(broken(article => { (article.steps[0] as { tag: string }).tag = "official"; })).toMatch(/tag/);
+  });
+  it("步驟標遊戲資料時，刷怪隻數一樣要走代號", () => {
+    expect(broken(article => { article.steps[0].tag = "game"; article.steps[0].text = "這張圖 30 隻。"; })).toMatch(/spawn/);
+  });
+  it("article:show 看得到日期、寫手、替代文字、網址", () => {
+    const text = articleShowText({ job: 230, from: 31, to: 50, article: validCleric(), data, openMaps });
+    expect(text).toContain("/guides/priest-31-50");
+    expect(text).toContain("2026-11-04");
+    expect(text).toContain("毒舌奶媽");
+    expect(text).toContain("僧侶在螞蟻洞Ⅰ面對殭屍菇菇");
+  });
+});
+
+describe("署名區塊跟放圖", () => {
+  const table = () => buildCalcTable({ job: 230, from: 31, to: 50, data });
+  const props = (images?: ReturnType<typeof articleImages>) => ({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article: resolveArticle(validCleric(), table(), data), table: table(), monsters: new Map(data.monsters.map(monster => [monster.id, monster])), maps: data.maps, dataNote: "", jsonLd: [], images });
+  const full = () => articleImages({ "priest-31-50": FULL_IMAGES }, "priest-31-50");
+  const clean = (html: string) => html.replace(/<!-- -->/g, "");
+
+  it("署名：站名、發布更新日期、寫手、兩句聲明照寫", () => {
+    const raw = renderToString(JobArticleView(props()));
+    const html = clean(raw).replace(/<[^>]+>/g, "");
+    expect(raw).toMatch(/dateTime="2026-11-04"/i);
+    for (const text of ["楓谷幫手", "發布 2026-11-04", "更新 2026-11-04", "本篇寫手：毒舌奶媽", "專講僧侶怎麼用治癒打不死系。", "寫手是站上虛構的角色，數字和來源都查得到。", "文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。"]) expect(html).toContain(text);
+  });
+  it("順序：主圖、署名、結論", () => {
+    const html = clean(renderToString(JobArticleView(props(full()))));
+    const order = ["hero.webp", "本篇寫手", "先講結論"].map(text => html.indexOf(text));
+    expect(order.every(index => index >= 0)).toBe(true);
+    expect(order).toEqual([...order].sort((a, b) => a - b));
+  });
+  it("主圖：整欄 16:9、優先載入、不 lazy、帶尺寸跟替代文字", () => {
+    const hero = /<img[^>]*hero\.webp[^>]*>/.exec(renderToString(JobArticleView(props(full()))))![0];
+    expect(hero).toMatch(/fetchPriority="high"/i);
+    expect(hero).not.toContain("lazy");
+    expect(hero).toContain('width="1536"');
+    expect(hero).toContain('height="864"');
+    expect(hero).toContain('alt="僧侶在螞蟻洞Ⅰ面對殭屍菇菇"');
+    expect(hero).toMatch(/aspect-video/);
+    expect(hero).toMatch(/w-full/);
+  });
+  it("路線卡圖：右側繞文字、lazy、帶尺寸、不糊，替代文字程式組", () => {
+    const step = /<img[^>]*105050000\.webp[^>]*>/.exec(renderToString(JobArticleView(props(full()))))![0];
+    expect(step).toContain('src="/assets/guides/priest-31-50/105050000.webp"');
+    expect(step).toContain('loading="lazy"');
+    expect(step).toContain('width="240"');
+    expect(step).toContain('height="135"');
+    expect(step).toContain('alt="僧侶在螞蟻洞Ⅰ打殭屍菇菇"');
+    expect(step).toMatch(/float-right/);
+    expect(step).toMatch(/w-\[42%\]/);
+    expect(step).toMatch(/rounded/);
+    expect(step).toMatch(/image-rendering:pixelated/);
+    expect(stepImageAlt("僧侶", "螞蟻洞Ⅰ", "殭屍菇菇")).toBe("僧侶在螞蟻洞Ⅰ打殭屍菇菇");
+  });
+  it("同一張圖連寫兩步只放第一步，頁面不會連兩張一樣的圖", () => {
+    const article = resolveArticle(validCleric(), table(), data);
+    const twice = { ...article, steps: [article.steps[0], { ...article.steps[0], from: 45, to: 50 }] };
+    const html = renderToString(JobArticleView({ ...props(full()), article: twice }));
+    expect(html.match(/105050000\.webp/g)).toHaveLength(1);
+  });
+  it("標籤跟前面的字隔空白不用 margin：換行到行首才不會內縮", () => {
+    const source = fs.readFileSync(`${ROOT}src/components/JobArticleView.tsx`, "utf8");
+    expect(source).not.toMatch(/ml-1(\.5)? /);
+  });
+  it("清單裡沒有的圖不畫（不靠 onerror 藏圖）", () => {
+    const html = renderToString(JobArticleView(props(articleImages({ "priest-31-50": { hero: FULL_IMAGES.hero } }, "priest-31-50"))));
+    expect(html).toContain("hero.webp");
+    expect(html).not.toContain("author.webp");
+    expect(html).not.toContain("105050000.webp");
+    expect(renderToString(JobArticleView(props()))).not.toContain("/assets/guides/");
+    expect(fs.readFileSync(`${ROOT}src/components/JobArticleView.tsx`, "utf8")).not.toContain("onError");
+  });
+});
+
+describe("圖片防呆 articleImageProblems", () => {
+  const article = () => validCleric();
+  const entries = () => [{ job: 230, from: 31, to: 50, article: article() }];
+  const manifest = () => ({ "priest-31-50": { hero: { w: 1536, h: 864 }, author: { w: 96, h: 96 }, steps: { "105050000": { w: 240, h: 135 }, "107000403": { w: 240, h: 135 } } } }) as ArticleImageManifest;
+  const all = () => true;
+
+  it("全部都有就過", () => {
+    expect(articleImageProblems(entries(), manifest(), all)).toEqual([]);
+  });
+  it("清單缺 hero、author、主推步驟的圖都擋；備案步驟不用", () => {
+    expect(articleImageProblems(entries(), {}, all).join()).toMatch(/priest-31-50.*清單/);
+    const noHero = manifest();
+    delete noHero["priest-31-50"].hero;
+    expect(articleImageProblems(entries(), noHero, all).join()).toMatch(/hero/);
+    const noAuthor = manifest();
+    delete noAuthor["priest-31-50"].author;
+    expect(articleImageProblems(entries(), noAuthor, all).join()).toMatch(/author/);
+    const noStep = manifest();
+    delete noStep["priest-31-50"].steps!["107000403"];
+    expect(articleImageProblems(entries(), noStep, all).join()).toMatch(/107000403/);
+    const alt = article();
+    alt.steps[1].alt = true;
+    expect(articleImageProblems([{ job: 230, from: 31, to: 50, article: alt }], noStep, all)).toEqual([]);
+  });
+  it("清單列的檔案要真的存在（hero.webp、hero.jpg 都要）", () => {
+    for (const name of ["hero.jpg", "hero.webp", "author.webp", "105050000.webp"]) {
+      expect(articleImageProblems(entries(), manifest(), file => !file.endsWith(name)).join()).toContain(name);
+    }
+  });
+  it("主圖寬至少 1200、比例 16:9", () => {
+    const narrow = manifest();
+    narrow["priest-31-50"].hero = { w: 1024, h: 576 };
+    expect(articleImageProblems(entries(), narrow, all).join()).toMatch(/1200/);
+    const square = manifest();
+    square["priest-31-50"].hero = { w: 1200, h: 1200 };
+    expect(articleImageProblems(entries(), square, all).join()).toMatch(/16:9/);
+  });
+  it("清單裡有文章沒有的 slug 也報（改過網址、舊圖留著）", () => {
+    expect(articleImageProblems(entries(), { ...manifest(), "priest-51-70": { hero: { w: 1536, h: 864 } } }, all).join()).toMatch(/priest-51-70/);
   });
 });

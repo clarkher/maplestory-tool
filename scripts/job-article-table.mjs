@@ -1,7 +1,7 @@
 /**
  * 寫職業×等級攻略文（src/data/job-articles/）之前看的資料：計算表、假設、這個範圍的攻略列、能用的出處，印 JSON。
  *
- * 用法：npm run article:table -- <職業> <起> <迄>
+ * 用法：npm run article:table -- <職業> <起> <迄>（職業代碼；印出來的 path 是文章網址 /guides/priest-31-50）
  *   例：npm run article:table -- 230 31 50
  *   存檔：npm run --silent article:table -- 230 31 50 > %TEMP%\230-31-50.json
  *

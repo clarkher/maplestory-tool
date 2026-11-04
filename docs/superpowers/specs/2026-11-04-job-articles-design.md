@@ -10,7 +10,7 @@
 
 1. **照轉職切範圍（1A）**：一轉 10～30；二轉 31～50、51～70；三轉 71～90、91～120。不做每 10 等一篇。
 2. **資料不夠不出（2A）**：這個範圍至少 2 張非舊版來源（`v` 不是 `legacy`）、有地圖的練功圖才出。三轉範圍把接它的二轉攻略也算進來。目前算出 35 篇（全部 53）。不夠的不出頁面、職業頁也不放連結。
-3. **入口放職業頁（3A）**：網址 `/jobs/<職業>/<起>-<迄>`，例 `/jobs/230/31-50`。職業頁加一區列出這職業有的範圍，不進導覽列、不開總表。
+3. **入口放職業頁（3A）**：網址原本是 `/jobs/<職業>/<起>-<迄>`，v1.49 改成 `/guides/<英文職業>-<起>-<迄>`（例 `/guides/priest-31-50`，見下）。職業頁加一區列出這職業有的範圍，不進導覽列、不開總表。
 4. **第一批 5 篇先審（4A）**：僧侶、狂戰士、獵人、刺客、俠盜的 31～50。使用者看過才照同樣寫法出其他 30 篇。
 
 ## 怎麼做（我的決定）
@@ -36,6 +36,20 @@
 - 文章可寫 `statCap`（敏捷停 60 這種點法），表、代號一起照它算。
 - 表下連到計算機帶 `?job=&level=&weapon=&skill=&targets=`，打開跟表一樣，只作用於這次開啟，不寫回使用者的角色；連結文字「開計算機改成自己的數值」（審查第 14 條選 B：維持文章那一級；要改成帶玩家等級再由使用者決定）。計算機改 `useSearchParams`，站內點連結才有作用。假設行拿掉「可在下面技能等級改」。
 - `npm run article:show <職業> <起> <迄>` 印換完代號的完整文字。
+
+## v1.49 Google Discover（11/04 使用者拍板全部）
+
+目標：攻略文被 Google Discover 收錄。官方條件：大圖預覽、圖寬至少 1200、16:9、不要 logo 或字多的圖、og:image／schema 指定圖。
+
+- **網址**：`/guides/<英文職業>-<起>-<迄>`，例 `/guides/priest-31-50`；英文職業名放 `JOB_SLUGS`（230 priest、110 berserker、310 hunter、410 assassin、420 bandit、231 high-priest、232 bishop，其他照常見英文職業名）。這批文章還沒上正式機，不做轉址。`/jobs/<id>` 職業頁不動。
+- **中繼資料**：全站 `max-image-preview:large`；每篇 og、twitter 用該篇 `hero.jpg` 絕對網址、`summary_large_image`、`og:type` article、發布與更新時間（帶 `+08:00`）；主圖還沒進清單時退回全站預覽圖。
+- **Article JSON-LD**：`headline`、`description`、`image`（陣列，目前只有 16:9 一張，Discover 條件夠；4:3、1:1 要重新構圖，沒做）、`datePublished`、`dateModified`（帶 `+08:00`）、`mainEntityOfPage`；`author`、`publisher` 都是 Organization「楓谷幫手」，不准填虛構寫手。
+- **日期**：文章必填 `published`、`updated`（YYYY-MM-DD），畫面、meta、JSON-LD、sitemap lastmod 都讀這兩個，不拿遊戲資料日期冒充文章日期。首批 5 篇都是 2026-11-04（首次寫成的真實日期），**晚幾天才上正式機的話，上線前要改成實際上線日**。日期不准是未來（防呆擋）。資料更新讓表的數字變了不動 `updated`：`updated` 是文字改的日期，表下另寫「依遊戲資料 X 計算」。
+- **寫手與聲明**：必填 `persona: { name, line }`，個性當名字。署名區塊放標題、主圖下，寫站名、日期、寫手、小頭像；兩句照寫：「寫手是站上虛構的角色，數字和來源都查得到。」「文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。」字小而清楚，手機 390 寬、筆電 1280×720 第一屏都要看得到結論框開頭。
+- **放圖（版面 B1）**：H1 下 16:9 主圖（`fetchPriority` high、不 lazy），手機整欄；電腦版（`md` 起）跟署名並排佔 6 成，整欄的話 1280 寬圖就 597 高，筆電第一屏看不到結論框。路線卡文字右側小圖、文字繞圖、lazy、`image-rendering: pixelated`，手機 42% 寬、電腦版 28%；同一張圖連寫兩步只放第一步。檔案 `public/assets/guides/<slug>/` 的 `hero.webp`、`hero.jpg`、`author.webp`、`<地圖id>.webp`；清單 `src/data/job-articles/images.gen.json`，頁面只畫清單裡有的。必填 `heroAlt`，要跟該篇主推一致。防呆 `job-article-images.test.ts`。
+- **產圖（`npm run article:images`，`scripts/job-article-images.mjs`）**：每位寫手一套紙娃娃外觀，拿文章實際主推的武器。路線卡的地圖、怪、角色是真素材，站在真的落腳線上，地圖透明處墊 AI 畫的背景（`data/guide-backdrops/`），400×225 原始像素不放大（頁面 pixelated 顯示，畫面一樣，檔案小約 5 倍），每張 200KB 內。主圖由合成底稿 AI 重繪，1536×864，不准有字、logo、亂碼招牌，五篇構圖要不一樣，jpg 300KB 內。主圖原檔快取在 gitignore 目錄，已有就不重畫，`--regen-hero --ai` 才真的重畫；背景進 `data/guide-backdrops/`。`/assets/guides/` 檔名固定，所以每次回伺服器確認（`cache-headers.mjs`），不走 `/assets/` 的一年 immutable。
+- **llms.txt**：列出這些文章（審查後補，原本沒列）。`/guides` 本身沒有總表，用 meta refresh 轉去 `/guide`、noindex，不給 404（全靜態輸出不吃 `redirect()`）。
+- **步驟標籤**：查核發現主推步驟可能是站上算的卻只能標 tw／community／legacy，步驟改成也能標 `calc`、`game`；標籤跟實際來源不符的，改標籤就好，不另加機制。
 
 ## 不做
 

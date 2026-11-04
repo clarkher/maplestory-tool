@@ -1,5 +1,5 @@
 /**
- * 職業×等級範圍攻略文（/jobs/<職業>/<起>-<迄>，v1.43）：哪些範圍能出、表怎麼算、文字代號、防呆。
+ * 職業×等級範圍攻略文（/guides/<英文職業>-<起>-<迄>，v1.43 起，v1.49 換網址）：哪些範圍能出、表怎麼算、文字代號、防呆、放圖清單。
  * 規格 docs/superpowers/specs/2026-11-04-job-articles-design.md（使用者拍板 1A 2A 3A 4A）；測試 __tests__/job-article.test.ts。
  * 數字一律由程式算（傷害計算機的預設角色＋computeGroup），文字裡用代號引用，資料更新就跟著變；文字本身存 src/data/job-articles/。
  * 這支建置時在伺服器跑：不能 import "use client" 的模組（拿到假值，等級上限會變 NaN），測試有掃。
@@ -15,10 +15,10 @@ import type { GuideJob, GuideTrain, Monster } from "./types";
 
 /* ------------------------------------------------------------------ 文章檔的格式 */
 
-/** 步驟的來源等級：台服回報、社群整理、舊版路線（跟攻略的 v 同一套） */
-export type StepTag = "tw" | "community" | "legacy";
-/** 一般主張多三種：站上計算、遊戲資料（客戶端的數值、技能說明）、官方公告 */
-export type ClaimTag = StepTag | "calc" | "game" | "official";
+/** 步驟的來源等級：台服回報、社群整理、舊版路線（跟攻略的 v 同一套），加上站上計算、遊戲資料（主推可能是站上算的，v1.49） */
+export type StepTag = "tw" | "community" | "legacy" | "calc" | "game";
+/** 一般主張多一種：官方公告 */
+export type ClaimTag = StepTag | "official";
 
 export const TAG_LABEL: Record<ClaimTag, string> = { tw: "台服回報", community: "社群整理", legacy: "舊版路線", calc: "站上計算", game: "遊戲資料", official: "官方公告" };
 
@@ -71,6 +71,14 @@ export type JobArticle = {
   title: string;
   /** 150 字內 */
   description: string;
+  /** 首次發布日（YYYY-MM-DD）：畫面、og、JSON-LD 都讀這個，不拿遊戲資料日期冒充 */
+  published: string;
+  /** 文章內容最後改的日（YYYY-MM-DD）：畫面、og、JSON-LD、網站地圖 lastmod 都讀這個；真的改了文字才動 */
+  updated: string;
+  /** 本篇寫手：name 是個性當名字（毒舌奶媽），line 是一句自介。虛構角色，畫面照寫虛構聲明，不進 JSON-LD 的 author */
+  persona: { name: string; line: string };
+  /** 主圖替代文字：要寫主推步驟的圖跟怪（{{map:地圖id}}、{{mob:怪名}}） */
+  heroAlt: string;
   /** 先講結論，2～4 條，每條都標來源等級；第一條起要涵蓋整段等級（ANSWER_MAX 字內） */
   answer: ArticleAnswer[];
   /** 表跟代號用哪個武器系別（["單手劍", "雙手劍"]）；不寫照傷害計算機的預設（可能挑到這篇文字沒在講的那種） */
@@ -99,8 +107,105 @@ export function articleRanges(job: number): ArticleRange[] {
   return RANGES[jobTier(job)] ?? [];
 }
 
-export const articlePath = (job: number, from: number, to: number) => `/jobs/${job}/${from}-${to}`;
+/** 文章網址用的英文職業名（Google 看得懂、別人也看得懂）。站上 29 職加 232 祭司四轉（先訂好，還沒開）；不准重複，測試有驗 */
+export const JOB_SLUGS: Record<number, string> = {
+  100: "swordman",
+  110: "berserker",
+  111: "crusader",
+  120: "page",
+  121: "knight",
+  130: "spearman",
+  131: "dragon-knight",
+  200: "magician",
+  210: "fire-poison-wizard",
+  211: "fire-poison-mage",
+  220: "ice-lightning-wizard",
+  221: "ice-lightning-mage",
+  230: "priest",
+  231: "high-priest",
+  232: "bishop",
+  300: "archer",
+  310: "hunter",
+  311: "ranger",
+  320: "crossbowman",
+  321: "sniper",
+  400: "rogue",
+  410: "assassin",
+  411: "hermit",
+  420: "bandit",
+  421: "chief-bandit",
+  500: "pirate",
+  510: "brawler",
+  511: "marauder",
+  520: "gunslinger",
+  521: "outlaw",
+};
+
+/** priest-31-50：網址最後一段，也是圖片資料夾、清單的鍵 */
+export function articleSlug(job: number, from: number, to: number): string {
+  const name = JOB_SLUGS[job];
+  if (!name) throw new Error(`職業 ${job} 沒有英文 slug，加進 JOB_SLUGS`);
+  return `${name}-${from}-${to}`;
+}
+
+export const articlePath = (job: number, from: number, to: number) => `/guides/${articleSlug(job, from, to)}`;
 export const articleRangeLabel = (from: number, to: number) => `${from}～${to} 等`;
+
+/* ------------------------------------------------------------------ 放圖 */
+
+export type ImageSize = { w: number; h: number };
+/** 一篇的圖：主圖（hero.webp＋給 og 用的 hero.jpg）、寫手小頭像、路線卡圖（鍵是地圖 id） */
+export type ArticleImageEntry = { hero?: ImageSize; author?: ImageSize; steps?: Record<string, ImageSize> };
+/** src/data/job-articles/images.gen.json：鍵是 slug，圖片腳本產生；頁面只畫清單裡有的圖 */
+export type ArticleImageManifest = Record<string, ArticleImageEntry>;
+/** 畫面拿的：這篇的圖片資料夾（public 底下的網址）跟有哪些圖 */
+export type ArticleImages = ArticleImageEntry & { dir: string };
+
+const articleImageDir = (slug: string) => `/assets/guides/${slug}`;
+/** og、JSON-LD、網站地圖用的主圖路徑（jpg：分享平台都吃得下） */
+export const articleHeroPath = (slug: string) => `${articleImageDir(slug)}/hero.jpg`;
+export const articleImages = (manifest: ArticleImageManifest, slug: string): ArticleImages => ({ ...manifest[slug], dir: articleImageDir(slug) });
+/** 路線卡圖的替代文字：僧侶在螞蟻洞Ⅲ打殭屍菇菇 */
+export const stepImageAlt = (jobName: string, mapName: string, mobName: string) => `${jobName}在${mapName}打${mobName}`;
+
+const HERO_MIN_WIDTH = 1200;
+const HERO_RATIO = 16 / 9;
+const HERO_RATIO_TOLERANCE = 0.01;
+
+/**
+ * 圖片防呆（Discover 要大圖）：每篇的主圖、小頭像、每個非備案步驟的圖都要在清單裡；清單列的檔案要真的在；主圖寬至少 1200、比例 16:9。
+ * 不放進 validateArticle：缺圖不該讓文章下架，由 job-article-images.test.ts 擋在合併前。fileExists 收 public 底下的網址路徑。
+ */
+export function articleImageProblems(entries: Array<ArticleKey & { article: Pick<JobArticle, "steps"> }>, manifest: ArticleImageManifest, fileExists: (publicPath: string) => boolean): string[] {
+  const problems: string[] = [];
+  const slugs = new Set<string>();
+  for (const { job, from, to, article } of entries) {
+    const slug = articleSlug(job, from, to);
+    slugs.add(slug);
+    const entry = manifest[slug];
+    if (!entry) {
+      problems.push(`${slug}：清單裡沒有這篇`);
+      continue;
+    }
+    if (!entry.hero) problems.push(`${slug}：清單沒有主圖 hero`);
+    if (!entry.author) problems.push(`${slug}：清單沒有寫手小頭像 author`);
+    for (const step of article.steps) {
+      if (step.alt !== true && !entry.steps?.[String(step.map)]) problems.push(`${slug}：清單沒有路線卡圖 ${step.map}`);
+    }
+  }
+  for (const [slug, entry] of Object.entries(manifest)) {
+    if (!slugs.has(slug)) problems.push(`${slug}：清單有，但沒有這篇文章`);
+    const dir = articleImageDir(slug);
+    const files = [...(entry.hero ? ["hero.webp", "hero.jpg"] : []), ...(entry.author ? ["author.webp"] : []), ...Object.keys(entry.steps ?? {}).map(map => `${map}.webp`)];
+    for (const file of files) if (!fileExists(`${dir}/${file}`)) problems.push(`${slug}：清單有 ${file}，檔案不在`);
+    if (entry.hero) {
+      const { w, h } = entry.hero;
+      if (w < HERO_MIN_WIDTH) problems.push(`${slug}：主圖寬 ${w}，至少要 ${HERO_MIN_WIDTH}`);
+      if (Math.abs(w / h - HERO_RATIO) > HERO_RATIO_TOLERANCE) problems.push(`${slug}：主圖 ${w}×${h} 不是 16:9`);
+    }
+  }
+  return problems;
+}
 
 /** 檔名 230-31-50.json → 職業、範圍；不是這個格式回 null */
 export function parseArticleFile(file: string): { job: number; from: number; to: number } | null {
@@ -504,9 +609,11 @@ const TITLE_MAX = 23;
 /** 結論每條幾字內（換完代號算）：手機一條兩行多看完，再長就是把步驟卡的內容搬上來 */
 export const ANSWER_MAX = 70;
 const EMOJI = /[\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF]|[\u{1F300}-\u{10FFFF}]/u;
-const STEP_TAGS: readonly string[] = ["tw", "community", "legacy"];
-const CLAIM_TAGS: readonly string[] = [...STEP_TAGS, "calc", "game", "official"];
+const STEP_TAGS: readonly string[] = ["tw", "community", "legacy", "calc", "game"];
+const CLAIM_TAGS: readonly string[] = [...STEP_TAGS, "official"];
 
+/** 內文不准出現真實品牌、站名（來源網址不算），也不准講「私服」（對外一律寫參考舊版資料） */
+const BANNED_WORDS = ["楓錄", "巴哈", "beanfun", "Artale", "私服"];
 const isText = (value: unknown): value is string => typeof value === "string" && value.trim().length > 0;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -904,6 +1011,7 @@ function checkSpawnClaims(article: Record<string, unknown>, errors: string[]): v
     });
   };
   lines("answer", article.answer);
+  lines("steps", article.steps);
   if (Array.isArray(article.sections)) {
     article.sections.forEach((section, index) => {
       if (!isRecord(section)) return;
@@ -961,6 +1069,41 @@ function checkMobNames(strings: Array<{ where: string; text: string }>, data: Ca
   }
 }
 
+const isDate = (value: unknown): value is string => {
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  // 2026-02-30 會被進位成 3 月，轉回來對不上就是假日期
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value);
+};
+
+/** 今天的日期（台灣時間）：文章日期是台灣的日期，CI 在 UTC 上跑，早上 8 點前 UTC 還是昨天 */
+const taiwanToday = () => new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+
+/** 文章日期：真的日期，更新不早於發布，都不能是未來（手誤寫錯年月，檢查才擋得到） */
+function checkDates(article: Record<string, unknown>, errors: string[]): void {
+  if (!isDate(article.published)) errors.push("published：要是發布日 YYYY-MM-DD");
+  if (!isDate(article.updated)) errors.push("updated：要是更新日 YYYY-MM-DD");
+  else if (isDate(article.published) && article.updated < article.published) errors.push(`updated ${article.updated} 不能早於 published ${article.published}`);
+  const today = taiwanToday();
+  for (const key of ["published", "updated"]) {
+    const value = article[key];
+    if (isDate(value) && value > today) errors.push(`${key} ${value} 是未來的日期（今天 ${today}）`);
+  }
+}
+
+/** 主圖替代文字：要寫一個主推步驟的圖跟那一步的怪，圖片、結論才講同一件事 */
+function checkHeroAlt(article: Record<string, unknown>, data: CalcData, errors: string[]): void {
+  if (!isText(article.heroAlt)) {
+    errors.push("要有 heroAlt（主圖替代文字）");
+    return;
+  }
+  const maps = [...article.heroAlt.matchAll(/\{\{map:(\d+)\}\}/g)].map(match => Number(match[1]));
+  const names = [...article.heroAlt.matchAll(/\{\{mob:(.+?)\}\}/g)].map(match => match[1]);
+  const steps = (Array.isArray(article.steps) ? article.steps : []).filter(isRecord).filter(step => step.alt !== true);
+  const matched = steps.some(step => maps.includes(step.map as number) && Array.isArray(step.mobs) && step.mobs.some(id => names.includes(data.monsters.find(monster => monster.id === id)?.n ?? "")));
+  if (!matched) errors.push("heroAlt：要寫主推步驟的圖跟那一步的怪（{{map:地圖id}}、{{mob:怪名}}），才跟文章主推一致");
+}
+
 /** 一篇文章的所有防呆，回傳錯誤（空陣列＝過）；欄位缺、型別錯也回錯誤，不丟例外 */
 export function validateArticle(article: unknown, ctx: ArticleContext): string[] {
   if (!isRecord(article)) return ["文章要是物件"];
@@ -972,6 +1115,9 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
   if (!isText(article.title)) errors.push("要有 title");
   else if (article.title.includes("經典版")) errors.push("title 不寫「經典版」，模板會補");
   if (!isText(article.intro)) errors.push("要有 intro");
+  checkDates(article, errors);
+  if (!isRecord(article.persona) || !isText(article.persona.name) || !isText(article.persona.line)) errors.push("persona：要有 name（個性當名字）、line（一句自介）");
+  checkHeroAlt(article, data, errors);
 
   const weaponTypes = checkWeaponTypes(article.weaponTypes, job, errors);
   const statCap = checkStatCap(article.statCap, errors);
@@ -1049,6 +1195,7 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
   checkSpawnClaims(article, errors);
   for (const { where, text } of strings) {
     if (EMOJI.test(text)) errors.push(`${where}：不准有 emoji`);
+    if (!/\.url$/.test(where)) for (const word of BANNED_WORDS) if (text.includes(word)) errors.push(`${where}：不准寫「${word}」`);
     if (table) {
       try {
         fillTokens(text, table, data);
@@ -1092,6 +1239,7 @@ export function writerBrief({ job, from, to, data, weaponTypes, statCap }: { job
   return {
     job: { id: job, name: jobOption(job)?.name ?? String(job) },
     range: { from, to },
+    path: articlePath(job, from, to),
     eligible: articleEligible(job, from, to, data.guides),
     table,
     assumptionLines: assumptionLines(table),
@@ -1144,6 +1292,9 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
     `${jobOption(job)?.name ?? job} ${articleRangeLabel(from, to)}（${articlePath(job, from, to)}）`,
     `標題：${fill(article.title)}`,
     `描述：${fill(article.description)}`,
+    `發布 ${article.published} / 更新 ${article.updated}`,
+    `本篇寫手：${article.persona?.name}｜${article.persona?.line ? fill(article.persona.line) : ""}`,
+    `主圖替代文字：${article.heroAlt ? fill(article.heroAlt) : ""}`,
     ...(article.weaponTypes?.length ? [`指定武器系別：${article.weaponTypes.join("、")}`] : []),
     ...(article.statCap ? [`配點上限：${JSON.stringify(article.statCap)}`] : []),
     "",

@@ -2,7 +2,7 @@
  * 印出一篇職業×等級攻略文（src/data/job-articles/）換完代號的完整文字：結論、步驟、段落、表、假設、來源，
  * 最後是該貼進文章檔的 assumes 跟防呆結果。寫手、評分的人看這個，不用自己猜代號換成什麼。
  *
- * 用法：npm run article:show 110 31 50
+ * 用法：npm run article:show 110 31 50（檔名用職業代碼；印出來第一行有文章網址 /guides/berserker-31-50）
  *   存檔：npm run --silent article:show 110 31 50 > %TEMP%\110-31-50.txt
  *
  * 實際組字在 src/lib/job-article.ts 的 articleShowText；它是 TypeScript，所以跟 article:table 一樣借 vitest 跑 src/lib/job-article-table.gen.ts。

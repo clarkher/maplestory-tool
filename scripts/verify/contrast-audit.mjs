@@ -12,7 +12,7 @@ import { start, sleep } from "./harness.mjs";
 
 const OUT = outDir(process.argv[2], "contrast-audit");
 const BASE = (process.argv[3] ?? "http://localhost:3000").replace(/\/$/, "");
-const PAGES = (process.argv[4] ?? "/,/db/items?id=1472004,/db/monsters,/db/quests,/db/skills,/plan/farm,/plan/quest,/plan/train,/plan/bundle,/plan/damage,/go,/guide,/about,/jobs/230/31-50,/jobs/310/31-50").split(",");
+const PAGES = (process.argv[4] ?? "/,/db/items?id=1472004,/db/monsters,/db/quests,/db/skills,/plan/farm,/plan/quest,/plan/train,/plan/bundle,/plan/damage,/go,/guide,/about,/guides/priest-31-50,/guides/hunter-31-50").split(",");
 const THEMES = (process.env.THEMES ?? "light,dark").split(",");
 const WIDTH = Number(process.env.WIDTH ?? 390);
 const PORT = chromePort(9375);

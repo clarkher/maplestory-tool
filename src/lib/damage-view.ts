@@ -67,7 +67,7 @@ export function damageLinkHref(job: number, level: number, extra: { weapon?: num
   return `/plan/damage?${params}`;
 }
 
-/** 網址的 ?job=&level=&weapon=&skill=&targets=：職業要是真的職業才作用，等級夾在職業範圍；只讀不存，使用者存好的角色不動 */
+/** 網址的 ?job=&level=&weapon=&skill=&targets=：職業要是真的職業才作用，等級夾在職業範圍，隻數不是 1～5 的整數當沒帶（存檔的 isShared 也只收這個範圍）；只讀不存，使用者存好的角色不動 */
 export function parseDamageLink(search: string): DamageLink | null {
   const params = new URLSearchParams(search);
   const job = Number(params.get("job"));
@@ -77,16 +77,17 @@ export function parseDamageLink(search: string): DamageLink | null {
     const value = Number(params.get(key));
     return value > 0 ? value : null;
   };
-  return { job, level: level > 0 ? clampLevel(job, level) : null, weapon: positive("weapon"), skill: positive("skill"), targets: positive("targets") };
+  const targets = positive("targets");
+  return { job, level: level > 0 ? clampLevel(job, level) : null, weapon: positive("weapon"), skill: positive("skill"), targets: targets !== null && Number.isInteger(targets) && targets <= HEAL_TARGETS_MAX ? targets : null };
 }
 
 /**
- * 預設狀態套上連結帶的武器、招式、隻數（左組；右組照預設留著比較）。職業不一樣、武器或招式查不到就當沒帶。
+ * 預設狀態套上連結帶的武器、招式、隻數（左組；右組照預設留著比較）。職業不一樣、武器不在這個職業的選單、招式查不到就當沒帶。
  * 換了武器沒帶招式時招式照新武器重挑，跟攻略文的表同一套。
  */
 export function applyDamageLink(state: CalcState, data: CalcData, link: DamageLink | null): CalcState {
   if (!link || link.job !== state.shared.job) return state;
-  const weapon = link.weapon === null ? undefined : data.gear.weapons.find(entry => entry.id === link.weapon);
+  const weapon = link.weapon === null ? undefined : weaponChoices(data.gear, link.job).find(entry => entry.id === link.weapon);
   const left = weapon ? withWeapon(data, state.groups[0], weapon) : state.groups[0];
   const skillOk = link.skill !== null && attackSkillIds(data.skills, link.job).includes(link.skill) && (link.skill === BASIC_ATTACK || (left.levels[link.skill] ?? 0) > 0);
   const skill = skillOk ? { skillId: link.skill!, skillLevel: link.skill === BASIC_ATTACK ? 1 : left.levels[link.skill!] } : weapon ? defaultSkill(data, link.job, left) : null;
@@ -588,7 +589,7 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   if (bomb) {
     notes.push(`被射中那隻照舊版算普通弓的 50%（2011 年的攻略寫改版後也是 ${splashPercent}%，台服用哪一版查不到）；周圍最多 5 隻各吃 ${splashPercent}%；爆擊整段乘霸王箭的倍率（滿級 ×2）；終極之弓追加沒算`);
   }
-  if (ammo && ammo.kind !== "飛鏢") notes.push(`${ammo.kind}的攻擊力算進總攻擊只有私服資料，台服沒驗證`);
+  if (ammo && ammo.kind !== "飛鏢") notes.push(`${ammo.kind}的攻擊力算進總攻擊是參考舊版資料，台服沒驗證`);
 
   const finalBase = { min: base.min, max: base.max };
   return {
