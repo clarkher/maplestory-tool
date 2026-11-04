@@ -1,14 +1,14 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { consistentJob } from "./jobs";
+import { consistentJob, LEVEL_CAP } from "./jobs";
 import { jobParams, trackSettled } from "./analytics";
 import type { Profile } from "./types";
 
 const STORAGE_KEY = "ms-profile";
 
-/** 台服經典版 V002 的等級上限（2026-10-15 起）。開放新內容時要一起改這裡與 pipeline/build.mjs 的 RELEASE（含 mapRegions）。 */
-export const LEVEL_CAP = 120;
+/** 等級上限定義在 jobs.ts（這支是 use client，伺服器頁 import 拿到的是假值），這裡只轉出去 */
+export { LEVEL_CAP };
 
 /** job -1：還沒選職業（不要預選初心者，免得先填等級的人看到初心者的結果） */
 const EMPTY: Profile = { level: 0, job: -1 };

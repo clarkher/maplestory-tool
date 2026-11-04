@@ -38,6 +38,8 @@ const percent = (value: number) => `${Math.round(value * 100)}%`;
 
 /** 僧侶這一系 31～70 等只靠群體治癒打不死系 */
 const clericUndeadOnly = (branch: number, level: number) => branch === 230 && level >= 31 && level <= 70;
+/** 這個職業在這個等級是不是只靠群體治癒打不死系（攻略文的計算表、防呆用） */
+export const undeadOnlyStage = (stage: number, level: number) => clericUndeadOnly(branchOf(stage), level);
 const isUndead = (monster: Monster) => Boolean(monster.und);
 const resistsFire = (monster: Monster) => monster.el?.f === "r" || monster.el?.f === "i";
 const resistsIce = (monster: Monster) => monster.el?.i === "r" || monster.el?.i === "i";

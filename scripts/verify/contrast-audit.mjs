@@ -1,7 +1,7 @@
 // 全站小字對比（WCAG AA）：每一頁、白天跟夜晚各一次，把畫面上每段字的字色疊在實際背景上算對比，沒過的列出來（v0.81）
 // 用法：node scripts/verify/contrast-audit.mjs <輸出資料夾> <網址> [頁面,頁面…]
 //   例：node scripts/verify/contrast-audit.mjs out https://maplestory-tool-git-dev-clarkhers-projects.vercel.app
-//   頁面不給就跑 13 頁（首頁、查資料四頁＋道具卡、/plan 五頁含傷害計算機、/go、/guide、/about）。首頁先存刺客 35 全幸，卡片才有東西。
+//   頁面不給就跑 15 頁（首頁、查資料四頁＋道具卡、/plan 五頁含傷害計算機、/go、/guide、/about、兩篇攻略文）。首頁先存刺客 35 全幸，卡片才有東西。
 // 門檻：一般字 4.5；大字（24px 以上，或 18.66px 以上且粗體）3。停用的按鈕（disabled、aria-disabled）不算。
 // 有任何一段沒過就 exit 1。results.json 記每頁每個主題沒過的字（字、字色、背景、比值、字級、class）。
 // 環境變數 THEMES：只跑某個主題（light 或 dark，預設兩個都跑）；WIDTH：視窗寬（預設 390）。
@@ -12,7 +12,7 @@ import { start, sleep } from "./harness.mjs";
 
 const OUT = outDir(process.argv[2], "contrast-audit");
 const BASE = (process.argv[3] ?? "http://localhost:3000").replace(/\/$/, "");
-const PAGES = (process.argv[4] ?? "/,/db/items?id=1472004,/db/monsters,/db/quests,/db/skills,/plan/farm,/plan/quest,/plan/train,/plan/bundle,/plan/damage,/go,/guide,/about").split(",");
+const PAGES = (process.argv[4] ?? "/,/db/items?id=1472004,/db/monsters,/db/quests,/db/skills,/plan/farm,/plan/quest,/plan/train,/plan/bundle,/plan/damage,/go,/guide,/about,/jobs/230/31-50,/jobs/310/31-50").split(",");
 const THEMES = (process.env.THEMES ?? "light,dark").split(",");
 const WIDTH = Number(process.env.WIDTH ?? 390);
 const PORT = chromePort(9375);
