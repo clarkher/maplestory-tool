@@ -83,6 +83,8 @@ jobs:
       before_hash: ${{ steps.before.outputs.hash }}
       # 給 publish：上游版本有變（或勾了 force），有重建、有存 artifact
       changed: ${{ steps.check.outputs.changed }}
+      # 給 notify：跟新資料對不上、這次建置被拿掉的攻略文（空白隔開，例 230-31-50 110-31-50）
+      broken_articles: ${{ steps.articles.outputs.broken_articles }}
     steps:
       # 不把 token 留在 .git/config：這個 job 用不到，留著就是給後面跑的程式拿
       - uses: actions/checkout@v4
@@ -186,13 +188,20 @@ jobs:
       # --reporter=default：vitest 在 GitHub Actions 上預設會在摘要之後再印一串標註，失敗一多，
       # 通知 issue 裡「錯誤訊息最後 30 行」就只剩標註、看不到哪個組合壞了
       # SPEED_NAMES_MAY_LAG：練功測速的地圖名樣板要在 Windows 產（微軟正黑體），新地圖還沒有樣板不擋自動更新（v1.10，read-map.test.ts 那一項跳過）
+      # 不跑 job-article.test.ts：攻略文跟新資料對不上時只拿掉那一篇、下面開 issue，不擋整站的資料更新（v1.43）；那支測試平常開 PR 時照跑
       - name: 全套測試（含首頁每個組合的真資料檢查）
         if: steps.check.outputs.changed == 'true'
         env:
           SPEED_NAMES_MAY_LAG: "1"
         run: |
           node --test --test-reporter=spec "pipeline/**/*.test.mjs"
-          npx vitest run --reporter=default
+          npx vitest run --reporter=default --exclude "**/job-article.test.ts"
+
+      # 跟新資料對不上的攻略文，建置時會被拿掉；這裡把篇名交給 notify 開 issue。有文章壞掉不算失敗
+      - name: 攻略文跟新資料對不對得上
+        id: articles
+        if: steps.check.outputs.changed == 'true'
+        run: node scripts/job-article-check.mjs
 
       - name: 建置一次確保網站編得過
         if: steps.check.outputs.changed == 'true'
@@ -324,3 +333,24 @@ jobs:
           SITE_HASH: ${{ needs.refresh.outputs.before_hash }}
           ASSIGNEE: ${{ github.repository_owner }}
         run: node pipeline/notify-refresh.mjs
+
+      # 攻略文被拿掉不算更新失敗，另外開一張 issue。篇名是 refresh 那邊來的，只放行數字、連字號、空白再用；內容走 env，不寫進 run
+      - name: 攻略文被新資料打壞就開 issue
+        if: ${{ needs.refresh.outputs.broken_articles != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BROKEN: ${{ needs.refresh.outputs.broken_articles }}
+          ASSIGNEE: ${{ github.repository_owner }}
+        run: |
+          case "$BROKEN" in
+            *[!0-9\ -]*) echo "篇名格式不對，不開 issue"; exit 1 ;;
+          esac
+          TITLE="攻略文跟新資料對不上"
+          if [ "$DRY_RUN" = "true" ]; then TITLE="$TITLE-測試"; fi
+          BODY="這幾篇已經從網站拿掉（頁面、職業頁連結、網站地圖都不列），其他資料照常更新：$BROKEN。本機跑 npm run article:check 看哪裡不對，改好文字跟 assumes 就會回來。"
+          NUMBER=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$NUMBER" ]; then
+            gh issue comment "$NUMBER" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY" --assignee "$ASSIGNEE"
+          fi

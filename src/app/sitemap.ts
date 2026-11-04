@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
+import { articlePath } from "@/lib/job-article";
 import { SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
-import { staticAtlasMaps, staticGuideJobs, staticModified, staticMonsters, staticNpcs, staticQuests, staticSkills } from "@/lib/static-data";
+import { staticAtlasMaps, staticGuideJobs, staticJobArticleKeys, staticModified, staticMonsters, staticNpcs, staticQuests, staticSkills } from "@/lib/static-data";
 
 // 建置時產生一次（Cloudflare 上是整站靜態輸出，沒標 force-static 會建不起來）
 export const dynamic = "force-static";
@@ -25,6 +26,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     ...fixed,
     ...staticGuideJobs().map(job => detail(`/jobs/${job}`, 0.8)),
+    ...staticJobArticleKeys().map(key => detail(articlePath(key.job, key.from, key.to), 0.8)),
     ...staticMonsters().map(monster => detail(`/db/monsters/${monster.id}`, 0.6)),
     ...staticQuests().map(quest => detail(`/db/quests/${encodeURIComponent(quest.id)}`, 0.5)),
     ...staticSkills().map(skill => detail(`/db/skills/${skill.id}`, 0.5)),
