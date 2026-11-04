@@ -398,10 +398,10 @@ Vercel 這端接的是 GitHub 整合（production branch = `main`），
 所以資料 commit 進 `main` 之後不需要另外下指令。
 注意別在本機用還沒 `git pull` 的工作樹跑 `vercel deploy --prod`，那會把新的部署蓋回舊資料。
 
-## 搬到 Cloudflare（v1.33，進行中）
+## 搬到 Cloudflare（v1.33，11/05 正式網域切過去）
 
 Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改放 Cloudflare 免費方案（11/02 使用者拍板方案 A：整站靜態）。
-**正式機切過去之前，Vercel 照舊在跑**——下面這套跟 Vercel 並存，`next build` 的行為沒變。
+**11/05 起 `maplehelper.tw` 由 Cloudflare 回應**（切換紀錄、退回方法在這段最後）。Vercel 專案跟網域綁定還留著當退路，`next build` 的行為沒變。
 
 - **整站靜態輸出**：`npm run build:cf`（`scripts/cf/build.mjs`）設 `CF_STATIC=1` 跑 `next build`，輸出到 `out/`。
   `src/app/api` 建置時暫時搬到 `.cf-stash/`（靜態輸出收不了 API），建完一定搬回；型別檢查這時跳過，交給 PR 的「建置」。
@@ -435,10 +435,17 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   手動部署：`APP_ENV=production npm run build:cf && npm run deploy:cf`。這個網址沒加 noindex，但每頁 canonical 都指 `https://maplehelper.tw`，搜尋引擎會算在正式網域；切完網域把 workers.dev 網址關掉。
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
-- **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
-- **切 DNS 前先量機房**：11/04 從台灣量，`*.workers.dev` 走聖荷西（`/cdn-cgi/trace` 寫 `colo=SJC`，連線約 160ms），同一時間 `*.pages.dev`、`www.cloudflare.com` 走台北（TPE）；Vercel 走香港（hkg1，連線約 30ms）。
+- **正式網域切換（11/05 完成）**：網域註冊留在 Vercel（剛買 60 天內不能轉，Cloudflare 也不賣 .tw），只換名稱伺服器。
+  - 00:34 在 Vercel 網域頁改成 `kelly.ns.cloudflare.com`、`vasilii.ns.cloudflare.com`，01:04 開始由 Cloudflare 回應。
+  - Cloudflare 上的設定：主網域、www 的 A 紀錄（代理，IP 只是占位，實際都進 Worker）、Search Console TXT；路由 `maplehelper.tw/*` → `maplehelper`、`maplehelper.tw/assets/items/*` → `maplehelper-items`；轉址規則 `http*://www.maplehelper.tw/*` → `https://maplehelper.tw/${2}`（301，帶查詢字串）。用路由不用自訂網域，網域一生效流量就進來。
+  - 驗收：cf-shot 13/13、憑證有效。道具圖有繞過主 Worker：對 `maplehelper` 開 `wrangler tail` 同時打圖跟 API，API 記到 3 筆、圖 0 筆。
+  - 退回：Vercel 網域頁按「Restore Original Nameservers」（回 `ns1`／`ns2.vercel-dns.com`），要等名稱伺服器傳開（這次約 30 分鐘，TWNIC 那層 TTL 6 小時）。Vercel 的網域綁定拿掉之前都能退。
+  - 還沒收尾：拿掉 Vercel 專案的網域綁定（不動註冊、自動續約）、正式機 `workers_dev: false`。
+- **切完量到的速度（11/05 01:10，同一台電腦、同一條網路）**：首頁第一個位元組 Cloudflare 多在 1.18～1.31 秒（9 次中 2 次 0.48～0.57 秒），直連 Vercel 0.08～0.18 秒（4 次）。Chrome 實際開一次：第一個位元組 571ms、第一次畫面 1508ms、載完 1940ms。
+  `/cdn-cgi/trace` 跟回應的 `cf-ray` 機房換來換去：SJC、ARN、DUS、PDX，都不在亞洲（`loc=TW`）。只從這一條網路量過，別家電信、手機網路還沒量。
+- **切之前量的機房**：11/04 從台灣量，`*.workers.dev` 走聖荷西（`/cdn-cgi/trace` 寫 `colo=SJC`，連線約 160ms），同一時間 `*.pages.dev`、`www.cloudflare.com` 走台北（TPE）；Vercel 走香港（hkg1，連線約 30ms）。
   還沒預先載入的換頁比 Vercel 慢：P2「查資料 → 練功地圖排行」連跑 4 次，Cloudflare 478～728ms、Vercel 90～924ms（中位數 608 對 214）。P4、P6 差距小（中位數 283 對 269、39 對 26），第一格內容兩邊都對。機房距離是最可能的原因，還沒單獨驗證。
-  自訂網域會走哪個機房 workers.dev 量不出來，`maplehelper.tw` 綁上後先看 `https://maplehelper.tw/cdn-cgi/trace` 再重量一次。
+  自訂網域會走哪個機房 workers.dev 量不出來，所以切完又重量一次（上一條）。
 - **預先載入的檔案（11/04 真機量過，`scripts/verify/cf-segments.mjs`）**：測試機、正式機（workers.dev）都沒有 404，換頁整頁重載 0 次。測試機 648 個 `.txt` 請求：200 共 544 個、307 共 104 個；`check-first-frame` 7 項全過。
   已預先載入的換頁跟 Vercel 差不多（`/jobs/110` ↔ `/jobs/110/31-50`：Cloudflare 28～123ms、Vercel 33～120ms）。
   - **只有 Windows 建置才 404**：Next 16.3 匯出時用 `path.relative` 取路徑，Windows 拿到反斜線，程式只把 `/` 換成點，檔案變成 `__next.guide/__PAGE__.txt`（Linux 是 `__next.guide.__PAGE__.txt`，瀏覽器要的是這個）。Workers Builds 是 Linux 所以沒事；**別從 Windows 手動 `npm run deploy:cf`**，本機靜態伺服器看到的 404 也是這個原因。
