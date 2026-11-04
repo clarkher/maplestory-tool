@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { SLOT_ORDER, defaultOutfit, outfitQuery, setGender, takeOff } from "@/lib/avatar/outfit";
 import type { Outfit } from "@/lib/avatar/outfit";
-import { deckKey, liveLocks, locksAfterGender, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, sameLook, shouldRemember } from "@/lib/avatar/looks";
+import { backLook, deckKey, liveLocks, locksAfterGender, locksText, parseLocks, peekLook, popLook, pushLook, rememberLast, restoreLook, sameLook, shouldRemember } from "@/lib/avatar/looks";
 import type { LockKey } from "@/lib/avatar/looks";
 import { randomOutfit } from "@/lib/avatar/random";
 import type { AvatarData } from "@/lib/avatar/types";
@@ -93,6 +93,90 @@ describe("上一套（pushLook / peekLook / popLook）", () => {
     expect(list).toHaveLength(30);
     expect(list[29]).toBe(outfitQuery(look(99)));
     expect(list[0]).toBe("h=40011");
+  });
+});
+
+describe("backLook（按上一套要回去哪）", () => {
+  const stack = (...n: number[]) => n.reduce((h, i) => pushLook(h, look(i)), "");
+
+  it("最上面那筆跟現在穿的不一樣：回去那筆，剩下的是它底下的", () => {
+    const back = backLook(stack(1, 2), look(3));
+    expect(back?.query).toBe(outfitQuery(look(2)));
+    expect(parse(back!.rest)).toEqual([outfitQuery(look(1))]);
+  });
+
+  it("最上面幾筆跟現在穿的一樣：跳過，回到更下面那筆，跳過的也一起拿掉", () => {
+    const back = backLook(stack(1, 2, 3, 3), look(3));
+    expect(back?.query).toBe(outfitQuery(look(2)));
+    expect(parse(back!.rest)).toEqual([outfitQuery(look(1))]);
+  });
+
+  it("圖還沒畫好又脫掉回到原樣（現在 A、歷史最上面也是 A）：只有這一筆就沒東西可回", () => {
+    expect(backLook(stack(1), look(1))).toBeNull();
+    expect(backLook(stack(1, 1, 1), look(1))).toBeNull();
+  });
+
+  it("中間夾著跟現在一樣的不會被跳過：只跳最上面連續的", () => {
+    const back = backLook(stack(3, 1), look(3));
+    expect(back?.query).toBe(outfitQuery(look(1)));
+    expect(parse(back!.rest)).toEqual([outfitQuery(look(3))]);
+  });
+
+  it("不看動作、表情、翻面：現在只多了動作，一樣算穿一樣", () => {
+    expect(backLook(stack(1), { ...look(1), pose: "sit", emo: "cry", flip: true })).toBeNull();
+  });
+
+  it("全預設存成空字串也回得去；現在就是全預設時跳過它", () => {
+    const h = pushLook("", defaultOutfit(0));
+    expect(backLook(h, look(1))).toEqual({ query: "", rest: "[]" });
+    expect(backLook(h, defaultOutfit(0))).toBeNull();
+  });
+
+  it("沒東西、字串壞掉：null", () => {
+    for (const bad of ["", "[]", "{", "123", "[1,2]"]) expect(backLook(bad, look(1))).toBeNull();
+  });
+});
+
+describe("rememberLast（帶穿搭的網址打開時，上次穿的那套要不要記進上一套）", () => {
+  const hair = data.hair.find((s) => s.g !== 1 && s.t.length > 0)!;
+  const A: Outfit = { ...defaultOutfit(0), hair: hair.id + hair.t[0] };
+  const white = defaultOutfit(0);
+
+  it("這個分頁第一次來（null）：不記，歷史原樣", () => {
+    expect(rememberLast("", null, A, data)).toBe("");
+    const h = pushLook("", white);
+    expect(rememberLast(h, null, A, data)).toBe(h);
+  });
+
+  it("穿的不一樣：記進最上面", () => {
+    const h = rememberLast("", outfitQuery(A), white, data);
+    expect(parse(h)).toEqual([outfitQuery(A)]);
+    expect(parse(rememberLast(pushLook("", look(1)), outfitQuery(A), white, data))).toEqual([outfitQuery(look(1)), outfitQuery(A)]);
+  });
+
+  it("白 T（空字串）也算穿過：不一樣就記一筆空字串", () => {
+    expect(parse(rememberLast("", "", A, data))).toEqual([""]);
+  });
+
+  it("重新整理同一套：不記；只差動作、表情、翻面也算同一套", () => {
+    expect(rememberLast("", outfitQuery(A), A, data)).toBe("");
+    expect(rememberLast("", outfitQuery({ ...A, pose: "sit", emo: "cry", flip: true }), A, data)).toBe("");
+    expect(rememberLast("", "", white, data)).toBe("");
+  });
+
+  it("已經是最上面一筆：不重複記", () => {
+    const h = pushLook("", A);
+    expect(rememberLast(h, outfitQuery(A), white, data)).toBe(h);
+  });
+
+  it("存的那套有動作、表情、翻面：記進去的不含這三個", () => {
+    const h = rememberLast("", outfitQuery({ ...A, pose: "walk", emo: "smile", flip: true }), white, data);
+    expect(parse(h)).toEqual([outfitQuery(A)]);
+  });
+
+  it("存的字串壞掉：當成全預設，不丟錯", () => {
+    expect(() => rememberLast("", "h=<script>&w=xx", A, data)).not.toThrow();
+    expect(parse(rememberLast("", "h=<script>&w=xx", A, data))).toEqual(["w="]);
   });
 });
 

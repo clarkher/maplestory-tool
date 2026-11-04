@@ -5,24 +5,28 @@
  * 這裡只負責讀網址 → 畫角色卡＋挑衣服卡（Picker.tsx），按什麼都是算出下一套再 commit 換網址。
  * 上一套、鎖不進網址：存 sessionStorage（useSessionText，純函式在 looks.ts）。換衣服、髮型、臉型、膚色、性別、隨機、重置都算一步，動作、表情、翻面不算；
  * 圖還沒畫出來就被換掉的那套也不算（連按隨機，上一套回到真的看過的）。
- * 鎖只看格子不看哪一件，那一格變空才解開；換性別時那件被換掉也解開；「重置」、開場隨機全部解開。
- * 開場隨機：這次打開時網址完全沒參數才隨機一套（opening），先畫它、網址再換過去（不記上一套），不會先閃白 T；之後按「重置」把網址弄空不會再隨機。
+ * 鎖只看格子不看哪一件，那一格變空才解開；換性別時那件被換掉也解開；「重置」、開場隨機、帶 try= 進來全部解開。
+ * 同一分頁回來穿的是離開時那套：舞台畫好就把這套存進 avatar:last。打開時網址完全沒參數：存過就穿回那套（白 T 也算存過、鎖留著）；
+ * 沒存過（這個分頁第一次來）才隨機一套。都是先畫它、網址再換過去（不記上一套），不會先閃白 T；之後按「重置」把網址弄空不會再隨機。
+ * 打開時網址帶穿搭（?try=、分享連結）又跟存的那套不一樣：存的那套記進上一套，按上一套回得去。
+ * 換穿搭不跟伺服器要東西：畫面先換（shown）、網址用 history.replaceState 換，useSearchParams 會跟上（這一頁沒有伺服器資料依賴網址參數）。
  * 隨機穿搭的下一套先備好（useRandomDeck），舞台畫好現在這套才預載。
  * 手機：角色卡在上、挑衣服卡在下；角色卡整張捲到頁首底下時，頁首下面跟著一條小窗（小角色＋下載、分享、回到上面）。
  * 電腦版（lg）：左右排，左邊角色卡黏著不動（比螢幕高時裡面自己捲），沒有小窗。
  * 標題、副標在 page.tsx（靜態 HTML 就有，資料載好時不跳）。
  */
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { LockIcon } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
-import { liveLocks, locksAfterGender, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, shouldRemember } from "@/lib/avatar/looks";
+import { backLook, liveLocks, locksAfterGender, locksText, parseLocks, peekLook, pushLook, rememberLast, restoreLook, shouldRemember } from "@/lib/avatar/looks";
 import type { LockKey } from "@/lib/avatar/looks";
 import {
   EMOS, EYE_COLORS, HAIR_COLORS, POSES, defaultOutfit, eyeColour, faceStyle, hairColour, hairStyle, itemIndex, outfitQuery, parseOutfit, setGender, takeOff,
 } from "@/lib/avatar/outfit";
 import type { Outfit } from "@/lib/avatar/outfit";
 import { randomOutfit } from "@/lib/avatar/random";
+import { stageUrl } from "@/lib/avatar/render";
 import type { AvatarData, Gender, SlotKey } from "@/lib/avatar/types";
 import { itemImage, loadAvatar, peekAvatar } from "@/lib/data";
 import { CARD, SLOTS } from "./parts";
@@ -30,9 +34,21 @@ import { Picker, type TabKey } from "./Picker";
 import { Stage } from "./Stage";
 import { useAvatarActions } from "./useAvatarActions";
 import { useRandomDeck } from "./useRandomDeck";
-import { useSessionText } from "./useSessionText";
+import { readSessionText, useSessionText, writeSessionText } from "./useSessionText";
 
 const PATH = "/plan/avatar";
+/** 這個分頁最後畫好的那一套（outfitQuery，含動作、表情、翻面；白 T 是空字串，沒存過是沒有這個 key） */
+const LAST_KEY = "avatar:last";
+const HISTORY_KEY = "avatar:history";
+
+/**
+ * 只換網址，不換瀏覽紀錄、不跟伺服器要東西。state 要傳 null：Next 改過的 replaceState 看到帶 __NA 的 state（window.history.state 就是）
+ * 會當成自己人直接放行，useSearchParams 不會跟著變；傳 null 它會自己補回 __NA 跟路由樹（查資料 DbBrowser 也這樣用）。
+ */
+function writeUrl(o: Outfit) {
+  const qs = outfitQuery(o);
+  window.history.replaceState(null, "", qs ? `${PATH}?${qs}` : PATH);
+}
 
 const GENDERS: { g: Gender; label: string }[] = [
   { g: 0, label: "男" },
@@ -69,7 +85,6 @@ function wornList(o: Outfit, data: AvatarData): Worn[] {
 }
 
 export function AvatarSim() {
-  const router = useRouter();
   const params = useSearchParams();
   const [data, setData] = useState<AvatarData | null>(peekAvatar);
   const [error, setError] = useState(false);
@@ -79,24 +94,36 @@ export function AvatarSim() {
     loadAvatar().then(setData, () => setError(true));
   }, [data]);
 
+  const query = params.toString();
   /**
-   * 開場隨機："wait"＝這次打開時網址就是空的、資料還沒到；Outfit＝算好了、網址還沒換過去；null＝不隨機或已經換好。
-   * 初值只看第一次畫：之後按「重置」把網址弄空不會回到 "wait"，同一頁不會自己再隨機。
-   * 都在畫面當下改 state（不等 effect）：React 馬上重畫這一輪，舞台第一眼就是隨機那套，不會先畫白 T。
+   * 打開時存的那一套（只讀這一次，舞台之後再存不影響；null＝這個分頁第一次來）。伺服器上讀不到也是 null：
+   * 要等 data 到了才用得到，data 只會在瀏覽器上有，不會有 hydration 差異。
    */
-  const clean = params.toString() === "";
-  const [opening, setOpening] = useState<Outfit | "wait" | null>(clean ? "wait" : null);
-  if (opening !== null && !clean) setOpening(null);
-  else if (opening === "wait" && data) setOpening(randomOutfit(data, defaultOutfit(0)));
+  const [lastAtOpen] = useState(() => readSessionText(LAST_KEY));
+  /** 這次打開存著的鎖要不要清：開場隨機、帶 try= 進來穿的不是你鎖的那套（沒鎖過的預設髮型亮著鎖、按隨機不換，看起來像鎖失效）；穿回存的那套、分享連結落地留著 */
+  const [dropLocks] = useState(() => params.has("try") || (query === "" && lastAtOpen === null));
+
+  /**
+   * 畫面先照這一套畫，不等網址：
+   * "wait"＝這次打開時網址就是空的、資料還沒到；Outfit＝開場那套，或剛換的這套 useSearchParams 還沒跟上（它走 transition，手機慢的時候要一下子）；null＝照網址畫。
+   * 不等網址才接得住連點：第二下是接著第一下算的，不然第一件會掉。
+   * 初值只看第一次畫：之後按「重置」把網址弄空不會回到 "wait"，同一頁不會自己再隨機。
+   * 都在畫面當下改 state（不等 effect）：React 馬上重畫這一輪，舞台第一眼就是那套，不會先畫白 T。
+   */
+  const [shown, setShown] = useState<Outfit | "wait" | null>(query === "" ? "wait" : null);
+  if (shown === "wait") {
+    if (query !== "") setShown(null);
+    else if (data) setShown(lastAtOpen === null ? randomOutfit(data, defaultOutfit(0)) : parseOutfit(new URLSearchParams(lastAtOpen), data));
+  } else if (shown && outfitQuery(shown) === query) setShown(null);
 
   const outfit = useMemo(() => {
-    if (opening && opening !== "wait") return opening;
+    if (shown && shown !== "wait") return shown;
     return data ? parseOutfit(params, data) : null;
-  }, [opening, data, params]);
+  }, [shown, data, params]);
   const worn = useMemo(() => (outfit && data ? wornList(outfit, data) : []), [outfit, data]);
   const { download, share, downloading, toast, showToast } = useAvatarActions(outfit, data);
 
-  const [history, setHistory] = useSessionText("avatar:history");
+  const [history, setHistory] = useSessionText(HISTORY_KEY);
   const [lockText, setLockText] = useSessionText("avatar:locks");
   const locks = useMemo(() => (outfit ? liveLocks(parseLocks(lockText), outfit) : new Set<LockKey>()), [lockText, outfit]);
   // 那一格變空（手動脫掉、互斥規則、換性別脫掉、網址本來就沒穿）鎖就解開：存的字串也改掉，之後再穿上那一格不會自己鎖回去。
@@ -110,6 +137,12 @@ export function AvatarSim() {
   const deck = useRandomDeck(data, outfit, locks);
   /** 舞台最後畫好的那一套（還沒畫過是 null）：只有真的畫出來的才記上一套 */
   const drawn = useRef<Outfit | null>(null);
+  /** 舞台最後畫好的第 0 格網址 */
+  const [readyUrl, setReadyUrl] = useState<string | null>(null);
+  // 舞台上就是這一套才存進 avatar:last。比網址不比穿搭：全身男女都能穿時換性別，圖一模一樣、舞台不會再通知，但這一套也算畫過
+  useEffect(() => {
+    if (outfit && data && readyUrl === stageUrl(outfit, data, 0)) writeSessionText(LAST_KEY, outfitQuery(outfit));
+  }, [outfit, data, readyUrl]);
   /** 換裝中（舞台通知）：「隨機穿搭」的字跟著變，還是按得下去 */
   const [changing, setChanging] = useState(false);
   // 挑衣服卡在哪一頁：不進網址，重新整理回到髮型
@@ -128,22 +161,18 @@ export function AvatarSim() {
     el.querySelector<HTMLElement>(`[data-tab="${jumpTo.tab}"]`)?.focus({ preventScroll: true });
   }, [jumpTo]);
 
-  /** 只換網址，不記上一套（開場隨機、上一套走這條）。換回全預設時網址是空的：開場那套要馬上放掉，不然畫面還是它 */
-  const go = useCallback(
-    (next: Outfit) => {
-      const qs = outfitQuery(next);
-      if (!qs) setOpening(null);
-      router.replace(qs ? `${PATH}?${qs}` : PATH, { scroll: false });
-    },
-    [router],
-  );
+  /** 換一套，不記上一套（上一套、try= 走這條）：畫面馬上換，網址同一下換好（等 effect 來不及：換回網址上那套時 shown 這一輪就收掉了） */
+  const go = useCallback((next: Outfit) => {
+    setShown(next);
+    writeUrl(next);
+  }, []);
 
   /** 換一套：穿的不一樣、舞台也畫過現在這套才記上一套（動作、表情、翻面不算一步） */
   const commit = useCallback(
     (next: Outfit) => {
       if (outfit && shouldRemember(outfit, next, drawn.current)) {
         const pushed = pushLook(history, outfit);
-        // 網址還沒換過去又按一次：outfit 還是舞台上那套（shouldRemember 擋不到），這一套剛記過，不重複記（不然上一套要多按一下才有反應）
+        // 換到一半又換回舞台上那套再換別套：這一套剛記過，不重複記
         if (peekLook(pushed) !== peekLook(history)) setHistory(pushed);
       }
       go(next);
@@ -151,17 +180,28 @@ export function AvatarSim() {
     [outfit, history, setHistory, go],
   );
 
-  // 開場隨機：存著的鎖清掉（這套是新抽的，不是你鎖的）；那套算好了就把網址換過去，換好之後（clean 變 false）畫面回到照網址畫。
-  // "wait" 那一輪就清：跟 useSessionText 掛上去的讀取同一批更新（先讀後清，結果是空字串），第一次畫小卡就沒有鎖、不會亮一下；
-  // 存的也清掉了，useSessionText 只在掛上去讀那一次，讀不回舊的。opening 收成 null 之後不再清，開場途中按的鎖留著
+  // 清鎖（dropLocks）：掛上去那一輪就清，跟 useSessionText 掛上去的讀取同一批更新（先讀後清，結果是空字串），第一次畫小卡就沒有鎖、不會亮一下；
+  // 存的也清掉了，useSessionText 只在掛上去讀那一次，讀不回舊的。只有這一輪，開場途中按的鎖留著
   useEffect(() => {
-    if (opening === null) return;
-    setLockText("");
-    if (opening !== "wait") go(opening);
-  }, [opening, go, setLockText]);
+    if (dropLocks) setLockText("");
+  }, [dropLocks, setLockText]);
 
-  // 查資料「穿上看看」帶 try= 進來：穿好之後網址換成正式寫法，try 不留著（不然之後改什麼都會被它蓋回去）。
-  // 用 go 不用 commit：commit 跟著上一套變，這裡會重跑，網址換到一半可能把使用者剛按的隨機蓋回去
+  // 開場那套（畫面算到一半決定的）還不在網址上：換過去，換好之後（useSearchParams 跟上）畫面回到照網址畫。go 已經換好的這裡不會再換一次
+  useEffect(() => {
+    if (shown && shown !== "wait" && outfitQuery(shown) !== location.search.slice(1)) writeUrl(shown);
+  }, [shown]);
+
+  // 帶穿搭的網址打開（畫得出來才算）：存的那套記進上一套。history 這時可能還是掛上去之前的空字串，直接讀存的，才不會把存的歷史蓋掉
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (arrived.current || !outfit || !data) return;
+    arrived.current = true;
+    const saved = readSessionText(HISTORY_KEY) ?? "";
+    const next = rememberLast(saved, lastAtOpen, outfit, data);
+    if (next !== saved) setHistory(next);
+  }, [outfit, data, lastAtOpen, setHistory]);
+
+  // 查資料「穿上看看」帶 try= 進來：穿好之後網址換成正式寫法，try 不留著（不然之後改什麼都會被它蓋回去）
   const hasTry = params.has("try");
   useEffect(() => {
     if (outfit && hasTry) go(outfit);
@@ -179,6 +219,7 @@ export function AvatarSim() {
   /** 舞台畫好這一套的第 0 格：記下來（上一套要看），隨機穿搭也可以開始預載下一套 */
   const stageReady = () => {
     drawn.current = outfit;
+    setReadyUrl(stageUrl(outfit, data, 0));
     deck.stageReady();
   };
 
@@ -196,10 +237,10 @@ export function AvatarSim() {
 
   /** 回到上一套：動作、表情、翻面用現在的；這一步不再記（沒有下一套） */
   const back = () => {
-    const query = peekLook(history);
-    if (query === null) return;
-    setHistory(popLook(history));
-    go(restoreLook(query, outfit, data));
+    const prev = backLook(history, outfit);
+    if (!prev) return;
+    setHistory(prev.rest);
+    go(restoreLook(prev.query, outfit, data));
   };
 
   const reset = () => {
@@ -256,7 +297,7 @@ export function AvatarSim() {
           <div className="mt-3 grid gap-2">
             <div className="grid grid-cols-[2fr_1fr] gap-2">
               <Action onClick={random}>{changing ? "換裝中…" : "隨機穿搭"}</Action>
-              <Action off={peekLook(history) === null} onClick={back}>
+              <Action off={backLook(history, outfit) === null} onClick={back}>
                 上一套
               </Action>
             </div>

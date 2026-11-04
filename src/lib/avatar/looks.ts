@@ -83,10 +83,12 @@ function readHistory(history: string): string[] {
   }
 }
 
-/** 記下這一套（換掉它之前呼叫）；動作、表情、翻面不記，全預設存成 ""；超過 30 套丟最舊的 */
+/** 上一套存的就是這個字串：動作、表情、翻面不記，全預設是 "" */
+const lookQuery = (o: Outfit) => outfitQuery({ ...o, pose: "stand", emo: "default", flip: false });
+
+/** 記下這一套（換掉它之前呼叫）；超過 30 套丟最舊的 */
 export function pushLook(history: string, o: Outfit): string {
-  const query = outfitQuery({ ...o, pose: "stand", emo: "default", flip: false });
-  return JSON.stringify([...readHistory(history), query].slice(-MAX_LOOKS));
+  return JSON.stringify([...readHistory(history), lookQuery(o)].slice(-MAX_LOOKS));
 }
 
 /** 最後一筆（"" ＝全預設，不是 null）；沒有東西可回 null */
@@ -98,6 +100,32 @@ export function peekLook(history: string): string | null {
 /** 拿掉最後一筆，回新字串 */
 export function popLook(history: string): string {
   return JSON.stringify(readHistory(history).slice(0, -1));
+}
+
+/**
+ * 按「上一套」要回去哪：從最上面往下跳過跟現在穿的一樣的，回傳要回去的那筆跟它底下剩下的歷史；都一樣（或沒東西）回 null，按鈕變淡也看這個。
+ * 會一樣：在 A 點帽子（記下 A），圖還沒畫好又點一次脫掉，現在穿 A、最上面也是 A，直接回那筆畫面不會變。
+ */
+export function backLook(history: string, current: Outfit): { query: string; rest: string } | null {
+  const now = lookQuery(current);
+  let rest = history;
+  for (let query = peekLook(rest); query !== null; query = peekLook(rest)) {
+    rest = popLook(rest);
+    if (query !== now) return { query, rest };
+  }
+  return null;
+}
+
+/**
+ * 帶穿搭的網址打開時（查資料「穿上看看」、分享連結），上次在這個分頁穿的那套（last，avatar:last，沒有是 null）要不要記進上一套，回新的歷史字串：
+ * 穿的不一樣才記，這樣按上一套回得去；重新整理同一套不記；已經是最上面一筆不重複記。
+ */
+export function rememberLast(history: string, last: string | null, current: Outfit, data: AvatarData): string {
+  if (last === null) return history;
+  const before = parseOutfit(new URLSearchParams(last), data);
+  if (sameLook(before, current)) return history;
+  const pushed = pushLook(history, before);
+  return peekLook(pushed) === peekLook(history) ? history : pushed;
 }
 
 /** 把存的網址還原成穿搭；動作、表情、翻面用現在的（不在歷史裡） */
