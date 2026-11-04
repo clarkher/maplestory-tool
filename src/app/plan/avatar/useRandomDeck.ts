@@ -35,7 +35,7 @@ export function useRandomDeck(data: AvatarData | null, outfit: Outfit | null, lo
   const [readyUrl, setReadyUrl] = useState<string | null>(null);
   const [pressed, setPressed] = useState(false);
   const prepared = useRef<{ key: string; outfit: Outfit } | null>(null);
-  /** 剛抽走時那一套的第 0 格：網址換過去之前它才載好不算閒著（不然會預載下一套，把抽走的那張清掉） */
+  /** 剛抽走時那一套的第 0 格：畫面換過去之前它才載好不算閒著（不然會預載下一套，把抽走的那張清掉） */
   const leaving = useRef<string | null>(null);
   const idle = frameUrl !== null && readyUrl === frameUrl;
 

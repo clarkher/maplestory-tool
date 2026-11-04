@@ -23,8 +23,6 @@ import { sleep, start } from "./harness.mjs";
 const BASE = (process.argv[2] ?? "http://localhost:9381").replace(/\/$/, "");
 const OUT = outDir(process.argv[3], "avatar-shot");
 const PORT = chromePort(9382, process.argv[4]);
-/** 本機：按「隨機穿搭」到圖換好可以連換網址的時間一起算（遠端換網址要等網路，只算網址換好之後） */
-const LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE);
 
 /** 舞台一趟等 15 秒才放棄（Stage.tsx 的 LOAD_TIMEOUT_MS）。等到這個數字以上才算 maplestory.io 真的慢；比這早就放棄是請求被擋、回錯或程式壞了，那一項沒過 */
 const SLOW_MS = 14000;
@@ -1083,7 +1081,7 @@ try {
       since = m.pressAt;
       await settled();
     }
-    const ok = notYet === 0 && rounds.length === 3 && rounds.every(r => r.requestStart !== null && r.requestStart < 0 && r.requestEnd !== null && r.requestEnd <= 0 && r.sinceUrl !== null && r.sinceUrl <= 250 && (!LOCAL || r.upMs <= 250));
+    const ok = notYet === 0 && rounds.length === 3 && rounds.every(r => r.requestStart !== null && r.requestStart < 0 && r.requestEnd !== null && r.requestEnd <= 0 && r.sinceUrl !== null && r.sinceUrl <= 250 && r.upMs <= 250);
     return [ok, { notYet, replaced, rounds: rounds.map(({ pressAt, ...r }) => r) }];
   });
 

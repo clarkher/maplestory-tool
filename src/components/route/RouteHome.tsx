@@ -163,7 +163,7 @@ export function RouteHome() {
     return <p className="py-10 text-center text-sm ink-soft">資料讀取失敗：{error}。重新整理一次試試。</p>;
   }
 
-  // 下面兩張入口卡：存過角色的人硬重新整理時，路線長出來會把它們往下推（首頁跳一下）。跟大標一樣先藏著，第一次來的人第一眼照樣看得到；藏著的元素不算位移
+  // 下面兩張入口卡：存過角色的人硬重新整理時，上面的大標收起來、讀取區塊換成角色列，會把它們往上推（首頁跳一下）。跟大標一樣先藏著（只等讀本機角色，不等路線），第一次來的人第一眼照樣看得到；藏著的元素不算位移
   const entryClass = `tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]${loaded ? "" : " [[data-profile=saved]_&]:invisible"}`;
 
   return (
