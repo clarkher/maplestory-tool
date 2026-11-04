@@ -60,6 +60,11 @@ function styleRegion(data: AvatarData, kind: "hair" | "face", id: number): Regio
 
 export type RenderMode = 0 | 2 | 4;
 
+/** 舞台要的那一格（1 倍、renderMode=4）。舞台跟預載都走這支：舞台靠網址查預載，兩邊要一字不差 */
+export function stageUrl(o: Outfit, data: AvatarData, frame: number): string {
+  return characterUrl(o, data, { frame, resize: 1, mode: 4 });
+}
+
 /** mode 沒寫＝0（裁剛好、照 resize 放大） */
 export function characterUrl(o: Outfit, data: AvatarData, opts: { frame: number; resize: number; mode?: RenderMode }): string {
   const items = itemIndex(data);

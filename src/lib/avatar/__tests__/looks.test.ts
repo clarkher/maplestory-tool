@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SLOT_ORDER, defaultOutfit, outfitQuery, takeOff } from "@/lib/avatar/outfit";
+import { SLOT_ORDER, defaultOutfit, outfitQuery, setGender, takeOff } from "@/lib/avatar/outfit";
 import type { Outfit } from "@/lib/avatar/outfit";
-import { deckKey, liveLocks, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, sameLook } from "@/lib/avatar/looks";
+import { deckKey, liveLocks, locksAfterGender, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, sameLook, shouldRemember } from "@/lib/avatar/looks";
 import type { LockKey } from "@/lib/avatar/looks";
 import { randomOutfit } from "@/lib/avatar/random";
 import type { AvatarData } from "@/lib/avatar/types";
@@ -203,5 +203,106 @@ describe("deckKey（先算好的下一套還能不能用）", () => {
   it("空格子的鎖不算數（隨機穿搭也不看它）", () => {
     const bare = takeOff(worn, "cap");
     expect(deckKey(bare, new Set<LockKey>(["cap"]))).toBe(deckKey(bare, new Set<LockKey>()));
+  });
+});
+
+describe("locksAfterGender（換性別之後留得住的鎖，真資料）", () => {
+  const item = (k: string, g: number) => data.items.find((i) => i.k === k && i.g === g && i.r)!;
+  const style = (list: AvatarData["hair"], g: number) => list.find((s) => s.g === g && s.t.length + s.j.length > 0)!;
+  const hairId = (s: AvatarData["hair"][number]) => s.id + [...s.t, ...s.j][0];
+  const faceId = (s: AvatarData["face"][number]) => s.id + [...s.t, ...s.j][0] * 100;
+
+  const maleCoat = item("coat", 0);
+  const malePants = item("pants", 0);
+  const maleOverall = item("overall", 0);
+  const bothCap = item("cap", 2);
+  const base: Outfit = { ...defaultOutfit(0), wear: { coat: maleCoat.id, pants: malePants.id, cap: bothCap.id } };
+  const toFemale = (o: Outfit) => setGender(o, 1, data);
+  const after = (keys: LockKey[], o: Outfit = base) => [...locksAfterGender(new Set<LockKey>(keys), o, toFemale(o))];
+
+  it("鎖住的上衣新性別穿不了：換成預設，格子沒空但鎖要解開（liveLocks 擋不到這個）", () => {
+    const next = toFemale(base);
+    expect(next.wear.coat).toBe(defaultOutfit(1).wear.coat);
+    expect(liveLocks(new Set<LockKey>(["coat"]), next).has("coat")).toBe(true);
+    expect(after(["coat"])).toEqual([]);
+  });
+
+  it("鎖住的褲裙新性別穿不了：解開", () => {
+    expect(toFemale(base).wear.pants).toBe(defaultOutfit(1).wear.pants);
+    expect(after(["pants"])).toEqual([]);
+  });
+
+  it("鎖住的套服新性別穿不了：被脫掉、換成上衣褲裙，解開", () => {
+    const o: Outfit = { ...defaultOutfit(0), wear: { overall: maleOverall.id } };
+    expect(toFemale(o).wear.overall).toBeUndefined();
+    expect(after(["overall"], o)).toEqual([]);
+  });
+
+  it("鎖住男女都能穿的：留著", () => {
+    expect(toFemale(base).wear.cap).toBe(bothCap.id);
+    expect(after(["cap"])).toEqual(["cap"]);
+  });
+
+  it("鎖住的髮型新性別不合：換成預設，解開", () => {
+    const o: Outfit = { ...base, hair: hairId(style(data.hair, 0)) };
+    expect(toFemale(o).hair).toBe(defaultOutfit(1).hair);
+    expect(after(["hair"], o)).toEqual([]);
+  });
+
+  it("鎖住男女都能用的髮型（含顏色）：留著", () => {
+    const o: Outfit = { ...base, hair: hairId(style(data.hair, 2)) };
+    expect(toFemale(o).hair).toBe(o.hair);
+    expect(after(["hair"], o)).toEqual(["hair"]);
+  });
+
+  it("臉型一樣：不合解開、男女都能用留著", () => {
+    const male: Outfit = { ...base, face: faceId(style(data.face, 0)) };
+    const both: Outfit = { ...base, face: faceId(style(data.face, 2)) };
+    expect(after(["face"], male)).toEqual([]);
+    expect(after(["face"], both)).toEqual(["face"]);
+  });
+
+  it("膚色不分性別：留著", () => {
+    expect(after(["skin"], { ...base, skin: 2010 })).toEqual(["skin"]);
+  });
+
+  it("一次鎖很多格：只解開變了的，沒鎖的不會多出來", () => {
+    const o: Outfit = { ...base, hair: hairId(style(data.hair, 2)) };
+    expect(after(["hair", "coat", "pants", "cap"], o)).toEqual(["hair", "cap"]);
+  });
+
+  it("性別沒變：全部留著", () => {
+    const keys: LockKey[] = ["hair", "coat", "cap"];
+    expect([...locksAfterGender(new Set(keys), base, setGender(base, 0, data))]).toEqual(["hair", "cap", "coat"]);
+  });
+});
+
+describe("shouldRemember（換掉這一套時要不要記上一套）", () => {
+  const a = look(1);
+  const b = look(2);
+
+  it("舞台畫過這套、換成別套：記", () => {
+    expect(shouldRemember(a, b, a)).toBe(true);
+  });
+
+  it("穿的一樣（只換動作、表情、翻面）：不記", () => {
+    expect(shouldRemember(a, { ...a, pose: "walk", emo: "smile", flip: true }, a)).toBe(false);
+  });
+
+  it("這頁從來沒畫過東西：不記", () => {
+    expect(shouldRemember(a, b, null)).toBe(false);
+  });
+
+  it("現在這套圖還沒畫出來就被換掉（舞台上是別套）：不記", () => {
+    expect(shouldRemember(b, look(3), a)).toBe(false);
+  });
+
+  it("舞台畫的跟現在只差動作、表情、翻面：算畫過，不擋（換動作途中圖還沒好）", () => {
+    expect(shouldRemember({ ...a, pose: "walk", emo: "smile", flip: true }, b, a)).toBe(true);
+  });
+
+  it("只差性別：網址一模一樣、舞台不會重畫，畫面上就是這套，算畫過（全身男女都能穿時換性別）", () => {
+    const female: Outfit = { ...a, g: 1 };
+    expect(shouldRemember(female, b, a)).toBe(true);
   });
 });

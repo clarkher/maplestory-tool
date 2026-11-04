@@ -4,7 +4,8 @@
  * 紙娃娃（/plan/avatar）：穿什麼全寫在網址（outfit.ts 的 outfitQuery／parseOutfit），
  * 這裡只負責讀網址 → 畫角色卡＋挑衣服卡（Picker.tsx），按什麼都是算出下一套再 commit 換網址。
  * 上一套、鎖不進網址：存 sessionStorage（useSessionText，純函式在 looks.ts）。換衣服、髮型、臉型、膚色、性別、隨機、重置都算一步，動作、表情、翻面不算；
- * 鎖只看格子不看哪一件，那一格變空才解開，「重置」全部解開。
+ * 圖還沒畫出來就被換掉的那套也不算（連按隨機，上一套回到真的看過的）。
+ * 鎖只看格子不看哪一件，那一格變空才解開；換性別時那件被換掉也解開；「重置」、開場隨機全部解開。
  * 開場隨機：這次打開時網址完全沒參數才隨機一套（opening），先畫它、網址再換過去（不記上一套），不會先閃白 T；之後按「重置」把網址弄空不會再隨機。
  * 隨機穿搭的下一套先備好（useRandomDeck），舞台畫好現在這套才預載。
  * 手機：角色卡在上、挑衣服卡在下；角色卡整張捲到頁首底下時，頁首下面跟著一條小窗（小角色＋下載、分享、回到上面）。
@@ -15,7 +16,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { LockIcon } from "@/components/Icons";
 import { LoadingBlock } from "@/components/PlanShell";
-import { liveLocks, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, sameLook } from "@/lib/avatar/looks";
+import { liveLocks, locksAfterGender, locksText, parseLocks, peekLook, popLook, pushLook, restoreLook, shouldRemember } from "@/lib/avatar/looks";
 import type { LockKey } from "@/lib/avatar/looks";
 import {
   EMOS, EYE_COLORS, HAIR_COLORS, POSES, defaultOutfit, eyeColour, faceStyle, hairColour, hairStyle, itemIndex, outfitQuery, parseOutfit, setGender, takeOff,
@@ -98,7 +99,7 @@ export function AvatarSim() {
   const [history, setHistory] = useSessionText("avatar:history");
   const [lockText, setLockText] = useSessionText("avatar:locks");
   const locks = useMemo(() => (outfit ? liveLocks(parseLocks(lockText), outfit) : new Set<LockKey>()), [lockText, outfit]);
-  // 那一格變空（手動脫掉、互斥規則、換性別穿不了、網址本來就沒穿）鎖就解開：存的字串也改掉，之後再穿上那一格不會自己鎖回去。
+  // 那一格變空（手動脫掉、互斥規則、換性別脫掉、網址本來就沒穿）鎖就解開：存的字串也改掉，之後再穿上那一格不會自己鎖回去。
   // 看結果不看動作，每條路都蓋得到；剛掛上去還沒讀到存的字串時是空字串，不會把存的蓋掉
   useEffect(() => {
     if (!outfit) return;
@@ -107,6 +108,8 @@ export function AvatarSim() {
   }, [outfit, locks, lockText, setLockText]);
 
   const deck = useRandomDeck(data, outfit, locks);
+  /** 舞台最後畫好的那一套（還沒畫過是 null）：只有真的畫出來的才記上一套 */
+  const drawn = useRef<Outfit | null>(null);
   /** 換裝中（舞台通知）：「隨機穿搭」的字跟著變，還是按得下去 */
   const [changing, setChanging] = useState(false);
   // 挑衣服卡在哪一頁：不進網址，重新整理回到髮型
@@ -135,12 +138,12 @@ export function AvatarSim() {
     [router],
   );
 
-  /** 換一套：穿的不一樣才記上一套（動作、表情、翻面不算一步） */
+  /** 換一套：穿的不一樣、舞台也畫過現在這套才記上一套（動作、表情、翻面不算一步） */
   const commit = useCallback(
     (next: Outfit) => {
-      if (outfit && !sameLook(outfit, next)) {
+      if (outfit && shouldRemember(outfit, next, drawn.current)) {
         const pushed = pushLook(history, outfit);
-        // 網址還沒換過去又按一次：這一套剛記過，不重複記（不然上一套要多按一下才有反應）
+        // 網址還沒換過去又按一次：outfit 還是舞台上那套（shouldRemember 擋不到），這一套剛記過，不重複記（不然上一套要多按一下才有反應）
         if (peekLook(pushed) !== peekLook(history)) setHistory(pushed);
       }
       go(next);
@@ -148,16 +151,21 @@ export function AvatarSim() {
     [outfit, history, setHistory, go],
   );
 
-  // 開場隨機那套算好了：網址換過去，換好之後（clean 變 false）畫面就回到照網址畫
+  // 開場隨機：存著的鎖清掉（這套是新抽的，不是你鎖的）；那套算好了就把網址換過去，換好之後（clean 變 false）畫面回到照網址畫。
+  // "wait" 那一輪就清：跟 useSessionText 掛上去的讀取同一批更新（先讀後清，結果是空字串），第一次畫小卡就沒有鎖、不會亮一下；
+  // 存的也清掉了，useSessionText 只在掛上去讀那一次，讀不回舊的。opening 收成 null 之後不再清，開場途中按的鎖留著
   useEffect(() => {
-    if (opening && opening !== "wait") go(opening);
-  }, [opening, go]);
+    if (opening === null) return;
+    setLockText("");
+    if (opening !== "wait") go(opening);
+  }, [opening, go, setLockText]);
 
-  // 查資料「穿上看看」帶 try= 進來：穿好之後網址換成正式寫法，try 不留著（不然之後改什麼都會被它蓋回去）
+  // 查資料「穿上看看」帶 try= 進來：穿好之後網址換成正式寫法，try 不留著（不然之後改什麼都會被它蓋回去）。
+  // 用 go 不用 commit：commit 跟著上一套變，這裡會重跑，網址換到一半可能把使用者剛按的隨機蓋回去
   const hasTry = params.has("try");
   useEffect(() => {
-    if (outfit && hasTry) commit(outfit);
-  }, [outfit, hasTry, commit]);
+    if (outfit && hasTry) go(outfit);
+  }, [outfit, hasTry, go]);
 
   if (error) return <p className={`${CARD} text-center text-[15px] ink-soft`}>紙娃娃資料讀不到，等一下再過來重新整理。</p>;
   if (!data || !outfit) return <LoadingBlock label="載入紙娃娃…" />;
@@ -166,6 +174,19 @@ export function AvatarSim() {
   const jump = (t: TabKey) => {
     setTab(t);
     setJumpTo((j) => ({ tab: t, n: (j?.n ?? 0) + 1 }));
+  };
+
+  /** 舞台畫好這一套的第 0 格：記下來（上一套要看），隨機穿搭也可以開始預載下一套 */
+  const stageReady = () => {
+    drawn.current = outfit;
+    deck.stageReady();
+  };
+
+  /** 換性別：鎖住的那件被脫掉或換成預設就解開，留得下來的繼續鎖 */
+  const changeGender = (g: Gender) => {
+    const next = setGender(outfit, g, data);
+    setLockText(locksText(locksAfterGender(locks, outfit, next)));
+    commit(next);
   };
 
   const random = () => {
@@ -196,12 +217,12 @@ export function AvatarSim() {
     <>
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-5">
         <section ref={setCard} className={`${CARD} lg:sticky lg:top-[80px] lg:max-h-[calc(100dvh-96px)] lg:overflow-y-auto`} aria-label="角色">
-          <Stage outfit={outfit} data={data} onBusy={setChanging} onReady={deck.stageReady} />
+          <Stage outfit={outfit} data={data} onBusy={setChanging} onReady={stageReady} />
 
           <div className="mt-3 flex items-center justify-between gap-2">
             <div role="group" aria-label="性別" className="grid grid-cols-2 gap-1 rounded-full bg-[color:var(--paper-deep)] p-1">
               {GENDERS.map(({ g, label }) => (
-                <Segment key={g} on={outfit.g === g} onClick={() => commit(setGender(outfit, g, data))} wide>
+                <Segment key={g} on={outfit.g === g} onClick={() => changeGender(g)} wide>
                   {label}
                 </Segment>
               ))}
@@ -418,7 +439,7 @@ function WornCard({ worn, locked, onClick, onLock }: { worn: Worn; locked: boole
         type="button"
         data-lock={worn.key}
         aria-pressed={locked}
-        aria-label={`${locked ? "解開" : "鎖住"}${worn.label}`}
+        aria-label={`鎖住${worn.label}`}
         onClick={onLock}
         className={`tap-safe grid w-9 shrink-0 place-items-center rounded-r-[13px] ${locked ? "text-[color:var(--maple)]" : "ink-faint"}`}
       >

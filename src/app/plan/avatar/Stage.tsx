@@ -15,7 +15,7 @@
  */
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Outfit } from "@/lib/avatar/outfit";
-import { FRAMES, characterUrl } from "@/lib/avatar/render";
+import { FRAMES, stageUrl } from "@/lib/avatar/render";
 import { alphaReach, fitStage, unmeasured } from "@/lib/avatar/stage-fit";
 import type { Reach } from "@/lib/avatar/stage-fit";
 import type { AvatarData } from "@/lib/avatar/types";
@@ -90,7 +90,7 @@ const preloads = new Map<string, Promise<Frame>>();
 
 /**
  * 先把下一套的第 0 格要好（清掉舊的預載、記住這張）；Stage 要的第 0 格剛好是這張就直接用、也不等 250ms。
- * url 要跟 Stage 組的一模一樣：characterUrl(outfit, data, { frame: 0, resize: 1, mode: 4 })
+ * url 要跟 Stage 組的一模一樣：stageUrl(outfit, data, 0)
  */
 export function preloadFrame(url: string): void {
   preloads.clear();
@@ -150,7 +150,7 @@ export function Stage({
   const { n: count, ms } = FRAMES[outfit.pose];
   // 這套每一格的網址接成一個字串：穿搭沒變就不重新要圖（outfit 物件每次換網址都是新的）
   const sig = useMemo(
-    () => Array.from({ length: count }, (_, frame) => characterUrl(outfit, data, { frame, resize: 1, mode: 4 })).join("\n"),
+    () => Array.from({ length: count }, (_, frame) => stageUrl(outfit, data, frame)).join("\n"),
     [outfit, data, count],
   );
   const reduced = useReducedMotion();

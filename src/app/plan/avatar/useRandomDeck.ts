@@ -21,19 +21,16 @@ import { deckKey } from "@/lib/avatar/looks";
 import type { LockKey } from "@/lib/avatar/looks";
 import type { Outfit } from "@/lib/avatar/outfit";
 import { randomOutfit } from "@/lib/avatar/random";
-import { characterUrl } from "@/lib/avatar/render";
+import { stageUrl } from "@/lib/avatar/render";
 import type { AvatarData } from "@/lib/avatar/types";
 import { preloadFrame } from "./Stage";
-
-/** 要跟 Stage 組的第 0 格一字不差，舞台才查得到預載 */
-const firstFrame = (o: Outfit, data: AvatarData) => characterUrl(o, data, { frame: 0, resize: 1, mode: 4 });
 
 /** TS 內建的 Navigator 沒有 connection（Network Information API，Chrome 系才有，其他瀏覽器當作沒開省流量） */
 const saveData = () => (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true;
 
 export function useRandomDeck(data: AvatarData | null, outfit: Outfit | null, locks: ReadonlySet<LockKey>) {
   const key = outfit ? deckKey(outfit, locks) : "";
-  const frameUrl = outfit && data ? firstFrame(outfit, data) : null;
+  const frameUrl = outfit && data ? stageUrl(outfit, data, 0) : null;
   /** 舞台畫好第 0 格的是哪一張：跟現在這套對得上才算閒著（穿搭、動作、表情、翻面一變就對不上；鎖變了還對得上） */
   const [readyUrl, setReadyUrl] = useState<string | null>(null);
   const [pressed, setPressed] = useState(false);
@@ -46,7 +43,7 @@ export function useRandomDeck(data: AvatarData | null, outfit: Outfit | null, lo
     if (!idle || !pressed || !data || !outfit) return;
     if (prepared.current?.key === key || saveData()) return;
     const next = randomOutfit(data, outfit, Math.random, locks);
-    preloadFrame(firstFrame(next, data));
+    preloadFrame(stageUrl(next, data, 0));
     prepared.current = { key, outfit: next };
   }, [idle, pressed, key, data, outfit, locks]);
 
