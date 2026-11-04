@@ -288,7 +288,7 @@ export function AvatarSim() {
           </ul>
         </section>
 
-        <Picker ref={picker} data={data} outfit={outfit} tab={tab} onTab={setTab} onChange={commit} toast={showToast} />
+        <Picker ref={picker} data={data} outfit={outfit} tab={tab} onTab={setTab} onChange={commit} toast={showToast} resetSearch={jumpTo?.n} />
       </div>
 
       {/*

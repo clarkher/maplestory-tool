@@ -4,7 +4,8 @@
  * 紙娃娃的挑衣服卡：15 個分頁（髮型、臉型、膚色＋12 類）、跨類別搜尋、只看商城有賣、髮色／瞳色色塊、四欄格子、一次 40 個。
  * - 清單怎麼挑、怎麼排都在 src/lib/avatar/list.ts（只列這個性別穿得到的；點裝在前、畫得出來的在前），這裡只管畫
  * - 搜尋框不分類別：有字時分頁都不亮、色塊藏起來，上面一行「找到 N 件」，一類一組（區頭「帽子（12）」，目前分頁那類排第一），
- *   一次 40 個是所有組加起來；點格子跟在那一頁點一樣，不清搜尋、不換分頁；點任何一個分頁＝清掉搜尋、回那一頁
+ *   一次 40 個是所有組加起來；點格子跟在那一頁點一樣，不清搜尋、不換分頁；點任何一個分頁＝清掉搜尋、回那一頁；
+ *   穿了什麼小卡跳過來（resetSearch 的數字變了）也清掉搜尋，已經在那一頁也一樣
  * - 「只看商城有賣」：只留有商城價的裝備，格子名字下面寫「80 樂豆點」；有字時照樣篩（髮型、臉型、膚色沒價錢就不列），
  *   沒字時只在 12 類裝備分頁顯示、髮型臉型膚色分頁不顯示也不套用。切分頁不重設它，重新整理回到關著
  * - 分頁、搜尋字、看到第幾個都不進網址（重新整理回到髮型）；換分頁清掉搜尋、回到 40 個，改搜尋字、開關「只看商城有賣」回到 40 個
@@ -12,7 +13,7 @@
  * - 點格子＝算出下一套交給 onChange；畫不出來的不穿，跳 MISSING；點穿著的裝備＝脫掉（髮型、臉型、膚色不能脫）
  * - 穿上一件時規則順手脫掉別格（removedSlots 比前後），跳「{類別}跟這件不能一起穿，先脫下來了」
  *
- *   <Picker ref={pickerRef} data={data} outfit={outfit} tab={tab} onTab={setTab} onChange={commit} toast={showToast} />
+ *   <Picker ref={pickerRef} data={data} outfit={outfit} tab={tab} onTab={setTab} onChange={commit} toast={showToast} resetSearch={jumpTo?.n} />
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon } from "@/components/Icons";
@@ -86,6 +87,7 @@ export function Picker({
   onTab,
   onChange,
   toast,
+  resetSearch,
 }: {
   ref?: React.Ref<HTMLElement>;
   data: AvatarData;
@@ -94,17 +96,19 @@ export function Picker({
   onTab: (t: TabKey) => void;
   onChange: (next: Outfit) => void;
   toast: (msg: string) => void;
+  /** 穿了什麼小卡每跳一次加 1（AvatarSim 的 jumpTo.n）：數字一變就清掉搜尋、回到 40 個，已經在那一頁也一樣 */
+  resetSearch?: number;
 }) {
   const [text, setText] = useState("");
   const [limit, setLimit] = useState(PAGE);
   // 「只看商城有賣」：切分頁不重設（回到 12 類裝備分頁還開著），重新整理回到關著，所以不進網址、不存起來
   const [shopOnly, setShopOnly] = useState(false);
-  // 分頁、性別一換（不管換去哪、換回來）：清掉搜尋字、回到 40 個。
+  // 分頁、性別一換（不管換去哪、換回來）：清掉搜尋字、回到 40 個；穿了什麼小卡跳過來（resetSearch 變了）也一樣。
   // 畫面算到一半就重設、不等 effect（React「props 變了就調整 state」的寫法），換過去那一格不會先閃出舊的字
-  const [seen, setSeen] = useState({ tab, g: outfit.g });
-  if (seen.tab !== tab || seen.g !== outfit.g) {
-    setSeen({ tab, g: outfit.g });
-    if (seen.tab !== tab) setText("");
+  const [seen, setSeen] = useState({ tab, g: outfit.g, reset: resetSearch });
+  if (seen.tab !== tab || seen.g !== outfit.g || seen.reset !== resetSearch) {
+    setSeen({ tab, g: outfit.g, reset: resetSearch });
+    if (seen.tab !== tab || seen.reset !== resetSearch) setText("");
     setLimit(PAGE);
   }
   /** 改搜尋字（打字、刪字、按叉叉）一律回到 40 個 */
@@ -130,7 +134,7 @@ export function Picker({
     const out: { tab: TabKey; total: number; cells: Cell[] }[] = [];
     for (const g of groups) {
       const part = g.entries.slice(0, left);
-      if (part.length === 0) break;
+      if (part.length === 0) continue;
       left -= part.length;
       out.push({ tab: g.tab, total: g.entries.length, cells: part.map((e) => toCell(e, outfit, data)) });
     }
@@ -203,7 +207,8 @@ export function Picker({
           placeholder="搜尋髮型、臉型、裝備名稱"
           aria-label="搜尋髮型、臉型、裝備名稱"
           {...searchKeys}
-          className="min-h-11 min-w-0 flex-1 bg-transparent text-[16px] outline-none"
+          // 瀏覽器自己的藍色叉叉藏掉，只留 SearchClear 那一顆（保留 type="search"：手機鍵盤、驗收腳本都認它）
+          className="min-h-11 min-w-0 flex-1 bg-transparent text-[16px] outline-none [&::-webkit-search-cancel-button]:appearance-none"
         />
         {text ? <SearchClear onClear={() => search("")} /> : null}
       </div>
