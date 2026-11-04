@@ -11,9 +11,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HEAL } from "@/lib/damage-skills";
 import { dataSyncedText } from "@/lib/format";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
-import { computeGroup, defaultState, HEAL_ASSUMPTION, type CalcData } from "@/lib/damage-view";
-import type { GearData } from "@/lib/gear";
+import { JobArticleView } from "@/components/JobArticleView";
+import { applyDamageLink, computeGroup, damageLinkHref, defaultState, HEAL_ASSUMPTION, linkStartLevel, parseDamageLink, type CalcData } from "@/lib/damage-view";
+import { weaponPicks, type GearData } from "@/lib/gear";
 import {
+  ANSWER_MAX,
+  articleDamageHref,
+  articleAssumes,
+  articleShowText,
   articleEligible,
   articleGuides,
   articlePath,
@@ -374,6 +379,7 @@ describe("文字代號", () => {
   it("指到表裡沒有的怪、認不得的代號、缺數字都丟錯，不會留原文上線", () => {
     expect(() => fillTokens("{{hits:999}}", table)).toThrow(/999/);
     expect(() => fillTokens("{{exp:" + row.id + "}}", table)).toThrow(/代號/);
+    expect(() => fillTokens("{{亂寫:" + row.id + "}}", table, data)).toThrow(/代號/);
     expect(() => fillTokens("{{hits}}", table)).toThrow(/代號/);
     const noHits = { ...table, rows: [{ ...row, hits: null }] };
     expect(() => fillTokens(`{{hits:${row.id}}}`, noHits)).toThrow(/代號/);
@@ -385,9 +391,9 @@ describe("文字代號", () => {
     expect(fillTokens(`魔防 {{def:${row.id}}}`, table)).toBe(`魔防 ${row.def}`);
   });
   it("resolveArticle 把整篇每個字串都換掉", () => {
-    const resolved = resolveArticle(validCleric(), table);
+    const resolved = resolveArticle(validCleric(), table, data);
     expect(JSON.stringify(resolved)).not.toContain("{{");
-    expect(resolved.answer[0].text).toContain(String(row.hits));
+    expect(resolved.answer[1].text).toContain(String(row.hits));
   });
 });
 
@@ -399,13 +405,13 @@ function validCleric(): JobArticle {
     title: "僧侶 31～50 等怎麼練",
     description: "僧侶 31 到 50 等先打{{mob:殭屍菇菇}}，再打{{mob:天使猴}}。",
     answer: [
-      { text: `{{mob:天使猴}}打 {{hits:${monkey}}} 下、{{hitLv:${monkey}}} 等不 MISS`, tag: "calc" },
-      { text: "40 等把群體治癒點滿", tag: "tw" },
+      { text: `31～39 打{{mob:殭屍菇菇}}`, tag: "tw", from: 31, to: 39 },
+      { text: `40～50 打{{mob:天使猴}} {{hits:${monkey}}} 下、{{hitLv:${monkey}}} 等不 MISS`, tag: "calc", from: 40, to: 50 },
     ],
     intro: "僧侶這段靠群體治癒打不死系。",
     steps: [
-      { from: 31, to: 35, kind: "party", map: 105050000, mobs: [zombie], title: "螞蟻洞Ⅰ：{{mob:殭屍菇菇}}", text: "魔防低。", tag: "tw" },
-      { from: 40, to: 50, kind: "party", map: 107000403, mobs: [monkey], title: "猴子沼澤地Ⅲ：{{mob:天使猴}}", text: "主線。", tag: "tw" },
+      { from: 31, to: 39, kind: "party", map: 105050000, mobs: [zombie], title: "{{map:105050000}}：{{mob:殭屍菇菇}}", text: "魔防低。", tag: "tw" },
+      { from: 40, to: 50, kind: "party", map: 107000403, mobs: [monkey], title: "{{map:107000403}}：{{mob:天使猴}}", text: "主線。", tag: "tw" },
     ],
     sections: [{ heading: "容易踩的坑", items: [{ text: "玩具城還沒開。", tag: "tw" }, { text: "治癒每級多 10%。", tag: "game" }], paragraphs: [{ text: "一段話。", tag: "official" }] }],
     sources: [
@@ -447,6 +453,7 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     const priest = (map: number) => {
       const article = validCleric();
       article.steps = [{ from: 71, to: 90, kind: "solo", map, mobs: [byName("大幽靈").id], title: "圖", text: "字", tag: "tw" }];
+      article.answer = [{ text: "71～90 一", tag: "tw", from: 71, to: 90 }, { text: "二", tag: "tw" }];
       return validateArticle(article, { job: 231, from: 71, to: 90, data, openMaps }).join("\n");
     };
     expect(priest(secondOnly.map!)).not.toMatch(/攻略/);
@@ -502,7 +509,7 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     // 只打一部分的名字（紅獨角獅打成獨角獅）也擋，要走 {{mobs:}}
     expect(broken(article => { article.intro = "48 等打獨角獅"; })).toMatch(/intro.*獨角獅/);
     // 地圖名裡的怪名不算：猴子森林不是在講猴子
-    expect(broken(article => { article.intro = "去猴子森林Ⅱ、猴子沼澤地Ⅲ、鱷魚潭"; })).toEqual("");
+    expect(broken(article => { article.intro = "去猴子森林、猴子沼澤地、鱷魚潭"; })).toEqual("");
     expect(broken(article => { article.sources[0].label = "玩家討論：天使猴"; })).toEqual("");
   });
   it("文字依賴的前提（assumes）要跟表對得上：武器、技能、命中變了就擋", () => {
@@ -532,7 +539,7 @@ describe("validateArticle：防呆每一條都擋得住", () => {
   it("等級步驟要在文章範圍內、前小後大", () => {
     expect(broken(article => { article.steps[0].from = 30; })).toMatch(/範圍/);
     expect(broken(article => { article.steps[0].to = 51; })).toMatch(/範圍/);
-    expect(broken(article => { article.steps[0].from = 36; })).toMatch(/範圍/);
+    expect(broken(article => { article.steps[0].from = 45; })).toMatch(/範圍/);
   });
   it("來源等級只能是講好的那幾種；步驟不能標站上計算", () => {
     expect(broken(article => { (article.steps[0] as { tag: string }).tag = "calc"; })).toMatch(/tag/);
@@ -567,8 +574,8 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     expect(broken(article => { article.steps = article.steps.map(step => ({ ...step, alt: true as const })); })).toMatch(/主推/);
     const assassin = guides[410]!.train.filter(row => row.map && row.from <= 50 && row.to >= 31 && row.mobs.length);
     const article = validCleric();
-    article.steps = [{ from: 31, to: 35, kind: "solo", map: assassin[0].map!, mobs: assassin[0].mobs, title: "圖", text: "字", tag: "tw" }];
-    article.answer = [{ text: "一", tag: "tw" }, { text: "二", tag: "tw" }];
+    article.steps = [{ from: 31, to: 50, kind: "solo", map: assassin[0].map!, mobs: assassin[0].mobs, title: "圖", text: "字", tag: "tw" }];
+    article.answer = [{ text: "31～50 一", tag: "tw", from: 31, to: 50 }, { text: "二", tag: "tw" }];
     article.sources = [{ label: "來源", url: assassin[0].s[0] }];
     article.description = "刺客。";
     article.steps[0].title = "圖";
@@ -654,7 +661,7 @@ describe("頁面（文章清單換成假資料）", () => {
     expect(html).toContain("公式是舊版玩家整理，經典版沒驗證");
     // 連結
     expect(html).toContain('href="/go?to=105050000"');
-    expect(html).toContain('href="/plan/damage"');
+    expect(html).toContain(`href="/plan/damage?job=230&amp;level=40&amp;weapon=${table.assumptions.weapon!.id}&amp;skill=${HEAL}&amp;targets=3"`);
     expect(html).toContain('href="/plan/train"');
     expect(html).toContain('href="https://forum.gamer.com.tw/C.php?bsn=85994&amp;snA=1291"');
     // 結構化資料在 article 外的 body 裡（SeoPage 放的），不是 head
@@ -805,7 +812,7 @@ describe("src/data/job-articles/ 的真檔全部要過", () => {
       const article = actual.staticJobArticle(job, from, to);
       expect(article, `${job}-${from}-${to}`).toBeDefined();
       expect(validateArticle(article, { job, from, to, data, openMaps }), `${job}-${from}-${to}`).toEqual([]);
-      expect(() => resolveArticle(article!, buildCalcTable({ job, from, to, data }))).not.toThrow();
+      expect(() => resolveArticle(article!, buildCalcTable({ job, from, to, data, weaponTypes: article!.weaponTypes, statCap: article!.statCap }), data)).not.toThrow();
     }
   });
 
@@ -843,5 +850,475 @@ describe("src/data/job-articles/ 的真檔全部要過", () => {
     expect(calc.expToNext).toEqual(data.expToNext);
     expect(buildCalcTable({ job: 230, from: 31, to: 50, data: calc })).toEqual(buildCalcTable({ job: 230, from: 31, to: 50, data }));
     expect(actual.staticOpenMaps().has(105050000)).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ v1.44（第一批評分 3～3.5，使用者選「先修再審」）：指定等級的代號、指定武器、結論連結與防呆、連到計算機、article:show */
+
+const SWORDS = ["單手劍", "雙手劍"];
+const realArticle = (job: number, from: number, to: number) => JSON.parse(fs.readFileSync(`${ROOT}src/data/job-articles/${job}-${from}-${to}.json`, "utf8")) as JobArticle;
+
+/** 預設角色在這一級打這隻怪：對答案用，不經過文章的程式 */
+function killsDirect(job: number, level: number, skillId: number, monster: Monster, targets?: number) {
+  const group = defaultState(data, job, level, null).groups[0];
+  const result = computeGroup(data, { job, skillId, skillLevel: group.levels[skillId], monsterId: monster.id, ...(targets === undefined ? {} : { targets }) }, group, monster);
+  if (!result.ok || !result.vs) throw new Error("算不出來");
+  return result.vs.kills.avg;
+}
+
+describe("代號指定等級：{{hits:怪物id@等級#武器id}}、{{hitsOne:怪物id@等級#武器id}}", () => {
+  const monk = buildCalcTable({ job: 230, from: 31, to: 50, data });
+  const monkey = byName("天使猴");
+  const umbrella = data.gear.weapons.find(weapon => weapon.n === "黃色雨傘")!.id;
+
+  it("僧侶：hits 是範圍 3 隻、hitsOne 是打 1 隻，用那一級的預設角色跟傷害計算機對得上", () => {
+    expect(fillTokens(`{{hits:${monkey.id}@45#${umbrella}}}`, monk, data)).toBe(String(killsDirect(230, 45, HEAL, monkey, 3)));
+    expect(fillTokens(`{{hitsOne:${monkey.id}@45#${umbrella}}}`, monk, data)).toBe(String(killsDirect(230, 45, HEAL, monkey, 1)));
+  });
+  it("不帶等級的 {{hitsOne:id}} 就是表上「打 1 隻」那一欄；中段那一級拿表上那把，帶不帶 @ 都一樣", () => {
+    const row = monk.rows.find(entry => entry.id === monkey.id)!;
+    expect(fillTokens(`{{hitsOne:${monkey.id}}}`, monk, data)).toBe(String(row.hitsOne));
+    expect(fillTokens(`{{hits:${monkey.id}@${monk.midLevel}#${umbrella}}}`, monk, data)).toBe(String(row.hits));
+    expect(fillTokens(`{{hitsOne:${monkey.id}@${monk.midLevel}#${umbrella}}}`, monk, data)).toBe(String(row.hitsOne));
+  });
+  it("表上沒有的怪也可以指定等級（只要算得出來）：別的段會打的怪不用為了引用塞進表", () => {
+    const table = buildCalcTable({ job: 110, from: 31, to: 50, data });
+    const offTable = data.monsters.find(monster => !monster.un && monster.hp > 0 && monster.lv === 30 && !table.rows.some(row => row.id === monster.id))!;
+    expect(fillTokens(`{{hits:${offTable.id}@40#${table.assumptions.weapon!.id}}}`, table, data)).toMatch(/^\d+$/);
+  });
+  it("等級超出文章範圍、怪不存在、僧侶打不是不死系、單體職業用 hitsOne、沒給資料都丟錯", () => {
+    expect(() => fillTokens(`{{hits:${monkey.id}@51#${umbrella}}}`, monk, data)).toThrow(/31～50/);
+    expect(() => fillTokens(`{{hits:${monkey.id}@30#${umbrella}}}`, monk, data)).toThrow(/31～50/);
+    expect(() => fillTokens(`{{hits:999@40#${umbrella}}}`, monk, data)).toThrow(/999/);
+    expect(() => fillTokens(`{{hits:${byName("黑肥肥").id}@40#${umbrella}}}`, monk, data)).toThrow(/代號/);
+    const fighter = buildCalcTable({ job: 110, from: 31, to: 50, data });
+    const axe = fighter.assumptions.weapon!.id;
+    expect(() => fillTokens(`{{hitsOne:${fighter.rows[0].id}@40#${axe}}}`, fighter, data)).toThrow(/代號/);
+    expect(() => fillTokens(`{{hitsOne:${fighter.rows[0].id}}}`, fighter, data)).toThrow(/代號/);
+    expect(() => fillTokens(`{{hits:${monkey.id}@45#${umbrella}}}`, monk)).toThrow(/代號/);
+    expect(() => fillTokens(`{{hitLv:${monkey.id}@45}}`, monk, data)).toThrow(/代號/);
+  });
+  it("resolveArticle 也換得掉；validateArticle 把超出範圍的等級報出來", () => {
+    const article = { ...realArticle(230, 31, 50), intro: `打 {{hits:${monkey.id}@45#${umbrella}}} 下` };
+    expect(resolveArticle(article, monk, data).intro).toBe(`打 ${killsDirect(230, 45, HEAL, monkey, 3)} 下`);
+    const errors = validateArticle({ ...article, intro: `打 {{hits:${monkey.id}@60#${umbrella}}} 下` }, { job: 230, from: 31, to: 50, data, openMaps }).join("\n");
+    expect(errors).toMatch(/intro.*31～50/);
+  });
+});
+
+describe("assumes 也比對文字用到的資料代號（資料一變就下架）", () => {
+  const monkey = byName("天使猴");
+  const umbrella = data.gear.weapons.find(weapon => weapon.n === "黃色雨傘")!.id;
+  const ctx = { job: 230, from: 31, to: 50, data, openMaps };
+  const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+  const base = () => {
+    const article: JobArticle = { ...validCleric(), intro: `打 {{hits:${monkey.id}@45#${umbrella}}} 下，單打 {{hitsOne:${monkey.id}@45#${umbrella}}} 下` };
+    article.assumes = articleAssumes(article, table, data);
+    return article;
+  };
+  it("articleAssumes 列出文章用到的每一個代號；沒用到就不多一包，跟 tableAssumes 一樣", () => {
+    expect(base().assumes.pinned).toEqual({ [`hits:${monkey.id}@45#${umbrella}`]: killsDirect(230, 45, HEAL, monkey, 3), [`hitsOne:${monkey.id}@45#${umbrella}`]: killsDirect(230, 45, HEAL, monkey, 1) });
+    expect(articleAssumes(validCleric(), table, data)).toEqual(tableAssumes(table));
+  });
+  it("對得上沒有錯；數字變了、沒貼、多貼都擋（這裡不看先後，一變就擋）", () => {
+    expect(validateArticle(base(), ctx)).toEqual([]);
+    const changed = base();
+    changed.assumes.pinned![`hits:${monkey.id}@45#${umbrella}`]! += 1;
+    expect(validateArticle(changed, ctx).join("\n")).toMatch(/assumes\.pinned.*文字要重看/);
+    const missing = base();
+    delete missing.assumes.pinned;
+    expect(validateArticle(missing, ctx).join("\n")).toMatch(/assumes\.pinned/);
+    const extra = base();
+    extra.assumes.pinned![`hits:${monkey.id}@40#${umbrella}`] = 1;
+    expect(validateArticle(extra, ctx).join("\n")).toMatch(/assumes\.pinned/);
+  });
+});
+
+describe("文章指定武器：weaponTypes（狂戰士用劍系，不用它不會拿的斧頭）", () => {
+  const plain = buildCalcTable({ job: 110, from: 31, to: 50, data });
+  const sword = buildCalcTable({ job: 110, from: 31, to: 50, data, weaponTypes: SWORDS });
+  const ctx = { job: 110, from: 31, to: 50, data, openMaps };
+
+  it("不宣告時行為不變；宣告了表、假設行跟著換劍", () => {
+    expect(SWORDS).not.toContain(plain.assumptions.weapon!.type);
+    expect(SWORDS).toContain(sword.assumptions.weapon!.type);
+    const line = assumptionLines(sword).join("\n");
+    expect(line).toContain(sword.assumptions.weapon!.name);
+    expect(line).not.toContain(plain.assumptions.weapon!.name);
+  });
+  it("挑的是這一級這個系別最好的那把（跟計算機同一套排序）", () => {
+    const group = defaultState(data, 110, 40, null).groups[0];
+    expect(sword.assumptions.weapon!.id).toBe(weaponPicks(data.gear.weapons, 110, 40, { targetsAt: () => group.stats, types: SWORDS }).best!.id);
+  });
+  it("精準之劍吃得到：命中被動算進去、沒有「沒點精準」的提醒；每隻怪的下數照那把劍算", () => {
+    expect(sword.assumptions.accuracy.value).toBeGreaterThan(plain.assumptions.accuracy.value);
+    expect(sword.assumptions.notes.join("")).not.toContain("沒點");
+    const group = { ...defaultState(data, 110, 40, null).groups[0], weaponId: sword.assumptions.weapon!.id, ammoId: null, weaponAtk: null };
+    const row = sword.rows[0];
+    const monster = data.monsters.find(entry => entry.id === row.id)!;
+    const direct = computeGroup(data, { job: 110, skillId: sword.assumptions.skill.id, skillLevel: sword.assumptions.skill.level, monsterId: row.id }, group, monster);
+    expect(direct.ok && direct.vs!.kills.avg).toBe(row.hits);
+  });
+  it("代號指定表上那把：@中段等於表", () => {
+    const row = sword.rows[0];
+    expect(fillTokens(`{{hits:${row.id}@40#${sword.assumptions.weapon!.id}}}`, sword, data)).toBe(String(row.hits));
+    expect(fillTokens(`{{hits:${row.id}@40#${plain.assumptions.weapon!.id}}}`, plain, data)).toBe(String(plain.rows.find(entry => entry.id === row.id)!.hits));
+  });
+  it("validateArticle 照文章的 weaponTypes 算；assumes 貼的是斧頭就擋，貼劍才過", () => {
+    const article: JobArticle = { ...realArticle(110, 31, 50), weaponTypes: SWORDS, assumes: tableAssumes(plain) };
+    expect(validateArticle(article, ctx).join("\n")).toMatch(/assumes\.weapon/);
+    article.assumes = tableAssumes(sword);
+    const errors = validateArticle(article, ctx).join("\n");
+    expect(errors).not.toMatch(/assumes\.weapon/);
+    expect(resolveArticle(article, sword, data).weaponTypes).toEqual(SWORDS);
+  });
+  it("防呆：不是這職業的武器、空陣列、型別錯、這個系別點不到精準技能（文字跟表對不上）都擋", () => {
+    const check = (weaponTypes: unknown) => validateArticle({ ...realArticle(110, 31, 50), weaponTypes }, ctx).join("\n");
+    expect(check(["弓"])).toMatch(/weaponTypes/);
+    expect(check([])).toMatch(/weaponTypes/);
+    expect(check("單手劍")).toMatch(/weaponTypes/);
+    // 狂戰士的技能點法沒點精準之斧：宣告斧頭會吃不到精準技能
+    expect(check(["單手斧", "雙手斧"])).toMatch(/weaponTypes.*沒點/);
+  });
+  it("寫手資料也跟著（article:table 看得到劍的數字）", () => {
+    expect(SWORDS).toContain(writerBrief({ job: 110, from: 31, to: 50, data, weaponTypes: SWORDS }).table.assumptions.weapon!.type);
+  });
+});
+
+/** 過新規則的結論：31～50 全包到 */
+const goodAnswer = (extra: Partial<JobArticle["answer"][number]> = {}): JobArticle["answer"] => [
+  { text: "31～40 等去{{map:105050200}}。", tag: "tw", from: 31, to: 40, ...extra },
+  { text: "41～50 等去{{map:107000403}}。", tag: "tw", from: 41, to: 50 },
+];
+const strictCtx = { job: 230, from: 31, to: 50, data, openMaps };
+
+describe("結論防呆：從第一條起涵蓋每個等級、每條字數上限", () => {
+  const check = (answer: unknown) => validateArticle({ ...realArticle(230, 31, 50), answer }, strictCtx).filter(error => error.startsWith("answer")).join("\n");
+
+  it("涵蓋整段、等級有寫進文字就過", () => {
+    expect(check(goodAnswer())).toBe("");
+    expect(check([...goodAnswer(), { text: "群體治癒先點滿。", tag: "tw" }])).toBe("");
+  });
+  it("第一條不從範圍開頭起擋；中間漏等級擋，並講出漏哪幾級", () => {
+    expect(check([{ text: "沒寫等級的一句。", tag: "tw" }, ...goodAnswer()])).toMatch(/第一條/);
+    expect(check([{ text: "35～40 等", tag: "tw", from: 35, to: 40 }, { text: "41～50 等", tag: "tw", from: 41, to: 50 }])).toMatch(/第一條/);
+    expect(check([{ text: "31～40 等", tag: "tw", from: 31, to: 40 }, { text: "43～50 等", tag: "tw", from: 43, to: 50 }])).toMatch(/41.*42/);
+  });
+  it("from、to 要成對、在範圍內；文字裡要看得到這段等級（玩家看不到欄位）", () => {
+    expect(check([{ text: "31 等", tag: "tw", from: 31 }, { text: "二", tag: "tw" }])).toMatch(/from、to/);
+    expect(check([{ text: "31～60 等", tag: "tw", from: 31, to: 60 }, { text: "二", tag: "tw" }])).toMatch(/31～50/);
+    expect(check([{ text: "去螞蟻洞", tag: "tw", from: 31, to: 50 }, { text: "二", tag: "tw" }])).toMatch(/31～50/);
+    expect(check([{ text: "31～49 等", tag: "tw", from: 31, to: 49 }, { text: "只有 50 等", tag: "tw", from: 50, to: 50 }])).toBe("");
+  });
+  it("每條 70 字內，換完代號才算", () => {
+    expect(ANSWER_MAX).toBe(70);
+    const pad = (length: number) => "字".repeat(length);
+    const head = "31～50 等";
+    expect(check([{ text: `${head}${pad(70 - head.length)}`, tag: "tw", from: 31, to: 50 }, { text: "二", tag: "tw" }])).toBe("");
+    expect(check([{ text: `${head}${pad(71 - head.length)}`, tag: "tw", from: 31, to: 50 }, { text: "二", tag: "tw" }])).toMatch(/70 字/);
+    // {{mob:天使猴}} 原文 11 字、換完 3 字
+    expect(check([{ text: `${head}${pad(70 - head.length - 3)}{{mob:天使猴}}`, tag: "tw", from: 31, to: 50 }, { text: "二", tag: "tw" }])).toBe("");
+  });
+});
+
+describe("結論帶地圖連結：go", () => {
+  const check = (extra: Record<string, unknown>) => validateArticle({ ...realArticle(230, 31, 50), answer: goodAnswer(extra as never) }, strictCtx).filter(error => error.startsWith("answer")).join("\n");
+
+  it("地圖存在且開放就過", () => {
+    expect(check({ go: 105050200 })).toBe("");
+  });
+  it("地圖不存在、型別錯、尚未開放都擋", () => {
+    expect(check({ go: 999 })).toMatch(/地圖 999/);
+    expect(check({ go: "105050000" })).toMatch(/go/);
+    const closed = validateArticle({ ...realArticle(230, 31, 50), answer: goodAnswer({ go: 105050200 }) }, { ...strictCtx, openMaps: new Set<number>() }).join("\n");
+    expect(closed).toMatch(/answer.*尚未開放/);
+  });
+  it("畫面：結論框裡有「帶我去 XX」，連結跟步驟卡同一種；沒寫 go 的條不出連結", () => {
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+    const article = resolveArticle({ ...realArticle(230, 31, 50), answer: goodAnswer({ go: 105050200 }) }, table, data);
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/jobs/230/31-50", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
+    const box = html.slice(html.indexOf("先講結論"), html.indexOf("</ol>"));
+    expect(box).toContain('href="/go?to=105050200"');
+    expect(box).toContain(`帶我去${data.maps["105050200"].zh}`);
+    expect(box.match(/\/go\?to=/g)).toHaveLength(1);
+  });
+});
+
+describe("連到傷害計算機帶職業、等級", () => {
+  it("parseDamageLink：職業要是真的、等級夾在職業範圍；缺職業、亂寫都不作用", () => {
+    const only = (level: number | null) => ({ job: 110, level, weapon: null, skill: null, targets: null });
+    expect(parseDamageLink("?job=110&level=40")).toEqual(only(40));
+    expect(parseDamageLink("?job=110")).toEqual(only(null));
+    expect(parseDamageLink("?job=110&level=5")).toEqual(only(30));
+    expect(parseDamageLink("?job=110&level=abc")).toEqual(only(null));
+    expect(parseDamageLink("?level=40")).toBeNull();
+    expect(parseDamageLink("?job=999&level=40")).toBeNull();
+    expect(parseDamageLink("?job=0&level=40")).toBeNull();
+    expect(parseDamageLink("?mob=100100")).toBeNull();
+    expect(parseDamageLink("")).toBeNull();
+  });
+  it("linkStartLevel：連結帶的職業就用連結的等級，換了職業、沒帶等級照使用者存的", () => {
+    const link = (level: number | null) => ({ job: 110, level, weapon: null, skill: null, targets: null });
+    expect(linkStartLevel(110, 77, link(40))).toBe(40);
+    expect(linkStartLevel(230, 77, link(40))).toBe(77);
+    expect(linkStartLevel(110, 77, link(null))).toBe(77);
+    expect(linkStartLevel(110, 77, null)).toBe(77);
+  });
+  it("文章表下的連結帶職業、中段等級、表上的武器、招式、隻數", () => {
+    expect(damageLinkHref(230, 40)).toBe("/plan/damage?job=230&level=40");
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+    const article = resolveArticle(realArticle(230, 31, 50), table, data);
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/jobs/230/31-50", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] }));
+    expect(html).toContain(`href="/plan/damage?job=230&amp;level=40&amp;weapon=${table.assumptions.weapon!.id}&amp;skill=${HEAL}&amp;targets=3"`);
+    expect(html).not.toContain('href="/plan/damage"');
+  });
+  it("假設行不講計算機的「下面『技能等級』」：文章頁下面沒有這個欄位", () => {
+    const table = buildCalcTable({ job: 110, from: 31, to: 50, data });
+    expect(table.assumptions.notes.join("")).toContain("沒點");
+    expect(assumptionLines(table).join("\n")).not.toContain("技能等級」改");
+  });
+});
+
+describe("article:show：換完代號的完整文字", () => {
+  const monkey = byName("天使猴");
+  const umbrella = data.gear.weapons.find(weapon => weapon.n === "黃色雨傘")!.id;
+  const article = () => ({ ...realArticle(230, 31, 50), answer: goodAnswer({ go: 105050200 }), intro: `打 {{hits:${monkey.id}@45#${umbrella}}} 下` });
+  const show = (input: JobArticle) => articleShowText({ job: 230, from: 31, to: 50, article: input, data, openMaps });
+
+  it("結論、步驟、段落、表、假設、來源都在，代號都換掉", () => {
+    const text = show(article());
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+    expect(text.slice(0, text.indexOf("== 防呆 =="))).not.toContain("{{");
+    expect(text).toContain("31～40 等去螞蟻洞Ⅲ。");
+    expect(text).toContain(`帶我去${data.maps["105050200"].zh}`);
+    expect(text).toContain(`打 ${killsDirect(230, 45, HEAL, monkey, 3)} 下`);
+    expect(text).toContain(`${article().steps[0].from}～${article().steps[0].to}`);
+    expect(text).toContain(article().sections[0].heading);
+    for (const row of table.rows) expect(text).toContain(row.name);
+    for (const line of assumptionLines(table)) expect(text).toContain(line);
+    expect(text).toContain(article().sources[0].url);
+  });
+  it("印出該貼的 assumes（含指定等級），也列防呆", () => {
+    const text = show(article());
+    expect(text).toContain(`hits:${monkey.id}@45#${umbrella}`);
+    expect(text).toContain("防呆");
+    expect(show(realArticle(230, 31, 50))).toContain("全部通過");
+  });
+  it("代號換不掉不會整支掛掉：那一格寫錯在哪，寫手看得到", () => {
+    expect(show({ ...article(), intro: `{{hits:999@40#${umbrella}}}` })).toContain("代號錯");
+  });
+  it("指令接好了", () => {
+    const pkg = JSON.parse(fs.readFileSync(`${ROOT}package.json`, "utf8"));
+    expect(pkg.scripts["article:show"]).toBe("node scripts/job-article-show.mjs");
+    expect(fs.existsSync(`${ROOT}scripts/job-article-show.mjs`)).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ v1.44 第二輪審查：文字寫哪把就算哪把、會變的數字進 assumes、結論跟步驟對得上、連到計算機表跟畫面同一個數字 */
+
+const FIVE = [110, 230, 310, 410, 420];
+const fiveCtx = (job: number, over: Partial<CalcData> = {}, maps = openMaps) => ({ job, from: 31, to: 50, data: { ...data, ...over }, openMaps: maps });
+const errorsOf = (job: number, over: Partial<CalcData> = {}, maps = openMaps, change: (article: JobArticle) => void = () => {}) => {
+  const article = realArticle(job, 31, 50);
+  change(article);
+  return validateArticle(article, fiveCtx(job, over, maps)).join("\n");
+};
+const gearWith = (name: string, patch: Record<string, unknown> | null): Partial<CalcData> => ({
+  gear: { ...data.gear, weapons: patch ? data.gear.weapons.map(weapon => (weapon.n === name ? { ...weapon, ...patch } : weapon)) : data.gear.weapons.filter(weapon => weapon.n !== name) },
+});
+const mobWith = (name: string, patch: Partial<Monster> | ((monster: Monster) => Partial<Monster>)): Partial<CalcData> => ({
+  monsters: data.monsters.map(monster => (monster.n === name ? { ...monster, ...(typeof patch === "function" ? patch(monster) : patch) } : monster)),
+});
+const weaponId = (name: string) => data.gear.weapons.find(weapon => weapon.n === name)!.id;
+
+describe("代號指定武器：{{hits:怪物id@等級#武器id}} 算的是文字寫的那把", () => {
+  const table = buildCalcTable({ job: 410, from: 31, to: 50, data });
+  const pig = byName("黑肥肥");
+  const fist = weaponId("鋰礦鬥拳");
+
+  it("跟直接照那把武器算的一樣，不是那一級的預設武器", () => {
+    const base = defaultState(data, 410, 39, null);
+    const group = { ...base.groups[0], weaponId: fist, weaponAtk: null };
+    const direct = computeGroup(data, { job: 410, skillId: base.shared.skillId, skillLevel: base.shared.skillLevel, monsterId: pig.id }, group, pig);
+    expect(fillTokens(`{{hits:${pig.id}@39#${fist}}}`, table, data)).toBe(String(direct.ok && direct.vs!.kills.avg));
+  });
+  it("沒寫武器、武器不存在、等級還拿不到、能力值穿不上都丟錯", () => {
+    expect(() => fillTokens(`{{hits:${pig.id}@39}}`, table, data)).toThrow(/#武器/);
+    expect(() => fillTokens(`{{hits:${pig.id}@39#999}}`, table, data)).toThrow(/999/);
+    expect(() => fillTokens(`{{hits:${pig.id}@31#${weaponId("赤紅護腕")}}}`, table, data)).toThrow(/拿不到/);
+    const heavy = { ...data, ...gearWith("鋰礦鬥拳", { req: { DEX: 999 } }) };
+    expect(() => fillTokens(`{{hits:${pig.id}@39#${fist}}}`, table, heavy)).toThrow(/穿不上/);
+  });
+  it("statCap：文字寫敏捷停 60，多的點數算回主屬性，下數照這套配點", () => {
+    const capped = buildCalcTable({ job: 410, from: 31, to: 50, data, statCap: { DEX: 60 } });
+    const base = defaultState(data, 410, 45, null);
+    const stats = base.groups[0].stats;
+    const moved = stats.DEX - 60;
+    expect(moved).toBeGreaterThan(0);
+    const group = { ...base.groups[0], weaponId: fist, weaponAtk: null, stats: { ...stats, DEX: 60, LUK: stats.LUK + moved } };
+    const mob = byName("猴子");
+    const direct = computeGroup(data, { job: 410, skillId: base.shared.skillId, skillLevel: base.shared.skillLevel, monsterId: mob.id }, group, mob);
+    expect(fillTokens(`{{hits:${mob.id}@45#${fist}}}`, capped, data)).toBe(String(direct.ok && direct.vs!.kills.avg));
+  });
+  it("{{acc:等級#武器}} 算那一級拿那把的命中（精準技能照武器）", () => {
+    const sword = weaponId("高原之劍");
+    const fighter = buildCalcTable({ job: 110, from: 31, to: 50, data, weaponTypes: SWORDS });
+    const group = { ...defaultState(data, 110, 40, null).groups[0], weaponId: sword };
+    expect(fillTokens(`{{acc:40#${sword}}}`, fighter, data)).toBe(String(characterAccuracy(data, 110, group).value));
+  });
+  it("{{exp:怪}}、{{spawn:怪@地圖}}、{{weapon:武器}}、{{req:武器:能力}}、{{price:武器}}、{{map:地圖}} 換成資料裡的值；查不到丟錯", () => {
+    expect(fillTokens(`{{exp:${pig.id}}}`, table, data)).toBe(String(pig.exp));
+    expect(fillTokens(`{{spawn:${pig.id}@101040001}}`, table, data)).toBe(String(pig.sp!.find(([map]) => map === 101040001)![1]));
+    expect(() => fillTokens(`{{spawn:${pig.id}@100000000}}`, table, data)).toThrow(/刷/);
+    expect(fillTokens(`{{weapon:${fist}}}`, table, data)).toBe("鋰礦鬥拳");
+    expect(() => fillTokens("{{weapon:999}}", table, data)).toThrow(/999/);
+    expect(fillTokens(`{{req:${fist}:DEX}}`, table, data)).toBe("60");
+    expect(() => fillTokens(`{{req:${fist}:INT}}`, table, data)).toThrow(/需求/);
+    expect(fillTokens(`{{price:${weaponId("火焰之弓")}}}`, table, data)).toBe("25 萬");
+    expect(fillTokens(`{{price:${weaponId("暴風弓")}}}`, table, data)).toBe("37.5 萬");
+    expect(fillTokens("{{map:101040001}}", table, data)).toBe("黑肥肥領土");
+    expect(() => fillTokens("{{map:999}}", table, data)).toThrow(/999/);
+  });
+});
+
+describe("審查列的實例：資料一變，文字寫死的前提不會繼續上線", () => {
+  it("文章主推的武器變動", () => {
+    expect(errorsOf(410, gearWith("鋰礦鬥拳", { atk: 15 }))).toMatch(/assumes/);
+    expect(errorsOf(420, gearWith("水晶刃", { atk: 30 }))).toMatch(/assumes/);
+    expect(errorsOf(420, gearWith("水晶刃", null))).toMatch(/999|水晶刃|武器/);
+    expect(errorsOf(110, gearWith("高原之劍", { atk: 40 }))).toMatch(/assumes/);
+    expect(errorsOf(310, gearWith("火焰之弓", { atk: 40 }))).toMatch(/assumes/);
+  });
+  it("俠盜主推的下數變動（一下死不寫死）", () => {
+    expect(errorsOf(420, mobWith("黑肥肥", { hp: 1500 }))).toMatch(/assumes/);
+    expect(JSON.stringify(realArticle(420, 31, 50).answer)).not.toMatch(/一下死/);
+  });
+  it("換圖理由靠的經驗、刷怪數變動", () => {
+    expect(errorsOf(230, mobWith("小幽靈", { exp: 20 }))).toMatch(/assumes.*exp/);
+    expect(errorsOf(110, mobWith("火肥肥", { exp: 200 }))).toMatch(/assumes.*exp/);
+    expect(errorsOf(420, mobWith("風獨眼獸", { exp: 20 }))).toMatch(/assumes.*exp/);
+    expect(errorsOf(420, mobWith("風獨眼獸", monster => ({ sp: monster.sp!.map(([map, count, rate]) => [map, Math.floor(count / 3), rate] as [number, number, number]) })))).toMatch(/assumes.*spawn/);
+  });
+  it("經驗比較的句子沒進 assumes 就擋（新文章寫了也跑不掉）", () => {
+    const line = "{{mob:黑肥肥}}按一次的經驗贏{{mob:天使猴}}。";
+    const pig = byName("黑肥肥");
+    const monkey = byName("天使猴");
+    const without = (article: JobArticle) => {
+      article.intro = line;
+      article.assumes.relies = Object.fromEntries(Object.entries(article.assumes.relies ?? {}).filter(([key]) => key !== `exp:${pig.id}` && key !== `exp:${monkey.id}`));
+    };
+    expect(errorsOf(410, {}, openMaps, without)).toMatch(/intro.*exp/);
+    expect(
+      errorsOf(410, {}, openMaps, article => {
+        without(article);
+        article.assumes.relies = { ...article.assumes.relies, [`exp:${pig.id}`]: pig.exp, [`exp:${monkey.id}`]: monkey.exp };
+      }),
+    ).not.toMatch(/intro.*exp/);
+    expect(errorsOf(410, {}, openMaps, article => { article.sections[0].items![0] = { text: "這張圖 30 隻。", tag: "game" }; })).toMatch(/spawn/);
+  });
+  it("relies 寫的當下是多少，現在不一樣就擋；認不得的鍵也擋", () => {
+    expect(errorsOf(230, {}, openMaps, article => { article.assumes.relies = { ...article.assumes.relies, "exp:3230101": 1 }; })).toMatch(/assumes\.relies/);
+    expect(errorsOf(230, {}, openMaps, article => { article.assumes.relies = { ...article.assumes.relies, "亂寫:1": 1 }; })).toMatch(/assumes\.relies/);
+  });
+  it("命中寫死的地方走代號：精準之劍數值一變就擋", () => {
+    const skills = new Map(data.skills);
+    const mastery = [...skills.values()].find(skill => skill.n === "精準之劍")!;
+    skills.set(mastery.id, { ...mastery, levels: mastery.levels!.map((row, index) => (index === 3 ? { ...row, x: 99 } : row)) });
+    expect(errorsOf(110, { skills })).toMatch(/assumes/);
+  });
+});
+
+describe("結論跟步驟對得上", () => {
+  it("go 不在攻略練功段就擋（同系列的圖可以，螞蟻洞Ⅲ跟螞蟻洞Ⅰ）", () => {
+    expect(errorsOf(110, {}, openMaps, article => { article.answer[0].go = 100000000; })).toMatch(/answer\[0\]\.go.*練功段/);
+    expect(errorsOf(420, {}, openMaps, article => { article.answer[2].go = 105070200; })).toMatch(/answer\[2\]\.go.*練功段/);
+    expect(errorsOf(230)).not.toMatch(/\.go/);
+    expect(realArticle(230, 31, 50).answer[0].go).toBe(105050200);
+  });
+  it("go 要是同一段的主推步驟；結論帶去一張、步驟帶去另一張就擋", () => {
+    expect(errorsOf(110, {}, openMaps, article => { article.answer[0].go = 106000110; })).toMatch(/answer\[0\]\.go.*步驟/);
+  });
+  it("主推步驟要涵蓋整段：只有備案的等級擋，講出缺哪幾級", () => {
+    expect(errorsOf(420, {}, openMaps, article => { article.steps = article.steps.filter(step => step.alt || step.to < 47); })).toMatch(/steps.*主推.*4[0-9]/);
+  });
+  it("全部文章都走新規則，沒有名單可以躲", () => {
+    expect(errorsOf(110, {}, openMaps, article => { article.answer[0].from = 40; article.answer[0].to = 41; })).toMatch(/answer/);
+    expect(errorsOf(110, {}, openMaps, article => { article.answer[1].text = `35～40：${"字".repeat(80)}`; })).toMatch(/70 字/);
+  });
+  it("僧侶 31～70 結論主推非不死系就擋；標 alt 才能當備案", () => {
+    const pig = { text: "31～36：去{{map:101040001}}打{{mob:黑肥肥}}，按魔力爪。", go: 101040001 };
+    expect(errorsOf(230, {}, openMaps, article => { Object.assign(article.answer[0], pig); })).toMatch(/answer\[0\].*不死系/);
+    expect(errorsOf(230, {}, openMaps, article => { Object.assign(article.answer[0], pig, { alt: true }); })).not.toMatch(/answer\[0\].*不死系/);
+    expect(errorsOf(230, {}, openMaps, article => { article.answer[0].text = "31～36：去{{map:101040001}}按魔力爪。"; delete article.answer[0].go; })).toMatch(/answer\[0\].*不死系/);
+  });
+  it("step 的怪要真的刷在那張圖", () => {
+    expect(errorsOf(110, {}, openMaps, article => { article.steps[0].mobs = [byName("天使猴").id]; })).toMatch(/steps\[0\].*天使猴.*沒有刷/);
+  });
+});
+
+describe("內文的圖名、武器名走代號，關掉、拿掉就擋", () => {
+  it("直接打字的完整圖名、武器名擋；來源標題不管", () => {
+    expect(errorsOf(110, {}, openMaps, article => { article.intro = "去黑肥肥領土Ⅱ"; })).toMatch(/intro.*\{\{map:/);
+    expect(errorsOf(110, {}, openMaps, article => { article.intro = "拿高原之劍"; })).toMatch(/intro.*\{\{weapon:/);
+    expect(errorsOf(110, {}, openMaps, article => { article.sources[0].label = "玩家討論：高原之劍、黑肥肥領土Ⅱ"; })).not.toMatch(/sources/);
+  });
+  it("內文提到的圖關掉了就擋", () => {
+    const without = (map: number) => new Set([...openMaps].filter(id => id !== map));
+    expect(errorsOf(230, {}, without(103000104))).toMatch(/尚未開放/);
+    expect(errorsOf(110, {}, without(101030105))).toMatch(/尚未開放/);
+    expect(errorsOf(110, {}, without(107000400))).toMatch(/尚未開放/);
+  });
+});
+
+describe("連到計算機：開出來的就是表上那組", () => {
+  it("parseDamageLink 讀武器、技能、隻數；亂寫不作用", () => {
+    expect(parseDamageLink("?job=230&level=40&weapon=1302016&skill=2301002&targets=3")).toEqual({ job: 230, level: 40, weapon: 1302016, skill: 2301002, targets: 3 });
+    expect(parseDamageLink("?job=110&level=40")).toEqual({ job: 110, level: 40, weapon: null, skill: null, targets: null });
+    expect(parseDamageLink("?job=110&weapon=abc&skill=-1&targets=0")).toEqual({ job: 110, level: null, weapon: null, skill: null, targets: null });
+  });
+  it("5 篇：連結開的計算機，每隻怪的下數都跟表一樣", () => {
+    for (const job of FIVE) {
+      const article = realArticle(job, 31, 50);
+      const table = buildCalcTable({ job, from: 31, to: 50, data, weaponTypes: article.weaponTypes });
+      const link = parseDamageLink(articleDamageHref(table).split("?")[1])!;
+      const state = applyDamageLink(defaultState(data, job, link.level!, null), data, link);
+      expect(state.groups[0].weaponId, String(job)).toBe(table.assumptions.weapon!.id);
+      expect(state.shared.skillId, String(job)).toBe(table.assumptions.skill.id);
+      for (const row of table.rows) {
+        const monster = data.monsters.find(entry => entry.id === row.id)!;
+        const result = computeGroup(data, { ...state.shared, monsterId: row.id }, state.groups[0], monster);
+        expect(result.ok && result.vs!.kills.avg, `${job} ${row.name}`).toBe(row.hits);
+      }
+    }
+  }, 120_000);
+  it("僧侶的連結帶群體治癒、範圍 3 隻，怪換成不死系", () => {
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+    expect(articleDamageHref(table)).toContain(`skill=${HEAL}`);
+    expect(articleDamageHref(table)).toContain("targets=3");
+    const state = applyDamageLink(defaultState(data, 230, 40, null), data, parseDamageLink(articleDamageHref(table).split("?")[1])!);
+    expect(state.shared.targets).toBe(3);
+    expect(data.monsters.find(monster => monster.id === state.shared.monsterId)!.und).toBeTruthy();
+  });
+  it("連結帶的職業不是現在的職業、武器或技能不存在就不動", () => {
+    const state = defaultState(data, 410, 40, null);
+    expect(applyDamageLink(state, data, { job: 110, level: 40, weapon: 1402006, skill: null, targets: null })).toBe(state);
+    expect(applyDamageLink(state, data, { job: 410, level: 40, weapon: 999, skill: 999, targets: null })).toEqual(state);
+    expect(applyDamageLink(state, data, null)).toBe(state);
+  });
+  it("計算機跟著網址走（站內點連結也讀得到），頁面有 Suspense；不寫回角色", () => {
+    const source = fs.readFileSync(`${ROOT}src/app/plan/damage/DamageCalculator.tsx`, "utf8");
+    expect(source).toContain("useSearchParams");
+    expect(source).not.toContain("window.location.search");
+    expect(source).not.toMatch(/localStorage|saveProfile|setProfile/);
+    expect(fs.readFileSync(`${ROOT}src/app/plan/damage/page.tsx`, "utf8")).toContain("<Suspense");
+  });
+  it("頁面：連結文字講開出來的是這組、可以改；結論的帶我去不在字中間斷行", () => {
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+    const article = resolveArticle(realArticle(230, 31, 50), table, data);
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/jobs/230/31-50", article, table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
+    expect(html).toContain("開計算機改成自己的數值");
+    expect(html).not.toContain("用自己的數值算一次");
+    const box = html.slice(html.indexOf("先講結論"), html.indexOf("</ol>"));
+    expect(box).toMatch(/inline-block[^>]*>帶我去/);
   });
 });

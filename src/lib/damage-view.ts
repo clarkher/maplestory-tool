@@ -55,6 +55,49 @@ import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "./types";
 /** 經典版等級上限：沿用 jobs.ts 那一個（那裡是唯一要改的地方），這裡只轉出去 */
 export { LEVEL_CAP };
 
+/** 「沒點精準技能」提醒的後半句：只有計算機頁下面有那個欄位，攻略文的假設行要拿掉 */
+export const MASTERY_EDIT_HINT = "，可在下面「技能等級」改";
+
+/** 別的頁連過來時帶的東西（攻略文表下的連結）：職業、等級、武器、招式、群體治癒範圍內幾隻，開出來就是表上那一組 */
+export type DamageLink = { job: number; level: number | null; weapon: number | null; skill: number | null; targets: number | null };
+
+export function damageLinkHref(job: number, level: number, extra: { weapon?: number | null; skill?: number | null; targets?: number | null } = {}): string {
+  const params = new URLSearchParams({ job: String(job), level: String(level) });
+  for (const [key, value] of Object.entries(extra)) if (value) params.set(key, String(value));
+  return `/plan/damage?${params}`;
+}
+
+/** 網址的 ?job=&level=&weapon=&skill=&targets=：職業要是真的職業才作用，等級夾在職業範圍；只讀不存，使用者存好的角色不動 */
+export function parseDamageLink(search: string): DamageLink | null {
+  const params = new URLSearchParams(search);
+  const job = Number(params.get("job"));
+  if (!(job > 0) || !jobOption(job)) return null;
+  const level = Number(params.get("level"));
+  const positive = (key: string) => {
+    const value = Number(params.get(key));
+    return value > 0 ? value : null;
+  };
+  return { job, level: level > 0 ? clampLevel(job, level) : null, weapon: positive("weapon"), skill: positive("skill"), targets: positive("targets") };
+}
+
+/**
+ * 預設狀態套上連結帶的武器、招式、隻數（左組；右組照預設留著比較）。職業不一樣、武器或招式查不到就當沒帶。
+ * 換了武器沒帶招式時招式照新武器重挑，跟攻略文的表同一套。
+ */
+export function applyDamageLink(state: CalcState, data: CalcData, link: DamageLink | null): CalcState {
+  if (!link || link.job !== state.shared.job) return state;
+  const weapon = link.weapon === null ? undefined : data.gear.weapons.find(entry => entry.id === link.weapon);
+  const left = weapon ? withWeapon(data, state.groups[0], weapon) : state.groups[0];
+  const skillOk = link.skill !== null && attackSkillIds(data.skills, link.job).includes(link.skill) && (link.skill === BASIC_ATTACK || (left.levels[link.skill] ?? 0) > 0);
+  const skill = skillOk ? { skillId: link.skill!, skillLevel: link.skill === BASIC_ATTACK ? 1 : left.levels[link.skill!] } : weapon ? defaultSkill(data, link.job, left) : null;
+  if (!weapon && !skill) return state;
+  const targets = skill?.skillId === HEAL && link.targets !== null ? { targets: link.targets } : {};
+  return withSkill({ ...state, groups: [left, state.groups[1]] }, { ...skill, ...targets }, monsterChoices(data.monsters, data.maps));
+}
+
+/** 計算機一開始算幾等：現在的職業就是連結帶的職業、連結有帶等級才用連結的，其他照使用者存的等級 */
+export const linkStartLevel = (job: number, savedLevel: number, link: DamageLink | null) => (link?.job === job && link.level !== null ? link.level : savedLevel);
+
 export type CalcData = {
   gear: GearData;
   skills: Map<number, Skill>;
@@ -486,7 +529,7 @@ function prepare(data: CalcData, shared: SharedConfig, group: GroupConfig): Prep
   const levelNeeded = weapon.lv > group.level ? weapon.lv : null;
   if (levelNeeded !== null) warnings.push(levelNeededText(levelNeeded));
   if (masteryId !== null && masteryName && levelOf(masteryId) <= 0) {
-    warnings.push(`沒點${masteryName}，熟練度只有 10%（下限會很低，可在下面「技能等級」改）`);
+    warnings.push(`沒點${masteryName}，熟練度只有 10%（下限會很低${MASTERY_EDIT_HINT}）`);
   }
   const stats = group.stats;
 

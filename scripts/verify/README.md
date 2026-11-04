@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -526,6 +526,15 @@ node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3000]
 - 網址用 `localhost`，不要用 `127.0.0.1`。
 
 ### 紙娃娃
+
+#### `article-calc-link.mjs`：攻略文表下的連結真的點一次，沒過 exit 1（v1.44，埠 9395）
+
+```bash
+node scripts/verify/article-calc-link.mjs [網址，預設 http://localhost:9485] [輸出] [DevTools 埠，預設 9395]
+```
+
+存刺客 Lv.35 跟沒存角色各跑 5 篇：點「開計算機改成自己的數值」要開對職業、武器、招式，重新整理一樣；帶參數的頁按導覽列「算傷害」回玩家自己的角色。
+這條路只有站內點才抓得到（之前 `useMemo` 讀 `window.location`，直接開網址對、點連結沒作用）。文章的表換武器要改腳本上面的 `CASES`。
 
 #### `avatar-shot.mjs`：跑一次紙娃娃頁 `/plan/avatar`（v1.40、v1.41，埠 9382）
 

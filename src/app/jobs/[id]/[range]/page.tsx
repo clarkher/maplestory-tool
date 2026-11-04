@@ -21,8 +21,9 @@ function load(id: string, range: string) {
   if (!key) return undefined;
   const raw = staticJobArticle(key.job, key.from, key.to);
   if (!raw) return undefined;
-  const table = buildCalcTable({ ...key, data: staticCalcData() });
-  return { ...key, table, article: resolveArticle(raw, table), path: articlePath(key.job, key.from, key.to) };
+  const data = staticCalcData();
+  const table = buildCalcTable({ ...key, data, weaponTypes: raw.weaponTypes, statCap: raw.statCap });
+  return { ...key, table, article: resolveArticle(raw, table, data), path: articlePath(key.job, key.from, key.to) };
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

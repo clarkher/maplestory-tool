@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
-import { assumptionLines, hitLvText, TAG_LABEL, type CalcTable, type ClaimTag, type JobArticle, type ArticleLine } from "@/lib/job-article";
+import { articleDamageHref, assumptionLines, hitLvText, TAG_LABEL, type ArticleAnswer, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { SeoLinks, SeoPage } from "./SeoPage";
 
@@ -30,12 +30,17 @@ function Heading({ children }: { children: React.ReactNode }) {
   return <h2 className="pt-2 text-lg font-black leading-snug sm:text-xl">{children}</h2>;
 }
 
-function Lines({ lines, ordered, solid }: { lines: ArticleLine[]; ordered?: boolean; solid?: boolean }) {
+function Lines({ lines, ordered, solid, maps }: { lines: ArticleAnswer[]; ordered?: boolean; solid?: boolean; maps?: Record<string, MapRecord> }) {
   const List = ordered ? "ol" : "ul";
   return (
     <List className={`${ordered ? "list-decimal" : "list-disc"} space-y-1.5 pl-5`}>
       {lines.map((line, index) => (
-        <li key={index}>{line.text}<SourceTag tag={line.tag} solid={solid} /></li>
+        <li key={index}>
+          {line.alt ? <span className="mr-1 font-bold">備案：</span> : null}
+          {line.text}<SourceTag tag={line.tag} solid={solid} />
+          {/* 網址跟步驟卡的帶我去同一種；字色跟著框裡的字（--sky 疊在結論框的洗色底上對比不保證到 AA）。inline-block：手機上整顆換行，不在字中間斷 */}
+          {line.go !== undefined ? <Link href={`/go?to=${line.go}`} className="ml-1.5 inline-block font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">帶我去{maps?.[String(line.go)]?.zh}</Link> : null}
+        </li>
       ))}
     </List>
   );
@@ -130,7 +135,7 @@ export function JobArticleView({
     >
       <div className="space-y-1.5 rounded-xl bg-[color:var(--maple-wash)] p-3.5 text-[15px] leading-relaxed sm:p-4">
         <p className="text-sm font-bold text-[color:var(--maple)]">先講結論</p>
-        <Lines lines={article.answer} ordered solid />
+        <Lines lines={article.answer} ordered solid maps={maps} />
       </div>
 
       <p className="text-[15px] leading-relaxed">{article.intro}</p>
@@ -175,7 +180,7 @@ export function JobArticleView({
           </ul>
           <p>公式是舊版玩家整理，經典版沒驗證。HP、防禦、經驗來自遊戲客戶端資料。下數是平均值，沒算 MISS 跟怪的密度；不 MISS 寫 {table.from} 的代表一進這段就打得中，寫「超過 {table.to} 等」的是拿這把武器到 {table.to} 等還打不中。</p>
         </div>
-        <SeoLinks links={[{ href: "/plan/damage", text: "用自己的數值算一次" }]} />
+        <SeoLinks links={[{ href: articleDamageHref(table), text: "開計算機改成自己的數值" }]} />
       </section>
 
       {article.sections.map((section, index) => (
