@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AvatarData } from "@/lib/avatar/types";
 // 件數統計只有 pipeline 那一份（build-gear、verify.mjs 也用它），這裡直接拿來驗，不再自己算
-import { avatarCoverage, MIN_DRAWABLE_RATIO } from "../../../../pipeline/lib/avatar.mjs";
+import { avatarCoverage, MIN_DRAWABLE_RATIO, MIN_SHOP_PRICED } from "../../../../pipeline/lib/avatar.mjs";
 
 const read = (f: string) => JSON.parse(readFileSync(join(process.cwd(), f), "utf8"));
 const data = read("public/data/avatar.json") as AvatarData;
@@ -21,6 +21,14 @@ describe("avatar.json（紙娃娃資料）", () => {
     const cov = avatarCoverage(data, msio);
     expect(cov.compared.total).toBeGreaterThan(4000);
     expect(cov.ratio).toBeGreaterThanOrEqual(MIN_DRAWABLE_RATIO);
+  });
+  it("商城價：有價的件數夠多（防上游改版漏抽），而且都是點裝、價錢大於 0", () => {
+    const priced = data.items.filter((i) => i.pr);
+    expect(priced.length).toBeGreaterThanOrEqual(MIN_SHOP_PRICED);
+    for (const i of priced) {
+      expect(i.cash, String(i.id)).toBe(1);
+      expect(i.pr, String(i.id)).toBeGreaterThan(0);
+    }
   });
   it("男女都有得挑", () => {
     for (const g of [0, 1]) expect(data.hair.filter((h) => h.g === g || h.g === 2).length).toBeGreaterThan(150);

@@ -203,7 +203,8 @@ npm run data:all      # 以上全跑
 #### 紙娃娃的道具清單（`public/data/avatar.json`，v1.40）
 
 `npm run data:gear`（`pipeline/build-gear.mjs`，邏輯在 `pipeline/lib/avatar.mjs`）從 `items.json` 產生：膚色 8 種、髮型（同一款不同髮色併一筆）、臉型（同一款不同瞳色併一筆）、
-12 類裝備＋點裝（帽子、套服、上衣、褲裙、鞋子、手套、披風、武器、眼飾、臉飾、耳環、盾牌），每筆記性別、是不是點裝、雙手武器，還有 maplestory.io 從台服或日服畫得出來。
+12 類裝備＋點裝（帽子、套服、上衣、褲裙、鞋子、手套、披風、武器、眼飾、臉飾、耳環、盾牌），每筆記性別、是不是點裝、雙手武器，還有 maplestory.io 從台服或日服畫得出來；
+商城賣單件的記 `pr`（樂豆點，多個價錢取最低；整組、楓幣店、活動店不算），`verify.mjs` 擋件數不能低於 `MIN_SHOP_PRICED`（防上游改版 `sp` 漏抽）。
 
 畫不畫得出來看凍結檔 `data/raw/msio-avatar.json`（進版控）：maplestory.io 遇到沒有的道具會默默不畫、照回 200，所以先比對它台服 TWMS 256、日服 JMS 444 的道具清單存起來，排程不打 maplestory.io。
 上游加了新點裝（`verify.mjs` 會印有幾件沒比對過）就手動 `node pipeline/fetch-msio-avatar.mjs`，再重跑 `npm run data:gear`。
