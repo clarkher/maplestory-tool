@@ -195,6 +195,18 @@ export function RouteHome() {
         </Link>
       ) : null}
 
+      {/* v1.41：紙娃娃的入口（使用者選放角色列下面、跟萬聖節同樣式）；不看日期、不等資料，導覽列不放（第一版拍板不變） */}
+      <Link
+        href="/plan/avatar"
+        className="tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]"
+      >
+        <span>
+          紙娃娃
+          <span className="block text-[13px] font-medium ink-soft">換髮型、穿點裝，看角色穿起來的樣子</span>
+        </span>
+        <ChevronRight size={16} />
+      </Link>
+
       {/* 至少佔一個螢幕高：從捲到底的長頁換過來時，首頁頂端被推出畫面，Next 才會捲回頂端。只比螢幕高一點的話，
           位置被截在頁底、頁尾也在畫面裡，路線長出來時瀏覽器的捲動錨定會把畫面一路推到頁底 */}
       {ready && !data ? (

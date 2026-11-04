@@ -227,11 +227,11 @@ function ItemDetail({
       ? { href: `/plan/scroll?eq=${item.id}`, text: "算衝卷要準備多少" }
       : null;
 
-  // 紙娃娃的入口：只有時裝才載 avatar.json（/db/items 第一格保持輕）；載失敗就不放按鈕
-  const isFashion = item.c === "時裝";
-  const [avatar, setAvatar] = useState<AvatarData | null>(() => (isFashion ? peekAvatar() : null));
+  // 紙娃娃的入口：只有時裝、裝備才載 avatar.json（打開卡片才載，清單與第一格保持輕）；載失敗就不放按鈕
+  const canWear = item.c === "時裝" || item.c === "裝備";
+  const [avatar, setAvatar] = useState<AvatarData | null>(() => (canWear ? peekAvatar() : null));
   useEffect(() => {
-    if (!isFashion) return;
+    if (!canWear) return;
     let cancelled = false;
     loadAvatar().then(
       data => {
@@ -242,8 +242,8 @@ function ItemDetail({
     return () => {
       cancelled = true;
     };
-  }, [isFashion]);
-  const avatarHref = isFashion && avatar ? avatarLink(item, avatar) : null;
+  }, [canWear]);
+  const avatarHref = canWear && avatar ? avatarLink(item, avatar) : null;
   const actionLinks = [scrollLink, avatarHref ? { href: avatarHref, text: "穿上看看" } : null].filter(
     (link): link is { href: string; text: string } => link !== null,
   );
