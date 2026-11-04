@@ -378,7 +378,8 @@ function CellButton({ cell, onClick }: { cell: Cell; onClick: () => void }) {
         {cell.name}
       </span>
       {cell.ok ? null : <span className="text-[12px] leading-tight ink-faint">暫時看不到樣子</span>}
-      {cell.price ? <span className="max-w-full whitespace-nowrap text-[12px] font-bold leading-tight ink-soft">{`${cell.price.toLocaleString("en-US")} 樂豆點`}</span> : null}
+      {/* 窄手機（320、360）一行放不下：break-keep 只會在空白換行，數字一行、「樂豆點」一行，不會拆成「樂豆／點」 */}
+      {cell.price ? <span className="max-w-full break-keep text-[12px] font-bold leading-tight ink-soft">{`${cell.price.toLocaleString("en-US")} 樂豆點`}</span> : null}
     </button>
   );
 }
