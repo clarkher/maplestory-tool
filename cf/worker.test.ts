@@ -36,6 +36,26 @@ describe("Cloudflare Worker 分流", () => {
     expect(await response.text()).toBe("assets /api/nope");
   });
 
+  it("分享連結 HEAD（真的 route）：200 帶一樣的標頭、沒有內容，靜態檔不會被碰到", async () => {
+    const env = { ASSETS: fetcher("assets") };
+    const request = new Request("https://maplehelper.tw/api/avatar/share?s=2000&h=30030&f=20000&w=1040002", { method: "HEAD" });
+    const response = await handle(request, env);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("text/html; charset=utf-8");
+    expect(response.headers.get("cache-control")).toBe("public, max-age=86400");
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+    expect(await response.text()).toBe("");
+    expect(env.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+
+  it("分享連結 HEAD 缺 h（真的 route）：302 帶 location、沒有內容", async () => {
+    const request = new Request("https://maplehelper.tw/api/avatar/share?s=2000&f=20000&w=1040002", { method: "HEAD" });
+    const response = await handle(request, { ASSETS: fetcher("assets") });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("https://maplehelper.tw/plan/avatar?s=2000&f=20000&w=1040002");
+    expect(await response.text()).toBe("");
+  });
+
   it("六支 API 都有接上", async () => {
     const { ROUTES } = await import("./worker");
     expect(Object.keys(ROUTES).sort()).toEqual(["/api/avatar/share", "/api/boss/events", "/api/boss/intervals", "/api/boss/rooms", "/api/speed/board", "/api/speed/runs"]);

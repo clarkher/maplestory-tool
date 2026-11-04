@@ -224,6 +224,17 @@ describe("壞值丟掉", () => {
     expect(read("s=&h=30030&f=20000").image).toBeNull();
   });
 
+  it("全形數字、尾巴帶換行（%0A）都是壞值：單一欄位當缺，w、j 裡的逐個丟", () => {
+    const FULL = "%EF%BC%92%EF%BC%90%EF%BC%90%EF%BC%90"; // 全形的 2000
+    expect(read(`s=${FULL}&h=30030&f=20000`).image).toBeNull();
+    expect(read(`s=${FULL}&h=30030&f=20000`).page).toBe("/plan/avatar?h=30030&f=20000");
+    expect(read("s=2000%0A&h=30030&f=20000").image).toBeNull();
+    expect(read("s=2000&h=30030%0A&f=20000").page).toBe("/plan/avatar?s=2000&f=20000");
+    const { page, image } = read(`s=2000&h=30030&f=20000&w=1040002%0A.${FULL}.1060002&j=1060002%0A.${FULL}`);
+    expect(page).toBe("/plan/avatar?s=2000&h=30030&f=20000&w=1060002");
+    expect(partsOf(image!).slice(4)).toEqual([{ itemId: 1060002, region: "TWMS", version: "256" }]);
+  });
+
   it("j=1&j=<x> 不出現在任何輸出；j 裡的壞值逐個丟", () => {
     const out = read("s=2000&h=30030&f=20000&w=1040002&j=1&j=%3Cx%3E");
     expect(JSON.stringify(out)).not.toMatch(/<|>|%3C|%3c/);

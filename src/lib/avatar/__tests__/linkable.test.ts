@@ -37,6 +37,7 @@ describe("查資料「穿上看看」入口", () => {
     if (bad) expect(avatarLink({ id: bad.id, c: "裝備" }, data)).toBeNull();
   });
   it("道具分類不是時裝、裝備一律沒有（就算 id 在紙娃娃資料裡）", () => {
+    expect(avatarLink({ id: HAIR_ID, c: "消耗" }, data)).toBeNull();
     expect(avatarLink({ id: FACE_ID, c: "消耗" }, data)).toBeNull();
     expect(avatarLink({ id: 1042029, c: "現金" }, data)).toBeNull();
   });
@@ -45,7 +46,8 @@ describe("查資料「穿上看看」入口", () => {
   });
   it("每個有按鈕的 id，紙娃娃打開真的穿得上（防漂移）", () => {
     const linked = items.filter((i) => avatarLink(i, data));
-    expect(linked.length).toBeGreaterThan(1000);
+    // 一般裝備 2,183 件（11/04）都要有按鈕：擋規則改壞、資料少抽
+    expect(linked.filter((i) => i.c === "裝備").length).toBeGreaterThan(2000);
     for (const it of linked) {
       const o = parseOutfit(new URLSearchParams("try=" + it.id), data);
       const worn = [o.hair, o.face, ...Object.values(o.wear)];

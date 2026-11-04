@@ -112,7 +112,7 @@ const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replac
 
 /**
  * 給爬蟲的 og 標籤＋給人的轉址（location.replace，沒有 JavaScript 就靠 meta refresh）。沒有任何看得到的字。
- * 屬性值逐個跳脫；放進 script 的網址用 JSON 字串，< 寫成 <，不會提早結束 script。
+ * 屬性值逐個跳脫；放進 script 的網址用 JSON 字串，小於符號寫成 unicode 跳脫，不會提早結束 script。
  */
 export function shareHtml(page: string, image: string): string {
   const to = JSON.stringify(page).replace(/</g, "\\u003c");
