@@ -528,7 +528,7 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
 - 期望值從**被測的那個站**的 `/data/avatar.json` 算（不讀本機的 `public/data/avatar.json`，驗測試機時才對得上那邊的資料），道具 id 也從那裡挑、資料更新消失了就換同類的：男生髮型清單、女生第 1 款髮型、第一頂男生能穿的點裝帽子、第一頂畫不出來的點裝帽子、超大武器、槍、一般裝備、搜尋結果件數、有商城價的帽子件數。挑了什麼寫在 `results.json` 的 `expect`。
 - 頁面上的東西用挑衣服卡掛的 `data-tab`（分頁）、`data-colour`（色塊）、`data-cell`／`data-name`／`data-missing`（格子）、`data-group`（搜尋區頭）跟角色卡的 `data-lock`（鎖頭）找，不認 Tailwind class；改版面時這幾個屬性要留著。**只有一個例外**：第 30、31 項的 `watchChange` 認大轉圈的 `.motion-safe:animate-spin` 跟它外層的 `inset-0`（大轉圈沒有別的東西可認），改大轉圈的寫法這兩項要跟著改。鎖頭的 `aria-label` 固定是「鎖住{類別}」，狀態看 `aria-pressed`。
 - 每一項各自判：點不到東西（`click()` 找不到元素）、等不到東西，那一項直接 FAIL、`detail` 寫「點不到：…」「等不到：…」，接著跑下一項。讀畫面之前都用 `until` 等條件，不用固定秒數。v1.41 的項目用 `fresh()` 開頭：先開同網域的 `/brand-emblem.png` 清 `sessionStorage`（上一套、鎖都存在那裡），每一項從乾淨的狀態開始。
-- 檢查（34 項，任何一項沒過 exit 1）：
+- 檢查（43 項：下面 1～42 加 14 之二，任何一項沒過 exit 1）：
   1. 375 寬一打開（帶 `?g=0`，不帶會開場隨機）：舞台圖載好（`naturalWidth > 0`）、頁面不橫捲。
   2. 點髮型第 N 格（從第 3 格起第一款有兩種以上顏色的，照資料算）：網址 `h=` 換成那一款（保留目前顏色，這款沒有就用最小的；目前顏色讀選中的色塊），舞台圖的網址有那個 id 而且載好、那格框起來；
      再點一個這款有、跟現在不同的顏色：`h` 尾數跟著變、那個色塊 `aria-pressed`。不寫死第 3 款、紅色、黑色。
@@ -540,15 +540,16 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
   7. `/db/items?id=1042029` 有「穿上看看」、連結是 `/plan/avatar?try=1042029`，點下去穿了什麼裡有「三眼章魚T恤」、舞台圖有它（資料裡沒有就換一件男女都能穿的點裝上衣）。
   8. 用 DevTools `Fetch.enable` 把 `maplestory.io` 的請求全回 503（同時關掉快取、開沒載過的「坐下」動作），角色卡上看到「角色圖載不出來，等一下再過來」跟「再試一次」。
   9. 快取沒有 CORS 標頭（`?p=jump&s=2003`）：帶 `Origin` 的請求全失敗、其他放行（怎麼模擬見下面），舞台自己退回（沒靠按「再試一次」）不帶 `crossOrigin` 照畫、沒有「載不出來」、`<img>` 沒有 `crossorigin`、地面線還是 40。
-  10. 開場隨機：沒帶參數打開，網址馬上有 `h=`、`w=`；前一筆瀏覽紀錄還是上一頁（不多一筆）；從文件一開始記舞台畫過的每一格、向 maplestory.io 要過的每一張，**沒畫過也沒要過白 T**（白 T 的第 0 格按「重置」才學到，整趟比對）。按「重置」網址變空、回白 T，停 2 秒還是空。
+  10. 開場隨機（這個分頁第一次來，`fresh` 清掉了 `avatar:last`）：沒帶參數打開，網址馬上有 `h=`、`w=`；前一筆瀏覽紀錄還是上一頁（不多一筆）；從文件一開始記舞台畫過的每一格、向 maplestory.io 要過的每一張，**沒畫過也沒要過白 T**（白 T 的第 0 格按「重置」才學到，整趟比對）。按「重置」網址變空、回白 T，停 2 秒還是空。
   11. `?g=1`、`?p=sit` 打開等 1.5 秒，網址沒變（沒被開場隨機換掉）。
-  12. `?try=` 進來：網址換成正式寫法、前一筆瀏覽紀錄還是上一個紙娃娃網址（不多一筆）、`avatar:history` 是空的、「上一套」按不了。
+  12. `?try=` 進來：網址換成正式寫法、前一筆瀏覽紀錄還是上一個紙娃娃網址（不多一筆）；剛剛穿的白 T 記進 `avatar:history`（`[""]`），按「上一套」回到白 T、又按不了。
   13. 上一套：一開始按不了；按隨機再按，網址回到按之前（動作、表情不變）、又按不了；重新整理後還按得了；再隨機、換動作「跳」（不算一步，疊的還是 1 步），上一套回到髮型、動作留著「跳」。
   14. 連按隨機 5 下（間隔 70ms）：`avatar:history` 只有舞台真的畫過的（少於 5 步、每一步的髮型都畫過），按一次上一套回到畫過的最後一套。
+  14 之二. 圖全部扣住（`Fetch` 不放行、關快取）連按隨機 3 下：`avatar:history` 只有按之前畫好的那一套、舞台一直 `aria-busy`；放行後按一次上一套回到那套、又按不了。換穿搭不打伺服器之後，以前「扣住網址」的做法沒有請求可以扣，改扣圖驗一樣的事。
   15. 鎖髮型：鎖不進網址，隨機 3 次 `h` 都不變，按「重置」鎖解開、存的清掉；鎖頭寬 ≥ 36、高 ≥ 44、不是按鈕包按鈕；不橫捲。
   16. 鎖男生限定的上衣、褲裙跟男女都能穿的帽子再切「女」：上衣、褲裙解開，帽子留著，存的剩 `cap`。
   17. 鎖帽子：重新整理還在；脫掉解開、存的清掉。
-  18. 鎖髮型後開乾淨的 `/plan/avatar`：從文件一開始逐格看，鎖沒亮過，存的清掉。
+  18. 存著鎖、這個分頁沒穿過東西（沒有 `avatar:last`）開乾淨的 `/plan/avatar`：從文件一開始逐格看，鎖沒亮過，存的清掉。
   19. 超大武器（`?w=1702861`，3 格，資料沒有就換一件 1702 開頭的）：讀每一格圖的不透明像素、換算到舞台，上下左右都不超出。
   20. 拿槍趴下（`?w=<第一支 144>&p=prone`，1 格）：同上。
   21. 搜「楓葉」：目前分頁（用資料算出的最後一類，才看得出會跳第一）的區頭排第一、其他照分頁順序、每個區頭的件數跟資料一樣（只列得到的區頭）、分頁都不亮、色塊藏起來、「找到 N 件」、格子 `min(40, 總數)`、不橫捲；清掉搜尋回原分頁。
@@ -556,7 +557,7 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
   23. 髮型分頁搜尋時點穿了什麼的髮型小卡：搜尋清掉、髮型分頁亮、色塊回來。
   24. 帽子分頁開「只看商城有賣」：每格都有「N 樂豆點」、格子 `min(40, 件數)`、旁邊寫「N 件」、不橫捲；髮型分頁沒有這顆鈕。
   25. 下載：攔 `URL.createObjectURL`、`HTMLAnchorElement.prototype.click`（**不真的存檔**），檔名 `紙娃娃.png`、PNG、四角透明、要的是 `resize=4&renderMode=0`，寬高**正好是同一套同一格 1 倍的 4 倍**（Node 直接要 `resize=1` 讀 PNG 檔頭比）。不用固定寬度驗：`renderMode=0` 裁到剛好包住角色，寬度看穿什麼（預設角色 1 倍 43×68、4 倍 172×272；舞台的 `renderMode=4` 是 51×128，2026-11-04 量），拿到 1 倍或舞台那張都過不了。
-  26. 分享：攔 `navigator.clipboard.writeText`，連結是 `/api/avatar/share`、有 `s,h,f,w`；用 Node `fetch` 拿連結的文字，200、有 `og:image`、`maplestory.io`、`x-robots-tag` 有 `noindex`；HEAD 200 沒內容；缺 `h` 302 到 `/plan/avatar`；`w=<script>` 整頁只有自己那段 `<script`；`robots.txt` 有 `Allow: /api/avatar/share`；瀏覽器打開落在 `/plan/avatar`、穿了什麼跟第 0 格都跟分享前一樣、沒有 `j=`。**不驗 `cache-control`**（Vercel、Cloudflare 對外不一定一樣），其他 Vercel、Cloudflare 都驗得過。
+  26. 分享：攔 `navigator.clipboard.writeText`，連結是 `/api/avatar/share`、有 `s,h,f,w`；用 Node `fetch` 拿連結的文字，200、有 `og:image`、`maplestory.io`、`x-robots-tag` 有 `noindex`；HEAD 200 沒內容；缺 `h` 302 到 `/plan/avatar`；`w=<script>` 整頁只有自己那段 `<script`；`robots.txt` 有 `Allow: /api/avatar/share`；瀏覽器打開落在 `/plan/avatar`、穿了什麼跟第 0 格都跟分享前一樣、沒有 `j=`。`og:image` 是 `resize=6&renderMode=0`、寬高正好是同一套 1 倍的 6 倍、寬 ≥ 200（Facebook 不收 200px 以下）、按分享時順手要的就是這張網址。**不驗 `cache-control`**（Vercel、Cloudflare 對外不一定一樣），其他 Vercel、Cloudflare 都驗得過。
   27. `/db/items?id=1040002`（一般裝備，資料沒有就換一件）有「穿上看看」。
   28. 首頁有連到 `/plan/avatar` 的「紙娃娃」入口、不橫捲。
   29. 預載：一開始不預載（1 秒內沒要過第 0 格）；按過一次之後等 Resource Timing 出現下一套的第 0 格才按（不等固定秒數；`responseStatus` 不是 200 表示這次預載失敗：等了 14 秒以上才算 maplestory.io 慢，再按一次換下一套、不算一輪，最多換 3 次，超過沒過；不到 14 秒就失敗直接沒過），3 輪都要：新圖在按之前就開始要、也要好了，網址換好到圖換上 ≤ 250ms；本機（`localhost`）還要按下去到圖換上 ≤ 250ms（遠端換網址要等網路，不算）。
@@ -564,8 +565,16 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
   31. 換裝中，慢的圖：`Fetch` 把請求拖 1.2 秒，真的開始要圖之後 130～300ms 內 opacity 變 0.45、大轉圈 ±30ms 內出現（32px、舞台中間）、字變「換裝中…」還按得下去；好了全收掉。舞台寫了載不出來：開始要圖 14 秒以後才寫的才重量一次（開新的一頁，第一次量到的先存進 `results.json` 的 `slowDimFirstAttempt`），比這早直接沒過。
   32. 1280 寬：角色卡、挑衣服卡左右排、上緣對齊；往下捲 200px 角色卡黏在 80px、下緣 ≤ 視窗高（`scrollY` 0 時下緣超出視窗是設計如此，捲一點就黏住）；捲到底都沒有小窗。
   33. 1280×800 穿滿一身（10 件，資料湊不滿沒過）：角色卡黏在 80px、下緣 ≤ 視窗高、`overflow-y: auto`、裡面**真的要捲**（`scrollHeight > clientHeight`，放得下就沒過、`detail` 寫出來，2026-11-04 量到 1017 比 702）、捲到底最後一張小卡在視窗裡、頁面沒動。
-  34. 整趟沒有沒接住的例外、`console.error`。
-- 輸出：`avatar-375.png`、`avatar-hair.png`、`avatar-mini.png`／`avatar-mini-dark.png`、`avatar-missing.png`、`avatar-from-db.png`、`avatar-error.png`、`avatar-opening.png`、`avatar-locked.png`／`avatar-locked-dark.png`、`avatar-weapon.png`、`avatar-spear.png`、`avatar-search.png`、`avatar-shop.png`、`avatar-busy.png`、`avatar-shared.png`、`avatar-1280.png`／`avatar-1280-dark.png`、`avatar-1280-full.png`、`results.json`（`expect` 是從站上資料算出的期望值）；整支跑不下去另存 `crash.png`。
+  34. 同一分頁回來：搭好一套（`?h=…&p=walk` 再隨機一次）、鎖髮型，點頁首回首頁再點「紙娃娃」（站內換頁、乾淨網址）：網址、第 0 格都是那一套、鎖還在、`avatar:history` 沒變；回來之後舞台只畫過、只要過這一套（沒有白 T、沒有別套）。
+  35. 白 T：按「重置」之後重新整理、再開乾淨網址，兩次都網址乾淨、舞台只畫過白 T、`avatar:last` 是空字串、上一套步數沒變。
+  36. 從查資料進來、返回、前進：`?h=…` 畫好後從 `/db/items` 點「穿上看看」，`avatar:history` 是那一套、按上一套回得去；再隨機兩套、捲到 400，瀏覽器返回回到查資料（捲動位置跟點之前一樣）、前進回到剛剛那套（網址、第 0 格、捲動位置都一樣）。
+  37. 上一套不空按：點帽子、30ms 後再點一次脫掉（現在穿 A、最上面也是 A），按鈕變淡；穿上手套（真的畫好）再點帽子兩下，按一次就回到 A。
+  38. 鎖髮型後開 `?try=`：從文件一開始逐格看，鎖沒亮過、存的清掉。
+  39. 慢 4G＋CPU 4 倍，搜尋結果裡間隔 30ms 連點兩件不同格的衣服（在頁面裡排計時器，不走 DevTools：它要等上一下處理完才送下一下，量不到真的連點）：網址、穿了什麼都有兩件，沒有 `_rsc` 請求。舊版 `router.replace` 第一件會掉。
+  40. 換衣服、隨機、上一套、換動作、換性別、重置：一個 `_rsc` 請求都沒有；挑衣服卡框著新的那件（`useSearchParams` 跟得上）。
+  41. 320 寬帽子分頁開「只看商城有賣」：每格的字都在格子裡、「樂豆點」三個字在同一行、整頁不橫捲。
+  42. 整趟沒有沒接住的例外、`console.error`。
+- 輸出：`avatar-375.png`、`avatar-hair.png`、`avatar-mini.png`／`avatar-mini-dark.png`、`avatar-missing.png`、`avatar-from-db.png`、`avatar-error.png`、`avatar-opening.png`、`avatar-locked.png`／`avatar-locked-dark.png`、`avatar-weapon.png`、`avatar-spear.png`、`avatar-search.png`、`avatar-shop.png`、`avatar-busy.png`、`avatar-shared.png`、`avatar-1280.png`／`avatar-1280-dark.png`、`avatar-1280-full.png`、`avatar-back-again.png`、`avatar-double.png`、`avatar-shop-320.png`、`results.json`（`expect` 是從站上資料算出的期望值）；整支跑不下去另存 `crash.png`。
 - 小窗只在手機寬度（`lg` 以下）、角色卡整張捲到頁首底下時出現（頁首被手指收起來時是整張捲出螢幕才出現）。腳本的 `click()` 會先把目標捲到畫面中間，點小窗以外的東西可能把角色卡捲回畫面、小窗就收掉了：要點小窗的按鈕就先點，再點別的。
 - **第 9 項怎麼模擬**：真實情況是快取裡有一份沒帶 `Origin` 要到的版本（maplestory.io 沒寫 `Vary: Origin`），帶 `crossOrigin` 會被擋。用 `Fetch.requestPaused` 看請求標頭（看得到 `Origin`）：有就 `failRequest`，沒有就放行，快取關著才一定走到這裡；舞台要自己退回不帶 `crossOrigin` 再要一次。**這會真的汙染快取**：`Network.setCacheDisabled` 只是不讀、照樣寫，那張網址之後帶 `crossOrigin` 要都會先失敗再繞一圈，所以這項用別的項目碰不到的膚色（`s=2003`）；2026-11-04 共用 `?p=jump` 時，第 30 項的「跳」偶爾多等 300～650ms、變淡。同一個原因，第 19、20 項讀像素的 `fetch` 要帶 `cache: "reload"`，不然拿到快取裡沒標頭的版本會被擋。
 - **`img.src` 會輪播**：站著、走路、警戒的 `src` 在幾格之間換，要比穿搭有沒有換一律比第 0 格（`frame0()`、`STAGE_FRAME0`），等畫好用 `SETTLED`（第 0 格載好、`aria-busy` 是 false、網址寫的 `s,h,f,w` 都在圖裡）。「隨機穿搭」字會變「換裝中…」，用 `RANDOM` 認兩種字。

@@ -1,5 +1,6 @@
 // 紙娃娃（/plan/avatar，v1.40、v1.41）驗收：挑髮型換顏色、小窗、隨機穿搭、換性別、畫不出來的點裝、查資料「穿上看看」、角色圖載不出來、電腦版左右排，
-// 加上 v1.41 的開場隨機、上一套、鎖定、超大武器、跨類別搜尋、只看商城有賣、下載 4 倍、分享預覽、一般裝備、首頁入口、快取沒 CORS、預載、換裝中；任何一項沒過 exit 1
+// 加上 v1.41 的開場隨機、上一套、鎖定、超大武器、跨類別搜尋、只看商城有賣、下載 4 倍、分享預覽、一般裝備、首頁入口、快取沒 CORS、預載、換裝中、
+// 同一分頁回來穿離開時那套、連點兩件、換穿搭不打伺服器；任何一項沒過 exit 1
 // 用法：node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸出資料夾] [DevTools 埠，預設 9382]
 //   例：node scripts/verify/avatar-shot.mjs http://localhost:9381 "$TEMP/avatar-shot"
 //       node scripts/verify/avatar-shot.mjs https://maplehelper-dev.pipicards.workers.dev "$TEMP/avatar-shot-dev"
@@ -9,7 +10,8 @@
 //       avatar-missing.png（畫不出來的點裝）、avatar-from-db.png（從查資料進來）、avatar-error.png（角色圖載不出來）、
 //       avatar-opening.png（開場隨機）、avatar-locked.png／avatar-locked-dark.png（鎖住的小卡）、avatar-weapon.png／avatar-spear.png（超大武器）、
 //       avatar-search.png（跨類別搜尋）、avatar-shop.png（只看商城有賣）、avatar-busy.png（換裝中）、avatar-shared.png（分享連結開起來）、
-//       avatar-1280.png／avatar-1280-dark.png（電腦版左右排）、avatar-1280-full.png（穿滿一身、角色卡裡面自己捲）、results.json（每一項檢查的結果＋量到的東西）
+//       avatar-1280.png／avatar-1280-dark.png（電腦版左右排）、avatar-1280-full.png（穿滿一身、角色卡裡面自己捲）、
+//       avatar-back-again.png（離開再回來同一套）、avatar-double.png（連點兩件）、avatar-shop-320.png（320 寬商城價）、results.json（每一項檢查的結果＋量到的東西）
 // 期望值從「被測的那個站」的 /data/avatar.json 算（不讀本機檔，驗測試機時才對得上那邊的資料），道具 id 也從那裡挑（每日資料更新可能讓某件消失）。
 // 頁面上的東西用 Picker 掛的 data-tab、data-colour、data-cell、data-name、data-missing、data-group 跟角色卡的 data-lock 找，不認樣式 class。
 // 只有一個例外：watchChange（第 30、31 項）認大轉圈的 .motion-safe:animate-spin 跟它外層的 inset-0（大轉圈沒有別的東西可認），改大轉圈的寫法這兩項要跟著改。
@@ -54,10 +56,12 @@ async function check(name, fn) {
   }
 }
 
-let page, evaluate, navigate, loadOnce, shot, close;
+let page, evaluate, navigate, loadOnce, shot, traverse, close;
 const problems = { exceptions: [], errors: [] };
 /** 整趟向 maplestory.io 要過的角色圖（換裝、開場要看有沒有要過白 T） */
 const characterRequests = [];
+/** 整趟跟伺服器要過的頁面資料（Next 的 _rsc 請求）：換穿搭時不該有 */
+const rscRequests = [];
 
 const viewport = (width, height) => page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
 /** 等畫面真的畫過兩格（換主題、捲動之後截圖用） */
@@ -224,6 +228,20 @@ async function lock(k) {
   await click(`鎖頭 ${k}`, LOCK(k));
   await wait(`${k} 鎖住`, LOCKED(k), 3000);
 }
+
+/** 慢 4G（DevTools 的 Slow 4G）＋CPU 4 倍：fn 跑完一定解除 */
+const SLOW_4G = { offline: false, latency: 562.5, downloadThroughput: (1.6 * 1024 * 1024 / 8) * 0.9, uploadThroughput: (750 * 1024 / 8) * 0.9 };
+async function throttled(fn) {
+  await page.send("Network.emulateNetworkConditions", SLOW_4G);
+  await page.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+  try { return await fn(); } finally {
+    await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await page.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+  }
+}
+const CELL = id => `${PICKER}?.querySelector('[data-cell="${id}"]')`;
+/** 頁面裡排好時間點格子（不走 DevTools：它要等上一下處理完才送下一下，量不到真的連點）；a、b 是道具 id，一樣就是點兩次同一格 */
+const clickTwice = (a, b, gap = 30) => evaluate(`new Promise(res => { (${CELL(a)}).click(); setTimeout(() => { (${CELL(b)}).click(); res(true); }, ${gap}); })`);
 
 /** 逐格記舞台畫過哪些圖、鎖有沒有亮過（頁面裡跑；整頁重載會消失，要從頭記用 fromDocumentStart） */
 const RECORDER = `(() => { window.__drawn = []; window.__lit = 0; const tick = () => {
@@ -396,11 +414,12 @@ try {
   };
   results.expect = { hairAt: HAIR_AT, hair: MALE_HAIR[HAIR_AT]?.id, female1: FEMALE_HAIR[0]?.n, firstCap: FIRST_CAP?.n, missing: MISSING_CAP?.id, tryName: TRY_NAME, hairA, bigWeapon: BIG_WEAPON?.id, spear: SPEAR?.id, plain: PLAIN?.id, shopCaps: SHOP_CAPS };
 
-  ({ page, evaluate, navigate, loadOnce, shot, close } = await start(OUT, PORT));
+  ({ page, evaluate, navigate, loadOnce, shot, traverse, close } = await start(OUT, PORT));
   page.listeners.add(msg => {
     if (msg.method === "Runtime.exceptionThrown") problems.exceptions.push(String(msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text).slice(0, 300));
     if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") problems.errors.push(msg.params.args.map(a => a.value ?? a.description).join(" ").slice(0, 300));
     if (msg.method === "Network.requestWillBeSent" && msg.params.request.url.includes("/api/character/")) characterRequests.push(msg.params.request.url);
+    if (msg.method === "Network.requestWillBeSent" && /[?&]_rsc=/.test(msg.params.request.url)) rscRequests.push(msg.params.request.url);
   });
   await page.send("Network.enable");
   // Resource Timing 預設 250 筆一下就滿，後面的圖量不到（第 29、31 項、舞台等了多久都靠它）：每一頁一開始就調大
@@ -616,8 +635,8 @@ try {
     return [Object.entries(out).every(([q, now]) => q === now), out];
   });
 
-  // 12. ?try 不多一筆紀錄
-  await check(`?try=${TRY} 進來：網址換成正式寫法、不多一筆瀏覽紀錄、不記上一套`, async () => {
+  // 12. ?try 不多一筆紀錄；剛剛穿的那套（這裡是白 T）記進上一套
+  await check(`?try=${TRY} 進來：網址換成正式寫法、不多一筆瀏覽紀錄、剛剛穿的白 T 記進上一套、按得回去`, async () => {
     await fresh("?g=0");
     await settled();
     await open(`?try=${TRY}`);
@@ -627,8 +646,12 @@ try {
     const { entries, currentIndex } = await page.send("Page.getNavigationHistory");
     const previous = entries[currentIndex - 1]?.url ?? "";
     const looks = await storedLooks();
-    const off = await evaluate(`${BACK}.disabled`);
-    return [rewritten && previous.endsWith("/plan/avatar?g=0") && looks.length === 0 && off, { rewritten, now: await search(), previous: previous.split("/").pop(), looks, off }];
+    const enabled = await evaluate(`!${BACK}.disabled`);
+    const now = await search();
+    await click("上一套", BACK);
+    const backToWhite = await until(`location.search === ""`, 15000);
+    const off = await until(`${BACK}.disabled`, 3000);
+    return [rewritten && previous.endsWith("/plan/avatar?g=0") && JSON.stringify(looks) === '[""]' && enabled && backToWhite && off, { rewritten, now, previous: previous.split("/").pop(), looks, enabled, backToWhite, off }];
   });
 
   // 13. 上一套
@@ -677,6 +700,40 @@ try {
     await click("上一套", BACK);
     const back = await until(`location.search === ${JSON.stringify(top === "" ? "" : `?${top}`)}`, 15000);
     return [looks.length >= 1 && looks.length < 5 && everyDrawn && back, { looks: looks.map(q => q.slice(0, 40)), everyDrawn, back, drawnFrames: drawnSrcs.length }];
+  });
+
+  // 14 之二. 圖全部扣住連按隨機：一張都沒畫出來，只記按下去之前畫好的那一套（換穿搭不打伺服器之後，舊的「扣住網址」沒有請求可以扣，改扣圖，驗一樣的事）
+  await check("圖全部扣住時連按隨機 3 下：上一套只記按之前畫好的那一套；圖放行後按一次回得去", async () => {
+    const start = `?h=${hairA}`;
+    await fresh(start);
+    await settled();
+    await page.send("Network.setCacheDisabled", { cacheDisabled: true });
+    let held = [], holding = true;
+    try {
+      return await intercepting(
+        params => { if (holding) held.push(params); else pass(params); },
+        async () => {
+          for (let i = 0; i < 3; i++) {
+            await click(`隨機穿搭 ${i + 1}`, RANDOM);
+            await sleep(70);
+          }
+          await wait("連按後網址換了", `location.search !== ${JSON.stringify(start)}`, 15000);
+          await sleep(800);
+          const looks = await storedLooks();
+          const pending = held.length;
+          const busy = await evaluate(`${STAGE}?.getAttribute("aria-busy")`);
+          holding = false;
+          for (const p of held) pass(p);
+          await settled();
+          await click("上一套", BACK);
+          const back = await until(`location.search === ${JSON.stringify(start)}`, 15000);
+          const off = await until(`${BACK}.disabled`, 3000);
+          return [JSON.stringify(looks) === JSON.stringify([start.slice(1)]) && pending > 0 && busy === "true" && back && off, { looks, pending, busy, back, off }];
+        },
+      );
+    } finally {
+      await page.send("Network.setCacheDisabled", { cacheDisabled: false });
+    }
   });
 
   // 15. 鎖髮型
@@ -735,11 +792,10 @@ try {
     return [survived && gone && !locks, { survived, gone, locks }];
   });
 
-  // 18. 鎖了再開乾淨的頁
-  await check("鎖髮型後開乾淨的 /plan/avatar（開場隨機）：從頭到尾沒亮過鎖、存的也清了", async () => {
-    await fresh(`?h=${hairA}`);
-    await settled();
-    await lock("hair");
+  // 18. 這個分頁第一次來（沒有 avatar:last）又存著鎖：開場隨機要清掉（鎖了再回來那條路是第 34 項）
+  await check("存著鎖、這個分頁沒穿過東西，開乾淨的 /plan/avatar（開場隨機）：從頭到尾沒亮過鎖、存的也清了", async () => {
+    await navigate(`${BASE}/brand-emblem.png`);
+    await evaluate(`(sessionStorage.clear(), sessionStorage.setItem("avatar:locks", "hair"), true)`);
     const before = await stored("avatar:locks");
     return fromDocumentStart(async () => {
       await open("");
@@ -904,8 +960,11 @@ try {
     const wornBefore = await worn();
     const frameBefore = await stageFrame0();
     await evaluate(`(() => { window.__copied = null; Object.defineProperty(navigator, "clipboard", { value: { writeText: async t => { window.__copied = t; } }, configurable: true }); return true; })()`);
+    characterRequests.length = 0;
     await click("分享", button(CARD, "分享"));
     await wait("複製好", "window.__copied", 5000);
+    await sleep(200);
+    const warmed = [...characterRequests];
     const link = await evaluate("window.__copied");
     const url = new URL(link);
     const keys = ["s", "h", "f", "w"].every(k => url.searchParams.has(k));
@@ -914,6 +973,17 @@ try {
     const got = await fetch(link, { redirect: "manual" });
     const html = await got.text();
     const og = got.status === 200 && html.includes("og:image") && html.includes("maplestory.io") && (got.headers.get("x-robots-tag") ?? "").includes("noindex");
+    // 預覽圖 6 倍（Facebook 不收 200px 以下）：比同一套的 1 倍正好 6 倍、邊長夠大；按分享時順手要的就是這張（爬蟲來才不用等它第一次畫）
+    const ogUrl = (html.match(/property="og:image" content="([^"]+)"/)?.[1] ?? "").replaceAll("&amp;", "&");
+    const pngSize = async u => {
+      const r = await fetch(u, { signal: AbortSignal.timeout(40000) });
+      if (!r.ok) throw new Error(`預覽圖要不到：${r.status}`);
+      const png = Buffer.from(await r.arrayBuffer());
+      return { w: png.readUInt32BE(16), h: png.readUInt32BE(20) };
+    };
+    const ogSize = await pngSize(ogUrl);
+    const ogBase = await pngSize(ogUrl.replace("resize=6&", "resize=1&"));
+    const big = ogUrl.includes("resize=6&renderMode=0") && ogSize.w === ogBase.w * 6 && ogSize.h === ogBase.h * 6 && ogSize.w >= 200 && warmed.includes(ogUrl);
     const head = await fetch(link, { method: "HEAD", redirect: "manual" });
     const headBody = await head.text();
     const noHair = await fetch(`${BASE}/api/avatar/share?s=2000&f=20000`, { redirect: "manual" });
@@ -930,13 +1000,13 @@ try {
     const landedSearch = await search();
     await painted();
     await shot("avatar-shared.png");
-    const ok = url.pathname === "/api/avatar/share" && keys && toast && og
+    const ok = url.pathname === "/api/avatar/share" && keys && toast && og && big
       && head.status === 200 && headBody === ""
       && noHair.status === 302 && noHairTo.pathname === "/plan/avatar" && noHairTo.search === "?s=2000&f=20000"
       && (attacked.match(/<script/g)?.length ?? 0) === 1 && !attacked.includes("alert(1)")
       && robots.includes("Allow: /api/avatar/share")
       && landed && JSON.stringify(wornBefore) === JSON.stringify(wornAfter) && frameBefore === frameAfter && !landedSearch.includes("j=") && !landedSearch.includes("try=");
-    return [ok, { link: link.slice(0, 120), keys, toast, status: got.status, og, head: head.status, headBody: headBody.length, noHair: [noHair.status, noHairTo.pathname + noHairTo.search], robots: robots.includes("Allow: /api/avatar/share"), landed, landedSearch: landedSearch.slice(0, 80), sameWorn: JSON.stringify(wornBefore) === JSON.stringify(wornAfter), sameFrame: frameBefore === frameAfter }];
+    return [ok, { link: link.slice(0, 120), keys, toast, status: got.status, og, big, ogSize, ogBase, warmed: warmed.includes(ogUrl), head: head.status, headBody: headBody.length, noHair: [noHair.status, noHairTo.pathname + noHairTo.search], robots: robots.includes("Allow: /api/avatar/share"), landed, landedSearch: landedSearch.slice(0, 80), sameWorn: JSON.stringify(wornBefore) === JSON.stringify(wornAfter), sameFrame: frameBefore === frameAfter }];
   });
 
   // 27. 一般裝備也能穿上看看
@@ -1128,7 +1198,255 @@ try {
     return [ok, { ...m, scrolls, worn: full.length, ...(scrolls ? {} : { note: "這一身在 1280×800 放得下、不用捲，驗不到裡面自己捲" }) }];
   });
 
-  // 34. 整趟
+  // 34～. 同一分頁回來、上一套不空按、帶 try= 清鎖、連點、不打伺服器（回到手機寬度）
+  await viewport(375, 812);
+  // 男生能穿的兩件不同格點裝（搜尋結果裡第一件帽子、第一件別格）
+  const shopCell = k => data.items.find(i => i.k === k && fits(i, 0) && i.r && i.cash)?.id;
+  const CAP_A = shopCell("cap"), GLOVE_A = shopCell("glove");
+
+  // 34. F1 離開再回來
+  await check("搭好一套、鎖髮型，回首頁再點「紙娃娃」（乾淨網址）：第一眼就是那套（網址、舞台一樣）、鎖還在、上一套步數沒變、沒畫過也沒要過別套", async () => {
+    const start = `?h=${hairA}&p=walk`;
+    await fresh(start);
+    await settled();
+    const rolled = await pressRandom();
+    await lock("hair");
+    const before = { frame: await stageFrame0(), looks: await storedLooks(), last: await stored("avatar:last") };
+    await evaluate(RECORDER);
+    await click("頁首回首頁", `document.querySelector("a[href='/']")`);
+    await wait("到首頁", `location.pathname === "/"`, 30000);
+    const entry = `[...document.querySelectorAll("a[href='/plan/avatar']")].find(a => a.textContent.includes("紙娃娃"))`;
+    await wait("首頁入口", entry, 30000);
+    characterRequests.length = 0;
+    await evaluate("(window.__drawn = [], window.__lit = 0, true)");
+    await click("紙娃娃入口", entry);
+    await wait("回到紙娃娃", `location.pathname === "/plan/avatar" && ${STAGE_IMG}`, 30000);
+    await settled();
+    await wait("鎖讀回來", LOCKED("hair"), 8000);
+    await sleep(500);
+    const drawnFrames = [...new Set((await evaluate("window.__drawn")).map(frame0))];
+    const requested = [...new Set(characterRequests.map(frame0))];
+    const after = { search: await search(), frame: await stageFrame0(), looks: await storedLooks(), locks: await stored("avatar:locks") };
+    await painted();
+    await shot("avatar-back-again.png");
+    const ok = after.search === rolled && after.frame === before.frame && after.locks === "hair" && JSON.stringify(after.looks) === JSON.stringify(before.looks)
+      && drawnFrames.every(u => u === before.frame) && drawnFrames.length === 1 && requested.every(u => u === before.frame);
+    return [ok, { rolled: rolled.slice(0, 50), same: after.search === rolled, sameFrame: after.frame === before.frame, locks: after.locks, looks: after.looks.length, before: before.looks.length, drawn: drawnFrames.length, requested: requested.length, last: before.last?.slice(0, 40) }];
+  });
+
+  // 35. F1 白 T 重新整理
+  await check("重置成白 T 後重新整理、再開乾淨網址：都還是白 T（網址乾淨、沒畫過別套），上一套步數沒變", async () => {
+    await fresh(`?h=${hairA}`);
+    await settled();
+    const look = await stageFrame0();
+    await click("重置", button(CARD, "重置"));
+    await wait("網址變空", `location.search === ""`, 15000);
+    await settled();
+    await until(`${STAGE_FRAME0} !== ${JSON.stringify(look)}`, 15000);
+    const white = await stageFrame0();
+    await sleep(300);
+    const last = await stored("avatar:last");
+    const looksBefore = await storedLooks();
+    const rounds = await fromDocumentStart(async () => {
+      const out = [];
+      for (const how of ["重新整理", "開乾淨網址"]) {
+        characterRequests.length = 0;
+        if (how === "重新整理") await reload();
+        else await open("");
+        await settled();
+        await sleep(1500);
+        out.push({ how, search: await search(), frame: (await stageFrame0()) === white, drawn: [...new Set((await evaluate("window.__drawn")).map(frame0))].length, requested: [...new Set(characterRequests.map(frame0))].every(u => u === white), looks: (await storedLooks()).length });
+      }
+      return out;
+    });
+    const ok = last === "" && rounds.every(r => r.search === "" && r.frame && r.drawn === 1 && r.requested && r.looks === looksBefore.length);
+    return [ok, { last, looks: looksBefore.length, rounds }];
+  });
+
+  // 36. F1 從查資料進來、瀏覽器返回、前進（換穿搭不打伺服器之後：返回回到查資料、前進回到剛剛那套、捲動位置都在）
+  await check(`搭好一套 L，從查資料「穿上看看」進來：上一套回得去 L；換幾套之後瀏覽器返回回到查資料（位置還在）、前進回到剛剛那套（位置還在）`, async () => {
+    const start = `?h=${hairA}`;
+    await fresh(start);
+    await settled();
+    await navigate(`${BASE}/db/items?id=${TRY}`);
+    const linkFinder = `[...document.querySelectorAll("a")].find(a => a.textContent.trim() === "穿上看看")`;
+    await wait("穿上看看", linkFinder, 30000);
+    await evaluate(`(${linkFinder}).scrollIntoView({ block: "center", behavior: "instant" })`);
+    await sleep(300);
+    const dbY = await evaluate("Math.round(scrollY)");
+    await click("穿上看看", linkFinder);
+    await wait("換成正式寫法", `location.pathname === "/plan/avatar" && new URLSearchParams(location.search).get("w")?.includes("${TRY}")`, 30000);
+    await settled();
+    const looks = await storedLooks();
+    const enabled = await until(`!${BACK}.disabled`, 3000);
+    await click("上一套", BACK);
+    const backToL = await until(`location.search === ${JSON.stringify(start)}`, 15000);
+    await settled();
+    // 再換兩套、捲下去，然後返回、前進
+    await pressRandom();
+    await pressRandom();
+    const here = await search();
+    const hereFrame = await stageFrame0();
+    await evaluate(`window.scrollTo({ top: 400, behavior: "instant" })`);
+    await sleep(600);
+    const y = await evaluate("Math.round(scrollY)");
+    await traverse(-1);
+    const onDb = await until(`location.pathname === "/db/items" && new URLSearchParams(location.search).get("id") === "${TRY}"`, 30000);
+    await sleep(800);
+    const dbScroll = await evaluate("Math.round(scrollY)");
+    await traverse(1);
+    const onAvatar = await until(`location.pathname === "/plan/avatar" && location.search === ${JSON.stringify(here)}`, 30000);
+    await settled();
+    await sleep(800);
+    const yBack = await evaluate("Math.round(scrollY)");
+    const frameBack = await stageFrame0();
+    const ok = JSON.stringify(looks) === JSON.stringify([start.slice(1)]) && enabled && backToL && onDb && onAvatar && frameBack === hereFrame && y > 0 && Math.abs(yBack - y) <= 2 && Math.abs(dbScroll - dbY) <= 2;
+    return [ok, { looks, enabled, backToL, onDb, dbScroll, dbY, onAvatar, sameFrame: frameBack === hereFrame, y, yBack }];
+  });
+
+  // 37. F2 上一套不空按
+  await check("上一套不空按：點帽子、圖還沒好又點一次脫掉（現在穿 A、最上面也是 A）按鈕變淡；穿上手套再來一次，按一下就回到 A", async () => {
+    if (!CAP_A || !GLOVE_A) throw new Error("資料裡沒有男生能穿的點裝帽子、手套");
+    const start = `?h=${hairA}`;
+    await fresh(start);
+    await settled();
+    await click("帽子分頁", TAB("cap"));
+    await wait("帽子格子", CELL(CAP_A), 5000);
+    await clickTwice(CAP_A, CAP_A);
+    await sleep(800);
+    const first = { search: await search(), looks: await storedLooks(), off: await evaluate(`${BACK}.disabled`) };
+    // 換一件手套（真的畫好），現在穿 B、歷史 [A]；再點帽子兩下：現在穿 B、歷史 [A, B]
+    await click("手套分頁", TAB("glove"));
+    await wait("手套格子", CELL(GLOVE_A), 5000);
+    await click("穿手套", CELL(GLOVE_A));
+    await wait("網址有手套", `new URLSearchParams(location.search).get("w")?.includes("${GLOVE_A}")`, 8000);
+    await settled();
+    const withGlove = await search();
+    await click("帽子分頁", TAB("cap"));
+    await wait("帽子格子", CELL(CAP_A), 5000);
+    await clickTwice(CAP_A, CAP_A);
+    await sleep(800);
+    const second = { search: await search(), looks: await storedLooks(), on: await evaluate(`!${BACK}.disabled`) };
+    await click("上一套", BACK);
+    const oneStep = await until(`location.search === ${JSON.stringify(start)}`, 8000);
+    const off = await until(`${BACK}.disabled`, 3000);
+    const ok = first.search === start && JSON.stringify(first.looks) === JSON.stringify([start.slice(1)]) && first.off
+      && second.search === withGlove && second.looks.length === 2 && second.on && oneStep && off;
+    return [ok, { first, second: { same: second.search === withGlove, n: second.looks.length, on: second.on }, oneStep, off, end: await search() }];
+  });
+
+  // 38. F3 帶 try= 進來清鎖
+  await check(`鎖髮型後帶 ?try=${TRY} 進來：從頭到尾沒亮過鎖、存的也清了`, async () => {
+    await fresh(`?h=${hairA}`);
+    await settled();
+    await lock("hair");
+    const before = await stored("avatar:locks");
+    return fromDocumentStart(async () => {
+      await open(`?try=${TRY}`);
+      await wait("穿好、網址換好", `new URLSearchParams(location.search).get("w")?.includes("${TRY}")`, 30000);
+      await settled();
+      await sleep(500);
+      const lit = await evaluate("window.__lit");
+      const pressed = await evaluate(`${LOCK("hair")}?.getAttribute("aria-pressed")`);
+      const locks = await stored("avatar:locks");
+      return [before === "hair" && lit === 0 && pressed === "false" && !locks, { before, lit, pressed, locks }];
+    });
+  });
+
+  // 39. F6 連點兩件
+  await check("慢 4G＋CPU 4 倍，間隔 30ms 連點兩件不同格的衣服：兩件都穿上；沒打伺服器", async () => {
+    await fresh("?g=0");
+    await settled();
+    await typeSearch(WORD);
+    const pick = await evaluate(`(() => {
+      const groups = [...${PICKER}.querySelectorAll("[data-group]")].filter(h => !["hair", "face", "skin"].includes(h.dataset.group));
+      return groups.slice(0, 2).map(h => h.parentElement.querySelector("[data-cell]:not([data-missing])")?.dataset.cell).filter(Boolean);
+    })()`);
+    if (pick.length < 2) throw new Error(`搜「${WORD}」湊不到兩格衣服：${pick.length}`);
+    const out = await throttled(async () => {
+      rscRequests.length = 0;
+      await clickTwice(pick[0], pick[1]);
+      await until(`new URLSearchParams(location.search).has("w")`, 15000);
+      // 舊版的第二下要等換網址的請求（慢 4G 要 1 秒以上）才定案，等久一點才不會量到中間
+      await sleep(4000);
+      const w = ((await param("w")) ?? "").split(".");
+      const shown = await drawn(stageReady(Number(pick[0])), 45000);
+      return { w, rsc: rscRequests.length, shown };
+    });
+    const wornNow = await worn();
+    const names = pick.map(id => data.items.find(i => i.id === Number(id))?.n);
+    await evaluate(`${CARD}.scrollIntoView({ block: "start", behavior: "instant" })`);
+    await painted();
+    await shot("avatar-double.png");
+    return [pick.every(id => out.w.includes(id)) && names.every(n => wornNow.some(t => t.includes(n))) && out.rsc === 0, { pick, names, ...out }];
+  });
+
+  // 40. F6 換穿搭不打伺服器
+  await check("換衣服、隨機、上一套、換動作、換性別、重置：一個 _rsc 請求都沒有，useSearchParams 照樣跟上（挑衣服卡的格子框著新的那件）", async () => {
+    if (!CAP_A) throw new Error("資料裡沒有男生能穿的點裝帽子");
+    await fresh(`?h=${hairA}`);
+    await settled();
+    await click("帽子分頁", TAB("cap"));
+    await wait("帽子格子", CELL(CAP_A), 5000);
+    rscRequests.length = 0;
+    await click("穿帽子", CELL(CAP_A));
+    await wait("網址有帽子", `new URLSearchParams(location.search).get("w")?.includes("${CAP_A}")`, 8000);
+    const pressed = await until(`${CELL(CAP_A)}?.getAttribute("aria-pressed") === "true"`, 3000);
+    await settled();
+    await pressRandom();
+    await click("上一套", BACK);
+    await wait("回到帽子", `new URLSearchParams(location.search).get("w")?.includes("${CAP_A}")`, 8000);
+    await settled();
+    await click("動作「跳」", SEGMENT("動作", "跳"));
+    await wait("動作換成跳", `new URLSearchParams(location.search).get("p") === "jump"`, 8000);
+    await settled();
+    await click("性別「女」", SEGMENT("性別", "女"));
+    await wait("換成女生", `new URLSearchParams(location.search).get("g") === "1"`, 8000);
+    await settled();
+    await click("重置", button(CARD, "重置"));
+    await wait("重置", `!new URLSearchParams(location.search).has("w")`, 8000);
+    await sleep(800);
+    return [pressed && rscRequests.length === 0, { pressed, rsc: rscRequests.length, sample: rscRequests.slice(0, 2).map(u => u.slice(0, 100)) }];
+  });
+
+  // 41. F7 窄手機價錢不溢出
+  await check("320 寬帽子分頁開「只看商城有賣」：每格的字都在格子裡、整頁不橫捲；「樂豆點」不被拆開", async () => {
+    await viewport(320, 700);
+    await fresh("?g=0");
+    await wait("挑衣服卡", `${CELLS}.length >= 40`, 30000);
+    await click("帽子分頁", TAB("cap"));
+    await wait("鈕出現", TOGGLE, 5000);
+    await click("只看商城有賣", TOGGLE);
+    await wait("開了", `${TOGGLE}?.getAttribute("aria-pressed") === "true"`, 5000);
+    const m = await evaluate(`(() => {
+      let worst = 0, split = 0, priced = 0;
+      for (const c of ${CELLS}) {
+        const box = c.getBoundingClientRect();
+        for (const s of c.querySelectorAll("span")) {
+          if (s.querySelector("img")) continue;
+          const r = document.createRange();
+          r.selectNodeContents(s);
+          const t = r.getBoundingClientRect();
+          worst = Math.max(worst, t.right - box.right, box.left - t.left);
+          if (/樂豆點$/.test(s.textContent)) {
+            priced++;
+            // 「樂豆點」三個字要在同一行：一個字一個字量高度
+            const text = s.firstChild, at = text.textContent.indexOf("樂豆點"), tops = new Set();
+            for (let i = at; i < at + 3; i++) { r.setStart(text, i); r.setEnd(text, i + 1); tops.add(Math.round(r.getBoundingClientRect().top)); }
+            if (tops.size > 1) split++;
+          }
+        }
+      }
+      return { worst: +worst.toFixed(1), split, priced, scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth };
+    })()`);
+    await evaluate(`${PICKER}.scrollIntoView({ block: "start", behavior: "instant" })`);
+    await painted();
+    await shot("avatar-shop-320.png");
+    await viewport(375, 812);
+    return [m.priced > 0 && m.worst <= 0.5 && m.split === 0 && m.scrollWidth <= m.clientWidth, m];
+  });
+
+  // 42. 整趟
   record("整趟 console 沒有例外或錯誤", problems.exceptions.length === 0 && problems.errors.length === 0, problems);
 } catch (error) {
   record("腳本中途出錯", false, String(error?.message ?? error).slice(0, 400));
