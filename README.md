@@ -102,6 +102,8 @@ v1.14（10/24 第二輪拍板「全優化」）：篩選加「全部地區」下
 每一條都記了出處網址，以及是「台服實測」「社群整理」還是「舊版經驗」，畫面上照實標。
 
 - 攻略寫的地圖、怪物、技能對不上遊戲資料時，**以遊戲資料為準**：`pipeline/build-guides.mjs` 會拿掉對不上的 id 並印出來。
+- 練功列的怪要真的出在那張圖（或那列寫到的其他圖），出怪以台服客戶端為準（`monsters.json` 的 `sp`；完全沒有 `sp` 的首領才看 `maps`）：`build-guides` 丟掉對不上的怪，文字寫「地圖（怪）」對不上的也列警告，在 GitHub Actions 上寫進執行摘要。沒有地圖的列、組隊任務（關卡裡的怪是任務叫出來的，刷怪表沒有）不判斷。
+- `pipeline/guides-research.test.mjs` 拿研究檔比出怪快照 `data/guides/spawn-audit.json`，不比最新資料：資料自動更新不動研究檔也不動快照，不會因為改版誤紅，也不會擋更新 PR。真的是遊戲改了：對過研究檔之後 `npm run data:spawn-audit` 更新快照。寫「石巨人系」是整類，寫「石巨人」就是那一隻。
 - 找不到可靠攻略的等級段（例如火毒巫師 42 以上、槍手 50 以上、各職業 70 以上大多很薄）照實寫「還沒有玩家攻略」，
   下面只放遊戲資料推算的地圖，不硬補。研究時查到的狀況記在 `gaps`，畫面上會顯示。
 - 升級經驗表取自楓錄練等計算機，與 PTT 流傳表、Artale Tools 經典表交叉比對過，只有 Lv.73 兩說（記在 `conflicts`）。
@@ -181,7 +183,7 @@ V002（2026-10-15 開機）現況：等級上限 Lv.120、開放到三轉。
 
 管線同時會濾掉只在未開放地圖出現的怪、超過等級上限的怪物與任務、以及三轉以上的職業與技能。
 官方開放新內容時要改的地方：`pipeline/build.mjs` 的 `RELEASE`（`levelCap`、`maxAdvancementOrder`、
-`regions`、`mapRegions`）、`src/lib/profile.ts` 的 `LEVEL_CAP`，以及 `pipeline/verify.mjs` 裡跟開放範圍綁在一起的數量門檻。
+`regions`、`mapRegions`）、`src/lib/jobs.ts` 的 `LEVEL_CAP`，以及 `pipeline/verify.mjs` 裡跟開放範圍綁在一起的數量門檻。
 
 不用其他版本的中文名回填：那些版本改版過、地圖被重做，套過來會給錯地名
 （同一個編號在台服現行版是「瑪亞的家」，在經典版是「弓箭手村民宅」）。
@@ -434,6 +436,13 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
 - **切 DNS 前**：`maplehelper.tw` 的 DNS 在 Vercel，Search Console 驗證 TXT 要一起帶過去；切之前先問使用者。
+- **切 DNS 前先量機房**：11/04 從台灣量，`*.workers.dev` 走聖荷西（`/cdn-cgi/trace` 寫 `colo=SJC`，連線約 160ms），同一時間 `*.pages.dev`、`www.cloudflare.com` 走台北（TPE）；Vercel 走香港（hkg1，連線約 30ms）。
+  還沒預先載入的換頁比 Vercel 慢：P2「查資料 → 練功地圖排行」連跑 4 次，Cloudflare 478～728ms、Vercel 90～924ms（中位數 608 對 214）。P4、P6 差距小（中位數 283 對 269、39 對 26），第一格內容兩邊都對。機房距離是最可能的原因，還沒單獨驗證。
+  自訂網域會走哪個機房 workers.dev 量不出來，`maplehelper.tw` 綁上後先看 `https://maplehelper.tw/cdn-cgi/trace` 再重量一次。
+- **預先載入的檔案（11/04 真機量過，`scripts/verify/cf-segments.mjs`）**：測試機、正式機（workers.dev）都沒有 404，換頁整頁重載 0 次。測試機 648 個 `.txt` 請求：200 共 544 個、307 共 104 個；`check-first-frame` 7 項全過。
+  已預先載入的換頁跟 Vercel 差不多（`/jobs/110` ↔ `/jobs/110/31-50`：Cloudflare 28～123ms、Vercel 33～120ms）。
+  - **只有 Windows 建置才 404**：Next 16.3 匯出時用 `path.relative` 取路徑，Windows 拿到反斜線，程式只把 `/` 換成點，檔案變成 `__next.guide/__PAGE__.txt`（Linux 是 `__next.guide.__PAGE__.txt`，瀏覽器要的是這個）。Workers Builds 是 Linux 所以沒事；**別從 Windows 手動 `npm run deploy:cf`**，本機靜態伺服器看到的 404 也是這個原因。
+  - **動態路由多繞一次**：`__next.jobs.$d$id.__PAGE__.txt` 這種檔名，Cloudflare 會 307 轉到 `%24` 寫法才回 200，多一次來回（curl 冷連線 10 次中位數約 0.99 秒對 0.79 秒）。都是背景預先載入，上面量到的換頁沒有變慢，先不處理。
 
 ## 楓幣匯率收集
 
@@ -500,7 +509,28 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - 站內入口（v1.24）：怪物、任務、技能卡片最底下「開成單獨一頁（方便分享）」（`DetailCard` 的 `pageHref`，沒名字的怪不給）；`/guide` 出處上面列 29 個 `/jobs/<職業>`（`page.tsx` 從攻略檔讀職業傳進去）。道具沒有單獨頁。
 
 - 正式網域（v1.28）：`https://maplehelper.tw`（Vercel 買的、DNS 在 Vercel；`www` 在 Vercel 專案設定 308 轉主網域）。`SITE_URL` 在 `src/lib/seo.ts`；舊正式機 `maplestory-tool-three.vercel.app` 由 `next.config.mjs` 的 `redirects` 整站 301 過去（只認那個 host，測試機、分支預覽不轉）。
+- 全站標題（v1.42，拍板 A）：模板 `%s｜楓之谷經典版｜楓谷幫手`（`TITLE_TEMPLATE`，`src/lib/seo.ts`），各頁自己的標題不要再寫經典版。
 - Google Search Console：網域資源 `sc-domain:maplehelper.tw`，驗證用的 TXT 記錄在 Vercel DNS（刪了驗證會掉）；網站地圖提交 `https://maplehelper.tw/sitemap.xml`。
+
+### 職業×等級攻略文（`/jobs/<職業>/<起>-<迄>`，v1.43）
+
+一篇講一個職業一段等級去哪練、幾下打死、幾等不 MISS。規格在 `docs/superpowers/specs/2026-11-04-job-articles-design.md`。
+
+- **範圍**：一轉 10～30；二轉 31～50、51～70；三轉 71～90、91～120（`articleRanges`）。不做每 10 等一篇、不開總表、不進導覽列。
+- **門檻**：這個範圍至少 2 張不同地圖、來源不是舊版、地圖不是 null 的練功段；三轉把接它的二轉攻略也算（`articleEligible`，寫這段時 53 個範圍過 35 個，資料更新會變）。沒過的不要寫。
+- **檔案**：文字放 `src/data/job-articles/<職業>-<起>-<迄>.json`，沒有檔案就沒有頁面；職業頁「分等級攻略」、`sitemap.xml` 都照這個資料夾自動列（`/llms.txt` 不列，規格沒拍板）。**`next build` 的 Cloudflare 靜態輸出要求至少一篇**：資料夾全空時 `/jobs/[id]/[range]` 會報 missing `generateStaticParams`。
+- **數字不寫死**：表用傷害計算機同一套算（`buildCalcTable`，`src/lib/job-article.ts`：預設角色、範圍中段等級、計算機的預設技能；僧侶 31～70 例外固定群體治癒、只列不死系、範圍 3 隻；王級怪不列）。文字要引用數字用代號 `{{hits:怪物id}}`（幾下打死）、`{{hitLv:怪物id}}`（幾等不 MISS，範圍內打不中會換成「超過 N」，後面寫「等」）、`{{def:怪物id}}`（防禦），資料更新就跟著變。
+- **「幾等不 MISS」**：武器固定用中段那把（假設行寫的那把），從那一級到範圍結束每一級都打得中才算。預設角色每級會換武器、命中被動會跳，不固定的話表跟假設行對不起來。
+- **怪名走代號**：`{{mob:完整怪名}}`，玩家講一整個家族用 `{{mobs:獨角獅}}`（要有怪的名字含這幾個字）。查不到就擋；直接打字的怪名、3 個字以上的部分怪名也擋（地圖名裡的不算）。資料裡完全沒有的字機器看不到，所以尚未開放地區的怪不寫名字，寫地區。
+- **文字的前提（`assumes`）**：文字裡寫死的東西（拿哪把武器、幾級技能、哪幾隻打不中、誰比誰快）靠這包比對。內容是 `article:table` 印的 `assumes`，整包貼進文章檔。武器、彈藥、技能、命中不一樣，或幾下打死、幾等不 MISS 的先後變了，這篇就算壞；數字小動、先後沒變放行（代號會跟著變）。
+- **資料更新打壞文章**：只拿掉那一篇（頁面、職業頁連結、網站地圖都不列，`staticJobArticleCheck`），其他照常更新；`data-refresh.yml` 的全套測試不跑 `job-article.test.ts`，另外跑 `npm run article:check`，有壞的開一張 issue「攻略文跟新資料對不上」。開發時 `job-article.test.ts` 照紅。只拿得掉不是全部：Cloudflare 靜態輸出至少要留一篇（見上）。
+- **來源等級每一條都要標**：`tw` 台服回報、`community` 社群整理、`legacy` 舊版路線、`calc` 站上計算、`game` 遊戲資料（客戶端數值、技能說明）、`official` 官方公告。步驟只能用前三種。
+- **命中的算法**：法師魔法命中＝智力÷10＋幸運÷10；物理＝敏捷×0.8＋幸運×0.5＋命中被動（`characterAccuracy`），都是舊版玩家整理、裝備上的命中不算，畫面照實寫。
+- **加一篇**：
+  1. `npm run --silent article:table -- 230 31 50` 看計算表、假設、這個範圍的攻略列、能用的出處（`scripts/job-article-table.mjs`，看 `eligible` 是不是 true）。
+  2. 照格式寫檔（型別是 `JobArticle`）：`title`（不寫經典版，模板會補；23 字內，後面的「楓之谷經典版」才不會被搜尋結果截掉）、`description`（150 字內）、`answer`（2～4 條，每條標來源等級）、`intro`、`steps`（`from`、`to`、`kind`、`map`、`mobs`、`title`、`text`、`tag`，不是主推標 `alt: true`）、`sections`（`heading`＋`paragraphs`／`items`，每條 `text`、`tag`）、`sources`（`label`、`url`）、`assumes`（`article:table` 印的整包貼上）。
+  3. `npx vitest run src/lib/__tests__/job-article.test.ts`：掃資料夾全部真檔跑 `validateArticle`。擋的東西：地圖要有中文名、怪要在資料裡、地圖要在這個職業的攻略練功段、尚未開放的圖、出處要在攻略來源或官方 `beanfun.com`、範圍要過門檻、標題不寫經典版、標題 23 字內、emoji、代號換不掉、怪名查不到或直接打字、每條要標來源等級、`assumes` 對不上、僧侶 31～70 主推要有不死系。
+- **伺服器頁的坑**：`src/lib/job-article.ts`、`static-data.ts` 一路 import 不能碰 `"use client"` 的模組，伺服器拿到的是假值（`LEVEL_CAP` 曾經從 `profile.ts` 來，會算成 NaN，所以搬到 `jobs.ts`），測試有掃。
 
 ### GA 事件（v1.32）
 

@@ -7,7 +7,7 @@ import { HistoryScrollJump } from "@/components/HistoryScrollJump";
 import { HomePrefetch } from "@/components/HomePrefetch";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { restoreScrollBootstrap } from "@/lib/history-scroll";
-import { SITE_URL, websiteLd } from "@/lib/seo";
+import { HOME_TITLE, OG_BASE, SITE_URL, TITLE_TEMPLATE, websiteLd } from "@/lib/seo";
 
 const notoTC = Noto_Sans_TC({
   subsets: ["latin"],
@@ -19,25 +19,22 @@ const notoTC = Noto_Sans_TC({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "楓谷幫手｜新楓之谷經典版 各職業升級路線、技能配點、必解任務",
-    template: "%s｜楓谷幫手",
+    default: HOME_TITLE,
+    template: TITLE_TEMPLATE,
   },
   description:
     "選職業、填等級，馬上知道現在去哪練、先解哪些任務、技能點哪個。29 個職業一路排到 Lv.120，還會帶你一步步走過去。台服新楓之谷經典版專用。",
   keywords: ["新楓之谷經典版", "楓之谷", "練功地圖", "技能配點", "必解任務", "任務攻略", "轉職", "MapleStory Classic"],
   alternates: { canonical: "/" },
   openGraph: {
-    type: "website",
-    locale: "zh_TW",
+    ...OG_BASE,
     url: SITE_URL,
-    siteName: "楓谷幫手",
-    title: "楓谷幫手｜新楓之谷經典版 各職業升級路線",
+    title: "楓谷幫手｜楓之谷經典版 各職業升級路線",
     description: "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解、材料先存什麼。",
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "楓谷幫手" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "楓谷幫手｜新楓之谷經典版 各職業升級路線",
+    title: "楓谷幫手｜楓之谷經典版 各職業升級路線",
     description: "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解。",
     images: ["/og.jpg"],
   },

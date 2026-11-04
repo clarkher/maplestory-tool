@@ -46,14 +46,13 @@ import { actionMs, BOOSTERS, boosterSteps, DRAGON_ROAR, dragonRoarStunMs, expPer
 import { isMagicJob, kitStats, obtainableBy, statShortfall, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
 import { gearPlan, tabsFor } from "./gear-view";
 import { canJobUse } from "./item-view";
-import { jobOption, jobTier, minLevelFor, previousJob, SECOND_JOB_LEVEL, stageJob, THIRD_JOB_LEVEL, tierStartLevel } from "./jobs";
+import { jobOption, jobTier, LEVEL_CAP, minLevelFor, previousJob, SECOND_JOB_LEVEL, stageJob, THIRD_JOB_LEVEL, tierStartLevel } from "./jobs";
 import { BOSS_SPAWN_MAX } from "./now-plan";
 import { jobLineage, planTraining } from "./planner";
-import { LEVEL_CAP } from "./profile";
 import { buildProgress, mainBuild, spAtLevel } from "./skill-plan";
 import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "./types";
 
-/** 經典版等級上限：沿用 profile.ts 那一個（那裡是唯一要改的地方），這裡只轉出去 */
+/** 經典版等級上限：沿用 jobs.ts 那一個（那裡是唯一要改的地方），這裡只轉出去 */
 export { LEVEL_CAP };
 
 export type CalcData = {

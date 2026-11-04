@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { inheritParentTrain, lintResearch, lintText, mobsMissingOnMap, normalizeReward, pqKeyOf, pqWindows } from "./guides.mjs";
+import { inheritParentTrain, lintResearch, lintText, mapsNamedIn, mobsNotOnRow, normalizeReward, pqKeyOf, pqWindows, rowTextIssues, spawnTable } from "./guides.mjs";
 
 test("攻略文字檢查：地圖編號、站內用語、屬性代碼、玩家 ID 都擋", () => {
   assert.deepEqual(lintText("人多可退到迷宮入口（106000300，黑斧木妖）").map(issue => issue.label), ["地圖／道具編號"]);
@@ -130,12 +130,82 @@ test("關鍵獎勵：只留站內有的道具，沒有 label 就報錯", () => {
   assert.throws(() => normalizeReward({ items: [1050018] }, items, "瑪亞和奇怪的藥"), /瑪亞和奇怪的藥.*label/);
 });
 
-test("攻略段落寫的怪在那張圖一隻都不出才算對不上；有一隻出、沒寫怪、地圖沒出怪資料都不算", () => {
-  const forestMaze3 = new Set([3230300, 4230102, 5130101]);
-  assert.equal(mobsMissingOnMap([4230100], forestMaze3), true);
-  assert.equal(mobsMissingOnMap([4230100, 4230102], forestMaze3), false);
-  assert.equal(mobsMissingOnMap([], forestMaze3), false);
-  assert.equal(mobsMissingOnMap([4230100], new Set()), false);
+// 出怪對照用的小表：地圖名照遊戲（有羅馬數字也有 Ⅲ），怪物 id 是真的
+const SPAWNS = {
+  maps: {
+    105040303: { zh: "森林迷宮III", mobs: [3230100, 5130102] },
+    105040304: { zh: "森林迷宮IV", mobs: [3230100, 5130102] },
+    105090400: { zh: "寺院入口", mobs: [4230100] },
+    105080000: { zh: "龍族狩獵場", mobs: [5130100, 2110200] },
+    106000300: { zh: "勇士之村迷宮入口", mobs: [2130100, 3210100] },
+    106000101: { zh: "火焰之地Ⅰ", mobs: [3210100] },
+    106000105: { zh: "火焰之地Ⅴ", mobs: [3210100, 3210800] },
+    105040306: { zh: "巨人之林", mobs: [5130102, 5150000] },
+    107000400: { zh: "鱷魚潭Ⅱ", mobs: [5130103] },
+    103000804: { zh: "組隊訓練場<最後階段>", mobs: [9300003] },
+  },
+  mobs: {
+    3230100: "風獨眼獸", 5130102: "黑曜石巨人", 4230100: "冰獨眼獸", 5130100: "青龍", 2110200: "刺菇菇", 2130100: "黑斧木妖", 3210100: "火肥肥",
+    3210800: "猴子", 5150000: "混種石巨人", 5130103: "黑鱷魚", 9300003: "超級綠水靈", 5130101: "石巨人", 4130100: "土龍", 3110100: "鱷魚",
+  },
+};
+
+test("spawnTable：有台服刷怪點用刷怪點；完全沒有刷怪點的怪（樹妖王這類首領）才看地圖上有沒有宣告；沒中文名的圖不收", () => {
+  const maps = { 1: { zh: "甲" }, 2: { zh: "乙" }, 3: {} };
+  const monsters = [
+    { id: 10, n: "有刷怪點", sp: [[1, 5, 0], [3, 5, 0]], maps: [1, 2, 3] },
+    { id: 20, n: "首領", maps: [2] },
+  ];
+  assert.deepEqual(spawnTable(maps, monsters), {
+    maps: { 1: { zh: "甲", mobs: [10] }, 2: { zh: "乙", mobs: [20] } },
+    mobs: { 10: "有刷怪點", 20: "首領" },
+  });
+});
+
+test("mapsNamedIn：一列寫好幾張圖都認得，羅馬數字跟 Ⅲ 算同一張，簡寫的集數會展開", () => {
+  assert.deepEqual(mapsNamedIn("森林迷宮Ⅲ／寺院入口", SPAWNS).sort(), ["105040303", "105090400"]);
+  assert.deepEqual(mapsNamedIn("火焰之地（Ⅰ／Ⅴ）火肥肥", SPAWNS).sort(), ["106000101", "106000105"]);
+  assert.deepEqual(mapsNamedIn("火焰之地Ⅰ／Ⅴ 火肥肥", SPAWNS).sort(), ["106000101", "106000105"]);
+  assert.deepEqual(mapsNamedIn("火焰之地Ⅰ～Ⅱ", SPAWNS), ["106000101"]);
+  assert.deepEqual(mapsNamedIn("告示牌任務", SPAWNS), []);
+});
+
+test("mobsNotOnRow：寫的怪要在這張圖或這列寫到的其他圖", () => {
+  const row = (name, map, mobs, pq) => ({ name, map, mobs, ...(pq ? { pq } : {}) });
+  // 查核時抓到的真實案例：有一隻對得上（青龍）另一隻也要抓（土龍）
+  assert.deepEqual(mobsNotOnRow(row("龍族狩獵場（青龍／土龍）", 105080000, [5130100, 4130100]), SPAWNS), [4130100]);
+  assert.deepEqual(mobsNotOnRow(row("森林迷宮IV（石巨人／黑曜石巨人）", 105040304, [5130101, 5130102]), SPAWNS), [5130101]);
+  // 一列寫兩張圖：怪在另一張也算
+  assert.deepEqual(mobsNotOnRow(row("鱷魚潭Ⅱ（黑鱷魚）／巨人之林（混種石巨人）", 107000400, [5130103, 5150000]), SPAWNS), []);
+  assert.deepEqual(mobsNotOnRow(row("火焰之地（Ⅰ／Ⅴ）火肥肥", 106000101, [3210100, 3210800]), SPAWNS), []);
+  // 不判斷：沒有地圖、組隊任務（關卡裡的怪是任務叫出來的，刷怪表沒有）、地圖沒有出怪資料
+  assert.deepEqual(mobsNotOnRow(row("一次性高經驗任務", null, [5130100]), SPAWNS), []);
+  assert.deepEqual(mobsNotOnRow(row("超級綠水靈組隊任務", 103000804, [9300003, 3110100], "kerning"), SPAWNS), []);
+  assert.deepEqual(mobsNotOnRow(row("某城鎮", 999, [5130100]), SPAWNS), []);
+});
+
+test("rowTextIssues：地圖名後面接的怪要真的在那張圖", () => {
+  const issues = (name, why = "") => rowTextIssues({ name, why }, SPAWNS);
+  assert.equal(issues("龍族狩獵場（青龍／土龍）").length, 1);
+  assert.equal(issues("火焰之地Ⅰ", "人多可退到勇士之村迷宮入口（黑斧木妖＋刺菇菇）。").length, 1);
+  // 兩張圖共用一個括號：每張都要出得到（森林迷宮III 沒有冰獨眼獸，寺院入口才有）
+  assert.equal(issues("森林迷宮III／寺院入口（冰獨眼獸）").length, 1);
+  assert.equal(issues("森林迷宮III 冰獨眼獸").length, 1);
+  assert.equal(issues("森林迷宮III（不打石巨人）").length, 1);
+});
+
+test("rowTextIssues：寫對的、整類的、沒寫怪的、內文裡順口提到的都不算", () => {
+  const issues = (name, why = "") => rowTextIssues({ name, why }, SPAWNS);
+  assert.deepEqual(issues("龍族狩獵場（青龍）"), []);
+  assert.deepEqual(issues("鱷魚潭Ⅱ（黑鱷魚）／巨人之林（混種石巨人）"), []);
+  // 地圖名裡有怪名（鱷魚潭）不算在寫鱷魚
+  assert.deepEqual(issues("鱷魚潭Ⅱ（6 人團）"), []);
+  // 「石巨人系」是整類，圖上有黑曜石巨人就算
+  assert.deepEqual(issues("巨人之林 石巨人系"), []);
+  assert.deepEqual(issues("森林迷宮III（不打石巨人系）"), []);
+  assert.deepEqual(issues("告示牌任務（土龍）"), []);
+  assert.deepEqual(issues("鱷魚潭Ⅱ", "鱷魚潭Ⅱ 經驗遠比石巨人高。"), []);
+  assert.deepEqual(issues("火焰之地（Ⅰ／Ⅴ）火肥肥"), []);
 });
 
 test("三轉攻略檔繼承二轉 70 等以上的練功段與無攻略段", () => {
