@@ -169,6 +169,32 @@ describe("任務線合併", () => {
       ["弓箭手之路", ["2078"]],
     ]);
   });
+
+  it("彼此的 preNot 都有對方的任務只能選一條，不是一段接一段：自己一組、經驗只算一條、標題列出全部", () => {
+    const groups = groupQuests([
+      quest("a", { n: "戰士之路", exp: 300, pre: ["p"], preNot: ["b", "c"] }),
+      quest("p", { n: "有關轉職的指導", exp: 65 }),
+      quest("b", { n: "法師之路", exp: 300, pre: ["p"], preNot: ["a", "c"] }),
+      quest("c", { n: "海盜入門", exp: 300, pre: ["p"], preNot: ["a", "b"] }),
+    ]);
+    expect(groups.map(group => [group.title, group.quests.map(item => item.id), group.exp])).toEqual([
+      ["戰士之路／法師之路／海盜入門", ["a", "b", "c"], 300],
+      ["有關轉職的指導", ["p"], 65],
+    ]);
+  });
+
+  it("只有單邊 preNot 的不算選一條（新鮮的牛奶不能接過找回神秘書，但找回神秘書沒有擋它）", () => {
+    const groups = groupQuests([
+      quest("milk", { n: "新鮮的牛奶", exp: 10, preNot: ["book"] }),
+      quest("book", { n: "找回神秘書", exp: 20 }),
+    ]);
+    expect(groups.map(group => [group.title, group.exp])).toEqual([["新鮮的牛奶", 10], ["找回神秘書", 20]]);
+  });
+
+  it("互斥的對象不在這批任務裡（別的職業接不到）就照一般任務算", () => {
+    const groups = groupQuests([quest("a", { n: "打手指南", exp: 10, preNot: ["b"] })]);
+    expect(groups.map(group => group.key)).toEqual(["chain:a"]);
+  });
 });
 
 describe("接不接得到", () => {
