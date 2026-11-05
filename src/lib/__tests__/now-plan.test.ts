@@ -746,3 +746,49 @@ describe("先解的帶我去", () => {
     expect(npcGoTarget(undefined, maps, routable)).toBeUndefined();
   });
 });
+
+describe("初心者選職業（彼此 preNot 的任務只能選一條）", () => {
+  const guide = quest("guide", { n: "有關轉職的指導", minLv: 8, jobs: [0], exp: 65 });
+  const road = (id: string, n: string, others: string[]) => quest(id, { n, jobs: [0], exp: 300, pre: ["guide"], preNot: others });
+  const roads = [road("r1", "戰士之路", ["r2", "r3"]), road("r2", "法師之路", ["r1", "r3"]), road("r3", "海盜入門", ["r1", "r2"])];
+  const args = (level: number, quests: Quest[], job = 0) => {
+    const common = commonWith([]);
+    return { level, job, quests, monsters: [], common, maps: {}, effective: effectiveLevels(quests, [], common) };
+  };
+
+  it("指導一行、幾條路合一行寫「N 選 1」、經驗只算一條；經驗不到門檻也列（這是玩家要做的決定）", () => {
+    expect(nowQuests(args(10, [...roads, guide])).map(item => [item.title, item.exp, partsText(item)])).toEqual([
+      ["有關轉職的指導", 65, null],
+      ["戰士之路／法師之路／海盜入門", 300, "3 選 1"],
+    ]);
+  });
+
+  it("這兩行排在約 1 級的位置：指導在前、路在後，中間不夾別的任務", () => {
+    const big = quest("big", { n: "大任務", exp: 200000 });
+    const small = quest("small", { n: "小任務", exp: 50000 });
+    expect(nowQuests(args(10, [small, ...roads, guide, big])).map(item => item.title)).toEqual([
+      "大任務", "有關轉職的指導", "戰士之路／法師之路／海盜入門", "小任務",
+    ]);
+  });
+
+  it("還沒到 8 等不列", () => {
+    expect(nowQuests(args(7, [...roads, guide]))).toEqual([]);
+  });
+
+  it("升級路線的必解不會因為選職業硬列（這兩行只放先解）", () => {
+    const shared = args(10, [...roads, guide]);
+    expect(bandQuests({ ...shared, band: { from: 1, to: 15 } })).toEqual([]);
+    expect(bandQuests({ ...shared, band: { from: 1, to: 15 }, active: true })).toEqual([]);
+  });
+
+  it("轉職後的選一條不硬列：沒經驗的不列（打手／槍手指南）；值得的照樣列，經驗只算一條", () => {
+    const pair = (exp?: number) => [
+      quest("a", { n: "打手指南", minLv: 30, jobs: [500], exp, preNot: ["b"] }),
+      quest("b", { n: "槍手指南", minLv: 30, jobs: [500], exp, preNot: ["a"] }),
+    ];
+    expect(nowQuests(args(35, pair(), 500))).toEqual([]);
+    expect(nowQuests(args(35, pair(50000), 500)).map(item => [item.title, item.exp, partsText(item)])).toEqual([
+      ["打手指南／槍手指南", 50000, "2 選 1"],
+    ]);
+  });
+});

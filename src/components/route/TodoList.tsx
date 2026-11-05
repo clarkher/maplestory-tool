@@ -78,7 +78,7 @@ function TodoRow({ item, routable, maps, questNames, memoryKey }: RowProps) {
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
             <button type="button" onClick={() => setDetail(value => !value)} aria-expanded={detail} className="text-left text-[14px] font-bold leading-snug">
-              {item.title}
+              {item.pickOne ? <PartsText text={item.title} /> : item.title}
             </button>
             {item.reward ? (
               <span className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--gold)]">{item.reward}</span>
@@ -169,7 +169,7 @@ function PartList({ item, maps, questNames, memoryKey }: Omit<RowProps, "routabl
                 className="flex w-full items-start justify-between gap-2 text-left"
               >
                 <span className="min-w-0">
-                  <span className="block text-[13px] font-bold leading-snug">第 {item.positions[index]} 段・{quest.n}</span>
+                  <span className="block text-[13px] font-bold leading-snug">{item.pickOne ? quest.n : `第 ${item.positions[index]} 段・${quest.n}`}</span>
                   {needs ? <span className="mt-0.5 block text-[12px] ink-soft">{needs}</span> : null}
                 </span>
                 <ChevronDown size={14} className={["mt-0.5 shrink-0 ink-faint transition-transform", open ? "rotate-180" : ""].join(" ")} />

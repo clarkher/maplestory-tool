@@ -1,10 +1,14 @@
 import type { Meta } from "@/lib/types";
 
+const ADVANCEMENT = ["", "一轉", "二轉", "三轉", "四轉"];
+
 /**
  * 資料來源與限制寫在明處。
  * 站上每個數字都要能追到出處，做不到的事情也要講清楚，不能讓人以為我們算得出來。
  */
 export function AboutContent({ meta }: { meta: Meta }) {
+  // 開放到第幾轉照資料寫：以前寫死二轉，三轉開放時漏改
+  const advancement = ADVANCEMENT[meta.release.maxAdvancementOrder];
   return (
     <article className="space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">資料從哪來</h1>
@@ -18,7 +22,7 @@ export function AboutContent({ meta }: { meta: Meta }) {
           <p>
             台服《新楓之谷：經典版》<strong>{meta.release.version}</strong>，
             {meta.release.operator}，{meta.release.launchedAt} 上線。
-            目前開放到 <strong>Lv.{meta.release.levelCap}、二轉</strong>，
+            目前開放到 <strong>Lv.{meta.release.levelCap}、{advancement}</strong>，
             地區只有 {meta.release.regions.join("、")}（含奇幻村、螞蟻礦坑）。
           </p>
           <p className="ink-soft">
@@ -40,7 +44,7 @@ export function AboutContent({ meta }: { meta: Meta }) {
           <Row label="資料產生時間" value={meta.dataGeneratedAtText ?? "—"} />
           <Row label="取得方式" value={meta.ingest?.origin === "local" ? "本機客戶端抽檔" : "上游資料庫同步"} />
           <Row label="地圖資料" value={meta.mapSource.source} />
-          <Row label="開放範圍" value={`Lv.${meta.release.levelCap} · 二轉`} />
+          <Row label="開放範圍" value={`Lv.${meta.release.levelCap} · ${advancement}`} />
         </dl>
         <ul className="mt-3 grid gap-1.5 text-sm ink-soft sm:grid-cols-2">
           <li>怪物 {meta.counts.monsters} 隻</li>
