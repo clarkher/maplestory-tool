@@ -13,6 +13,11 @@ export const CACHE_HEADERS = [
     headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
   },
   {
+    // 攻略文的圖檔名固定（hero.jpg、<地圖id>.webp），重畫就蓋掉原檔：每次回伺服器確認，換圖才不會被舊圖卡一年
+    source: "/assets/guides/:path*",
+    headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],
+  },
+  {
     // meta 是遊戲資料的版本入口，必須每次回伺服器確認，否則資料更新了使用者也拿不到。
     source: "/data/meta.json",
     headers: [{ key: "Cache-Control", value: "public, max-age=0, must-revalidate" }],

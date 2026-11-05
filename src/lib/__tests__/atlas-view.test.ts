@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { doorList, mapHref, npcHref, labelSides, levelRange, mobCountNote, mapGroups, mapMatches, mapSearchText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, openShopCount, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
-import type { AtlasMap, AtlasNpc } from "@/lib/types";
+import { doorList, mapHref, npcHref, labelSides, levelRange, mobCountNote, mapGroups, mapMatches, mapSearchText, mapRouteText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, openShopCount, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
+import type { AtlasMap, AtlasNpc, MapRecord, PortalEdge } from "@/lib/types";
 
 const map1020000: AtlasMap = {
   id: 1020000,
@@ -83,6 +83,37 @@ describe("mapSummary", () => {
     expect(text).not.toContain("NPC");
     expect(text).not.toContain("隻");
     expect(text).toContain("可以通往");
+  });
+});
+
+describe("mapRouteText", () => {
+  const maps = { "1": { zh: "弓箭手村", t: 1 }, "2": { zh: "東邊森林" }, "3": { zh: "猴子森林" }, "4": { zh: "冰雪峽谷" }, "5": {} } as unknown as Record<string, MapRecord>;
+  const graph: Record<string, PortalEdge[]> = {
+    "1": [[2, "東邊", 0, 0]],
+    "2": [[3, "上面", 0, 0], [5, "下面", 0, 0]],
+    "3": [[4, "npc:傑夫:最上面", 0, 0, 50]],
+  };
+  const near = { "2": [1, 0], "3": [1, 0], "4": [1, 0], "5": [1, 0] } as Record<string, [number, number]>;
+
+  it("從最近的城鎮走到這張圖", () => {
+    expect(mapRouteText(3, graph, maps, near)).toBe("怎麼去：從弓箭手村出發，東邊森林 → 猴子森林。");
+  });
+  it("NPC 傳送要寫找誰、幾等", () => {
+    expect(mapRouteText(4, graph, maps, near)).toBe("怎麼去：從弓箭手村出發，東邊森林 → 猴子森林 → 找傑夫（Lv.50 以上） → 冰雪峽谷。");
+  });
+  it("城鎮自己、走不到、路上有沒名字的圖都不寫", () => {
+    expect(mapRouteText(1, graph, maps, near)).toBeNull();
+    expect(mapRouteText(9, graph, maps, near)).toBeNull();
+    expect(mapRouteText(5, graph, maps, near)).toBeNull();
+  });
+  it("路太長只留頭尾", () => {
+    const long: Record<string, PortalEdge[]> = {};
+    const names: Record<string, unknown> = { "100": { zh: "城鎮", t: 1 } };
+    for (let i = 100; i < 110; i += 1) {
+      long[String(i)] = [[i + 1, "門", 0, 0]];
+      names[String(i + 1)] = { zh: `圖${i + 1}` };
+    }
+    expect(mapRouteText(110, long, names as Record<string, MapRecord>, { "110": [100, 0] })).toBe("怎麼去：從城鎮出發，圖101 → 圖102 → 圖103 → …（共 10 張） → 圖109 → 圖110。");
   });
 });
 

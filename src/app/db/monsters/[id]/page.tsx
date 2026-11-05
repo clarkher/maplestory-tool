@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const path = `/db/monsters/${monster.id}`;
   const description = clip(monsterSummary(monster, staticMaps()));
   return {
-    title: `${monster.n}｜怪物數值、出沒地圖、掉落物`,
+    title: `${monster.n}｜在哪打、怪物數值、掉落物`,
     description,
     alternates: { canonical: path },
     openGraph: { title: `${monster.n}｜楓谷幫手`, description, url: path },

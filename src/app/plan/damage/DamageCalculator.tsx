@@ -1,11 +1,13 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { jobParams, trackSettled } from "@/lib/analytics";
 import { useBuildChoice } from "@/lib/build-choice";
 import { loadGear, loadGuide, loadGuideCommon, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
 import {
+  applyDamageLink,
   clampLevel,
   clampState,
   computeGroup,
@@ -14,6 +16,8 @@ import {
   groupLabels,
   monsterChoices,
   levelNoticeText,
+  linkStartLevel,
+  parseDamageLink,
   parseState,
   relevel,
   withMonster,
@@ -52,6 +56,11 @@ function useGuides(job: number): Record<number, GuideJob | undefined> | null {
   return loaded?.job === job ? loaded.guides : null;
 }
 
+/** 頁面的 Suspense 用（useSearchParams 要包）：伺服器畫的就是這個，跟角色讀好之前同一個樣子 */
+export function DamageLoading() {
+  return <Shell><LoadingBlock /></Shell>;
+}
+
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-3xl space-y-4 py-3 sm:py-6">
@@ -65,6 +74,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 export function DamageCalculator() {
+  const searchParams = useSearchParams();
   const { profile, loaded } = useStoredProfile();
   const [base, setBase] = useState<BaseData | null>(null);
   const [failed, setFailed] = useState(false);
@@ -96,14 +106,17 @@ export function DamageCalculator() {
     const parsed = parseState(saved);
     return parsed ? clampState(parsed) : null;
   }, [saved]);
-  const job = pendingJob ?? savedState?.shared.job ?? profile.job;
+  // 攻略文表下的連結帶 ?job=&level=&weapon=&skill=&targets=：這次瀏覽還沒動過計算機時先用它，只讀不存，使用者的角色不變。
+  // 一定要用 useSearchParams：站內換頁算第一格時 window.location 還是上一頁，讀到空字串，之後也不會再讀
+  const link = useMemo(() => (loaded ? parseDamageLink(searchParams.toString()) : null), [loaded, searchParams]);
+  const job = pendingJob ?? savedState?.shared.job ?? link?.job ?? profile.job;
   const [buildTab] = useBuildChoice(Math.max(job, 0));
   const guides = useGuides(job);
   const data: CalcData | null = useMemo(
     () => (base && guides ? { ...base, guides } : null),
     [base, guides],
   );
-  const startLevel = Math.max(profile.level || 0, job > 0 ? minLevelFor(job) : 1);
+  const startLevel = Math.max(linkStartLevel(job, profile.level || 0, link), job > 0 ? minLevelFor(job) : 1);
 
   useEffect(() => {
     if (pendingJob === null || !data) return;
@@ -118,11 +131,12 @@ export function DamageCalculator() {
   const state: CalcState | null = useMemo(() => {
     if (pendingJob !== null || !data || job <= 0) return null;
     if (savedState) return savedState;
-    const fresh = defaultState(data, job, startLevel, buildTab);
-    // 練功測速的「算傷害」帶 ?mob=：這次瀏覽還沒動過計算機時先選好那隻怪（資料在瀏覽器載完才算，讀得到網址）
-    const mob = Number(new URLSearchParams(window.location.search).get("mob"));
+    // 連結是要對答案的：開出來要跟表一樣，第二套點法也不套
+    const fresh = link?.job === job ? applyDamageLink(defaultState(data, job, startLevel, null), data, link) : defaultState(data, job, startLevel, buildTab);
+    // 練功測速的「算傷害」帶 ?mob=：這次瀏覽還沒動過計算機時先選好那隻怪
+    const mob = Number(searchParams.get("mob"));
     return mob ? withMonster(fresh, data, mob) : fresh;
-  }, [pendingJob, data, job, savedState, startLevel, buildTab]);
+  }, [pendingJob, data, job, savedState, startLevel, buildTab, link, searchParams]);
 
   // 怪物選單、打的怪、兩組的結果：每次按 −／＋ 都會重畫，不重算（選單要重排一百多隻怪，兩組要各算一遍）
   const choices = useMemo(() => (base ? monsterChoices(base.monsters, base.maps) : []), [base]);

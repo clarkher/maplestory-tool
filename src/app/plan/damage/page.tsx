@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { DamageCalculator } from "./DamageCalculator";
+import { Suspense } from "react";
+import { DamageCalculator, DamageLoading } from "./DamageCalculator";
 
 export const metadata: Metadata = {
   title: "傷害計算機｜兩套點法、兩把武器並排比打怪",
@@ -8,5 +9,9 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <DamageCalculator />;
+  return (
+    <Suspense fallback={<DamageLoading />}>
+      <DamageCalculator />
+    </Suspense>
+  );
 }
