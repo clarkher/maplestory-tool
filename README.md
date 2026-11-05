@@ -111,6 +111,7 @@ v1.14（10/24 第二輪拍板「全優化」）：篩選加「全部地區」下
 - 找不到可靠攻略的等級段（例如火毒巫師 42 以上、槍手 50 以上、各職業 70 以上大多很薄）照實寫「還沒有玩家攻略」，
   下面只放遊戲資料推算的地圖，不硬補。研究時查到的狀況記在 `gaps`，畫面上會顯示。
 - 升級經驗表取自楓錄練等計算機，與 PTT 流傳表、Artale Tools 經典表交叉比對過，只有 Lv.73 兩說（記在 `conflicts`）。
+- **改了 `public/data` 的資料，`meta.json` 的 `builtAt` 要一起改**：資料網址帶這個版本號、快取一年，沒改的話來過的人會一直拿到舊的，新訪客跟無頭驗收看不出來（v1.48、v1.59、v1.60 都漏過，v1.61 補）。重建後不要把 `meta.json` 還原。PR 的「單元測試」會擋（`scripts/check-data-version.mjs`），開 PR 前可以先跑 `node scripts/check-data-version.mjs origin/dev`，新增的檔不算（沒有舊快取）。`gear`、`scroll-sim`、`avatar`、`speed-names` 每次回伺服器確認，不用版本號（`cache-headers.mjs`）。
 - 攻略檔有自己的版本號（`public/data/guides/common.json` 的 `builtAt`），跟遊戲資料分開更新、分開快取。
 - 必解任務的關鍵獎勵寫在 `quests-exp.json` 各條的 `reward`（`label` 給畫面看、`items` 是遊戲道具 id，用來放圖；
   任何等級都有用的標 `permanent: true`，例如冒險家的戒指——其他任務過了建議等級就不再列在先解，這種不會）；
