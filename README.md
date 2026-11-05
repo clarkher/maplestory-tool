@@ -49,6 +49,14 @@
 
 「地圖＋NPC 圖鑑」（`/db/maps`、`/db/maps/<id>`、`/db/npcs`、`/db/npcs/<id>`，v1.24）：查資料的兩個分頁加單筆頁。地圖頁是整張地圖畫面，上面標怪物圓點（同時在場幾隻）、NPC、傳送門，下面列怪物、NPC、門通往；NPC 頁寫在哪、賣什麼（標參考舊版資料）、任務。只收已開放的地圖；資料在 `public/data/atlas-maps.json`、`atlas-index.json`、`npcs.json`，畫面圖在 `public/assets/map_renders/`。怪物卡、任務卡、`/go` 的「看這張圖」都連得進來。驗收：`node scripts/verify/atlas-shot.mjs <網址，預設 http://localhost:9303> [輸出]`（埠 9304，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
 
+「紙娃娃」（`/plan/avatar`，v1.40）：換髮型（含髮色）、臉型（含瞳色）、膚色、12 類裝備＋點裝，分男女；動作、表情、翻面、隨機穿搭、重置，下載透明背景 PNG、分享連結。
+不進導覽列，入口是查資料時裝卡（點裝、髮型、臉型）上的「穿上看看」（只給畫得出來的，規則在 `src/lib/avatar/linkable.ts`）。
+角色圖由瀏覽器向 maplestory.io 即時要（台服 TWMS 256，台服沒有的用日服 JMS 444 補），兩邊都畫不出來的照列、標「暫時看不到樣子」；道具清單、名字、小圖用我們自己的 `public/data/avatar.json`（見下面資料管線）。
+網址只寫跟預設不一樣的，順序 `g,s,h,f,w,p,e,x`（`src/lib/avatar/outfit.ts`）：`g=1` 女（男不寫）、`s` 膚色（身體 id，2000 起）、`h` 髮型 id（個位數是髮色）、`f` 臉型 id（百位數是瞳色）、
+`w` 身上的道具 id 用「.」接（有寫就只穿這幾件，`w=` 是全脫；沒寫是預設衣服）、`p` 動作（stand／walk／alert／jump／prone／sit）、`e` 表情（default／smile／wink／angry／cry／troubled／bewildered／love）、`x=1` 翻面；
+`try=<id>` 是查資料進來用的：在那件的性別的預設角色身上穿上它（男女都能穿的看 `g`，沒寫就男），進來後網址改寫成上面那套。壞掉的參數各自退回預設，頁面照開。
+設計：`docs/superpowers/specs/2026-11-03-avatar-sim-design.md`。驗收：`npx vitest run src/lib/avatar`、`node --test pipeline/lib/avatar.test.mjs`；畫面用 `node scripts/verify/avatar-shot.mjs <網址，預設 http://localhost:9381> [輸出]`（埠 9382，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
+
 「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。活動期間（到 11/11 23:59 台灣）電腦版導覽列多一顆「萬聖節」（`navFor`），首頁角色列下面有入口卡；過了就自動不出現，頁面留著。
 能不能交易看上游道具的 `trade`（`unlimited` 而且沒有 `quest` 標記——上游把任務道具也標成 unlimited，遊戲裡其實不能交易），
 查的是任務原本要的那個編號（同名道具併成一筆時，各編號的狀態在 `tradeVariants`）。建置時 `pipeline/lib/buy-quests.mjs` 挑好寫進 `public/data/buy-quests.json`，
@@ -191,6 +199,18 @@ npm run data:verify   # 產出檢查，壞掉會 exit 1
 npm run data:guides   # 把 data/guides/ 的玩家攻略編成前端用的檔案（會對遊戲資料驗 id）
 npm run data:all      # 以上全跑
 ```
+
+#### 紙娃娃的道具清單（`public/data/avatar.json`，v1.40）
+
+`npm run data:gear`（`pipeline/build-gear.mjs`，邏輯在 `pipeline/lib/avatar.mjs`）從 `items.json` 產生：膚色 8 種、髮型（同一款不同髮色併一筆）、臉型（同一款不同瞳色併一筆）、
+12 類裝備＋點裝（帽子、套服、上衣、褲裙、鞋子、手套、披風、武器、眼飾、臉飾、耳環、盾牌），每筆記性別、是不是點裝、雙手武器，還有 maplestory.io 從台服或日服畫得出來。
+
+畫不畫得出來看凍結檔 `data/raw/msio-avatar.json`（進版控）：maplestory.io 遇到沒有的道具會默默不畫、照回 200，所以先比對它台服 TWMS 256、日服 JMS 444 的道具清單存起來，排程不打 maplestory.io。
+上游加了新點裝（`verify.mjs` 會印有幾件沒比對過）就手動 `node pipeline/fetch-msio-avatar.mjs`，再重跑 `npm run data:gear`。
+**注意**：`data:gear` 同時會重寫 `public/data/gear.json`，那份要讀 `data/raw/artale.json`（git 忽略、`npm run data:artale` 產生）；
+本機沒有這個檔就跑 `data:gear`，`gear.json` 會少掉 NPC 合成來源（只印一行警告、不會失敗）。先跑 `npm run data:artale`，或者只提交 `avatar.json`、把 `gear.json` 還原（`git checkout -- public/data/gear.json`）。
+沒比對過的新道具前端照樣列、標「暫時看不到樣子」；「畫得出來的比例 ≥ 0.9」只算比對過的（裝備看 id、髮型臉型看那款 8 個顏色有沒有比對過，`avatarCoverage`），
+上游一次加再多新點裝，每日資料更新也不會因此卡住。
 
 #### 用自己電腦上的客戶端資料（優先來源）
 
@@ -483,7 +503,8 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `speed_save` | 練功測速一段存上伺服器 | `job`、`level`、`level_band`、`map`、`minutes`、`ranked` |
 | `boss_room_create` | 野王計時開房間 | — |
 | `boss_room_join` | 加入房間 | `via`（code 打代碼／link 點連結） |
-| `share` | 野王計時複製房間連結、練功測速複製／下載分享圖 | `page`、`method` |
+| `avatar_download` | 紙娃娃按「下載」 | `gender`（男／女） |
+| `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃分享 | `page`（boss／speed／avatar）、`method`（野王計時、紙娃娃 copy_link 複製連結；紙娃娃 share 系統分享（只有手機、平板；電腦一律 copy_link）；練功測速 copy_image／download_image） |
 
 外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。
 
