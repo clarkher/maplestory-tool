@@ -298,8 +298,19 @@ test("拿新資料跑全套測試（pipeline＋vitest 全部，不是只跑首�
   const block = stepBlock("全套測試（含首頁每個組合的真資料檢查）");
   // --test-reporter=spec：Actions 上 node --test 預設是 TAP，失敗時通知 issue 的「最後 30 行」只剩統計、看不到哪支壞（code review）
   assert.match(block, /node --test --test-reporter=spec "pipeline\/\*\*\/\*\.test\.mjs"/);
-  assert.match(block, /npx vitest run --reporter=default\s*$/m);
+  assert.match(block, /npx vitest run --reporter=default --exclude "\*\*\/job-article\.test\.ts"\s*$/m);
   assert.doesNotMatch(block, /now-plan-realdata/);
+});
+
+test("攻略文跟新資料對不上不擋資料更新：全套測試不跑那支、另外檢查，篇名交給 notify 開 issue（v1.43）", () => {
+  assert.match(stepBlock("攻略文跟新資料對不對得上"), /run: node scripts\/job-article-check\.mjs/);
+  assert.match(stepBlock("攻略文跟新資料對不對得上"), /id: articles/);
+  assert.match(REFRESH, /broken_articles: \$\{\{ steps\.articles\.outputs\.broken_articles \}\}/);
+  const notify = stepBlock("攻略文被新資料打壞就開 issue");
+  assert.match(notify, /BROKEN: \$\{\{ needs\.refresh\.outputs\.broken_articles \}\}/);
+  // 篇名只走 env、先擋格式：refresh 那邊跑過第三方的東西，它給的字串不直接進指令
+  assert.doesNotMatch(notify.slice(notify.indexOf("run: |")), /needs\.refresh/);
+  assert.match(notify, /\*\[!0-9\\ -\]\*/);
 });
 
 test("全套測試設 SPEED_NAMES_MAY_LAG：新地圖還沒產練功測速的字形樣板（要 Windows 字型）不擋自動更新（v1.10）", () => {

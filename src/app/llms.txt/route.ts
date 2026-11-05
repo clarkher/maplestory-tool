@@ -1,12 +1,25 @@
+import { articlePath, articleRangeLabel } from "@/lib/job-article";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
-import { staticGuide, staticGuideJobs, staticMeta } from "@/lib/static-data";
+import { staticGuide, staticGuideJobs, staticJobArticleKeys, staticMeta } from "@/lib/static-data";
 
 /**
  * /llms.txt：給 AI（ChatGPT、Claude、Perplexity…）讀的網站說明（llmstxt.org 的格式）。
  * 寫這個站是什麼、每一頁能查什麼、資料從哪來，AI 回答經典版問題時比較會引用、也比較不會講錯。
  */
 export const dynamic = "force-static";
+
+/** 分等級攻略文：有文章才有這一區 */
+function articleLines(): string[] {
+  const keys = staticJobArticleKeys();
+  if (!keys.length) return [];
+  return [
+    "## 分等級攻略文（去哪練、幾下打死、幾等不 MISS，數字由站上計算）",
+    "",
+    ...keys.map(({ job, from, to }) => `- [${staticGuide(job).name} ${articleRangeLabel(from, to)}](${SITE_URL}${articlePath(job, from, to)})`),
+    "",
+  ];
+}
 
 export function GET() {
   const meta = staticMeta();
@@ -26,6 +39,7 @@ export function GET() {
     "",
     ...staticGuideJobs().map(job => `- [${staticGuide(job).name}](${SITE_URL}/jobs/${job})`),
     "",
+    ...articleLines(),
     "## 單筆資料頁",
     "",
     `- 怪物：${SITE_URL}/db/monsters/<怪物編號>，例 ${SITE_URL}/db/monsters/100100（嫩寶）`,

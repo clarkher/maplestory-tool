@@ -82,6 +82,9 @@ export function baseJob(job: number): number {
   return job > 0 ? Math.floor(job / 100) * 100 : 0;
 }
 
+/** 台服經典版 V002 的等級上限（2026-10-15 起）。開放新內容時要一起改這裡與 pipeline/build.mjs 的 RELEASE（含 mapRegions）。 */
+export const LEVEL_CAP = 120;
+
 export type JobTier = 0 | 1 | 2 | 3;
 
 /** 第幾轉：初心者與不認得的代碼 0、一轉（100）1、二轉（110）2、三轉（111）3 */

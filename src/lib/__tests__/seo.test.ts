@@ -48,6 +48,11 @@ describe("seo：給搜尋引擎跟 AI 讀的那一段話", () => {
     expect(questSummary({ id: "1", n: "測試", cat: "活動", minLv: 30 })).toBe("「測試」是活動任務，Lv.30 以上可接。");
   });
 
+  it("任務：NPC 沒有地圖名時不寫「找的某某接」", () => {
+    const quest = { id: "1", n: "測試", cat: "稱號", minLv: 30, sNpc: { id: 1, n: "達利額" } } as Quest;
+    expect(questSummary(quest)).toBe("「測試」是稱號任務，Lv.30 以上可接，找達利額接。");
+  });
+
   it("技能：職業、幾轉、最高幾級，接遊戲說明（去掉等級上限那段）", () => {
     const skill: Skill = {
       id: 12, n: "精靈的祝福", job: 0, jobName: "冒險之技", group: "初心者/共通", adv: "零轉", max: 20,

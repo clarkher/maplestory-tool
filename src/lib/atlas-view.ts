@@ -2,7 +2,9 @@
  * 地圖頁（/db/maps/[id]）、NPC 頁（/db/npcs/[id]）用的純函式：圖上標點位置、怪物顏色、等級範圍、摘要句、商店列。
  */
 import { shopOpen, shopPriceText, untilText } from "./item-view";
-import type { AtlasIndex, AtlasMap, AtlasNpc } from "./types";
+import { npcWarp } from "./portal-text";
+import { findRoute, suggestStart } from "./route";
+import type { AtlasIndex, AtlasMap, AtlasNpc, MapRecord, PortalEdge } from "./types";
 
 /** 怪物圓點固定 6 色，依序給，超過就循環 */
 export const MOB_COLORS = ["#3f8f4f", "#d4553a", "#2f9fb0", "#c9a23a", "#8a5cc7", "#d0679d"] as const;
@@ -69,6 +71,38 @@ export function mapSummary(map: AtlasMap, nameOf: (id: number) => string | undef
   if (!parts.length) return `${head}。`;
   // 第一段不是「有…」時要補個逗號接在圖名後面
   return parts[0].startsWith("有") ? `${head}${parts.join("，")}。` : `${head}，${parts.join("，")}。`;
+}
+
+/** 路線比這長就只留頭尾，不然搜尋結果那段話全是地名 */
+const ROUTE_MAX_STEPS = 6;
+
+/**
+ * 「怎麼去：從<城鎮>出發，A → B → C。」跟 /go 同一套路線。
+ * 城鎮自己、走不到、路上有沒中文名的圖就是 null，不寫半套。NPC 傳送那段一定要寫，所以有的話不省略。
+ */
+export function mapRouteText(
+  target: number,
+  graph: Record<string, PortalEdge[]>,
+  maps: Record<string, MapRecord>,
+  nearestTown: Record<string, [number, number]>,
+): string | null {
+  const town = suggestStart(graph, maps, nearestTown, target);
+  if (!town || town === target) return null;
+  const route = findRoute(graph, town, target);
+  if (!route.ok) return null;
+  const steps = route.steps.slice(1);
+  if (!steps.length || steps.some(step => !maps[String(step.map)]?.zh)) return null;
+  const label = (step: (typeof steps)[number]) => {
+    const name = maps[String(step.map)].zh;
+    const warp = npcWarp(step.via);
+    if (!warp) return name;
+    return `找${warp.npc}${step.minLevel === undefined ? "" : `（Lv.${step.minLevel} 以上）`} → ${name}`;
+  };
+  const shorten = steps.length > ROUTE_MAX_STEPS && steps.every(step => !npcWarp(step.via));
+  const path = shorten
+    ? [...steps.slice(0, 3).map(label), `…（共 ${steps.length} 張）`, ...steps.slice(-2).map(label)]
+    : steps.map(label);
+  return `怎麼去：從${maps[String(town)].zh}出發，${path.join(" → ")}。`;
 }
 
 /** 標籤放點的上面（up）或下面（down） */

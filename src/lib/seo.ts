@@ -13,6 +13,14 @@ export const SITE_URL = "https://maplehelper.tw";
 export const HOME_TITLE = "楓谷幫手｜楓之谷經典版 各職業升級路線、技能配點、必解任務";
 export const TITLE_TEMPLATE = "%s｜楓之谷經典版｜楓谷幫手";
 export const SITE_NAME = "楓谷幫手";
+/** 頁面自己的 openGraph 會整包蓋掉 layout 的，要分享預覽圖的頁面把這包帶上 */
+export const OG_BASE = { type: "website" as const, locale: "zh_TW", siteName: SITE_NAME, images: [{ url: "/og.jpg", width: 1200, height: 630, alt: SITE_NAME }] };
+
+/** 文章日期 YYYY-MM-DD 加上台灣時區：只寫日期的話，搜尋引擎照自己的時區讀，可能差一天。給 og、JSON-LD；sitemap 的 lastmod、畫面照舊寫日期 */
+export const taiwanDateTime = (date: string) => `${date}T00:00:00+08:00`;
+
+/** 全站 robots：max-image-preview:large 是 Google Discover 放大圖的條件 */
+export const SITE_ROBOTS = { index: true, follow: true, "max-image-preview": "large" as const };
 
 /** 頁面描述切在 150 字內：Google 搜尋結果大約只顯示這麼長 */
 export function clip(text: string, max = 150): string {
@@ -41,7 +49,7 @@ export function questSummary(quest: Quest): string {
   const level = levelText(quest.minLv, quest.maxLv);
   // 「Lv.8～13 可接」中間空一格，「Lv.30 以上可接」不用
   let text = `「${quest.n}」是${quest.cat}任務${level ? `，${level}${/以[上下]$/.test(level) ? "" : " "}可接` : ""}`;
-  if (quest.sNpc) text += `，找${quest.sNpc.mapName ?? ""}的${quest.sNpc.n}接`;
+  if (quest.sNpc) text += `，找${quest.sNpc.mapName ? `${quest.sNpc.mapName}的` : ""}${quest.sNpc.n}接`;
   text += "。";
   const mobs = (quest.needMobs ?? []).map(mob => `${mob.n}${mob.c ? ` ${mob.c} 隻` : ""}`);
   if (mobs.length) text += `要打${mobs.join("、")}。`;
@@ -96,6 +104,24 @@ export function websiteLd() {
     url: `${SITE_URL}/`,
     inLanguage: "zh-Hant-TW",
     description: "台服新楓之谷經典版的規劃工具：各職業升級路線、練功地圖、技能配點、必解任務、怪物與任務資料。",
+  };
+}
+
+/** 攻略文：Discover、搜尋結果看的文章資料。作者、發布者都寫站本身，文章裡的寫手是虛構角色，不准填進來 */
+export function articleLd({ headline, description, path, images, published, modified }: { headline: string; description: string; path: string; images: string[]; published: string; modified: string }) {
+  const site = { "@type": "Organization", name: SITE_NAME, url: SITE_URL };
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline,
+    description,
+    image: images,
+    datePublished: taiwanDateTime(published),
+    dateModified: taiwanDateTime(modified),
+    author: site,
+    publisher: site,
+    mainEntityOfPage: { "@type": "WebPage", "@id": `${SITE_URL}${path}` },
+    inLanguage: "zh-Hant-TW",
   };
 }
 

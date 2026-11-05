@@ -3,8 +3,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SeoLinks, SeoPage, SeoSection } from "@/components/SeoPage";
 import { levelRange, sourceLabels } from "@/lib/format";
-import { breadcrumbLd, clip, jobGuideSummary, webPageLd } from "@/lib/seo";
-import { staticGuide, staticGuideJobs, staticModified, staticMonsters, staticSkills } from "@/lib/static-data";
+import { articlePath, articleRangeLabel } from "@/lib/job-article";
+import { breadcrumbLd, clip, jobGuideSummary, OG_BASE, webPageLd } from "@/lib/seo";
+import { staticGuide, staticGuideJobs, staticJobArticleRanges, staticModified, staticMonsters, staticSkills } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${guide.name}攻略｜配點、技能點法、各等級練功地圖`,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${guide.name}攻略｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${guide.name}攻略｜楓谷幫手`, description, url: path },
   };
 }
 
@@ -57,6 +58,7 @@ export default async function Page({ params }: Props) {
   const monsterNames = new Map(staticMonsters().map(monster => [monster.id, monster.n]));
   const skills = staticSkills().filter(skill => skill.job === guide.job);
   const others = staticGuideJobs().filter(job => job !== guide.job).map(job => staticGuide(job));
+  const articles = staticJobArticleRanges(guide.job);
 
   return (
     <SeoPage
@@ -70,6 +72,12 @@ export default async function Page({ params }: Props) {
         webPageLd({ name: `${guide.name}攻略`, path, description: clip(summary), modified: staticModified() }),
       ]}
     >
+      {articles.length ? (
+        <SeoSection title="分等級攻略">
+          <SeoLinks links={articles.map(({ from, to }) => ({ href: articlePath(guide.job, from, to), text: articleRangeLabel(from, to) }))} />
+        </SeoSection>
+      ) : null}
+
       {guide.stat.length ? (
         <SeoSection title="素質怎麼配">
           <ul className="list-disc space-y-1.5 pl-5 text-sm leading-relaxed">

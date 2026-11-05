@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -93,6 +93,16 @@ node scripts/verify/pages-first-frame.mjs <輸出> <網址>
 - 每一格記兩份：rAF（畫出來之前）跟 MutationObserver（DOM 每次變動）。`painted`／`dom` 只留跟上一格不一樣的狀態，
   只有一個狀態＝第一格就是結果。
 - 輸出：`P*-*.png` 截圖、`results.json`（含 console 跟 hydration 警告）。console 印整份 JSON，自己判讀。
+
+#### `cf-segments.mjs`：靜態輸出的預先載入檔有沒有壞、換頁有沒有整頁重載（v1.47）
+
+```bash
+node scripts/verify/cf-segments.mjs <輸出> <網址> [埠]
+```
+
+- 每頁整頁打開、捲到底觸發預先載入，記所有 `.txt` 請求的狀態碼；再站內換到下一頁（有連結就點，沒有就 `router.push`），留記號判斷有沒有整頁重載。
+- `REPEAT=3` 每組量幾次、`CPU=4` CPU 慢 4 倍、`PAGES=/a,/b` 換頁順序（Git Bash 要加 `MSYS_NO_PATHCONV=1`）。
+- 有 `.txt` 回 4xx／5xx 或整頁重載就 exit 1。Vercel 不走 `.txt`，請求數是 0，只比換頁時間。輸出 `results.json`。
 
 ### 捲動、按返回、重新整理
 
@@ -516,6 +526,33 @@ node scripts/verify/fx-shot.mjs <輸出> [網址，預設 http://localhost:3000]
 - 網址用 `localhost`，不要用 `127.0.0.1`。
 
 ### 紙娃娃
+
+#### `article-layout.mjs`：攻略文版面，沒過 exit 1（v1.49，埠 9499）
+
+```
+MSYS_NO_PATHCONV=1 node scripts/verify/article-layout.mjs [網址，預設 http://localhost:9485] [輸出] [文章路徑，逗號隔開] [DevTools 埠]
+```
+
+手機 390 寬跟筆電 1280×720 第一屏都看得到結論框開頭、頁面不橫捲、主圖 16:9 不 lazy、路線卡圖手機在右側約 42%、電腦版約 28%；存第一屏、路線卡、電腦版截圖。Git Bash 要加 `MSYS_NO_PATHCONV=1`，不然 `/guides/...` 會被改成 Windows 路徑，輸出路徑要寫 `C:/...`。`images.gen.json` 有的圖頁面一定要有，頁面沒圖算沒過（拿舊的 `out/` 跑會紅，不會默默略過）；清單沒有的篇只量署名跟結論框。**像素圖清不清楚腳本量不出來，要看截圖。**
+
+#### `article-page.mjs`：攻略文的 meta、JSON-LD、圖，沒過 exit 1（埠 9503）
+
+```
+MSYS_NO_PATHCONV=1 node scripts/verify/article-page.mjs [網址，預設 http://localhost:9485] [輸出] [文章路徑，逗號隔開] [DevTools 埠]
+```
+
+5 篇逐一查：canonical、`og:url`、robots 大圖預覽、`og:type`、`og:image`（是這篇 `hero.jpg`、寬高對清單）、og 日期帶 `+08:00`、`twitter` 大圖；JSON-LD 都解析得開、都在 body，Article 的作者發布者是站、日期帶時區、麵包屑四層、WebPage；`hero.jpg` 真的 200、`image/jpeg`、至少 1200 寬、16:9；主圖真實尺寸對清單、不 lazy；路線卡圖跟清單同一組（同地圖連寫兩步只放一張）；390、360、1280 寬一路捲到底圖全部載入、頁面不橫捲。
+
+**一定要跑新建的輸出**：`out/` 比 `images.gen.json` 舊時圖會缺，這支會紅（故意的）。`og:image`、canonical 都寫死正式網域，測試機也一樣，所以這支只比路徑、圖本身用當前網址抓；**上正式機後還要 `curl -I https://maplehelper.tw/assets/guides/<slug>/hero.jpg` 看一次 200，用 Search Console 查一次**，進 dev 前這張網址本來就是 404。
+
+#### `article-calc-link.mjs`：攻略文表下的連結真的點一次，沒過 exit 1（v1.44，埠 9395）
+
+```bash
+node scripts/verify/article-calc-link.mjs [網址，預設 http://localhost:9485] [輸出] [DevTools 埠，預設 9395]
+```
+
+存刺客 Lv.35 跟沒存角色各跑 5 篇：點「開計算機改成自己的數值」要開對職業、武器、招式，重新整理一樣；帶參數的頁按導覽列「算傷害」回玩家自己的角色。
+這條路只有站內點才抓得到（之前 `useMemo` 讀 `window.location`，直接開網址對、點連結沒作用）。文章的表換武器要改腳本上面的 `CASES`。
 
 #### `avatar-shot.mjs`：跑一次紙娃娃頁 `/plan/avatar`（v1.40、v1.41，埠 9382）
 

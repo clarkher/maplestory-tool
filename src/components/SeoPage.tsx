@@ -21,7 +21,8 @@ export function SeoPage({
   /** 麵包屑：首頁之後的每一層，最後一層是這一頁 */
   trail: { name: string; path: string }[];
   title: string;
-  lead: string;
+  /** 大標下面那段話；攻略文大標底下接主圖，不放 */
+  lead?: string;
   image?: string;
   /** 大標旁那張圖的邊長（px）；NPC 頁的人比較高，放大一點 */
   imageSize?: number;
@@ -66,7 +67,7 @@ export function SeoPage({
             {kicker ? <p className="text-[13px] font-bold ink-soft">{kicker}</p> : null}
             <h1 className="text-[26px] font-black leading-tight tracking-tight sm:text-[32px]">{title}</h1>
             {chips ? <div className="mt-2 flex flex-wrap gap-1.5">{chips}</div> : null}
-            <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">{lead}</p>
+            {lead ? <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">{lead}</p> : null}
           </div>
         </header>
         {children}
