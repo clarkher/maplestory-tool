@@ -5,9 +5,9 @@ import { AtlasCard, DoorRows, MobRows, NpcRows } from "@/components/atlas/rows";
 import { MapView } from "@/components/atlas/MapView";
 import { SeoPage } from "@/components/SeoPage";
 import { mapRenderImage } from "@/lib/asset-paths";
-import { doorList, levelRange, mapSection, mapSummary, openShopCount } from "@/lib/atlas-view";
+import { doorList, levelRange, mapRouteText, mapSection, mapSummary, openShopCount } from "@/lib/atlas-view";
 import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
-import { staticAtlasIndex, staticAtlasMaps, staticMapRenders, staticMaps, staticModified, staticNpcs } from "@/lib/static-data";
+import { staticAtlasIndex, staticAtlasMaps, staticGraph, staticMapRenders, staticMaps, staticModified, staticNearestTown, staticNpcs } from "@/lib/static-data";
 import type { AtlasMap } from "@/lib/types";
 
 type Props = { params: Promise<{ id: string }> };
@@ -27,13 +27,21 @@ function mapName(id: number): string | undefined {
   return staticAtlasMaps().find(map => map.id === id)?.n || staticMaps()[String(id)]?.zh || undefined;
 }
 
+/** 開頭那段話：路線放前面，搜尋結果顯示得到；玩家搜「○○怎麼去」最多 */
+function leadText(map: AtlasMap): string {
+  const route = mapRouteText(map.id, staticGraph(), staticMaps(), staticNearestTown());
+  const summary = leadText(map);
+  return route ? `${route}${summary}` : summary;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const map = find((await params).id);
   if (!map) return {};
   const path = `/db/maps/${map.id}`;
-  const description = clip(mapSummary(map, mapName));
+  const description = clip(leadText(map));
   return {
-    title: `${map.n}｜怪物、NPC、傳送門`,
+    // 寫不出路線的圖（城鎮自己、走不到）標題就不寫「怎麼去」
+    title: routeText(map) ? `${map.n}｜怎麼去、怪物、NPC` : `${map.n}｜怪物、NPC、傳送門`,
     description,
     alternates: { canonical: path },
     openGraph: { title: `${map.n}｜楓谷幫手`, description, url: path },
