@@ -6,7 +6,7 @@
 //   B 直接從查資料進站 → 點「我的路線」：第一格要有角色（路線可以還在排，第一次一定要下載）
 //   C 首頁按「等級加一」：角色列跟主推卡標題立刻換成新等級；站內換到練功頁，第一格的等級就是新的
 //   D 硬重新整理首頁：記第一格（允許「讀取你的角色…」，v0.54 起不准出現「你現在幾等、什麼職業？」），收 hydration 警告
-//   D2 沒存過角色的人硬重新整理：讀到之後才出現「你現在幾等、什麼職業？」跟選職業
+//   D2 沒存過角色的人硬重新整理：第一格就看得到「你現在幾等、什麼職業？」跟選職業（v1.56 起不先放讀取中）
 //   E 沒選職業：首頁 → 查資料 → 點「我的路線」，第一格是選職業畫面，不是讀取中
 //   F 存了不可能的組合（狂戰士 25 等）：首頁顯示劍士 25 等
 //   G 道具頁的「狂戰士能用」標籤照常出現（v0.55 起是標籤按鈕，之前是「誰能用」下拉）
@@ -142,7 +142,8 @@ const TOOLS = `
       h: document.documentElement ? document.documentElement.scrollHeight : 0,
       belowBar: (() => { const bar = q('section[aria-label="你的角色"]'); return bar ? Math.round(document.documentElement.scrollHeight - (bar.getBoundingClientRect().top + scrollY)) : null; })(),
       loadingRole: text.includes("讀取你的角色"),
-      character: !!q('section[aria-label="你的角色"]'),
+      // 伺服器畫的版本就有角色列（存過角色的人藏著，v1.56）：要看得到才算
+      character: !!q('section[aria-label="你的角色"]')?.checkVisibility(),
       picker: text.includes("你現在幾等、什麼職業"),
       planning: text.includes("幫你排路線"),
       now: !!q('main article[aria-label="現在去這裡"]:not([aria-busy])'),
@@ -471,7 +472,7 @@ try {
     const rec = await evaluate("window.__rec");
     await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
     await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(JSON.stringify(BERSERKER_45))}); "ok"`);
-    // 讀到角色（沒存過）之後才出現「你現在幾等、什麼職業？」跟選職業
+    // 第一格就看得到「你現在幾等、什麼職業？」跟選職業，之後都不變（v1.56）
     return {
       paintedStates: states(rec.frames.filter(f => f.path === "/")).map(s => ({ t: s.t, h: s.h, loadingRole: s.loadingRole, character: s.character, picker: s.picker })),
       shot: await shot("D2-first-visit.png"),
