@@ -29,7 +29,7 @@ import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopPrice, shopRows } from "./lib/shops.mjs";
 import { buyQuestIds, buyQuestShops, buyQuestSkills, tradeTable } from "./lib/buy-quests.mjs";
-import { givenRewardRows, rewardSkillNames, splitStartNone } from "./lib/quest-fields.mjs";
+import { givenRewardRows, rewardSkillNames, splitPreQuests, splitStartNone } from "./lib/quest-fields.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
@@ -623,10 +623,12 @@ function buildQuests(artale, maps, jobs, canonItem, skillsById) {
     return codes.some(code => (advOf.get(code) ?? 0) <= RELEASE.maxAdvancementOrder);
   };
 
-  const list = (artale.quests || [])
+  const open = (artale.quests || [])
     .filter(quest => (quest.minLevel ?? 0) <= RELEASE.levelCap)
-    .filter(quest => reachableJob(quest.startRequirements?.jobs))
-    .map(quest => {
+    .filter(quest => reachableJob(quest.startRequirements?.jobs));
+  const listed = new Set(open.map(quest => String(quest.id)));
+
+  const list = open.map(quest => {
     const start = quest.startRequirements || {};
     const complete = quest.completeRequirements || {};
     const rewards = quest.completeRewards || {};
@@ -639,7 +641,8 @@ function buildQuests(artale, maps, jobs, canonItem, skillsById) {
       minLv: quest.minLevel ?? undefined,
       maxLv: quest.maxLevel ?? undefined,
       jobs: start.jobs?.length ? start.jobs : undefined,
-      pre: start.quests?.length ? start.quests.map(entry => String(entry.id ?? entry)) : undefined,
+      // 前置照上游的狀態分：要先完成／要進行中／不能接過（lib/quest-fields.mjs）
+      ...splitPreQuests(start.quests, listed),
       next: quest.nextQuest ? String(quest.nextQuest) : undefined,
       sNpc: npcRef(quest.startNpc, maps),
       eNpc: npcRef(quest.endNpc, maps),

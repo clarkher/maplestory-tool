@@ -4,6 +4,7 @@
  */
 import { formatNumber } from "./format";
 import { isDevQuest, jobLineage, questEligible } from "./planner";
+import { closedByDone } from "./quest-view";
 import type { BuyQuestData, Profile, Quest, QuestRef, QuestReward, ShopRow } from "./types";
 
 /** 單一道具要這麼多個以上，卡片提醒拍賣可能要分幾次才買得齊 */
@@ -169,7 +170,7 @@ export function buyQuestRows(data: BuyQuestData, quests: Quest[], options: BuyQu
     .filter((quest): quest is Quest => quest !== undefined)
     .filter(quest => !isDevQuest(quest))
     .filter(quest => !region || quest.cat === region)
-    .filter(quest => !done.has(quest.id))
+    .filter(quest => !done.has(quest.id) && !closedByDone(quest, done))
     .filter(quest => !eligible || questEligible(quest, eligible, lineage))
     .map((quest): BuyQuestRow => {
       const shops = new Map<number, ShopRow>();

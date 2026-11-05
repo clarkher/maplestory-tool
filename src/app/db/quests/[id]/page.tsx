@@ -53,7 +53,7 @@ export default async function Page({ params }: Props) {
   const path = `/db/quests/${quest.id}`;
   const summary = questSummary(quest);
   const questNames = new Map(
-    [...(quest.pre ?? []), ...(quest.next ? [quest.next] : [])].flatMap(id => {
+    [...(quest.pre ?? []), ...(quest.preNot ?? []), ...(quest.next ? [quest.next] : [])].flatMap(id => {
       const found = all.find(other => other.id === id);
       return found ? [[id, found.n] as [string, string]] : [];
     }),
