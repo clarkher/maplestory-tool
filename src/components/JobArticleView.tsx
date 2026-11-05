@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
-import { articleDamageHref, assumptionLines, avgText, hitLvText, stepImageAlt, tableGearLine, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
+import { articleDamageHref, assumptionLines, avgText, hitLvText, stepImageAlt, tableGearLine, withOneTargetCell, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { SeoLinks, SeoPage } from "./SeoPage";
 
@@ -96,10 +96,13 @@ export function JobArticleTable({ table }: { table: CalcTable }) {
         <thead className="bg-[color:var(--paper-deep)] text-left text-[13px] font-bold">
           <tr>
             <th scope="col" className={`${STICKY_CELL} bg-[color:var(--paper-deep)] px-3 py-2 align-bottom`}>怪</th>
-            {heal ? <th scope="col" className={CALC_HEAD}>{assumptions.skill.name}打 1 隻<span className="block font-normal">Lv.{midLevel}</span></th> : null}
-            {columns.map(column => (
-              <th key={column.level} scope="col" className={CALC_HEAD}>{column.targets ? `範圍 ${column.targets} 隻` : heal ? column.skill.name : "幾下"}<span className="block font-normal">Lv.{column.level}</span></th>
-            ))}
+            {withOneTargetCell(
+              table,
+              columns.map(column => (
+                <th key={column.level} scope="col" className={CALC_HEAD}>{column.targets ? `範圍 ${column.targets} 隻` : heal ? column.skill.name : "幾下"}<span className="block font-normal">Lv.{column.level}</span></th>
+              )),
+              <th key="one" scope="col" className={CALC_HEAD}>{assumptions.skill.name}打 1 隻<span className="block font-normal">Lv.{midLevel}</span></th>,
+            )}
             <th scope="col" className={CALC_HEAD}>幾等不 MISS</th>
             <th scope="col" className="px-3 py-2 text-right align-bottom">等級</th>
             <th scope="col" className="px-3 py-2 text-right align-bottom">HP</th>
@@ -117,10 +120,13 @@ export function JobArticleTable({ table }: { table: CalcTable }) {
                   {row.name}
                 </Link>
               </td>
-              {heal ? <td className={NUMBER_CELL}>{avgText(row.avgOne)}</td> : null}
-              {row.avgs.map((avg, index) => (
-                <td key={columns[index].level} className={`${NUMBER_CELL} font-bold`}>{avgText(avg)}</td>
-              ))}
+              {withOneTargetCell(
+                table,
+                row.avgs.map((avg, index) => (
+                  <td key={columns[index].level} className={`${NUMBER_CELL} font-bold`}>{avgText(avg)}</td>
+                )),
+                <td key="one" className={NUMBER_CELL}>{avgText(row.avgOne)}</td>,
+              )}
               <td className={NUMBER_CELL}>{hitLvText(row, table)}</td>
               <td className={NUMBER_CELL}>{row.lv ?? "—"}</td>
               <td className={NUMBER_CELL}>{formatNumber(row.hp)}</td>
