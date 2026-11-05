@@ -705,7 +705,7 @@ describe("頁面（文章清單換成假資料）", () => {
     const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
     const html = renderToString(JobArticleTable({ table }));
     const head = html.slice(html.indexOf("<thead"), html.indexOf("</thead>"));
-    const order = ["打 1 隻", "範圍 3 隻", "幾等不 MISS", "等級", "HP", "魔防", "經驗"].map(text => head.indexOf(text));
+    const order = ["範圍 3 隻", "打 1 隻", "幾等不 MISS", "等級", "HP", "魔防", "經驗"].map(text => head.indexOf(text));
     expect(order.every(index => index > 0)).toBe(true);
     expect(order).toEqual([...order].sort((a, b) => a - b));
     const stuck = [...html.matchAll(/<(th|td)[^>]*class="([^"]*sticky[^"]*)"[^>]*>/g)];
