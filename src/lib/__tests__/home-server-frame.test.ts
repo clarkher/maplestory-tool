@@ -15,6 +15,11 @@ describe("首頁伺服器畫的版本", () => {
     expect(html).toContain("先選職業跟等級");
   });
 
+  it("選單的職業按鈕接手前按了記得住（劍士～海盜、初心者）", () => {
+    expect(html).toContain("window.__earlyPick");
+    for (const job of [100, 200, 300, 400, 500, 0]) expect(html).toContain(`data-job="${job}"`);
+  });
+
   it("讀取中平常不顯示，只有存過角色的人看得到", () => {
     expect(html).toMatch(/<div class="hidden \[\[data-profile=saved\]_&amp;\]:block"><div role="status"/);
     expect(html).toContain("讀取你的角色…");
