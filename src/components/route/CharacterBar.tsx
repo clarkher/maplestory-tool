@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronRight } from "@/components/Icons";
 import { loadGuide } from "@/lib/data";
 import { guidesToPrefetch } from "@/lib/home-data";
@@ -10,6 +10,14 @@ import {
 } from "@/lib/jobs";
 import { LEVEL_CAP } from "@/lib/profile";
 import type { Profile } from "@/lib/types";
+
+/**
+ * 選單第一格就畫出來，但程式要下載完才接手（慢手機差好幾秒）。這段跟著伺服器畫的版本先跑，記住接手前按的職業，接手時補做，
+ * 不會按了沒反應。（打在等級輸入框的字瀏覽器自己留著，接手時也補進去，見 CharacterBar 裡的 useLayoutEffect。）
+ */
+const EARLY_PICK = `(function(){var f=window.__earlyPick=function(e){var b=e.target.closest&&e.target.closest("[data-job]");if(b)f.job=+b.getAttribute("data-job")};document.addEventListener("click",f,true)})()`;
+
+type EarlyPick = ((event: MouseEvent) => void) & { job?: number };
 
 /**
  * 角色列：職業＋等級。升級了改這裡，整頁跟著換。
@@ -38,6 +46,24 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
   useEffect(() => {
     setLevelText(profile.level ? String(profile.level) : "");
   }, [profile.level]);
+
+  // 程式接手：第一次畫先把接手前打的字記下來（下一次畫，React 會用空字串蓋掉輸入框）；讀到本機角色之後才補做，才不會蓋掉存過的角色
+  const levelInput = useRef<HTMLInputElement>(null);
+  const earlyLevel = useRef("");
+  useLayoutEffect(() => {
+    if (pending) {
+      earlyLevel.current = levelInput.current?.value ?? "";
+      return;
+    }
+    const holder = window as unknown as { __earlyPick?: EarlyPick };
+    const early = holder.__earlyPick;
+    if (early) {
+      document.removeEventListener("click", early, true);
+      holder.__earlyPick = undefined;
+    }
+    if (early?.job !== undefined) pickJob(early.job, earlyLevel.current);
+    else if (earlyLevel.current) setLevel(earlyLevel.current);
+  }, [pending]);
 
   useEffect(() => {
     if (incomplete) setEditing(true);
@@ -125,8 +151,8 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
    * 不允許就把輸入框改回實際等級——輸入框跟標題不會對不起來。
    * 手滑點到二轉被拉到 30 時記住原本的等級，點回允許那個等級的職業就改回去（pickJobKeepingLevel）。
    */
-  function pickJob(id: number) {
-    const typed = Number(levelText.replace(/[^0-9]/g, ""));
+  function pickJob(id: number, text = levelText) {
+    const typed = Number(text.replace(/[^0-9]/g, ""));
     const { next, note, raisedFrom: memory } = pickJobKeepingLevel(profile, id, typed > 0 ? Math.min(LEVEL_CAP, typed) : undefined, raisedFrom.current);
     raisedFrom.current = memory;
     setHint(note);
@@ -136,6 +162,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
 
   return (
     <section aria-label="你的角色" className={`rounded-[var(--radius-card)] glass wood-frame p-3 sm:p-4${pending ? " [[data-profile=saved]_&]:hidden" : ""}`}>
+      {pending ? <script dangerouslySetInnerHTML={{ __html: EARLY_PICK }} /> : null}
       <div className="flex items-start gap-3">
         <Image
           src={jobAvatar(profile.job) ?? "/brand-emblem.png"}
@@ -183,6 +210,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => step(-1)} disabled={profile.level > 0 && profile.level <= min} className="tap-safe grid w-11 place-items-center rounded-xl border border-[color:var(--paper-edge)] text-lg font-black disabled:opacity-40" aria-label="等級減一">−</button>
               <input
+                ref={levelInput}
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -219,6 +247,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
                       <button
                         key={line.base}
                         type="button"
+                        data-job={line.base}
                         onMouseDown={keepTyping}
                         onClick={() => pickJob(line.base)}
                         aria-pressed={selected}
@@ -257,6 +286,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
 
               <button
                 type="button"
+                data-job={0}
                 onMouseDown={keepTyping}
                 onClick={() => pickJob(0)}
                 aria-pressed={profile.job === 0}
