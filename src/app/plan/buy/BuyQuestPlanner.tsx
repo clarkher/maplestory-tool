@@ -14,6 +14,7 @@ import { formatNumber, rewardSummary } from "@/lib/format";
 import { npcPlace } from "@/lib/go-label";
 import { readGoStart } from "@/lib/go-start";
 import { useProfile } from "@/lib/profile";
+import { preVerb } from "@/lib/quest-view";
 import { useRemembered } from "@/lib/remember";
 import type { BuyQuestData, Quest, QuestNpc } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
@@ -242,7 +243,7 @@ function BuyCard({ row, onToggleDone }: { row: BuyQuestRow; onToggleDone: (id: s
       {pre.length ? (
         <div className="space-y-1 text-[13px]">
           <p>
-            <span className="ink-faint">要先做：</span>
+            <span className="ink-faint">{preVerb(quest, pre)}：</span>
             {pre.map((item, index) => (
               <span key={item.id}>
                 {index > 0 ? "、" : ""}
