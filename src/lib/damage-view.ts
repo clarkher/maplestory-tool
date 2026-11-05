@@ -58,16 +58,16 @@ export { LEVEL_CAP };
 /** 「沒點精準技能」提醒的後半句：只有計算機頁下面有那個欄位，攻略文的假設行要拿掉 */
 export const MASTERY_EDIT_HINT = "，可在下面「技能等級」改";
 
-/** 別的頁連過來時帶的東西（攻略文表下的連結）：職業、等級、武器、招式、群體治癒範圍內幾隻，開出來就是表上那一組 */
-export type DamageLink = { job: number; level: number | null; weapon: number | null; skill: number | null; targets: number | null };
+/** 別的頁連過來時帶的東西（攻略文表下的連結）：職業、等級、武器、招式、群體治癒範圍內幾隻、能力值（文章有配點上限才帶），開出來就是表上那一組 */
+export type DamageLink = { job: number; level: number | null; weapon: number | null; skill: number | null; targets: number | null; stats: Record<StatKey, number> | null };
 
-export function damageLinkHref(job: number, level: number, extra: { weapon?: number | null; skill?: number | null; targets?: number | null } = {}): string {
+export function damageLinkHref(job: number, level: number, extra: { weapon?: number | null; skill?: number | null; targets?: number | null; str?: number; dex?: number; int?: number; luk?: number } = {}): string {
   const params = new URLSearchParams({ job: String(job), level: String(level) });
   for (const [key, value] of Object.entries(extra)) if (value) params.set(key, String(value));
   return `/plan/damage?${params}`;
 }
 
-/** 網址的 ?job=&level=&weapon=&skill=&targets=：職業要是真的職業才作用，等級夾在職業範圍，隻數不是 1～5 的整數當沒帶（存檔的 isShared 也只收這個範圍）；只讀不存，使用者存好的角色不動 */
+/** 網址的 ?job=&level=&weapon=&skill=&targets=&str=&dex=&int=&luk=：職業要是真的職業才作用，等級夾在職業範圍，隻數不是 1～5 的整數當沒帶（存檔的 isShared 也只收這個範圍），能力值四項都是整數才算；只讀不存，使用者存好的角色不動 */
 export function parseDamageLink(search: string): DamageLink | null {
   const params = new URLSearchParams(search);
   const job = Number(params.get("job"));
@@ -78,20 +78,30 @@ export function parseDamageLink(search: string): DamageLink | null {
     return value > 0 ? value : null;
   };
   const targets = positive("targets");
-  return { job, level: level > 0 ? clampLevel(job, level) : null, weapon: positive("weapon"), skill: positive("skill"), targets: targets !== null && Number.isInteger(targets) && targets <= HEAL_TARGETS_MAX ? targets : null };
+  const [STR, DEX, INT, LUK] = ["str", "dex", "int", "luk"].map(positive);
+  const statsOk = [STR, DEX, INT, LUK].every(value => value !== null && Number.isInteger(value));
+  return {
+    job,
+    level: level > 0 ? clampLevel(job, level) : null,
+    weapon: positive("weapon"),
+    skill: positive("skill"),
+    targets: targets !== null && Number.isInteger(targets) && targets <= HEAL_TARGETS_MAX ? targets : null,
+    stats: statsOk ? { STR: STR!, DEX: DEX!, INT: INT!, LUK: LUK! } : null,
+  };
 }
 
 /**
- * 預設狀態套上連結帶的武器、招式、隻數（左組；右組照預設留著比較）。職業不一樣、武器不在這個職業的選單、招式查不到就當沒帶。
+ * 預設狀態套上連結帶的武器、招式、隻數、能力值（左組；右組照預設留著比較）。職業不一樣、武器不在這個職業的選單、招式查不到就當沒帶。
  * 換了武器沒帶招式時招式照新武器重挑，跟攻略文的表同一套。
  */
 export function applyDamageLink(state: CalcState, data: CalcData, link: DamageLink | null): CalcState {
   if (!link || link.job !== state.shared.job) return state;
   const weapon = link.weapon === null ? undefined : weaponChoices(data.gear, link.job).find(entry => entry.id === link.weapon);
-  const left = weapon ? withWeapon(data, state.groups[0], weapon) : state.groups[0];
+  const armed = weapon ? withWeapon(data, state.groups[0], weapon) : state.groups[0];
+  const left = link.stats ? { ...armed, stats: link.stats } : armed;
   const skillOk = link.skill !== null && attackSkillIds(data.skills, link.job).includes(link.skill) && (link.skill === BASIC_ATTACK || (left.levels[link.skill] ?? 0) > 0);
   const skill = skillOk ? { skillId: link.skill!, skillLevel: link.skill === BASIC_ATTACK ? 1 : left.levels[link.skill!] } : weapon ? defaultSkill(data, link.job, left) : null;
-  if (!weapon && !skill) return state;
+  if (!weapon && !skill && !link.stats) return state;
   const targets = skill?.skillId === HEAL && link.targets !== null ? { targets: link.targets } : {};
   return withSkill({ ...state, groups: [left, state.groups[1]] }, { ...skill, ...targets }, monsterChoices(data.monsters, data.maps));
 }
