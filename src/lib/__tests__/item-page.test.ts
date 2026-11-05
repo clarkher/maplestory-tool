@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasItemPage, itemPageTitle, itemSummary } from "@/lib/item-page";
+import { hasItemPage, itemChipHref, itemPageTitle, itemSummary } from "@/lib/item-page";
 import type { Item } from "@/lib/types";
 
 const monsters = new Map([[1, "綠水靈"], [2, "菇菇"], [3, "木妖"], [4, "猴子"]]);
@@ -64,5 +64,20 @@ describe("itemSummary", () => {
   });
   it("活動店不寫進摘要；不存在的怪不寫", () => {
     expect(itemSummary({ ...shop({ e: "2026-11-11T00:00:00+08:00" }), dm: [999] }, lookup)).toBe("堅韌的筋腱是任務道具。");
+  });
+});
+
+describe("itemChipHref：任務卡的道具膠囊連去哪", () => {
+  it("有單獨頁連單獨頁，要交的東西也是", () => {
+    expect(itemChipHref(9, { itemPages: [9] })).toBe("/db/items/9");
+    expect(itemChipHref(9, { itemPages: [9], linkToFarm: true })).toBe("/db/items/9");
+  });
+  it("沒單獨頁照舊", () => {
+    expect(itemChipHref(9, { itemPages: [8] })).toBe("/db/items?id=9");
+    expect(itemChipHref(9, { itemPages: [8], linkToFarm: true })).toBe("/plan/farm?want=9");
+  });
+  it("工具頁沒給清單照舊", () => {
+    expect(itemChipHref(9, {})).toBe("/db/items?id=9");
+    expect(itemChipHref(9, { linkToFarm: true })).toBe("/plan/farm?want=9");
   });
 });

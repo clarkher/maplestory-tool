@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { itemImage, mapName, npcImage } from "@/lib/data";
 import { payText, rewardSummary } from "@/lib/format";
+import { itemChipHref } from "@/lib/item-page";
 import type { MapRecord, Quest, QuestRef, QuestReward } from "@/lib/types";
 
 /**
@@ -17,12 +18,15 @@ export function QuestDetailBody({
   maps,
   questNames,
   npcPages,
+  itemPages,
 }: {
   quest: Quest;
   maps: Record<string, MapRecord>;
   questNames?: Map<string, string>;
   /** 有 NPC 頁的 NPC id：「還會碰到的 NPC」名字連過去；沒給（或不在裡面）名字是純文字 */
   npcPages?: readonly number[];
+  /** 有道具單獨頁的道具 id：膠囊連單獨頁（給搜尋引擎順著走）；沒給照舊連工具 */
+  itemPages?: readonly number[];
 }) {
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
   // 楓幣是負的＝交任務時要付，寫在要交的東西底下（奈洛的禮物、流浪煉金術師的新技術）
@@ -66,14 +70,14 @@ export function QuestDetailBody({
           {quest.startItems?.length ? (
             <div className="mb-1.5">
               <span className="ink-faint">身上要有：</span>
-              <ItemChips rows={quest.startItems} />
+              <ItemChips rows={quest.startItems} itemPages={itemPages} />
             </div>
           ) : null}
           {/* 客戶端的接取道具沒寫數量＝要 0 個：瑪亞愛情象徵身上已經有愛情象徵就接不到 */}
           {quest.startNone?.length ? (
             <div className="mb-1.5">
               <span className="ink-faint">身上不能有：</span>
-              <ItemChips rows={quest.startNone} />
+              <ItemChips rows={quest.startNone} itemPages={itemPages} />
             </div>
           ) : null}
           {quest.startSkills?.length ? (
@@ -104,7 +108,7 @@ export function QuestDetailBody({
       {quest.needItems?.length || pay ? (
         <Block title="要交的東西">
           <div className="space-y-1.5">
-            {quest.needItems?.length ? <ItemChips rows={quest.needItems} linkToFarm /> : null}
+            {quest.needItems?.length ? <ItemChips rows={quest.needItems} linkToFarm itemPages={itemPages} /> : null}
             {pay ? <p className="text-[13px] font-bold">{pay}</p> : null}
           </div>
         </Block>
@@ -116,7 +120,7 @@ export function QuestDetailBody({
           {reward ? <p className="font-bold text-[color:var(--gold)]">{reward}</p> : null}
               {quest.rewardItems?.length ? (
             <>
-              <ItemChips rows={quest.rewardItems} />
+              <ItemChips rows={quest.rewardItems} itemPages={itemPages} />
               {quest.rewardItems.some(item => item.rand) ? (
                 <p className="text-[11px] ink-faint">標「隨機」的是從裡面隨機給一樣，不是全拿</p>
               ) : null}
@@ -132,7 +136,7 @@ export function QuestDetailBody({
 
       {quest.startGiven?.length ? (
         <Block title="接下任務當下就給">
-          <ItemChips rows={quest.startGiven} />
+          <ItemChips rows={quest.startGiven} itemPages={itemPages} />
         </Block>
       ) : null}
 
@@ -197,15 +201,27 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 }
 
 /** 道具膠囊列（圖＋名稱＋數量）。拍賣買齊就能交的任務（/plan/buy）也用 */
-export function ItemChips({ rows, linkToFarm = false }: { rows: Array<QuestRef | QuestReward>; linkToFarm?: boolean }) {
+export function ItemChips({
+  rows,
+  linkToFarm = false,
+  itemPages,
+}: {
+  rows: Array<QuestRef | QuestReward>;
+  linkToFarm?: boolean;
+  itemPages?: readonly number[];
+}) {
   return (
     <ul className="flex flex-wrap gap-1.5">
-      {rows.map((row, index) => (
+      {rows.map((row, index) => {
+        const href = itemChipHref(row.id, { itemPages, linkToFarm });
+        // 道具單獨頁只留 html，next/link 預先載入會 404，用一般連結整頁載入（同 SeoLinks）
+        const Anchor = href.startsWith("/db/items/") ? "a" : Link;
+        return (
         <li key={`${row.id}-${index}`}>
-          <Link
-            href={linkToFarm ? `/plan/farm?want=${row.id}` : `/db/items?id=${row.id}`}
+          <Anchor
+            href={href}
             className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
-            title={linkToFarm ? "看這個道具去哪打" : undefined}
+            title={href.startsWith("/plan/farm") ? "看這個道具去哪打" : undefined}
           >
             <Image src={itemImage(row.id)} alt="" width={22} height={22} className="size-[22px] object-contain" unoptimized />
             <span className="text-[13px] font-bold">{row.n}</span>
@@ -218,9 +234,10 @@ export function ItemChips({ rows, linkToFarm = false }: { rows: Array<QuestRef |
             {"job" in row && row.job ? (
               <span className="rounded-full bg-[color:var(--gold-wash)] px-1.5 text-[10px] font-bold text-[color:var(--gold)]">職業限定</span>
             ) : null}
-          </Link>
+          </Anchor>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }
