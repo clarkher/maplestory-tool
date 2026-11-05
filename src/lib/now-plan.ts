@@ -7,7 +7,7 @@ import { JOB_LINES, advancementLevel, baseJob, stageJob } from "./jobs";
 import { jobLineage, planTraining, questEligible } from "./planner";
 import { boatNote, findRoute, suggestStart, victoriaReach } from "./route";
 import {
-  VERIFIED_RANK, groupQuests, isIslandBand, isIslandMap, levelFraction, longRunQuests, mustDoIndex, onIsland, prepMaterials, questReachable, shortName, spawnIndex,
+  VERIFIED_RANK, groupQuests, isIslandBand, isIslandMap, isPickLine, levelFraction, longRunQuests, mustDoIndex, onIsland, prepMaterials, questReachable, shortName, spawnIndex,
   trainingForBand, type Band, type Material,
 } from "./route-planner";
 import type {
@@ -74,6 +74,8 @@ export type NowQuest = {
   lastPart: number;
   /** 這次列出的是第幾段（1 起算、由小到大）；一定連在一起（lineRun 不跳段） */
   positions: number[];
+  /** 這幾個任務只能選一條（五條職業之路）：經驗只算一條，寫「N 選 1」不寫第幾段 */
+  pickOne?: boolean;
   exp: number;
   /** 「約幾級」：先解用現在等級換算；升級路線的必解用接得到那條線的等級（見 bandQuests） */
   fraction: number;
@@ -128,6 +130,8 @@ function recExpired(rec: GuideMustDo | undefined, level: number): boolean {
 const WORTH_LEVELS = 0.25;
 /** 玩家推薦的任務，經驗到這麼多級就留下 */
 const WORTH_LEVELS_RECOMMENDED = 0.08;
+/** 初心者選職業那兩行排序用的分數（約 1 級）：還在島上的白瑞德（2 級多）後面，10 等起排在其他沒獎勵的任務前面 */
+const CHOOSING_JOB_SCORE = 1;
 
 /**
  * 值不值得列（先解與長線同一條規則）：有關鍵獎勵；經驗 ≥ 0.25 級；玩家推薦且經驗 ≥ 0.08 級。
@@ -189,6 +193,11 @@ type QuestLines = {
    * 所有任務加總的長線區塊另外算（longRunNow）
    */
   long: Set<string>;
+  /**
+   * 初心者選職業的任務：只有初心者接得到的「選一條」（五條職業之路），加上它的前置（有關轉職的指導）。
+   * 這是玩家要做的決定，先解不看值不值得，排在 CHOOSING_JOB_SCORE；升級路線的必解照舊
+   */
+  choosingJob: Set<string>;
 };
 
 /**
@@ -244,7 +253,12 @@ function questLines(stage: number, quests: Quest[], common: GuideCommon, maps: R
       if (isLongKill(quest) || (quest.needItems ?? []).some(item => (totals.get(item.id) ?? 0) >= LONG_RUN_MIN)) long.add(quest.id);
     }
   }
-  const value = { stage, lineage, recs, forJob, lineOf, lines, long };
+  const choosingJob = new Set<string>();
+  for (const [key, members] of lines) {
+    if (!isPickLine(key) || !members.every(quest => quest.jobs?.length === 1 && quest.jobs[0] === 0)) continue;
+    for (const quest of members) for (const id of [quest.id, ...(quest.pre ?? [])]) choosingJob.add(id);
+  }
+  const value = { stage, lineage, recs, forJob, lineOf, lines, long, choosingJob };
   linesCache.byStage.set(stage, value);
   return value;
 }
@@ -297,6 +311,7 @@ export function lineRun(line: Quest[], doable: (quest: Quest) => boolean): Quest
  * 標題（有推薦用推薦的名字）、第幾段／共幾段（整條線）、經驗、約幾級（用 levelFor 回傳的等級換算；拿到的是列出的那幾段）。
  * 值不值得（worthListing）用列出的那幾段算、過期由呼叫端決定要不要套；關鍵獎勵要列到給它的那一段才算（rewardInParts，
  * 沒列到就不寫獎勵、不放獎勵圖、不排到前面）；這一行的 NPC 跟帶我去用列出的第一段。
+ * 只能選一條的線（pickOne）經驗只算一條、標題列出全部選項；同分時排在別的線後面（有關轉職的指導 → 5 選 1）。
  */
 function lineItems(
   shared: QuestLines,
@@ -304,10 +319,10 @@ function lineItems(
   levelFor: (parts: Quest[]) => number,
   toNext: number[],
   job: number,
-  keep: (rec: GuideMustDo | undefined, fraction: number, reward: boolean) => boolean,
+  keep: (rec: GuideMustDo | undefined, fraction: number, reward: boolean, parts: Quest[]) => boolean,
   runOf: (key: string, line: Quest[]) => Quest[],
 ): Array<{ item: NowQuest; score: number }> {
-  const { forJob, lineOf, lines, recs } = shared;
+  const { forJob, lineOf, lines, recs, choosingJob } = shared;
   // 有做得到的任務的線，照任務資料裡各線第一個做得到的任務排（同分時照這個先後）
   const keys = new Set<string>();
   for (const quest of forJob) if (doable(quest)) keys.add(lineOf.get(quest.id) as string);
@@ -317,15 +332,16 @@ function lineItems(
     const parts = runOf(key, line);
     if (!parts.length) continue;
     const rec = parts.map(quest => recs.get(quest.id)).find((value): value is GuideMustDo => Boolean(value));
-    const exp = parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
+    const pickOne = isPickLine(key);
+    const exp = pickOne ? Math.max(...parts.map(quest => quest.exp ?? 0)) : parts.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
     const fraction = levelFraction(exp, levelFor(parts), toNext);
     const reward = rewardInParts(rec, parts);
-    if (!keep(rec, fraction, reward)) continue;
+    if (!keep(rec, fraction, reward, parts)) continue;
     const first = line.indexOf(parts[0]) + 1;
     const positions = parts.map((_, index) => first + index);
     const title = rec
       ? rec.name.replace(/（[^（）]*）\s*$/, "")
-      : key.startsWith("line:") ? key.slice(5) : [...parts].sort((a, b) => (b.exp ?? 0) - (a.exp ?? 0))[0].n;
+      : key.startsWith("line:") ? key.slice(5) : pickOne ? parts.map(quest => quest.n).join("／") : [...parts].sort((a, b) => (b.exp ?? 0) - (a.exp ?? 0))[0].n;
     scored.push({
       item: {
         key,
@@ -335,6 +351,7 @@ function lineItems(
         firstPart: first,
         lastPart: positions[positions.length - 1],
         positions,
+        pickOne: pickOne || undefined,
         exp,
         fraction,
         reward: reward ? rec?.reward?.label : undefined,
@@ -342,11 +359,11 @@ function lineItems(
         rec,
         npc: parts[0].sNpc,
       },
-      score: fraction + (rec ? 0.2 : 0),
+      score: parts.some(quest => choosingJob.has(quest.id)) ? CHOOSING_JOB_SCORE : fraction + (rec ? 0.2 : 0),
     });
   }
   // 有關鍵獎勵的一律排在沒有的前面；同一組裡比約幾級（玩家推薦加 0.2）
-  return scored.sort((a, b) => Number(Boolean(b.item.reward)) - Number(Boolean(a.item.reward)) || b.score - a.score);
+  return scored.sort((a, b) => Number(Boolean(b.item.reward)) - Number(Boolean(a.item.reward)) || b.score - a.score || Number(Boolean(a.item.pickOne)) - Number(Boolean(b.item.pickOne)));
 }
 
 export function nowQuests(args: {
@@ -369,16 +386,18 @@ export function nowQuests(args: {
   const inRun = (quest: Quest) => doable.has(quest.id);
   // 先解一定從第一段開始（round 4 後續）：第一段現在做不到（長線那種、過了等級上限、接不到）就不列，不會寫「第 3 段」
   const fromStart = (_key: string, line: Quest[]) => (inRun(line[0]) ? lineRun(line, inRun) : []);
-  const keep = (rec: GuideMustDo | undefined, fraction: number, reward: boolean) => !recExpired(rec, level) && worthListing(fraction, [rec], reward);
+  const keep = (rec: GuideMustDo | undefined, fraction: number, reward: boolean, parts: Quest[]) =>
+    parts.some(quest => shared.choosingJob.has(quest.id)) || (!recExpired(rec, level) && worthListing(fraction, [rec], reward));
   const sorted = lineItems(shared, inRun, () => level, common.expTable.toNext, job, keep, fromStart);
   return (limit === undefined ? sorted : sorted.slice(0, limit)).map(entry => entry.item);
 }
 
 /**
  * 「第幾段／共 N 段」（先解跟升級路線的必解同一個寫法）：列出的段一定連在一起（lineRun 不跳段），
- * 寫「第 a–b 段」，一段寫「第 a 段」。整條線只有一段時不寫。
+ * 寫「第 a–b 段」，一段寫「第 a 段」。整條線只有一段時不寫。只能選一條的寫「N 選 1」。
  */
-export function partsText(item: Pick<NowQuest, "positions" | "totalParts">): string | null {
+export function partsText(item: Pick<NowQuest, "positions" | "totalParts" | "pickOne">): string | null {
+  if (item.pickOne) return `${item.positions.length} 選 1`;
   if (item.totalParts <= 1 || !item.positions.length) return null;
   const first = Math.min(...item.positions);
   const last = Math.max(...item.positions);

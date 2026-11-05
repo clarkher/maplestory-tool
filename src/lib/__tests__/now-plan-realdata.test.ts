@@ -12,7 +12,7 @@ import { COMMON_ROUTE } from "@/lib/guide-data";
 import { jobFit } from "@/lib/job-rules";
 import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import {
-  BOSS_SPAWN_MAX, CEILING_GAP, bandQuests, canGo, effectiveLevels, goChecker, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, townRoute,
+  BOSS_SPAWN_MAX, CEILING_GAP, bandQuests, canGo, effectiveLevels, goChecker, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, partsText, townRoute,
   type BandQuest, type Ceiling, type LongRunTask, type MainPick, type NowQuest,
 } from "@/lib/now-plan";
 import { LEVEL_CAP } from "@/lib/profile";
@@ -335,6 +335,25 @@ describe("真資料：首頁每個組合", () => {
         .map(material => `${combo.tag} 第 ${index + 1} 段：${material.n} ×${material.c}`);
     }));
     expectNone("先存著列到這頁已經列的任務的材料", bad);
+  });
+
+  it("互相排斥的任務（彼此的 preNot 都有對方）不會算成一段接一段", () => {
+    const bad = combos.flatMap(combo => [...combo.todo, ...combo.mustDo.flat()]
+      .filter(item => !item.pickOne && item.quests.some(quest => item.quests.some(other => quest.preNot?.includes(other.id) && other.preNot?.includes(quest.id))))
+      .map(item => `${combo.tag}：${item.title}`));
+    expectNone("互斥的任務被算成同一串", bad);
+  });
+
+  it("初心者 8 等起，先解有「有關轉職的指導」，下一行是五條路 5 選 1、經驗只算一條", () => {
+    const bad: string[] = [];
+    for (const combo of combos.filter(entry => entry.job === 0 && entry.level >= 8)) {
+      const at = combo.todo.findIndex(item => item.title === "有關轉職的指導");
+      const next = combo.todo[at + 1];
+      if (at < 0 || next?.exp !== 300 || partsText(next) !== "5 選 1" || next.quests.length !== 5) {
+        bad.push(`${combo.tag}：${combo.todo.map(item => item.title).join("、")}`);
+      }
+    }
+    expectNone("初心者選職業那兩行不對", bad);
   });
 
   it("同一個任務不會同時算在先解跟長線（長線拿掉先解列過的任務重算）", () => {
