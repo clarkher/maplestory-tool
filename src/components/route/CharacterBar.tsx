@@ -14,10 +14,18 @@ import type { Profile } from "@/lib/types";
 /**
  * 角色列：職業＋等級。升級了改這裡，整頁跟著換。
  * 第一次來（還沒填）直接展開選單，不另外做一個「開始」頁。
+ * pending：硬重新整理、還沒讀到本機角色（伺服器畫的版本）。先照第一次來的樣子畫選單，第一次來的人第一格就是它、之後一格都不動；
+ * 存過角色的人靠 <html data-profile="saved"> 先藏起來（RouteHome），讀到角色才收合露出來。
  */
-export function CharacterBar({ profile, onChange }: { profile: Profile; onChange: (next: Profile) => void }) {
+export function CharacterBar({ profile, onChange, pending = false }: { profile: Profile; onChange: (next: Profile) => void; pending?: boolean }) {
   const incomplete = profile.level <= 0 || profile.job < 0;
   const [editing, setEditing] = useState(incomplete);
+  // 讀到本機角色的那一次渲染就決定收合或展開（React「props 變了就在渲染時調整 state」的寫法），不會先畫一格展開的
+  const [wasPending, setWasPending] = useState(pending);
+  if (wasPending !== pending) {
+    setWasPending(pending);
+    setEditing(incomplete);
+  }
   const [levelText, setLevelText] = useState(profile.level ? String(profile.level) : "");
   // 等級跟職業對不起來時的提示（例：狂戰士至少 30 等、目前等級上限 Lv.120）
   const [hint, setHint] = useState<string | null>(null);
@@ -37,10 +45,11 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
 
   // 選單一打開就在背景先載選單上看得到的職業攻略（五個一轉＋這一系），點下去主推卡不用先放骨架；
   // 換到別的一轉，選單換成那一系，再載那一系的。載過的不會重抓，載失敗下次再試（data.ts 的 loadGuide）
+  // 還沒讀到本機角色時不載：存過角色的人選單藏著、也不會打開
   useEffect(() => {
-    if (!editing) return;
+    if (!editing || pending) return;
     for (const job of guidesToPrefetch(lineBase)) loadGuide(job).catch(() => {});
-  }, [editing, lineBase]);
+  }, [editing, pending, lineBase]);
 
   const option = jobOption(profile.job);
   const tier = jobTier(profile.job);
@@ -126,7 +135,7 @@ export function CharacterBar({ profile, onChange }: { profile: Profile; onChange
   }
 
   return (
-    <section aria-label="你的角色" className="rounded-[var(--radius-card)] glass wood-frame p-3 sm:p-4">
+    <section aria-label="你的角色" className={`rounded-[var(--radius-card)] glass wood-frame p-3 sm:p-4${pending ? " [[data-profile=saved]_&]:hidden" : ""}`}>
       <div className="flex items-start gap-3">
         <Image
           src={jobAvatar(profile.job) ?? "/brand-emblem.png"}

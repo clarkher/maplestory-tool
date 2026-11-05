@@ -4,11 +4,12 @@
 // 只看結構、不看時間（GitHub 的機器快慢不穩，時間門檻會偶發紅燈）：
 //   1 首頁站內換頁：首頁 → 查資料 → 我的路線，DOM 從頭到尾只有一個狀態，而且就是完整路線（角色、主推卡、升級路線、裝備卡）
 //   2 硬重新整理、存過角色：那句「你現在幾等、什麼職業？」一格都不出現（v0.54）
-//   3 硬重新整理、沒存過角色：第一格就看得到那句問題
+//   3 硬重新整理、沒存過角色：第一格就看得到那句問題跟選職業的表單（不先放讀取中，v1.56）
 //   4 首頁主推卡「帶我去」→ /go：只有一個狀態，就是路線
 //   5 查資料 → 練功地圖排行：只有一個狀態，就是排行
 //   7 刺客 35 選了全幸（ms-build {"400":"全幸"}）：硬重新整理、站內換頁進首頁，「能力值與裝備」卡第一次畫出來
 //     就是全幸（選中的是「全幸」、有「要湊的敏捷裝備」），不會先畫一般點法再跳過去（v0.76）
+//   8 硬重新整理首頁不跳：存過角色、第一次來 × 1280、375，CPU 慢 4 倍＋慢 4G＋不用快取，位移加總都 < 0.1（v1.56；來源、畫面看 home-cls.mjs）
 //   6 沒有 hydration 警告、沒有沒接住的錯誤（排在最後，涵蓋上面每一項）
 // 細的逐格紀錄、截圖用 home-first-frame.mjs、pages-first-frame.mjs 看。
 import { spawn } from "node:child_process";
@@ -119,7 +120,9 @@ const TOOLS = `
       path: location.pathname,
       loading: /讀取你的角色|幫你排路線|整理資料中|載入地圖資料|載入道具資料/.test(text),
       question: text.includes("你現在幾等、什麼職業"),
-      character: q('section[aria-label="你的角色"]'),
+      // 硬重新整理時伺服器畫的版本就有角色列（存過角色的人藏著）：要看得到才算
+      character: Boolean(document.querySelector('section[aria-label="你的角色"]')?.checkVisibility()),
+      form: Boolean(document.querySelector('input[aria-label="你的等級"]')?.checkVisibility()),
       now: q('main article[aria-label="現在去這裡"]:not([aria-busy])'),
       nowSkeleton: q('main article[aria-busy="true"]'),
       route: q('section[aria-label="升級路線"]'),
@@ -207,7 +210,7 @@ try {
 
   await guard("2 硬重新整理、存過角色：不問「你現在幾等、什麼職業？」", async () => {
     // 記 5 秒；角色那塊 5 秒還沒出來（本機 next dev 慢）就記到它出來後 1.5 秒
-    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `${TOOLS}; window.__rec = __record(5000, () => Boolean(document.querySelector('section[aria-label="你的角色"]')));` });
+    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: `${TOOLS}; window.__rec = __record(5000, () => Boolean(document.querySelector('section[aria-label="你的角色"]')?.checkVisibility()));` });
     await navigate(BASE + "/");
     const rec = await evaluate("window.__rec");
     await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
@@ -224,7 +227,7 @@ try {
     await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
     await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); "ok"`);
     const first = rec.frames.find(f => f.path === "/" && (f.question || f.loading || f.character));
-    check("3 硬重新整理、沒存過角色：第一格就看得到那句問題", Boolean(first?.question), { firstFrame: first ?? null });
+    check("3 硬重新整理、沒存過角色：第一格就看得到那句問題", Boolean(first?.question && first.form && !first.loading), { firstFrame: first ?? null });
   });
 
   // 選了全幸的人：卡片一出現就要是全幸（選中「全幸」、有「要湊的敏捷裝備」），不能先畫一般點法、下一格才跳過去
@@ -265,6 +268,41 @@ try {
     } finally {
       // 還原：後面的項目（跟下一次跑）都用狂戰士 45、沒選點法
       await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); localStorage.removeItem("ms-build"); "ok"`);
+    }
+  });
+
+  // 只看位移總量、不看時間：結構對了就接近 0，機器慢也一樣；結構錯了（頁尾一開始就在畫面裡、讀取區塊比表單矮）每次都一樣的數字。
+  // 網路一定要慢、不用快取：程式到得太快時第一格還沒畫就接手了，壞掉的版本也量到 0
+  const NAME_8 = "8 硬重新整理首頁不跳：兩種人、兩種寬度位移都 < 0.1";
+  await guard(NAME_8, async () => {
+    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", {
+      source: `window.__shift = 0; new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__shift += e.value; }).observe({ type: "layout-shift", buffered: true });`,
+    });
+    await page.send("Emulation.setCPUThrottlingRate", { rate: 4 });
+    await page.send("Network.enable");
+    await page.send("Network.setCacheDisabled", { cacheDisabled: true });
+    await page.send("Network.emulateNetworkConditions", { offline: false, latency: 150, downloadThroughput: 1.6 * 1024 * 1024 / 8, uploadThroughput: 750 * 1024 / 8 });
+    try {
+      const shifts = [];
+      for (const [width, height, mobile] of [[1280, 900, false], [375, 812, true]]) {
+        for (const saved of [true, false]) {
+          await page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: mobile ? 2 : 1, mobile });
+          await evaluate(saved ? `localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); "ok"` : `localStorage.removeItem("ms-profile"); "ok"`);
+          await navigate(BASE + "/");
+          const ready = saved ? homeReady : `() => document.querySelector('input[aria-label="你的等級"]')`;
+          if ((await waitFor(ready, 60000)) !== "ok") throw new Error(`${width} ${saved ? "存過角色" : "第一次來"}：60 秒內沒畫好`);
+          await sleep(2000);
+          shifts.push({ width, saved, shift: +(await evaluate("window.__shift")).toFixed(4) });
+        }
+      }
+      check(NAME_8, shifts.every(s => s.shift < 0.1), { shifts });
+    } finally {
+      await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+      await page.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+      await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      await page.send("Network.setCacheDisabled", { cacheDisabled: false });
+      await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 2, mobile: true });
+      await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); "ok"`);
     }
   });
 
