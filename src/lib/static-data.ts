@@ -5,6 +5,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { hasItemPage, itemPagePath, type ItemPageLookup } from "./item-page";
 import type { CalcData } from "./damage-view";
 import type { GearData } from "./gear";
 import { parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
@@ -46,6 +47,34 @@ export function staticGuideJobs(): number[] {
 }
 
 export const staticGuide = (job: number) => read<GuideJob>(`guides/${job}`);
+
+/** 道具單獨頁要查的怪物、任務名字（只算有自己頁面的） */
+export function staticItemPageLookup(): ItemPageLookup {
+  const key = "item-page-lookup";
+  if (!cache.has(key)) {
+    const monsters = new Map(staticMonsters().map(monster => [monster.id, monster.n]));
+    const quests = new Map(staticQuests().map(quest => [quest.id, quest.n]));
+    cache.set(key, { monster: (id: number) => monsters.get(id), quest: (id: string) => quests.get(id) } satisfies ItemPageLookup);
+  }
+  return cache.get(key) as ItemPageLookup;
+}
+
+/** 有單獨頁的道具（規則在 lib/item-page.ts） */
+export function staticItemPages(): Item[] {
+  const key = "item-pages";
+  if (!cache.has(key)) {
+    const lookup = staticItemPageLookup();
+    cache.set(key, read<Item[]>("items").filter(item => hasItemPage(item, lookup)));
+  }
+  return cache.get(key) as Item[];
+}
+
+/** 連到道具：有單獨頁連單獨頁，沒有照舊連查資料卡片 */
+export function staticItemHref(id: number): string {
+  const key = "item-page-ids";
+  if (!cache.has(key)) cache.set(key, new Set(staticItemPages().map(item => item.id)));
+  return (cache.get(key) as Set<number>).has(id) ? itemPagePath(id) : `/db/items?id=${id}`;
+}
 
 /** 道具名稱查表（掉落物、任務獎勵用）：道具檔很大，只留名字、只建一次 */
 export function staticItemNames(): Map<number, string> {

@@ -6,7 +6,7 @@ import { monsterImage } from "@/lib/asset-paths";
 import { elementalNotes, formatNumber } from "@/lib/format";
 import { monsterMaps } from "@/lib/monster-view";
 import { breadcrumbLd, clip, monsterSummary, webPageLd } from "@/lib/seo";
-import { staticAtlasIndex, staticItemNames, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
+import { staticAtlasIndex, staticItemHref, staticItemNames, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -97,7 +97,7 @@ export default async function Page({ params }: Props) {
 
       {drops.length ? (
         <SeoSection title={`掉落物（${drops.length} 樣，官方未公開機率）`}>
-          <SeoLinks links={drops.map(id => ({ href: `/db/items?id=${id}`, text: itemNames.get(id)! }))} />
+          <SeoLinks links={drops.map(id => ({ href: staticItemHref(id), text: itemNames.get(id)! }))} />
         </SeoSection>
       ) : null}
 
