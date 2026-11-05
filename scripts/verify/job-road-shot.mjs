@@ -3,6 +3,7 @@
 //   例：node scripts/verify/job-road-shot.mjs out https://maplehelper-dev.pipicards.workers.dev 8,9,10,12
 // 每個等級存兩張：Lv<等級>.png（先解整塊）、Lv<等級>-detail.png（展開 5 選 1 的細節）。
 // 字（每一行的標題跟經驗那行、細節列出的選項）印在 console、也寫進 results.json。手機 375 寬。
+// 另外量 360、375、390、430 寬時 5 選 1 的路名有沒有被拆成兩行（v1.66，只能在「／」換行），有就結束碼 1。
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -12,6 +13,7 @@ const OUT = outDir(process.argv[2], "job-road-shot");
 const BASE = (process.argv[3] ?? "http://localhost:3000").replace(/\/$/, "");
 const LEVELS = (process.argv[4] ?? "8,9,10,12").split(",").map(Number);
 const PORT = chromePort(9507);
+const WIDTHS = [360, 375, 390, 430];
 fs.mkdirSync(OUT, { recursive: true });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -85,9 +87,24 @@ const H = `
   ]);
   window.__todo = () => document.querySelector('section[aria-label="先解"]');
   window.__pick = () => [...(__todo()?.querySelectorAll("li") ?? [])].find(li => li.textContent.includes("選 1"));
+  // 標題裡每個路名佔幾行：一個路名的字落在兩個高度就是被拆開了
+  window.__broken = () => {
+    const walker = document.createTreeWalker(__pick().querySelector("button"), NodeFilter.SHOW_TEXT);
+    const broken = [];
+    while (walker.nextNode()) {
+      for (const match of walker.currentNode.textContent.matchAll(/[^／]+/g)) {
+        const range = document.createRange();
+        range.setStart(walker.currentNode, match.index);
+        range.setEnd(walker.currentNode, match.index + match[0].length);
+        if (new Set([...range.getClientRects()].map(rect => Math.round(rect.top))).size > 1) broken.push(match[0]);
+      }
+    }
+    return broken;
+  };
   window.__clip = el => {
     document.documentElement.style.setProperty("scroll-behavior", "auto", "important");
-    window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - 8, behavior: "instant" });
+    // 留導覽列的高度（手機 56px，黏在上面會蓋住），捲動要 instant 才量得到捲完的位置
+    window.scrollTo({ top: el.getBoundingClientRect().top + scrollY - 64, behavior: "instant" });
     const r = el.getBoundingClientRect();
     return { x: r.left + scrollX, y: r.top + scrollY, width: r.width, height: r.height };
   };
@@ -100,6 +117,11 @@ async function shot(clip, file) {
   fs.writeFileSync(path.join(OUT, file), Buffer.from(r.data, "base64"));
 }
 
+async function setWidth(width) {
+  await page.send("Emulation.setDeviceMetricsOverride", { width, height: 1400, deviceScaleFactor: 2, mobile: true });
+  await sleep(150);
+}
+
 const results = [];
 try {
   for (const level of LEVELS) {
@@ -109,6 +131,13 @@ try {
     const ready = await ev(`return await __waitFor(() => Boolean(__pick()));`);
     if (!ready) throw new Error(`Lv.${level} 等不到「選 1」那一行：${(await ev(`return __todo()?.textContent ?? "沒有先解"`)).slice(0, 300)}`);
     const rows = await ev(`return [...__todo().querySelectorAll("ul > li")].map(li => li.innerText.split("\\n").slice(0, 2).join(" | "));`);
+    const broken = {};
+    for (const width of WIDTHS) {
+      await setWidth(width);
+      const names = await ev(`return __broken();`);
+      if (names.length) broken[width] = names;
+    }
+    await setWidth(375);
     await shot(await ev(`return __clip(__todo());`), `Lv${level}.png`);
     const choices = await ev(`
       const pick = __pick();
@@ -118,8 +147,9 @@ try {
     `);
     await shot(await ev(`return __clip(__pick());`), `Lv${level}-detail.png`);
     const overflow = await ev(`return document.documentElement.scrollWidth > innerWidth;`);
-    results.push({ level, rows, choices, overflow });
-    console.log(`Lv.${level}`, JSON.stringify({ rows, choices, overflow }));
+    results.push({ level, rows, choices, overflow, broken });
+    console.log(`Lv.${level}`, JSON.stringify({ rows, choices, overflow, broken }));
+    if (Object.keys(broken).length) process.exitCode = 1;
   }
   fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(results, null, 2));
   console.log(`輸出：${OUT}`);
