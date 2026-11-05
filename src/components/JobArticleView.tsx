@@ -232,7 +232,7 @@ export function JobArticleView({
                       {monster.n}
                     </Link>
                   ))}
-                  <Link href={`/go?to=${step.map}`} className="font-bold text-[color:var(--sky)] underline underline-offset-4">帶我去{maps[String(step.map)]?.zh}</Link>
+                  <Link href={`/go?to=${step.go ?? step.map}`} className="font-bold text-[color:var(--sky)] underline underline-offset-4">帶我去{maps[String(step.go ?? step.map)]?.zh}</Link>
                 </div>
               </div>
             </li>
