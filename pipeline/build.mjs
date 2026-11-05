@@ -29,7 +29,7 @@ import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { shopPrice, shopRows } from "./lib/shops.mjs";
 import { buyQuestIds, buyQuestShops, buyQuestSkills, tradeTable } from "./lib/buy-quests.mjs";
-import { rewardSkillNames, splitStartNone } from "./lib/quest-fields.mjs";
+import { givenRewardRows, rewardSkillNames, splitStartNone } from "./lib/quest-fields.mjs";
 import { officialSkillNote } from "./lib/official-skill-notes.mjs";
 import { fillLostFields } from "./lib/skill-fallback.mjs";
 import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, splitPrereq } from "./lib/skill-text.mjs";
@@ -750,15 +750,14 @@ function rowRefs(rows, canon = id => id) {
  *
  * 客戶端把「給你」跟「收走」放在同一個獎勵清單裡，靠 action 分辨——
  * 847 筆裡有 387 筆是 action=remove，那是完成時被收走的任務道具，不是獎勵。
- * 全部照列會讓玩家以為拿得到一堆根本不會進背包的東西。
+ * 全部照列會讓玩家以為拿得到一堆根本不會進背包的東西。數量 0 的也是收走（givenRewardRows）。
  *
  * 另外 250 筆是 random（一堆裡隨機給一樣）、167 筆綁職業，這兩種都標記起來，
  * 前端才有辦法照實說「隨機給一樣」而不是「這些全拿」。
  */
 function rewardRefs(rows, canon = id => id) {
   if (!Array.isArray(rows) || !rows.length) return undefined;
-  const kept = rows
-    .filter(row => row?.action !== "remove")
+  const kept = givenRewardRows(rows)
     .map(row => dropEmpty({
       id: canon(Number(row.id)),
       n: row.name || "",

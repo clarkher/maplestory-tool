@@ -233,6 +233,8 @@ function main() {
   // 獎勵清單裡混著 action=remove（完成時收走的道具），曾經被當成獎勵列出來
   const rewardRows = (quests ?? []).reduce((sum, quest) => sum + (quest.rewardItems?.length ?? 0), 0);
   check("獎勵道具沒把收走的算進去", rewardRows > 150 && rewardRows < 600, `${rewardRows} 列`);
+  const zeroRewards = (quests ?? []).filter(quest => quest.rewardItems?.some(item => item.c === 0)).map(quest => quest.id);
+  check("獎勵道具沒有數量 0 的（那是要交的道具）", zeroRewards.length === 0, zeroRewards.join("、"));
   const randomRows = (quests ?? []).reduce(
     (sum, quest) => sum + (quest.rewardItems?.filter(item => item.rand).length ?? 0), 0);
   check("隨機獎勵有被標記", randomRows >= 50, `${randomRows} 列`);
