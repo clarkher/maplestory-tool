@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Chip } from "@/components/route/bits";
+import { hasItemPage, itemPagePath } from "@/lib/item-page";
 import { DbBrowser, DetailCard, Section, StatGrid, type DbEntry } from "@/components/DbBrowser";
 import { FilterTag } from "@/components/FilterTag";
 import { avatarLink } from "@/lib/avatar/linkable";
@@ -257,8 +258,17 @@ function ItemDetail({
     </Link>
   ));
 
+  // 跟 staticItemPages 同一條規則：沒名字的怪沒有頁面，不算來源
+  const hasPage = hasItemPage(item, {
+    monster: id => {
+      const monster = monsterIndex.get(id);
+      return monster && !monster.un ? monster.n : undefined;
+    },
+    quest: id => questIndex.get(id)?.n,
+  });
+
   return (
-    <DetailCard>
+    <DetailCard pageHref={hasPage ? itemPagePath(item.id) : undefined} pageFullLoad>
       <header className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={itemImage(item.id)} alt="" width={48} height={48} className="size-12 object-contain" />
