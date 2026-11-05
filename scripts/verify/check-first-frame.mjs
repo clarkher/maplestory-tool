@@ -10,6 +10,7 @@
 //   7 刺客 35 選了全幸（ms-build {"400":"全幸"}）：硬重新整理、站內換頁進首頁，「能力值與裝備」卡第一次畫出來
 //     就是全幸（選中的是「全幸」、有「要湊的敏捷裝備」），不會先畫一般點法再跳過去（v0.76）
 //   8 硬重新整理首頁不跳：存過角色、第一次來 × 1280、375，CPU 慢 4 倍＋慢 4G＋不用快取，位移加總都 < 0.1（v1.56；來源、畫面看 page-cls.mjs）
+//   9 第一次來、程式接手前就打等級、按職業：接手後都還在（v1.57；選單第一格就畫出來，慢手機離接手可能差好幾秒）
 //   10 硬重新整理其他頁不跳：手機的傷害計算機（存過角色）、組隊指揮（第一次來）位移都 < 0.1（v1.63；內容區至少一個螢幕高是全站版面，挑最嚴重的兩頁）
 //   6 沒有 hydration 警告、沒有沒接住的錯誤（排在最後，涵蓋上面每一項）
 // 細的逐格紀錄、截圖用 home-first-frame.mjs、pages-first-frame.mjs 看。
@@ -272,7 +273,7 @@ try {
     }
   });
 
-  // 第 8、10 項：CPU 慢 4 倍＋慢 4G＋不用快取，跑完還原成其他項目用的手機、狂戰士 45
+  // 第 8、9 項：CPU 慢 4 倍＋慢 4G＋不用快取，跑完還原成其他項目用的手機、狂戰士 45
   async function slowLoad() {
     await page.send("Emulation.setCPUThrottlingRate", { rate: 4 });
     await page.send("Network.enable");
@@ -310,6 +311,47 @@ try {
       check(NAME_8, shifts.every(s => s.shift < 0.1), { shifts });
     } finally {
       await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+      await normalLoad();
+    }
+  });
+
+  // 不等載入完就動手（跟真人一樣看到就按）：等級輸入框打 35、按劍士，接手後角色要是劍士 35。
+  // 機器快到動手前就接手的話，走的是平常的按鈕，一樣要過，不會偶發紅燈
+  const NAME_9 = "9 程式接手前打等級、按職業，接手後都還在";
+  await guard(NAME_9, async () => {
+    const JOB = `[...document.querySelectorAll('section[aria-label="你的角色"] button')].find(b => b.textContent.trim() === "劍士")`;
+    const INPUT = `document.querySelector('input[aria-label="你的等級"]')`;
+    const spot = el => `(() => { const el = ${el}; if (!el || !el.getBoundingClientRect().width) return null; const r = el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2, hydrated: Object.keys(el).some(k => k.startsWith("__reactFiber")) }; })()`;
+    const tap = async ({ x, y }) => {
+      await page.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", clickCount: 1 });
+      await page.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", clickCount: 1 });
+    };
+    await slowLoad();
+    try {
+      await evaluate(`localStorage.removeItem("ms-profile"); "ok"`);
+      const loaded = new Promise(res => {
+        const l = m => { if (m.method === "Page.loadEventFired") { page.listeners.delete(l); res(); } };
+        page.listeners.add(l);
+      });
+      await page.send("Page.navigate", { url: BASE + "/" });
+      let input = null;
+      for (let i = 0; i < 2000 && !input; i++) {
+        // 換頁當下執行環境可能正在換，讀不到就再讀一次
+        input = await evaluate(spot(INPUT)).catch(() => null);
+        if (!input) await sleep(15);
+      }
+      if (!input) throw new Error("等不到等級輸入框");
+      await tap(input);
+      await page.send("Input.insertText", { text: "35" });
+      const job = await evaluate(spot(JOB));
+      await tap(job);
+      await loaded;
+      const settled = await waitFor(`() => document.querySelector('section[aria-label="你的角色"] .text-xl')?.textContent.startsWith("劍士") && Object.keys(document.querySelector('input[aria-label="你的等級"]')).some(k => k.startsWith("__reactFiber"))`, 60000);
+      await sleep(1000);
+      const after = await evaluate(`(() => ({ stored: localStorage.getItem("ms-profile"), level: document.querySelector('input[aria-label="你的等級"]')?.value, title: document.querySelector('section[aria-label="你的角色"] .text-xl')?.textContent }))()`);
+      const stored = JSON.parse(after.stored ?? "null");
+      check(NAME_9, settled === "ok" && stored?.level === 35 && stored?.job === 100 && after.level === "35", { inputHydratedAtTap: input.hydrated, jobHydratedAtTap: job.hydrated, after });
+    } finally {
       await normalLoad();
     }
   });

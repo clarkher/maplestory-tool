@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -53,8 +53,9 @@ node scripts/verify/check-first-frame.mjs [輸出] [網址，預設 http://local
   第一次畫出來就是全幸——逐格紀錄裡卡片在的每一格（rAF 跟 DOM 變動都看）選中的都是「全幸」、都有「要湊的敏捷裝備」，
   不會先畫一般點法再跳過去（v0.76）；跑完把角色還原成狂戰士 45、拿掉 `ms-build`；
   8 硬重新整理首頁不跳：存過角色、第一次來 × 1280、375（手機模式），CPU 慢 4 倍＋慢 4G＋不用快取，位移加總都 < 0.1（v1.56）；
+  9 第一次來、不等載入完就打等級 35、按劍士（慢 4G＋CPU 慢 4 倍），接手後角色要是劍士 35（v1.57）；
   10 硬重新整理其他頁不跳：手機的傷害計算機（存過角色）、組隊指揮（第一次來）位移都 < 0.1（v1.63）；
-  6 沒有 hydration 警告、沒接住的錯誤（排在最後跑，涵蓋 1～5、7、8、10）。
+  6 沒有 hydration 警告、沒接住的錯誤（排在最後跑，涵蓋 1～5、7～10）。
 - 逐格紀錄最少記固定的時間（換頁 4 秒、硬重新整理 3～5 秒），畫面還沒出來就一路記到出來後 1.5 秒、最多 60 秒（v0.76）：
   GitHub 上（`next start`）跟以前一樣，本機 `next dev` 第一次編譯、別的 session 正在改檔重編、CPU 被吃滿時，不會畫面還沒換過去就停、誤報紅。
 - 本機跑：先 `next build` 再 `next start`（或直接給測試機網址），約 25 秒。`CI` 環境變數有設時 Chrome 會加 `--no-sandbox`。
@@ -341,6 +342,16 @@ AT=2026-11-12T00:00:00+08:00 node scripts/verify/shop-shot.mjs <輸出> <檔名�
 - 連續跑兩次同一個埠，前一支 Chrome 有時還沒關乾淨，會報「DevTools 沒起來」→ 換 `CHROME_PORT` 重跑。
 
 ### 首頁裝備卡
+
+#### `job-road-shot.mjs`：初心者選職業，首頁先解的「有關轉職的指導」跟「5 選 1」（v1.65）
+
+```bash
+node scripts/verify/job-road-shot.mjs <輸出資料夾> <網址> 8,9,10,12
+```
+
+- 每個等級存 `Lv<等級>.png`（先解整塊）、`Lv<等級>-detail.png`（展開 5 選 1），手機 375 寬。console 跟 `results.json` 印每一行的字、細節列出的選項、有沒有橫向捲動。
+- 量 360、375、390、430 寬時 5 選 1 的路名有沒有被拆成兩行（`broken`，v1.66），有就結束碼 1。
+- 新環境驗不到「來過的人」，改資料要另外用留著舊快取的瀏覽器看（這輪只改程式）。
 
 #### `gear-source-shot.mjs`：武器、卷軸「去哪拿」截圖，可以把瀏覽器時間調到 10/15 之後（v0.66）
 
