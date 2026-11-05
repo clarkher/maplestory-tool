@@ -369,3 +369,24 @@ describe("比較句防呆", () => {
     expect(labelErrors.some(error => error.startsWith("sources"))).toBe(false);
   });
 });
+
+describe("代號照文章 gear 指定的招式算", () => {
+  it("同一把武器、同一級，gear 寫了招式就算那一招；別把武器照預設", () => {
+    const weapon = 1372005;
+    const plain = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: [{ from: 31, to: 50, weapon }] });
+    const claw = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: [{ from: 31, to: 39, weapon, skill: 2001005 }, { from: 40, to: 50, weapon }] });
+    expect(articleKillStats({ mobId: 2230101, level: 35, weaponId: weapon, table: plain, data }).skillId).toBe(HEAL);
+    expect(articleKillStats({ mobId: 2230101, level: 35, weaponId: weapon, table: claw, data }).skillId).toBe(2001005);
+    expect(articleKillStats({ mobId: 2230101, level: 40, weaponId: weapon, table: claw, data }).skillId).toBe(HEAL);
+    expect(articleKillStats({ mobId: 2230101, level: 35, weaponId: weapon, targets: 3, table: claw, data }).skillId).toBe(HEAL);
+  });
+  it("gear 寫了招式等級就照那一級算：文章的點法跟站上預設不同時用", () => {
+    const weapon = 1432007;
+    const roar = 1311006;
+    const table = buildCalcTable({ job: 131, from: 71, to: 90, data, gear: [{ from: 71, to: 80, weapon: 1442005, skill: 1001004 }, { from: 81, to: 90, weapon, skill: roar, skillLevel: 30 }] });
+    const stats = articleKillStats({ mobId: 6130103, level: 85, weaponId: weapon, table, data });
+    expect(stats.skillId).toBe(roar);
+    expect(stats.skillLevel).toBe(30);
+    expect(table.columns.at(-1)!.skill).toMatchObject({ id: roar, level: 30 });
+  });
+});
