@@ -49,6 +49,8 @@
 
 「地圖＋NPC 圖鑑」（`/db/maps`、`/db/maps/<id>`、`/db/npcs`、`/db/npcs/<id>`，v1.24）：查資料的兩個分頁加單筆頁。地圖頁是整張地圖畫面，上面標怪物圓點（同時在場幾隻）、NPC、傳送門，下面列怪物、NPC、門通往；NPC 頁寫在哪、賣什麼（標參考舊版資料）、任務。只收已開放的地圖；資料在 `public/data/atlas-maps.json`、`atlas-index.json`、`npcs.json`，畫面圖在 `public/assets/map_renders/`。怪物卡、任務卡、`/go` 的「看這張圖」都連得進來。驗收：`node scripts/verify/atlas-shot.mjs <網址，預設 http://localhost:9303> [輸出]`（埠 9304，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
 
+地圖頁的標題跟開頭那段話（v1.51）：搜尋字有不少是「○○怎麼去」，所以路線寫在最前面（`mapRouteText`，跟 `/go` 同一套路線）。寫不出路線的圖（城鎮自己、走不到）標題不寫「怎麼去」。
+
 「紙娃娃」（`/plan/avatar`，v1.40）：換髮型（含髮色）、臉型（含瞳色）、膚色、12 類裝備＋點裝，分男女；動作、表情、翻面、隨機穿搭（可以鎖部位）、上一套、重置，跨類別搜尋、只看商城有賣，下載透明背景 PNG（4 倍）、分享連結。
 不進導覽列，入口有兩個：查資料時裝卡、裝備卡（點裝、髮型、臉型、一般裝備）上的「穿上看看」（只給畫得出來的，規則在 `src/lib/avatar/linkable.ts`；打開卡片才載 `avatar.json`，清單與第一格不載）；首頁角色列下面的「紙娃娃」（v1.41，跟萬聖節攻略同樣式，不看日期、不等資料）。
 角色圖由瀏覽器向 maplestory.io 即時要（台服 TWMS 256，台服沒有的用日服 JMS 444 補），兩邊都畫不出來的照列、標「暫時看不到樣子」；道具清單、名字、小圖用我們自己的 `public/data/avatar.json`（見下面資料管線）。

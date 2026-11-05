@@ -8,7 +8,7 @@ import path from "node:path";
 import type { CalcData } from "./damage-view";
 import type { GearData } from "./gear";
 import { parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
-import type { AtlasIndex, AtlasMap, AtlasNpc, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, Quest, Skill, TrainingRow } from "./types";
+import type { AtlasIndex, AtlasMap, AtlasNpc, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, PortalEdge, Quest, Skill, TrainingRow } from "./types";
 
 const cache = new Map<string, unknown>();
 
@@ -57,6 +57,10 @@ export function staticItemNames(): Map<number, string> {
   }
   return cache.get(key) as Map<number, string>;
 }
+
+/** 傳送門路線（地圖頁寫「怎麼去」用，跟 /go 同一份） */
+export const staticGraph = () => read<Record<string, PortalEdge[]>>("graph");
+export const staticNearestTown = () => read<Record<string, [number, number]>>("nearest-town");
 
 /** 已開放的圖：圖鑑只收已開放的（攻略文防呆用） */
 export const staticOpenMaps = () => new Set(staticAtlasIndex().maps);

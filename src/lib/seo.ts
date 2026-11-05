@@ -49,7 +49,7 @@ export function questSummary(quest: Quest): string {
   const level = levelText(quest.minLv, quest.maxLv);
   // 「Lv.8～13 可接」中間空一格，「Lv.30 以上可接」不用
   let text = `「${quest.n}」是${quest.cat}任務${level ? `，${level}${/以[上下]$/.test(level) ? "" : " "}可接` : ""}`;
-  if (quest.sNpc) text += `，找${quest.sNpc.mapName ?? ""}的${quest.sNpc.n}接`;
+  if (quest.sNpc) text += `，找${quest.sNpc.mapName ? `${quest.sNpc.mapName}的` : ""}${quest.sNpc.n}接`;
   text += "。";
   const mobs = (quest.needMobs ?? []).map(mob => `${mob.n}${mob.c ? ` ${mob.c} 隻` : ""}`);
   if (mobs.length) text += `要打${mobs.join("、")}。`;
