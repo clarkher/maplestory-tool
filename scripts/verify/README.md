@@ -608,7 +608,7 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
   37. 上一套不空按：點帽子、30ms 後再點一次脫掉（現在穿 A、最上面也是 A），按鈕變淡；穿上手套（真的畫好）再點帽子兩下，按一次就回到 A。
   38. 鎖髮型後開 `?try=`：從文件一開始逐格看，鎖沒亮過、存的清掉。
   39. 慢 4G＋CPU 4 倍，搜尋結果裡間隔 30ms 連點兩件不同格的衣服（在頁面裡排計時器，不走 DevTools：它要等上一下處理完才送下一下，量不到真的連點）：網址、穿了什麼都有兩件，沒有 `_rsc` 請求。舊版 `router.replace` 第一件會掉。
-  40. 換衣服、隨機、上一套、換動作、換性別、重置：一個 `_rsc` 請求都沒有；挑衣服卡框著新的那件（`useSearchParams` 跟得上）。
+  40. 換衣服、隨機、上一套、換動作、換性別、重置：一個 `_rsc` 請求都沒有；挑衣服卡框著新的那件（`useSearchParams` 跟得上）。第 39、40 項只算紙娃娃頁自己的 `_rsc`（`/plan/avatar.txt?…`、`/plan/avatar?…`）：導覽列連結的預先載入一開頁就有 16 個，機器慢時會拖到這段才發，v1.53 前會誤判紅燈；沒過時 `results.json` 有網址。
   41. 320 寬帽子分頁開「只看商城有賣」：每格的字都在格子裡、「樂豆點」三個字在同一行、整頁不橫捲。
   42. 整趟沒有沒接住的例外、`console.error`。
 - 輸出：`avatar-375.png`、`avatar-hair.png`、`avatar-mini.png`／`avatar-mini-dark.png`、`avatar-missing.png`、`avatar-from-db.png`、`avatar-error.png`、`avatar-opening.png`、`avatar-locked.png`／`avatar-locked-dark.png`、`avatar-weapon.png`、`avatar-spear.png`、`avatar-search.png`、`avatar-shop.png`、`avatar-busy.png`、`avatar-shared.png`、`avatar-1280.png`／`avatar-1280-dark.png`、`avatar-1280-full.png`、`avatar-back-again.png`、`avatar-double.png`、`avatar-shop-320.png`、`results.json`（`expect` 是從站上資料算出的期望值）；整支跑不下去另存 `crash.png`。
