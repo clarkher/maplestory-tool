@@ -9,7 +9,8 @@
 //   5 查資料 → 練功地圖排行：只有一個狀態，就是排行
 //   7 刺客 35 選了全幸（ms-build {"400":"全幸"}）：硬重新整理、站內換頁進首頁，「能力值與裝備」卡第一次畫出來
 //     就是全幸（選中的是「全幸」、有「要湊的敏捷裝備」），不會先畫一般點法再跳過去（v0.76）
-//   8 硬重新整理首頁不跳：存過角色、第一次來 × 1280、375，CPU 慢 4 倍＋慢 4G＋不用快取，位移加總都 < 0.1（v1.56；來源、畫面看 home-cls.mjs）
+//   8 硬重新整理首頁不跳：存過角色、第一次來 × 1280、375，CPU 慢 4 倍＋慢 4G＋不用快取，位移加總都 < 0.1（v1.56；來源、畫面看 page-cls.mjs）
+//   10 硬重新整理其他頁不跳：手機的傷害計算機（存過角色）、組隊指揮（第一次來）位移都 < 0.1（v1.63；內容區至少一個螢幕高是全站版面，挑最嚴重的兩頁）
 //   6 沒有 hydration 警告、沒有沒接住的錯誤（排在最後，涵蓋上面每一項）
 // 細的逐格紀錄、截圖用 home-first-frame.mjs、pages-first-frame.mjs 看。
 import { spawn } from "node:child_process";
@@ -271,17 +272,28 @@ try {
     }
   });
 
-  // 只看位移總量、不看時間：結構對了就接近 0，機器慢也一樣；結構錯了（頁尾一開始就在畫面裡、讀取區塊比表單矮）每次都一樣的數字。
-  // 網路一定要慢、不用快取：程式到得太快時第一格還沒畫就接手了，壞掉的版本也量到 0
-  const NAME_8 = "8 硬重新整理首頁不跳：兩種人、兩種寬度位移都 < 0.1";
-  await guard(NAME_8, async () => {
-    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", {
-      source: `window.__shift = 0; new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__shift += e.value; }).observe({ type: "layout-shift", buffered: true });`,
-    });
+  // 第 8、10 項：CPU 慢 4 倍＋慢 4G＋不用快取，跑完還原成其他項目用的手機、狂戰士 45
+  async function slowLoad() {
     await page.send("Emulation.setCPUThrottlingRate", { rate: 4 });
     await page.send("Network.enable");
     await page.send("Network.setCacheDisabled", { cacheDisabled: true });
     await page.send("Network.emulateNetworkConditions", { offline: false, latency: 150, downloadThroughput: 1.6 * 1024 * 1024 / 8, uploadThroughput: 750 * 1024 / 8 });
+  }
+  async function normalLoad() {
+    await page.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+    await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+    await page.send("Network.setCacheDisabled", { cacheDisabled: false });
+    await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 2, mobile: true });
+    await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); "ok"`);
+  }
+
+  // 只看位移總量、不看時間：結構對了就接近 0，機器慢也一樣；結構錯了（頁尾一開始就在畫面裡、讀取區塊比表單矮）每次都一樣的數字。
+  // 網路一定要慢、不用快取：程式到得太快時第一格還沒畫就接手了，壞掉的版本也量到 0
+  const SHIFT_PROBE = `window.__shift = 0; new PerformanceObserver(list => { for (const e of list.getEntries()) if (!e.hadRecentInput) window.__shift += e.value; }).observe({ type: "layout-shift", buffered: true });`;
+  const NAME_8 = "8 硬重新整理首頁不跳：兩種人、兩種寬度位移都 < 0.1";
+  await guard(NAME_8, async () => {
+    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: SHIFT_PROBE });
+    await slowLoad();
     try {
       const shifts = [];
       for (const [width, height, mobile] of [[1280, 900, false], [375, 812, true]]) {
@@ -298,11 +310,34 @@ try {
       check(NAME_8, shifts.every(s => s.shift < 0.1), { shifts });
     } finally {
       await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
-      await page.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-      await page.send("Network.emulateNetworkConditions", { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
-      await page.send("Network.setCacheDisabled", { cacheDisabled: false });
-      await page.send("Emulation.setDeviceMetricsOverride", { width: 375, height: 812, deviceScaleFactor: 2, mobile: true });
-      await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); "ok"`);
+      await normalLoad();
+    }
+  });
+
+  // 頁尾是全站版面，改壞了每一頁一起壞：挑手機最嚴重的兩頁量就夠了，不用每頁都跑
+  const NAME_10 = "10 硬重新整理其他頁不跳：手機的傷害計算機、組隊指揮位移都 < 0.1";
+  await guard(NAME_10, async () => {
+    const { identifier } = await page.send("Page.addScriptToEvaluateOnNewDocument", { source: SHIFT_PROBE });
+    await slowLoad();
+    try {
+      const shifts = [];
+      for (const [pathname, saved] of [["/plan/damage", true], ["/plan/pq", false]]) {
+        await evaluate(saved ? `localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); "ok"` : `localStorage.removeItem("ms-profile"); "ok"`);
+        await navigate(BASE + pathname);
+        // 頁面高度 2 秒沒變才算畫好（最多 30 秒）：資料是載入後才長出來的，太早量壞掉的版本也是 0
+        const t0 = Date.now();
+        let height = -1, since = t0;
+        while (Date.now() - t0 < 30000 && (Date.now() - since <= 2000 || Date.now() - t0 <= 6000)) {
+          const now = await evaluate("document.documentElement?.scrollHeight ?? 0").catch(() => height);
+          if (now !== height) { height = now; since = Date.now(); }
+          await sleep(250);
+        }
+        shifts.push({ pathname, saved, height, shift: +(await evaluate("window.__shift")).toFixed(4) });
+      }
+      check(NAME_10, shifts.every(s => s.shift < 0.1), { shifts });
+    } finally {
+      await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
+      await normalLoad();
     }
   });
 
