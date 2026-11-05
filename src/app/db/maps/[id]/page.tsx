@@ -27,10 +27,14 @@ function mapName(id: number): string | undefined {
   return staticAtlasMaps().find(map => map.id === id)?.n || staticMaps()[String(id)]?.zh || undefined;
 }
 
-/** 開頭那段話：路線放前面，搜尋結果顯示得到；玩家搜「○○怎麼去」最多 */
+/** 開頭那段話：路線放前面，搜尋結果顯示得到；不少玩家搜「○○怎麼去」 */
+function routeText(map: AtlasMap): string | null {
+  return mapRouteText(map.id, staticGraph(), staticMaps(), staticNearestTown());
+}
+
 function leadText(map: AtlasMap): string {
-  const route = mapRouteText(map.id, staticGraph(), staticMaps(), staticNearestTown());
-  const summary = leadText(map);
+  const route = routeText(map);
+  const summary = mapSummary(map, mapName);
   return route ? `${route}${summary}` : summary;
 }
 
@@ -55,7 +59,7 @@ export default async function Page({ params }: Props) {
   const map = find((await params).id);
   if (!map) notFound();
   const path = `/db/maps/${map.id}`;
-  const summary = mapSummary(map, mapName);
+  const summary = leadText(map);
   const mapPages = new Set(staticAtlasIndex().maps);
   const npcInfo = new Map(staticNpcs().map(npc => [npc.id, npc]));
   const version = staticMapRenders()[String(map.id)];
