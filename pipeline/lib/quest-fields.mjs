@@ -23,6 +23,16 @@ export function splitStartNone(questId, startItems, none) {
 }
 
 /**
+ * 獎勵清單裡真的會給的。客戶端把「給」跟「收走」放在同一份清單：
+ * action=remove 是完成時收走的；還有 action=give、count 0 的——站上 11 個任務全是要交的那個道具（打手指南交 15 個強大力量結晶），
+ * 也是收走，不是獎勵。只有明寫 0 才拿掉，沒寫數量的照舊。
+ * @param {Array<{action?: string, count?: number}>} rows 上游的 completeRewards／startRewards items
+ */
+export function givenRewardRows(rows) {
+  return rows.filter(row => row?.action !== "remove" && row?.count !== 0);
+}
+
+/**
  * 獎勵技能的名字。流浪煉金術師的新技術（6000）獎勵三個神匠之魂（冒險家、皇家騎士團、狂狼勇士各一個編號），
  * 經典版只有冒險家，站上（skills.json）也只有 1003——寫「附贈技能 3 個」玩家會以為拿三個。查不到的略過。
  * @param {number[]|undefined} ids quest.rewardSkills

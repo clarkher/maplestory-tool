@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { rewardSkillNames, splitStartNone } from "./quest-fields.mjs";
+import { givenRewardRows, rewardSkillNames, splitStartNone } from "./quest-fields.mjs";
 
 // data/client/quest-start-none.json 的 none：任務 id → 接取條件裡 count 沒寫（＝不能有）的道具
 const none = { 1115: [4031683], 2215: [4031894] };
@@ -43,4 +43,17 @@ test("獎勵技能寫站上有的技能名，別的職業線（站上沒有）�
 test("一個都查不到、或沒有獎勵技能：undefined（細節不寫那一行）", () => {
   assert.equal(rewardSkillNames([10001003], skillsById), undefined);
   assert.equal(rewardSkillNames(undefined, skillsById), undefined);
+});
+
+test("獎勵清單只留真的會給的：收走的、數量 0 的都不算", () => {
+  const given = { id: 2000000, count: 30, action: "give" };
+  const removed = { id: 4031856, count: -15, action: "remove" };
+  // 打手指南：交 15 個強大力量結晶，上游獎勵寫同一個道具 count 0、action give
+  const handedIn = { id: 4031856, count: 0, action: "give" };
+  assert.deepEqual(givenRewardRows([given, removed, handedIn]), [given]);
+});
+
+test("獎勵沒寫數量的留著（只有明寫 0 才拿掉）", () => {
+  const noCount = { id: 2000000, action: "give" };
+  assert.deepEqual(givenRewardRows([noCount]), [noCount]);
 });
