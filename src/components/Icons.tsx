@@ -146,6 +146,16 @@ export function CheckIcon(props: IconProps) {
   );
 }
 
+/** 鎖頭：open＝開著（沒鎖）、關著是實心 */
+export function LockIcon({ open = false, ...props }: IconProps & { open?: boolean }) {
+  return (
+    <svg {...base(props)} strokeWidth={2.2}>
+      <rect x="4.5" y="10.5" width="15" height="10.5" rx="2.2" fill={open ? "none" : "currentColor"} />
+      <path d={open ? "M7.8 10.5V7.2a4.2 4.2 0 0 1 8.1-1.5" : "M7.8 10.5V7.2a4.2 4.2 0 0 1 8.4 0v3.3"} />
+    </svg>
+  );
+}
+
 export function CloseIcon(props: IconProps) {
   return (
     <svg {...base(props)}>

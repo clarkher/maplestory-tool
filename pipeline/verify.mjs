@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readJson } from "./lib/http.mjs";
 import { WEAPON_TYPES } from "./lib/gear.mjs";
-import { avatarCoverage, MIN_DRAWABLE_RATIO as AVATAR_MIN_RATIO, SLOT_KEYS as AVATAR_SLOT_KEYS } from "./lib/avatar.mjs";
+import { avatarCoverage, MIN_DRAWABLE_RATIO as AVATAR_MIN_RATIO, MIN_SHOP_PRICED as AVATAR_MIN_PRICED, SLOT_KEYS as AVATAR_SLOT_KEYS } from "./lib/avatar.mjs";
 import { HELD_BACK_MAPS, OFFICIAL_MAP_NAMES } from "./lib/map-names.mjs";
 import { missingFrames } from "./lib/monster-frames.mjs";
 import { NPC_WARPS } from "./lib/npc-warps.mjs";
@@ -283,6 +283,9 @@ function main() {
   const avatarSlotCounts = AVATAR_SLOT_KEYS.map(k => [k, (avatar?.items ?? []).filter(i => i.k === k).length]);
   const avatarThin = avatarSlotCounts.filter(([, n]) => n < 20);
   check("紙娃娃 12 類裝備每類至少 20 件", avatarThin.length === 0, avatarThin.length ? avatarThin.map(([k, n]) => `${k} ${n}`).join("、") : avatarSlotCounts.map(([k, n]) => `${k} ${n}`).join("、"));
+  // 商城價（pr）來自 items.json 的 sp；上游改版 sp 漏抽的話這裡會掉到門檻以下
+  const avatarPriced = (avatar?.items ?? []).filter(i => i.pr).length;
+  check("紙娃娃有商城價的件數合理", avatarPriced >= AVATAR_MIN_PRICED, `${avatarPriced} 件（門檻 ${AVATAR_MIN_PRICED}）`);
   // 凍結檔進版控，CI 一定有；不見了就當一件都沒比對過，比例是 0、擋下來
   const avatarMsio = readJson(path.resolve(import.meta.dirname, "..", "data", "raw", "msio-avatar.json"), null);
   const avatarCov = avatarCoverage(avatar, avatarMsio);

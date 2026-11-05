@@ -71,6 +71,21 @@ test("buildAvatar：髮型併款、瞳色看凍結檔、畫不出來排最後、
   assert.equal(a.items.some(i => i.id === 1003995), false);
   assert.equal(a.skin.length, 8); assert.deepEqual(a.skin[0], { id: 2000, n: "奶油皮膚" });
 });
+test("商城價：只收商城單件的樂豆點，多個價錢取最低；整組、楓幣店、活動店不算", () => {
+  const item = (id, sp) => ({ id, n: "測試帽子", c: "時裝", s: "帽子", eq: {}, sp });
+  const msio = { twms: [1000001, 1000002, 1000003, 1000004], jms: [], checked: [] };
+  const out = buildAvatar([
+    item(1000001, [{ p: "商城", pr: 80, c: 1 }, { p: "商城", pr: 60, c: 1 }]),
+    item(1000002, [{ p: "商城", pr: 1980, k: 10, c: 1 }]),
+    item(1000003, [{ p: "弓箭手村", pr: 500 }, { p: "活動", pr: 3, u: "萬聖節硬幣", e: "2026-11-11T23:59+08:00" }]),
+    item(1000004, undefined),
+  ], msio).items;
+  const pr = id => out.find(i => i.id === id).pr;
+  assert.equal(pr(1000001), 60);
+  assert.equal(pr(1000002), undefined);
+  assert.equal(pr(1000003), undefined);
+  assert.equal(pr(1000004), undefined);
+});
 test("候選 id：髮型每款 0～7 色、臉型每款 0～7 瞳色、12 類道具、膚色頭部", () => {
   const ids = avatarCandidates([{ id: 30037, n: "棕色活力冒險造型", c: "時裝", s: "外觀/角色" }, { id: 20000, n: "挑戰的臉型", c: "時裝", s: "外觀/角色" }, { id: 1040002, n: "白棉T恤", c: "裝備", s: "上衣" }]);
   for (const id of [30030, 30031, 30037, 20000, 20100, 20700, 1040002, 12000, 12011]) assert.ok(ids.includes(id), String(id));

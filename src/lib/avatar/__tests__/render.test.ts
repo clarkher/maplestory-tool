@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defaultOutfit, itemIndex, wearItem } from "@/lib/avatar/outfit";
-import { FRAMES, MSIO, characterUrl, stanceFor } from "@/lib/avatar/render";
+import { FRAMES, MSIO, characterUrl, stanceFor, stageUrl } from "@/lib/avatar/render";
 import type { AvatarData, AvatarItem } from "@/lib/avatar/types";
 
 const data = JSON.parse(readFileSync(join(process.cwd(), "public/data/avatar.json"), "utf8")) as AvatarData;
@@ -115,5 +115,15 @@ describe("FRAMES", () => {
     expect(FRAMES.walk).toMatchObject({ n: 4, ms: 180 });
     expect(FRAMES.alert).toMatchObject({ n: 3, ms: 500 });
     for (const k of ["jump", "prone", "sit"] as const) expect(FRAMES[k].n).toBe(1);
+  });
+});
+
+describe("stageUrl（舞台跟預載共用，網址才一字不差）", () => {
+  it("就是 1 倍、renderMode=4 的那一格", () => {
+    const o = defaultOutfit(0);
+    for (const frame of [0, 1, 2]) {
+      expect(stageUrl(o, data, frame)).toBe(characterUrl(o, data, { frame, resize: 1, mode: 4 }));
+      expect(stageUrl(o, data, frame).endsWith(`/${frame}?resize=1&renderMode=4&flipX=false`)).toBe(true);
+    }
   });
 });
