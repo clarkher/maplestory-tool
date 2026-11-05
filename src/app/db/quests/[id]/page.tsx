@@ -5,7 +5,7 @@ import { SeoLinks, SeoPage, SeoSection } from "@/components/SeoPage";
 import { jobLabel } from "@/lib/item-view";
 import { npcHref } from "@/lib/atlas-view";
 import { breadcrumbLd, clip, questSummary, webPageLd } from "@/lib/seo";
-import { staticAtlasIndex, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
+import { staticAtlasIndex, staticHasItemPage, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
 import type { MapRecord, Quest } from "@/lib/types";
 
 type Props = { params: Promise<{ id: string }> };
@@ -73,6 +73,10 @@ export default async function Page({ params }: Props) {
     return href ? [{ href, text: npc.n, note }] : [];
   });
   const npcPages = (quest.npcs ?? []).map(npc => npc.id).filter(id => npcHref(id, atlasIndex));
+  // 卡片上的道具：有單獨頁的才連過去（頁面只帶這個任務用得到的 id）
+  const itemPages = [...new Set(
+    [quest.startItems, quest.startNone, quest.needItems, quest.rewardItems, quest.startGiven].flatMap(rows => rows ?? []).map(row => row.id),
+  )].filter(staticHasItemPage);
 
   return (
     <SeoPage
@@ -92,7 +96,7 @@ export default async function Page({ params }: Props) {
           <SeoLinks links={npcLinks} />
         </SeoSection>
       ) : null}
-      <QuestDetailBody quest={quest} maps={mapsFor(quest, staticMaps())} questNames={questNames} npcPages={npcPages} />
+      <QuestDetailBody quest={quest} maps={mapsFor(quest, staticMaps())} questNames={questNames} npcPages={npcPages} itemPages={itemPages} />
       {mobs.length ? (
         <SeoSection title="要打的怪">
           <SeoLinks links={mobs.map(mob => ({ href: `/db/monsters/${mob.id}`, text: mob.n, note: mob.c ? `${mob.c} 隻` : undefined }))} />
