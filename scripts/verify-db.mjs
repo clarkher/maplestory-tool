@@ -13,19 +13,19 @@
 // 不然會量到沒畫出來的那一格。按返回／下一頁一律用 DevTools 的 Page.navigateToHistoryEntry（跟按瀏覽器的返回鍵一樣），
 // 不用頁面裡的 history.back()。
 // 寫死的資料：綠水靈 210100（出沒地圖展開後卡片很長）、白狼人 8140000（怪物清單第 121 筆，不在前 60 筆）、幼黑格里芬 6230401（掉落全都沒名字）、道具 1302020（不在前 60 筆）、
-// 任務 6931 要先完成 6930。遊戲資料改版後對不上時，這幾項會 FAIL 並寫出原因，換成新的 id 就好。
+// 任務 2203 要先完成 2202。遊戲資料改版後對不上時，這幾項會 FAIL 並寫出原因，換成新的 id 就好。
 // 也順便驗全站的兩件事（v0.53）：H 開頭＝手指往下滑時導覽列收起來（用 Input.dispatchTouchEvent 模擬手指；
 // Input.synthesizeScrollGesture 在無頭 Chrome 只送出按下、放開，畫面不會捲，不能用）；X 開頭＝打寶「自己找」、帶我去選地圖的搜尋框「×」。
 // G 開頭＝v0.55 起的道具頁篩選：搜職業名（法師）時清單分兩組小標、選了種類整頁重新整理後種類還在、「〇〇能用」「現在就能穿」兩顆標籤的規則
 // （寫死：小標那段搜「法師」、種類「單手劍」；標籤那段用狂戰士 Lv.45、分類「消耗」）。
-// G2＝v0.58 的任務頁：「只看我現在接得到的」清單中間的小標照快過期、剛解鎖、隨時可以補的順序，任務卡的「我做完了」（打勾、收起後那一列不見、
-// 重新整理後還在、桌機的小字不再寫「要先做」），清單不列「開發測試用」。位置也量（逐格，±1px）：開著卡片打勾、取消打勾，卡片裡的按鈕跟清單順序都不動（寫死任務 2323）；
+// G2＝v0.58 的任務頁：「只看我現在接得到的」清單中間的小標照快過期、剛解鎖、隨時可以補的順序（快過期看 Lv.10 法師：Lv.35 槍騎兵現在沒有快過期的任務），任務卡的「我做完了」（打勾、收起後那一列不見、
+// 重新整理後還在、桌機的小字不再寫「要先做」），清單不列「開發測試用」。位置也量（逐格，±1px）：開著卡片打勾、取消打勾，卡片裡的按鈕跟清單順序都不動（寫死任務 2204）；
 // 清單很下面（第 70 列以後）的任務打勾，卡片留在那一列下面、那一列跟按鈕不動、載出來的筆數不被收回 60 筆，收起後原本的下一列放到導覽列下方，
 // 最後一列收起就看前一列（不跳回清單開頭）；怪物資料載不到（擋掉 monsters.json）時清單照列、沒有建議等級（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
 // G3＝v0.60 的怪物頁：「適合我練的」「包含低 5 級」兩顆標籤手機 375、360 寬都在同一排、只能開一顆、點開著的就關，開了標籤下面小字寫等級範圍（Lv.30–40；僧侶再接職業規則），清單的等級範圍、順序、筆數、小字（Lv.35 · 經驗 405）照怪物資料另外算，整頁重新整理後標籤還開著，僧侶照玩家的 35 級算職業規則；「連沒有名字的怪一起列」只在資料真的有沒名字的怪時才出現（寫死：角色 Lv.35 槍騎兵、僧侶，跑完換回前面存的狂戰士 Lv.45）。
-// S1＝v0.71 的技能頁：遊戲資料沒有分等級數值的技能（skills.json 沒有 levels）點開不會整頁掛掉，卡片寫原因、沒有數值表（寫死：神匠之魂 1003 從清單點、肥肥的弱點攻擊 9000 直接打開網址）。
-// S2＝v0.74 的技能卡：效果行不露出 #代號（改寫滿級那一級的遊戲原文）、好幾級但沒有數值的一級一列放遊戲原文、隱身術 20 級那列放原文、
-// 魔力淨化寫沒有每一級的數字、說明尾巴的「#」拿掉（寫死：槍連擊 1311001、隱身術 4001003、魔力淨化 2000000、劍氣縱橫 1001005；槍連擊手機桌機都看）。
+// S1＝v0.71 的技能頁：遊戲資料沒有分等級數值的技能（skills.json 沒有 levels）點開不會整頁掛掉，卡片寫原因、沒有數值表（寫死：魔女掃把 1019 從清單點、實用的速度激發 8000 直接打開網址）；只有 1 級又沒數值的（神匠之魂 1003、肥肥的弱點攻擊 9000）只列說明。
+// S2＝v0.74 的技能卡：效果行不露出 #代號（改寫滿級那一級的遊戲原文）、好幾級但沒有數值的一級一列放遊戲原文（上游 2.0.0 補上數值後只剩蓄能激發）、
+// 魔力淨化寫沒有每一級的數字、說明尾巴的「#」拿掉（寫死：蓄能激發 5110001、槍連擊 1311001、隱身術 4001003、魔力淨化 2000000、劍氣縱橫 1001005；蓄能激發手機桌機都看）。
 // S3＝v0.78 的技能卡 12 項：存了角色先篩你這一轉的職業、所需技能連結、表頭單位、標出你點得到第幾級、表頭黏住、文字表標出變了的數字、衝鋒用客戶端數值、
 // 壞圖示、韓文說明、到期的活動技能（角色 Lv.45 狂戰士；「還沒點滿」暫時換 Lv.32 槍騎兵）。v0.78 起 S1 先把職業篩選記成「全部職業」（不然初心者技能不在清單上）。
 // v0.80 加：所需技能照台服客戶端接、寫錯的名字換正式名（終極之劍→精準之劍）、「需求技能：」也拆（天使祝福，暫時換 Lv.35 僧侶）。
@@ -403,16 +403,16 @@ try {
   // M7 同一頁的連結（任務「要先完成」）：跳到新的那一筆，中間不會先閃到頁面最上面
   await section("M7", async () => {
     await clearRemembered();
-    await navigate(`${BASE}/db/quests?id=6931`);
+    await navigate(`${BASE}/db/quests?id=2203`);
     const r = await ev(`await __ready(); await __sleep(900);
-      const link = [...document.querySelectorAll("main article a")].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
+      const link = [...document.querySelectorAll("main article a")].find(a => /[?&]id=2202/.test(a.getAttribute("href") || ""));
       if (!link) return { skipped: "找不到要先完成的連結" };
       const before = Math.round(scrollY); const framesP = __painted(1200, () => Math.round(scrollY));
       link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
-      await __waitFor(() => __id() === "6930", 5000); const frames = __changes(await framesP); await __sleep(300);
+      await __waitFor(() => __id() === "2202", 5000); const frames = __changes(await framesP); await __sleep(300);
       const card = __topWrap();
-      return { before, frames, id: __id(), open: __open(), topCard: __topCard(), rowTop: __top("6930"), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null };`);
-    check("M7 同頁連結（要先完成）：跳到新的那一筆", !r.skipped && r.id === "6930" && ((r.open[0] === "6930" && near(r.rowTop, 80)) || (r.topCard && near(r.cardTop, 80))), r);
+      return { before, frames, id: __id(), open: __open(), topCard: __topCard(), rowTop: __top("2202"), cardTop: card ? Math.round(card.getBoundingClientRect().top) : null };`);
+    check("M7 同頁連結（要先完成）：跳到新的那一筆", !r.skipped && r.id === "2202" && ((r.open[0] === "2202" && near(r.rowTop, 80)) || (r.topCard && near(r.cardTop, 80))), r);
     check("M7 同頁連結：跳過去時不會先閃到頁面最上面", !r.skipped && r.before > 10 && r.frames.every(y => y > 10), { before: r.before, frames: r.frames });
   });
 
@@ -561,27 +561,39 @@ try {
     await evaluate(`sessionStorage.setItem("ms-db:db:技能:job", '""'); 1`);
     await reload();
     await ev(`await __ready(); await __sleep(600); return 1;`);
-    const r = await ev(`const id = "1003";
-      if (!__row(id)) return { skipped: "預設清單前 60 筆沒有神匠之魂 1003" };
+    // skills.json 沒有 levels 的（這種原本會整頁掛掉）：魔女掃把從清單點、實用的速度激發直接打開
+    const r = await ev(`const id = "1019";
+      if (!__row(id)) return { skipped: "預設清單前 60 筆沒有魔女掃把 1019" };
       __tap(id); await __waitFor(() => !!__row(id)?.querySelector("article") || ${CRASHED}); await __sleep(800);
       return { open: __open(), ...${CARD} };`);
-    check("S1 從清單點開神匠之魂 1003：卡片打開、不會整頁掛掉", !r.skipped && !r.crashed && r.open[0] === "1003" && r.title?.includes("神匠之魂"), r);
-    check("S1 神匠之魂的卡片：照列說明、寫「遊戲資料沒有這個技能每一級的數值」、沒有數值表",
-      !r.skipped && r.text.includes("借用匠人之魂") && r.text.includes("遊戲資料沒有這個技能每一級的數值") && !r.table, r);
-    await shot("s1-list-1003.png");
-    await clearRemembered();
-    await navigate(BASE + "/db/skills?id=9000");
-    const d = await ev(`await __waitFor(() => !!document.querySelector("main article") || ${CRASHED}); await __sleep(800); return ${CARD};`);
-    check("S1 直接打開 ?id=9000（肥肥的弱點攻擊）：卡片在、照列說明、寫原因、沒有數值表",
-      !d.crashed && d.title?.includes("肥肥的弱點攻擊") && d.text.includes("給予肥肥150%的傷害")
-      && d.text.includes("遊戲資料沒有這個技能每一級的數值") && !d.table, d);
+    check("S1 從清單點開魔女掃把 1019：卡片打開、不會整頁掛掉", !r.skipped && !r.crashed && r.open[0] === "1019" && r.title?.includes("魔女掃把"), r);
+    check("S1 魔女掃把的卡片：寫「遊戲資料沒有這個技能每一級的數值」、沒有數值表",
+      !r.skipped && r.text.includes("遊戲資料沒有這個技能每一級的數值") && !r.table, r);
+    await shot("s1-list-1019.png");
+    const direct = async id => {
+      await clearRemembered();
+      await navigate(`${BASE}/db/skills?id=${id}`);
+      return ev(`await __waitFor(() => !!document.querySelector("main article") || ${CRASHED}); await __sleep(800); return ${CARD};`);
+    };
+    const d = await direct(8000);
+    check("S1 直接打開 ?id=8000（實用的速度激發）：卡片在、照列說明、寫原因「效果以上面的說明為準」、沒有數值表",
+      !d.crashed && d.title?.includes("實用的速度激發") && d.text.includes("增加自身的移動速度和跳躍力")
+      && d.text.includes("遊戲資料沒有這個技能每一級的數值，效果以上面的說明為準") && !d.table, d);
+    await shot("s1-direct-8000.png");
+    // 上游 2.0.0 起這幾個有 levels（1 級、沒有數值）：只有 1 級，沒有「每一級」可講，說明寫完了就不多寫原因
+    const craft = await direct(1003);
+    check("S1 直接打開 ?id=1003（神匠之魂，上限 1 級）：照列說明、不寫「每一級的數值」、沒有數值表",
+      !craft.crashed && craft.title?.includes("神匠之魂") && craft.text.includes("借用匠人之魂") && !craft.text.includes("每一級的數值") && !craft.table, craft);
+    const pig = await direct(9000);
+    check("S1 直接打開 ?id=9000（肥肥的弱點攻擊，上限 1 級）：照列說明、不寫「每一級的數值」、沒有數值表",
+      !pig.crashed && pig.title?.includes("肥肥的弱點攻擊") && pig.text.includes("給予肥肥150%的傷害") && !pig.text.includes("每一級的數值") && !pig.table, pig);
     await shot("s1-direct-9000.png");
   });
 
   // S2 技能卡的效果行跟每一級的數值（v0.74；使用者 10/08 看候選截圖選 B）：效果樣板有 #mpCon 這種代號的，改寫
-  // 「滿級效果（N 級）：滿級那一級的遊戲原文」；槍連擊這類好幾級但遊戲資料沒有數值的，一級一列放每一級的遊戲原文；
-  // 隱身術 20 級整列沒數值，那一列放原文；魔力淨化 16 級原文都一樣，照實寫沒有每一級的數字；說明尾巴的「#」拿掉。
-  // 都直接打開網址；槍連擊手機 375、桌機 1280 都看，隱身術 20 級那句原文看手機 375、360 寬會不會撐出左右滑
+  // 「滿級效果（N 級）：滿級那一級的遊戲原文」；好幾級但遊戲資料沒有數值的（上游 2.0.0 補上數值後只剩蓄能激發），一級一列放每一級的遊戲原文；
+  // 魔力淨化 16 級原文都一樣，照實寫沒有每一級的數字；說明尾巴的「#」拿掉。整列沒數值放原文那條（隱身術 20 級）現在沒有技能走到，留給 skill-view.test.ts。
+  // 都直接打開網址；蓄能激發手機 375、桌機 1280 都看，隱身術看手機 375、360 寬會不會撐出左右滑
   await section("S2", async () => {
     // 前面哪一段停在別的寬度也不影響：先回手機 375
     await mobile();
@@ -609,29 +621,42 @@ try {
     };
 
     const spear = await open(1311001);
-    check("S2 槍連擊：效果行是「滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊」",
-      spear?.effect === "滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊", spear?.effect);
-    check("S2 槍連擊：各等級數值一級一列放遊戲原文（表頭等級／效果、30 列，第 1、30 列照抄遊戲資料）",
-      spear?.heads.join("|") === "等級|效果" && spear.rows.length === 30
-        && spear.rows[0][1]?.text === "消耗MP10, 攻擊力55%, 對一名怪物兩次攻擊"
-        && spear.rows[29][1]?.text === "消耗MP24, 攻擊力170%, 對三名怪物三次攻擊",
-      { heads: spear?.heads, rows: spear?.rows.length, first: spear?.rows[0], last: spear?.rows[29] });
-    check("S2 槍連擊：手機 375 寬原文會換行，表格不用左右滑", spear?.fits === true, spear?.fits);
+    const rowText = row => row?.map(cell => cell.text).join("|");
+    check("S2 槍連擊：效果行是「滿級效果（30 級）：消耗MP24, 攻擊力170%, 對3名怪物攻擊3次」",
+      spear?.effect === "滿級效果（30 級）：消耗MP24, 攻擊力170%, 對3名怪物攻擊3次", spear?.effect);
+    // 上游 2.0.0 起有每一級的數值（第 1、30 級跟台服客戶端 1.15.3 一樣），不再是一級一列的原文
+    check("S2 槍連擊：各等級數值是數值表（等級／消耗 MP／傷害（%）／攻擊怪物數／攻擊次數、30 列，第 1 級 10、55、1、2，第 30 級 24、170、3、3）",
+      spear?.heads.join("|") === "等級|消耗 MP|傷害（%）|攻擊怪物數|攻擊次數" && spear.rows.length === 30
+        && rowText(spear.rows[0]) === "1|10|55|1|2" && rowText(spear.rows[29]) === "30|24|170|3|3",
+      { heads: spear?.heads, rows: spear?.rows.length, first: rowText(spear?.rows[0]), last: rowText(spear?.rows[29]) });
+    check("S2 槍連擊：手機 375 寬表格不用左右滑", spear?.fits === true, spear?.fits);
     check("S2 槍連擊：卡片上沒有「#」（效果樣板的代號、說明殘留的都沒有）", spear && !spear.text.includes("#"), spear?.text.slice(0, 300));
     await shot("s2-spear-mobile.png");
 
+    const CHARGE_MAX = "發動時持續時間為50秒，命中率與迴避率增加20，物理攻擊力增加20";
+    const charge = await open(5110001);
+    check("S2 蓄能激發：效果行是滿級那一句", charge?.effect === `滿級效果（40 級）：${CHARGE_MAX}`, charge?.effect);
+    check("S2 蓄能激發：各等級數值一級一列放遊戲原文（表頭等級／效果、40 列，第 1、40 列照抄遊戲資料）",
+      charge?.heads.join("|") === "等級|效果" && charge.rows.length === 40
+        && charge.rows[0][1]?.text === "發動時持續時間為31秒，命中率與迴避率增加1"
+        && charge.rows[39][1]?.text === CHARGE_MAX,
+      { heads: charge?.heads, rows: charge?.rows.length, first: charge?.rows[0], last: charge?.rows[39] });
+    check("S2 蓄能激發：手機 375 寬原文會換行，表格不用左右滑", charge?.fits === true, charge?.fits);
+    check("S2 蓄能激發：卡片上沒有「#」", charge && !charge.text.includes("#"), charge?.text.slice(0, 300));
+    await shot("s2-charge-mobile.png");
+
     const stealth = await open(4001003);
-    check("S2 隱身術：第 20 級整列放遊戲原文「消耗MP5, 隱身200秒，移動速度 正常」（佔三欄），不是一排「—」",
-      stealth?.rows.length === 20 && stealth.rows[19].length === 2
-        && stealth.rows[19][1].text === "消耗MP5, 隱身200秒，移動速度 正常" && stealth.rows[19][1].span === 3, stealth?.rows[19]);
+    // 上游 2.0.0 起第 20 級也有數字（移動速度 0，跟台服客戶端 1.15.3 一樣），不再整列放原文
+    check("S2 隱身術：第 20 級是數字（消耗 MP 5、持續時間 200、移動速度 0），不是一排「—」",
+      stealth?.rows.length === 20 && rowText(stealth.rows[19]) === "20|5|200|0", stealth?.rows[19]);
     check("S2 隱身術：第 19 級照舊是數字（消耗 MP 6、持續時間 190、移動速度 -1）",
-      stealth?.rows[18]?.map(cell => cell.text).join("|") === "19|6|190|-1", stealth?.rows[18]);
-    check("S2 隱身術：效果行是滿級那一句", stealth?.effect === "滿級效果（20 級）：消耗MP5, 隱身200秒，移動速度 正常", stealth?.effect);
-    check("S2 隱身術：手機 375 寬，20 級那句原文不會把表格撐出左右滑", stealth?.fits === true, stealth?.fits);
+      rowText(stealth?.rows[18]) === "19|6|190|-1", stealth?.rows[18]);
+    check("S2 隱身術：效果行是滿級那一句", stealth?.effect === "滿級效果（20 級）：消耗MP5, 隱身200秒，移動速度0", stealth?.effect);
+    check("S2 隱身術：手機 375 寬，表格不用左右滑", stealth?.fits === true, stealth?.fits);
     try {
       await page.send("Emulation.setDeviceMetricsOverride", { width: 360, height: 800, deviceScaleFactor: 2, mobile: true });
       const narrow = await open(4001003);
-      check("S2 隱身術：手機 360 寬（安卓常見），20 級那句原文一樣不會把表格撐出左右滑", narrow?.fits === true, narrow?.fits);
+      check("S2 隱身術：手機 360 寬（安卓常見），表格一樣不用左右滑", narrow?.fits === true, narrow?.fits);
       await shot("s2-stealth-360.png");
     } finally {
       await mobile();
@@ -654,11 +679,11 @@ try {
     // 中間出錯也要切回手機，後面的段才不會在桌機寬跑
     try {
       await desktop();
-      const wide = await open(1311001);
-      check("S2 桌機 1280：槍連擊右邊的卡片一樣一級一列放原文、效果行是滿級那一句",
-        wide?.rows.length === 30 && wide.effect === "滿級效果（30 級）：消耗MP24, 攻擊力170%, 對三名怪物三次攻擊" && wide.fits === true,
+      const wide = await open(5110001);
+      check("S2 桌機 1280：蓄能激發右邊的卡片一樣一級一列放原文、效果行是滿級那一句",
+        wide?.rows.length === 40 && wide.effect === `滿級效果（40 級）：${CHARGE_MAX}` && wide.fits === true,
         { rows: wide?.rows.length, effect: wide?.effect, fits: wide?.fits });
-      await shot("s2-spear-desktop.png");
+      await shot("s2-charge-desktop.png");
     } finally {
       await mobile();
     }
@@ -763,13 +788,13 @@ try {
       await setProfile(45, 110);
     }
 
-    // 文字表：跟上一級不一樣的數字加粗
-    const spear = await open(1311001);
-    check("S3 槍連擊：第 6 級加粗的是變了的數字（13、80、兩），第 1 級不加粗",
-      spear?.bold[5]?.join("|") === "13|80|兩" && spear.bold[0]?.length === 0, { row1: spear?.bold[0], row6: spear?.bold[5] });
+    // 文字表：跟上一級不一樣的數字加粗（上游 2.0.0 補上數值後，一級一列放原文的只剩蓄能激發）
+    const charge = await open(5110001);
+    check("S3 蓄能激發：第 3 級加粗的是變了的數字（32、2），第 1 級、跟上一級一樣的第 2 級不加粗",
+      charge?.bold[2]?.join("|") === "32|2" && charge.bold[0]?.length === 0 && charge.bold[1]?.length === 0,
+      { row1: charge?.bold[0], row2: charge?.bold[1], row3: charge?.bold[2] });
 
     // 表頭黏住：蓄能激發 40 級，捲到 30 級附近，表頭貼在「收起」那一列下面
-    const charge = await open(5110001);
     const stick = await ev(`document.documentElement.style.setProperty("scroll-behavior", "auto", "important");
       const rows = [...document.querySelectorAll("main article tbody tr")];
       window.scrollTo(0, rows[29].getBoundingClientRect().top + window.scrollY - 400); await __sleep(500);
@@ -1278,7 +1303,9 @@ try {
       const cleared = { value: inputOf().value, focused: document.activeElement === inputOf(), gone: !__clearBtn(box()) };
       // 選一張圖，再按「更改」
       setValue("弓箭手村"); await __waitFor(() => !!picker()?.querySelector("ul button"), 5000);
-      picker().querySelector("ul button").click(); await __sleep(600);
+      // 選了地圖才換成「更改」，電腦忙時會超過 600ms：等到它出現（等不到下面照樣 FAIL）
+      picker().querySelector("ul button").click();
+      await __waitFor(() => picker()?.querySelector("button")?.textContent.includes("更改"), 5000); await __sleep(200);
       const change = picker()?.querySelector("button");
       const changed = !!change && change.textContent.includes("更改");
       change?.click(); await __sleep(400);
@@ -1339,7 +1366,7 @@ try {
           label: go.getAttribute("aria-label"), text: go.textContent.trim() };
       });`);
     const want = b => b.map === "未開放地圖" ? `到${b.npc}那裡的路線` : `到${b.npc}那裡（${b.map}）的路線`;
-    for (const quest of ["6931", "69098"]) {
+    for (const quest of ["2203", "69098"]) {
       await clearRemembered();
       await navigate(`${BASE}/db/quests?id=${quest}`);
       const buttons = await npcButtons(quest);
@@ -1643,16 +1670,16 @@ try {
   await section("D9", async () => {
     await desktop();
     await clearRemembered();
-    await navigate(`${BASE}/db/quests?id=6931`);
+    await navigate(`${BASE}/db/quests?id=2203`);
     const r = await ev(`await __ready(); await __sleep(900);
       window.scrollTo({ top: 1500, behavior: "instant" }); await __sleep(500); const y = Math.round(scrollY);
-      const link = [...(__side()?.querySelectorAll("article a") ?? [])].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
-      if (!link) return { skipped: "6931 的卡片裡找不到 6930 的連結" };
+      const link = [...(__side()?.querySelectorAll("article a") ?? [])].find(a => /[?&]id=2202/.test(a.getAttribute("href") || ""));
+      if (!link) return { skipped: "2203 的卡片裡找不到 2202 的連結" };
       link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
-      await __waitFor(() => __id() === "6930", 5000); await __sleep(1000);
+      await __waitFor(() => __id() === "2202", 5000); await __sleep(1000);
       return { y, yAfter: Math.round(scrollY), id: __id(), title: __side().querySelector("article h2")?.textContent ?? "", sideScroll: Math.round(__side().scrollTop) };`);
     check("D9 桌機點卡片裡的「要先完成」（同一頁的另一筆）：頁面不跳回最上面、右邊換成那一筆從頂端開始",
-      !r.skipped && r.y > 1000 && Math.abs(r.yAfter - r.y) <= 2 && r.id === "6930" && r.sideScroll === 0, r);
+      !r.skipped && r.y > 1000 && Math.abs(r.yAfter - r.y) <= 2 && r.id === "2202" && r.sideScroll === 0, r);
   });
 
   // D10 桌機清單整個列完、捲到最底（右邊那一欄被頁尾往上推走）再點卡片裡的「要先完成」：頁面往上一點，新卡片的標題出來
@@ -1660,7 +1687,7 @@ try {
     // 跟 D7 一樣用很矮的桌機畫面，卡片一定放不下、一定被推走
     await page.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 450, deviceScaleFactor: 1, mobile: false });
     await clearRemembered();
-    await navigate(`${BASE}/db/quests?id=6931`);
+    await navigate(`${BASE}/db/quests?id=2203`);
     const r = await ev(`await __ready(); await __sleep(900);
       for (let i = 0; i < 20; i++) {
         const before = __rows().length; const btn = __moreBtn();
@@ -1670,16 +1697,16 @@ try {
       }
       window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }); await __sleep(500);
       const side = __side(); const pushedBy = Math.round(parseFloat(getComputedStyle(side).top) - side.getBoundingClientRect().top);
-      const link = [...side.querySelectorAll("article a")].find(a => /[?&]id=6930/.test(a.getAttribute("href") || ""));
-      if (!link) return { skipped: "6931 的卡片裡找不到 6930 的連結" };
+      const link = [...side.querySelectorAll("article a")].find(a => /[?&]id=2202/.test(a.getAttribute("href") || ""));
+      if (!link) return { skipped: "2203 的卡片裡找不到 2202 的連結" };
       const yBefore = Math.round(scrollY);
       link.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })); link.click();
-      await __waitFor(() => __id() === "6930", 5000); await __sleep(1300);
+      await __waitFor(() => __id() === "2202", 5000); await __sleep(1300);
       const title = side.querySelector("article h2")?.getBoundingClientRect();
       return { pushedBy, yBefore, yAfter: Math.round(scrollY), id: __id(), header: __headerBottom(), sideTop: Math.round(side.getBoundingClientRect().top),
         titleTop: title ? Math.round(title.top) : null };`);
     check("D10 清單到底、右邊那一欄被往上推走時點卡片裡的「要先完成」：頁面往上一點、新卡片的標題出來",
-      !r.skipped && r.pushedBy > 20 && r.id === "6930" && r.yAfter < r.yBefore && r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.titleTop > r.header, r);
+      !r.skipped && r.pushedBy > 20 && r.id === "2202" && r.yAfter < r.yBefore && r.sideTop >= r.header && r.sideTop <= r.header + 16 && r.titleTop > r.header, r);
   });
 
   // X4 電腦在搜尋框按 Enter：不動，焦點留在搜尋框（可以接著打）
@@ -1752,14 +1779,22 @@ try {
 
   // G2 任務頁（v0.58）。手機：按「只看我現在接得到的」→ 清單中間的小標只會是「快過期，先做這些」「剛解鎖」「隨時可以補」、照這個順序（有的才出現）；
   // 第一列打開、按卡片裡的「我做完了」→ 卡片還在、那一列標「做完了」，收起後那一列不見、整頁重新整理後也不再列；清單裡沒有「開發測試用」。
-  // 開著卡片打勾、取消打勾（任務 2323，有別的任務要先做它）：按鈕在畫面上不動、清單順序不動；第 70 列以後的任務、最後一列也各打勾、收起一次，量那一列跟接著看的那一列放在哪。
+  // 開著卡片打勾、取消打勾（任務 2204，有別的任務要先做它）：按鈕在畫面上不動、清單順序不動；第 70 列以後的任務、最後一列也各打勾、收起一次，量那一列跟接著看的那一列放在哪。
   // 桌機：前置還沒做的那一列，按了「我做完了」小字不再寫「要先做」（寫等級），再按一次取消就寫回來。最後擋掉 monsters.json，清單要照列。
-  // 角色用 Lv.35 槍騎兵（寫死：三段都有）；打勾的任務記在 localStorage 的 ms-done-quests，跑完清掉、角色換回最前面存的狂戰士 Lv.45
+  // 角色用 Lv.35 槍騎兵（現在只有剛解鎖、隨時可以補兩段，快過期那幾項換 Lv.10 法師）；打勾的任務記在 localStorage 的 ms-done-quests，跑完清掉、角色換回最前面存的狂戰士 Lv.45
   await section("G2", async () => {
     const HEADS = ["快過期，先做這些", "剛解鎖", "隨時可以補"];
     const setMine = (level, job) =>
       evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: ${level}, job: ${job} })); localStorage.removeItem("ms-done-quests"); "ok"`);
     const digits = text => Number(String(text).replace(/[^0-9]/g, ""));
+    // 清單中間的小標跟每一組底下的小字；要先把整份清單載出來
+    const READ_GROUPS = `
+        const groups = []; let stray = 0; let current = null;
+        for (const li of __rows()[0].parentElement.children) {
+          if (!li.id) { current = { head: li.textContent.trim(), notes: [] }; groups.push(current); }
+          else if (current) current.notes.push(li.querySelector(":scope > button .tabular-nums")?.textContent.trim() ?? "");
+          else stray++;
+        }`;
     await mobile();
     await setMine(35, 130);
     try {
@@ -1796,16 +1831,9 @@ try {
         const total = Number(__count().replace(/[^0-9]/g, ""));
         for (let i = 0; i < 12 && __rows().length < total; i++) await __loadMore();
         window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
-        const groups = []; let stray = 0; let current = null;
-        for (const li of __rows()[0].parentElement.children) {
-          if (!li.id) { current = { head: li.textContent.trim(), notes: [] }; groups.push(current); }
-          else if (current) current.notes.push(li.querySelector(":scope > button .tabular-nums")?.textContent.trim() ?? "");
-          else stray++;
-        }
-        const expiring = groups.find(g => g.head === "快過期，先做這些");
+        ${READ_GROUPS}
         return { pressed: __pressed(__tag("只看我現在接得到的")), total, rows: __rows().length, stray,
           heads: groups.map(g => g.head), sizes: groups.map(g => g.notes.length),
-          expiringAllLate: expiring ? expiring.notes.every(n => n.startsWith("再 ") && n.includes("級接不到")) : null,
           dev: __rows().filter(li => li.textContent.includes("開發測試用")).length };`);
       await shot("g2-eligible-heads.png");
       const order = board.heads.map(head => HEADS.indexOf(head));
@@ -1813,24 +1841,24 @@ try {
       check("G2 清單中間的小標只有「快過期，先做這些」「剛解鎖」「隨時可以補」，照這個順序（至少兩種）、小標前面沒有零散的列、每個小標底下都有列",
         board.heads.length >= 2 && order.every((at, i) => at >= 0 && (i === 0 || at > order[i - 1])) && board.stray === 0 && board.sizes.every(size => size > 0),
         { heads: board.heads, sizes: board.sizes, stray: board.stray });
-      check("G2 「快過期」那一組每一列的小字都寫「再 N 級接不到」", board.expiringAllLate === true, board.expiringAllLate);
       check("G2 「接得到的」清單裡沒有「開發測試用」", board.dev === 0, board.dev);
 
-      // 選了分類也一樣看得到前置：「找回的玉璽」（楓之島）的前置「陰謀背景」在維多利亞島，選「楓之島」時小字還是寫「要先做前置」（寫死：任務 2342）
+      // 選了分類也一樣看得到前置：稱號任務「永不放棄的挑戰者勳章」的三個前置「危險的迷宮」都在維多利亞島，選「稱號」時小字還是寫「要先做」（寫死：任務 29509，台服客戶端寫明要做完那三個）
       const crossCategory = await ev(`
-        __select("任務分類", "楓之島"); await __sleep(700);
-        const row = __row("2342");
+        __select("任務分類", "稱號"); await __sleep(700);
+        const row = __row("29509");
         const result = { listed: !!row, note: row?.querySelector(":scope > button .tabular-nums")?.textContent.trim() ?? null, count: __count() };
         __select("任務分類", ""); await __sleep(700);
         return { ...result, countAll: __count() };`);
-      check("G2 分類選「楓之島」：「找回的玉璽」的前置在別的分類，小字還是寫「要先做前置」，清單只剩那個分類、換回全部分類筆數回來",
-        crossCategory.listed === true && crossCategory.note?.includes("要先做前置") === true && digits(crossCategory.count) < board.total && digits(crossCategory.countAll) === board.total, { crossCategory, total: board.total });
+      check("G2 分類選「稱號」：「永不放棄的挑戰者勳章」的前置在別的分類，小字還是寫「要先做：〇〇 等 3 個」，清單只剩那個分類、換回全部分類筆數回來",
+        crossCategory.listed === true && crossCategory.note?.startsWith("要先做：") === true && crossCategory.note?.endsWith("等 3 個") === true
+          && digits(crossCategory.count) < board.total && digits(crossCategory.countAll) === board.total, { crossCategory, total: board.total });
 
       // 卡片開著時按「我做完了」、再按一次取消：卡片裡那顆按鈕在畫面上的位置不動（±1px），清單的順序也不動。
-      // 寫死任務 2323「跨越城牆（３）」：Lv.35 槍騎兵的清單上有別的任務要先做它，它一打勾那些任務就不再「要先做」、原本會跳到它前面把它往下擠（手機上卡片被推走 240px）
+      // 寫死任務 2204「特殊料理1」：Lv.35 槍騎兵的清單上「特殊料理2」要先做它（台服客戶端寫明要做完），它一打勾那一列就不再「要先做」、原本會跳到它前面把它往下擠（手機上卡片被推走 240px）
       const still = await ev(`
-        const id = "2323";
-        if (!__row(id)) return { skipped: "「接得到的」清單上找不到任務 2323" };
+        const id = "2204";
+        if (!__row(id)) return { skipped: "「接得到的」清單上找不到任務 2204" };
         const name = __row(id).querySelector(":scope > button span.truncate").textContent.trim();
         // 清單上有幾列的任務把它列在前置（有的話這項才有意義：它一打勾，那些列就從「要先做」變成能直接接）
         const dependents = (await (await fetch("/data/quests.json")).json()).filter(quest => (quest.pre ?? []).includes(id) && __row(quest.id)).length;
@@ -1850,7 +1878,7 @@ try {
         __collapseBtn().click(); await __waitFor(() => __id() === null, 3000); await __sleep(600);
         window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
         return { name, dependents, start: start.y, ticked, unticked, tickFrames: __changes(tickFrames), untickFrames: __changes(untickFrames), left: JSON.parse(localStorage.getItem("ms-done-quests") ?? "[]") };`);
-      check("G2 手機：開著卡片按「我做完了」、再按一次取消：卡片裡那顆按鈕在畫面上的位置不動（±1px）、清單順序也不動（任務 2323，有別的任務要先做它）",
+      check("G2 手機：開著卡片按「我做完了」、再按一次取消：卡片裡那顆按鈕在畫面上的位置不動（±1px）、清單順序也不動（任務 2204，有別的任務要先做它）",
         !still.skipped && still.dependents > 0 && still.ticked.pressed === true && still.unticked.pressed === false && still.ticked.sameOrder === true && still.unticked.sameOrder === true
           && still.tickFrames.concat(still.untickFrames).every(v => near(v, still.start, 1)) && still.left.length === 0, still);
 
@@ -1948,6 +1976,23 @@ try {
       check("G2 清單最後一列按「我做完了」再收起：那一列不見、前一列在畫面上（後面沒有列可以接著看，也不跳回清單開頭）",
         last.gone === true && last.prevTop !== null && last.prevTop >= 0 && last.prevBottom <= last.viewport, last);
 
+      // 快過期看 Lv.10 法師：上游 2.0.0 拿掉蘑菇王國後（等級上限 38 那批任務都在那裡），Lv.35 槍騎兵沒有快過期的任務了；新手法師的修煉上限在 13～18 級
+      await setMine(10, 200);
+      await fresh("/db/quests");
+      const early = await ev(`
+        __tag("只看我現在接得到的").click(); await __sleep(900);
+        const total = Number(__count().replace(/[^0-9]/g, ""));
+        for (let i = 0; i < 12 && __rows().length < total; i++) await __loadMore();
+        window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(300);
+        ${READ_GROUPS}
+        const expiring = groups.find(g => g.head === "快過期，先做這些");
+        return { total, rows: __rows().length, stray, heads: groups.map(g => g.head), sizes: groups.map(g => g.notes.length),
+          expiring: expiring?.notes ?? null, expiringAllLate: expiring ? expiring.notes.every(n => n.startsWith("再 ") && n.includes("級接不到")) : null };`);
+      check("G2 Lv.10 法師：三種小標都在、照「快過期、剛解鎖、隨時可以補」的順序、每個小標底下都有列",
+        early.rows === early.total && early.stray === 0 && early.heads.join("|") === HEADS.join("|") && early.sizes.every(size => size > 0), early);
+      check("G2 「快過期」那一組每一列的小字都寫「再 N 級接不到」", early.expiringAllLate === true, early.expiring);
+      await setMine(35, 130);
+
       // 桌機：挑一列小字寫「要先做：〇〇」的、一列寫「再 N 級接不到 · 要先做前置」的，各按一次「我做完了」再按一次取消
       await desktop();
       await fresh("/db/quests");
@@ -1977,6 +2022,10 @@ try {
       const onlyPre = await probe("pre", "g2-desktop-done-pre.png");
       check("G2 桌機：小字寫「要先做：〇〇」的那一列按「我做完了」→ 標「做完了」、小字不再寫「要先做」；再按一次取消 → 小字寫回來、標籤拿掉",
         probeOk(onlyPre, note => note.startsWith("要先做：")), onlyPre);
+      // 又快過期又要先做前置的也看 Lv.10 法師（新手法師的第二次修煉：上限 14 級、要先做第一次修煉）
+      await setMine(10, 200);
+      await fresh("/db/quests");
+      await ev(`__tag("只看我現在接得到的").click(); await __sleep(900); return 1;`);
       const latePre = await probe("late", "g2-desktop-done-late.png");
       check("G2 桌機：寫「再 N 級接不到 · 要先做前置」的那一列也一樣（做完後不再寫快接不到、要先做）",
         probeOk(latePre, note => note.includes("接不到") && note.includes("要先做前置")), latePre);
