@@ -34,6 +34,12 @@ export function hasItemPage(item: Item, lookup: ItemPageLookup): boolean {
 
 export const itemPagePath = (id: number) => `/db/items/${id}`;
 
+/** 任務卡的道具膠囊連去哪：任務單獨頁給了 itemPages 就連道具單獨頁，其他照舊（工具頁留在工具裡） */
+export function itemChipHref(id: number, { itemPages, linkToFarm = false }: { itemPages?: readonly number[]; linkToFarm?: boolean }): string {
+  if (itemPages?.includes(id)) return itemPagePath(id);
+  return linkToFarm ? `/plan/farm?want=${id}` : `/db/items?id=${id}`;
+}
+
 /** 標題只寫頁面答得出來的；「楓之谷經典版｜楓谷幫手」模板會補 */
 export function itemPageTitle(item: Item): string {
   if (item.eq && item.c === "裝備") return `${item.n}｜哪裡拿、能力值`;
