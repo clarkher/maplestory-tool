@@ -7,8 +7,9 @@
 import { killStats, type Range } from "./damage";
 import { BASIC_ATTACK, HEAL, HEAL_TARGETS_MAX, masterySkillFor } from "./damage-skills";
 import { expPerSecond } from "./damage-speed";
-import { computeGroup, damageLinkHref, defaultAmmo, defaultSkill, defaultState, HEAL_ASSUMPTION, MASTERY_EDIT_HINT, type CalcData, type CalcState, type GroupConfig, type GroupResult, type SharedConfig } from "./damage-view";
-import { isMagicJob, rulesFor, weaponPicks, weaponTypesFor, type StatKey } from "./gear";
+import { computeGroup, damageLinkHref, defaultAmmo, defaultSkill, defaultState, HEAL_ASSUMPTION, MASTERY_EDIT_HINT, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type SharedConfig } from "./damage-view";
+import { isMagicJob, obtainableBy, rulesFor, type StatKey } from "./gear";
+import { canJobUse } from "./item-view";
 import { monsterSuitsJob, undeadOnlyStage } from "./job-rules";
 import { jobOption, jobTier, previousJob } from "./jobs";
 import { BOSS_SPAWN_MAX } from "./now-plan";
@@ -68,6 +69,9 @@ export type ArticleAssumes = {
   relies?: Record<string, number | null>;
 };
 
+/** skill：這段文字叫讀者按的招，跟預設不同才寫（僧侶 31～39 按魔力爪，預設是群體治癒）；點數沒點到防呆擋 */
+export type ArticleGear = { from: number; to: number; weapon: number; skill?: number };
+
 export type JobArticle = {
   /** 不寫「經典版」：全站模板會補 */
   title: string;
@@ -83,9 +87,9 @@ export type JobArticle = {
   heroAlt: string;
   /** 先講結論，2～4 條，每條都標來源等級；第一條起要涵蓋整段等級（ANSWER_MAX 字內） */
   answer: ArticleAnswer[];
-  /** 表跟代號用哪個武器系別（["單手劍", "雙手劍"]）；不寫照傷害計算機的預設（可能挑到這篇文字沒在講的那種） */
-  weaponTypes?: string[];
-  /** 文字的配點把某項能力停在哪（{"DEX": 60}）：指定等級的代號照這個算，多的點數算回主屬性；表、計算機照預設 */
+  /** 每一級拿哪把（文字主推的那把）：計算表、表下的計算機連結都照這個算，要連續蓋滿整段；結論要講到（job-article-gear.test.ts 擋） */
+  gear: ArticleGear[];
+  /** 文字的配點把某項能力停在哪（{"DEX": 60}）：表、代號、計算機連結都照這個算，多的點數算回主屬性 */
   statCap?: Partial<Record<StatKey, number>>;
   intro: string;
   steps: ArticleStep[];
@@ -270,6 +274,8 @@ export type CalcRow = {
   exp: number;
   /** 魔法職魔防、物理職物防 */
   def: number;
+  /** 表上每一欄的平均幾下，跟 table.columns 對齊（群體治癒是範圍 3 隻）；算不出來 null */
+  avgs: Array<number | null>;
   /** 範圍中段等級時計算機畫面寫的幾下（平均傷害無條件進位，群體治癒是範圍 3 隻）；算不出來 null。只給 assumes、{{hits}} 用，畫面印 avg */
   hits: number | null;
   /** 群體治癒打 1 隻，計算機畫面寫的幾下；別的技能 null */
@@ -278,11 +284,12 @@ export type CalcRow = {
   avg: number | null;
   /** 群體治癒打 1 隻的平均幾下；別的技能 null */
   avgOne: number | null;
-  /** 從這一級到範圍結束都不 MISS；範圍最後一級還打不中是 null，畫面寫「超過 N 等」。武器固定用中段那把（假設行寫的那把） */
+  /** 從這一級到範圍結束都不 MISS；範圍最後一級還打不中是 null，畫面寫「超過 N 等」。有 gear 每一級照自己那把算，沒 gear 固定用中段那把 */
   hitLv: number | null;
 };
 
-export type CalcAssumptions = {
+/** 表上一欄的角色：幾等、什麼能力、拿哪把、放哪招 */
+export type CalcColumn = {
   level: number;
   /** 點法標籤（一般點法、全幸）；這個職業只有一套 null */
   tab: string | null;
@@ -290,10 +297,14 @@ export type CalcAssumptions = {
   weapon: { id: number; name: string; type: string; power: number } | null;
   ammo: { id: number; name: string; atk: number } | null;
   skill: { id: number; name: string; level: number };
+  /** 這一級的角色命中 */
+  accuracy: { kind: "physical" | "magic"; value: number };
   /** 群體治癒範圍內幾隻；別的技能 null */
   targets: number | null;
-  /** 中段等級時的角色命中 */
-  accuracy: { kind: "physical" | "magic"; value: number };
+};
+
+/** 中段等級那一欄，加上整張表共用的 */
+export type CalcAssumptions = CalcColumn & {
   /** 傷害計算機對這一招、這把武器的提醒（炸彈箭怎麼算、沒點精準技能、武器還拿不到…），照原文列 */
   notes: string[];
 };
@@ -303,10 +314,10 @@ export type CalcTable = {
   from: number;
   to: number;
   midLevel: number;
-  /** 文章指定的武器系別；照預設是 null */
-  weaponTypes: string[] | null;
-  /** 文章指定的能力上限（只有指定等級的代號用）；沒有是 null */
+  /** 文章指定的能力上限；沒有是 null */
   statCap: Partial<Record<StatKey, number>> | null;
+  /** 表上印哪幾個等級；row.avgs 跟這個對齊。文章有寫 gear 才有三欄，沒寫（寫手還沒選武器）只有中段照預設角色算 */
+  columns: CalcColumn[];
   rows: CalcRow[];
   assumptions: CalcAssumptions;
 };
@@ -334,25 +345,10 @@ function tableSkill(job: number, level: number, group: GroupConfig, fallback: Sk
 }
 
 /**
- * 這一級的角色跟招式：傷害計算機的預設；文章指定了武器系別就換成這一級、這個系別最好的那把（跟預設同一套排序），招式照新武器重挑。
- * 這一級還沒有這個系別的武器回 null。
- */
-function characterAt(data: CalcData, job: number, level: number, weaponTypes?: readonly string[] | null): { group: GroupConfig; skill: SkillPick } | null {
-  const state = stateAt(data, job, level);
-  const base = state.groups[0];
-  if (!weaponTypes?.length) return { group: base, skill: tableSkill(job, level, base, state.shared) };
-  const weapon = weaponPicks(data.gear.weapons, job, level, { targetsAt: () => base.stats, types: [...weaponTypes] }).best;
-  if (!weapon) return null;
-  const group: GroupConfig = { ...base, weaponId: weapon.id, weaponAtk: null, ammoId: defaultAmmo(data.gear.ammo ?? [], weapon.s, level)?.id ?? null };
-  return { group, skill: tableSkill(job, level, group, defaultSkill(data, job, group)) };
-}
-
-/**
  * 這一級拿指定武器的角色：預設角色換武器、招式照新武器重挑，能力值照文章的上限（多的算回主屬性）。
  * 武器不存在、等級不到、能力值穿不上都丟錯，文字才不會叫玩家拿一把拿不到的武器。
  */
-function characterWith(raw: string, weaponId: number, level: number, table: CalcTable, data: CalcData): { group: GroupConfig; skill: SkillPick } {
-  const { job, statCap } = table;
+function characterWith(raw: string, weaponId: number, level: number, { job, statCap }: Pick<CalcTable, "job" | "statCap">, data: CalcData): { group: GroupConfig; skill: SkillPick } {
   const weapon = data.gear.weapons.find(entry => entry.id === weaponId);
   if (!weapon) throw new Error(`代號 ${raw}：武器 ${weaponId} 不在資料裡`);
   if (weapon.lv > level) throw new Error(`代號 ${raw}：${level} 等還拿不到${weapon.n}（要 ${weapon.lv} 等）`);
@@ -383,23 +379,44 @@ function statsOfResult(result: GroupResult, hp: number): { avg: number; oneShot:
   return result.ok && result.vs ? killStats(hp, result.vs.hit, result.vs.crit?.hit ?? null, result.critRate ?? 0, result.hits) : null;
 }
 
+/** 表印哪幾級：範圍裡頭第一個、最後一個 5 的倍數，加中段（31～50 是 35、40、45） */
+export function tableLevels(from: number, to: number): number[] {
+  const mid = Math.floor((from + to) / 2);
+  return [...new Set([Math.ceil((from + 1) / 5) * 5, mid, Math.floor((to - 1) / 5) * 5])].sort((a, b) => a - b);
+}
+
+const gearAt = (gear: readonly ArticleGear[], level: number) => gear.find(piece => level >= piece.from && level <= piece.to);
+
 /** 範圍內 guide.train 列的怪（去重、地圖是 null 的列不算），每隻算幾下打死、幾等不 MISS，順便回傳算表用的假設 */
-export function buildCalcTable({ job, from, to, data, weaponTypes, statCap }: { job: number; from: number; to: number; data: CalcData; weaponTypes?: string[]; statCap?: JobArticle["statCap"] }): CalcTable {
+export function buildCalcTable({ job, from, to, data, gear, statCap }: { job: number; from: number; to: number; data: CalcData; gear?: readonly ArticleGear[]; statCap?: JobArticle["statCap"] }): CalcTable {
   const midLevel = Math.floor((from + to) / 2);
-  const character = characterAt(data, job, midLevel, weaponTypes);
-  if (!character) throw new Error(`${midLevel} 等還沒有這個系別的武器（${weaponTypes?.join("、")}）`);
-  const { group, skill } = character;
-  const heal = skill.skillId === HEAL;
+  const limits = { job, statCap: statCap ?? null };
+  const cache = new Map<number, { group: GroupConfig; skill: SkillPick }>();
+  const articleCharacter = (pieces: readonly ArticleGear[], level: number) => {
+    let found = cache.get(level);
+    if (!found) {
+      const piece = gearAt(pieces, level);
+      if (!piece) throw new Error(`gear 沒寫 ${level} 等拿哪把`);
+      const character = characterWith(`gear ${level} 等`, piece.weapon, level, limits, data);
+      found = piece.skill === undefined ? character : { ...character, skill: { skillId: piece.skill, skillLevel: character.group.levels[piece.skill] ?? 0 } };
+      cache.set(level, found);
+    }
+    return found;
+  };
+  const midState = stateAt(data, job, midLevel);
+  const mid = gear?.length ? articleCharacter(gear, midLevel) : { group: midState.groups[0], skill: tableSkill(job, midLevel, midState.groups[0], midState.shared) };
+  const heal = mid.skill.skillId === HEAL;
+  const targetsOf = (skill: SkillPick) => (skill.skillId === HEAL ? HEAL_TABLE_TARGETS : undefined);
   const magic = isMagicJob(job);
-  const shared = (monster: Monster, targets?: number): SharedConfig => ({ job, ...skill, monsterId: monster.id, ...(targets === undefined ? {} : { targets }) });
-  const resultWith = (monster: Monster, targets?: number) => computeGroup(data, shared(monster, targets), group, monster);
+  const shared = (skill: SkillPick, monster: Monster | null, targets?: number): SharedConfig => ({ job, ...skill, monsterId: monster?.id ?? null, ...(targets === undefined ? {} : { targets }) });
   const killsOf = (result: GroupResult) => (result.ok ? finiteOrNull(result.vs?.kills.avg) : null);
   const averageOf = (result: GroupResult, hp: number) => statsOfResult(result, hp)?.avg ?? null;
-  // 預設角色每級會換武器，命中被動跟著跳（狂戰士斧頭 50、劍 69）：固定用中段那把算，才對得上假設行
+  // 沒寫 gear 時預設角色每級會換武器，命中被動跟著跳（狂戰士斧頭 50、劍 69）：固定用中段那把算，才對得上假設行
+  const characterForHit = (level: number) => (gear?.length ? articleCharacter(gear, level) : { group: { ...stateAt(data, job, level).groups[0], weaponId: mid.group.weaponId, weaponAtk: mid.group.weaponAtk, ammoId: mid.group.ammoId }, skill: mid.skill });
   const hitsAt = (monster: Monster, level: number): boolean => {
-    const levelGroup = { ...stateAt(data, job, level).groups[0], weaponId: group.weaponId, weaponAtk: group.weaponAtk, ammoId: group.ammoId };
-    const result = computeGroup(data, shared(monster, heal ? HEAL_TABLE_TARGETS : undefined), levelGroup, monster);
-    return Boolean(result.ok && result.vs && characterAccuracy(data, job, levelGroup).value >= result.vs.accuracy);
+    const { group, skill } = characterForHit(level);
+    const result = computeGroup(data, shared(skill, monster, targetsOf(skill)), group, monster);
+    return Boolean(result.ok && result.vs && characterAccuracy(data, job, group).value >= result.vs.accuracy);
   };
   // 從範圍最後一級往回找：要一路達標到範圍結束才算，中間達標、後面又掉回去不算
   const firstHitLevel = (monster: Monster): number | null => {
@@ -408,6 +425,23 @@ export function buildCalcTable({ job, from, to, data, weaponTypes, statCap }: { 
     while (level > from && hitsAt(monster, level - 1)) level--;
     return level;
   };
+
+  const columnOf = (level: number, { group, skill }: { group: GroupConfig; skill: SkillPick }): CalcColumn => {
+    const weapon = data.gear.weapons.find(entry => entry.id === group.weaponId);
+    const ammo = (data.gear.ammo ?? []).find(entry => entry.id === group.ammoId);
+    return {
+      level,
+      tab: group.tab,
+      stats: { ...group.stats },
+      weapon: weapon ? { id: weapon.id, name: weapon.n, type: weapon.s, power: (magic ? weapon.mag : weapon.atk) ?? 0 } : null,
+      ammo: ammo ? { id: ammo.id, name: ammo.n, atk: ammo.atk } : null,
+      skill: { id: skill.skillId, name: skillNameOf(data, skill.skillId), level: skill.skillLevel },
+      accuracy: characterAccuracy(data, job, group),
+      targets: targetsOf(skill) ?? null,
+    };
+  };
+  const characters = (gear?.length ? tableLevels(from, to) : [midLevel]).map(level => ({ level, character: level === midLevel ? mid : articleCharacter(gear!, level) }));
+  const resultAt = (character: typeof mid, monster: Monster, targets?: number) => computeGroup(data, shared(character.skill, monster, targets), character.group, monster);
 
   const byId = new Map(data.monsters.map(monster => [monster.id, monster]));
   const ids = [...new Set(rowsInRange(job, from, to, data.guides).filter(row => row.map !== null).flatMap(row => row.mobs))];
@@ -423,36 +457,31 @@ export function buildCalcTable({ job, from, to, data, weaponTypes, statCap }: { 
         hp: monster.hp,
         exp: monster.exp,
         def: magic ? monster.mdd : monster.pdd,
-        hits: killsOf(resultWith(monster, heal ? HEAL_TABLE_TARGETS : undefined)),
-        hitsOne: heal ? killsOf(resultWith(monster, 1)) : null,
-        avg: averageOf(resultWith(monster, heal ? HEAL_TABLE_TARGETS : undefined), monster.hp),
-        avgOne: heal ? averageOf(resultWith(monster, 1), monster.hp) : null,
+        hits: killsOf(resultAt(mid, monster, heal ? HEAL_TABLE_TARGETS : undefined)),
+        hitsOne: heal ? killsOf(resultAt(mid, monster, 1)) : null,
+        avg: averageOf(resultAt(mid, monster, heal ? HEAL_TABLE_TARGETS : undefined), monster.hp),
+        avgOne: heal ? averageOf(resultAt(mid, monster, 1), monster.hp) : null,
+        avgs: characters.map(({ character }) => averageOf(resultAt(character, monster, targetsOf(character.skill)), monster.hp)),
         hitLv: firstHitLevel(monster),
       }),
     );
 
-  const weapon = data.gear.weapons.find(entry => entry.id === group.weaponId);
-  const ammo = (data.gear.ammo ?? []).find(entry => entry.id === group.ammoId);
-  const dummy = computeGroup(data, { job, ...skill, monsterId: null }, group, null);
+  // 計算機的提醒照原文，但「可在下面改」只有計算機頁成立；同一句只留一次（35 等、45 等同一把會一樣）
+  const notes = characters.flatMap(({ character }) => {
+    const dummy = computeGroup(data, shared(character.skill, null), character.group, null);
+    return dummy.ok ? [...dummy.warnings, ...dummy.notes] : [dummy.reason];
+  });
   return {
     job,
     from,
     to,
     midLevel,
-    weaponTypes: weaponTypes?.length ? weaponTypes : null,
     statCap: statCap ?? null,
+    columns: characters.map(({ level, character }) => columnOf(level, character)),
     rows,
     assumptions: {
-      level: midLevel,
-      tab: group.tab,
-      stats: { ...group.stats },
-      weapon: weapon ? { id: weapon.id, name: weapon.n, type: weapon.s, power: (magic ? weapon.mag : weapon.atk) ?? 0 } : null,
-      ammo: ammo ? { id: ammo.id, name: ammo.n, atk: ammo.atk } : null,
-      skill: { id: skill.skillId, name: skillNameOf(data, skill.skillId), level: skill.skillLevel },
-      targets: heal ? HEAL_TABLE_TARGETS : null,
-      accuracy: characterAccuracy(data, job, group),
-      // 計算機的提醒照原文，但「可在下面改」只有計算機頁成立
-      notes: [...(heal ? [HEAL_ASSUMPTION] : []), ...(dummy.ok ? [...dummy.warnings, ...dummy.notes] : [dummy.reason])].map(note => note.replace(MASTERY_EDIT_HINT, "")),
+      ...columnOf(midLevel, mid),
+      notes: [...new Set([...(heal ? [HEAL_ASSUMPTION] : []), ...notes].map(note => note.replace(MASTERY_EDIT_HINT, "")))],
     },
   };
 }
@@ -484,12 +513,25 @@ export function xp10Text(value: number): string {
 /** 表上「幾下打死」印的是平均值，連到計算機會看到進位後的整數：假設行要先講 */
 const AVERAGE_NOTE = "幾下打死：平均值；計算機畫面會進位成整數";
 
+const statsText = (column: CalcColumn) => `力量 ${column.stats.STR}、敏捷 ${column.stats.DEX}、智力 ${column.stats.INT}、幸運 ${column.stats.LUK}${column.tab ? `（${column.tab}）` : ""}`;
+const weaponText = (column: CalcColumn, magic: boolean) => (column.weapon ? `${column.weapon.name}（${column.weapon.type}，${magic ? "魔攻" : "攻擊"} ${column.weapon.power}）` : "查不到");
+const ammoText = (column: CalcColumn) => (column.ammo ? `；彈藥：${column.ammo.name}（攻擊 ${column.ammo.atk}）` : "");
+
 /** 算表用的假設，一條一行；畫面跟給寫手看的都用這幾行，不另外編 */
 export function assumptionLines(table: CalcTable): string[] {
-  const { assumptions: a } = table;
+  const { assumptions: a, columns } = table;
   const magic = a.accuracy.kind === "magic";
-  const stats = `Lv.${a.level}：力量 ${a.stats.STR}、敏捷 ${a.stats.DEX}、智力 ${a.stats.INT}、幸運 ${a.stats.LUK}${a.tab ? `（${a.tab}）` : ""}`;
-  const weapon = a.weapon ? `武器：${a.weapon.name}（${a.weapon.type}，${magic ? "魔攻" : "攻擊"} ${a.weapon.power}），沒衝卷${a.ammo ? `；彈藥：${a.ammo.name}（攻擊 ${a.ammo.atk}）` : ""}；其他裝備的攻擊、增益技能沒算` : "武器：查不到";
+  if (columns.length > 1) {
+    return [
+      ...columns.map(column => `Lv.${column.level}：${statsText(column)}；${weaponText(column, magic)}${ammoText(column)}；${column.skill.name} ${column.skill.level} 級；${magic ? "魔法命中" : "命中"} ${column.accuracy.value}`),
+      `武器都沒衝卷，其他裝備的攻擊、增益技能沒算${a.targets ? `；打 1 隻那欄是 Lv.${a.level} 按${a.skill.name}，寫範圍的是範圍內 ${a.targets} 隻（怪越多每隻分到越少）` : ""}`,
+      AVERAGE_NOTE,
+      magic ? "命中：魔法命中＝智力÷10＋幸運÷10，裝備上的智力、幸運沒算，實際會更早打得中" : "命中：敏捷×0.8＋幸運×0.5＋命中被動，裝備上的命中沒算，實際會更早打得中",
+      ...a.notes,
+    ];
+  }
+  const stats = `Lv.${a.level}：${statsText(a)}`;
+  const weapon = a.weapon ? `武器：${weaponText(a, magic)}，沒衝卷${ammoText(a)}；其他裝備的攻擊、增益技能沒算` : "武器：查不到";
   const skill = `技能：${a.skill.name} ${a.skill.level} 級${a.targets ? `；另一欄是範圍內 ${a.targets} 隻（怪越多每隻分到越少）` : ""}`;
   const accuracy = magic
     ? `命中：魔法命中＝智力÷10＋幸運÷10（Lv.${a.level} 是 ${a.accuracy.value}），裝備上的智力、幸運沒算，實際會更早打得中`
@@ -497,10 +539,23 @@ export function assumptionLines(table: CalcTable): string[] {
   return [stats, weapon, skill, AVERAGE_NOTE, accuracy, ...a.notes];
 }
 
-/** 表下面連到計算機：帶這張表的武器、招式、隻數，開出來就是表上那一組 */
+/** 表上面那行：每一欄拿哪把、放哪招，連續一樣的併起來（「35 等拿鋼鐵拳套放雙飛斬；40、45 等拿水晶刃放迴旋斬」） */
+export function tableGearLine(table: CalcTable): string {
+  const groups: Array<{ levels: number[]; text: string }> = [];
+  for (const column of table.columns) {
+    const text = `拿${column.weapon?.name ?? "查不到的武器"}放${column.skill.name}`;
+    const last = groups[groups.length - 1];
+    if (last?.text === text) last.levels.push(column.level);
+    else groups.push({ levels: [column.level], text });
+  }
+  return groups.map(({ levels, text }) => `${groups.length > 1 ? `${levels.join("、")} 等` : ""}${text}`).join("；");
+}
+
+/** 表下面連到計算機：帶這張表的武器、招式、隻數，文章有配點上限再帶能力值，開出來就是表上中段那一組 */
 export function articleDamageHref(table: CalcTable): string {
   const { assumptions: a } = table;
-  return damageLinkHref(table.job, table.midLevel, { weapon: a.weapon?.id, skill: a.skill.id, targets: a.targets });
+  const stats = table.statCap ? { str: a.stats.STR, dex: a.stats.DEX, int: a.stats.INT, luk: a.stats.LUK } : {};
+  return damageLinkHref(table.job, table.midLevel, { weapon: a.weapon?.id, skill: a.skill.id, targets: a.targets, ...stats });
 }
 
 /* ------------------------------------------------------------------ 文字代號 */
@@ -849,20 +904,51 @@ function checkAnswer(lines: unknown[], steps: unknown, ctx: ArticleContext, tabl
   if (missing.length) errors.push(`answer：結論沒講到 ${missing.join("、")} 等`);
 }
 
-/** 文章的 weaponTypes：寫了就要是這個職業能拿的武器系別，回傳能用的；法師的武器排序不看系別，不能指定 */
-function checkWeaponTypes(value: unknown, job: number, errors: string[]): string[] | undefined {
-  if (value === undefined) return undefined;
-  if (!Array.isArray(value) || !value.length || !value.every(isText)) {
-    errors.push("weaponTypes：要是武器系別的陣列，例 [\"單手劍\", \"雙手劍\"]");
+/** 文章的 gear：要連續蓋滿整段；回傳形狀對的（武器穿不穿得上由 checkGearWearable 查） */
+function checkGear(value: unknown, from: number, to: number, errors: string[]): ArticleGear[] | undefined {
+  const shaped = Array.isArray(value) && value.length > 0 && value.every(piece => isRecord(piece) && [piece.from, piece.to, piece.weapon].every(Number.isInteger));
+  if (!shaped) {
+    errors.push('gear：每一級拿哪把，例 [{"from": 31, "to": 50, "weapon": 1402008}]');
     return undefined;
   }
-  const usable = isMagicJob(job) ? [] : weaponTypesFor(job);
-  const wrong = value.filter(type => !usable.includes(type));
-  if (wrong.length) {
-    errors.push(`weaponTypes：${wrong.join("、")}不是這個職業能指定的武器（能指定：${usable.join("、") || "沒有"}）`);
+  const pieces = value as ArticleGear[];
+  const contiguous = pieces[0].from === from && pieces[pieces.length - 1].to === to && pieces.every((piece, index) => piece.from <= piece.to && (index === 0 || piece.from === pieces[index - 1].to + 1));
+  if (!contiguous) {
+    errors.push(`gear：要從 ${from} 等連續蓋到 ${to} 等，中間不能斷`);
     return undefined;
   }
-  return value;
+  return pieces;
+}
+
+/** 每一把：這職業拿得到、那幾級穿得上；物理職業的精準技能要有點到 */
+function checkGearWearable(gear: readonly ArticleGear[], midLevel: number, limits: Pick<CalcTable, "job" | "statCap">, data: CalcData, errors: string[]): boolean {
+  const before = errors.length;
+  for (const piece of gear) {
+    // 不用計算機選單：俠盜 35 等前丟拳套，選單只列短刀，但職業拿得起
+    const weapon = data.gear.weapons.find(entry => entry.id === piece.weapon);
+    if (!weapon || canJobUse(weapon.job, limits.job) !== true || !obtainableBy(weapon.src, limits.job)) {
+      errors.push(`gear：${weapon?.n ?? piece.weapon} 這個職業拿不到`);
+      continue;
+    }
+    try {
+      // 每一級都查：主屬性遇到配點換階會往下掉（刺客預設幸運 34→35 掉 5），不能只看第一級
+      for (let level = piece.from; level <= piece.to; level++) {
+        const { group } = characterWith(`gear ${level} 等`, piece.weapon, level, limits, data);
+        if (piece.skill !== undefined && (group.levels[piece.skill] ?? 0) <= 0) throw new Error(`${level} 等${skillNameOf(data, piece.skill)}還沒點`);
+      }
+    } catch (error) {
+      errors.push(`gear：${(error as Error).message}`);
+    }
+    // 表下的連結開中段那一組，計算機選單沒有的武器會被當沒帶，開出來跟表不同
+    if (piece.from <= midLevel && midLevel <= piece.to && !weaponChoices(data.gear, limits.job).some(entry => entry.id === piece.weapon)) {
+      errors.push(`gear：${weapon.n}不在計算機的武器選單，${midLevel} 等不能拿這把（表下的連結開不出來）`);
+    }
+    const mastery = masterySkillFor(weapon.s, limits.job);
+    if (mastery !== null && (stateAt(data, limits.job, piece.to).groups[0].levels[mastery] ?? 0) <= 0) {
+      errors.push(`gear：${weapon.n}要吃${data.skills.get(mastery)?.n ?? "精準技能"}，但技能點法到 ${piece.to} 等都沒點，換別的武器或改文字`);
+    }
+  }
+  return errors.length === before;
 }
 
 /** 文章的 statCap：能力代號對數字；回傳能用的 */
@@ -873,16 +959,6 @@ function checkStatCap(value: unknown, errors: string[]): JobArticle["statCap"] {
     return undefined;
   }
   return value as JobArticle["statCap"];
-}
-
-/** 文章指定了武器：那把的精準技能在預設點法要有點到，不然表的前提跟「拿這把才吃得到精準技能」對不上 */
-function checkWeaponMastery(table: CalcTable, data: CalcData, errors: string[]): void {
-  const type = table.assumptions.weapon?.type;
-  const mastery = type ? masterySkillFor(type, table.job) : null;
-  if (mastery === null) return;
-  if ((stateAt(data, table.job, table.midLevel).groups[0].levels[mastery] ?? 0) <= 0) {
-    errors.push(`weaponTypes：${table.assumptions.weapon!.name}要吃${data.skills.get(mastery)?.n ?? "精準技能"}，但技能點法到 ${table.midLevel} 等都沒點，換別的系別或改文字`);
-  }
 }
 
 function checkLines(lines: unknown, where: string, errors: string[]): void {
@@ -1261,15 +1337,15 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
   if (!isRecord(article.persona) || !isText(article.persona.name) || !isText(article.persona.line)) errors.push("persona：要有 name（個性當名字）、line（一句自介）");
   checkHeroAlt(article, data, errors);
 
-  const weaponTypes = checkWeaponTypes(article.weaponTypes, job, errors);
   const statCap = checkStatCap(article.statCap, errors);
+  const gear = checkGear(article.gear, from, to, errors);
+  const gearOk = Boolean(gear) && checkGearWearable(gear!, Math.floor((from + to) / 2), { job, statCap: statCap ?? null }, data, errors);
   let table: CalcTable | null = null;
   try {
-    table = buildCalcTable({ job, from, to, data, weaponTypes, statCap });
+    table = buildCalcTable({ job, from, to, data, gear: gearOk ? gear : undefined, statCap });
   } catch (error) {
     errors.push(`計算表算不出來：${(error as Error).message}`);
   }
-  if (table && weaponTypes) checkWeaponMastery(table, data, errors);
 
   if (isText(article.title)) {
     let length = article.title.length;
@@ -1375,9 +1451,9 @@ export function splitArticles(entries: Array<ArticleKey & { article: unknown }>,
 /* ------------------------------------------------------------------ 給寫手看的 */
 
 /** 寫一篇要看的東西：計算表、假設、這個範圍的攻略列（附圖名、怪名）、職業頁的配點點法與注意事項、能用的出處 */
-export function writerBrief({ job, from, to, data, weaponTypes, statCap }: { job: number; from: number; to: number; data: CalcData; weaponTypes?: string[]; statCap?: JobArticle["statCap"] }) {
+export function writerBrief({ job, from, to, data, gear, statCap }: { job: number; from: number; to: number; data: CalcData; gear?: readonly ArticleGear[]; statCap?: JobArticle["statCap"] }) {
   const guides = articleGuides(job, data.guides);
-  const table = buildCalcTable({ job, from, to, data, weaponTypes, statCap });
+  const table = buildCalcTable({ job, from, to, data, gear, statCap });
   const names = new Map(data.monsters.map(monster => [monster.id, monster.n]));
   return {
     job: { id: job, name: jobOption(job)?.name ?? String(job) },
@@ -1414,7 +1490,7 @@ export function writerBrief({ job, from, to, data, weaponTypes, statCap }: { job
   };
 }
 
-/** 表上每隻怪四個平均代號的寫法跟現在的值，寫手照抄改等級、武器。文章有 statCap 時代號照它算，可能跟表（照預設）差一點 */
+/** 表上每隻怪四個平均代號的寫法跟現在的值，寫手照抄改等級、武器 */
 function statTokenLines(table: CalcTable, data: CalcData): string[] {
   const weapon = table.assumptions.weapon?.id;
   if (weapon === undefined) return ["武器查不到，算不出來"];
@@ -1458,7 +1534,7 @@ function missLines(article: JobArticle, table: CalcTable, data: CalcData): strin
  * 代號換不掉不丟錯，那一格寫「代號錯」，寫手才看得到全部哪裡有問題。
  */
 export function articleShowText({ job, from, to, article, data, openMaps }: { job: number; from: number; to: number; article: JobArticle; data: CalcData; openMaps?: Set<number> }): string {
-  const table = buildCalcTable({ job, from, to, data, weaponTypes: article.weaponTypes, statCap: article.statCap });
+  const table = buildCalcTable({ job, from, to, data, gear: article.gear, statCap: article.statCap });
   const fill = (text: string) => {
     try {
       return fillTokens(text, table, data);
@@ -1477,7 +1553,6 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
     `發布 ${article.published} / 更新 ${article.updated}`,
     `本篇寫手：${article.persona?.name}｜${article.persona?.line ? fill(article.persona.line) : ""}`,
     `主圖替代文字：${article.heroAlt ? fill(article.heroAlt) : ""}`,
-    ...(article.weaponTypes?.length ? [`指定武器系別：${article.weaponTypes.join("、")}`] : []),
     ...(article.statCap ? [`配點上限：${JSON.stringify(article.statCap)}`] : []),
     "",
     "== 先講結論 ==",
@@ -1493,9 +1568,9 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
       `  怪：${step.mobs.map(mobName).join("、")}；帶我去${mapName(step.map)}`,
     ]),
     "",
-    `== 幾下打死、打不打得中（Lv.${table.midLevel}）==`,
-    `怪${heal ? " | 打 1 隻幾下" : ""} | ${heal ? `範圍 ${table.assumptions.targets} 隻幾下` : "幾下打死"} | 幾等不 MISS | 等級 | HP | 防禦 | 經驗`,
-    ...table.rows.map(row => [row.name, ...(heal ? [avgText(row.avgOne)] : []), avgText(row.avg), hitLvText(row, table), row.lv ?? "—", row.hp, row.def, row.exp].join(" | ")),
+    `== 幾下打死、打不打得中（${tableGearLine(table)}）==`,
+    `怪${heal ? ` | 打 1 隻幾下 Lv.${table.midLevel}` : ""} | ${table.columns.map(column => `${column.targets ? `範圍 ${column.targets} 隻幾下` : heal ? `${column.skill.name}幾下` : "幾下打死"} Lv.${column.level}`).join(" | ")} | 幾等不 MISS | 等級 | HP | 防禦 | 經驗`,
+    ...table.rows.map(row => [row.name, ...(heal ? [avgText(row.avgOne)] : []), ...row.avgs.map(avgText), hitLvText(row, table), row.lv ?? "—", row.hp, row.def, row.exp].join(" | ")),
     "",
     "== 這張表的假設 ==",
     ...assumptionLines(table),

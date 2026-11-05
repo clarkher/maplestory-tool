@@ -125,7 +125,7 @@ const WEARABLE: Record<number, number> = { 410: 1472009, 420: 1332012 };
 describe("真資料：範圍、爆擊跟計算機同一套", () => {
   it.each(JOBS)("%i 計算表每隻怪：平均下數跟 Monte Carlo 差 2% 內", job => {
     const article = loadArticle(job);
-    const table = buildCalcTable({ job, from: 31, to: 50, data, weaponTypes: article.weaponTypes, statCap: article.statCap });
+    const table = buildCalcTable({ job, from: 31, to: 50, data, gear: article.gear, statCap: article.statCap });
     expect(table.rows.length).toBeGreaterThan(0);
     for (const row of table.rows) {
       const stats = articleKillStats({ mobId: row.id, level: table.midLevel, weaponId: WEARABLE[job] ?? table.assumptions.weapon!.id, table, data });
@@ -281,7 +281,7 @@ describe("計算表", () => {
   it("畫面的表印平均一位小數，不寫「約 N」；僧侶兩欄都是", () => {
     for (const job of [310, 230]) {
       const article = loadArticle(job);
-      const table = buildCalcTable({ job, from: 31, to: 50, data, weaponTypes: article.weaponTypes, statCap: article.statCap });
+      const table = buildCalcTable({ job, from: 31, to: 50, data, gear: article.gear, statCap: article.statCap });
       const html = renderToString(JobArticleTable({ table })).replace(/<!-- -->/g, "");
       for (const row of table.rows) expect(html).toContain(`>${avgText(row.avg)}</td>`);
       if (job === 230) for (const row of table.rows) expect(html).toContain(`>${avgText(row.avgOne)}</td>`);
@@ -292,7 +292,7 @@ describe("計算表", () => {
   it("article:show 的表印一位小數，還列新代號可以怎麼寫", () => {
     const article = loadArticle(310);
     const text = articleShowText({ job: 310, from: 31, to: 50, article, data, openMaps: staticOpenMaps() });
-    const table = buildCalcTable({ job: 310, from: 31, to: 50, data, weaponTypes: article.weaponTypes, statCap: article.statCap });
+    const table = buildCalcTable({ job: 310, from: 31, to: 50, data, gear: article.gear, statCap: article.statCap });
     const row = table.rows[0];
     expect(text).toContain(`${row.name} | ${avgText(row.avg)} |`);
     const weapon = table.assumptions.weapon!.id;
@@ -300,19 +300,18 @@ describe("計算表", () => {
     expect(text).toContain(`{{xp10:${row.id}@${table.midLevel}#${weapon}}}`);
   });
 
-  it("article:show：表上那把穿不上（刺客 statCap）只講一行，不是每隻怪都報錯", () => {
+  it("article:show：刺客 statCap 的表算得出來，沒有代號報錯", () => {
     const article = loadArticle(410);
     const text = articleShowText({ job: 410, from: 31, to: 50, article, data, openMaps: staticOpenMaps() });
-    expect(text).toContain("穿不上");
     expect(text).not.toContain("算不出來（代號");
   });
 
   it("article:show 僧侶兩欄都印平均", () => {
     const article = loadArticle(230);
     const text = articleShowText({ job: 230, from: 31, to: 50, article, data, openMaps: staticOpenMaps() });
-    const table = buildCalcTable({ job: 230, from: 31, to: 50, data, weaponTypes: article.weaponTypes, statCap: article.statCap });
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: article.gear, statCap: article.statCap });
     const row = table.rows[0];
-    expect(text).toContain(`${row.name} | ${avgText(row.avgOne)} | ${avgText(row.avg)} |`);
+    expect(text).toContain(`${row.name} | ${avgText(row.avgOne)} | ${row.avgs.map(avgText).join(" | ")} |`);
   });
 });
 

@@ -112,17 +112,21 @@ export function SeoStats({ rows }: { rows: [string, React.ReactNode][] }) {
 export function SeoLinks({ links }: { links: { href: string; text: string; note?: string }[] }) {
   return (
     <ul className="flex flex-wrap gap-1.5">
-      {links.map(link => (
+      {links.map(link => {
+        // 道具單獨頁只留 html（省 Cloudflare 檔案額度），next/link 預先載入會 404，用一般連結整頁載入
+        const Anchor = link.href.startsWith("/db/items/") ? "a" : Link;
+        return (
         <li key={link.href + link.text}>
-          <Link
+          <Anchor
             href={link.href}
             className="inline-flex items-center gap-1 rounded-full border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1 text-[13px] hover:border-[color:var(--maple)]"
           >
             <span className="font-bold">{link.text}</span>
             {link.note ? <span className="ink-faint">{link.note}</span> : null}
-          </Link>
+          </Anchor>
         </li>
-      ))}
+        );
+      })}
     </ul>
   );
 }

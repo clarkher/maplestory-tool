@@ -120,15 +120,17 @@ export function PlaceRows({ places }: { places: { id: number; n: string; sub?: s
   );
 }
 
-function ShopRow({ line, name }: { line: ShopLine; name: string }) {
+function ShopRow({ line, name, href }: { line: ShopLine; name: string; href: string }) {
+  // 道具單獨頁只留 html，next/link 預先載入會 404，用一般連結整頁載入
+  const Anchor = href.startsWith("/db/items/") ? "a" : Link;
   const body = (
     <div className={`${row} py-1.5`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={itemImage(line.id)} alt="" width={32} height={32} loading="lazy" className="size-8 shrink-0 object-contain [image-rendering:pixelated]" />
       <div className="min-w-0 flex-1">
-        <Link href={`/db/items?id=${line.id}`} className="text-sm font-extrabold hover:text-[color:var(--maple)]">
+        <Anchor href={href} className="text-sm font-extrabold hover:text-[color:var(--maple)]">
           {name}
-        </Link>
+        </Anchor>
         <div className="flex flex-wrap items-center gap-1.5 text-xs ink-soft">
           {line.s}
           {line.until ? <Chip tone="maple">活動限定・到 {line.until}</Chip> : null}
@@ -142,13 +144,13 @@ function ShopRow({ line, name }: { line: ShopLine; name: string }) {
 }
 
 /** NPC 頁「賣什麼」：先列 first 樣，其餘收在 details（不靠 JavaScript 也打得開） */
-export function ShopRows({ lines, nameOf, first = 8 }: { lines: ShopLine[]; nameOf: (id: number) => string; first?: number }) {
+export function ShopRows({ lines, nameOf, hrefOf, first = 8 }: { lines: ShopLine[]; nameOf: (id: number) => string; hrefOf: (id: number) => string; first?: number }) {
   const head = lines.slice(0, first);
   const rest = lines.slice(first);
   return (
     <div>
       {head.map((line, index) => (
-        <ShopRow key={`${line.id}-${line.pr}-${index}`} line={line} name={nameOf(line.id)} />
+        <ShopRow key={`${line.id}-${line.pr}-${index}`} line={line} name={nameOf(line.id)} href={hrefOf(line.id)} />
       ))}
       {rest.length ? (
         <details className="group">
@@ -158,7 +160,7 @@ export function ShopRows({ lines, nameOf, first = 8 }: { lines: ShopLine[]; name
           </summary>
           <div className="mt-2.5">
             {rest.map((line, index) => (
-              <ShopRow key={`${line.id}-${line.pr}-${index}`} line={line} name={nameOf(line.id)} />
+              <ShopRow key={`${line.id}-${line.pr}-${index}`} line={line} name={nameOf(line.id)} href={hrefOf(line.id)} />
             ))}
           </div>
         </details>

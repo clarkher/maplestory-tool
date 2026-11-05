@@ -7,7 +7,7 @@ import { SeoPage } from "@/components/SeoPage";
 import { npcImage } from "@/lib/asset-paths";
 import { mapSection, npcSummary, shopRows } from "@/lib/atlas-view";
 import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
-import { staticAtlasMaps, staticItemNames, staticModified, staticNpcs } from "@/lib/static-data";
+import { staticAtlasMaps, staticItemNames, staticModified, staticNpcs, staticItemHref } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -59,7 +59,7 @@ export default async function Page({ params }: Props) {
   const lines = shopRows(npc.shop);
   const shopCard = lines.length ? (
     <AtlasCard title="賣什麼" sub={`共 ${lines.length} 樣・參考舊版資料，價格以遊戲裡為準`}>
-      <ShopRows lines={lines} nameOf={id => itemNames.get(id) ?? `道具 ${id}`} />
+      <ShopRows lines={lines} nameOf={id => itemNames.get(id) ?? `道具 ${id}`} hrefOf={staticItemHref} />
     </AtlasCard>
   ) : null;
   // 整家都是活動店（行商人、祭典管理員）：最後一樣也過期了，整張卡在瀏覽器裡收掉，不會剩一個空的「賣什麼」

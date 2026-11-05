@@ -13,11 +13,11 @@ const ROGUE_35 = JSON.stringify({ level: 35, job: 410 }); // 存好的角色：�
 
 // 這幾篇的表用哪把、哪一招（改文章的武器要跟著改）
 const CASES = [
-  { path: "/guides/berserker-31-50", job: 110, weapon: "半月巨刀", skill: "魔天一擊" },
+  { path: "/guides/berserker-31-50", job: 110, weapon: "鋼鐵劍", skill: "魔天一擊" },
   { path: "/guides/priest-31-50", job: 230, weapon: "黃色雨傘", skill: "群體治癒" },
-  { path: "/guides/hunter-31-50", job: 310, weapon: "暴風弓", skill: "二連箭" },
-  { path: "/guides/assassin-31-50", job: 410, weapon: "赤紅護腕", skill: "雙飛斬" },
-  { path: "/guides/bandit-31-50", job: 420, weapon: "龍炎短劍", skill: "迴旋斬" },
+  { path: "/guides/hunter-31-50", job: 310, weapon: "戰鬥弓", skill: "二連箭" },
+  { path: "/guides/assassin-31-50", job: 410, weapon: "鋰礦鬥拳", skill: "雙飛斬" },
+  { path: "/guides/bandit-31-50", job: 420, weapon: "水晶刃", skill: "迴旋斬" },
 ];
 
 const results = [];
