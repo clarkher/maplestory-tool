@@ -43,6 +43,24 @@ function countFiles(dir) {
   return n;
 }
 
+/**
+ * 道具單獨頁只留 html：一頁本來 5 個檔（txt、__next 分段），1,843 頁會吃掉快 1 萬個額度。
+ * 連到這些頁的地方都用一般連結整頁載入，用不到分段。清單頁自己的 __next 檔不動。回傳處理了幾頁。
+ */
+export function trimItemPageFiles(outDir) {
+  const dir = join(outDir, "db", "items");
+  let pages = 0;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory() && /^\d+$/.test(entry.name)) {
+      rmSync(join(dir, entry.name), { recursive: true, force: true });
+      pages += 1;
+    } else if (/^\d+\.txt$/.test(entry.name)) {
+      rmSync(join(dir, entry.name), { force: true });
+    }
+  }
+  return pages;
+}
+
 function restoreApi() {
   if (existsSync(STASH) && !existsSync(API)) renameSync(STASH, API);
 }
@@ -62,6 +80,8 @@ function main() {
   }
   if (status !== 0) process.exit(status ?? 1);
 
+  const trimmed = trimItemPageFiles(OUT);
+  console.log(`[build:cf] 道具單獨頁 ${trimmed} 頁只留 html`);
   rmSync(ITEMS_OUT, { recursive: true, force: true });
   mkdirSync(join(ITEMS_OUT, "assets"), { recursive: true });
   renameSync(join(OUT, "assets", "items"), join(ITEMS_OUT, "assets", "items"));

@@ -20,7 +20,7 @@ it.runIf(spec && out)("印出某職業某範圍的計算表跟攻略內容", () 
   const [job, from, to] = spec!.split("-").map(Number);
   // 文章已經指定武器系別就照那個系別算，寫手才看得到對的數字
   const article = staticJobArticle(job, from, to);
-  fs.writeFileSync(out!, JSON.stringify(writerBrief({ job, from, to, data: staticCalcData(), weaponTypes: article?.weaponTypes, statCap: article?.statCap }), null, 2));
+  fs.writeFileSync(out!, JSON.stringify(writerBrief({ job, from, to, data: staticCalcData(), gear: article?.gear, statCap: article?.statCap }), null, 2));
 });
 
 // npm run article:show 110 31 50（scripts/job-article-show.mjs）

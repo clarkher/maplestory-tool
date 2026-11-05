@@ -21,7 +21,7 @@ function load(slug: string) {
   const raw = staticJobArticle(key.job, key.from, key.to);
   if (!raw) return undefined;
   const data = staticCalcData();
-  const table = buildCalcTable({ ...key, data, weaponTypes: raw.weaponTypes, statCap: raw.statCap });
+  const table = buildCalcTable({ ...key, data, gear: raw.gear, statCap: raw.statCap });
   return { ...key, slug, table, article: resolveArticle(raw, table, data), path: `/guides/${slug}`, images: articleImages(staticArticleImages(), slug) };
 }
 

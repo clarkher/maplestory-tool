@@ -31,8 +31,8 @@ export type GuideStatus = GuideState["status"];
 
 /**
  * 硬重新整理時、React 接手之前就先跑（伺服器畫的版本裡的一小段 script，排在大標前面）：本機存過完整的角色（職業＋等級）
- * 就在 <html> 標 data-profile="saved"，讓「你現在幾等、什麼職業？」看不見。<html> 本來就有 suppressHydrationWarning
- * （深色模式也是這樣先標上去），不會跟 React 對不起來。站內換頁一開始就讀得到角色，不會畫這段。
+ * 就在 <html> 標 data-profile="saved"，讓伺服器畫的版本換成存過角色的樣子（大標、選單、入口卡藏起來，換成讀取中，頁尾擠到畫面外）。
+ * <html> 本來就有 suppressHydrationWarning（深色模式也是這樣先標上去），不會跟 React 對不起來。站內換頁一開始就讀得到角色，不會畫這段。
  */
 const SAVED_PROFILE_HINT = `try{var p=JSON.parse(localStorage.getItem("ms-profile")||"null");if(p&&p.level>0&&p.job>=0)document.documentElement.dataset.profile="saved"}catch(e){}`;
 
@@ -167,7 +167,8 @@ export function RouteHome() {
   const entryClass = `tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]${loaded ? "" : " [[data-profile=saved]_&]:invisible"}`;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
+    // 存過角色的人路線一定比螢幕長：第一格就把頁尾擠到畫面外。不然伺服器畫的版本很短、頁尾在畫面裡，路線長出來時把它推走就算一次大位移（1280 0.12、375 0.16）
+    <div className={`mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6${loaded ? "" : " [[data-profile=saved]_&]:min-h-dvh"}`}>
       {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
           存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
       {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}
@@ -182,7 +183,14 @@ export function RouteHome() {
         <h1 className="sr-only">我的升級路線</h1>
       )}
 
-      {loaded ? <CharacterBar profile={profile} onChange={setProfile} /> : <LoadingBlock label="讀取你的角色…" />}
+      {/* 第一次來的人第一格就是選單，之後一格都不動；以前先放比選單矮的讀取中，換成選單時入口卡被往下推 230px（375 位移 0.15）。
+          讀取中只留給存過角色的人，他們的角色列要等讀到本機才知道長怎樣 */}
+      {loaded ? null : (
+        <div className="hidden [[data-profile=saved]_&]:block">
+          <LoadingBlock label="讀取你的角色…" />
+        </div>
+      )}
+      <CharacterBar profile={profile} onChange={setProfile} pending={!loaded} />
 
       {/* v1.19：萬聖節活動期間的入口（手機導覽列放不下，從這裡進）；11/11 23:59 後不出現 */}
       {halloweenOn(Date.now()) ? (
