@@ -23,6 +23,37 @@ export function splitStartNone(questId, startItems, none) {
 }
 
 /**
+ * 前置任務照上游的狀態分三種（startRequirements.quests[].state）：2 已完成、1 進行中、0 未開始。
+ * 沒寫（上游標「狀態 None」）跟未開始一樣：客戶端查得到的也是沒寫 state，就是 0。
+ * 五條職業之路互斥（互相寫未開始）、幫助拉爾要巨居蟹的祭品進行中，都不能寫成「要先完成」。
+ * - pre：要比它先碰到的（已完成＋進行中），排順序、推等級都看這個
+ * - preDoing：pre 裡要進行中的，接了、還沒交才接得到
+ * - preNot：接過就接不到的。站上沒有的不留：玩家接不到，這個條件一定成立（不明人士的 4 個）
+ * @param {Array<{id:number,state?:number}|number>|undefined} entries 上游的 startRequirements.quests
+ * @param {Set<string>} listed 站上有的任務編號
+ */
+export function splitPreQuests(entries, listed) {
+  const pre = [];
+  const preDoing = [];
+  const preNot = [];
+  for (const entry of entries ?? []) {
+    const id = String(entry?.id ?? entry);
+    const state = typeof entry === "object" ? entry.state ?? 0 : 2;
+    if (state === 0) {
+      if (listed.has(id)) preNot.push(id);
+      continue;
+    }
+    pre.push(id);
+    if (state === 1) preDoing.push(id);
+  }
+  return {
+    pre: pre.length ? pre : undefined,
+    preDoing: preDoing.length ? preDoing : undefined,
+    preNot: preNot.length ? preNot : undefined,
+  };
+}
+
+/**
  * 獎勵技能的名字。流浪煉金術師的新技術（6000）獎勵三個神匠之魂（冒險家、皇家騎士團、狂狼勇士各一個編號），
  * 經典版只有冒險家，站上（skills.json）也只有 1003——寫「附贈技能 3 個」玩家會以為拿三個。查不到的略過。
  * @param {number[]|undefined} ids quest.rewardSkills

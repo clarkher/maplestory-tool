@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { rewardSkillNames, splitStartNone } from "./quest-fields.mjs";
+import { rewardSkillNames, splitPreQuests, splitStartNone } from "./quest-fields.mjs";
 
 // data/client/quest-start-none.json 的 none：任務 id → 接取條件裡 count 沒寫（＝不能有）的道具
 const none = { 1115: [4031683], 2215: [4031894] };
@@ -43,4 +43,41 @@ test("獎勵技能寫站上有的技能名，別的職業線（站上沒有）�
 test("一個都查不到、或沒有獎勵技能：undefined（細節不寫那一行）", () => {
   assert.equal(rewardSkillNames([10001003], skillsById), undefined);
   assert.equal(rewardSkillNames(undefined, skillsById), undefined);
+});
+
+// 站上有的任務（buildQuests 濾完的編號）
+const listed = new Set(["2020", "2023", "2081", "2079"]);
+const nothing = { pre: undefined, preDoing: undefined, preNot: undefined };
+
+test("前置照上游的狀態分：已完成進 pre；進行中也進 pre，另外記在 preDoing", () => {
+  assert.deepEqual(splitPreQuests([{ id: 2081, state: 2 }, { id: 2020, state: 1 }], listed), {
+    pre: ["2081", "2020"],
+    preDoing: ["2020"],
+    preNot: undefined,
+  });
+});
+
+test("未開始跟沒寫都是「不能接過」，不算前置", () => {
+  assert.deepEqual(splitPreQuests([{ id: 2079, state: 0 }, { id: 2023 }], listed), {
+    pre: undefined,
+    preDoing: undefined,
+    preNot: ["2079", "2023"],
+  });
+});
+
+test("不能接過的任務站上沒有就不留：玩家接不到，這個條件一定成立（不明人士的 3246）", () => {
+  assert.deepEqual(splitPreQuests([{ id: 3246, state: 0 }], listed), nothing);
+});
+
+test("要先完成的任務站上查不到照留（師父的後悔的 69044）", () => {
+  assert.deepEqual(splitPreQuests([{ id: 69044, state: 2 }], listed), { pre: ["69044"], preDoing: undefined, preNot: undefined });
+});
+
+test("上游只給編號、沒帶狀態：照「要先完成」", () => {
+  assert.deepEqual(splitPreQuests([2081], listed), { pre: ["2081"], preDoing: undefined, preNot: undefined });
+});
+
+test("沒有前置：三個都不寫", () => {
+  assert.deepEqual(splitPreQuests(undefined, listed), nothing);
+  assert.deepEqual(splitPreQuests([], listed), nothing);
 });

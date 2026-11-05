@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { itemImage, mapName, npcImage } from "@/lib/data";
-import { payText, rewardSummary } from "@/lib/format";
+import { payText, preLines, rewardSummary } from "@/lib/format";
 import type { MapRecord, Quest, QuestRef, QuestReward } from "@/lib/types";
 
 /**
@@ -27,6 +27,7 @@ export function QuestDetailBody({
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
   // 楓幣是負的＝交任務時要付，寫在要交的東西底下（奈洛的禮物、流浪煉金術師的新技術）
   const pay = payText(quest.money, Boolean(quest.needItems?.length));
+  const pres = preLines(quest);
 
   return (
     <div className="space-y-3.5 text-sm">
@@ -47,13 +48,13 @@ export function QuestDetailBody({
         </p>
       ) : null}
 
-      {quest.startItems?.length || quest.startNone?.length || quest.startSkills?.length || quest.pre?.length ? (
+      {quest.startItems?.length || quest.startNone?.length || quest.startSkills?.length || pres.length ? (
         <Block title="接得到的條件">
           <div className="space-y-1.5">
-          {quest.pre?.length ? (
-            <p className="mb-1.5">
-              <span className="ink-faint">要先完成：</span>
-              {quest.pre.map((id, index) => (
+          {pres.map(line => (
+            <p key={line.label} className="mb-1.5">
+              <span className="ink-faint">{line.label}：</span>
+              {line.ids.map((id, index) => (
                 <span key={`${id}-${index}`}>
                   {index > 0 ? "、" : ""}
                   <Link href={`/db/quests?id=${id}`} className="font-bold hover:text-[color:var(--maple)]">
@@ -62,7 +63,7 @@ export function QuestDetailBody({
                 </span>
               ))}
             </p>
-          ) : null}
+          ))}
           {quest.startItems?.length ? (
             <div className="mb-1.5">
               <span className="ink-faint">身上要有：</span>

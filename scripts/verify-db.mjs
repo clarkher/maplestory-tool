@@ -23,6 +23,8 @@
 // 清單很下面（第 70 列以後）的任務打勾，卡片留在那一列下面、那一列跟按鈕不動、載出來的筆數不被收回 60 筆，收起後原本的下一列放到導覽列下方，
 // 最後一列收起就看前一列（不跳回清單開頭）；怪物資料載不到（擋掉 monsters.json）時清單照列、沒有建議等級（寫死：角色 Lv.35 槍騎兵，跑完換回前面存的狂戰士 Lv.45）。
 // G3＝v0.60 的怪物頁：「適合我練的」「包含低 5 級」兩顆標籤手機 375、360 寬都在同一排、只能開一顆、點開著的就關，開了標籤下面小字寫等級範圍（Lv.30–40；僧侶再接職業規則），清單的等級範圍、順序、筆數、小字（Lv.35 · 經驗 405）照怪物資料另外算，整頁重新整理後標籤還開著，僧侶照玩家的 35 級算職業規則；「連沒有名字的怪一起列」只在資料真的有沒名字的怪時才出現（寫死：角色 Lv.35 槍騎兵、僧侶，跑完換回前面存的狂戰士 Lv.45）。
+// Q1＝v1.58 的任務前置照上游的狀態分：任務卡「要先完成／要進行中／不能接過」三行、單獨頁寫得出名字、清單小字「要先接」、
+// 打勾後接不到的不列（巨居蟹的祭品做完，幫助拉爾不列；五條職業之路做了一條，另外四條不列）、拍賣買齊就能交也寫「要先接」。
 // S1＝v0.71 的技能頁：遊戲資料沒有分等級數值的技能（skills.json 沒有 levels）點開不會整頁掛掉，卡片寫原因、沒有數值表（寫死：魔女掃把 1019 從清單點、實用的速度激發 8000 直接打開網址）；只有 1 級又沒數值的（神匠之魂 1003、肥肥的弱點攻擊 9000）只列說明。
 // S2＝v0.74 的技能卡：效果行不露出 #代號（改寫滿級那一級的遊戲原文）、好幾級但沒有數值的一級一列放遊戲原文（上游 2.0.0 補上數值後只剩蓄能激發）、
 // 魔力淨化寫沒有每一級的數字、說明尾巴的「#」拿掉（寫死：蓄能激發 5110001、槍連擊 1311001、隱身術 4001003、魔力淨化 2000000、劍氣縱橫 1001005；蓄能激發手機桌機都看）。
@@ -2293,6 +2295,89 @@ try {
     check("G5 開著「〇〇能用」時換到別的分類：標籤關掉、分類是新選的、筆數跟沒開標籤時一樣",
       !d.skipped && d.reopened.mine === true && d.after.mine === false && d.after.now === false && d.after.category === "消耗"
       && /^[0-9,]+ 筆$/.test(d.after.count) && d.after.count === a.catOnly.count, d.skipped ? d : { reopened: d.reopened, after: d.after, catOnlyCount: a.catOnly.count });
+  });
+
+  // Q1 任務前置照上游的狀態分（v1.58）。寫死的任務都是上游標好狀態的：
+  // 幫助拉爾 2160（巨居蟹的祭品進行中）、戰士之路 2077（五條職業之路互相寫未開始）、特製烤鰻魚的秘密 2021（進行中＋沒寫）、
+  // 再次收集妖精的號角 3104（已完成＋進行中）、不明人士 2190（4 個未開始的任務站上都沒有）
+  await section("Q1", async () => {
+    const setMine = (level, job) =>
+      evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: ${level}, job: ${job} })); localStorage.removeItem("ms-done-quests"); "ok"`);
+    const card = async id => {
+      await clearRemembered();
+      await navigate(`${BASE}/db/quests?id=${id}`);
+      return ev(`await __waitFor(() => !!document.querySelector("main article")); await __sleep(800);
+        [...document.querySelectorAll("main article h4")].find(title => title.textContent === "接得到的條件")?.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+        const lines = document.querySelector("main article").innerText.split("\\n").map(line => line.trim());
+        return { lines: lines.filter(line => /^(要先完成|要進行中|不能接過)：/.test(line)), block: lines.includes("接得到的條件"), rawId: lines.some(line => /任務 [0-9]+/.test(line)) };`);
+    };
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    await mobile();
+    await setMine(55, 130);
+    try {
+      const help = await card("2160");
+      await shot("q1-card-doing.png");
+      check("Q1 幫助拉爾 2160：只寫「要進行中：巨居蟹的祭品」，不寫要先完成", same(help.lines, ["要進行中：巨居蟹的祭品"]), help);
+      const road = await card("2077");
+      await shot("q1-card-not.png");
+      check("Q1 戰士之路 2077：要先完成只有有關轉職的指導，另外四條寫在「不能接過」",
+        same(road.lines, ["要先完成：有關轉職的指導", "不能接過：盜賊之路、法師之路、海盜入門、弓箭手之路"]), road);
+      const eel = await card("2021");
+      check("Q1 特製烤鰻魚的秘密 2021：要進行中＋不能接過（上游沒寫狀態的算沒接過）", same(eel.lines, ["要進行中：饑餓的洛尼", "不能接過：找回神秘書"]), eel);
+      const horn = await card("3104");
+      check("Q1 再次收集妖精的號角 3104：要先完成＋要進行中各一行", same(horn.lines, ["要先完成：妖精的號角", "要進行中：妖精的號角 Ⅱ"]), horn);
+      const lost = await card("2190");
+      check("Q1 不明人士 2190：站上沒有的 4 個任務不寫，也沒有「任務 3246」這種編號", same(lost.lines, []) && !lost.rawId, lost);
+
+      const page = await ev(`
+        const text = (await (await fetch("/db/quests/2077")).text()).replace(/<!--.*?-->/g, "").replace(/<[^>]+>/g, "");
+        return { names: text.includes("不能接過：盜賊之路、法師之路、海盜入門、弓箭手之路"), rawId: /任務 (2078|2079|2080|2212)/.test(text) };`);
+      check("Q1 任務單獨頁 /db/quests/2077：「不能接過」寫名字，不是任務編號", page.names && !page.rawId, page);
+
+      // 「接得到的」清單：讀寫死那幾列在不在、小字寫什麼
+      const board = async (done, ids) => {
+        await evaluate(`localStorage.setItem("ms-done-quests", ${JSON.stringify(JSON.stringify(done))}); "ok"`);
+        await fresh("/db/quests");
+        return ev(`
+          __tag("只看我現在接得到的").click(); await __sleep(900);
+          const total = Number(__count().replace(/[^0-9]/g, ""));
+          for (let i = 0; i < 12 && __rows().length < total; i++) await __loadMore();
+          const notes = {};
+          for (const id of ${JSON.stringify(ids)}) if (__row(id)) notes[id] = __row(id).querySelector(":scope > button .tabular-nums")?.textContent.trim() ?? "";
+          __row(${JSON.stringify(ids.at(-1))})?.scrollIntoView({ block: "center", behavior: "instant" }); await __sleep(300);
+          return { total, rows: __rows().length, notes };`);
+      };
+      const crab = ["2157", "2158", "2159", "2160"];
+      const open = await board([], crab);
+      await shot("q1-board-doing.png");
+      check("Q1 Lv.55 槍騎兵「接得到的」：幫助拉爾的小字寫「要先接：巨居蟹的祭品」",
+        open.notes["2160"] === "要先接：巨居蟹的祭品" && open.notes["2159"] === "要先接：巨居蟹的祭品" && "2157" in open.notes, open);
+      const closed = await board(["2157"], crab);
+      check("Q1 巨居蟹的祭品打勾後：幫助拉爾、露爾、麗爾接不到了，不列", closed.rows > 0 && same(Object.keys(closed.notes), []), closed);
+
+      await setMine(10, 0);
+      const roads = ["2077", "2078", "2079", "2080", "2212"];
+      const fiveOpen = await board([], roads);
+      check("Q1 Lv.10 初心者「接得到的」：五條職業之路都列，小字不再寫要先做另外幾條",
+        roads.every(id => id in fiveOpen.notes && !/之路|海盜入門/.test(fiveOpen.notes[id])), fiveOpen);
+      const oneDone = await board(["2077"], roads);
+      check("Q1 戰士之路打勾後：另外四條不列", oneDone.rows > 0 && same(Object.keys(oneDone.notes), []), oneDone);
+
+      await setMine(55, 130);
+      await clearRemembered();
+      await navigate(BASE + "/plan/buy");
+      const buy = await ev(`
+        await __waitFor(() => /共 [0-9]+ 個任務/.test(document.body.innerText)); await __sleep(800);
+        [...document.querySelectorAll("main button[aria-expanded]")].find(b => /全部|其他|還有/.test(b.textContent))?.click(); await __sleep(800);
+        const text = document.querySelector("main").innerText;
+        const eel = [...document.querySelectorAll("main li")].find(li => li.querySelector("h2, h3, h4, a")?.textContent.includes("特製烤鰻魚的秘密"))?.innerText ?? "";
+        return { doing: text.includes("要先接：巴勒圖的委託"), oldWord: text.includes("要先做：巴勒圖的委託"), eelDoing: eel.includes("要先接：饑餓的洛尼"), eelBook: eel.includes("找回神秘書"), eelLen: eel.length };`);
+      await shot("q1-buy.png");
+      check("Q1 拍賣買齊就能交：將檸檬交給萬人迷寫「要先接：巴勒圖的委託」；特製烤鰻魚的秘密寫「要先接：饑餓的洛尼」，不提找回神秘書",
+        buy.doing && !buy.oldWord && buy.eelDoing && !buy.eelBook, buy);
+    } finally {
+      await evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ level: 45, job: 110 })); localStorage.removeItem("ms-done-quests"); "ok"`);
+    }
   });
 } catch (error) {
   results.push({ name: "ERROR", ok: false, detail: String(error?.stack ?? error).slice(0, 800) });

@@ -63,6 +63,11 @@ function main() {
   const noFrame = missingFrames(monsters ?? [], frameFiles);
   check("每隻怪物都有圖（monster_frames/<id>.png）", noFrame.length === 0, noFrame.length ? `缺圖：${noFrame.map(monster => `${monster.id} ${monster.n}`).join("、")}` : `${monsters?.length} 隻都有`);
   check("任務數量合理（僅已開放）", quests?.length >= 348 && quests?.length <= 545, `${quests?.length} 個`);
+  // 前置照上游的狀態分（lib/quest-fields.mjs）：上游哪天不帶狀態，全部會變成「不能接過」，卡片跟排序都少了前置
+  const preFinish = (quests ?? []).flatMap(quest => (quest.pre ?? []).filter(id => !quest.preDoing?.includes(id))).length;
+  const preDoing = (quests ?? []).flatMap(quest => quest.preDoing ?? []).length;
+  const preNot = (quests ?? []).flatMap(quest => quest.preNot ?? []).length;
+  check("任務前置三種都有（要先完成／要進行中／不能接過）", preFinish >= 250 && preDoing >= 10 && preNot >= 10, `${preFinish}／${preDoing}／${preNot}`);
   // 拍賣買齊就能交的任務（/plan/buy）：2026-10-24 上游 2.0.0 是 100 個
   const questById = new Map((quests ?? []).map(quest => [quest.id, quest]));
   const buyIds = buyQuests?.quests ?? [];

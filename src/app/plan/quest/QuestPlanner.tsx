@@ -224,7 +224,7 @@ function QuestCard({ plan, maps }: { plan: QuestPlan; maps: Record<string, MapRe
         <div className="border-t border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]/50 p-3.5">
           {blocked ? (
             <p className="mb-3 rounded-xl bg-[color:var(--maple-wash)] px-3 py-2 text-[13px] font-bold text-[color:var(--maple)]">
-              前置任務還沒完成：{plan.blockedBy.join("、")}
+              前置任務還沒做：{plan.blockedBy.join("、")}
             </p>
           ) : null}
           <QuestDetailBody quest={quest} maps={maps} />
