@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，home-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -54,7 +54,8 @@ node scripts/verify/check-first-frame.mjs [輸出] [網址，預設 http://local
   不會先畫一般點法再跳過去（v0.76）；跑完把角色還原成狂戰士 45、拿掉 `ms-build`；
   8 硬重新整理首頁不跳：存過角色、第一次來 × 1280、375（手機模式），CPU 慢 4 倍＋慢 4G＋不用快取，位移加總都 < 0.1（v1.56）；
   9 第一次來、不等載入完就打等級 35、按劍士（慢 4G＋CPU 慢 4 倍），接手後角色要是劍士 35（v1.57）；
-  6 沒有 hydration 警告、沒接住的錯誤（排在最後跑，涵蓋 1～5、7～9）。
+  10 硬重新整理其他頁不跳：手機的傷害計算機（存過角色）、組隊指揮（第一次來）位移都 < 0.1（v1.63）；
+  6 沒有 hydration 警告、沒接住的錯誤（排在最後跑，涵蓋 1～5、7～10）。
 - 逐格紀錄最少記固定的時間（換頁 4 秒、硬重新整理 3～5 秒），畫面還沒出來就一路記到出來後 1.5 秒、最多 60 秒（v0.76）：
   GitHub 上（`next start`）跟以前一樣，本機 `next dev` 第一次編譯、別的 session 正在改檔重編、CPU 被吃滿時，不會畫面還沒換過去就停、誤報紅。
 - 本機跑：先 `next build` 再 `next start`（或直接給測試機網址），約 25 秒。`CI` 環境變數有設時 Chrome 會加 `--no-sandbox`。
@@ -62,22 +63,26 @@ node scripts/verify/check-first-frame.mjs [輸出] [網址，預設 http://local
   Windows 上收尾改用 `taskkill` 關 Chrome（v0.76 之前用 `chrome.kill()`，Chrome 常還活著佔著埠，下一次同一個埠會連進舊的那支）。
 - 驗過抓得到：故意把首頁、/go、練功排行改回「先畫載入中」、大標改成都看不見，1／3／4／5 紅；對還沒有 v0.54 的正式機跑，2 紅；
   第 7 項把期待的標籤改成「一般點法」，硬重新整理、站內換頁兩段都紅（2026-10-08）；
-  對 v1.56 之前的版本跑，3、8 紅，8 量到 0.1165、0.069、0.1638、0.1465（2026-11-05）。
+  對 v1.56 之前的版本跑，3、8 紅，8 量到 0.1165、0.069、0.1638、0.1465（2026-11-05）；
+  對 v1.63 之前的版本跑，10 紅，傷害計算機 0.332、組隊指揮 0.2656（2026-11-05）。
 - 輸出：`results.json`（每項的細節、console；第 7 項的 `reload` 有卡片畫出來幾格、第一格長怎樣、不對的格）、`1-home.png`、
   `7-home-luck.png`（第 7 項跑完捲到卡片）；CI 沒過時整個資料夾上傳成 artifact「first-frame」。
 
-#### `home-cls.mjs`：首頁硬重新整理的跳動（CLS）、誰動了、第一格長怎樣（v1.56）
+#### `page-cls.mjs`：硬重新整理的跳動（CLS）、誰動了、第一格長怎樣（v1.56 量首頁，v1.63 起任何一頁）
 
 ```bash
-node scripts/verify/home-cls.mjs [輸出] [網址，預設 http://localhost:3000] [每種幾次，預設 5] [DevTools 埠，預設 9392] [--cold] [--mobile] [--slow]
+node scripts/verify/page-cls.mjs [輸出] [網址，預設 http://localhost:3000] [每種幾次，預設 5] [DevTools 埠，預設 9392] [--page=/plan/damage] [--all] [--css=...] [--cold] [--mobile] [--slow]
 ```
 
 - 量存過角色、第一次來 × 1280、375，CPU 慢 4 倍，印每種的中位數、範圍、Google 實際採用的「最大一段」跟每次位移的來源（來源的 y 變 0、高度 0 ＝ 被推出畫面）。
   任一種中位數 >= 0.1 就 exit 1。
+- `--page=` 指定哪一頁，可以給很多個；不給就是首頁。`--all` 全站每種頁面各量一頁，新頁要加進檔案開頭的清單（`--slow` 每次至少 10 秒，35 頁 × 4 種約 35 分鐘）。
+- `--css=` 先塞一段 CSS 再量，不用 build 就能試修法有沒有用（例：`"--css=main{min-height:100dvh}"`）。
+- 用 Git Bash 給 `--page=/...` 要加 `MSYS_NO_PATHCONV=1`，不然路徑會被轉成 Windows 路徑。
 - **一定要量正式 build**（`next build` + `next start`，或測試機）。
 - **`--mobile` 要跟 `--slow --cold` 一起用**：本機程式到得太快，手機模式第一格還沒畫就接手了，壞掉的版本也量到 0（2026-11-05 踩到）。
   `--slow`＝慢 4G，`--cold`＝不用快取。第一次來的真手機就是 `--mobile --slow --cold`。
-- 輸出：`results.json`（每次的位移、逐格狀態）、`server-<寬>-<saved|first>.png`（擋掉程式後截的，就是伺服器畫的第一格）、`final-*.png`（畫好之後）。
+- 輸出：`results.json`（每次的位移、逐格狀態）、`server-<頁>-<寬>-<saved|first>.png`（擋掉程式後截的，就是伺服器畫的第一格）、`final-*.png`（畫好之後）。
 - 一次約 1～2 分鐘（5 次）；`--slow --cold` 要 4～6 分鐘（3 次）。
 
 #### `home-first-frame.mjs`：站內換頁進首頁的第一個畫面（v0.34）

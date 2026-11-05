@@ -1,5 +1,8 @@
-// 首頁跳動（CLS）：存過角色、第一次來 × 1280、375 各量幾次（CPU 慢 4 倍），任一種中位數 >= 0.1 就 exit 1。
-// 用法：node scripts/verify/home-cls.mjs [輸出資料夾] [網址，預設 http://localhost:3000] [每種幾次，預設 5] [DevTools 埠，預設 9392]
+// 頁面跳動（CLS）：存過角色、第一次來 × 1280、375 各量幾次（CPU 慢 4 倍），任一種中位數 >= 0.1 就 exit 1。
+// 用法：node scripts/verify/page-cls.mjs [輸出資料夾] [網址，預設 http://localhost:3000] [每種幾次，預設 5] [DevTools 埠，預設 9392]
+//   --page=/plan/damage  量哪一頁，可以給很多個；不給就是首頁
+//   --all     全站每種頁面各量一頁（單筆頁各挑一筆）
+//   --css=... 先塞一段 CSS 再量：不用 build 就能試修法有沒有用
 //   --cold    每次都不用瀏覽器快取（真的第一次來的人：字型、資料都要重抓）
 //   --mobile  375 用手機模式量（viewport meta、dvh 跟真手機一樣）；不加是把桌機視窗縮到 375，跟之前的紀錄比得起來
 //   --slow    網路模擬慢 4G（150ms、1.6Mbps）：伺服器畫的版本一定先畫出來、程式後到，最接近真手機。
@@ -9,22 +12,33 @@
 // 記三件事：
 //   CLS  加總（比較保守，跟之前紀錄同一個算法）、最大的一段（Google 實際採用：間隔 1 秒內、最長 5 秒）
 //   來源 每次位移是誰動了、從哪到哪（來源的 y 變 0 高度 0 ＝ 被推出畫面）
-//   第一格 每一格畫了什麼：大標、表單、讀取中、入口卡看不看得到、頁尾在哪；
-//          server-<寬>-<人>.png 是擋掉程式後的畫面，就是伺服器畫的版本（第一格）、final-* 是畫好之後
+//   第一格 每一格畫了什麼：首頁看大標、表單、讀取中、入口卡，每一頁都看頁尾在哪；
+//          server-<頁>-<寬>-<人>.png 是擋掉程式後的畫面，就是伺服器畫的版本（第一格）、final-* 是畫好之後
 import fs from "node:fs";
 import path from "node:path";
 import { chromePort, outDir } from "./config.mjs";
 import { sleep, start } from "./harness.mjs";
 
+const ALL_PAGES = [
+  "/", "/plan/train", "/plan/quest", "/plan/farm", "/plan/bundle", "/plan/buy", "/plan/damage", "/plan/boss", "/plan/scroll",
+  "/plan/avatar", "/plan/pq", "/plan/speed", "/price/fx", "/event/halloween", "/guide", "/go",
+  "/db", "/db/monsters", "/db/items", "/db/quests", "/db/skills", "/db/maps", "/db/npcs",
+  "/db/monsters/120100", "/db/items/1432002", "/db/quests/2193", "/db/skills/1001", "/db/maps/20000", "/db/npcs/2002",
+  "/guides/hunter-31-50", "/jobs/111", "/about", "/contact", "/privacy", "/terms",
+];
+
 const flags = process.argv.slice(2).filter(a => a.startsWith("--"));
 const args = process.argv.slice(2).filter(a => !a.startsWith("--"));
-const OUT = outDir(args[0], "home-cls");
+const OUT = outDir(args[0], "page-cls");
 const BASE = (args[1] ?? "http://localhost:3000").replace(/\/$/, "");
 const REPS = Number(args[2] ?? 5);
 const PORT = chromePort(Number(args[3] ?? 9392));
 const COLD = flags.includes("--cold");
 const MOBILE = flags.includes("--mobile");
 const SLOW = flags.includes("--slow");
+const CSS = flags.find(f => f.startsWith("--css="))?.slice(6) ?? "";
+const named = flags.filter(f => f.startsWith("--page=")).map(f => f.slice(7));
+const PAGES = flags.includes("--all") ? ALL_PAGES : named.length ? named : ["/"];
 const PROFILE = JSON.stringify({ level: 35, job: 100 });
 const LINE = 0.1;
 
@@ -35,6 +49,11 @@ if (SLOW) await page.send("Network.emulateNetworkConditions", { offline: false, 
 await page.send("Emulation.setCPUThrottlingRate", { rate: 4 });
 await page.send("Page.addScriptToEvaluateOnNewDocument", {
   source: `
+    if (${JSON.stringify(CSS)}) {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(${JSON.stringify(CSS)});
+      document.adoptedStyleSheets = [sheet];
+    }
     window.__ls = [];
     const name = n => !n ? "（已移除）" : n.getAttribute
       ? [n.tagName, n.getAttribute("aria-label") || n.getAttribute("href") || (n.className && String(n.className).split(" ")[0]) || ""].filter(Boolean).join(":")
@@ -68,7 +87,7 @@ async function settled() {
   const t0 = Date.now();
   let height = -1, since = Date.now();
   while (Date.now() - t0 < 30000) {
-    const now = await evaluate("document.documentElement.scrollHeight");
+    const now = await evaluate("document.documentElement?.scrollHeight ?? 0");
     if (now !== height) { height = now; since = Date.now(); }
     else if (Date.now() - since > 2000 && Date.now() - t0 > (SLOW ? 10000 : 5000)) return;
     await sleep(250);
@@ -91,14 +110,14 @@ const round = v => +v.toFixed(4);
 const median = list => [...list].sort((a, b) => a - b)[Math.floor(list.length / 2)];
 
 /** 擋掉程式再開一次：停在伺服器畫的版本（inline script 照跑），截圖就是第一格 */
-async function serverFrame(file) {
+async function serverFrame(pathname, file) {
   await page.send("Network.setBlockedURLs", { urls: ["*/_next/static/chunks/*.js*"] });
-  await navigate(`${BASE}/`);
+  await navigate(`${BASE}${pathname}`);
   await shot(file);
   await page.send("Network.setBlockedURLs", { urls: [] });
 }
 
-async function measure(width, saved) {
+async function measure(pathname, width, saved) {
   const height = width === 375 ? 812 : 900;
   const mobile = MOBILE && width === 375;
   await page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile });
@@ -106,7 +125,7 @@ async function measure(width, saved) {
   await evaluate(saved ? `(localStorage.setItem("ms-profile", ${JSON.stringify(PROFILE)}), true)` : `(localStorage.removeItem("ms-profile"), true)`);
   const runs = [];
   for (let i = 0; i < REPS; i++) {
-    await navigate(`${BASE}/`);
+    await navigate(`${BASE}${pathname}`);
     await settled();
     const entries = (await evaluate(`window.__ls`)).filter(e => !e.input);
     runs.push({
@@ -116,27 +135,28 @@ async function measure(width, saved) {
       frames: await evaluate(`window.__frames`),
     });
   }
-  const label = `${width}-${saved ? "saved" : "first"}`;
+  const label = `${pathname === "/" ? "home" : pathname.slice(1).replaceAll("/", "-")}-${width}-${saved ? "saved" : "first"}`;
   await shot(`final-${label}.png`);
-  await serverFrame(`server-${label}.png`);
+  await serverFrame(pathname, `server-${label}.png`);
   await navigate(`${BASE}/robots.txt`);
   await evaluate(`(localStorage.removeItem("ms-profile"), true)`);
   const sums = runs.map(r => r.sum);
   const result = {
-    width, saved, median: median(sums), min: Math.min(...sums), max: Math.max(...sums),
+    page: pathname, width, saved, median: median(sums), min: Math.min(...sums), max: Math.max(...sums),
     medianWindow: median(runs.map(r => r.window)), runs,
   };
-  console.log(`${width}\t${saved ? "存過角色" : "第一次來"}\tn=${REPS}\t中位數 ${result.median}\t範圍 ${result.min}～${result.max}\t最大一段 ${result.medianWindow}\t每次 ${sums.join(" ")}`);
+  console.log(`${pathname}\t${width}\t${saved ? "存過角色" : "第一次來"}\tn=${REPS}\t中位數 ${result.median}\t範圍 ${result.min}～${result.max}\t最大一段 ${result.medianWindow}\t每次 ${sums.join(" ")}`);
   for (const e of runs[0].entries) console.log(`    ${e.t}ms +${e.v}  ${e.src.join("、")}`);
-  console.log(`    第一格 ${runs[0].frames.find(f => !f.state.includes("頁尾沒有"))?.state ?? "（沒有紀錄）"}`);
+  const first = runs[0].frames.find(f => !f.state.includes("頁尾沒有"))?.state ?? "（沒有紀錄）";
+  console.log(`    第一格 ${pathname === "/" ? first : first.replace(/^.* (?=頁尾)/, "")}`);
   return result;
 }
 
 const results = [];
-for (const width of [1280, 375]) for (const saved of [true, false]) results.push(await measure(width, saved));
-fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ base: BASE, cold: COLD, mobile: MOBILE, slow: SLOW, results }, null, 1));
+for (const pathname of PAGES) for (const width of [1280, 375]) for (const saved of [true, false]) results.push(await measure(pathname, width, saved));
+fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify({ base: BASE, cold: COLD, mobile: MOBILE, slow: SLOW, css: CSS, results }, null, 1));
 await close();
 
 const over = results.filter(r => r.median >= LINE);
-console.log(over.length ? `沒過：${over.map(r => `${r.width} ${r.saved ? "存過角色" : "第一次來"} ${r.median}`).join("、")}` : `全部低於 ${LINE}`);
+console.log(over.length ? `沒過：${over.map(r => `${r.page} ${r.width} ${r.saved ? "存過角色" : "第一次來"} ${r.median}`).join("、")}` : `全部低於 ${LINE}`);
 process.exit(over.length ? 1 : 0);

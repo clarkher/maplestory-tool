@@ -167,8 +167,7 @@ export function RouteHome() {
   const entryClass = `tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]${loaded ? "" : " [[data-profile=saved]_&]:invisible"}`;
 
   return (
-    // 存過角色的人路線一定比螢幕長：第一格就把頁尾擠到畫面外。不然伺服器畫的版本很短、頁尾在畫面裡，路線長出來時把它推走就算一次大位移（1280 0.12、375 0.16）
-    <div className={`mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6${loaded ? "" : " [[data-profile=saved]_&]:min-h-dvh"}`}>
+    <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
       {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
           存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
       {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}
