@@ -311,7 +311,8 @@ describe("計算表", () => {
     const text = articleShowText({ job: 230, from: 31, to: 50, article, data, openMaps: staticOpenMaps() });
     const table = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: article.gear, statCap: article.statCap });
     const row = table.rows[0];
-    expect(text).toContain(`${row.name} | ${avgText(row.avgOne)} | ${row.avgs.map(avgText).join(" | ")} |`);
+    const [low, mid, high] = row.avgs.map(avgText);
+    expect(text).toContain(`${row.name} | ${low} | ${mid} | ${avgText(row.avgOne)} | ${high} |`);
   });
 });
 

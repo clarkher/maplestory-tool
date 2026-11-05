@@ -539,6 +539,13 @@ export function assumptionLines(table: CalcTable): string[] {
   return [stats, weapon, skill, AVERAGE_NOTE, accuracy, ...a.notes];
 }
 
+/** 群體治癒的「打 1 隻」排在同一級的範圍欄後面，表才會照等級由低到高；別的技能沒有這欄 */
+export function withOneTargetCell<T>(table: CalcTable, cells: T[], one: T): T[] {
+  if (table.assumptions.targets === null) return cells;
+  const at = table.columns.findIndex(column => column.level === table.midLevel) + 1;
+  return [...cells.slice(0, at), one, ...cells.slice(at)];
+}
+
 /** 表上面那行：每一欄拿哪把、放哪招，連續一樣的併起來（「35 等拿鋼鐵拳套放雙飛斬；40、45 等拿水晶刃放迴旋斬」） */
 export function tableGearLine(table: CalcTable): string {
   const groups: Array<{ levels: number[]; text: string }> = [];
@@ -1569,8 +1576,8 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
     ]),
     "",
     `== 幾下打死、打不打得中（${tableGearLine(table)}）==`,
-    `怪${heal ? ` | 打 1 隻幾下 Lv.${table.midLevel}` : ""} | ${table.columns.map(column => `${column.targets ? `範圍 ${column.targets} 隻幾下` : heal ? `${column.skill.name}幾下` : "幾下打死"} Lv.${column.level}`).join(" | ")} | 幾等不 MISS | 等級 | HP | 防禦 | 經驗`,
-    ...table.rows.map(row => [row.name, ...(heal ? [avgText(row.avgOne)] : []), ...row.avgs.map(avgText), hitLvText(row, table), row.lv ?? "—", row.hp, row.def, row.exp].join(" | ")),
+    `怪 | ${withOneTargetCell(table, table.columns.map(column => `${column.targets ? `範圍 ${column.targets} 隻幾下` : heal ? `${column.skill.name}幾下` : "幾下打死"} Lv.${column.level}`), `打 1 隻幾下 Lv.${table.midLevel}`).join(" | ")} | 幾等不 MISS | 等級 | HP | 防禦 | 經驗`,
+    ...table.rows.map(row => [row.name, ...withOneTargetCell(table, row.avgs.map(avgText), avgText(row.avgOne)), hitLvText(row, table), row.lv ?? "—", row.hp, row.def, row.exp].join(" | ")),
     "",
     "== 這張表的假設 ==",
     ...assumptionLines(table),
