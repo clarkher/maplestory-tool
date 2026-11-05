@@ -69,11 +69,15 @@ export function staticItemPages(): Item[] {
   return cache.get(key) as Item[];
 }
 
-/** 連到道具：有單獨頁連單獨頁，沒有照舊連查資料卡片 */
-export function staticItemHref(id: number): string {
+export function staticHasItemPage(id: number): boolean {
   const key = "item-page-ids";
   if (!cache.has(key)) cache.set(key, new Set(staticItemPages().map(item => item.id)));
-  return (cache.get(key) as Set<number>).has(id) ? itemPagePath(id) : `/db/items?id=${id}`;
+  return (cache.get(key) as Set<number>).has(id);
+}
+
+/** 連到道具：有單獨頁連單獨頁，沒有照舊連查資料卡片 */
+export function staticItemHref(id: number): string {
+  return staticHasItemPage(id) ? itemPagePath(id) : `/db/items?id=${id}`;
 }
 
 /** 道具名稱查表（掉落物、任務獎勵用）：道具檔很大，只留名字、只建一次 */
