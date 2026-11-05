@@ -58,7 +58,12 @@ let page, evaluate, navigate, loadOnce, shot, traverse, close;
 const problems = { exceptions: [], errors: [] };
 /** 整趟向 maplestory.io 要過的角色圖（換裝、開場要看有沒有要過白 T） */
 const characterRequests = [];
-/** 整趟跟伺服器要過的頁面資料（Next 的 _rsc 請求）：換穿搭時不該有 */
+/**
+ * 整趟跟伺服器要過的紙娃娃頁資料（Next 的 _rsc 請求）：換穿搭時不該有。
+ * 只算這一頁自己的（/plan/avatar.txt?…、/plan/avatar?…）：導覽列連結的預先載入一開頁就有 16 個（/db/__next…），
+ * 機器慢時會拖到換穿搭那一段才發，那不是換穿搭打的
+ */
+const isAvatarPage = url => /^\/plan\/avatar([/.]|$)/.test(new URL(url).pathname);
 const rscRequests = [];
 
 const viewport = (width, height) => page.send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
@@ -417,7 +422,7 @@ try {
     if (msg.method === "Runtime.exceptionThrown") problems.exceptions.push(String(msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text).slice(0, 300));
     if (msg.method === "Runtime.consoleAPICalled" && msg.params.type === "error") problems.errors.push(msg.params.args.map(a => a.value ?? a.description).join(" ").slice(0, 300));
     if (msg.method === "Network.requestWillBeSent" && msg.params.request.url.includes("/api/character/")) characterRequests.push(msg.params.request.url);
-    if (msg.method === "Network.requestWillBeSent" && /[?&]_rsc=/.test(msg.params.request.url)) rscRequests.push(msg.params.request.url);
+    if (msg.method === "Network.requestWillBeSent" && /[?&]_rsc=/.test(msg.params.request.url) && isAvatarPage(msg.params.request.url)) rscRequests.push(msg.params.request.url);
   });
   await page.send("Network.enable");
   // Resource Timing 預設 250 筆一下就滿，後面的圖量不到（第 29、31 項、舞台等了多久都靠它）：每一頁一開始就調大
@@ -1369,7 +1374,7 @@ try {
       await sleep(4000);
       const w = ((await param("w")) ?? "").split(".");
       const shown = await drawn(stageReady(Number(pick[0])), 45000);
-      return { w, rsc: rscRequests.length, shown };
+      return { w, rsc: rscRequests.length, sample: rscRequests.slice(0, 2).map(u => u.slice(0, 100)), shown };
     });
     const wornNow = await worn();
     const names = pick.map(id => data.items.find(i => i.id === Number(id))?.n);
