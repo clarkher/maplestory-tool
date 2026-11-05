@@ -442,7 +442,9 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   - 退回：Vercel 網域頁按「Restore Original Nameservers」（回 `ns1`／`ns2.vercel-dns.com`），要等名稱伺服器傳開（這次約 30 分鐘，TWNIC 那層 TTL 6 小時）。Vercel 的網域綁定拿掉之前都能退。
   - 還沒收尾：拿掉 Vercel 專案的網域綁定（不動註冊、自動續約）、正式機 `workers_dev: false`。
 - **切完量到的速度（11/05 01:10，同一台電腦、同一條網路）**：首頁第一個位元組 Cloudflare 多在 1.18～1.31 秒（9 次中 2 次 0.48～0.57 秒），直連 Vercel 0.08～0.18 秒（4 次）。Chrome 實際開一次：第一個位元組 571ms、第一次畫面 1508ms、載完 1940ms。
-  `/cdn-cgi/trace` 跟回應的 `cf-ray` 機房換來換去：SJC、ARN、DUS、PDX，都不在亞洲（`loc=TW`）。只從這一條網路量過，別家電信、手機網路還沒量。
+  `/cdn-cgi/trace` 跟回應的 `cf-ray` 機房換來換去：SJC、ARN、DUS、PDX，都不在亞洲（`loc=TW`）。這台電腦是中華電信（AS3462），01:30 再量一次是 0.63～0.76 秒、SJC。
+- **其他網路（11/05 用 Globalping 的台灣節點，`country: TW`，10 個節點各打首頁 2 次）**：中華電信 2 個節點都走 SJC，來回 126～130ms、回應 157～196ms；凱擘／遠傳系等其他 6 個走 TPE 的節點來回多在個位數到 24ms，回應多在 33～66ms（偶有 223、239ms）；另外 2 個走 HKG（47～57ms，其中 1 個 502～589ms）。Vercel 同節點來回都在 8ms 內。
+  所以慢的主要是中華電信，不是整個台灣。這些節點是機房跟固網，不是真的手機；台灣大、手機網路還沒量到。回應時間不含 TLS 握手，跟 curl 的第一個位元組不能直接比。
 - **切之前量的機房**：11/04 從台灣量，`*.workers.dev` 走聖荷西（`/cdn-cgi/trace` 寫 `colo=SJC`，連線約 160ms），同一時間 `*.pages.dev`、`www.cloudflare.com` 走台北（TPE）；Vercel 走香港（hkg1，連線約 30ms）。
   還沒預先載入的換頁比 Vercel 慢：P2「查資料 → 練功地圖排行」連跑 4 次，Cloudflare 478～728ms、Vercel 90～924ms（中位數 608 對 214）。P4、P6 差距小（中位數 283 對 269、39 對 26），第一格內容兩邊都對。機房距離是最可能的原因，還沒單獨驗證。
   自訂網域會走哪個機房 workers.dev 量不出來，所以切完又重量一次（上一條）。
