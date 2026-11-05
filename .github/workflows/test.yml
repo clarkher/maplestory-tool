@@ -7,6 +7,8 @@ name: 測試
 #  - 第一格：在這台機器上建置、開站（next start），無頭 Chrome 跑 scripts/verify/check-first-frame.mjs——站內換頁第一格就是
 #    完整畫面、硬重新整理不問「你現在幾等」、沒有 hydration 警告。只看結構不看時間（機器快慢不穩），壞了紅燈、截圖跟紀錄上傳成 artifact。
 #    不靠 Vercel 預覽（部署額度用完時預覽建不起來，這條照跑）
+#  - 資料版本（在單元測試裡，只有 PR 跑）：public/data 改了、meta.json 的 builtAt 沒跟著改就紅。
+#    資料網址帶版本號快取一年，沒改版本來過的人會一直拿到舊的，驗收用新環境看不出來（v1.48、v1.59、v1.60 都漏過）
 # 用 pull_request（不是 pull_request_target）、權限只有讀：PR 的程式碼拿不到寫入權限跟 secrets。
 # 資料自動更新、V002 重新部署用 github.token 開的 PR、推的 commit 不會觸發這裡（GitHub 不讓 workflow 用自己的 token 觸發別的 workflow），
 # 資料自動更新自己會跑 verify.mjs、首頁真資料檢查跟 next build。
@@ -30,6 +32,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
+          # 資料版本要比 PR 跟基準分支：合併 commit 加它的兩個父親
+          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:
@@ -41,6 +45,10 @@ jobs:
 
       - name: 跑測試
         run: npm test
+
+      - name: 資料版本
+        if: github.event_name == 'pull_request'
+        run: node scripts/check-data-version.mjs
 
   build:
     name: 建置
