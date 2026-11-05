@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
-import { articleDamageHref, assumptionLines, avgText, hitLvText, stepImageAlt, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
+import { articleDamageHref, assumptionLines, avgText, hitLvText, stepImageAlt, tableGearLine, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { SeoLinks, SeoPage } from "./SeoPage";
 
@@ -85,18 +85,21 @@ const STICKY_CELL = "sticky left-0 z-10";
  * 站上算的數字排在最前面（手機第一眼就看得到，這是每篇的賣點），怪物基本數值排後面。
  */
 export function JobArticleTable({ table }: { table: CalcTable }) {
-  const { assumptions, midLevel, rows } = table;
+  const { assumptions, columns, midLevel, rows } = table;
   const magic = assumptions.accuracy.kind === "magic";
   const heal = assumptions.targets !== null;
   return (
     <div className="space-y-1">
+      <p className="text-[13px] font-bold ink-soft">{tableGearLine(table)}，平均幾下打死</p>
       <div className="scroll-x rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)]">
       <table className="w-full border-collapse whitespace-nowrap text-sm">
         <thead className="bg-[color:var(--paper-deep)] text-left text-[13px] font-bold">
           <tr>
             <th scope="col" className={`${STICKY_CELL} bg-[color:var(--paper-deep)] px-3 py-2 align-bottom`}>怪</th>
-            {heal ? <th scope="col" className={CALC_HEAD}>打 1 隻幾下<span className="block font-normal">Lv.{midLevel}</span></th> : null}
-            <th scope="col" className={CALC_HEAD}>{heal ? `範圍 ${assumptions.targets} 隻幾下` : "幾下打死"}<span className="block font-normal">Lv.{midLevel}</span></th>
+            {heal ? <th scope="col" className={CALC_HEAD}>{assumptions.skill.name}打 1 隻<span className="block font-normal">Lv.{midLevel}</span></th> : null}
+            {columns.map(column => (
+              <th key={column.level} scope="col" className={CALC_HEAD}>{column.targets ? `範圍 ${column.targets} 隻` : heal ? column.skill.name : "幾下"}<span className="block font-normal">Lv.{column.level}</span></th>
+            ))}
             <th scope="col" className={CALC_HEAD}>幾等不 MISS</th>
             <th scope="col" className="px-3 py-2 text-right align-bottom">等級</th>
             <th scope="col" className="px-3 py-2 text-right align-bottom">HP</th>
@@ -115,7 +118,9 @@ export function JobArticleTable({ table }: { table: CalcTable }) {
                 </Link>
               </td>
               {heal ? <td className={NUMBER_CELL}>{avgText(row.avgOne)}</td> : null}
-              <td className={`${NUMBER_CELL} font-bold`}>{avgText(row.avg)}</td>
+              {row.avgs.map((avg, index) => (
+                <td key={columns[index].level} className={`${NUMBER_CELL} font-bold`}>{avgText(avg)}</td>
+              ))}
               <td className={NUMBER_CELL}>{hitLvText(row, table)}</td>
               <td className={NUMBER_CELL}>{row.lv ?? "—"}</td>
               <td className={NUMBER_CELL}>{formatNumber(row.hp)}</td>
@@ -240,7 +245,7 @@ export function JobArticleView({
               <li key={line}>{line}</li>
             ))}
           </ul>
-          <p>公式是舊版玩家整理，經典版沒驗證。HP、防禦、經驗來自遊戲客戶端資料。下數是平均值，沒算 MISS 跟怪的密度；不 MISS 寫 {table.from} 的代表一進這段就打得中，寫「超過 {table.to} 等」的是拿這把武器到 {table.to} 等還打不中。</p>
+          <p>公式是舊版玩家整理，經典版沒驗證。HP、防禦、經驗來自遊戲客戶端資料。下數是平均值，沒算 MISS 跟怪的密度；不 MISS 寫 {table.from} 的代表一進這段就打得中，寫「超過 {table.to} 等」的是到 {table.to} 等還不保證打中，會有 MISS。</p>
         </div>
         <SeoLinks links={[{ href: articleDamageHref(table), text: "開計算機改成自己的數值" }]} />
       </section>
