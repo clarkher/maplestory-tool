@@ -41,6 +41,15 @@ describe("資料從哪來", () => {
     expect(html).toContain("這個站是對應哪個版本");
     expect(html).toContain("目前這份資料");
   });
+
+  it("開放到第幾轉照資料寫（版本那句、開放範圍那行都要換）", () => {
+    const meta = JSON.parse(fs.readFileSync(fileURLToPath(new URL("../../../public/data/meta.json", import.meta.url)), "utf8"));
+    const render = (order: number) => renderToString(createElement(AboutContent, { meta: { ...meta, release: { ...meta.release, maxAdvancementOrder: order } } }));
+    expect(render(3).match(/三轉/g)).toHaveLength(2);
+    expect(render(3)).not.toContain("二轉");
+    expect(render(2).match(/二轉/g)).toHaveLength(2);
+    expect(render(2)).not.toContain("三轉");
+  });
 });
 
 describe("全站版面", () => {
