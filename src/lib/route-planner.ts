@@ -119,10 +119,15 @@ export function questReachable(quest: Quest, maps: MapNames): boolean {
 
 export type QuestGroup = { key: string; title: string; quests: Quest[]; exp: number };
 
+/** 這條線只能選一條（groupQuests 的 pick: 開頭）：解了一條就接不到其他條，經驗只算一條 */
+export const isPickLine = (key: string) => key.startsWith("pick:");
+
 /**
  * 把同一條任務線收成一組，免得「冒險家的戒指」九段把整個清單洗版。
  * 名稱帶【任務線】前綴的用前綴分；其餘沿著前置任務往回找到這批任務裡的源頭。
  * 源頭同名、又是同一個 NPC 給的也算同一條（托德的打獵方法有兩個編號、彼此沒有前置，否則先解會列兩行同名的）。
+ * 彼此的 preNot 都有對方的任務（五條職業之路）只能選一條，不是一段接一段：自己一組（pick:），不接在共同的前置後面。
+ * 只有單邊 preNot、或對方不在這批任務裡的不算。
  */
 export function groupQuests(quests: Quest[]): QuestGroup[] {
   const byId = new Map(quests.map(quest => [quest.id, quest]));
@@ -130,6 +135,8 @@ export function groupQuests(quests: Quest[]): QuestGroup[] {
   const rootOf = (quest: Quest): string => {
     const line = quest.n.match(/^\[([^\]]+)\]/);
     if (line) return `line:${line[1].trim()}`;
+    const others = quest.preNot?.filter(id => byId.get(id)?.preNot?.includes(quest.id)) ?? [];
+    if (others.length) return `pick:${[quest.id, ...others].sort()[0]}`;
     let current = quest;
     const seen = new Set<string>();
     while (!seen.has(current.id)) {
@@ -148,13 +155,15 @@ export function groupQuests(quests: Quest[]): QuestGroup[] {
     const key = rootOf(quest);
     const group = groups.get(key) ?? { key, title: "", quests: [], exp: 0 };
     group.quests.push(quest);
-    group.exp += quest.exp ?? 0;
+    group.exp = isPickLine(key) ? Math.max(group.exp, quest.exp ?? 0) : group.exp + (quest.exp ?? 0);
     groups.set(key, group);
   }
   for (const group of groups.values()) {
     group.title = group.key.startsWith("line:")
       ? group.key.slice(5)
-      : [...group.quests].sort((a, b) => (b.exp ?? 0) - (a.exp ?? 0))[0].n;
+      : isPickLine(group.key)
+        ? group.quests.map(quest => quest.n).join("／")
+        : [...group.quests].sort((a, b) => (b.exp ?? 0) - (a.exp ?? 0))[0].n;
   }
   return [...groups.values()];
 }

@@ -169,7 +169,7 @@ function PartList({ item, maps, questNames, memoryKey }: Omit<RowProps, "routabl
                 className="flex w-full items-start justify-between gap-2 text-left"
               >
                 <span className="min-w-0">
-                  <span className="block text-[13px] font-bold leading-snug">第 {item.positions[index]} 段・{quest.n}</span>
+                  <span className="block text-[13px] font-bold leading-snug">{item.pickOne ? quest.n : `第 ${item.positions[index]} 段・${quest.n}`}</span>
                   {needs ? <span className="mt-0.5 block text-[12px] ink-soft">{needs}</span> : null}
                 </span>
                 <ChevronDown size={14} className={["mt-0.5 shrink-0 ink-faint transition-transform", open ? "rotate-180" : ""].join(" ")} />
