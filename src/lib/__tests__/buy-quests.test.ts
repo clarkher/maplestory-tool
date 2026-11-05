@@ -240,3 +240,22 @@ describe("地區", () => {
     expect(buyQuestRows(data, quests, { region: "" })).toHaveLength(3);
   });
 });
+
+describe("前置照上游的狀態", () => {
+  const quests = [q("x"), q("y", { pre: ["x"], preDoing: ["x"] }), q("w"), q("z", { preNot: ["w"] })];
+  const data: BuyQuestData = { quests: ["y", "z"], shops: {}, skills: {} };
+  const ids = (done: string[]) => buyQuestRows(data, quests, { done: new Set(done) }).map(row => row.quest.id).sort();
+
+  it("都沒按過：照列；不能接過的不算要先做", () => {
+    expect(ids([])).toEqual(["y", "z"]);
+    const rows = buyQuestRows(data, quests);
+    expect(rows.find(row => row.quest.id === "z")!.pre).toEqual([]);
+    expect(rows.find(row => row.quest.id === "y")!.pre.map(pre => pre.id)).toEqual(["x"]);
+  });
+  it("要進行中的前置按過我做完了：接不到了，不列", () => {
+    expect(ids(["x"])).toEqual(["z"]);
+  });
+  it("不能接過的按過我做完了：不列", () => {
+    expect(ids(["w"])).toEqual(["y"]);
+  });
+});

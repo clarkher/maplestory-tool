@@ -111,7 +111,12 @@ export type Quest = {
    * `[0]` 是初心者專屬（轉職前任務與楓之島任務），不是不限職業。
    */
   jobs?: number[];
+  /** 要比它先碰到的任務（要先完成＋要進行中），排順序、推等級都看這個 */
   pre?: string[];
+  /** pre 裡要進行中的：接了、還沒交才接得到（pipeline/lib/quest-fields.mjs） */
+  preDoing?: string[];
+  /** 接過就接不到的任務：不是前置，五條職業之路互相寫這個 */
+  preNot?: string[];
   next?: string;
   sNpc?: QuestNpc;
   eNpc?: QuestNpc;

@@ -27,6 +27,20 @@ export function levelNote(quest: Quest, level: ListLevel): string {
 
 export type BoardRow = { quest: Quest; bucket: QuestBucket; levelsLeft?: number; missingPre: Quest[] };
 
+/**
+ * 前面的任務打勾了，這個任務就接不到了：要進行中的前置已經交了、不能接過的已經接了。
+ * 五條職業之路做了一條，另外四條不列；巨居蟹的祭品做完了，幫助拉爾不列。
+ */
+export function closedByDone(quest: Quest, done: ReadonlySet<string>): boolean {
+  return [...(quest.preDoing ?? []), ...(quest.preNot ?? [])].some(id => done.has(id));
+}
+
+/** 還沒做的前置全部都要進行中：接了就好，寫「要先接」；有要做完的寫「要先做」 */
+export function preVerb(quest: Quest, missing: Pick<Quest, "id">[]): "要先接" | "要先做" {
+  return missing.length && missing.every(pre => quest.preDoing?.includes(pre.id)) ? "要先接" : "要先做";
+}
+
+
 const RANK: Record<QuestBucket, number> = { expiring: 0, fresh: 1, backlog: 2 };
 
 /** 這個角色還接得到這個前置嗎：過了等級上限、楓之島（離島回不去）、別的職業的，都當作已經接不到 */
@@ -45,13 +59,14 @@ function stillOpen(quest: Quest, profile: Profile, lineage: ReadonlySet<number>)
  *
  * keepId＝卡片開著的那一筆：照沒打勾算——留在清單裡，別列的「要先做」也照舊。
  * 在卡片上打勾、取消打勾，清單的順序都不動（免得一按，原本要先做它的那些列跳到它前面、把它連卡片往下擠），收起後才照打勾重排。
+ * 前面的任務打勾後就接不到的（closedByDone）也不列。
  */
 export function questBoard(quests: Quest[], profile: Profile, done: ReadonlySet<string>, keepId: string | null = null): BoardRow[] {
   const lineage = new Set(jobLineage(profile.job));
   const byId = new Map(quests.map(quest => [quest.id, quest]));
   const boardDone = keepId && done.has(keepId) ? new Set([...done].filter(id => id !== keepId)) : done;
   return quests
-    .filter(quest => questEligible(quest, profile, lineage) && !boardDone.has(quest.id))
+    .filter(quest => questEligible(quest, profile, lineage) && !boardDone.has(quest.id) && !closedByDone(quest, boardDone))
     .map(quest => {
       const missingPre = (quest.pre ?? [])
         .map(id => byId.get(id))
@@ -70,15 +85,17 @@ export function questBoard(quests: Quest[], profile: Profile, done: ReadonlySet<
  * 「接得到的」小字，三種寫法，都不是回 null：
  * - 快過期、前置也還沒做：「再 N 級接不到 · 要先做前置」兩件都寫（升 N 級後超過等級上限；前置的名字卡片裡有，手機一列放不下）
  * - 只有前置還沒做：「要先做：〇〇」，兩個以上加「等 N 個」
+ * 前置全部都要進行中的，「要先做」改寫「要先接」（preVerb）。
  * - 只有快過期：「再 N 級接不到」
  */
 export function boardNote(row: BoardRow): string | null {
   const [first, ...others] = row.missingPre;
   const { bucket, levelsLeft } = row;
+  const verb = preVerb(row.quest, row.missingPre);
   if (bucket === "expiring" && levelsLeft !== undefined) {
     const expiring = `再 ${levelsLeft + 1} 級接不到`;
-    return first ? `${expiring} · 要先做前置` : expiring;
+    return first ? `${expiring} · ${verb}前置` : expiring;
   }
-  if (first) return others.length ? `要先做：${first.n} 等 ${others.length + 1} 個` : `要先做：${first.n}`;
+  if (first) return others.length ? `${verb}：${first.n} 等 ${others.length + 1} 個` : `${verb}：${first.n}`;
   return null;
 }

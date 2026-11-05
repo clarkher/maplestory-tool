@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { boardNote, compareListLevel, levelNote, listLevel, questBoard } from "@/lib/quest-view";
+import { preLines } from "@/lib/format";
+import { boardNote, closedByDone, compareListLevel, levelNote, listLevel, preVerb, questBoard } from "@/lib/quest-view";
 import type { Quest } from "@/lib/types";
 
 const q = (id: string, extra: Partial<Quest> = {}): Quest => ({ id, n: `任務${id}`, cat: "維多利亞島", ...extra });
@@ -117,5 +118,71 @@ describe("「接得到的」小字", () => {
   });
   it("其他回 null（畫面改寫等級）", () => {
     expect(boardNote({ quest: q("x"), bucket: "backlog", missingPre: [] })).toBeNull();
+  });
+  it("前置要進行中：寫「要先接」，不是做完", () => {
+    const quest = q("x", { pre: ["p"], preDoing: ["p"] });
+    expect(boardNote({ quest, bucket: "fresh", missingPre: [q("p", { n: "巨居蟹的祭品" })] })).toBe("要先接：巨居蟹的祭品");
+  });
+  it("快過期、前置要進行中：一樣寫「要先接」", () => {
+    const quest = q("x", { maxLv: 40, pre: ["p"], preDoing: ["p"] });
+    expect(boardNote({ quest, bucket: "expiring", levelsLeft: 5, missingPre: [q("p")] })).toBe("再 6 級接不到 · 要先接前置");
+  });
+  it("還沒做的兩種都有：寫「要先做」", () => {
+    const quest = q("x", { pre: ["p", "r"], preDoing: ["p"] });
+    expect(boardNote({ quest, bucket: "fresh", missingPre: [q("p", { n: "甲" }), q("r", { n: "乙" })] })).toBe("要先做：甲 等 2 個");
+  });
+});
+
+describe("前置照上游的狀態：要進行中、不能接過", () => {
+  const ids = (rows: { quest: Quest }[]) => rows.map(row => row.quest.id).sort();
+  const crab = q("crab", { minLv: 30 });
+  const help = q("help", { minLv: 30, pre: ["crab"], preDoing: ["crab"] });
+  const warrior = q("warrior", { minLv: 10, preNot: ["thief"] });
+  const thief = q("thief", { minLv: 10, preNot: ["warrior"] });
+
+  it("要進行中的前置沒打勾：照算要先做", () => {
+    const row = questBoard([crab, help], profile, new Set()).find(item => item.quest.id === "help")!;
+    expect(row.missingPre.map(pre => pre.id)).toEqual(["crab"]);
+  });
+  it("要進行中的前置打勾了：接不到了，不列", () => {
+    expect(ids(questBoard([crab, help], profile, new Set(["crab"])))).toEqual([]);
+  });
+  it("不能接過的沒打勾：兩個都列，都不算要先做", () => {
+    const rows = questBoard([warrior, thief], profile, new Set());
+    expect(ids(rows)).toEqual(["thief", "warrior"]);
+    expect(rows.flatMap(row => row.missingPre)).toEqual([]);
+  });
+  it("不能接過的打勾了：另一個不列", () => {
+    expect(ids(questBoard([warrior, thief], profile, new Set(["warrior"])))).toEqual([]);
+  });
+  it("卡片開著的那一筆打勾了：別列照舊，收起後才不列", () => {
+    expect(ids(questBoard([warrior, thief], profile, new Set(["warrior"]), "warrior"))).toEqual(["thief", "warrior"]);
+    expect(ids(questBoard([crab, help], profile, new Set(["crab"]), "crab"))).toEqual(["crab", "help"]);
+  });
+  it("closedByDone：要進行中、不能接過的打勾才算；要先完成的打勾不算", () => {
+    expect(closedByDone(help, new Set(["crab"]))).toBe(true);
+    expect(closedByDone(warrior, new Set(["thief"]))).toBe(true);
+    expect(closedByDone(q("y", { pre: ["a"] }), new Set(["a"]))).toBe(false);
+    expect(closedByDone(help, new Set())).toBe(false);
+  });
+  it("preVerb：全部都要進行中寫要先接，其他寫要先做", () => {
+    expect(preVerb(help, [crab])).toBe("要先接");
+    expect(preVerb(q("y", { pre: ["crab", "a"], preDoing: ["crab"] }), [crab, q("a")])).toBe("要先做");
+    expect(preVerb(q("y", { pre: ["a"] }), [q("a")])).toBe("要先做");
+  });
+});
+
+describe("任務卡「接得到的條件」的前置", () => {
+  it("分三行；要先完成不含要進行中的", () => {
+    expect(preLines(q("x", { pre: ["a", "b"], preDoing: ["b"], preNot: ["c"] }))).toEqual([
+      { label: "要先完成", ids: ["a"] },
+      { label: "要進行中", ids: ["b"] },
+      { label: "不能接過", ids: ["c"] },
+    ]);
+  });
+  it("沒有的那行不出現", () => {
+    expect(preLines(q("x", { preNot: ["c"] }))).toEqual([{ label: "不能接過", ids: ["c"] }]);
+    expect(preLines(q("x", { pre: ["b"], preDoing: ["b"] }))).toEqual([{ label: "要進行中", ids: ["b"] }]);
+    expect(preLines(q("x"))).toEqual([]);
   });
 });

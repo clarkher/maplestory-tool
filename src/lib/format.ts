@@ -224,3 +224,12 @@ export function equipStatValue(key: string, value: number | string): string | nu
   if (key === "islot") return TWO_SLOT_TEXT[String(value)] ?? null;
   return String(value);
 }
+
+/** 任務卡「接得到的條件」的前置，照上游的狀態分三行；沒有的那行不列 */
+export function preLines(quest: { pre?: string[]; preDoing?: string[]; preNot?: string[] }): { label: string; ids: string[] }[] {
+  return [
+    { label: "要先完成", ids: (quest.pre ?? []).filter(id => !quest.preDoing?.includes(id)) },
+    { label: "要進行中", ids: quest.preDoing ?? [] },
+    { label: "不能接過", ids: quest.preNot ?? [] },
+  ].filter(line => line.ids.length);
+}
