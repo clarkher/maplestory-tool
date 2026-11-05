@@ -43,6 +43,8 @@ export type ArticleStep = {
   tag: StepTag;
   /** 備案，不算主推（僧侶 31～70 的黑肥肥這種）；畫面寫「備案」 */
   alt?: true;
+  /** 組隊任務裡面的圖走不到，「帶我去」改帶入口（只能填 PQ_ENTRANCES） */
+  go?: number;
 };
 export type ArticleSection = { heading: string; paragraphs?: ArticleLine[]; items?: ArticleLine[] };
 export type ArticleSource = { label: string; url: string };
@@ -69,8 +71,8 @@ export type ArticleAssumes = {
   relies?: Record<string, number | null>;
 };
 
-/** skill：這段文字叫讀者按的招，跟預設不同才寫（僧侶 31～39 按魔力爪，預設是群體治癒）；點數沒點到防呆擋 */
-export type ArticleGear = { from: number; to: number; weapon: number; skill?: number };
+/** skill：這段文字叫讀者按的招，跟預設不同才寫（僧侶 31～39 按魔力爪，預設是群體治癒）；點數沒點到防呆擋。skillLevel：文章的點法跟站上預設不同才寫（龍騎士預設舊版點法 90 等還沒點龍咆哮），那段文字要自己交代點數怎麼來 */
+export type ArticleGear = { from: number; to: number; weapon: number; skill?: number; skillLevel?: number };
 
 export type JobArticle = {
   /** 不寫「經典版」：全站模板會補 */
@@ -316,6 +318,8 @@ export type CalcTable = {
   midLevel: number;
   /** 文章指定的能力上限；沒有是 null */
   statCap: Partial<Record<StatKey, number>> | null;
+  /** 文章的 gear：代號算到同一級同一把武器時用它指定的招式；沒寫是 null */
+  gear: readonly ArticleGear[] | null;
   /** 表上印哪幾個等級；row.avgs 跟這個對齊。文章有寫 gear 才有三欄，沒寫（寫手還沒選武器）只有中段照預設角色算 */
   columns: CalcColumn[];
   rows: CalcRow[];
@@ -398,7 +402,7 @@ export function buildCalcTable({ job, from, to, data, gear, statCap }: { job: nu
       const piece = gearAt(pieces, level);
       if (!piece) throw new Error(`gear 沒寫 ${level} 等拿哪把`);
       const character = characterWith(`gear ${level} 等`, piece.weapon, level, limits, data);
-      found = piece.skill === undefined ? character : { ...character, skill: { skillId: piece.skill, skillLevel: character.group.levels[piece.skill] ?? 0 } };
+      found = piece.skill === undefined ? character : { ...character, skill: { skillId: piece.skill, skillLevel: piece.skillLevel ?? character.group.levels[piece.skill] ?? 0 } };
       cache.set(level, found);
     }
     return found;
@@ -477,6 +481,7 @@ export function buildCalcTable({ job, from, to, data, gear, statCap }: { job: nu
     to,
     midLevel,
     statCap: statCap ?? null,
+    gear: gear?.length ? gear : null,
     columns: characters.map(({ level, character }) => columnOf(level, character)),
     rows,
     assumptions: {
@@ -577,7 +582,11 @@ function resultAtLevel(raw: string, mobId: number, level: number, weaponId: numb
   checkTokenLevel(raw, level, table);
   const monster = data.monsters.find(entry => entry.id === mobId);
   if (!monster || monster.un) throw new Error(`代號 ${raw}：怪 ${mobId} 不在怪物資料裡`);
-  const character = characterWith(raw, weaponId, level, table, data);
+  const base = characterWith(raw, weaponId, level, table, data);
+  // 寫了隻數（*3）是刻意算群體治癒，不照 gear
+  const piece = table.gear && targets === undefined ? gearAt(table.gear, level) : undefined;
+  // 跟表同一招：文章指定這一級這把放什麼，代號就算什麼
+  const character = piece?.skill !== undefined && piece.weapon === weaponId ? { ...base, skill: { skillId: piece.skill, skillLevel: piece.skillLevel ?? base.group.levels[piece.skill] ?? 0 } } : base;
   const heal = character.skill.skillId === HEAL;
   if (targets !== undefined && !heal) throw new Error(`代號 ${raw}：${level} 等用的不是群體治癒，不能寫隻數`);
   if (targets !== undefined && (!Number.isInteger(targets) || targets < 1 || targets > HEAL_TARGETS_MAX)) throw new Error(`代號 ${raw}：隻數要 1～${HEAL_TARGETS_MAX}`);
@@ -834,9 +843,11 @@ export type ArticleContext = {
 function mapProblem(map: unknown, range: { from: number; to: number }, ctx: ArticleContext): string | null {
   const zh = typeof map === "number" ? ctx.data.maps[String(map)]?.zh : undefined;
   if (!zh) return `地圖 ${String(map)} 沒有中文名`;
-  const closed = ctx.openMaps && !ctx.openMaps.has(map as number);
-  const stale = articleGuides(ctx.job, ctx.data.guides).some(guide => guide.notOpenYet.some(row => overlaps(row, range.from, range.to) && row.place.includes(zh)));
-  return closed || stale ? `${zh}尚未開放，不能當推薦` : null;
+  // 有已開放清單就照清單：攻略的 notOpenYet 是研究當時寫的，改版開放後不會自己變（冰原雪域、雲彩公園誤擋過）
+  const closed = ctx.openMaps
+    ? !ctx.openMaps.has(map as number)
+    : articleGuides(ctx.job, ctx.data.guides).some(guide => guide.notOpenYet.some(row => overlaps(row, range.from, range.to) && row.place.includes(zh)));
+  return closed ? `${zh}尚未開放，不能當推薦` : null;
 }
 
 /** 圖名去掉尾巴編號：螞蟻洞Ⅲ → 螞蟻洞 */
@@ -864,6 +875,9 @@ function checkAnswerUndead(line: Record<string, unknown>, where: string, low: nu
   if (names.length && !names.some(name => open.some(monster => monster.n === name && monsterSuitsJob(ctx.job, low, monster)))) errors.push(`${where}：僧侶 31～70 主推要打不死系，${names.join("、")}都不是（要提就標 alt: true 當備案）`);
 }
 
+/** 組隊任務的入口（guides/common.json 的 pq.entrance，測試對過）：不是練功圖，但主推組隊時結論按鈕要帶得到這裡 */
+export const PQ_ENTRANCES: ReadonlySet<number> = new Set([100000200, 103000000, 200080101]);
+
 /** 結論：go 的地圖要能去、在攻略練功段、是同一段的步驟；第一條起涵蓋整段等級、每條 ANSWER_MAX 字內；僧侶 31～70 主推只准不死系 */
 function checkAnswer(lines: unknown[], steps: unknown, ctx: ArticleContext, table: CalcTable | null, errors: string[]): void {
   const { from, to, data } = ctx;
@@ -886,8 +900,8 @@ function checkAnswer(lines: unknown[], steps: unknown, ctx: ArticleContext, tabl
     if (line.go !== undefined) {
       const problem = mapProblem(line.go, span, ctx);
       if (problem) errors.push(`${where}.go：${problem}`);
-      else if (!mapInGuide(line.go, ctx)) errors.push(`${where}.go：${data.maps[String(line.go)]?.zh}不在這個職業攻略的練功段`);
-      else if (!stepRows.some(step => step.map === line.go && (line.alt === true || step.alt !== true) && overlaps({ from: Number(step.from), to: Number(step.to) }, span.from, span.to))) {
+      else if (!PQ_ENTRANCES.has(line.go as number) && !mapInGuide(line.go, ctx)) errors.push(`${where}.go：${data.maps[String(line.go)]?.zh}不在這個職業攻略的練功段`);
+      else if (!PQ_ENTRANCES.has(line.go as number) && !stepRows.some(step => step.map === line.go && (line.alt === true || step.alt !== true) && overlaps({ from: Number(step.from), to: Number(step.to) }, span.from, span.to))) {
         errors.push(`${where}.go：${data.maps[String(line.go)]?.zh}要是 ${span.from}～${span.to} 等的${line.alt === true ? "" : "主推"}步驟，結論跟步驟卡才帶去同一張圖`);
       }
     }
@@ -941,7 +955,7 @@ function checkGearWearable(gear: readonly ArticleGear[], midLevel: number, limit
       // 每一級都查：主屬性遇到配點換階會往下掉（刺客預設幸運 34→35 掉 5），不能只看第一級
       for (let level = piece.from; level <= piece.to; level++) {
         const { group } = characterWith(`gear ${level} 等`, piece.weapon, level, limits, data);
-        if (piece.skill !== undefined && (group.levels[piece.skill] ?? 0) <= 0) throw new Error(`${level} 等${skillNameOf(data, piece.skill)}還沒點`);
+        if (piece.skill !== undefined && (piece.skillLevel ?? group.levels[piece.skill] ?? 0) <= 0) throw new Error(`${level} 等${skillNameOf(data, piece.skill)}還沒點`);
       }
     } catch (error) {
       errors.push(`gear：${(error as Error).message}`);
@@ -995,6 +1009,7 @@ function checkStep(step: unknown, index: number, ctx: ArticleContext, errors: st
   if (!isText(step.title)) errors.push(`${where}：要有 title`);
   if (!isText(step.text)) errors.push(`${where}：要有 text`);
   if (step.alt !== undefined && step.alt !== true) errors.push(`${where}：alt 只能是 true 或不寫`);
+  if (step.go !== undefined && !PQ_ENTRANCES.has(step.go as number)) errors.push(`${where}：go 只能是組隊任務入口`);
 
   const problem = mapProblem(step.map, { from: Number(step.from), to: Number(step.to) }, ctx);
   if (problem) errors.push(`${where}：${problem}`);
@@ -1178,6 +1193,8 @@ function checkNamedThings(strings: Array<{ where: string; text: string }>, ctx: 
   const mapNames = [...new Set(Object.values(data.maps).flatMap(record => record.zh ?? []))].filter(name => name.length >= 3 && !monsterNames.has(name)).sort((a, b) => b.length - a.length);
   const types = new Set(data.gear.weapons.map(weapon => weapon.s));
   const weaponNames = [...new Set(data.gear.weapons.map(weapon => weapon.n))].filter(name => name.length >= 2 && !types.has(name)).sort((a, b) => b.length - a.length);
+  // 職業名先拿掉：弩弓手裡有武器名「弩弓」
+  const jobNames = [...new Set(Object.values(data.guides).flat().flatMap(guide => guide?.name ?? []))].sort((a, b) => b.length - a.length);
   for (const { where, text } of strings) {
     if (where.startsWith("sources") || where.startsWith("assumes")) continue;
     for (const match of text.matchAll(/\{\{map:(\d+)\}\}/g)) {
@@ -1185,6 +1202,7 @@ function checkNamedThings(strings: Array<{ where: string; text: string }>, ctx: 
       if (problem) errors.push(`${where}：${problem}`);
     }
     let plain = text.replace(TOKEN, "\0");
+    for (const name of jobNames) plain = plain.split(name).join("\0");
     for (const name of mapNames) {
       if (!plain.includes(name)) continue;
       errors.push(`${where}：圖名「${name}」要寫成 {{map:地圖id}}`);
@@ -1572,7 +1590,7 @@ export function articleShowText({ job, from, to, article, data, openMaps }: { jo
     ...article.steps.flatMap(step => [
       `${step.from}～${step.to} ${fill(step.title)}（${step.alt ? "備案・" : ""}${step.kind === "party" ? "組隊" : "單練"}）`,
       `  ${fill(step.text)}（${TAG_LABEL[step.tag] ?? step.tag}）`,
-      `  怪：${step.mobs.map(mobName).join("、")}；帶我去${mapName(step.map)}`,
+      `  怪：${step.mobs.map(mobName).join("、")}；帶我去${mapName(step.go ?? step.map)}`,
     ]),
     "",
     `== 幾下打死、打不打得中（${tableGearLine(table)}）==`,
