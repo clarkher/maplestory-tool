@@ -1,5 +1,5 @@
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { sourceLabels } from "@/lib/format";
 import type { Verified } from "@/lib/types";
 
@@ -82,15 +82,18 @@ export function Panel({ title, aside, children, className = "" }: { title?: Reac
 /**
  * 「第幾段／共 N 段」（now-plan partsText）：「／」前後各自不斷行、「／」後面可以換行——
  * 「第 1–52 段中的 51 段／共 52 段」在 360 寬放不下時換成兩行，不凸出卡片，「段」也不會落單。
+ * 「5 選 1」那行的標題也用它：路名不會被拆成兩行（法師／之路）。
  */
 export function PartsText({ text }: { text: string }) {
-  const cut = text.indexOf("／");
-  if (cut < 0) return <span className="whitespace-nowrap">{text}</span>;
+  const pieces = text.split("／");
   return (
     <>
-      <span className="whitespace-nowrap">{text.slice(0, cut + 1)}</span>
-      <wbr />
-      <span className="whitespace-nowrap">{text.slice(cut + 1)}</span>
+      {pieces.map((piece, index) => (
+        <Fragment key={index}>
+          {index ? <wbr /> : null}
+          <span className="whitespace-nowrap">{index < pieces.length - 1 ? `${piece}／` : piece}</span>
+        </Fragment>
+      ))}
     </>
   );
 }

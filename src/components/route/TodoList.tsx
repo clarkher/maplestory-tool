@@ -78,7 +78,7 @@ function TodoRow({ item, routable, maps, questNames, memoryKey }: RowProps) {
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-1.5">
             <button type="button" onClick={() => setDetail(value => !value)} aria-expanded={detail} className="text-left text-[14px] font-bold leading-snug">
-              {item.title}
+              {item.pickOne ? <PartsText text={item.title} /> : item.title}
             </button>
             {item.reward ? (
               <span className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--gold)]">{item.reward}</span>
