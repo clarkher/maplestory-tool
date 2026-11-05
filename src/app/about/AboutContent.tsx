@@ -1,20 +1,10 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { loadMeta } from "@/lib/data";
 import type { Meta } from "@/lib/types";
 
 /**
  * 資料來源與限制寫在明處。
  * 站上每個數字都要能追到出處，做不到的事情也要講清楚，不能讓人以為我們算得出來。
  */
-export function AboutContent() {
-  const [meta, setMeta] = useState<Meta | null>(null);
-
-  useEffect(() => {
-    loadMeta().then(setMeta).catch(() => setMeta(null));
-  }, []);
-
+export function AboutContent({ meta }: { meta: Meta }) {
   return (
     <article className="space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">資料從哪來</h1>
@@ -22,49 +12,45 @@ export function AboutContent() {
         站上的每個數字都有出處。這頁把來源、更新方式、還有我們做不到的事情一次講清楚。
       </p>
 
-      {meta?.release ? (
-        <section className="rounded-[var(--radius-card)] bg-[color:var(--gold-wash)] p-4 sm:p-5">
-          <h2 className="mb-2 text-lg font-black">這個站是對應哪個版本</h2>
-          <div className="space-y-2 text-[15px] leading-relaxed">
-            <p>
-              台服《新楓之谷：經典版》<strong>{meta.release.version}</strong>，
-              {meta.release.operator}，{meta.release.launchedAt} 上線。
-              目前開放到 <strong>Lv.{meta.release.levelCap}、二轉</strong>，
-              地區只有 {meta.release.regions.join("、")}（含奇幻村、螞蟻礦坑）。
-            </p>
-            <p className="ink-soft">
-              這<strong>不是 Artale，也不是 GMS Classic</strong>。那些是不同地區的產品，
-              數值與內容不通用，本站不會把它們的數字搬過來當這裡的答案。
-            </p>
-            <p className="ink-soft">
-              客戶端資產裡本來就包含還沒開放的東西（神木村、玩具城、四轉技能、Lv.180 的怪都在裡面）。
-              本站已經把那些濾掉，只留現在真的進得去、練得到的內容——
-              推薦一張還沒開放的地圖，比不推薦更糟。
-            </p>
-          </div>
-        </section>
-      ) : null}
+      <section className="rounded-[var(--radius-card)] bg-[color:var(--gold-wash)] p-4 sm:p-5">
+        <h2 className="mb-2 text-lg font-black">這個站是對應哪個版本</h2>
+        <div className="space-y-2 text-[15px] leading-relaxed">
+          <p>
+            台服《新楓之谷：經典版》<strong>{meta.release.version}</strong>，
+            {meta.release.operator}，{meta.release.launchedAt} 上線。
+            目前開放到 <strong>Lv.{meta.release.levelCap}、二轉</strong>，
+            地區只有 {meta.release.regions.join("、")}（含奇幻村、螞蟻礦坑）。
+          </p>
+          <p className="ink-soft">
+            這<strong>不是 Artale，也不是 GMS Classic</strong>。那些是不同地區的產品，
+            數值與內容不通用，本站不會把它們的數字搬過來當這裡的答案。
+          </p>
+          <p className="ink-soft">
+            客戶端資產裡本來就包含還沒開放的東西（神木村、玩具城、四轉技能、Lv.180 的怪都在裡面）。
+            本站已經把那些濾掉，只留現在真的進得去、練得到的內容——
+            推薦一張還沒開放的地圖，比不推薦更糟。
+          </p>
+        </div>
+      </section>
 
-      {meta ? (
-        <section className="rounded-[var(--radius-card)] glass wood-frame p-4 sm:p-5">
-          <h2 className="mb-3 text-lg font-black">目前這份資料</h2>
-          <dl className="grid gap-2 sm:grid-cols-2">
-            <Row label="遊戲版本" value={meta.gameVersion ?? "—"} />
-            <Row label="資料產生時間" value={meta.dataGeneratedAtText ?? "—"} />
-            <Row label="取得方式" value={meta.ingest?.origin === "local" ? "本機客戶端抽檔" : "上游資料庫同步"} />
-            <Row label="地圖資料" value={meta.mapSource.source} />
-            <Row label="開放範圍" value={`Lv.${meta.release.levelCap} · 二轉`} />
-          </dl>
-          <ul className="mt-3 grid gap-1.5 text-sm ink-soft sm:grid-cols-2">
-            <li>怪物 {meta.counts.monsters} 隻</li>
-            <li>道具 {meta.counts.items.toLocaleString()} 個</li>
-            <li>任務 {meta.counts.quests} 個</li>
-            <li>技能 {meta.counts.skills} 個</li>
-            <li>地圖 {meta.counts.maps.toLocaleString()} 張</li>
-            <li>傳送門路線 {meta.counts.portalEdges.toLocaleString()} 條</li>
-          </ul>
-        </section>
-      ) : null}
+      <section className="rounded-[var(--radius-card)] glass wood-frame p-4 sm:p-5">
+        <h2 className="mb-3 text-lg font-black">目前這份資料</h2>
+        <dl className="grid gap-2 sm:grid-cols-2">
+          <Row label="遊戲版本" value={meta.gameVersion ?? "—"} />
+          <Row label="資料產生時間" value={meta.dataGeneratedAtText ?? "—"} />
+          <Row label="取得方式" value={meta.ingest?.origin === "local" ? "本機客戶端抽檔" : "上游資料庫同步"} />
+          <Row label="地圖資料" value={meta.mapSource.source} />
+          <Row label="開放範圍" value={`Lv.${meta.release.levelCap} · 二轉`} />
+        </dl>
+        <ul className="mt-3 grid gap-1.5 text-sm ink-soft sm:grid-cols-2">
+          <li>怪物 {meta.counts.monsters} 隻</li>
+          <li>道具 {meta.counts.items.toLocaleString()} 個</li>
+          <li>任務 {meta.counts.quests} 個</li>
+          <li>技能 {meta.counts.skills} 個</li>
+          <li>地圖 {meta.counts.maps.toLocaleString()} 張</li>
+          <li>傳送門路線 {meta.counts.portalEdges.toLocaleString()} 條</li>
+        </ul>
+      </section>
 
       <Block title="遊戲數值：來自客戶端匯出">
         <p>
