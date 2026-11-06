@@ -10,7 +10,7 @@ export default function Page() {
   return (
     <article className="prose-page space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">隱私權政策</h1>
-      <p className="ink-soft">最後更新：2026 年 10 月 20 日</p>
+      <p className="ink-soft">最後更新：2026 年 11 月 6 日</p>
 
       <Block title="我們不需要你的帳號">
         本站不提供註冊、不需要登入，也沒有任何帳號系統。你不用給我們電子郵件、電話或任何個人身分資料（練功測速的角色 ID 是遊戲裡的名字，不是帳號，填不填由你）。
@@ -49,14 +49,42 @@ export default function Page() {
         </p>
       </Block>
 
+      <Block title="野王計時">
+        開房間或加入房間時，房號跟你按的打死時間會存到我們的資料庫，給同房的隊友看。網路位址只存轉換過的一串字，用來擋同一個位址一直開房間、一直送資料。
+        按下打死時，如果算得出跟上一次的間隔，不論有沒有開房間，都會把這個間隔送回來修正預估時間，不會掛上你的名字。其他紀錄沒開房間時只存在你自己的裝置裡。
+      </Block>
+
       <Block title="伺服器記錄">
-        本站部署在 Vercel。與所有網站一樣，主機端會產生標準的存取記錄（IP 位址、瀏覽器種類、造訪時間），
-        用途是維運與防止濫用。我們沒有另外建立分析或追蹤系統。
+        本站部署在 Cloudflare。與所有網站一樣，主機端會產生標準的存取記錄（IP 位址、瀏覽器種類、造訪時間），
+        用途是維運與防止濫用。
+      </Block>
+
+      <Block title="網站分析">
+        <p>
+          本站用 Google Analytics 了解有多少人來、看了哪些頁、用了哪些功能（包括查資料時搜尋的字、選的職業跟等級範圍），拿來決定先改哪裡。
+          它會使用 Cookie，資料由 Google 處理。
+        </p>
+        <p className="mt-2">
+          不想被記錄，可以安裝 <ExternalLink href="https://tools.google.com/dlpage/gaoptout">Google Analytics 停用工具</ExternalLink>。
+        </p>
+      </Block>
+
+      <Block title="廣告">
+        <p>
+          本站可能顯示 Google AdSense 廣告。第三方供應商（包括 Google）會使用 Cookie，根據你先前在本站或其他網站瀏覽的內容放送廣告。
+          Google 及其合作夥伴會利用廣告 Cookie，依你在本站和其他網站的瀏覽內容，顯示合適的廣告。
+        </p>
+        <p className="mt-2">
+          你可以到 <ExternalLink href="https://adssettings.google.com">Google 廣告設定</ExternalLink> 停用個人化廣告，
+          或到 <ExternalLink href="https://www.aboutads.info">www.aboutads.info</ExternalLink> 停用部分第三方供應商的個人化廣告 Cookie。
+        </p>
       </Block>
 
       <Block title="第三方">
-        本站的網頁字型由 Google Fonts 在建置時取得並自行提供，瀏覽時不會再連到 Google。
-        遊戲圖片與資料檔都由本站自己提供，不會即時向外部服務請求。
+        <p>本站的網頁字型由 Google Fonts 在建置時取得並自行提供，瀏覽字型不會連到 Google。遊戲圖片與資料檔大多由本站自己提供。</p>
+        <p className="mt-2">
+          除了上面的 Google Analytics 跟廣告，還有兩個地方會連到外部：紙娃娃的角色圖向 maplestory.io 即時產生，楓幣匯率的資料從 GitHub 讀取。對方會看到你的網路位址等連線資訊，紙娃娃還會看到你選的穿搭。
+        </p>
       </Block>
 
       <Block title="兒童隱私">
@@ -69,6 +97,10 @@ export default function Page() {
       </Block>
     </article>
   );
+}
+
+function ExternalLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return <a className="font-bold text-[color:var(--maple)]" href={href} target="_blank" rel="noopener noreferrer">{children}</a>;
 }
 
 function Block({ title, children }: { title: string; children: React.ReactNode }) {
