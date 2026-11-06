@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，future-shot 是 9511，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，future-shot 是 9511，nav-fit 是 9513，
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -664,6 +664,16 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
 - 第 12 項看前一筆瀏覽紀錄用 `Page.getNavigationHistory` 的 `entries[currentIndex - 1]`，不比 `length`：瀏覽紀錄滿 50 筆就不會再長。
 - 測試機要等 v1.41 進 `dev` 才過得了第 10 項之後的項目（沒進之前是真的沒有這些功能）。
 - 耗時：本機正式 build（`next start`）約 1 分 15 秒～1 分 35 秒，dev server（已編譯過）約 2 分 20 秒（2026-11-04 量）；碰到 maplestory.io 慢會多等一輪舞台逾時（量到 2 分 15 秒）。
+
+#### `nav-fit.mjs`：手機導覽列放不放得下（v1.72，埠 9513）
+
+```bash
+node scripts/verify/nav-fit.mjs <輸出資料夾> <網址> [--css=試改法的樣式檔]
+```
+
+量 360～767 的每一個寬度（查資料亮、野王計時亮、都不亮三種頁面，約 1 分鐘）：導覽列要不要橫向捲、四顆是不是全看得到、整頁有沒有被撐寬。有一個寬度不行就 exit 1。
+存 360、375、390、412、430、480 的頁首截圖（`<寬度>.png`）跟 `results.json`。`--css` 把樣式塞進頁面再量，不用部署就能比改法。
+中文字的寬度等於字級，換手機字型量到的也差不多。768 寬以上是電腦版的多顆按鈕，不在這支的範圍。
 
 ### 沒收進來的
 
