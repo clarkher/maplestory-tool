@@ -161,7 +161,7 @@ const BACKDROP_OF = {
   100040103: "monkey-forest", 100040110: "monkey-forest",
   101020009: "tree-hollow", 101020010: "tree-hollow",
   105050200: "cave", 103000104: "subway",
-  101040002: "canyon", 101030402: "canyon", 101030404: "canyon",
+  101040002: "canyon", 101030402: "canyon", 101030404: "canyon", 101030406: "canyon",
   106000001: "burnt", 106000002: "burnt",
   101030101: "ruins", 106010102: "ruins",
   107000001: "swamp", 107000400: "swamp", 107000402: "swamp",
