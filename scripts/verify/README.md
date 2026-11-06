@@ -586,6 +586,10 @@ node scripts/verify/article-calc-link.mjs [網址，預設 http://localhost:9485
 存刺客 Lv.35 跟沒存角色各跑 5 篇：點「開計算機改成自己的數值」要開對職業、武器、招式，重新整理一樣；帶參數的頁按導覽列「算傷害」回玩家自己的角色。
 這條路只有站內點才抓得到（之前 `useMemo` 讀 `window.location`，直接開網址對、點連結沒作用）。文章的表換武器要改腳本上面的 `CASES`。
 
+#### `avatar-roll-shot.mjs`：隨機穿搭的換裝畫面（v1.76，埠 9399）
+
+`node scripts/verify/avatar-roll-shot.mjs [網址，預設 http://localhost:9385] [輸出資料夾] [DevTools 埠]`：抽獎跳格一按就開始、一路換人、舊角色藏起來；圖好了才定格、閃一下彈一下；圖早就備好也演約 0.4 秒；連按接著跳；換動作不跳；載不出來跳格停掉照實說；首頁「抽一套」進來先跳再定格；討厭動畫的人只寫換裝中。截圖含深色、電腦版。逐格記舞台裡的 `[data-rolling]`。
+
 #### `showcase-shot.mjs`：首頁紙娃娃輪播（v1.71，埠 9386）
 
 `node scripts/verify/showcase-shot.mjs [網址，預設 http://localhost:9385] [輸出資料夾] [DevTools 埠]`：第一次來在大標上面、存過角色在角色列下面（只有一個）、真的在動、討厭動畫的人不動、不橫捲、輪播裡的角色不預先載入、點角色穿那套、抽一套 6 次都抽新的且男女都有、重新整理還是那一套。截圖含深色、電腦版。首頁跳動另外跑 `page-cls.mjs`。

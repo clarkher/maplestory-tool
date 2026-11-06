@@ -1111,21 +1111,25 @@ try {
   });
 
   // 31. 換裝中，慢的圖
-  await check("換裝中：慢的圖（拖 1.2 秒）開始要圖約 150ms 後舊圖 0.45＋中間大轉圈、字變「換裝中…」還按得下去；好了全收掉", async () => {
-    // 每次都開新的一頁：按過隨機就會預載，再按不會變淡
+  await check("換裝中（換動作，隨機的跳格見 avatar-roll-shot）：慢的圖（拖 1.2 秒）開始要圖約 150ms 後舊圖 0.45＋中間大轉圈、字變「換裝中…」還按得下去；好了全收掉", async () => {
     const measure = async () => {
       await fresh("?g=0");
       await settled();
       await sleep(300);
-      return intercepting(
-        params => { setTimeout(() => pass(params), 1200); },
-        async () => {
-          const watching = watchChange(RANDOM);
-          await sleep(1000);
-          await shot("avatar-busy.png");
-          return watching;
-        },
-      );
+      await page.send("Network.setCacheDisabled", { cacheDisabled: true });
+      try {
+        return await intercepting(
+          params => { setTimeout(() => pass(params), 1200); },
+          async () => {
+            const watching = watchChange(SEGMENT("動作", "坐下"));
+            await sleep(1000);
+            await shot("avatar-busy.png");
+            return watching;
+          },
+        );
+      } finally {
+        await page.send("Network.setCacheDisabled", { cacheDisabled: false });
+      }
     };
     const first = await measure();
     let ev = first;
