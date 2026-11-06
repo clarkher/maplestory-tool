@@ -56,7 +56,7 @@
 地圖頁的標題跟開頭那段話（v1.51）：搜尋字有不少是「○○怎麼去」，所以路線寫在最前面（`mapRouteText`，跟 `/go` 同一套路線）。寫不出路線的圖（城鎮自己、走不到）標題不寫「怎麼去」。
 
 「紙娃娃」（`/plan/avatar`，v1.40）：換髮型（含髮色）、臉型（含瞳色）、膚色、12 類裝備＋點裝，分男女；動作、表情、翻面、隨機穿搭（可以鎖部位）、上一套、重置，跨類別搜尋、只看商城有賣，下載透明背景 PNG（4 倍）、分享連結。
-不進導覽列，入口有兩個：查資料時裝卡、裝備卡（點裝、髮型、臉型、一般裝備）上的「穿上看看」（只給畫得出來的，規則在 `src/lib/avatar/linkable.ts`；打開卡片才載 `avatar.json`，清單與第一格不載）；首頁的紙娃娃輪播（v1.71，取代 v1.41 的入口卡）：第一次來的人放最上面、存過角色的人放角色列下面；先產好的隨機穿搭一排慢慢走，點角色穿那套（`/plan/avatar?<穿搭>`），按「抽一套」到 `/plan/avatar?draw=1` 抽新的（不穿回這個分頁上次那套、男女各半、清鎖，換好後網址不留 `draw`）。圖放 `public/avatar-showcase`、穿搭在 `src/lib/avatar/showcase.json`，不向 maplestory.io 要圖；要換一批跑 `npm run avatar:showcase` 抽候選、用眼睛挑，再 `SHOWCASE_KEEP=編號,編號 npm run avatar:showcase` 放進去（用法在 `src/lib/avatar/showcase.gen.ts` 開頭）。
+不進導覽列，入口有兩個：查資料時裝卡、裝備卡（點裝、髮型、臉型、一般裝備）上的「穿上看看」（只給畫得出來的，規則在 `src/lib/avatar/linkable.ts`；打開卡片才載 `avatar.json`，清單與第一格不載）；紙娃娃按隨機穿搭時（v1.76）舞台用輪播那 15 張圖快速換人，新圖好了才定格、閃一下，至少演 0.4 秒；換單件照舊變淡加小圈圈，討厭動畫的人只寫換裝中。首頁的紙娃娃輪播（v1.71，取代 v1.41 的入口卡）：第一次來的人放最上面、存過角色的人放角色列下面；先產好的隨機穿搭一排慢慢走，點角色穿那套（`/plan/avatar?<穿搭>`），按「抽一套」到 `/plan/avatar?draw=1` 抽新的（不穿回這個分頁上次那套、男女各半、清鎖，換好後網址不留 `draw`）。圖放 `public/avatar-showcase`、穿搭在 `src/lib/avatar/showcase.json`，不向 maplestory.io 要圖；要換一批跑 `npm run avatar:showcase` 抽候選、用眼睛挑，再 `SHOWCASE_KEEP=編號,編號 npm run avatar:showcase` 放進去（用法在 `src/lib/avatar/showcase.gen.ts` 開頭）。
 角色圖由瀏覽器向 maplestory.io 即時要（台服 TWMS 256，台服沒有的用日服 JMS 444 補），兩邊都畫不出來的照列、標「暫時看不到樣子」；道具清單、名字、小圖用我們自己的 `public/data/avatar.json`（見下面資料管線）。
 網址只寫跟預設不一樣的，順序 `g,s,h,f,w,p,e,x`（`src/lib/avatar/outfit.ts`）：`g=1` 女（男不寫）、`s` 膚色（身體 id，2000 起）、`h` 髮型 id（個位數是髮色）、`f` 臉型 id（百位數是瞳色）、
 `w` 身上的道具 id 用「.」接（有寫就只穿這幾件，`w=` 是全脫；沒寫是預設衣服）、`p` 動作（stand／walk／alert／jump／prone／sit）、`e` 表情（default／smile／wink／angry／cry／troubled／bewildered／love）、`x=1` 翻面；
