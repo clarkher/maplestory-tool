@@ -243,7 +243,7 @@
           "levelTo": 13,
           "kind": "solo",
           "mapName": "野外之地／勇士之村東入口（教官新手任務：木妖→黑木妖）",
-          "mapId": 101040002,
+          "mapId": 101040000,
           "mobs": [
             {
               "name": "木妖",
@@ -465,7 +465,7 @@
           "mobs": [
             {
               "name": "鋼之肥肥",
-              "id": 4230103,
+              "id": 9300060,
               "lv": 42
             }
           ],
@@ -494,7 +494,7 @@
           ]
         },
         {
-          "text": "二轉轉職：等級 30、一轉 SP 點完；勇士之村→勇士聖殿→武術教練，蒐集 30 個黑珠換英雄証明（三分支共用）。",
+          "text": "二轉轉職：等級 30、一轉 SP 點完；勇士之村→勇士聖殿→武術教練，蒐集 30 個黑珠換英雄證書（三分支共用）。",
           "sources": [
             "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4965"

@@ -142,3 +142,18 @@ describe("主流點法", () => {
     expect(mainBuild(builds, "狂戰士")?.label).toBe("打手線（實測）");
   });
 });
+
+describe("回補上一轉的技能", () => {
+  it("上一轉已經點的等級不用再花點數", () => {
+    const progress = buildProgress(build, 0, { 2: 1 });
+    expect(progress.steps.map(step => step.cost)).toEqual([5, 2, 5, 4]);
+    expect(progress.steps[1].from).toBe(1);
+    expect(progress.total).toBe(16);
+  });
+  it("上一轉點得比這步高：這步不花點數", () => {
+    expect(buildProgress(build, 0, { 3: 9 }).steps[3].cost).toBe(0);
+  });
+  it("分段的步驟也扣掉上一轉的點數", () => {
+    expect(stepsBetween(build, 5, 7, { 2: 1 }).map(step => step.cost)).toEqual([2]);
+  });
+});
