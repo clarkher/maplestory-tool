@@ -105,6 +105,8 @@ export function AvatarSim() {
   /** 首頁輪播按「抽一套」進來（?draw=1）：不管存過什麼都抽新的，男女各半，換過去之後網址不留 draw */
   const [drawAtOpen] = useState(() => params.has("draw"));
   const [dropLocks] = useState(() => drawAtOpen || params.has("try") || (query === "" && lastAtOpen === null));
+  /** 隨機穿搭抽了幾次（舞台看這個跳格）：開場那套是抽的就從 1 開始 */
+  const [rollKey, setRollKey] = useState(() => (drawAtOpen || (query === "" && lastAtOpen === null) ? 1 : 0));
 
   /**
    * 畫面先照這一套畫，不等網址：
@@ -237,7 +239,9 @@ export function AvatarSim() {
 
   const random = () => {
     const next = deck.draw();
-    if (next) commit(next);
+    if (!next) return;
+    setRollKey((n) => n + 1);
+    commit(next);
   };
 
   /** 回到上一套：動作、表情、翻面用現在的；這一步不再記（沒有下一套） */
@@ -263,7 +267,7 @@ export function AvatarSim() {
     <>
       <div className="grid grid-cols-1 gap-3.5 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-5">
         <section ref={setCard} className={`${CARD} lg:sticky lg:top-[80px] lg:max-h-[calc(100dvh-96px)] lg:overflow-y-auto`} aria-label="角色">
-          <Stage outfit={outfit} data={data} onBusy={setChanging} onReady={stageReady} />
+          <Stage outfit={outfit} data={data} rollKey={rollKey} onBusy={setChanging} onReady={stageReady} />
 
           <div className="mt-3 flex items-center justify-between gap-2">
             <div role="group" aria-label="性別" className="grid grid-cols-2 gap-1 rounded-full bg-[color:var(--paper-deep)] p-1">
@@ -350,7 +354,7 @@ export function AvatarSim() {
       >
         <div role="region" aria-label="角色小窗" className="pointer-events-auto mx-auto flex max-w-2xl gap-2 rounded-[var(--radius-card)] glass-solid p-2">
           <div className="min-w-0 flex-1">
-            <Stage outfit={outfit} data={data} compact />
+            <Stage outfit={outfit} data={data} rollKey={rollKey} compact />
           </div>
           <div className="grid w-[136px] shrink-0 grid-cols-2 grid-rows-2 gap-1.5">
             <Action onClick={download} busy={downloading}>

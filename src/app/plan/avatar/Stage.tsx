@@ -9,6 +9,8 @@
  *   這時不帶再要一次、這張當沒量到（照 v1.40 算法），畫上去的 <img> 也跟著不帶（Frame.cors），不算載不出來
  * - 換穿搭停 250ms 才去要新圖（預載過的第 0 格不等，見 preloadFrame）；新圖用 new Image() 先載好才換上，舊圖留著不閃白
  * - 真的去要圖之後（250ms 的等待不算）超過 150ms 還沒好才算「換裝中」（快取裡的圖不會閃）：舊圖變淡、舞台中間大轉圈、通知 onBusy；沒有舊圖時馬上大轉圈
+ * - 隨機穿搭（v1.76，使用者選 B 抽獎跳格；rollKey 每抽一次加 1）：輪播那 15 張圖快速換人，新圖好了才定格、閃一下彈一下；圖早就備好也至少演 0.4 秒，
+ *   才看得出有換。換單件不跳，照上一條。討厭動畫的人不跳不閃：舊圖變淡、寫「換裝中…」，好了直接換
  * - 多格動作（站著、走路、警戒）每格都載好才開始輪播；系統設定「減少動態效果」只放第 0 格
  * - 載不出來（兩種要法都失敗，或整趟 15 秒還沒載好）就照實說，給「再試一次」（同一張網址加 &_r=<次數>）；舊圖清掉，不放假圖
  * compact：小窗用（舞台小一號、不放下面那行小字）
@@ -16,6 +18,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Outfit } from "@/lib/avatar/outfit";
 import { FRAMES, stageUrl } from "@/lib/avatar/render";
+import { SHOWCASE } from "@/lib/avatar/showcase";
 import { alphaReach, fitStage, unmeasured } from "@/lib/avatar/stage-fit";
 import type { Reach } from "@/lib/avatar/stage-fit";
 import type { AvatarData } from "@/lib/avatar/types";
@@ -27,6 +30,10 @@ export const LOAD_TIMEOUT_MS = 15_000;
 const WAIT_MS = 250;
 /** 真的去要圖之後（WAIT_MS 不算），超過這麼久還沒好才算「換裝中」（快取裡的圖不會閃） */
 const BUSY_AFTER_MS = 150;
+/** 隨機穿搭至少跳多久：圖早就備好時也看得出有換 */
+const ROLL_MIN_MS = 400;
+/** 跳格多久換一個人 */
+const ROLL_STEP_MS = 90;
 
 /** cors：這張是帶 crossOrigin 載到的（畫上去的 <img> 要一致，不然快取對不上會載不出來） */
 type Frame = { src: string; w: number; h: number; reach: Reach; cors: boolean };
@@ -121,6 +128,66 @@ function useBoxSize(ref: React.RefObject<HTMLDivElement | null>) {
   return size;
 }
 
+/** 跳格用的圖先載好才輪得到（站上的圖、共 120KB），不向 maplestory.io 要 */
+const rollReady = new Set<number>();
+let rollLoading = false;
+function loadRollImages() {
+  if (rollLoading) return;
+  rollLoading = true;
+  SHOWCASE.forEach((look, index) => {
+    const img = new Image();
+    img.onload = () => rollReady.add(index);
+    img.src = look.src;
+  });
+}
+
+/** 抽獎跳格：換人只換這一張圖，腳對齊舞台的地面線 */
+function Roller({ scale, ground, reduced, compact }: { scale: number; ground: number; reduced: boolean; compact: boolean }) {
+  const [index, setIndex] = useState<number | null>(null);
+  useEffect(() => {
+    if (reduced) return;
+    const step = () =>
+      setIndex((now) => {
+        const others = [...rollReady].filter((i) => i !== now);
+        return others.length ? others[Math.floor(Math.random() * others.length)] : now;
+      });
+    step();
+    const id = setInterval(step, ROLL_STEP_MS);
+    return () => clearInterval(id);
+  }, [reduced]);
+  const look = index === null ? null : SHOWCASE[index];
+  return (
+    <div data-rolling="" className="absolute inset-0">
+      {look ? (
+        // eslint-disable-next-line @next/next/no-img-element -- 站上先產好的像素圖，用原圖不經過最佳化
+        <img
+          src={look.src}
+          alt=""
+          draggable={false}
+          className="absolute max-w-none"
+          style={{
+            width: look.w * scale,
+            height: look.h * scale,
+            left: `calc(50% - ${(look.w * scale) / 2}px)`,
+            bottom: ground,
+            imageRendering: "pixelated",
+          }}
+        />
+      ) : null}
+      {compact ? null : (
+        <span className="absolute inset-x-0 top-3 text-center text-[15px] font-black text-[color:var(--maple)]">
+          換裝中
+          <span aria-hidden="true" className="avatar-dots">
+            <i />
+            <i />
+            <i />
+          </span>
+        </span>
+      )}
+    </div>
+  );
+}
+
 function Spinner() {
   return (
     <span
@@ -133,17 +200,20 @@ function Spinner() {
 /**
  * onBusy：「換裝中」旗標變了就通知（快的不會通知），最後一定回到 false（好了、失敗、舞台拿掉都算）
  * onReady：這套的第 0 格好了（大舞台才接；隨機穿搭等這個才預載下一套，見 useRandomDeck）
+ * rollKey：隨機穿搭抽了幾次（換穿搭的同一下加 1），掛上去時就大於 0＝開場那套也是抽的
  */
 export function Stage({
   outfit,
   data,
   compact = false,
+  rollKey = 0,
   onBusy,
   onReady,
 }: {
   outfit: Outfit;
   data: AvatarData;
   compact?: boolean;
+  rollKey?: number;
   onBusy?: (busy: boolean) => void;
   onReady?: () => void;
 }) {
@@ -161,6 +231,12 @@ export function Stage({
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   /** 換裝中：要圖要了超過 150ms 還沒好（aria-busy 不等這個，看 status） */
   const [busy, setBusy] = useState(false);
+  /** 正在跳格（抽了、還沒定格） */
+  const [rolling, setRolling] = useState(rollKey > 0);
+  /** 還沒演滿 ROLL_MIN_MS */
+  const [rollShort, setRollShort] = useState(false);
+  /** 剛定格：閃一下、彈一下，動畫跑完收掉 */
+  const [popping, setPopping] = useState(false);
   /** 舞台上已經有過一張圖（之後換穿搭才要等 250ms） */
   const drawn = useRef(false);
   const box = useRef<HTMLDivElement>(null);
@@ -231,6 +307,27 @@ export function Stage({
     };
   }, [sig, tries, ms, reduced]);
 
+  useEffect(() => {
+    loadRollImages();
+  }, []);
+
+  useEffect(() => {
+    if (!rollKey) return;
+    setRolling(true);
+    setPopping(false);
+    setRollShort(!reduced);
+    if (reduced) return;
+    const id = setTimeout(() => setRollShort(false), ROLL_MIN_MS);
+    return () => clearTimeout(id);
+  }, [rollKey, reduced]);
+
+  // 演滿了、圖也有結果了才定格；載不出來不閃，直接照實說
+  useEffect(() => {
+    if (!rolling || status === "loading" || (rollShort && status !== "error")) return;
+    setRolling(false);
+    if (status === "ready" && !reduced) setPopping(true);
+  }, [rolling, rollShort, status, reduced]);
+
   // 每格都載好才輪播
   useEffect(() => {
     if (!loaded || loaded.frames.length < 2 || reduced) return;
@@ -238,11 +335,12 @@ export function Stage({
     return () => clearInterval(id);
   }, [loaded, reduced]);
 
+  const changing = busy || rolling;
   useEffect(() => {
-    if (!busy) return;
+    if (!changing) return;
     onBusyRef.current?.(true);
     return () => onBusyRef.current?.(false);
-  }, [busy]);
+  }, [changing]);
 
   const shown = status === "error" ? null : (loaded?.frames[frame] ?? loaded?.frames[0] ?? null);
   const dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
@@ -253,7 +351,7 @@ export function Stage({
     <>
       <div
         ref={box}
-        aria-busy={status === "loading"}
+        aria-busy={status === "loading" || rolling}
         className={`relative overflow-hidden rounded-2xl border border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)] ${
           compact ? "h-[112px]" : "h-[248px] sm:h-[300px]"
         }`}
@@ -265,7 +363,8 @@ export function Stage({
             src={shown.src}
             alt="穿好的角色"
             draggable={false}
-            className="absolute max-w-none"
+            onAnimationEnd={() => setPopping(false)}
+            className={`absolute max-w-none ${popping ? "avatar-pop" : ""}`}
             style={{
               width: shown.w * scale,
               height: shown.h * scale,
@@ -273,10 +372,13 @@ export function Stage({
               left: `calc(50% - ${(shown.w * scale) / 2}px)`,
               bottom: ground - (shown.h * scale) / 2,
               imageRendering: "pixelated",
-              opacity: busy ? 0.45 : undefined,
+              opacity: busy || (rolling && reduced) ? 0.45 : undefined,
+              visibility: rolling && !reduced ? "hidden" : undefined,
             }}
           />
         ) : null}
+        {popping ? <span aria-hidden="true" className="avatar-flash" /> : null}
+        {rolling && status !== "error" ? <Roller scale={compact ? 1 : 2} ground={ground} reduced={reduced} compact={compact} /> : null}
 
         {status === "error" ? (
           <div className="absolute inset-0 grid place-content-center gap-2 p-3 text-center">
@@ -293,7 +395,7 @@ export function Stage({
               再試一次
             </button>
           </div>
-        ) : status === "loading" && (busy || !shown) ? (
+        ) : status === "loading" && !rolling && (busy || !shown) ? (
           <span className="absolute inset-0 grid place-items-center">
             <Spinner />
           </span>
