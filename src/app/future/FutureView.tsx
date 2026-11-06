@@ -15,6 +15,7 @@ const CERTAINTY_CLASS: Record<Certainty, string> = {
   猜測: "bg-[color:var(--sky-wash)] text-[color:var(--sky)]",
 };
 
+const nextStation = STATIONS.find(station => station.id === "next") as Station;
 const noSubscribe = () => () => {};
 
 /** 現在幾點，對齊到分鐘（每次讀到的值要一樣，不然 React 會一直重畫）。伺服器回 0 不判斷：第一格跟伺服器一樣，不會閃錯的字 */
@@ -98,7 +99,7 @@ function FourthJobCard({ fourthJob, itemHrefs }: { fourthJob: FutureData["fourth
           </select>
         </label>
       </div>
-      <p className="mt-1 text-[13px] leading-relaxed ink-soft">舊版遊戲資料裡的四轉任務，這一版拿掉了，正式開放可能會改。</p>
+      <p className="mt-1 text-[13px] leading-relaxed ink-soft">現在的版本還沒有四轉任務，這份是舊版遊戲資料，正式開放可能會改。下面這些現在拿得到，練功碰到可以先留。</p>
       {needs ? (
         <>
           <ul className="mt-2">
@@ -199,11 +200,17 @@ export function FutureView({ crafts, notNow, fourthJob, itemHrefs }: {
 
       <header className="space-y-1.5">
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">未來視</h1>
-        <p className="text-[15px] leading-relaxed ink-soft">下一版大概什麼時候、會開什麼，現在先把東西準備好。官方還沒公布，下面都是推估，有消息就換掉。</p>
+        <p className="text-[15px] leading-relaxed ink-soft">下一版大概什麼時候、會開什麼，現在先把東西準備好。官方還沒公布，下面都是推估，有消息就換掉。常提到的 Artale 是另一個早就開到四轉的經典服，台服不一定照它。</p>
         <p className="text-xs ink-faint">整理於 {FORECAST_UPDATED.replaceAll("-", "/")}</p>
       </header>
 
       {stale ? <p role="status" className="rounded-[var(--radius-card)] bg-[color:var(--maple-wash)] px-4 py-3 text-sm font-bold text-[color:var(--maple)]">{stale}</p> : null}
+
+      <section aria-label="先看結論" className="rounded-[var(--radius-card)] glass p-4 text-sm leading-relaxed">
+        <p><b>下一版：</b>{nextStation.when}，{nextStation.title.replace("下一版：", "")}（{nextStation.certainty}）</p>
+        <p><b>現在先留：</b>{crafts.slice(0, 3).map(row => row.n).join("、")}，練功掉了先別賣</p>
+        <p><b>別一次囤太多：</b><a href="#h-risk" className="underline underline-offset-2 hover:text-[color:var(--maple)]">別的版本價格跌過、也被鎖過</a></p>
+      </section>
 
       <ol className="ml-1.5 space-y-8 border-l-[3px] border-[color:var(--wood)]">
         {STATIONS.map(station => (
