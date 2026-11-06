@@ -9,6 +9,7 @@
  * 同一分頁回來穿的是離開時那套：舞台畫好就把這套存進 avatar:last。打開時網址完全沒參數：存過就穿回那套（白 T 也算存過、鎖留著）；
  * 沒存過（這個分頁第一次來）才隨機一套。都是先畫它、網址再換過去（不記上一套），不會先閃白 T；之後按「重置」把網址弄空不會再隨機。
  * 打開時網址帶穿搭（?try=、分享連結）又跟存的那套不一樣：存的那套記進上一套，按上一套回得去。
+ * 首頁輪播的「抽一套」帶 ?draw=1：不管存過什麼都抽新的（存的那套一樣記進上一套），換好之後網址不留 draw。
  * 換穿搭不跟伺服器要東西：畫面先換（shown）、網址用 history.replaceState 換，useSearchParams 會跟上（這一頁沒有伺服器資料依賴網址參數）。
  * 隨機穿搭的下一套先備好（useRandomDeck），舞台畫好現在這套才預載。
  * 手機：角色卡在上、挑衣服卡在下；角色卡整張捲到頁首底下時，頁首下面跟著一條小窗（小角色＋下載、分享、回到上面）。
@@ -101,7 +102,9 @@ export function AvatarSim() {
    */
   const [lastAtOpen] = useState(() => readSessionText(LAST_KEY));
   /** 這次打開存著的鎖要不要清：開場隨機、帶 try= 進來穿的不是你鎖的那套（沒鎖過的預設髮型亮著鎖、按隨機不換，看起來像鎖失效）；穿回存的那套、分享連結落地留著 */
-  const [dropLocks] = useState(() => params.has("try") || (query === "" && lastAtOpen === null));
+  /** 首頁輪播按「抽一套」進來（?draw=1）：不管存過什麼都抽新的，男女各半，換過去之後網址不留 draw */
+  const [drawAtOpen] = useState(() => params.has("draw"));
+  const [dropLocks] = useState(() => drawAtOpen || params.has("try") || (query === "" && lastAtOpen === null));
 
   /**
    * 畫面先照這一套畫，不等網址：
@@ -110,9 +113,11 @@ export function AvatarSim() {
    * 初值只看第一次畫：之後按「重置」把網址弄空不會回到 "wait"，同一頁不會自己再隨機。
    * 都在畫面當下改 state（不等 effect）：React 馬上重畫這一輪，舞台第一眼就是那套，不會先畫白 T。
    */
-  const [shown, setShown] = useState<Outfit | "wait" | null>(query === "" ? "wait" : null);
+  const [shown, setShown] = useState<Outfit | "wait" | null>(query === "" || drawAtOpen ? "wait" : null);
   if (shown === "wait") {
-    if (query !== "") setShown(null);
+    if (drawAtOpen) {
+      if (data) setShown(randomOutfit(data, defaultOutfit(Math.random() < 0.5 ? 0 : 1)));
+    } else if (query !== "") setShown(null);
     else if (data) setShown(lastAtOpen === null ? randomOutfit(data, defaultOutfit(0)) : parseOutfit(new URLSearchParams(lastAtOpen), data));
   } else if (shown && outfitQuery(shown) === query) setShown(null);
 

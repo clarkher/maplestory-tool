@@ -594,6 +594,10 @@ node scripts/verify/article-calc-link.mjs [網址，預設 http://localhost:9485
 存刺客 Lv.35 跟沒存角色各跑 5 篇：點「開計算機改成自己的數值」要開對職業、武器、招式，重新整理一樣；帶參數的頁按導覽列「算傷害」回玩家自己的角色。
 這條路只有站內點才抓得到（之前 `useMemo` 讀 `window.location`，直接開網址對、點連結沒作用）。文章的表換武器要改腳本上面的 `CASES`。
 
+#### `showcase-shot.mjs`：首頁紙娃娃輪播（v1.71，埠 9386）
+
+`node scripts/verify/showcase-shot.mjs [網址，預設 http://localhost:9385] [輸出資料夾] [DevTools 埠]`：第一次來在大標上面、存過角色在角色列下面（只有一個）、真的在動、討厭動畫的人不動、不橫捲、輪播裡的角色不預先載入、點角色穿那套、抽一套 6 次都抽新的且男女都有、重新整理還是那一套。截圖含深色、電腦版。首頁跳動另外跑 `page-cls.mjs`。
+
 #### `avatar-shot.mjs`：跑一次紙娃娃頁 `/plan/avatar`（v1.40、v1.41，埠 9382）
 
 ```bash
@@ -636,13 +640,13 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
   25. 下載：攔 `URL.createObjectURL`、`HTMLAnchorElement.prototype.click`（**不真的存檔**），檔名 `紙娃娃.png`、PNG、四角透明、要的是 `resize=4&renderMode=0`，寬高**正好是同一套同一格 1 倍的 4 倍**（Node 直接要 `resize=1` 讀 PNG 檔頭比）。不用固定寬度驗：`renderMode=0` 裁到剛好包住角色，寬度看穿什麼（預設角色 1 倍 43×68、4 倍 172×272；舞台的 `renderMode=4` 是 51×128，2026-11-04 量），拿到 1 倍或舞台那張都過不了。
   26. 分享：攔 `navigator.clipboard.writeText`，連結是 `/api/avatar/share`、有 `s,h,f,w`；用 Node `fetch` 拿連結的文字，200、有 `og:image`、`maplestory.io`、`x-robots-tag` 有 `noindex`；HEAD 200 沒內容；缺 `h` 302 到 `/plan/avatar`；`w=<script>` 整頁只有自己那段 `<script`；`robots.txt` 有 `Allow: /api/avatar/share`；瀏覽器打開落在 `/plan/avatar`、穿了什麼跟第 0 格都跟分享前一樣、沒有 `j=`。`og:image` 是 `resize=6&renderMode=0`、寬高正好是同一套 1 倍的 6 倍、寬 ≥ 200（Facebook 不收 200px 以下）、按分享時順手要的就是這張網址。**不驗 `cache-control`**（Vercel、Cloudflare 對外不一定一樣），其他 Vercel、Cloudflare 都驗得過。
   27. `/db/items?id=1040002`（一般裝備，資料沒有就換一件）有「穿上看看」。
-  28. 首頁有連到 `/plan/avatar` 的「紙娃娃」入口、不橫捲。
+  28. 首頁有連到紙娃娃的輪播（`/plan/avatar?draw=1`「抽一套」）、不橫捲。
   29. 預載：一開始不預載（1 秒內沒要過第 0 格）；按過一次之後等 Resource Timing 出現下一套的第 0 格才按（不等固定秒數；`responseStatus` 不是 200 表示這次預載失敗：等了 14 秒以上才算 maplestory.io 慢，再按一次換下一套、不算一輪，最多換 3 次，超過沒過；不到 14 秒就失敗直接沒過），3 輪都要：新圖在按之前就開始要、也要好了，網址換好到圖換上 ≤ 250ms；按下去到圖換上也要 ≤ 250ms（換網址不打伺服器，本機跟測試機一樣）。
   30. 換裝中，快取裡的圖：來回切「坐下」「跳」4 次，最低 opacity 1、沒寫過 opacity、沒有大轉圈、字不變。
   31. 換裝中，慢的圖：`Fetch` 把請求拖 1.2 秒，真的開始要圖之後 130～300ms 內 opacity 變 0.45、大轉圈 ±30ms 內出現（32px、舞台中間）、字變「換裝中…」還按得下去；好了全收掉。舞台寫了載不出來：開始要圖 14 秒以後才寫的才重量一次（開新的一頁，第一次量到的先存進 `results.json` 的 `slowDimFirstAttempt`），比這早直接沒過。
   32. 1280 寬：角色卡、挑衣服卡左右排、上緣對齊；往下捲 200px 角色卡黏在 80px、下緣 ≤ 視窗高（`scrollY` 0 時下緣超出視窗是設計如此，捲一點就黏住）；捲到底都沒有小窗。
   33. 1280×800 穿滿一身（10 件，資料湊不滿沒過）：角色卡黏在 80px、下緣 ≤ 視窗高、`overflow-y: auto`、裡面**真的要捲**（`scrollHeight > clientHeight`，放得下就沒過、`detail` 寫出來，2026-11-04 量到 1017 比 702）、捲到底最後一張小卡在視窗裡、頁面沒動。
-  34. 同一分頁回來：搭好一套（`?h=…&p=walk` 再隨機一次）、鎖髮型，點頁首回首頁再點「紙娃娃」（站內換頁、乾淨網址）：網址、第 0 格都是那一套、鎖還在、`avatar:history` 沒變；回來之後舞台只畫過、只要過這一套（沒有白 T、沒有別套）。
+  34. 同一分頁回來：搭好一套（`?h=…&p=walk` 再隨機一次）、鎖髮型，點頁首回首頁再站內換到 `/plan/avatar`（乾淨網址；v1.71 起首頁按鈕是 `?draw=1` 抽新的，這項用 `next.router.push`）：網址、第 0 格都是那一套、鎖還在、`avatar:history` 沒變；回來之後舞台只畫過、只要過這一套（沒有白 T、沒有別套）。
   35. 白 T：按「重置」之後重新整理、再開乾淨網址，兩次都網址乾淨、舞台只畫過白 T、`avatar:last` 是空字串、上一套步數沒變。
   36. 從查資料進來、返回、前進：`?h=…` 畫好後從 `/db/items` 點「穿上看看」，`avatar:history` 是那一套、按上一套回得去；再隨機兩套、捲到 400，瀏覽器返回回到查資料（捲動位置跟點之前一樣）、前進回到剛剛那套（網址、第 0 格、捲動位置都一樣）。
   37. 上一套不空按：點帽子、30ms 後再點一次脫掉（現在穿 A、最上面也是 A），按鈕變淡；穿上手套（真的畫好）再點帽子兩下，按一次就回到 A。

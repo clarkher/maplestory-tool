@@ -28,6 +28,7 @@ export type EventName =
   | "boss_room_create"
   | "boss_room_join"
   | "avatar_download"
+  | "avatar_showcase_click"
   | "share";
 
 type Params = Record<string, string | number | boolean | undefined>;
