@@ -145,7 +145,7 @@ try {
   check("下一版比預估晚要講", late.includes("已經過了預估時間"));
   await shot("late.png");
 
-  check("蓋掉時間也沒有當掉", !crashes.some(c => !c.includes("Hydration")), crashes[0] ?? "");
+  check("蓋掉時間也沒有當掉", !crashes.some(c => !/Hydration|React error #(418|423|425)/.test(c)), crashes[0] ?? "");
 } finally {
   page.listeners.clear();
   spawn("taskkill", ["/PID", String(chrome.pid), "/T", "/F"], { stdio: "ignore" });
