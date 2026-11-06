@@ -543,6 +543,9 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 - **文字的值一變就算壞（v1.44）**：`assumes.pinned` 是文字用到的資料代號的值（`article:show` 自動算，取代舊的 `hitsAt`），`assumes.relies` 是理由靠的值、手列 key（例：`spd:1332012`、`exp:3230100`，值由 `article:show` 填）。含「經驗」又在比較的句子，提到的怪會自動補 `exp:`。不看先後，一變這篇就下架。寫法：在檔案寫 `"assumes": {"relies": {"spd:1332012": null}}`，跑 `article:show`，整包貼回。
 - **配點上限（v1.44，v1.52 表也套）**：文章寫 `"statCap": {"DEX": 60}`（刺客、俠盜敏捷停 60），表、代號（`{{hits:…@等級#武器id}}`、`{{avg}}`、`{{xp10}}` 這些）、表下的計算機連結（帶 `str`、`dex`、`int`、`luk`）都照這個點法算，多的點數回主屬性，所以文字不用再解釋「表是誰的數字」。
 - **每級拿哪把（v1.52）**：文章必寫 `"gear": [{"from": 31, "to": 35, "weapon": 1472004}, {"from": 36, "to": 50, "weapon": 1332012}]`，要連續蓋滿整段，寫的是文字主推的那把。表印範圍裡 3 個等級（`tableLevels`：31～50 是 35、40、45，`row.avgs` 跟 `table.columns` 對齊），每欄照 `gear` 跟 `statCap` 算、招式照那把重挑，幾等不 MISS 也照每一級自己的武器算；表上方寫拿哪把放哪招（`tableGearLine`）。拿不到、那一級穿不上、精準技能沒點到，防呆擋；表算的每一把結論都要講到（`job-article-gear.test.ts` 擋）。取代 v1.44 的 `weaponTypes`：那個照預設排序挑武器，常挑到文章沒推薦的那把，讀者對不上。
+- **招式與招式等級（v1.67）**：`gear` 可再寫 `skill`、`skillLevel`（文章配點跟站上預設不同時，例如龍騎士 81～90 算滿級龍咆哮）；`{{avg:怪@等級#武器*3}}` 的 `*N` 指定打幾隻，有寫就不套 `gear` 的招式。
+- **「帶我去」要走得到（v1.67）**：結論的 `go`、步驟的 `map` 都要 `/go` 算得出路線（測試「結論按鈕、步驟卡帶去的圖都走得到」）。組隊任務裡面的圖走不到：步驟寫 `"go": 103000000` 帶去入口，只能填 `PQ_ENTRANCES`（月妙、超綠、女神，測試會跟 `guides/common.json` 對）。結論的 `go` 填入口不用這張圖在練功段。
+- **職業名含武器名、資料過時（v1.67）**：名稱防呆不把職業名裡的字當武器（「神槍手」不算提到槍）。研究檔 `notOpenYet` 寫的圖要是其實已開放，防呆照開放清單放行，先查資料不要改文章閃掉。
 - **結論（v1.44）**：`answer` 每條可多寫 `from`、`to`（這條講哪幾級）、`go`（地圖 id，畫面多一個「帶我去 XX」，連結跟步驟卡同一種，地圖要存在且已開放）。第一條要從範圍開頭講起、所有條合起來涵蓋每一級、寫了 `from`、`to` 的文字裡要看得到（`31～35`，同一級寫 `50 等`）、每條 70 字內（`ANSWER_MAX`，換完代號算）。`go` 要在這個職業攻略的練功段（同系列算，攻略寫螞蟻洞Ⅰ，文章可以帶去螞蟻洞Ⅲ），還要是同段的主推步驟；不是主推的條目標 `alt: true`，畫面寫「備案：」。主推步驟要涵蓋整段（只有備案的等級擋，訊息列出缺哪幾級），步驟的怪要真的刷在那張圖。僧侶 31～70 主推只准不死系，結論跟步驟都查。所有文章都走這套，沒有待改名單。
 - **連到計算機（v1.44）**：表下「開計算機改成自己的數值」是 `/plan/damage?job=&level=&weapon=&skill=&targets=`（`articleDamageHref`、`damageLinkHref`、`parseDamageLink`、`applyDamageLink`），帶表上那把武器、那招、僧侶的範圍隻數，打開跟表一模一樣，玩家再自己改。計算機用 `useSearchParams` 讀（包在 `<Suspense>`），站內點連結、按導覽列回 `/plan/damage` 都會跟著網址走；只讀不存，使用者存的角色不變。驗收 `scripts/verify/article-calc-link.mjs`。
 - **「幾等不 MISS」**：每一級照文章 `gear` 那把算，從那一級到範圍結束每一級都必中才算。這是必中線，不是打不打得到：寫「超過 N 等」是到 N 等還會有 MISS。
@@ -561,7 +564,7 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
   - 每篇 `og:image`、`twitter:image` 用 `hero.jpg` 絕對網址（`articleHeroPath`），`twitter:card` 是 `summary_large_image`，`og:type` 是 `article`，帶 `article:published_time`、`article:modified_time`。主圖還沒進清單時退回全站 `/og.jpg`，不指到不存在的檔案。
   - Article JSON-LD（`articleLd`，`seo.ts`）：作者、發布者都是 Organization「楓谷幫手」＋`SITE_URL`，**虛構寫手不准填進去**。跟其他 JSON-LD 一樣由 `SeoPage` 放在 body，不放 head。
   - 文章日期只讀 `published`、`updated`（YYYY-MM-DD，必填，不能是未來）：畫面、og、JSON-LD、`sitemap.xml` 的 lastmod 都是，不用 `staticModified`；og、JSON-LD 加台灣時區（`taiwanDateTime`，`T00:00:00+08:00`），不然搜尋引擎照自己時區讀可能差一天。真的改了文字才動 `updated`。`published` 手寫，晚幾天才上正式機要改成實際上線日。`sitemap.xml` 該篇有主圖才列 `images`。資料版本那句放在計算表那段（「依遊戲資料 X 計算。」），不帶日期。
-- **寫手與聲明（v1.49，使用者拍板）**：文章必填 `persona: { name, line }`，`name` 是個性當名字（毒舌奶媽），`line` 是一句自介。寫手是虛構角色。署名區塊在標題、主圖下、結論框上（`Byline`，`JobArticleView.tsx`），內容：站名、發布／更新日期；「本篇寫手：<name>」＋ `line` ＋小頭像；聲明兩句照寫，不准改字：「寫手是站上虛構的角色，數字和來源都查得到。」「文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。」手機 390 寬的第一屏要看得到結論框開頭。
+- **寫手與聲明（v1.49，使用者拍板）**：文章必填 `persona: { name, line }`，`name` 是個性當名字（毒舌奶媽），`line` 是一句自介。寫手是虛構角色。署名區塊在標題、主圖下、結論框上（`Byline`，`JobArticleView.tsx`），內容：站名、發布／更新日期；「本篇寫手：<name>」＋ `line` ＋小頭像；聲明兩句照寫，不准改字：「寫手是站上虛構的角色，數字和來源都查得到。」「文章由 AI 協助整理，計算數字由站上算出，玩家回報都有標明。主圖和路線卡背景由 AI 繪製。」手機 390 寬的第一屏要看得到結論框開頭。
 - **放圖（v1.49，版面 B1：頂部大圖；路線卡右側小圖）**：
   - 檔案放 `public/assets/guides/<slug>/`：`hero.webp`（寬至少 1200、16:9）、`hero.jpg`（同一張，給 og）、`author.webp`（小頭像，顯示 24px）、`<地圖id>.webp`（路線卡圖）。
   - 清單 `src/data/job-articles/images.gen.json`，形狀 `{ "<slug>": { hero:{w,h}, author:{w,h}, steps:{ "<地圖id>":{w,h} } } }`，由圖片腳本產生；頁面只畫清單裡有的圖（不用 onerror 藏圖，`staticArticleImages`、`articleImages`）。這個檔不是文章，`parseArticleFile` 會跳過。
@@ -572,7 +575,6 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
   - 新文章要在腳本加：寫手外觀 `PERSONAS`（鍵是 `persona.name`）、武器與主圖構圖 `ARTICLES`（武器要是文章寫到的）、新地圖的背景主題 `BACKDROP_OF`、新怪的外觀 `HERO_MOB_LOOK`。腳本會查項目在 `avatar.json`、每件拿掉要真的少東西（maplestory.io 缺圖只會默默不畫）。跑完每張都要用眼睛看。
   - 防呆 `src/lib/__tests__/job-article-images.test.ts`（`articleImageProblems`）：每篇的主圖、小頭像、每個非備案步驟的圖都要在清單裡，清單列的檔案要真的在，主圖寬至少 1200、比例 16:9；真檔尺寸要跟清單一樣、大小不超過上限（`hero` 300KB、路線卡 200KB），手動換圖沒更新清單也擋得到。缺圖不會讓文章下架，只擋合併。
   - 快取（`cache-headers.mjs`）：`/assets/` 是一年 immutable，但 `/assets/guides/` 檔名固定、重畫就蓋掉原檔，另外設每次回伺服器確認（沒變 304），換圖不用改檔名。
-  - **聲明跟實際的落差（待使用者拍板）**：路線卡的背景也是 AI 畫的，聲明只寫「主圖由 AI 繪製」；字句是使用者拍板、測試有鎖，不自己改。
 - **伺服器頁的坑**：`src/lib/job-article.ts`、`static-data.ts` 一路 import 不能碰 `"use client"` 的模組，伺服器拿到的是假值（`LEVEL_CAP` 曾經從 `profile.ts` 來，會算成 NaN，所以搬到 `jobs.ts`），測試有掃。
 
 ### GA 事件（v1.32）

@@ -9,12 +9,14 @@ import { fileURLToPath } from "node:url";
 import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HEAL } from "@/lib/damage-skills";
+import { findRoute, suggestStart } from "@/lib/route";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
 import { JobArticleView } from "@/components/JobArticleView";
 import { applyDamageLink, computeGroup, damageLinkHref, defaultState, HEAL_ASSUMPTION, linkStartLevel, parseDamageLink, parseState, type CalcData } from "@/lib/damage-view";
 import type { GearData } from "@/lib/gear";
 import {
   ANSWER_MAX,
+  PQ_ENTRANCES,
   articleDamageHref,
   articleAssumes,
   articleShowText,
@@ -46,7 +48,7 @@ import {
 import { undeadOnlyStage } from "@/lib/job-rules";
 import { JOB_OPTIONS } from "@/lib/jobs";
 import { articleLd, SITE_ROBOTS } from "@/lib/seo";
-import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, Skill, TrainingRow } from "@/lib/types";
+import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Skill, TrainingRow } from "@/lib/types";
 
 // 頁面、網站地圖、llms.txt 讀的文章清單換成這裡的假資料；掃真檔那段用 importActual
 const mockArticles = vi.hoisted(() => ({
@@ -474,10 +476,23 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     };
     expect(priest(secondOnly.map!)).not.toMatch(/攻略/);
   });
+  it("已開放清單有這張圖就算開放，攻略舊資料的 notOpenYet 不再擋（有清單以清單為準）", () => {
+    const stale = { ...guides, 230: { ...guides[230]!, notOpenYet: [{ from: 30, to: 40, place: "螞蟻洞Ⅰ 還沒開", s: [] }] } };
+    const open = new Set(Object.keys(data.maps).map(Number));
+    expect(broken(() => {}, { ...ctx, data: { ...data, guides: stale }, openMaps: open })).not.toMatch(/尚未開放/);
+  });
+
+  it("職業名裡有武器名不算打字寫武器（弩弓手、弩弓）", () => {
+    const named = { ...ctx, data: { ...data, guides: { ...guides, 230: { ...guides[230]!, name: "弩弓手" } } } };
+    expect(broken(article => { article.title = "弩弓手 31～50 等"; }, named)).not.toMatch(/武器名「弩弓」/);
+    expect(broken(article => { article.title = "拿弩弓去練功"; }, named)).toMatch(/武器名「弩弓」/);
+  });
+
   it("尚未開放不准當推薦：地圖不在已開放清單，或等級重疊的 notOpenYet 寫了這張圖", () => {
     expect(broken(article => { article.steps[0].map = 105050000; }, { ...ctx, openMaps: new Set([107000403]) })).toMatch(/尚未開放/);
     const stale = { ...guides, 230: { ...guides[230]!, notOpenYet: [{ from: 30, to: 40, place: "螞蟻洞Ⅰ 還沒開", s: [] }] } };
-    expect(broken(() => {}, { ...ctx, data: { ...data, guides: stale } })).toMatch(/尚未開放/);
+    const noList = { ...ctx, openMaps: undefined as unknown as Set<number> };
+    expect(broken(() => {}, { ...noList, data: { ...data, guides: stale } })).toMatch(/尚未開放/);
     // 等級沒重疊不算（那段時間的事）
     const elsewhere = { ...guides, 230: { ...guides[230]!, notOpenYet: [{ from: 60, to: 70, place: "螞蟻洞Ⅰ 還沒開", s: [] }] } };
     expect(broken(() => {}, { ...ctx, data: { ...data, guides: elsewhere } })).not.toMatch(/尚未開放/);
@@ -500,7 +515,7 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     expect(validateArticle(article, { job: 231, from: 71, to: 90, data, openMaps }).join()).not.toMatch(/出處/);
   });
   it("範圍要過門檻", () => {
-    expect(broken(() => {}, { ...ctx, job: 210 })).toMatch(/門檻/);
+    expect(broken(() => {}, { ...ctx, job: 210, from: 51, to: 70 })).toMatch(/門檻/);
   });
   it("標題不寫經典版（模板會補）", () => {
     expect(broken(article => { article.title = "楓之谷經典版僧侶攻略"; })).toMatch(/經典版/);
@@ -836,6 +851,26 @@ describe("src/data/job-articles/ 的真檔全部要過", () => {
       expect(validateArticle(article, { job, from, to, data, openMaps }), `${job}-${from}-${to}`).toEqual([]);
       expect(() => resolveArticle(article!, buildCalcTable({ job, from, to, data, gear: article!.gear, statCap: article!.statCap }), data)).not.toThrow();
     }
+  }, 240_000);
+
+  it("結論按鈕、步驟卡帶去的圖都走得到（/go 算得出路線）", async () => {
+    const actual = await vi.importActual<typeof import("@/lib/static-data")>("@/lib/static-data");
+    const graph = read<Record<string, PortalEdge[]>>("graph.json");
+    const nearest = read<Record<string, [number, number]>>("nearest-town.json");
+    const dead: string[] = [];
+    for (const { job, from, to } of actual.staticJobArticleKeys()) {
+      const article = actual.staticJobArticle(job, from, to)!;
+      const targets = [...article.answer.map(line => line.go), ...article.steps.map(step => step.go ?? step.map)].filter((map): map is number => typeof map === "number");
+      for (const map of new Set(targets)) {
+        const start = suggestStart(graph, data.maps, nearest, map);
+        if (start !== map && (start === null || !findRoute(graph, start, map).ok)) dead.push(`${job}-${from}-${to}：${data.maps[String(map)]?.zh}（${map}）`);
+      }
+    }
+    expect(dead).toEqual([]);
+  }, 120_000);
+
+  it("組隊入口清單跟攻略資料一致", () => {
+    expect([...PQ_ENTRANCES].sort()).toEqual(read<GuideCommon>("guides/common.json").pq!.map(pq => pq.entrance).sort());
   });
 
   it("資料把文章打壞：只拿掉那一篇，其他篇照出（不擋整站的資料更新），錯誤講得出來", async () => {
@@ -1472,7 +1507,7 @@ describe("署名區塊跟放圖", () => {
     const raw = renderToString(JobArticleView(props()));
     const html = clean(raw).replace(/<[^>]+>/g, "");
     expect(raw).toMatch(/dateTime="2026-11-04"/i);
-    for (const text of ["楓谷幫手", "發布 2026-11-04", "更新 2026-11-04", "本篇寫手：毒舌奶媽", "專講僧侶怎麼用治癒打不死系。", "寫手是站上虛構的角色，數字和來源都查得到。", "文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。"]) expect(html).toContain(text);
+    for (const text of ["楓谷幫手", "發布 2026-11-04", "更新 2026-11-04", "本篇寫手：毒舌奶媽", "專講僧侶怎麼用治癒打不死系。", "寫手是站上虛構的角色，數字和來源都查得到。", "文章由 AI 協助整理，計算數字由站上算出，玩家回報都有標明。主圖和路線卡背景由 AI 繪製。"]) expect(html).toContain(text);
   });
   it("順序：主圖、署名、結論", () => {
     const html = clean(renderToString(JobArticleView(props(full()))));

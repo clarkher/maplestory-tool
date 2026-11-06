@@ -80,6 +80,78 @@ const PERSONAS = {
     hair: 30230, face: 23063, items: [1022173, 1052602, 1103131], pose: "stabO1", tint: "#2c2c34",
     look: "a brooding lone-wolf rogue with spiky dark gray hedgehog hair, a black eyepatch over one eye, a cold stare, wearing a black butler-style outfit under a huge black high-collared reaper cloak with a crimson glowing edge, holding a short crystal-blue dagger",
   },
+  老班長: {
+    hair: 30660, face: 23095, items: [1002505, 1042177, 1062121, 1072303, 1012024], pose: "alert", tint: "#4a5a32",
+    look: "a grizzled veteran drill sergeant with short black hair, a thick curled black moustache and a hard stare, a khaki army field cap with a small red badge, an olive green hooded military jacket, camouflage trousers and brown combat boots, gripping a long polearm with a heavy spiked steel head",
+  },
+  騎士道潔癖: {
+    hair: 30293, face: 20087, items: [1050083, 1102246, 1072010], pose: "stabO1", tint: "#b39a4e",
+    look: "an immaculate noble young knight with neatly combed golden blond hair and an upright stern gaze, polished black and silver plate armor, a spotless red cape trimmed with white fur, shiny black shoes, holding a very long thin silver two-handed sword",
+  },
+  社恐槍兵: {
+    hair: 33795, face: 20083, items: [1010002, 1042001, 1062059, 1072441], pose: "alert", tint: "#27384f",
+    look: "a shy young spearman hiding behind long glossy bright blue hair that covers half his face, a dark gray cloth mask over his nose and mouth, nervous downcast eyes, a black sleeveless hooded vest, faded black jeans and black ninja boots, holding a very long polearm at the full length of his arms",
+  },
+  擾民龍騎: {
+    hair: 33801, face: 20015, items: [1002338, 1050060, 1102033, 1072163], pose: "alert", tint: "#7d1a14",
+    look: "a loud furious dragon knight in a tall white helmet with a red dragon crest, angry shouting eyes, crimson and orange armor, a red dragon-pattern cape, red dragon-hide boots, holding a very long dragon spear with a wide pale blue blade",
+  },
+  沒藍焦慮症: {
+    hair: 35075, face: 20097, items: [1053997, 1022022, 1072234], pose: "alert", tint: "#3a6aa8",
+    look: "an anxious skinny young mage with fluffy pale blue hair, huge blue spiral-swirl glasses, pale blue pajamas and fluffy slippers shaped like blue slimes, holding a small plain wooden wand",
+  },
+  牢底坐穿自虐狂: {
+    hair: 30612, face: 20021, items: [1053315, 1073282], pose: "stabO1", tint: "#a4551a",
+    look: "a cheerfully unhinged wizard with a tall spiky red-orange mohawk and eyes squeezed shut in a happy grin, a black and white striped prison uniform, bare ankles with a chained iron ball, holding a small plain wooden wand",
+  },
+  冷面理組: {
+    hair: 33540, face: 23091, items: [1052340, 1022033, 1072010], pose: "stand1", tint: "#3e4a55",
+    look: "a handsome stone-faced young scientist with neatly side-parted black hair, black square glasses and emotionless eyes, a long white lab coat, black dress shoes, holding a large closed yellow umbrella like a lance",
+  },
+  控場強迫症: {
+    hair: 30295, face: 20005, items: [1052908, 1102149, 1082276, 1072447], pose: "alert", tint: "#3f83ad",
+    look: "a prim perfectionist mage with short tidy royal blue hair and calm precise eyes, a pale blue snowflake winter outfit, white ice gloves and boots, huge perfectly symmetrical glowing cyan ice wings spread behind him, holding a large closed yellow umbrella",
+  },
+  過勞神職: {
+    hair: 35086, face: 23024, items: [1050026, 1102077, 1072285], pose: "stand1", tint: "#7c6f8f",
+    look: "an exhausted young priest with messy pale lavender hair in a loose bun, sleepy half-closed eyes with tired bags, a white priest robe, a heavy quilt blanket draped over his shoulders like a cape, worn brown slippers, dragging a large closed yellow umbrella",
+  },
+  遠距離派: {
+    hair: 33724, face: 23010, items: [1002158, 1040022, 1062061, 1072034], pose: "shoot1", tint: "#2f6b3c",
+    look: "an aloof young ranger with long green hair and far-gazing eyes under a wide-brimmed olive green hunter hat with a steel plate, a forest green hunter tunic, olive trousers and green leather boots, drawing a tall wooden battle bow",
+  },
+  野外求生狂: {
+    hair: 33937, face: 25019, items: [1042084, 1062056, 1102072, 1010000, 1072217], pose: "shoot1", tint: "#6b5a34",
+    look: "a rugged survivalist with wind-tossed ash brown hair and a full brown beard, a camouflage hooded military vest, camouflage cargo pants, a lime green multi-pocket backpack, brown canvas boots, drawing a large ornate golden yellow bow",
+  },
+  零件控: {
+    hair: 33222, face: 20016, items: [1022083, 1042182, 1062040, 1082222, 1102202], pose: "shoot2", tint: "#5a5148",
+    look: "a gear-obsessed young tinkerer with swept-up platinum white hair, big black ski goggles, a denim hooded shirt, light blue work overalls and mechanical gloves, a short purple tech cape with a blue thruster glow, aiming an ornate crossbow",
+  },
+  巷口小混混: {
+    hair: 30813, face: 20009, items: [1022015, 1042138, 1062051, 1072187], pose: "stabO1", tint: "#3c3c3c",
+    look: "a cocky street punk with slicked blond hair, big black aviator sunglasses and a sneering mouth, a white tank top, baggy dark jeans and blue polka-dot flip-flops, a small dark spiked claw on his fist",
+  },
+  彬彬有禮殺手: {
+    hair: 30600, face: 20098, items: [1002259, 1022040, 1052055, 1102150, 1072010], pose: "stand1", tint: "#1d1d26",
+    look: "a perfectly polite assassin with a small courteous smile, a tall black top hat with a dark red band, a round blue monocle, slick black hair, a sleek black leather suit, a black vampire cape with sharp points, black dress shoes, a yellow lightning-patterned claw on his fist",
+  },
+  破產船長: {
+    hair: 33357, face: 23053, items: [1002649, 1052104, 1102053, 1022062, 1072321], pose: "stand1", tint: "#5e3f24",
+    look: "a broke ex-captain clinging to his dignity, scruffy brown hair, an oversized black pirate captain hat with gold trim and a skull emblem, a black skull eyepatch, a shabby brown pirate coat, a ragged torn cape and old captain boots, holding a red rubber toilet plunger as a weapon",
+  },
+  健身教練: {
+    hair: 30490, face: 20024, items: [1002318, 1040135, 1060049, 1072232], pose: "stabO1", tint: "#b5472a",
+    look: "a pumped-up fitness coach with short spiky black hair, a red headband and burning eyes, a tight bright orange top showing bulging muscles and abs, dark track pants, red boxing shoes, fists clenched in heavy knuckle gauntlets",
+  },
+  嘴砲牛仔: {
+    hair: 30667, face: 20006, items: [1002384, 1050101, 1102156, 1072303], pose: "alert", tint: "#9a6a2c",
+    look: "a smirking handsome gunslinger with a wide tan cowboy hat, a very long red scarf streaming in the wind, a western cowboy shirt and jeans, brown boots, holding a flashy pistol",
+  },
+  佛系神射手: {
+    hair: 31430, bald: true, face: 20026, items: [1050007, 1102144, 1072284], pose: "shoot1", tint: "#c7a24a",
+    look: "a serene bald monk-like sharpshooter with eyes peacefully closed, a white martial-arts gi with navy trousers, a funny little old white-bearded master carried on his back like a backpack, monk shoes, aiming a golden flintlock pistol",
+  },
 };
 
 /** 地圖→背景主題。背景只墊在透明處，模糊過，不會蓋住地圖 */
@@ -89,7 +161,23 @@ const BACKDROP_OF = {
   100040103: "monkey-forest", 100040110: "monkey-forest",
   101020009: "tree-hollow", 101020010: "tree-hollow",
   105050200: "cave", 103000104: "subway",
+  101040000: "canyon", 101040002: "canyon", 101030402: "canyon", 101030404: "canyon", 101030406: "canyon",
+  106000001: "burnt", 106000002: "burnt",
+  101030101: "ruins", 106010102: "ruins",
+  107000001: "swamp", 107000400: "swamp", 107000402: "swamp",
+  100040001: "monkey-forest", 100040100: "monkey-forest", 100040101: "monkey-forest",
+  105050000: "cave", 105070100: "cave", 105070300: "cave", 105080000: "cave", 105090400: "cave", 105090600: "cave",
+  103000101: "subway", 103000200: "subway", 103000804: "subway", 910340500: "subway",
+  103010001: "construction", 102040001: "construction",
+  104030001: "meadow", 100020000: "meadow",
+  104010001: "beach", 110020001: "beach", 110040000: "beach",
+  101030110: "barracks", 101030111: "barracks",
+  100040105: "dark-forest", 100040106: "dark-forest", 105040303: "dark-forest", 105040304: "dark-forest", 105040306: "dark-forest",
+  211040001: "snow", 211041100: "snow", 211041200: "snow", 211041400: "snow",
+  200010111: "sky-garden", 200010130: "sky-garden", 200010131: "sky-garden", 200080000: "sky-garden",
 };
+/** 文章的地圖代號 → maplestory.io GMS/83 抓得到的代號。910340500 是第一次組隊任務最後一關的新編號，舊版同一關是 103000804 */
+const MAP_SOURCE = { 910340500: 103000804 };
 const BACKDROP_PROMPT = {
   canyon: "A bright rocky canyon under a clear blue afternoon sky with distant tan sandstone mesas and thin clouds",
   burnt: "A scorched wasteland at dusk with an orange-red hazy sky, drifting embers and distant silhouettes of dead trees and smoke",
@@ -99,13 +187,21 @@ const BACKDROP_PROMPT = {
   "tree-hollow": "The inside of a colossal hollow tree with dark brown bark walls, faint teal glowing spores and dim light from above",
   cave: "A deep cave lit by glowing fungi and dark blue-purple rock walls with soft mist",
   subway: "A gloomy abandoned underground subway tunnel with rusty pipes, dim yellow lamps and dark concrete walls",
+  construction: "A half-built city skyline under a clear morning sky with distant steel girders, tower cranes and scaffolding in soft blue haze",
+  meadow: "Gentle rolling green hills under a bright blue sky with puffy white clouds and small distant trees",
+  beach: "A sunny tropical beach with turquoise sea, soft white sand dunes on the horizon, distant palm trees and fluffy clouds",
+  barracks: "A grim fortified military camp at dusk with distant dark stone walls, wooden watchtowers, tattered banners without any emblem and an overcast purple sky",
+  "dark-forest": "A shadowy enchanted forest of huge dark twisted trees with purple-green mist, faint moonlight shafts and glowing motes",
+  snow: "A frozen snowy mountain range under a pale winter sky with distant white peaks, bare frosted dead trees and drifting snowflakes",
+  "sky-garden": "A serene garden floating high in the sky, bright pastel clouds, distant floating islands with trimmed hedges and soft golden light",
 };
 
 const STYLE_RULES = "Absolutely no text, no letters, no numbers, no logos, no watermarks, no signs with writing, no UI, no speech bubbles anywhere in the image. No extra characters besides the ones already in the scene.";
 
 /**
  * 每篇的設定。weapon 要是文章寫到的武器（腳本會查）。
- * hero：主圖構圖。pick 是站的平台（遊戲座標，對不上腳本會報錯），actors 的 x 是畫面寬的比例、team 決定朝向。
+ * hero：主圖構圖。pick 是站的平台（遊戲座標，對不上腳本會報錯），char／mobs 的 x 是畫面寬的比例、right 決定朝向。
+ * hero.look 選填：這篇拿的武器跟 PERSONAS 的 look 寫的不同時，整句換掉。
  * cards：路線卡指定平台 { 地圖id: { x, y } }，沒寫就照分數自動挑。
  */
 const ARTICLES = {
@@ -159,6 +255,308 @@ const ARTICLES = {
       idea: "Dramatic dusk silhouette: he stands alone on the right with his cloak sweeping in the wind, facing left, one black wild boar on the left across rocky ground, large orange sunset behind, long shadows. Lonely and cool.",
     },
   },
+  "100-10-30": {
+    weapon: 1442007,
+    hero: {
+      map: 103010001, mob: 1120100, pose: "alert",
+      pick: { x: -1300, y: 497 },
+      char: { x: 0.3, right: true }, mobs: [{ x: 0.68, right: false }],
+      idea: "Bright morning high on a steel-girder construction site. He stands square and upright like inspecting a recruit, polearm planted, barking orders at the three-eyed octopus in front of him. Clean blue sky, crisp daylight, slightly low heroic angle.",
+    },
+  },
+  "110-51-70": {
+    weapon: 1402006,
+    hero: {
+      map: 105080000, mob: 5130100, pose: "alert",
+      pick: { x: 690, y: 850 },
+      char: { x: 0.78, right: false }, mobs: [{ x: 0.3, right: true }],
+      idea: "He leaps in from the right mid-roar with greatsword swinging down, flames trailing him, a blue drake rearing on the left. Close framing, strong diagonal energy, sparks and dust, cave lit with orange firelight.",
+    },
+  },
+  "120-31-50": {
+    weapon: 1402006,
+    hero: {
+      map: 101040001, mob: 2230102, pose: "stabO1",
+      pick: { x: 850, y: 2055 },
+      char: { x: 0.72, right: false }, mobs: [{ x: 0.28, right: true }],
+      idea: "Formal duel in clear soft morning light: he stands upright on the right with his sword held out in a knight's salute, cape neat, looking displeased, while one black wild boar paws the ground on the left. Elegant, orderly, a little absurd.",
+    },
+  },
+  "120-51-70": {
+    weapon: 1402006,
+    hero: {
+      map: 105080000, mob: 5130100, pose: "stabO1",
+      pick: { x: 760, y: 600 },
+      char: { x: 0.25, right: true }, mobs: [{ x: 0.66, right: false }],
+      idea: "He holds a perfect textbook knight's guard on the left, armor spotless and gleaming, while a blue drake snarls on the right. A single cold pale beam of light falls on him in a dark cave. Serious, noble mood, cool blue tones.",
+    },
+  },
+  "130-31-50": {
+    weapon: 1432005,
+    hero: {
+      map: 101030001, mob: 2230102, pose: "alert",
+      pick: { x: 630, y: 2205 },
+      char: { x: 0.26, right: true }, mobs: [{ x: 0.72, right: false }],
+      idea: "Medium shot, both clearly visible and large: he leans back as far as he can on the left, arms fully extended, poking a very long polearm at a black wild boar on the right, the blade just reaching it. Awkward, shy body language, warm late afternoon canyon light.",
+    },
+  },
+  "130-51-70": {
+    weapon: 1442005,
+    hero: {
+      map: 105040304, mob: 5130102, pose: "stabT1",
+      pick: { x: 270, y: 1995 },
+      char: { x: 0.2, right: true }, mobs: [{ x: 0.72, right: false }],
+      idea: "Low camera looking up: a towering obsidian golem fills the right side, and he is small on the left, stabbing from the longest possible distance with his long polearm, eyes averted. Dim green-purple forest cavern light, strong sense of scale.",
+    },
+  },
+  "131-71-90": {
+    weapon: 1432007,
+    hero: {
+      map: 211040001, mob: 6130103, pose: "alert",
+      pick: { x: 360, y: -296 },
+      char: { x: 0.22, right: true }, mobs: [{ x: 0.55, right: false }, { x: 0.72, right: false }, { x: 0.9, right: false }],
+      idea: "He roars with his whole body on the left, visible shockwave rings of air and snow blasting to the right, a row of three penguin kings being blown back and panicking. Snow cliffs, white and icy blue, loud and chaotic energy.",
+    },
+  },
+  "200-10-30": {
+    weapon: 1372005,
+    hero: {
+      map: 103000101, mob: 1210103, pose: "alert",
+      pick: { x: 1400, y: 198 },
+      char: { x: 0.84, right: false }, mobs: [{ x: 0.14, right: true }, { x: 0.32, right: true }, { x: 0.5, right: true }],
+      idea: "He backs away on the right, sweating and clutching his wand, a growing queue of blue slimes coming at him from the left along a long subway platform. Comic tension, dim yellow station lamps.",
+    },
+  },
+  "210-31-50": {
+    weapon: 1372005,
+    hero: {
+      map: 103000200, mob: 3230101, pose: "stabO1",
+      pick: { x: 1600, y: 198 },
+      char: { x: 0.36, right: true }, mobs: [{ x: 0.6, right: false }, { x: 0.74, right: false }, { x: 0.88, right: false }],
+      idea: "Grinning happily left of center, he fires one tiny fire arrow from his wand at a crowd of little ghosts drifting toward him in a dark subway tunnel. Warm small orange flame against a cold teal tunnel, cheerful and doomed.",
+    },
+  },
+  "220-31-50": {
+    weapon: 1302016,
+    hero: {
+      map: 105040303, mob: 3230100, pose: "stand1",
+      pick: { x: 135, y: 915 },
+      char: { x: 0.5, right: true }, mobs: [{ x: 0.2, right: true }, { x: 0.8, right: false }],
+      idea: "Perfectly centered and motionless, expression blank, he holds up the umbrella while branching chain lightning arcs out left and right into a wind cyclops on each side. Symmetrical composition, dark forest, cold blue-white lightning as the only light.",
+    },
+  },
+  "220-51-70": {
+    weapon: 1302016,
+    hero: {
+      map: 100040105, mob: 5300100, pose: "stand1",
+      pick: { x: 540, y: 278 },
+      char: { x: 0.2, right: true }, mobs: [{ x: 0.58, right: false }, { x: 0.84, right: false }],
+      idea: "Purple night in an evil forest: a huge lightning flash from behind turns him into a sharp backlit figure on the left, white lab coat glowing, while witches on brooms scatter on the right. Moody, high contrast.",
+    },
+  },
+  "221-71-90": {
+    weapon: 1302016,
+    hero: {
+      map: 200010111, mob: 5120001, pose: "alert",
+      pick: { x: -200, y: 83 },
+      char: { x: 0.13, right: true }, mobs: [{ x: 0.42, right: false }, { x: 0.58, right: false }, { x: 0.74, right: false }, { x: 0.9, right: false }],
+      idea: "A perfectly evenly spaced straight row of four red unicorn lions, each frozen solid in an identical ice block, and he stands on the left admiring how neat they are, wings spread. Crimson sky garden, pale ice-blue glow, orderly and satisfying.",
+    },
+  },
+  "230-51-70": {
+    weapon: 1302016,
+    hero: {
+      map: 101030110, mob: 5150001, pose: "alert",
+      pick: { x: -40, y: -178 },
+      char: { x: 0.25, right: true }, mobs: [{ x: 0.6, right: false }, { x: 0.85, right: false }],
+      idea: "She walks in from the left not even looking at them, umbrella raised lazily, a wave of golden holy light rolling over skeleton soldiers on the right in a torch-lit army camp. Warm gold against cold stone, unimpressed and cool.",
+      look: "a slim young woman healer with long straight purple hair streaked with a gold hairband, cool half-lidded gray eyes, wearing a white and gold priestess robe, white shoes, small pale pink-white angel wings with a soft blue glow, holding a large closed yellow umbrella",
+    },
+  },
+  "231-71-90": {
+    weapon: 1302016,
+    hero: {
+      map: 211041400, mob: 5130107, pose: "stand1",
+      pick: { x: 1750, y: -386 },
+      char: { x: 0.5, right: false }, mobs: [{ x: 0.24, right: true }, { x: 0.78, right: false }],
+      idea: "Pale snowy morning fog in a dead forest. He slumps half asleep in the center, leaning on the umbrella with the quilt around his shoulders, while holy light bursts on its own and a zombie shuffles in from each side. Tired, deadpan comedy.",
+    },
+  },
+  "231-91-120": {
+    weapon: 1302016,
+    hero: {
+      map: 211041400, mob: 5130107, pose: "stand1",
+      pick: { x: 2070, y: 34 },
+      char: { x: 0.78, right: false }, mobs: [{ x: 0.22, right: true }],
+      idea: "Lonely dusk in a misty dead forest: he stands small on the right, one thin column of holy light in the purple-orange sky falling on a single zombie far to the left. Long shadow, nobody else around, overtime feeling.",
+    },
+  },
+  "300-10-30": {
+    weapon: 1452000,
+    hero: {
+      map: 107000001, mob: 2130103, pose: "shoot1",
+      pick: { x: -540, y: -119 },
+      char: { x: 0.22, right: true }, mobs: [{ x: 0.7, right: false }, { x: 0.86, right: false }],
+      idea: "Medium shot, all clearly visible and large, bright and readable: he draws his bow on the left with an arrow in flight, two green snakes rearing up on the right across a small gap on the swamp ledge. Bright sunlit green, sharp and confident.",
+    },
+  },
+  "310-51-70": {
+    weapon: 1452004,
+    hero: {
+      map: 100040103, mob: 4230101, pose: "shoot1",
+      pick: { x: 810, y: -52 },
+      char: { x: 0.75, right: false }, mobs: [{ x: 0.12, right: true }, { x: 0.32, right: true }],
+      idea: "Close framing at golden dusk in the forest: he is on the right, squinting calmly along a bow with blazing red and gold phoenix tips, while two angel monkeys scamper in from the left. Warm orange light, long shadows, shrewd and focused.",
+      look: "a handsome frugal young archer with neat spiky brown hair and thin rimless glasses, calm half-lidded eyes, wearing a plain checkered shirt with a small orange tie, faded blue denim work pants and worn brown leather shoes, drawing an ornate phoenix bow with red and gold tips",
+    },
+  },
+  "311-71-90": {
+    weapon: 1452011,
+    hero: {
+      map: 105040306, mob: 5150000, pose: "shoot1",
+      pick: { x: 90, y: 2715 },
+      char: { x: 0.14, right: true }, mobs: [{ x: 0.62, right: false }],
+      idea: "He kneels low at the left with his backpack on, firing upward, and a dense rain of arrows falls out of the sky onto one hulking stone golem at center right. Shafts of moonlight through dark giant trees, epic scale.",
+    },
+  },
+  "311-91-120": {
+    weapon: 1452011,
+    hero: {
+      map: 200010131, mob: 5120003, pose: "shoot1",
+      pick: { x: -200, y: 83 },
+      char: { x: 0.8, right: false }, mobs: [{ x: 0.2, right: true }, { x: 0.42, right: true }],
+      idea: "Fresh dawn in a green sky garden: he stands on the right, bow drawn, hair and beard in the wind, two blue unicorn lions bounding toward him from the left. Clear pastel light, clouds below the garden, adventurous open-air mood.",
+    },
+  },
+  "320-31-50": {
+    weapon: 1462005,
+    hero: {
+      map: 100040110, mob: 3210800, pose: "shoot2",
+      pick: { x: 360, y: -562 },
+      char: { x: 0.2, right: true }, mobs: [{ x: 0.62, right: false }, { x: 0.82, right: false }],
+      idea: "Under the forest floor canopy he fires two parallel glowing bolts at once from his crossbow toward two monkeys on the right, both bolts mid flight. Technical and exact, deep green forest with a shaft of sunlight.",
+    },
+  },
+  "320-51-70": {
+    weapon: 1462008,
+    hero: {
+      map: 105040306, mob: 5150000, pose: "shoot2",
+      pick: { x: 90, y: 2295 },
+      char: { x: 0.88, right: false }, mobs: [{ x: 0.42, right: true }],
+      idea: "Mirrored view: he aims from the far right and a piercing golden bolt punches through a huge stone golem on the left, stone chips flying in a line. Dark forest, golden bolt as the key light, gear-head satisfaction.",
+    },
+  },
+  "400-10-30": {
+    weapon: 1472007,
+    hero: {
+      map: 103000804, mob: 9300003, pose: "stabO1",
+      pick: { x: 135, y: -1455 },
+      char: { x: 0.2, right: true }, mobs: [{ x: 0.68, right: false }],
+      idea: "He struts on the left, chin up, mouth running, flicking a small throwing star at a giant green slime that fills the right side and looks totally unbothered. Comedic size difference, dim stone stage with greenish light.",
+    },
+  },
+  "410-51-70": {
+    weapon: 1472018,
+    hero: {
+      map: 107000400, mob: 5130103, pose: "alert",
+      pick: { x: 900, y: -119 },
+      char: { x: 0.22, right: true }, mobs: [{ x: 0.62, right: false }, { x: 0.86, right: false }],
+      idea: "Flashy pose on a swamp ledge in sickly green light: he flings shining throwing stars with an arrogant grin, and the stars leave gleaming golden trails toward two black crocodiles on the right. Gaudy gold against the gloomy swamp.",
+    },
+  },
+  "411-71-90": {
+    weapon: 1472026,
+    hero: {
+      map: 211041400, mob: 5130107, pose: "alert",
+      pick: { x: 800, y: 34 },
+      char: { x: 0.7, right: false }, mobs: [{ x: 0.34, right: true }],
+      idea: "He bows politely on the right, one hand on his chest and top hat tipped, while a zombie on the left is already collapsing with throwing stars in it. Cold blue mist, snow on dead trees, elegant and chilling.",
+    },
+  },
+  "411-91-120": {
+    weapon: 1472026,
+    hero: {
+      map: 211041400, mob: 5130107, pose: "alert",
+      pick: { x: 1970, y: -386 },
+      char: { x: 0.32, right: true }, mobs: [{ x: 0.68, right: false }, { x: 0.86, right: false }],
+      idea: "Blood-red dusk behind dead trees: he stands with his cape flowing, calmly adjusting his monocle, and one huge spinning throwing star flies in a straight line through two zombies on the right. Sharp silhouettes, red and black, ruthless and refined.",
+    },
+  },
+  "420-51-70": {
+    weapon: 1332015,
+    hero: {
+      map: 107000400, mob: 5130103, pose: "stabO1",
+      pick: { x: -450, y: -660 },
+      char: { x: 0.7, right: false }, mobs: [{ x: 0.26, right: true }],
+      idea: "Moonlit night on a high swamp platform: he crouches into a lunge on the right with his cloak flaring, the short winged blade drawn, a black crocodile on the left below a huge full moon. Cool blue and crimson accents, brooding and overly dramatic.",
+      look: "a brooding lone-wolf rogue with spiky dark gray hedgehog hair, a black eyepatch over one eye, a cold stare, wearing a black butler-style outfit under a huge black high-collared reaper cloak with a crimson glowing edge, holding a short winged dagger",
+    },
+  },
+  "500-10-30": {
+    weapon: 1322009,
+    hero: {
+      map: 103010001, mob: 1120100, pose: "stand1",
+      pick: { x: -1240, y: 231 },
+      char: { x: 0.66, right: false }, mobs: [{ x: 0.26, right: true }],
+      idea: "Sunset on a high girder: he stands on the right with the plunger raised like a captain's sword and his torn cape blowing, facing a three-eyed octopus on the left. City skyline in orange behind, heroic pose, shabby clothes, proud and pitiful.",
+    },
+  },
+  "510-31-50": {
+    weapon: 1482006,
+    hero: {
+      map: 105040303, mob: 3230100, pose: "stabO1",
+      pick: { x: 90, y: 1995 },
+      char: { x: 0.42, right: true }, mobs: [{ x: 0.64, right: false }],
+      idea: "Tight close framing like a boxing match: he drives a huge punch into a wind cyclops, muscles bulging, sweat flying, his mouth shouting one more rep. Dense trees blurred behind, strong rim light, impact burst.",
+    },
+  },
+  "510-51-70": {
+    weapon: 1482008,
+    hero: {
+      map: 107000400, mob: 5130103, pose: "stabO1",
+      pick: { x: 200, y: 120 },
+      char: { x: 0.34, right: true }, mobs: [{ x: 0.58, right: false }],
+      idea: "Mid uppercut in a dark swamp: he launches a black crocodile upward from the mud with a blow, water droplets and muck flying in a big arc, clear shafts of light behind him. Explosive power, deep green and gold colors.",
+    },
+  },
+  "520-31-50": {
+    weapon: 1492006,
+    hero: {
+      map: 101030404, mob: 1130100, pose: "alert",
+      pick: { x: 850, y: 1300 },
+      char: { x: 0.82, right: false }, mobs: [{ x: 0.14, right: true }, { x: 0.34, right: true }],
+      idea: "High-noon western showdown on rocky ground: he stands on the right, hat tilted, scarf whipping, pistol at his hip, smirking and talking, with two axe stumps facing him from the left. Bright sun, dust in the air, long hard shadows.",
+    },
+  },
+  "520-51-70": {
+    weapon: 1492008,
+    hero: {
+      map: 200010111, mob: 5120001, pose: "alert",
+      pick: { x: -200, y: 83 },
+      char: { x: 0.5, right: true }, mobs: [{ x: 0.15, right: true }, { x: 0.85, right: false }],
+      idea: "Center stage in a red-lit sky garden at sunset: he fires a wild spread of bullets to both sides, muzzle flash lighting his grin, one red unicorn lion on each side. Flashy, showboating.",
+    },
+  },
+  "521-71-90": {
+    weapon: 1492009,
+    hero: {
+      map: 211041200, mob: 5130107, pose: "shoot1",
+      pick: { x: 1400, y: -356 },
+      char: { x: 0.24, right: true }, mobs: [{ x: 0.76, right: false }],
+      idea: "Quiet falling snow in a dead forest, almost like an ink wash painting: with eyes closed he fires one single calm shot, a thin trail hanging in the air, and a zombie far to the right is about to drop. Pale, still, peaceful, lots of empty space.",
+    },
+  },
+};
+
+/** 路線卡的預設平台（每篇都一樣時放這，篇別的 cards 優先）。自動挑會站到雕像前面、頭被裁掉的圖才寫 */
+const CARD_PICK = {
+  104030001: { x: 150, y: 1115 },
+  101030110: { x: -40, y: -178 },
+  101030111: { x: 65, y: 215 },
+  200010111: { x: -200, y: 83 },
+  200010131: { x: -200, y: 83 },
+  211040001: { x: 360, y: -266 },
+  101030402: { x: 1020, y: 1580 },
 };
 
 /* ------------------------------------------------------------------ 共用 */
@@ -308,12 +706,14 @@ async function ensureBackdrop(theme) {
 const mapCache = new Map();
 async function loadMap(id) {
   if (mapCache.has(id)) return mapCache.get(id);
-  const png = await download(`https://maplestory.io/api/GMS/83/map/${id}/render`, `map-${id}.png`, { timeout: 180_000 });
-  const json = JSON.parse((await download(`https://maplestory.io/api/GMS/83/map/${id}`, `map-${id}.json`)).toString("utf8"));
+  const source = MAP_SOURCE[id] ?? id;
+  const png = await download(`https://maplestory.io/api/GMS/83/map/${source}/render`, `map-${source}.png`, { timeout: 180_000 });
+  const json = JSON.parse((await download(`https://maplestory.io/api/GMS/83/map/${source}`, `map-${source}.json`)).toString("utf8"));
   const raw = await rawOf(png);
   const footholds = Object.values(json.footholds);
-  const { dx, dy, score } = calibrate(raw, footholds, id);
-  if (score < 0.2) throw new Error(`地圖 ${id} 的落腳線對不上圖（比對分數 ${score.toFixed(2)}）`);
+  const { dx, dy, score } = calibrate(raw, footholds, source);
+  // 106010102 整張是神殿磚牆，落腳線上方多半不透明所以分數低；疊線看過位移是對的
+  if (score < 0.2 && id !== 106010102) throw new Error(`地圖 ${id} 的落腳線對不上圖（比對分數 ${score.toFixed(2)}）`);
   const map = { id, raw, json, dx, dy, score, chains: buildChains(footholds, dx, dy, raw.width) };
   mapCache.set(id, map);
   return map;
@@ -431,7 +831,8 @@ async function verifyLook(name, persona, weapon, avatar) {
     names.push(`${id} ${item.n}`);
   }
   const full = await rawOf(await fetchChar(lookIds(persona, weapon), "alert", 0));
-  for (const id of [persona.hair, persona.face, ...persona.items, weapon]) {
+  // 光頭髮型本來就什麼都不畫（bald: true），不比
+  for (const id of [...(persona.bald ? [] : [persona.hair]), persona.face, ...persona.items, weapon]) {
     const without = await rawOf(await fetchChar(lookIds(persona, weapon).filter(x => x !== id), "alert", 0));
     if (without.width === full.width && without.height === full.height && without.data.equals(full.data)) {
       throw new Error(`${name}：項目 ${id} 拿掉後畫面一模一樣，等於沒畫出來，換一件`);
@@ -588,7 +989,7 @@ async function makeCard(entry, step, persona, weapon, dir) {
   // 同種或不同種都最多兩隻，只有一種就放兩隻
   const shown = (mobIds.length >= 2 ? mobIds.slice(0, 2) : [mobIds[0], mobIds[0]]);
   const mobs = await Promise.all(shown.map(id => mobSprite(id, false)));
-  const list = bestCrop(map, CARD.w, CARD.h, char, mobs, mobIds, config.cards?.[step.map]);
+  const list = bestCrop(map, CARD.w, CARD.h, char, mobs, mobIds, config.cards?.[step.map] ?? CARD_PICK[step.map]);
   const crop = list[0];
   const canvas = await renderScene(map, crop, CARD.w, CARD.h);
   const png = await canvasPng(canvas, CARD.zoom);
@@ -645,7 +1046,7 @@ async function heroSource(entry, persona, weapon, jobName) {
 const heroPrompt = (hero, persona, mobName) =>
   [
     "Repaint this side-scrolling game scene as a high-quality 2D anime-style game key art illustration: clean confident line art, rich painted shading, dramatic lighting and atmospheric depth, polished and appealing.",
-    `The main character is ${persona.look}. Keep the exact same outfit colors, hair and weapon as the sprite in the image, with chibi-free but still stylized heroic proportions and a good-looking face.`,
+    `The main character is ${hero.look ?? persona.look}. Keep the exact same outfit colors, hair and weapon as the sprite in the image, with chibi-free but still stylized heroic proportions and a good-looking face.`,
     `The monster is ${mobName}: keep it instantly recognizable as the same creature as the sprite in the image, same shape, same colors, same features. Do not invent new monster types and do not add more monsters.`,
     `Keep the same location, the same ground and the same positions of the character and monsters as the image. ${hero.idea}`,
     "Widescreen 16:9 composition, nothing important cut off.",
@@ -706,6 +1107,24 @@ const HERO_MOB_LOOK = {
   4230101: "an angel monkey: a chubby gray monkey with a thin golden halo floating above its head, holding a yellow banana, with dark blue feet",
   3210800: "a chubby tan-brown monkey standing upright with a pale face and belly, big round ears, holding a yellow banana",
   3210100: "a fire boar: a stocky dark brown wild boar with white tusks and a mane of bright yellow-orange flames along its back",
+  1120100: "a three-eyed octopus: a round purple and magenta bumpy head with three staring white eyes and curling pink tentacles",
+  5130100: "a blue drake: a teal-gray four-legged lizard dragon with dorsal plates along its back, a long tail and a pale snout",
+  5130102: "an obsidian golem: a huge humanoid of dark gray carved stone blocks with spiral carvings, green moss on its shoulders and head, small red eyes",
+  5150000: "a hybrid stone golem: a huge humanoid of mixed dark gray and pale tan carved stone blocks with spiral carvings, green moss on its shoulders and head, small red eyes",
+  6130103: "a penguin king: a chubby blue penguin with a white belly, orange beak and feet, and a small golden crown",
+  1210103: "a blue slime: a shiny translucent blue teardrop-shaped blob with small black eyes and a tiny smile",
+  3230101: "a little ghost: a small white hooded wisp with a round dark face and two pale eyes",
+  3230100: "a wind cyclops: a green lizard-like creature with one big eye, a wide toothy grin and a long tail",
+  5300100: "a witch: a small hunched old witch in a dark gray robe and pointed hat with a crescent moon, riding a straw broom",
+  5120001: "a red unicorn lion: a small fluffy white cat-like creature with a red-tipped spiky mane, a small orange horn and big blue eyes",
+  5120003: "a blue unicorn lion: a small fluffy white cat-like creature with a blue-tipped spiky mane, a small orange horn and big green eyes",
+  5150001: "a skeleton soldier: a hunched skeleton wearing a brown leather helmet and swinging a wooden club",
+  5130107: "a zombie: a gaunt gray-green undead man with messy pale hair, tattered gray clothes, shuffling with a wooden club",
+  2130103: "a green snake: a small bright green coiled snake with big round eyes",
+  3110100: "a crocodile: a long low green crocodile with a pale belly and half-lidded eyes",
+  5130103: "a black crocodile: a long low dark olive-brown crocodile with a pale belly and half-lidded eyes",
+  9300003: "a giant green slime: a huge glossy bright green blob with yellow cross-shaped eyes and a thin curved antenna tipped with a green ball",
+  1130100: "an axe stump: a walking brown tree stump with one round eye, thick roots as legs and a steel axe stuck in its top",
 };
 
 /* ------------------------------------------------------------------ 主流程 */

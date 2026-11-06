@@ -243,7 +243,7 @@
           "levelTo": 13,
           "kind": "solo",
           "mapName": "野外之地／勇士之村東入口（教官新手任務：木妖→黑木妖）",
-          "mapId": 101040002,
+          "mapId": 101040000,
           "mobs": [
             {
               "name": "木妖",
@@ -465,7 +465,7 @@
           "mobs": [
             {
               "name": "鋼之肥肥",
-              "id": 4230103,
+              "id": 9300060,
               "lv": 42
             }
           ],
@@ -494,7 +494,7 @@
           ]
         },
         {
-          "text": "二轉轉職：等級 30、一轉 SP 點完；勇士之村→勇士聖殿→武術教練，蒐集 30 個黑珠換英雄証明（三分支共用）。",
+          "text": "二轉轉職：等級 30、一轉 SP 點完；勇士之村→勇士聖殿→武術教練，蒐集 30 個黑珠換英雄證書（三分支共用）。",
           "sources": [
             "https://bobogameguides.com/maplestory-classic/guides/jobs-overview.html",
             "https://forum.gamer.com.tw/G2.php?bsn=7650&parent=12519&sn=4965"
@@ -3193,7 +3193,70 @@
           ]
         }
       ],
-      "training": [],
+      "training": [
+        {
+          "levelFrom": 78,
+          "levelTo": 78,
+          "kind": "party",
+          "mapName": "王冠之地",
+          "mapId": 211040001,
+          "mobs": [
+            {
+              "name": "企鵝王",
+              "id": 6130103,
+              "lv": 60
+            }
+          ],
+          "why": "台服 10/24 板上有人問 78 等龍騎配一隻 40 等僧侶去哪練，留言列了企鵝王；另有玩家提到跟龍騎配合吼企鵝王、公會建議去王冠吼。都沒寫經驗。另一則回報說這張要付打頂費。78 是發問者的等級，不是實測範圍。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2328",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2261",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2269",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2345"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 78,
+          "levelTo": 78,
+          "kind": "party",
+          "mapName": "紅光庭園 II",
+          "mapId": 200010111,
+          "mobs": [
+            {
+              "name": "紅獨角獅",
+              "id": 5120001,
+              "lv": 53
+            }
+          ],
+          "why": "台服玩家提到紅光庭園 II 打頂時有龍騎在吼，怪 4200 血；同一位回 78 等龍騎時寫「巫婆、大紅」，大紅推定就是紅獨角獅。只有這一位提到，沒寫龍騎等級跟經驗。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2269",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2328",
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2343"
+          ],
+          "verified": "tw"
+        },
+        {
+          "levelFrom": 78,
+          "levelTo": 78,
+          "kind": "party",
+          "mapName": "巫婆森林Ⅱ",
+          "mapId": 100040106,
+          "mobs": [
+            {
+              "name": "巫婆",
+              "id": 5300100,
+              "lv": 55
+            }
+          ],
+          "why": "回 78 等龍騎的留言有三則點名巫婆，沒分Ⅰ還是Ⅱ，也沒寫經驗。有留言說要兩隻龍騎一上一下，所以一隻龍騎不一定吼得到全圖。",
+          "sources": [
+            "https://forum.gamer.com.tw/C.php?bsn=85994&snA=2328"
+          ],
+          "verified": "tw"
+        }
+      ],
       "notes": [
         {
           "text": "三轉的技能點跟一、二轉是同一池。官方 10/29 維護把全體玩家的一、二、三轉技能點全部重置，建議從三轉往回點：先點三轉，點不下去再回頭點二轉、一轉。照這個數字點就不會錯：一轉 61 點、二轉 121 點、三轉＝（等級−70）×3＋1，120 等共 151 點。買過又用過「三轉技能點數重配捲軸」的人，楓葉點數全額退到遊戲左側的禮物盒，2026-12-28 23:59 前要領。台服玩家 10/29 回報：三轉重置卷只退三轉的點，一、二轉點錯退不回來；菇菇通行證 S2 送的初始化卷軸交換券也只重置三轉。",
