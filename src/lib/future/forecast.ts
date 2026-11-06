@@ -94,7 +94,7 @@ export const STATIONS: Station[] = [
     why: "2005 年台服這幾個都排在玩具城之後，再隔一次差不多的時間約是 3 月中。順序可能再調，上一版就換過。",
     endsAt: "2027-04-30T23:59:59+08:00",
     prep: [
-      { item: 4000082, name: "殭屍的金齒", count: "30 個", use: "Artale 的殘暴炎魔前置最後要交，換 5 顆進場用的火焰之眼；老玩家說買金牙比直接買火眼便宜", how: "打礦山殭屍（廢棄礦坑）", basis: "Artale", source: S.mine },
+      { item: 4000082, name: "殭屍的金齒", count: "30 個", use: "Artale 的殘暴炎魔前置最後要交，換 5 顆進場用的火焰之眼；老玩家說買金齒比直接買火焰之眼便宜", how: "打礦山殭屍（廢棄礦坑）", basis: "Artale", source: S.mine },
       { item: 2050004, name: "萬能療傷藥", use: "打殘暴炎魔時解虛弱、技能封鎖、黑暗", how: "打蝴蝶精、黑格里芬", basis: "Artale", source: S.zakum },
     ],
     quests: [
@@ -127,7 +127,7 @@ export const STATIONS: Station[] = [
 
 /** 囤了可能白囤的情況，都是別的版本發生過的事 */
 export const RISKS: Array<{ title: string; body: string; source: Source }> = [
-  { title: "價格會跌", body: "Artale 的發條鐘約兩個月從 1 萬雪跌到 2,200 雪。貴的東西不一定撐得住。", source: S.clock },
+  { title: "價格會跌", body: "Artale 的發條鐘約兩個月跌到只剩兩成多。貴的東西不一定撐得住。", source: S.clock },
   { title: "官方可能先鎖住", body: "繁中 Artale 開神木村前半時先把王鎖起來，110 等武器做不出來。玩家猜是怕有人先刷起來屯著。", source: S.leafre },
   { title: "開放前的高價可能是炒的", body: "Artale 的褲裙敏捷卷軸 100% 一夜從 50～60 萬變 90 萬，疑似工作室哄抬。看到突然變貴先別追。", source: S.scroll },
 ];
