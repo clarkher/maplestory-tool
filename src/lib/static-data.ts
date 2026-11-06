@@ -9,7 +9,7 @@ import { hasItemPage, itemPagePath, type ItemPageLookup } from "./item-page";
 import type { CalcData } from "./damage-view";
 import type { GearData } from "./gear";
 import { parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
-import type { AtlasIndex, AtlasMap, AtlasNpc, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, PortalEdge, Quest, Skill, TrainingRow } from "./types";
+import type { AtlasIndex, AtlasMap, AtlasNpc, FutureData, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, PortalEdge, Quest, Skill, TrainingRow } from "./types";
 
 const cache = new Map<string, unknown>();
 
@@ -23,6 +23,8 @@ function read<T>(name: string): T {
 
 export const staticMaps = () => read<Record<string, MapRecord>>("maps");
 export const staticMeta = () => read<Meta>("meta");
+/** 未來視的材料清單（/future，建置時讀） */
+export const staticFuture = () => read<FutureData>("future");
 /** 沒有名字的怪（活動、未啟用）不出頁 */
 export const staticMonsters = () => read<Monster[]>("monsters").filter(monster => !monster.un);
 export const staticQuests = () => read<Quest[]>("quests");

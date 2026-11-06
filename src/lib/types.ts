@@ -393,3 +393,15 @@ export type AtlasNpc = {
 
 /** public/data/atlas-index.json：有頁的圖、NPC */
 export type AtlasIndex = { maps: number[]; npcs: number[] };
+
+/** 未來視的材料清單（pipeline/build-future.mjs 輸出的 future.json，只在建置時讀） */
+export type FutureHow = { kind: "mob" | "shop" | "craft"; text: string; ids?: number[] };
+export type FutureCraft = { id: number; n: string; recipes: number; towns: string[]; how: FutureHow[] };
+export type FutureNotNow = Omit<FutureCraft, "how">;
+export type FutureJobNeed = { id: number; n: string; c: number; quests: string[]; how: FutureHow[] };
+export type FutureData = {
+  gameVersion: string | null;
+  snapshotVersion: string | null;
+  crafts: { now: FutureCraft[]; notNow: FutureNotNow[] };
+  fourthJob: Record<string, { now: FutureJobNeed[]; later: Array<{ id: number; n: string; c: number; quests: string[] }> }>;
+};
