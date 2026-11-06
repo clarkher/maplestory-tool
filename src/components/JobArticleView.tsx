@@ -3,6 +3,7 @@ import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
 import { articleDamageHref, assumptionLines, avgText, hitLvText, stepImageAlt, tableGearLine, withOneTargetCell, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
+import { AdSlot } from "./AdSlot";
 import { SeoLinks, SeoPage } from "./SeoPage";
 
 /**
@@ -255,6 +256,8 @@ export function JobArticleView({
         </div>
         <SeoLinks links={[{ href: articleDamageHref(table), text: "開計算機改成自己的數值" }]} />
       </section>
+
+      <AdSlot unit="article" />
 
       {article.sections.map((section, index) => (
         <section key={index} className="space-y-2 text-[15px] leading-relaxed">
