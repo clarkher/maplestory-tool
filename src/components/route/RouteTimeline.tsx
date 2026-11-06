@@ -14,7 +14,7 @@ import { COMMON_ROUTE } from "@/lib/guide-data";
 import { SECOND_JOB_LEVEL, THIRD_JOB_LEVEL, jobTier } from "@/lib/jobs";
 import { bandQuests, ceilingText, laterMaterials, nowQuests, partsText, type BandQuest, type MainPick } from "@/lib/now-plan";
 import { type Band, isIslandBand, onIsland, recFromPlayers, spawnIndex } from "@/lib/route-planner";
-import { mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
+import { earlierJobLevels, mainBuild, spAtLevel, stepText, stepsBetween } from "@/lib/skill-plan";
 import { timelinePlans, type BandPlan, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Monster, Quest, TrainingRow } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
@@ -133,12 +133,12 @@ function BandItem({
 
 function BandDetail({ plan, next, context, active, memoryKey }: { plan: BandPlan; next?: Band; context: Context; active: boolean; memoryKey: string }) {
   const { band, stage, guide } = plan;
-  const { job, level, quests, monsters, monsterIndex, maps, common, prefer, guideStatus, effective } = context;
+  const { job, level, guides, quests, monsters, monsterIndex, maps, common, prefer, guideStatus, effective } = context;
 
   const detail = useMemo(() => {
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
     // 這段開始前（上一級結束時）到這段最後一級的點數；轉職那一段從 0 起算，才不會漏掉只花 1 點的第一步
-    const steps = build && stage ? stepsBetween(build, spAtLevel(stage, band.from - 1), spAtLevel(stage, band.to - 1)) : [];
+    const steps = build && stage ? stepsBetween(build, spAtLevel(stage, band.from - 1), spAtLevel(stage, band.to - 1), earlierJobLevels(stage, code => guides.get(code), prefer)) : [];
     // 必解跟先解同一套規則（任務線、標題、長線、值不值得、不跳段）；約幾級用接得到那條線的等級算：
     // 這段跟之前的段取現在等級與那條線的等級較高的，之後的段取段落起點與它較高的；你在的這段不再列先解已經列的段（now-plan bandQuests）
     const shared = { level, job, quests, monsters, common, maps, effective };
@@ -147,7 +147,7 @@ function BandDetail({ plan, next, context, active, memoryKey }: { plan: BandPlan
     // 先存著：下一段必解要交的材料，這頁已經列的任務（先解、這段的必解）不算（now-plan laterMaterials）
     const prep = laterMaterials({ next: nextMustDo, listed: [...nowQuests(shared), ...mustDo], monsters });
     return { build, steps, mustDo, prep };
-  }, [band, next, guide, stage, job, level, quests, monsters, maps, common, prefer, effective, active]);
+  }, [band, next, guide, guides, stage, job, level, quests, monsters, maps, common, prefer, effective, active]);
 
   const stuckInFirstJob = band.from >= SECOND_JOB_LEVEL && jobTier(job) === 1;
   const stuckInSecondJob = band.from >= THIRD_JOB_LEVEL && jobTier(job) === 2;

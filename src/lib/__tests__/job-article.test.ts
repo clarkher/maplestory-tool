@@ -1507,7 +1507,7 @@ describe("署名區塊跟放圖", () => {
     const raw = renderToString(JobArticleView(props()));
     const html = clean(raw).replace(/<[^>]+>/g, "");
     expect(raw).toMatch(/dateTime="2026-11-04"/i);
-    for (const text of ["楓谷幫手", "發布 2026-11-04", "更新 2026-11-04", "本篇寫手：毒舌奶媽", "專講僧侶怎麼用治癒打不死系。", "寫手是站上虛構的角色，數字和來源都查得到。", "文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。"]) expect(html).toContain(text);
+    for (const text of ["楓谷幫手", "發布 2026-11-04", "更新 2026-11-04", "本篇寫手：毒舌奶媽", "專講僧侶怎麼用治癒打不死系。", "寫手是站上虛構的角色，數字和來源都查得到。", "文章由 AI 協助整理，計算數字由站上算出，玩家回報都有標明。主圖和路線卡背景由 AI 繪製。"]) expect(html).toContain(text);
   });
   it("順序：主圖、署名、結論", () => {
     const html = clean(renderToString(JobArticleView(props(full()))));

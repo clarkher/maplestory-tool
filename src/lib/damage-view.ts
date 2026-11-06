@@ -49,7 +49,7 @@ import { canJobUse } from "./item-view";
 import { jobOption, jobTier, LEVEL_CAP, minLevelFor, previousJob, SECOND_JOB_LEVEL, stageJob, THIRD_JOB_LEVEL, tierStartLevel } from "./jobs";
 import { BOSS_SPAWN_MAX } from "./now-plan";
 import { jobLineage, planTraining } from "./planner";
-import { buildProgress, mainBuild, spAtLevel } from "./skill-plan";
+import { addReachedLevels, buildProgress, lastLevelOfJob, mainBuild, spAtLevel } from "./skill-plan";
 import type { GuideJob, MapRecord, Monster, Skill, TrainingRow } from "./types";
 
 /** 經典版等級上限：沿用 jobs.ts 那一個（那裡是唯一要改的地方），這裡只轉出去 */
@@ -165,7 +165,7 @@ export function branchName(job: number): string | undefined {
 }
 
 /**
- * 照研究檔的主流技能點法，這個職業在這個等級每個技能點到幾級：一轉、二轉已經過了的用那一轉最後一級的點數，
+ * 照研究檔的主流技能點法，這個職業在這個等級每個技能點到幾級：一轉、二轉已經過了的用那一轉點完的點數（一轉 61、二轉 121），
  * 現在這一轉用現在的點數（skill-plan 的 buildProgress）。某一轉沒有攻略時那一轉的技能一律最高等級、guided＝false。
  */
 export function skillLevelsAt(
@@ -186,13 +186,8 @@ export function skillLevelsAt(
       for (const skill of skills.values()) if (skill.job === stage && skill.levels?.length) levels[skill.id] = skill.levels.length;
       continue;
     }
-    const lastLevel = stage === current ? level : (jobTier(stage) === 1 ? SECOND_JOB_LEVEL : THIRD_JOB_LEVEL) - 1;
-    const progress = buildProgress(build, spAtLevel(stage, lastLevel));
-    for (const step of progress.steps) {
-      if (step.id === null) continue;
-      const reached = step.state === "done" ? step.to : step.state === "now" ? progress.current?.reached ?? 0 : 0;
-      levels[step.id] = Math.max(levels[step.id] ?? 0, reached);
-    }
+    const lastLevel = stage === current ? level : lastLevelOfJob(stage);
+    addReachedLevels(levels, buildProgress(build, spAtLevel(stage, lastLevel), levels));
   }
   return { levels, guided };
 }

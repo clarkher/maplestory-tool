@@ -50,7 +50,7 @@ function Byline({ article, images }: { article: JobArticle; images?: ArticleImag
           <span className="font-bold">本篇寫手：{persona.name}</span>｜{persona.line}
         </span>
       </p>
-      <p>寫手是站上虛構的角色，數字和來源都查得到。文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。</p>
+      <p>寫手是站上虛構的角色，數字和來源都查得到。文章由 AI 協助整理，計算數字由站上算出，玩家回報都有標明。主圖和路線卡背景由 AI 繪製。</p>
     </div>
   );
 }

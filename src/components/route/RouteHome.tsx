@@ -25,6 +25,7 @@ import { GearCard } from "./GearCard";
 import { NowCard, NowCardSkeleton } from "./NowCard";
 import { SourceTag, Sprite } from "./bits";
 import { RouteTimeline } from "./RouteTimeline";
+import { earlierJobLevels } from "@/lib/skill-plan";
 import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
 
@@ -253,7 +254,7 @@ export function RouteHome() {
           <TodoList key={`${profile.job}:${profile.level}`} items={plan.todo} routable={data.routable} maps={data.maps} questNames={questNames} />
 
           {stageGuide ? (
-            <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} leftover={jobTier(stage) === 3 ? null : data.common.spLeftover} />
+            <SkillStrip guide={stageGuide} job={stage} level={profile.level} prefer={branchName} known={earlierJobLevels(stage, code => guides.get(code), branchName)} leftover={jobTier(stage) === 3 ? null : data.common.spLeftover} />
           ) : null}
           {stage && !stageGuide && guideStatus === "failed" ? (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">技能點法讀取失敗，重新整理一次試試。上面的練功圖跟任務不受影響。</p>

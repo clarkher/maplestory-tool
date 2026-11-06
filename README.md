@@ -564,7 +564,7 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
   - 每篇 `og:image`、`twitter:image` 用 `hero.jpg` 絕對網址（`articleHeroPath`），`twitter:card` 是 `summary_large_image`，`og:type` 是 `article`，帶 `article:published_time`、`article:modified_time`。主圖還沒進清單時退回全站 `/og.jpg`，不指到不存在的檔案。
   - Article JSON-LD（`articleLd`，`seo.ts`）：作者、發布者都是 Organization「楓谷幫手」＋`SITE_URL`，**虛構寫手不准填進去**。跟其他 JSON-LD 一樣由 `SeoPage` 放在 body，不放 head。
   - 文章日期只讀 `published`、`updated`（YYYY-MM-DD，必填，不能是未來）：畫面、og、JSON-LD、`sitemap.xml` 的 lastmod 都是，不用 `staticModified`；og、JSON-LD 加台灣時區（`taiwanDateTime`，`T00:00:00+08:00`），不然搜尋引擎照自己時區讀可能差一天。真的改了文字才動 `updated`。`published` 手寫，晚幾天才上正式機要改成實際上線日。`sitemap.xml` 該篇有主圖才列 `images`。資料版本那句放在計算表那段（「依遊戲資料 X 計算。」），不帶日期。
-- **寫手與聲明（v1.49，使用者拍板）**：文章必填 `persona: { name, line }`，`name` 是個性當名字（毒舌奶媽），`line` 是一句自介。寫手是虛構角色。署名區塊在標題、主圖下、結論框上（`Byline`，`JobArticleView.tsx`），內容：站名、發布／更新日期；「本篇寫手：<name>」＋ `line` ＋小頭像；聲明兩句照寫，不准改字：「寫手是站上虛構的角色，數字和來源都查得到。」「文章由 AI 協助整理，數字由站上計算。主圖由 AI 繪製。」手機 390 寬的第一屏要看得到結論框開頭。
+- **寫手與聲明（v1.49，使用者拍板）**：文章必填 `persona: { name, line }`，`name` 是個性當名字（毒舌奶媽），`line` 是一句自介。寫手是虛構角色。署名區塊在標題、主圖下、結論框上（`Byline`，`JobArticleView.tsx`），內容：站名、發布／更新日期；「本篇寫手：<name>」＋ `line` ＋小頭像；聲明兩句照寫，不准改字：「寫手是站上虛構的角色，數字和來源都查得到。」「文章由 AI 協助整理，計算數字由站上算出，玩家回報都有標明。主圖和路線卡背景由 AI 繪製。」手機 390 寬的第一屏要看得到結論框開頭。
 - **放圖（v1.49，版面 B1：頂部大圖；路線卡右側小圖）**：
   - 檔案放 `public/assets/guides/<slug>/`：`hero.webp`（寬至少 1200、16:9）、`hero.jpg`（同一張，給 og）、`author.webp`（小頭像，顯示 24px）、`<地圖id>.webp`（路線卡圖）。
   - 清單 `src/data/job-articles/images.gen.json`，形狀 `{ "<slug>": { hero:{w,h}, author:{w,h}, steps:{ "<地圖id>":{w,h} } } }`，由圖片腳本產生；頁面只畫清單裡有的圖（不用 onerror 藏圖，`staticArticleImages`、`articleImages`）。這個檔不是文章，`parseArticleFile` 會跳過。
@@ -575,7 +575,6 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
   - 新文章要在腳本加：寫手外觀 `PERSONAS`（鍵是 `persona.name`）、武器與主圖構圖 `ARTICLES`（武器要是文章寫到的）、新地圖的背景主題 `BACKDROP_OF`、新怪的外觀 `HERO_MOB_LOOK`。腳本會查項目在 `avatar.json`、每件拿掉要真的少東西（maplestory.io 缺圖只會默默不畫）。跑完每張都要用眼睛看。
   - 防呆 `src/lib/__tests__/job-article-images.test.ts`（`articleImageProblems`）：每篇的主圖、小頭像、每個非備案步驟的圖都要在清單裡，清單列的檔案要真的在，主圖寬至少 1200、比例 16:9；真檔尺寸要跟清單一樣、大小不超過上限（`hero` 300KB、路線卡 200KB），手動換圖沒更新清單也擋得到。缺圖不會讓文章下架，只擋合併。
   - 快取（`cache-headers.mjs`）：`/assets/` 是一年 immutable，但 `/assets/guides/` 檔名固定、重畫就蓋掉原檔，另外設每次回伺服器確認（沒變 304），換圖不用改檔名。
-  - **聲明跟實際的落差（待使用者拍板）**：路線卡的背景也是 AI 畫的，聲明只寫「主圖由 AI 繪製」；字句是使用者拍板、測試有鎖，不自己改。
 - **伺服器頁的坑**：`src/lib/job-article.ts`、`static-data.ts` 一路 import 不能碰 `"use client"` 的模組，伺服器拿到的是假值（`LEVEL_CAP` 曾經從 `profile.ts` 來，會算成 NaN，所以搬到 `jobs.ts`），測試有掃。
 
 ### GA 事件（v1.32）
