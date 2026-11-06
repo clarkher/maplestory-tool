@@ -78,6 +78,14 @@ describe("等級上限", () => {
 
 // 下面的數字是 2026-10-08 用 public/data 的攻略跑出來的：研究檔改了點法，這裡跟著改（先印出來核對再改）。
 describe("技能等級照主流技能點法", () => {
+  it("槍騎兵 51：一轉停在 3 級的劍氣縱橫只補 17 點，快速之矛已經開始點", () => {
+    const { levels } = skillLevelsAt(130, 51, guides, data.skills);
+    expect(levels[1001005]).toBe(20);
+    expect(levels[1301005]).toBe(3);
+  });
+  it("一轉沒回補的技能不受影響：刺客 50 的隱身術還是一轉的等級", () => {
+    expect(skillLevelsAt(410, 50, guides, data.skills).levels[4001003]).toBe(skillLevelsAt(400, 30, guides, data.skills).levels[4001003]);
+  });
   it("刺客 50：雙飛斬點滿 20，二轉精準暗器剛點到 5，還沒點的吸血術是 0", () => {
     const { levels, guided } = skillLevelsAt(410, 50, guides, data.skills);
     expect(guided).toBe(true);
@@ -97,10 +105,10 @@ describe("技能等級照主流技能點法", () => {
     expect(guided).toBe(true);
     expect(levels[4100000]).toBe(20);
     expect(levels[4100001]).toBe(30);
-    // 二轉的每個技能都跟「刺客 69 級（二轉的最後一級）」一樣
-    const secondJob = skillLevelsAt(410, 69, guides, data.skills).levels;
+    // 二轉的每個技能都跟「刺客 70 級（二轉點滿 121 點）」一樣
+    const secondJob = skillLevelsAt(410, 70, guides, data.skills).levels;
     for (const [id, level] of Object.entries(secondJob)) if (Number(id) >= 4100000 && Number(id) < 4110000) expect(levels[Number(id)]).toBe(level);
-    expect(levels[4101005]).toBe(5);
+    expect(levels[4101005]).toBe(18);
     // 三轉 80 等有 31 點：主推（v1.30 噗貓 10/26 版）風魔手裏劍 1 → 影分身 30
     expect(levels[4111005]).toBe(1);
     expect(levels[4111002]).toBe(30);

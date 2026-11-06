@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { ChevronDown } from "@/components/Icons";
 import { skillImage } from "@/lib/data";
-import { availableSp, buildProgress, isFreeStep, mainBuild, stepText, type PlannedStep } from "@/lib/skill-plan";
+import { availableSp, buildProgress, isFreeStep, mainBuild, stepText, type PlannedStep, type SkillLevels } from "@/lib/skill-plan";
 import type { GuideBuild, GuideJob } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
 import { SourceLinks, SourceTag, Sprite } from "./bits";
@@ -12,8 +12,10 @@ import { SourceLinks, SourceTag, Sprite } from "./bits";
  * 技能條：依等級算出現在有幾點，對照主流點法，只講「現在點哪個」。
  * 點開才看完整順序、其他點法、注意事項。能力值怎麼點改由下面的「能力值與裝備」卡給數字（GearCard）。
  */
-export function SkillStrip({ guide, job, level, prefer, leftover }: {
+export function SkillStrip({ guide, job, level, prefer, leftover, known }: {
   guide: GuideJob; job: number; level: number; prefer?: string; leftover?: { t: string; s: string[] } | null;
+  /** 上一轉已經點的技能等級：回補上一轉的技能只花差額 */
+  known?: SkillLevels;
 }) {
   // 展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時首頁一樣長，才捲得回同一段
   const [open, setOpen] = useVisitState("home:skill", false);
@@ -27,7 +29,7 @@ export function SkillStrip({ guide, job, level, prefer, leftover }: {
   if (!build) return null;
 
   const sp = availableSp(job, level);
-  const progress = buildProgress(build, sp);
+  const progress = buildProgress(build, sp, known);
   const current = progress.current;
   const next = progress.steps.find(step => step.state === "next");
   // 點完時顯示最後一步的技能圖，不留一個空白框；現在這步沒有指定技能（自由分配）就不放圖

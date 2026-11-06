@@ -1,5 +1,5 @@
-import { stageJob, tierStartLevel } from "./jobs";
-import type { GuideBuild, GuideSkillStep } from "./types";
+import { jobTier, previousJob, SECOND_JOB_LEVEL, stageJob, THIRD_JOB_LEVEL, tierStartLevel } from "./jobs";
+import type { GuideBuild, GuideJob, GuideSkillStep } from "./types";
 
 /**
  * 某職業在某等級「這一轉」總共拿到幾點技能點：轉職當下 1 點、之後每級 3 點。
@@ -17,6 +17,9 @@ export function spAtLevel(stage: number, level: number): number {
   const start = tierStartLevel(stage);
   return level < start ? 0 : 1 + 3 * (level - start);
 }
+
+/** 技能 id → 等級 */
+export type SkillLevels = Record<number, number>;
 
 export type StepState = "done" | "now" | "next" | "later";
 
@@ -45,8 +48,9 @@ export type BuildProgress = {
  * 「現在」是你最新那一點落在的那一步（第 sp 點；還沒有點數時看第 1 點）：剛好點完一步時，
  * 最新的點數就是用來點完它的，它還是現在。以前把它算成點完、改指下一步，
  * 海盜 Lv.10 只有 1 點卻叫你點衝擊拳（那 1 點其實要給雙子星攻擊）。
+ * known：上一轉已經點的等級。二轉回補一轉的技能時只花差額（槍騎兵的劍氣縱橫一轉停在 3 級，補到 20 是 17 點）。
  */
-export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
+export function buildProgress(build: GuideBuild, sp: number, known: SkillLevels = {}): BuildProgress {
   const level = new Map<string, number>();
   const target = Math.max(sp, 1);
   let spent = 0;
@@ -55,7 +59,7 @@ export function buildProgress(build: GuideBuild, sp: number): BuildProgress {
 
   const steps = build.steps.map((step, index) => {
     const key = step.id === null ? `name:${step.name}` : String(step.id);
-    const from = level.get(key) ?? 0;
+    const from = level.get(key) ?? (step.id === null ? 0 : known[step.id] ?? 0);
     const cost = Math.max(0, step.to - from);
     level.set(key, Math.max(from, step.to));
     const start = spent;
@@ -98,8 +102,8 @@ export function stepText(step: Pick<PlannedStep, "id" | "name" | "to" | "cost">)
  * 某一段等級會點到的步驟：這段開始時有 spFrom 點、結束時有 spTo 點，
  * 點法裡累計點數落在這個範圍內的步驟都算。
  */
-export function stepsBetween(build: GuideBuild, spFrom: number, spTo: number): PlannedStep[] {
-  return buildProgress(build, 0).steps.filter(step => step.cost > 0 && step.start < spTo && step.end > spFrom);
+export function stepsBetween(build: GuideBuild, spFrom: number, spTo: number, known: SkillLevels = {}): PlannedStep[] {
+  return buildProgress(build, 0, known).steps.filter(step => step.cost > 0 && step.start < spTo && step.end > spFrom);
 }
 
 /**
@@ -109,4 +113,32 @@ export function stepsBetween(build: GuideBuild, spFrom: number, spTo: number): P
 export function mainBuild(builds: GuideBuild[], prefer?: string): GuideBuild | undefined {
   const main = builds.filter(build => build.main);
   return (prefer ? main.find(build => build.label.includes(prefer)) : undefined) ?? main[0] ?? builds[0];
+}
+
+/** 這一轉點數拿滿的等級：升上轉職等級那 3 點還算這一轉的，再去轉職（一轉 30 等 61 點、二轉 70 等 121 點） */
+export function lastLevelOfJob(job: number): number {
+  return jobTier(job) === 1 ? SECOND_JOB_LEVEL : THIRD_JOB_LEVEL;
+}
+
+/** 照點法走到這些點數時，每個技能幾級；已有的等級只會往上加 */
+export function addReachedLevels(levels: SkillLevels, progress: BuildProgress): void {
+  for (const step of progress.steps) {
+    if (step.id === null) continue;
+    const reached = step.state === "done" ? step.to : step.state === "now" ? progress.current?.reached ?? 0 : 0;
+    levels[step.id] = Math.max(levels[step.id] ?? 0, reached);
+  }
+}
+
+/** 這一轉之前的每一轉都照主流點法點完時，技能各幾級：這一轉的點法要從這裡接著算。攻略沒載到的那一轉當沒點 */
+export function earlierJobLevels(stage: number, guideOf: (job: number) => GuideJob | undefined, prefer?: string): SkillLevels {
+  const chain: number[] = [];
+  for (let job = previousJob(stage); job > 0; job = previousJob(job)) chain.unshift(job);
+  const levels: SkillLevels = {};
+  for (const job of chain) {
+    const guide = guideOf(job);
+    const build = guide ? mainBuild(guide.builds, prefer) : undefined;
+    if (!build) continue;
+    addReachedLevels(levels, buildProgress(build, spAtLevel(job, lastLevelOfJob(job)), levels));
+  }
+  return levels;
 }
