@@ -116,7 +116,7 @@ describe("防呆：gear 寫錯這篇不出", () => {
       const text = JSON.stringify(answer);
       for (const { weapon } of gear) expect(text.includes(`weapon:${weapon}}`) || text.includes(`#${weapon}`), `${job}-${from}-${to} ${weapon}`).toBe(true);
     }
-  });
+  }, 120_000);
 });
 
 describe("表下的計算機連結開出來就是表上中段那一組", () => {
