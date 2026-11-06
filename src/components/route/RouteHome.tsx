@@ -18,6 +18,7 @@ import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
 import { goddessNoteFor } from "@/lib/v002-notes";
 import { useVisitState } from "@/lib/visit-state";
+import { AvatarShowcase } from "./AvatarShowcase";
 import { CalcPickCard } from "./CalcPickCard";
 import { CharacterBar } from "./CharacterBar";
 import { GearCard } from "./GearCard";
@@ -171,6 +172,8 @@ export function RouteHome() {
       {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
           存過角色的人「你現在幾等、什麼職業？」看不見、位置照留（頁面不會跳），才不會以為角色被清掉；第一次來的人照常第一時間看到 */}
       {loaded ? null : <script dangerouslySetInnerHTML={{ __html: SAVED_PROFILE_HINT }} />}
+      {/* v1.71：紙娃娃輪播（使用者選 A）。第一次來的人放最上面、存過角色的人放角色列下面（下面那個）；導覽列照舊不放 */}
+      {!ready ? <AvatarShowcase className={loaded ? "" : "[[data-profile=saved]_&]:hidden"} /> : null}
       {!ready ? (
         <header className={loaded ? "px-1 pt-2 text-center" : "px-1 pt-2 text-center [[data-profile=saved]_&]:invisible"}>
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
@@ -202,14 +205,9 @@ export function RouteHome() {
         </Link>
       ) : null}
 
-      {/* v1.41：紙娃娃的入口（使用者選放角色列下面、跟萬聖節同樣式）；不看日期、不等資料，導覽列不放（第一版拍板不變） */}
-      <Link href="/plan/avatar" className={entryClass}>
-        <span>
-          紙娃娃
-          <span className="block text-[13px] font-medium ink-soft">換髮型、穿點裝，看角色穿起來的樣子</span>
-        </span>
-        <ChevronRight size={16} />
-      </Link>
+      {/* 存過角色的人：輪播放角色列下面，主推卡才不會被推走；硬重新整理還沒讀到角色時先佔位不顯示（跟入口卡同一招） */}
+      {ready ? <AvatarShowcase /> : null}
+      {loaded ? null : <AvatarShowcase className="hidden invisible [[data-profile=saved]_&]:block" />}
       {/* v1.68：未來視的入口（使用者選 A：導覽列之外首頁也放一張） */}
       <Link href="/future" className={entryClass}>
         <span>

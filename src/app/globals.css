@@ -243,3 +243,22 @@ body {
 * {
   scrollbar-color: color-mix(in srgb, var(--wood) 50%, transparent) transparent;
 }
+
+/* 首頁紙娃娃輪播（AvatarShowcase）：兩排一起往左走一排的寬度，接得起來；要看清楚（滑鼠、鍵盤）時停住，討厭動畫的人不動 */
+@keyframes avatar-marquee {
+  to {
+    transform: translateX(-100%);
+  }
+}
+.avatar-marquee > ul {
+  animation: avatar-marquee var(--loop) linear infinite;
+}
+.avatar-marquee:hover > ul,
+.avatar-marquee:focus-within > ul {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar-marquee > ul {
+    animation: none;
+  }
+}
