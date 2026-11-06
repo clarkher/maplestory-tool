@@ -77,7 +77,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           跳到主要內容
         </a>
         <SiteHeader />
-        <main id="main" className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4 sm:px-6">
+        {/* 至少一個螢幕高：第一格頁尾就在畫面外。不然伺服器畫的版本很短、頁尾在畫面裡，內容長出來時把它推走就算一次大位移（手機最高 0.33） */}
+        <main id="main" className="mx-auto min-h-dvh w-full max-w-6xl px-4 pb-24 pt-4 sm:px-6">
           {children}
         </main>
         <SiteFooter />
