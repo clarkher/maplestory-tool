@@ -244,6 +244,56 @@ body {
   scrollbar-color: color-mix(in srgb, var(--wood) 50%, transparent) transparent;
 }
 
+/* 紙娃娃隨機穿搭（Stage）：定格時閃一下、彈一下（圖的正中間是腳，從腳長出來）；跳格中的小方點。討厭動畫的人舞台不會掛這些 class，點不動 */
+@keyframes avatar-pop {
+  from {
+    transform: scale(0.82);
+  }
+}
+.avatar-pop {
+  animation: avatar-pop 0.34s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes avatar-flash {
+  from {
+    opacity: 0.85;
+  }
+  to {
+    opacity: 0;
+  }
+}
+.avatar-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  animation: avatar-flash 0.34s ease-out;
+}
+@keyframes avatar-dot {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.avatar-dots i {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-left: 3px;
+  background: currentColor;
+  animation: avatar-dot 0.9s steps(2) infinite;
+}
+.avatar-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.avatar-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar-dots i {
+    animation: none;
+  }
+}
+
 /* 首頁紙娃娃輪播（AvatarShowcase）：兩排一起往左走一排的寬度，接得起來；要看清楚（滑鼠、鍵盤）時停住，討厭動畫的人不動 */
 @keyframes avatar-marquee {
   to {
