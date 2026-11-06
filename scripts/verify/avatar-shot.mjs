@@ -1022,9 +1022,9 @@ try {
   });
 
   // 28. 首頁入口
-  await check("首頁有連到 /plan/avatar 的「紙娃娃」入口", async () => {
+  await check("首頁有連到紙娃娃的輪播（抽一套）", async () => {
     await navigate(`${BASE}/`);
-    const linkFinder = `[...document.querySelectorAll("a[href='/plan/avatar']")].find(a => a.textContent.includes("紙娃娃") && a.textContent.includes("換髮型、穿點裝，看角色穿起來的樣子"))`;
+    const linkFinder = `[...document.querySelectorAll("a[href='/plan/avatar?draw=1']")].find(a => a.offsetHeight > 0 && a.textContent.includes("抽一套"))`;
     const linked = await until(linkFinder, 30000);
     const w = await hScroll();
     return [linked && w.scrollWidth <= w.clientWidth, { linked, ...w }];
@@ -1208,7 +1208,7 @@ try {
   const CAP_A = shopCell("cap"), GLOVE_A = shopCell("glove");
 
   // 34. F1 離開再回來
-  await check("搭好一套、鎖髮型，回首頁再點「紙娃娃」（乾淨網址）：第一眼就是那套（網址、舞台一樣）、鎖還在、上一套步數沒變、沒畫過也沒要過別套", async () => {
+  await check("搭好一套、鎖髮型，回首頁再站內換到紙娃娃（乾淨網址）：第一眼就是那套（網址、舞台一樣）、鎖還在、上一套步數沒變、沒畫過也沒要過別套", async () => {
     const start = `?h=${hairA}&p=walk`;
     await fresh(start);
     await settled();
@@ -1218,11 +1218,11 @@ try {
     await evaluate(RECORDER);
     await click("頁首回首頁", `document.querySelector("a[href='/']")`);
     await wait("到首頁", `location.pathname === "/"`, 30000);
-    const entry = `[...document.querySelectorAll("a[href='/plan/avatar']")].find(a => a.textContent.includes("紙娃娃"))`;
+    const entry = `[...document.querySelectorAll("a[href='/plan/avatar?draw=1']")].find(a => a.offsetHeight > 0)`;
     await wait("首頁入口", entry, 30000);
     characterRequests.length = 0;
     await evaluate("(window.__drawn = [], window.__lit = 0, true)");
-    await click("紙娃娃入口", entry);
+    await evaluate(`window.next.router.push("/plan/avatar")`); // v1.71 起首頁按鈕是 ?draw=1（抽新的），這一項要驗乾淨網址，直接換頁
     await wait("回到紙娃娃", `location.pathname === "/plan/avatar" && ${STAGE_IMG}`, 30000);
     await settled();
     await wait("鎖讀回來", LOCKED("hair"), 8000);
