@@ -34,7 +34,7 @@ export function SiteHeader() {
           <span className="hidden text-[17px] font-black tracking-tight min-[500px]:inline">楓谷幫手</span>
         </Link>
 
-        {/* 手機四顆：我的路線、野王計時、帶我去、查資料（v1.18 加「野王計時」，使用者選 A：「算傷害」改成跟「練功測速」「楓幣匯率」一樣只在 768 寬以上出現）。v1.72（使用者選 1）：500 寬以下只留楓葉、四顆平分填滿，品牌字跟大按鈕 500 寬起才一起出現——原本 400 寬起就出現，400～487 寬把查資料擠出去；380 寬以下字 13px、按鈕左右 7px（360 寬才放得下）。每個寬度量過：scripts/verify/nav-fit.mjs */}
+        {/* 手機四顆：我的路線、野王計時、帶我去、查資料（v1.18 加「野王計時」，使用者選 A：「算傷害」改成跟「練功測速」「楓幣匯率」一樣只在 768 寬以上出現）。v1.72（使用者選 1）：500 寬以下只留楓葉、四顆平分填滿，品牌字跟大按鈕 500 寬起才一起出現——原本 400 寬起就出現，400～487 寬把查資料擠出去；380 寬以下字 13px、按鈕左右 7px（360 寬才放得下）。v1.74：768～899 寬（平板直放）電腦版的按鈕全出來，品牌字留著、按鈕左右縮成 4px 再平分，不然查資料一樣被擠出去。每個寬度量過：scripts/verify/nav-fit.mjs */}
         <nav className="scroll-x -mx-1 flex flex-1 items-center gap-0.5 px-1 min-[500px]:gap-1" aria-label="主選單">
           {navFor(Date.now()).map(item => {
             const active = activeNav(pathname) === item.label;
@@ -45,7 +45,7 @@ export function SiteHeader() {
                 aria-current={active ? "page" : undefined}
                 className={[
                   // 只有滑鼠移上去才漸變：換頁時「目前這頁」的橘底直接換過去，不會兩顆同時偏橘
-                  "shrink-0 flex-auto rounded-full px-[7px] py-1.5 text-center text-[13px] font-bold hover:transition-colors min-[380px]:px-2 min-[380px]:text-sm min-[500px]:px-3 md:flex-none",
+                  "shrink-0 flex-auto rounded-full px-[7px] py-1.5 text-center text-[13px] font-bold hover:transition-colors min-[380px]:px-2 min-[380px]:text-sm min-[500px]:px-3 md:px-1 min-[56.25rem]:flex-none min-[56.25rem]:px-3",
                   active
                     ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] shadow-sm"
                     : "text-[color:var(--ink-soft)] hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--ink)]",
