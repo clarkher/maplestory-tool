@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AdSlot } from "./AdSlot";
 import { ChevronRight } from "./Icons";
 
 /**
@@ -81,6 +82,7 @@ export function SeoPage({
           </Link>
         ) : null}
       </article>
+      <AdSlot unit="detail" />
     </div>
   );
 }
