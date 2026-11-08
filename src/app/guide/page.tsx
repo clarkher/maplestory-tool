@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { staticGuide, staticGuideJobs } from "@/lib/static-data";
+import { staticArticleEntries, staticGuide, staticGuideJobs } from "@/lib/static-data";
 import { GuideContent } from "./GuideContent";
 
 export const metadata: Metadata = {
@@ -11,5 +11,5 @@ export const metadata: Metadata = {
 
 export default function Page() {
   const jobs = staticGuideJobs().map(job => ({ job, name: staticGuide(job).name }));
-  return <GuideContent jobs={jobs} />;
+  return <GuideContent jobs={jobs} articles={staticArticleEntries()} />;
 }
