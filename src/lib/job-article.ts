@@ -176,6 +176,18 @@ export const articleImages = (manifest: ArticleImageManifest, slug: string): Art
 /** 路線卡圖的替代文字：僧侶在螞蟻洞Ⅲ打殭屍菇菇 */
 export const stepImageAlt = (jobName: string, mapName: string, mobName: string) => `${jobName}在${mapName}打${mobName}`;
 
+/** 計算表收合時露在外面的怪最多幾隻（v1.78 手機版面拍板 A） */
+export const FEATURED_LIMIT = 3;
+/**
+ * 計算表收合時露哪幾隻：主推步驟（不是備案）的怪照步驟順序、表裡有的才算，取前 3 隻；一隻都對不到就取表的前 3 隻。
+ * 回傳的只是名單，表照原本的順序排，其他列藏起來。
+ */
+export function featuredMonsters(steps: Array<{ mobs: number[]; alt?: boolean }>, rows: Array<{ id: number }>): number[] {
+  const inTable = new Set(rows.map(row => row.id));
+  const picked = [...new Set(steps.filter(step => !step.alt).flatMap(step => step.mobs))].filter(id => inTable.has(id)).slice(0, FEATURED_LIMIT);
+  return picked.length ? picked : rows.slice(0, FEATURED_LIMIT).map(row => row.id);
+}
+
 const HERO_MIN_WIDTH = 1200;
 const HERO_RATIO = 16 / 9;
 const HERO_RATIO_TOLERANCE = 0.01;
