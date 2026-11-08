@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
-import { articleDamageHref, assumptionLines, avgText, featuredMonsters, hitLvText, stepImageAlt, tableGearLine, withOneTargetCell, FEATURED_LIMIT, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
+import { articleDamageHref, assumptionLines, avgText, featuredMonsters, hitLvText, pinnedSections, stepImageAlt, tableGearLine, withOneTargetCell, FEATURED_LIMIT, TAG_LABEL, type ArticleAnswer, type ArticleImages, type ArticleSection, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { AdSlot } from "./AdSlot";
 import { ExpandRows, Fold } from "./ArticleFold";
@@ -192,6 +192,9 @@ function StepBody({ step, index, article, jobName, monsters, maps, images, headi
   );
 }
 
+/** 結論框跳轉連結的字 */
+const TOPIC_LINK: Record<NonNullable<ArticleSection["topic"]>, string> = { quests: "必解任務", skills: "技能怎麼點" };
+
 export function JobArticleView({
   jobName,
   rangeLabel,
@@ -221,6 +224,7 @@ export function JobArticleView({
   /** 這篇有哪些圖；只畫裡面有的 */
   images?: ArticleImages;
 }) {
+  const pinned = pinnedSections(article.sections);
   return (
     <SeoPage
       trail={[{ name: "職業攻略", path: "/guide" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }]}
@@ -239,6 +243,15 @@ export function JobArticleView({
       <div className="space-y-1.5 rounded-xl bg-[color:var(--maple-wash)] p-3.5 text-[15px] leading-relaxed sm:p-4">
         <p className="text-sm font-bold text-[color:var(--maple)]">先講結論</p>
         <Lines lines={article.answer} ordered solid maps={maps} />
+        {/* 直接跳到必解任務、技能點法（v1.80）；那類段落不存在就不放 */}
+        {pinned.some(({ anchor }) => anchor) ? (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-sm font-bold">
+            <span className="ink-soft">直接看</span>
+            {pinned.filter(({ anchor }) => anchor).map(({ section }) => (
+              <a key={section.topic} href={`#${section.topic}`} className="text-[color:var(--sky)] underline underline-offset-4">{TOPIC_LINK[section.topic!]}</a>
+            ))}
+          </p>
+        ) : null}
       </div>
 
       <p className="text-[15px] leading-relaxed">{article.intro}</p>
@@ -299,9 +312,9 @@ export function JobArticleView({
 
       <AdSlot unit="article" />
 
-      {/* 必解任務、技能點法是玩家最常來查的，照舊整段露著，排在收起來的段落前面（v1.79） */}
-      {article.sections.filter(section => section.topic).map((section, index) => (
-        <section key={index} className="space-y-2 text-[15px] leading-relaxed">
+      {/* 必解任務、技能點法是玩家最常來查的，照舊整段露著，排在收起來的段落前面（v1.79）；必解先、點法後（v1.80） */}
+      {pinned.map(({ section, anchor }, index) => (
+        <section key={index} id={anchor ? section.topic : undefined} className="scroll-mt-header space-y-2 text-[15px] leading-relaxed">
           <Heading>{section.heading}</Heading>
           {section.paragraphs?.map((line, lineIndex) => (
             <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>

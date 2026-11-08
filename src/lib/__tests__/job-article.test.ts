@@ -935,6 +935,45 @@ describe("必解任務、技能點法露在外面；往右滑提示在表上面�
   });
 });
 
+describe("必解排在點法前；先講結論框可以直接跳過去（v1.80，使用者選 1、2）", () => {
+  const view = (sections: JobArticle["sections"]) => {
+    const article: JobArticle = { ...validCleric(), sections };
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: article.gear });
+    return renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article: resolveArticle(article, table, data), table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
+  };
+  const skillsFirst: JobArticle["sections"] = [
+    { heading: "技能這樣點", topic: "skills", items: [{ text: "治癒先滿。", tag: "tw" }] },
+    { heading: "收著的一段", paragraphs: [{ text: "收著的字。", tag: "tw" }] },
+    { heading: "技能第二段", topic: "skills", items: [{ text: "群體治癒後滿。", tag: "tw" }] },
+    { heading: "這兩條必解", topic: "quests", items: [{ text: "桑那服 30 等起。", tag: "game" }] },
+  ];
+
+  it("原文點法寫在前面也一樣：必解任務先、技能點法後，同一類照原本順序", () => {
+    const html = view(skillsFirst);
+    const order = ["這兩條必解", "技能這樣點", "技能第二段", "收著的一段"].map(text => html.indexOf(text));
+    expect(order.every(at => at > 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+  });
+
+  it("結論框裡有連到兩段的連結，錨點在那類的第一段上，而且只有一個", () => {
+    const html = view(skillsFirst);
+    const box = html.slice(html.indexOf("先講結論"), html.indexOf("每個等級去哪裡"));
+    expect(box).toMatch(/<a[^>]*href="#quests"[^>]*>必解任務<\/a>/);
+    expect(box).toMatch(/<a[^>]*href="#skills"[^>]*>技能怎麼點<\/a>/);
+    expect(html.match(/id="quests"/g)).toHaveLength(1);
+    expect(html.match(/id="skills"/g)).toHaveLength(1);
+    expect(html.indexOf('id="quests"')).toBeLessThan(html.indexOf("這兩條必解"));
+    expect(html.indexOf('id="skills"')).toBeLessThan(html.indexOf("技能這樣點"));
+    expect(html.indexOf("技能這樣點")).toBeLessThan(html.indexOf("技能第二段"));
+  });
+
+  it("沒有那類段落就不放那顆連結（不連到不存在的地方）", () => {
+    const html = view([{ heading: "技能這樣點", topic: "skills", items: [{ text: "治癒先滿。", tag: "tw" }] }]);
+    expect(html).not.toContain('href="#quests"');
+    expect(html).toContain('href="#skills"');
+  });
+});
+
 describe("伺服器頁不能吃到瀏覽器專用的模組", () => {
   it("job-article 跟 static-data 一路 import 下去都沒有 use client（會變假值，算出 NaN）", () => {
     const seen = new Set<string>();

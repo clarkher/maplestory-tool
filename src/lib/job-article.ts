@@ -55,6 +55,16 @@ export type ArticleSection = { heading: string; paragraphs?: ArticleLine[]; item
 export type ArticleSource = { label: string; url: string };
 
 /**
+ * 露在外面的段落：照 SECTION_TOPICS 排（必解任務先、技能點法後，v1.80 使用者選），同一類照原文順序。
+ * anchor：那類的第一段，結論框的連結跳到這裡。
+ */
+export function pinnedSections(sections: ArticleSection[]): Array<{ section: ArticleSection; anchor: boolean }> {
+  return SECTION_TOPICS.flatMap(topic =>
+    sections.filter(section => section.topic === topic).map((section, index) => ({ section, anchor: index === 0 })),
+  );
+}
+
+/**
  * 文字依賴的前提：寫的當下表長什麼樣子（npm run article:table 印的 assumes，整包貼進文章檔）。
  * 文字裡寫死的東西（拿哪把武器、幾級技能、哪幾隻打不中、誰比誰快）靠這個比對：資料一變、對不上，這篇就不出，等人重看。
  * 數字本身可以小動（代號會跟著變），只有前提跟先後變了才算。
