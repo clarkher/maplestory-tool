@@ -860,10 +860,12 @@ describe("手機收合（v1.78，拍板 A）：主推留著，其他收成標題
     for (const fold of folds) expect(fold.attrs).not.toMatch(/\bopen\b/);
   });
 
-  it("featuredMonsters：主推步驟的怪照步驟順序、表裡有的才算，最多 3 隻；一隻都沒有就取表的前 3 隻", () => {
+  it("featuredMonsters：每個主推步驟輪流挑一隻（表裡有的才算），最多 3 隻；一隻都沒有就取表的前 3 隻", () => {
     const rows = [11, 22, 33, 44, 55].map(id => ({ id }));
     const step = (mobs: number[], alt?: boolean) => ({ mobs, alt });
-    expect(featuredMonsters([step([44]), step([22], true), step([55, 99, 11]), step([33])], rows)).toEqual([44, 55, 11]);
+    // 第一輪每步第一隻：44、55、33；第一段怪多也不會把後面主推的怪擠掉（獵人 31～50 露了黑斧木妖卻沒露天使猴）
+    expect(featuredMonsters([step([44]), step([22], true), step([55, 99, 11]), step([33])], rows)).toEqual([44, 55, 33]);
+    expect(featuredMonsters([step([11, 22, 33]), step([44])], rows)).toEqual([11, 44, 22]);
     expect(featuredMonsters([step([44, 44]), step([22], true)], rows)).toEqual([44]);
     expect(featuredMonsters([step([99])], rows)).toEqual([11, 22, 33]);
   });
