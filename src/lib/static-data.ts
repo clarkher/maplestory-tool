@@ -8,7 +8,8 @@ import path from "node:path";
 import { hasItemPage, itemPagePath, type ItemPageLookup } from "./item-page";
 import type { CalcData } from "./damage-view";
 import type { GearData } from "./gear";
-import { parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
+import type { ArticleEntry } from "./article-entry";
+import { articlePath, parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
 import type { AtlasIndex, AtlasMap, AtlasNpc, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, PortalEdge, Quest, Skill, TrainingRow } from "./types";
 
 const cache = new Map<string, unknown>();
@@ -145,6 +146,12 @@ export const staticJobArticleKeys = (): ArticleKey[] => staticJobArticleCheck().
 
 /** 這個職業有文章的範圍（職業頁「分等級攻略」用） */
 export const staticJobArticleRanges = (job: number) => staticJobArticleKeys().filter(key => key.job === job);
+
+/** 全部文章＋網址，照職業、起始等級排（首頁、1–30 懶人包的入口用，v1.85） */
+export const staticArticleEntries = (): ArticleEntry[] =>
+  staticJobArticleKeys()
+    .map(key => ({ ...key, href: articlePath(key.job, key.from, key.to) }))
+    .sort((a, b) => a.job - b.job || a.from - b.from);
 
 /** 讀一篇文章；沒有這個檔回 undefined。還沒換代號（換代號見 job-article.ts 的 resolveArticle） */
 export function staticJobArticle(job: number, from: number, to: number): JobArticle | undefined {
