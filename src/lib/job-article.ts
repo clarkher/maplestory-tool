@@ -46,7 +46,12 @@ export type ArticleStep = {
   /** 組隊任務裡面的圖走不到，「帶我去」改帶入口（只能填 PQ_ENTRANCES） */
   go?: number;
 };
-export type ArticleSection = { heading: string; paragraphs?: ArticleLine[]; items?: ArticleLine[] };
+/**
+ * topic：玩家最常來查的兩種段落，手機收合時照樣露在外面（v1.79，使用者選）——
+ * quests 這段該解的任務（必解、關鍵獎勵、經驗大包），skills 技能點怎麼點。其他段落收成標題。
+ */
+export const SECTION_TOPICS = ["quests", "skills"] as const;
+export type ArticleSection = { heading: string; paragraphs?: ArticleLine[]; items?: ArticleLine[]; topic?: (typeof SECTION_TOPICS)[number] };
 export type ArticleSource = { label: string; url: string };
 
 /**
@@ -1435,6 +1440,7 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
       else {
         checkLines(section.paragraphs, `sections[${index}].paragraphs`, errors);
         checkLines(section.items, `sections[${index}].items`, errors);
+        if (section.topic !== undefined && !(SECTION_TOPICS as readonly unknown[]).includes(section.topic)) errors.push(`sections[${index}].topic 只能是 ${SECTION_TOPICS.join("、")}`);
       }
     });
   }

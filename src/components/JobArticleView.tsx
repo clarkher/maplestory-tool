@@ -146,8 +146,9 @@ export function JobArticleTable({ table, featured }: { table: CalcTable; /** 收
   return (
     <div className="space-y-1">
       <p className="text-[13px] font-bold ink-soft">{tableGearLine(table)}，平均幾下打死</p>
-      {shown ? <ExpandRows total={rows.length}>{grid}</ExpandRows> : grid}
+      {/* 提示放表上面：手機上第三欄被切一半，滑之前就要知道還有（放下面像版面壞掉，v1.79 評審） */}
       <p className="text-[13px] ink-soft md:hidden">表可以往右滑，看等級、HP、防禦、經驗。</p>
+      {shown ? <ExpandRows total={rows.length}>{grid}</ExpandRows> : grid}
     </div>
   );
 }
@@ -298,9 +299,20 @@ export function JobArticleView({
 
       <AdSlot unit="article" />
 
-      {/* 後面的段落只剩標題（標題還是 h2），一段一段點開；疊成一張清單，中間不留大空白 */}
+      {/* 必解任務、技能點法是玩家最常來查的，照舊整段露著，排在收起來的段落前面（v1.79） */}
+      {article.sections.filter(section => section.topic).map((section, index) => (
+        <section key={index} className="space-y-2 text-[15px] leading-relaxed">
+          <Heading>{section.heading}</Heading>
+          {section.paragraphs?.map((line, lineIndex) => (
+            <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>
+          ))}
+          {section.items?.length ? <Lines lines={section.items} /> : null}
+        </section>
+      ))}
+
+      {/* 後面的段落只剩標題（標題還是 h2），一段一段點開；疊成一張清單，中間不留大空白。開關的鍵用原本的位置，露出來的段落不佔號 */}
       <div className="border-b border-[color:var(--paper-edge)]">
-        {article.sections.map((section, index) => (
+        {article.sections.map((section, index) => section.topic ? null : (
           <section key={index} className="border-t border-[color:var(--paper-edge)] text-[15px] leading-relaxed">
             <Fold id={`sec:${index}`} summary={<h2 className="text-base font-black leading-snug sm:text-lg">{section.heading}</h2>}>
               <div className="space-y-2 pb-3">

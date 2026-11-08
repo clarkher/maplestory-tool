@@ -839,7 +839,8 @@ describe("手機收合（v1.78，拍板 A）：主推留著，其他收成標題
 
   it("表後面的段落、這張表怎麼算的、資料來源都收起來；段落標題還是 h2", () => {
     const { article, folds } = render();
-    for (const section of article.sections) {
+    // 標了 topic 的（必解任務、技能點法）照舊露著，v1.79 那組測試管
+    for (const section of article.sections.filter(entry => !entry.topic)) {
       const fold = folds.find(entry => entry.summary.includes(esc(section.heading)));
       expect(fold, section.heading).toBeDefined();
       expect(fold!.summary).toMatch(/<h2/);
@@ -893,6 +894,47 @@ describe("手機收合（v1.78，拍板 A）：主推留著，其他收成標題
   });
 });
 
+describe("必解任務、技能點法露在外面；往右滑提示在表上面（v1.79，使用者選 1、4）", () => {
+  const view = (article: JobArticle) => {
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: article.gear });
+    return renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article: resolveArticle(article, table, data), table, monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] })).replace(/<!-- -->/g, "");
+  };
+  const article = (): JobArticle => ({
+    ...validCleric(),
+    sections: [
+      { heading: "收著的一段", paragraphs: [{ text: "收著的字。", tag: "tw" }] },
+      { heading: "這兩條必解", topic: "quests", items: [{ text: "桑那服 30 等起。", tag: "game" }] },
+      { heading: "技能這樣點", topic: "skills", items: [{ text: "治癒先滿。", tag: "tw" }] },
+    ],
+  });
+
+  it("topic 的段落不收：標題是 h2、字在外面，排在收著的段落前面；其他照收", () => {
+    const html = view(article());
+    const folded = [...html.matchAll(/<details[^>]*>([\s\S]*?)<\/details>/g)].map(match => match[1]);
+    for (const text of ["這兩條必解", "桑那服 30 等起。", "技能這樣點", "治癒先滿。"]) expect(folded.some(body => body.includes(text)), text).toBe(false);
+    expect(html).toMatch(/<h2[^>]*>這兩條必解<\/h2>/);
+    expect(html).toMatch(/<h2[^>]*>技能這樣點<\/h2>/);
+    expect(folded.some(body => body.includes("收著的字。"))).toBe(true);
+    expect(html.indexOf("這兩條必解")).toBeLessThan(html.indexOf("收著的一段"));
+    expect(html.indexOf("這兩條必解")).toBeLessThan(html.indexOf("技能這樣點"));
+  });
+
+  it("validateArticle：topic 只能是 quests、skills", () => {
+    const ctx = { job: 230, from: 31, to: 50, data, openMaps };
+    expect(validateArticle(article(), ctx)).toEqual([]);
+    const bad = article();
+    (bad.sections[1] as { topic: string }).topic = "quest";
+    expect(validateArticle(bad, ctx).join("\n")).toMatch(/sections\[1\]\.topic/);
+  });
+
+  it("「表可以往右滑」在表上面（滑之前就看得到）", async () => {
+    const { JobArticleTable } = await import("@/components/JobArticleView");
+    const html = renderToString(JobArticleTable({ table: buildCalcTable({ job: 230, from: 31, to: 50, data }) }));
+    expect(html.indexOf("往右滑")).toBeGreaterThan(0);
+    expect(html.indexOf("往右滑")).toBeLessThan(html.indexOf("<table"));
+  });
+});
+
 describe("伺服器頁不能吃到瀏覽器專用的模組", () => {
   it("job-article 跟 static-data 一路 import 下去都沒有 use client（會變假值，算出 NaN）", () => {
     const seen = new Set<string>();
@@ -924,6 +966,14 @@ describe("src/data/job-articles/ 的真檔全部要過", () => {
       const key = parseArticleFile(file);
       expect(key, file).not.toBeNull();
       expect(articleRanges(key!.job), file).toContainEqual({ from: key!.from, to: key!.to });
+    }
+  });
+
+  it("每一篇都標了必解任務、技能點法的段落（topic）：沒標的話手機上全被收起來（v1.79）", () => {
+    for (const file of files) {
+      const topics = (JSON.parse(fs.readFileSync(path.join(dir, file), "utf8")) as JobArticle).sections.map(section => section.topic);
+      expect(topics, `${file} 沒有 quests 段落`).toContain("quests");
+      expect(topics, `${file} 沒有 skills 段落`).toContain("skills");
     }
   });
 
