@@ -497,6 +497,15 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **回收間隔**：把大家回報的「打死到下次出現」間隔收回來修正預估，只收 10 分～6 小時的值，同一隻王 20 筆以上才顯示，兩台伺服器合算。
   `GET /api/boss/intervals` 回 `Cache-Control: public, s-maxage=600, stale-while-revalidate=3600`（出錯不快取）。
 
+## 廣告（v1.77）
+
+11/06 拍板手動版位：只放單筆資料頁（`SeoPage` 最底下）跟攻略文（中段＋最底下），工具頁不放，AdSense 後台不開自動廣告。
+
+- **程式**：`src/lib/ads.ts`、`src/components/AdSlot.tsx`。沒有編號什麼都不畫，有編號第一格就留固定高度（手機 280、電腦 250）。
+- **接上去的順序**：① 使用者開好帳號，把 `ca-pub-…` 填進 `ADSENSE_CLIENT`（版面會多驗證用的 meta），`public/ads.txt` 寫 `google.com, pub-…, DIRECT, f08c47fec0942fa0` ② 審核過、開好版位，填 `AD_UNITS` ③ 跑 `page-cls.mjs --all` 量有廣告時的跳動。
+- **只有 maplehelper.tw 真的載廣告**：測試機看得到框，看不到廣告，驗收不會灌假曝光。不要點自己的廣告。
+- **本機看框**：`.env.local` 寫 `NEXT_PUBLIC_ADSENSE_CLIENT`、`NEXT_PUBLIC_AD_UNIT_DETAIL`、`NEXT_PUBLIC_AD_UNIT_ARTICLE`，隨便填。
+
 ## 技術
 
 Next.js 16（App Router，全站靜態）、React 19、Tailwind CSS 4、TypeScript。

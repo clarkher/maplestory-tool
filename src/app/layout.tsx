@@ -6,6 +6,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { HistoryScrollJump } from "@/components/HistoryScrollJump";
 import { HomePrefetch } from "@/components/HomePrefetch";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { adsenseMeta } from "@/lib/ads";
 import { restoreScrollBootstrap } from "@/lib/history-scroll";
 import { HOME_TITLE, OG_BASE, SITE_ROBOTS, SITE_URL, TITLE_TEMPLATE, websiteLd } from "@/lib/seo";
 
@@ -18,6 +19,7 @@ const notoTC = Noto_Sans_TC({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  other: adsenseMeta(),
   title: {
     default: HOME_TITLE,
     template: TITLE_TEMPLATE,
