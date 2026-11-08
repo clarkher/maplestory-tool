@@ -11,6 +11,7 @@ import {
   type MarkEntry,
   CATEGORIES,
   bgEntry,
+  NO_MARK_ID,
   cellStyle,
   markEntry,
   pickMark,
@@ -99,7 +100,7 @@ function Grid({
             type="button"
             data-cell={e.id}
             data-on={sel ? "" : undefined}
-            aria-label={`${label} 第 ${i + 1} 個`}
+            aria-label={e.id === NO_MARK_ID ? "不放圖案" : `${label} 第 ${i + 1} 個`}
             aria-pressed={sel}
             onClick={() => onPick(e)}
             className={`flex aspect-square items-center justify-center rounded-xl ${
@@ -108,7 +109,15 @@ function Grid({
                 : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
             }`}
           >
-            <span className="block flex-none" style={{ ...cellStyle(e.row, colourOf(e), 2), imageRendering: "pixelated" }} />
+            {e.id === NO_MARK_ID ? (
+              <span className="px-0.5 text-center text-[12px] font-bold leading-tight ink-soft">
+                不放
+                <br />
+                圖案
+              </span>
+            ) : (
+              <span className="block flex-none" style={{ ...cellStyle(e.row, colourOf(e), 2), imageRendering: "pixelated" }} />
+            )}
           </button>
         );
       })}
