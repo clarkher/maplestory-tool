@@ -13,6 +13,7 @@ import {
   bgEntry,
   NO_MARK_ID,
   cellStyle,
+  centreShift,
   markEntry,
   pickMark,
   shownColour,
@@ -94,6 +95,8 @@ function Grid({
     <div className="mt-3 grid grid-cols-6 gap-2">
       {entries.map((e, i) => {
         const sel = e.id === on;
+        // 遊戲裡每格位置不一（有的靠上、有的靠右），格子裡把看得到的部分置中
+        const shift = centreShift([e.box], 2);
         return (
           <button
             key={e.id}
@@ -116,7 +119,10 @@ function Grid({
                 圖案
               </span>
             ) : (
-              <span className="block flex-none" style={{ ...cellStyle(e.row, colourOf(e), 2), imageRendering: "pixelated" }} />
+              <span
+                className="block flex-none"
+                style={{ ...cellStyle(e.row, colourOf(e), 2), imageRendering: "pixelated", translate: `${shift.x}px ${shift.y}px` }}
+              />
             )}
           </button>
         );

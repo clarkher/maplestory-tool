@@ -2,7 +2,8 @@ import marksJson from "./marks.json";
 
 // 公會徽章狀態：網址參數、預設、顏色規則、隨機。資料來自 marks.json（scripts/client/guild-mark.py 產出）
 
-export type MarkEntry = { id: number; row: number; colours: number[] };
+/** box＝各色看得到的點合起來的範圍 [x, y, 寬, 高]（17×17 裡，遊戲原位置），畫面置中用 */
+export type MarkEntry = { id: number; row: number; colours: number[]; box: number[] };
 export type Category = "Animal" | "Plant" | "Pattern" | "Letter" | "Etc";
 type MarksData = {
   atlas: string;
@@ -94,4 +95,16 @@ export function cellStyle(row: number, colour: number, scale: number) {
     width: px,
     height: px,
   };
+}
+
+/**
+ * 把幾個範圍（17×17 裡的 [x, y, 寬, 高]）合起來移到正中間要位移多少 px（已乘倍數、取整數，1 倍不會落在半格）。
+ * 遊戲裡每格有自己的位置（有的靠上、有的靠右），畫面上置中比較好看；底圖＋圖案一起傳，兩層相對位置不變。下載照遊戲原位置，不用這個。
+ */
+export function centreShift(boxes: number[][], scale: number): { x: number; y: number } {
+  const x0 = Math.min(...boxes.map((b) => b[0]));
+  const y0 = Math.min(...boxes.map((b) => b[1]));
+  const x1 = Math.max(...boxes.map((b) => b[0] + b[2]));
+  const y1 = Math.max(...boxes.map((b) => b[1] + b[3]));
+  return { x: Math.round(((17 - (x1 - x0)) / 2 - x0) * scale), y: Math.round(((17 - (y1 - y0)) / 2 - y0) * scale) };
 }

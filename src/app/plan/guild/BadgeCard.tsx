@@ -5,7 +5,7 @@
  * 舞台高度、徽章尺寸都寫死，圖集還沒載到版面也不跳。
  */
 import type { CSSProperties } from "react";
-import { type Badge, bgEntry, cellStyle, markEntry } from "@/lib/guild-mark/badge";
+import { type Badge, NO_MARK_ID, bgEntry, cellStyle, centreShift, markEntry } from "@/lib/guild-mark/badge";
 
 const STAGE_BG: CSSProperties = {
   backgroundColor: "var(--paper)",
@@ -20,7 +20,9 @@ export function BadgeLayers({ badge, scale }: { badge: Badge; scale: number }) {
   const bg = bgEntry(badge.b);
   const mark = markEntry(badge.m)?.entry;
   const size = 17 * scale;
-  const layer: CSSProperties = { position: "absolute", left: 0, top: 0, imageRendering: "pixelated" };
+  // 兩層一起置中（相對位置照遊戲）；不放圖案那格是整片透明，不算進去
+  const shift = centreShift([bg?.box, mark && mark.id !== NO_MARK_ID ? mark.box : undefined].filter((b): b is number[] => !!b), scale);
+  const layer: CSSProperties = { position: "absolute", left: shift.x, top: shift.y, imageRendering: "pixelated" };
   return (
     <span className="relative block flex-none" style={{ width: size, height: size }}>
       {bg ? <span data-layer="bg" style={{ ...layer, ...cellStyle(bg.row, badge.bc, scale) }} /> : null}

@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 // marks.json 跟圖集都是 scripts/client/guild-mark.py 從台服客戶端切出來的；這裡驗產出的形狀，客戶端改版重跑後一樣要過
-type MarkEntry = { id: number; row: number; colours: number[] };
+type MarkEntry = { id: number; row: number; colours: number[]; box: number[] };
 type MarksJson = {
   atlas: string;
   cell: number;
@@ -39,6 +39,10 @@ describe("marks.json（公會徽章索引）", () => {
   it("顏色：9026 只有第 1 色，其餘都是 1～16", () => {
     const all = [...data!.backgrounds, ...Object.values(data!.marks).flat()];
     for (const e of all) expect(e.colours, String(e.id)).toEqual(e.id === 9026 ? [1] : ALL16);
+    for (const e of all) {
+      const [x, y, w, h] = e.box;
+      expect(w > 0 && h > 0 && x >= 0 && y >= 0 && x + w <= 17 && y + h <= 17, `${e.id} box`).toBe(true);
+    }
   });
 
   it("row 不重複、0～143 全用到；底圖在前", () => {
