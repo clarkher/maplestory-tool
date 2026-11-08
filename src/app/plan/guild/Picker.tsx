@@ -11,7 +11,9 @@ import {
   type MarkEntry,
   CATEGORIES,
   bgEntry,
+  NO_MARK_ID,
   cellStyle,
+  centreShift,
   markEntry,
   pickMark,
   shownColour,
@@ -93,13 +95,15 @@ function Grid({
     <div className="mt-3 grid grid-cols-6 gap-2">
       {entries.map((e, i) => {
         const sel = e.id === on;
+        // 遊戲裡每格位置不一（有的靠上、有的靠右），格子裡把看得到的部分置中
+        const shift = centreShift([e.box], 2);
         return (
           <button
             key={e.id}
             type="button"
             data-cell={e.id}
             data-on={sel ? "" : undefined}
-            aria-label={`${label} 第 ${i + 1} 個`}
+            aria-label={e.id === NO_MARK_ID ? "不放圖案" : `${label} 第 ${i + 1} 個`}
             aria-pressed={sel}
             onClick={() => onPick(e)}
             className={`flex aspect-square items-center justify-center rounded-xl ${
@@ -108,7 +112,18 @@ function Grid({
                 : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
             }`}
           >
-            <span className="block flex-none" style={{ ...cellStyle(e.row, colourOf(e), 2), imageRendering: "pixelated" }} />
+            {e.id === NO_MARK_ID ? (
+              <span className="px-0.5 text-center text-[12px] font-bold leading-tight ink-soft">
+                不放
+                <br />
+                圖案
+              </span>
+            ) : (
+              <span
+                className="block flex-none"
+                style={{ ...cellStyle(e.row, colourOf(e), 2), imageRendering: "pixelated", translate: `${shift.x}px ${shift.y}px` }}
+              />
+            )}
           </button>
         );
       })}

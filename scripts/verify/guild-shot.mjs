@@ -147,7 +147,7 @@ try {
   });
 
   // 3. 單色圖案
-  await check(`圖案頁選顏色 7 →「其他」→ ${SINGLE.id}（只有 1 色）：色票只剩 1 能按、畫第 1 色；再點動物第 2 個 → 顏色回到 7`, async () => {
+  await check(`圖案頁選顏色 7 →「其他」→ ${SINGLE.id}（只有 1 色、格子寫「不放圖案」）：色票只剩 1 能按、畫第 1 色；再點動物第 2 個 → 顏色回到 7`, async () => {
     await open();
     await click("圖案分頁", `document.querySelector("[data-tab='mark']")`);
     await wait("圖案頁", `document.querySelector("[data-tab='mark'][data-on]") && document.querySelector("[data-cat]")`, 5000);
@@ -155,6 +155,8 @@ try {
     await wait("網址 mc=7", `new URLSearchParams(location.search).get("mc") === "7"`, 5000);
     await click("其他", `document.querySelector("[data-cat='${SINGLE.cat}']")`);
     await wait(`${SINGLE.id} 那格`, `document.querySelector("[data-cell='${SINGLE.id}']")`, 5000);
+    // v1.82：這格寫「不放圖案」（客戶端是整片幾乎透明的圖），讀屏也念「不放圖案」
+    const label = await evaluate(`(() => { const b = document.querySelector("[data-cell='${SINGLE.id}']"); return [b.textContent.trim(), b.getAttribute("aria-label")]; })()`);
     await click(String(SINGLE.id), `document.querySelector("[data-cell='${SINGLE.id}']")`);
     await wait(`網址 m=${SINGLE.id}`, `new URLSearchParams(location.search).get("m") === "${SINGLE.id}"`, 5000);
     await painted();
@@ -172,8 +174,8 @@ try {
     await evaluate(`document.querySelector("[data-tab='mark']").closest("section").scrollIntoView({ block: "start", behavior: "instant" })`);
     await painted();
     await shot("guild-mark-tab.png");
-    return [enabled.join() === "1" && q1.mc === "1" && d1.ok && q2.mc === "7" && d2.ok,
-      { enabled, single: q1, back: q2, singleStage: d1.got.stage, backStage: d2.got.stage }];
+    return [label[0] === "不放圖案" && label[1] === "不放圖案" && enabled.join() === "1" && q1.mc === "1" && d1.ok && q2.mc === "7" && d2.ok,
+      { label, enabled, single: q1, back: q2, singleStage: d1.got.stage, backStage: d2.got.stage }];
   });
 
   // 4. 隨機 10 次
@@ -250,6 +252,40 @@ try {
     await open("?m=99999&bc=0");
     const b = await drawsBadge(DEFAULT);
     return [a.ok && b.ok && onA.includes("1012"), { given: a.got.stage, picked: onA, fallback: b.got.stage }];
+  });
+
+  // 6b. 置中（v1.82）：遊戲裡每格位置不一，畫面上看得到的部分要在正中間（量畫出來的位置＋資料的 box）
+  const OFF = CATS.flatMap(c => DATA.marks[c]).find(e => e.box[0] + e.box[2] / 2 < 7.5 || e.box[1] + e.box[3] / 2 < 7.5);
+  await check(`大徽章、圖案格子看得到的部分置中（大徽章差 ≤ 4px、格子差 ≤ 1px；含偏一邊的 ${OFF.id}）`, async () => {
+    const stage = [];
+    for (const q of ["", `?b=1012&bc=3&m=${OFF.id}&mc=${OFF.colours[0]}`]) {
+      await open(q);
+      const qq = await query();
+      const boxes = [bgById.get(Number(qq.b) || DEFAULT.b).box, markById.get(Number(qq.m) || DEFAULT.m).box];
+      stage.push(await evaluate(`(() => {
+        const s = document.querySelector("[data-stage]").getBoundingClientRect();
+        const r = [...document.querySelectorAll("[data-stage] [data-layer]")].map(l => l.getBoundingClientRect());
+        const boxes = ${JSON.stringify(boxes)};
+        const x0 = Math.min(...boxes.map((b, i) => r[i].left + b[0] * 8)), x1 = Math.max(...boxes.map((b, i) => r[i].left + (b[0] + b[2]) * 8));
+        const y0 = Math.min(...boxes.map((b, i) => r[i].top + b[1] * 8)), y1 = Math.max(...boxes.map((b, i) => r[i].top + (b[1] + b[3]) * 8));
+        return { dx: (x0 + x1) / 2 - (s.left + s.width / 2), dy: (y0 + y1) / 2 - (s.top + s.height / 2) };
+      })()`));
+    }
+    await click("圖案分頁", `document.querySelector("[data-tab='mark']")`);
+    const cat = CATS.find(c => DATA.marks[c].some(e => e.id === OFF.id));
+    await click(cat, `document.querySelector("[data-cat='${cat}']")`);
+    await wait(`${OFF.id} 那格`, `document.querySelector("[data-cell='${OFF.id}']")`, 5000);
+    const boxById = Object.fromEntries(DATA.marks[cat].map(e => [e.id, e.box]));
+    const tiles = await evaluate(`(() => {
+      const boxById = ${JSON.stringify(boxById)};
+      return [...document.querySelectorAll("[data-cell]")].filter(b => b.querySelector("span[style]")).map(b => {
+        const c = b.getBoundingClientRect(), s = b.querySelector("span[style]").getBoundingClientRect(), x = boxById[b.dataset.cell];
+        return { id: b.dataset.cell, dx: s.left + (x[0] + x[2] / 2) * 2 - (c.left + c.width / 2), dy: s.top + (x[1] + x[3] / 2) * 2 - (c.top + c.height / 2) };
+      });
+    })()`);
+    const badTiles = tiles.filter(t => Math.abs(t.dx) > 1 || Math.abs(t.dy) > 1);
+    const okStage = stage.every(d => Math.abs(d.dx) <= 4 && Math.abs(d.dy) <= 4);
+    return [okStage && tiles.length > 0 && badTiles.length === 0, { stage, tiles: tiles.length, badTiles }];
   });
 
   // 7. 不橫捲、不跳
