@@ -19,14 +19,14 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，guild-shot 是 9621（本機 dev 用 9620），
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
   check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
-  speed-shot、scroll-shot、avatar-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
+  speed-shot、scroll-shot、avatar-shot、guild-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
 - 測試機實測時間（2026-10-07）：scroll-proof 45 秒、crossdoc（plain）75 秒、
   after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
   gear-source-shot 三個角色 13 秒。
@@ -660,6 +660,20 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
 - 第 12 項看前一筆瀏覽紀錄用 `Page.getNavigationHistory` 的 `entries[currentIndex - 1]`，不比 `length`：瀏覽紀錄滿 50 筆就不會再長。
 - 測試機要等 v1.41 進 `dev` 才過得了第 10 項之後的項目（沒進之前是真的沒有這些功能）。
 - 耗時：本機正式 build（`next start`）約 1 分 15 秒～1 分 35 秒，dev server（已編譯過）約 2 分 20 秒（2026-11-04 量）；碰到 maplestory.io 慢會多等一輪舞台逾時（量到 2 分 15 秒）。
+
+#### `guild-shot.mjs`：公會徽章 `/plan/guild`（v1.81，埠 9621）
+
+```bash
+node scripts/verify/guild-shot.mjs [網址，預設 http://localhost:9620] [輸出] [DevTools 埠，預設 9621]
+```
+
+- 本機先 `npx next dev --webpack -p 9620`，網址用 `localhost`。期望值讀**本機**的 `src/lib/guild-mark/marks.json`（圖集網址、列、顏色），驗測試機時本機要是同一版。
+- 13 項，任何一項沒過 exit 1：預設畫 1005／10＋2000／2；底圖頁換顏色 3 每一格都換第 3 欄；圖案頁選色 7 → 其他 → 9026 色票只剩 1、再點動物第 2 個回到 7；隨機 10 次網址合法且畫的是網址那個；
+  下載（換掉 `HTMLAnchorElement.prototype.click` 攔 blob）68×68、每 4×4 同色、跟圖集兩格疊起來逐像素一樣；`?b=1012&bc=3&m=5004&mc=7` 照畫、`?m=99999&bc=0` 退回預設；375 兩個分頁不橫捲；
+  CLS（CPU 慢 4 倍，375、1280）是 0；深色截圖；電腦按分享跳「已複製連結」；首頁輪播下「做公會徽章」、紙娃娃頁「也可以做公會徽章」點了到 /plan/guild（高 ≥ 32、字 13px）；整趟沒有 console 錯誤。
+- 比對位置用 `data-stage`、`data-actual`、`data-layer`、`data-tab`、`data-cat`、`data-swatch`、`data-cell`、`data-on`，改版面時這幾個屬性要留著。
+- 驗過抓得到：把 `cellStyle` 的 x 改成 `-(colour)`、下載改成抹糊，13 項紅 6 項（2026-11-08）。本機 dev 已編譯過約 35 秒。
+- 輸出：`guild-375.png`、`guild-mark-tab.png`、`guild-dark.png`、`guild-home.png`、`results.json`。
 
 ### 沒收進來的
 
