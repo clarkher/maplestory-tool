@@ -175,10 +175,17 @@ for k, ids in order:
     index[k] = []
     for id_ in ids:
         cols = sorted(entries[k][id_])
+        box = None  # 各色看得到的點合起來的範圍 [x, y, 寬, 高]（17×17 裡），前端拿來置中；下載照遊戲位置不用它
         for col in cols:
             p = f"BackGround/{id_}/{col}" if k == "BackGround" else f"Mark/{k}/{id_}/{col}"
-            atlas.paste(tile(p), ((col - 1) * CELL, row * CELL))
-        index[k].append({"id": int(id_), "row": row, "colours": cols})
+            t = tile(p)
+            atlas.paste(t, ((col - 1) * CELL, row * CELL))
+            b = t.getchannel("A").getbbox()
+            if b:
+                box = b if box is None else (min(box[0], b[0]), min(box[1], b[1]), max(box[2], b[2]), max(box[3], b[3]))
+        if box is None:
+            sys.exit(f"{k}/{id_} 每一色都是空的")
+        index[k].append({"id": int(id_), "row": row, "colours": cols, "box": [box[0], box[1], box[2] - box[0], box[3] - box[1]]})
         row += 1
 
 # 5. 色票
