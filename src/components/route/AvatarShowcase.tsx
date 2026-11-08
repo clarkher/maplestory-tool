@@ -46,7 +46,9 @@ function Row({ copy }: { copy?: boolean }) {
  */
 export function AvatarShowcase({ className = "" }: { className?: string }) {
   return (
-    <section aria-label="紙娃娃" className={`overflow-hidden rounded-[var(--radius-card)] wood-frame bg-[color:var(--gold-wash)] ${className}`}>
+    // className（藏起來／顯示的規則）放外層，連底下那行連結一起套到
+    <div className={className}>
+    <section aria-label="紙娃娃" className="overflow-hidden rounded-[var(--radius-card)] wood-frame bg-[color:var(--gold-wash)]">
       <div className="avatar-marquee flex h-[128px] items-end overflow-hidden pb-1.5 motion-reduce:overflow-x-auto sm:h-[166px]" style={{ "--loop": `${LOOP}s` } as CSSProperties}>
         <Row />
         <Row copy />
@@ -63,5 +65,15 @@ export function AvatarShowcase({ className = "" }: { className?: string }) {
         <span className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">抽一套</span>
       </Link>
     </section>
+    <p className="mt-2 text-center">
+      <Link
+        href="/plan/guild"
+        onClick={() => track("avatar_showcase_click", { target: "guild" })}
+        className="text-[13px] ink-soft underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]"
+      >
+        做公會徽章
+      </Link>
+    </p>
+    </div>
   );
 }
