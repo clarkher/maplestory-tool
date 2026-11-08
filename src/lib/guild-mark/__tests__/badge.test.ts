@@ -80,16 +80,16 @@ describe("cellStyle", () => {
 });
 
 describe("centreShift", () => {
-  it("看得到的範圍移到 17×17 正中間，乘倍數後取整數（1 倍不會落在半格糊掉）", () => {
+  it("看得到的範圍移到 17×17 正中間：1 倍先取整數格再乘倍數（各倍數移一樣多格）", () => {
     // 2000 老鷹在 [0,0,15,15]：往右下各 1 格
     expect(centreShift([markEntry(2000)!.entry.box], 8)).toEqual({ x: 8, y: 8 });
-    expect(centreShift([[0, 0, 16, 16]], 2)).toEqual({ x: 1, y: 1 });
+    expect(centreShift([[0, 0, 16, 16]], 2)).toEqual({ x: 2, y: 2 });
     expect(centreShift([[0, 0, 16, 16]], 1)).toEqual({ x: 1, y: 1 });
-    expect(centreShift([[3, 0, 4, 17]], 2)).toEqual({ x: 7, y: 0 });
+    expect(centreShift([[3, 0, 4, 17]], 2)).toEqual({ x: 8, y: 0 });
   });
-  it("幾個範圍取聯集（底圖＋圖案一起移，相對位置不變）", () => {
+  it("幾個範圍取聯集", () => {
     expect(centreShift([[0, 0, 17, 17], [5, 5, 3, 3]], 8)).toEqual({ x: 0, y: 0 });
-    expect(centreShift([[2, 2, 10, 10], [10, 10, 4, 4]], 2)).toEqual({ x: 1, y: 1 });
+    expect(centreShift([[2, 2, 10, 10], [10, 10, 4, 4]], 2)).toEqual({ x: 2, y: 2 });
   });
   it("不放圖案那格的範圍是整格，不影響置中", () => {
     expect(markEntry(NO_MARK_ID)!.entry.box).toEqual([0, 0, 17, 17]);

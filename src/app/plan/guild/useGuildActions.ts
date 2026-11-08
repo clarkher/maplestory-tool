@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import marksJson from "@/lib/guild-mark/marks.json";
-import { type Badge, bgEntry, markEntry } from "@/lib/guild-mark/badge";
+import { type Badge, type MarkEntry, bgEntry, centreShift, markEntry } from "@/lib/guild-mark/badge";
 
 const TOAST_MS = 2_000;
 const CELL = 17;
@@ -65,13 +65,15 @@ export function useGuildActions(badge: Badge) {
       return;
     }
     ctx.imageSmoothingEnabled = false;
-    const layers: [number | undefined, number][] = [
-      [bgEntry(badge.b)?.row, badge.bc],
-      [markEntry(badge.m)?.entry.row, badge.mc],
+    // 跟畫面一樣：底圖、圖案各自置中（centreShift，4 倍）
+    const layers: [MarkEntry | null | undefined, number][] = [
+      [bgEntry(badge.b), badge.bc],
+      [markEntry(badge.m)?.entry, badge.mc],
     ];
-    for (const [row, c] of layers) {
-      if (row === undefined) continue;
-      ctx.drawImage(img, (c - 1) * CELL, row * CELL, CELL, CELL, 0, 0, OUT, OUT);
+    for (const [e, c] of layers) {
+      if (!e) continue;
+      const s = centreShift([e.box], 4);
+      ctx.drawImage(img, (c - 1) * CELL, e.row * CELL, CELL, CELL, s.x, s.y, OUT, OUT);
     }
     canvas.toBlob((blob) => {
       if (!blob) {

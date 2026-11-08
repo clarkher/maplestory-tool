@@ -98,13 +98,14 @@ export function cellStyle(row: number, colour: number, scale: number) {
 }
 
 /**
- * 把幾個範圍（17×17 裡的 [x, y, 寬, 高]）合起來移到正中間要位移多少 px（已乘倍數、取整數，1 倍不會落在半格）。
- * 遊戲裡每格有自己的位置（有的靠上、有的靠右），畫面上置中比較好看；底圖＋圖案一起傳，兩層相對位置不變。下載照遊戲原位置，不用這個。
+ * 把幾個範圍（17×17 裡的 [x, y, 寬, 高]）合起來移到正中間要位移多少 px：先在 1 倍取整數格再乘倍數，
+ * 所以 1 倍、2 倍格子、8 倍大徽章、4 倍下載都移一樣多格，畫面跟下載的圖一致。
+ * 遊戲裡每格有自己的位置（例：老鷹 15×15 貼左上），底圖、圖案各自置中（11/08 使用者說圖案沒在底圖正中間）。
  */
 export function centreShift(boxes: number[][], scale: number): { x: number; y: number } {
   const x0 = Math.min(...boxes.map((b) => b[0]));
   const y0 = Math.min(...boxes.map((b) => b[1]));
   const x1 = Math.max(...boxes.map((b) => b[0] + b[2]));
   const y1 = Math.max(...boxes.map((b) => b[1] + b[3]));
-  return { x: Math.round(((17 - (x1 - x0)) / 2 - x0) * scale), y: Math.round(((17 - (y1 - y0)) / 2 - y0) * scale) };
+  return { x: Math.round((17 - (x1 - x0)) / 2 - x0) * scale, y: Math.round((17 - (y1 - y0)) / 2 - y0) * scale };
 }
