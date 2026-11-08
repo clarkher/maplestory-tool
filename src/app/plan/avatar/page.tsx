@@ -18,8 +18,8 @@ export default function Page() {
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">紙娃娃</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">換髮型、臉型、點裝，看角色穿起來長怎樣，可以下載或分享。</p>
-        <p className="mt-1">
-          <Link href="/plan/guild" className="text-[13px] ink-soft underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]">
+        <p>
+          <Link href="/plan/guild" className="inline-block py-2 text-[13px] ink-soft underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]">
             也可以做公會徽章
           </Link>
         </p>
