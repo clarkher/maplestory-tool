@@ -5,7 +5,7 @@
  * 舞台高度、徽章尺寸都寫死，圖集還沒載到版面也不跳。
  */
 import type { CSSProperties } from "react";
-import { type Badge, NO_MARK_ID, bgEntry, cellStyle, centreShift, markEntry } from "@/lib/guild-mark/badge";
+import { type Badge, bgEntry, cellStyle, centreShift, markEntry } from "@/lib/guild-mark/badge";
 
 const STAGE_BG: CSSProperties = {
   backgroundColor: "var(--paper)",
@@ -20,13 +20,15 @@ export function BadgeLayers({ badge, scale }: { badge: Badge; scale: number }) {
   const bg = bgEntry(badge.b);
   const mark = markEntry(badge.m)?.entry;
   const size = 17 * scale;
-  // 兩層一起置中（相對位置照遊戲）；不放圖案那格是整片透明，不算進去
-  const shift = centreShift([bg?.box, mark && mark.id !== NO_MARK_ID ? mark.box : undefined].filter((b): b is number[] => !!b), scale);
-  const layer: CSSProperties = { position: "absolute", left: shift.x, top: shift.y, imageRendering: "pixelated" };
+  // 底圖、圖案各自置中（遊戲裡圖案有的貼左上），下載的圖用同一套位移
+  const layer = (box: number[]): CSSProperties => {
+    const s = centreShift([box], scale);
+    return { position: "absolute", left: s.x, top: s.y, imageRendering: "pixelated" };
+  };
   return (
     <span className="relative block flex-none" style={{ width: size, height: size }}>
-      {bg ? <span data-layer="bg" style={{ ...layer, ...cellStyle(bg.row, badge.bc, scale) }} /> : null}
-      {mark ? <span data-layer="mark" style={{ ...layer, ...cellStyle(mark.row, badge.mc, scale) }} /> : null}
+      {bg ? <span data-layer="bg" style={{ ...layer(bg.box), ...cellStyle(bg.row, badge.bc, scale) }} /> : null}
+      {mark ? <span data-layer="mark" style={{ ...layer(mark.box), ...cellStyle(mark.row, badge.mc, scale) }} /> : null}
     </span>
   );
 }
