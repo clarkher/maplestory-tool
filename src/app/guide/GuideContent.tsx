@@ -9,13 +9,17 @@ import { monsterImage } from "@/lib/data";
 import {
   COMMON_ROUTE, GUIDE_SOURCES, GUIDE_UPDATED_AT, JOB_GUIDES, type GuideStep, type JobGuide,
 } from "@/lib/guide-data";
+import type { ArticleEntry } from "@/lib/article-entry";
 import { claimVisit, useVisitState } from "@/lib/visit-state";
 import {
   KpqAnswerTable, KpqBarrelDiagram, MoonBunnySeedDiagram, PqEntryBanner, PqStageList,
 } from "./PqVisuals";
 
-/** jobs：每個職業 30 等以後的完整攻略頁（/jobs/<職業>），由伺服器讀攻略檔傳進來 */
-export function GuideContent({ jobs }: { jobs: Array<{ job: number; name: string }> }) {
+/**
+ * jobs：每個職業 30 等以後的完整攻略頁（/jobs/<職業>），由伺服器讀攻略檔傳進來
+ * articles：分等級攻略文（v1.85 使用者選 C：本來只有職業頁底下連得到），掛在各自的職業那列
+ */
+export function GuideContent({ jobs, articles = [] }: { jobs: Array<{ job: number; name: string }>; articles?: readonly ArticleEntry[] }) {
   const [job, setJob] = useState<string>("warrior");
   const current = JOB_GUIDES.find(entry => entry.key === job) ?? JOB_GUIDES[0];
 
@@ -37,6 +41,11 @@ export function GuideContent({ jobs }: { jobs: Array<{ job: number; name: string
         <p className="mt-1.5 text-xs ink-faint">
           彙整自巴哈姆特、波波攻略島等社群攻略（出處在頁尾）· 更新於 {GUIDE_UPDATED_AT}
         </p>
+        {articles.length ? (
+          <p className="mt-2.5 text-sm font-bold">
+            <a href="#articles" className="text-[color:var(--sky)] underline underline-offset-4">分等級攻略文 {articles.length} 篇：每個等級去哪練、幾下打死</a>
+          </p>
+        ) : null}
       </header>
 
       <section aria-label="選擇職業" className="space-y-3">
@@ -72,18 +81,24 @@ export function GuideContent({ jobs }: { jobs: Array<{ job: number; name: string
       </section>
 
       {jobs.length ? (
-        <section aria-label="各職業完整攻略" className="rounded-[var(--radius-card)] glass wood-frame p-4">
-          <h2 className="text-[15px] font-black">30 等以後：各職業完整攻略</h2>
-          <p className="mt-1 mb-2.5 text-[13px] ink-soft">配點、技能點法、每個等級去哪練，一個職業一頁。</p>
-          <ul className="flex flex-wrap gap-1.5">
+        <section id="articles" aria-label="各職業攻略" className="scroll-mt-header rounded-[var(--radius-card)] glass wood-frame p-4">
+          <h2 className="text-[15px] font-black">各職業攻略</h2>
+          <p className="mt-1 mb-2.5 text-[13px] ink-soft">點等級看那一段去哪練、幾下打死、必解任務；點職業看整個職業的配點、技能點法。</p>
+          <ul className="divide-y divide-[color:var(--paper-edge)]">
             {jobs.map(entry => (
-              <li key={entry.job}>
-                <Link
-                  href={`/jobs/${entry.job}`}
-                  className="tap-safe inline-block rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-[13px] font-bold hover:bg-[color:var(--maple-wash)]"
-                >
+              <li key={entry.job} className="flex flex-wrap items-center gap-1.5 py-2">
+                <Link href={`/jobs/${entry.job}`} className="tap-safe mr-1 min-w-[5.5rem] text-sm font-bold text-[color:var(--sky)] underline underline-offset-4">
                   {entry.name}
                 </Link>
+                {articles.filter(article => article.job === entry.job).map(article => (
+                  <Link
+                    key={article.href}
+                    href={article.href}
+                    className="tap-safe inline-block rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-[13px] font-bold tabular-nums hover:bg-[color:var(--maple-wash)]"
+                  >
+                    {article.from}～{article.to} 等
+                  </Link>
+                ))}
               </li>
             ))}
           </ul>
