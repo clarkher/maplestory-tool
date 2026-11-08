@@ -139,15 +139,14 @@ export function Picker({
   const mark = markEntry(badge.m)?.entry;
   return (
     <section className="glass-solid min-w-0 rounded-[var(--radius-card)] p-3.5">
-      <div role="tablist" className="grid grid-cols-2 gap-1 rounded-[14px] bg-[color:var(--paper-deep)] p-1">
+      <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-[color:var(--paper-deep)] p-1">
         {TABS.map((t) => {
           const sel = t.key === tab;
           return (
             <button
               key={t.key}
               type="button"
-              role="tab"
-              aria-selected={sel}
+              aria-pressed={sel}
               data-tab={t.key}
               data-on={sel ? "" : undefined}
               onClick={() => onTab(t.key)}

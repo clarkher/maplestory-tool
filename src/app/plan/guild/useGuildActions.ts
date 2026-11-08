@@ -26,15 +26,20 @@ export function useGuildActions(badge: Badge) {
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const atlas = useRef<HTMLImageElement | null>(null);
+  const atlasFailed = useRef(false);
 
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
       atlas.current = img;
     };
+    img.onerror = () => {
+      atlasFailed.current = true;
+    };
     img.src = marksJson.atlas;
     return () => {
       img.onload = null;
+      img.onerror = null;
       if (toastTimer.current) clearTimeout(toastTimer.current);
     };
   }, []);
@@ -48,14 +53,17 @@ export function useGuildActions(badge: Badge) {
   const download = useCallback(() => {
     const img = atlas.current;
     if (!img) {
-      showToast("圖還沒載好，等一下再按");
+      showToast(atlasFailed.current ? "圖載不到，重新整理再試一次" : "圖還沒載好，等一下再按");
       return;
     }
     const canvas = document.createElement("canvas");
     canvas.width = OUT;
     canvas.height = OUT;
     const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!ctx) {
+      showToast("下載不了，請再試一次");
+      return;
+    }
     ctx.imageSmoothingEnabled = false;
     const layers: [number | undefined, number][] = [
       [bgEntry(badge.b)?.row, badge.bc],
@@ -66,7 +74,10 @@ export function useGuildActions(badge: Badge) {
       ctx.drawImage(img, (c - 1) * CELL, row * CELL, CELL, CELL, 0, 0, OUT, OUT);
     }
     canvas.toBlob((blob) => {
-      if (!blob) return;
+      if (!blob) {
+        showToast("下載不了，請再試一次");
+        return;
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
