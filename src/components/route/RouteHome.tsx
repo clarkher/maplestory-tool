@@ -28,6 +28,7 @@ import { RouteTimeline } from "./RouteTimeline";
 import { earlierJobLevels } from "@/lib/skill-plan";
 import { SkillStrip } from "./SkillStrip";
 import { TodoList } from "./TodoList";
+import { articleFor, type ArticleEntry } from "@/lib/article-entry";
 
 export type GuideStatus = GuideState["status"];
 
@@ -38,7 +39,8 @@ export type GuideStatus = GuideState["status"];
  */
 const SAVED_PROFILE_HINT = `try{var p=JSON.parse(localStorage.getItem("ms-profile")||"null");if(p&&p.level>0&&p.job>=0)document.documentElement.dataset.profile="saved"}catch(e){}`;
 
-export function RouteHome() {
+/** articles：分等級攻略文清單（伺服器讀檔傳進來；v1.85 主推卡下面連到你這段的那篇） */
+export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[] } = {}) {
   // 站內換頁進來時角色、遊戲資料、攻略都同步拿（這次瀏覽載過的）：第一個畫面就是完整路線，不先畫讀取中、骨架
   const { profile: stored, setProfile, loaded } = useProfile();
   const profile = useMemo(() => ({ level: stored.level, job: normalizeJob(stored.job) }), [stored]);
@@ -160,6 +162,7 @@ export function RouteHome() {
 
   // 女神的痕跡那一行：主推已經是女神組隊就不放（跟主推卡拿同一個 pick；攻略還在載時主推卡是骨架，這行也先不放）
   const goddess = plan && !guideLoading ? goddessNoteFor(profile.level, plan.pick) : null;
+  const article = articleFor(articles, profile.job, profile.level);
 
   if (error) {
     return <p className="py-10 text-center text-sm ink-soft">資料讀取失敗：{error}。重新整理一次試試。</p>;
@@ -245,6 +248,17 @@ export function RouteHome() {
                 看任務
               </Link>
             </p>
+          ) : null}
+
+          {/* 你這段等級的攻略文（v1.85 使用者選 A：本來只有職業頁底下連得到）；這個職業、等級沒有那篇就不放 */}
+          {article ? (
+            <Link href={article.href} className="tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]">
+              <span>
+                {jobOption(profile.job)?.name} {article.from}～{article.to} 等攻略
+                <span className="block text-[13px] font-medium ink-soft">去哪練、幾下打死、必解任務，一篇看完</span>
+              </span>
+              <ChevronRight size={16} />
+            </Link>
           ) : null}
 
           {/* 照傷害算的推薦（v0.92 使用者選 1A）：主推卡下面多一張，自己載技能表、裝備表；攻略還在載就等它 */}
