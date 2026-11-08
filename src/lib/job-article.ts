@@ -46,8 +46,23 @@ export type ArticleStep = {
   /** 組隊任務裡面的圖走不到，「帶我去」改帶入口（只能填 PQ_ENTRANCES） */
   go?: number;
 };
-export type ArticleSection = { heading: string; paragraphs?: ArticleLine[]; items?: ArticleLine[] };
+/**
+ * topic：玩家最常來查的兩種段落，手機收合時照樣露在外面（v1.79，使用者選）——
+ * quests 這段該解的任務（必解、關鍵獎勵、經驗大包），skills 技能點怎麼點。其他段落收成標題。
+ */
+export const SECTION_TOPICS = ["quests", "skills"] as const;
+export type ArticleSection = { heading: string; paragraphs?: ArticleLine[]; items?: ArticleLine[]; topic?: (typeof SECTION_TOPICS)[number] };
 export type ArticleSource = { label: string; url: string };
+
+/**
+ * 露在外面的段落：照 SECTION_TOPICS 排（必解任務先、技能點法後，v1.80 使用者選），同一類照原文順序。
+ * anchor：那類的第一段，結論框的連結跳到這裡。
+ */
+export function pinnedSections(sections: ArticleSection[]): Array<{ section: ArticleSection; anchor: boolean }> {
+  return SECTION_TOPICS.flatMap(topic =>
+    sections.filter(section => section.topic === topic).map((section, index) => ({ section, anchor: index === 0 })),
+  );
+}
 
 /**
  * 文字依賴的前提：寫的當下表長什麼樣子（npm run article:table 印的 assumes，整包貼進文章檔）。
@@ -175,6 +190,23 @@ export const articleHeroPath = (slug: string) => `${articleImageDir(slug)}/hero.
 export const articleImages = (manifest: ArticleImageManifest, slug: string): ArticleImages => ({ ...manifest[slug], dir: articleImageDir(slug) });
 /** 路線卡圖的替代文字：僧侶在螞蟻洞Ⅲ打殭屍菇菇 */
 export const stepImageAlt = (jobName: string, mapName: string, mobName: string) => `${jobName}在${mapName}打${mobName}`;
+
+/** 計算表收合時露在外面的怪最多幾隻（v1.78 手機版面拍板 A） */
+export const FEATURED_LIMIT = 3;
+/**
+ * 計算表收合時露哪幾隻：主推步驟（不是備案）輪流挑——先每步的第一隻、再每步的第二隻，表裡有的才算，取 3 隻；
+ * 不輪流的話第一段怪多就把後面主推的怪擠掉。一隻都對不到就取表的前 3 隻。
+ * 回傳的只是名單，表照原本的順序排，其他列藏起來。
+ */
+export function featuredMonsters(steps: Array<{ mobs: number[]; alt?: boolean }>, rows: Array<{ id: number }>): number[] {
+  const inTable = new Set(rows.map(row => row.id));
+  const lists = steps.filter(step => !step.alt).map(step => step.mobs.filter(id => inTable.has(id)));
+  const picked: number[] = [];
+  for (let round = 0; picked.length < FEATURED_LIMIT && lists.some(list => round < list.length); round++) {
+    for (const list of lists) if (round < list.length && !picked.includes(list[round]) && picked.length < FEATURED_LIMIT) picked.push(list[round]);
+  }
+  return picked.length ? picked : rows.slice(0, FEATURED_LIMIT).map(row => row.id);
+}
 
 const HERO_MIN_WIDTH = 1200;
 const HERO_RATIO = 16 / 9;
@@ -1418,6 +1450,7 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
       else {
         checkLines(section.paragraphs, `sections[${index}].paragraphs`, errors);
         checkLines(section.items, `sections[${index}].items`, errors);
+        if (section.topic !== undefined && !(SECTION_TOPICS as readonly unknown[]).includes(section.topic)) errors.push(`sections[${index}].topic 只能是 ${SECTION_TOPICS.join("、")}`);
       }
     });
   }

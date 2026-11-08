@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
-import { articleDamageHref, assumptionLines, avgText, hitLvText, stepImageAlt, tableGearLine, withOneTargetCell, TAG_LABEL, type ArticleAnswer, type ArticleImages, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
+import { articleDamageHref, assumptionLines, avgText, featuredMonsters, hitLvText, pinnedSections, stepImageAlt, tableGearLine, withOneTargetCell, FEATURED_LIMIT, TAG_LABEL, type ArticleAnswer, type ArticleImages, type ArticleSection, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { AdSlot } from "./AdSlot";
+import { ExpandRows, Fold } from "./ArticleFold";
 import { SeoLinks, SeoPage } from "./SeoPage";
 
 /**
@@ -85,13 +86,12 @@ const STICKY_CELL = "sticky left-0 z-10";
  * 計算表：表自己橫捲，頁面不橫捲；怪物圖用 monster_frames（單張靜止圖）。
  * 站上算的數字排在最前面（手機第一眼就看得到，這是每篇的賣點），怪物基本數值排後面。
  */
-export function JobArticleTable({ table }: { table: CalcTable }) {
+export function JobArticleTable({ table, featured }: { table: CalcTable; /** 收合時露的怪（featuredMonsters）；不給、或怪不到 4 隻就整張露 */ featured?: number[] }) {
   const { assumptions, columns, midLevel, rows } = table;
   const magic = assumptions.accuracy.kind === "magic";
   const heal = assumptions.targets !== null;
-  return (
-    <div className="space-y-1">
-      <p className="text-[13px] font-bold ink-soft">{tableGearLine(table)}，平均幾下打死</p>
+  const shown = featured && rows.length > FEATURED_LIMIT ? new Set(featured) : null;
+  const grid = (
       <div className="scroll-x rounded-xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)]">
       <table className="w-full border-collapse whitespace-nowrap text-sm">
         <thead className="bg-[color:var(--paper-deep)] text-left text-[13px] font-bold">
@@ -113,7 +113,11 @@ export function JobArticleTable({ table }: { table: CalcTable }) {
         </thead>
         <tbody>
           {rows.map(row => (
-            <tr key={row.id} className="border-t border-[color:var(--paper-edge)]">
+            <tr
+              key={row.id}
+              data-extra={shown && !shown.has(row.id) ? "" : undefined}
+              className={`border-t border-[color:var(--paper-edge)] ${shown && !shown.has(row.id) ? "group-data-[open=false]/rows:hidden" : ""}`}
+            >
               <td className={`${STICKY_CELL} bg-[color:var(--paper)] px-2.5 py-1.5`}>
                 <Link href={`/db/monsters/${row.id}`} className="inline-flex items-center gap-1.5 font-bold hover:text-[color:var(--maple)]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -138,7 +142,13 @@ export function JobArticleTable({ table }: { table: CalcTable }) {
         </tbody>
       </table>
       </div>
+  );
+  return (
+    <div className="space-y-1">
+      <p className="text-[13px] font-bold ink-soft">{tableGearLine(table)}，平均幾下打死</p>
+      {/* 提示放表上面：手機上第三欄被切一半，滑之前就要知道還有（放下面像版面壞掉，v1.79 評審） */}
       <p className="text-[13px] ink-soft md:hidden">表可以往右滑，看等級、HP、防禦、經驗。</p>
+      {shown ? <ExpandRows total={rows.length}>{grid}</ExpandRows> : grid}
     </div>
   );
 }
@@ -159,6 +169,31 @@ function StepImage({ step, jobName, monsters, maps, images }: { step: JobArticle
     />
   );
 }
+
+/** 路線卡的內文（圖、標題、說明、怪、帶我去）；主推卡跟收起來的備案卡共用。圖排在標題前面，標題才會繞著圖排；備案卡的標題在收合那一行，這裡不放 */
+function StepBody({ step, index, article, jobName, monsters, maps, images, heading }: { heading?: React.ReactNode; step: JobArticle["steps"][number]; index: number; article: JobArticle; jobName: string; monsters: Map<number, Monster>; maps: Record<string, MapRecord>; images?: ArticleImages }) {
+  return (
+    <div className="min-w-0 space-y-1.5 text-[15px] leading-relaxed [display:flow-root]">
+      {/* 同一張圖連寫兩步（獵人 31～36、37～50）只放第一步，不然連看兩張一樣的圖 */}
+      {article.steps.findIndex(other => other.map === step.map) === index ? <StepImage step={step} jobName={jobName} monsters={monsters} maps={maps} images={images} /> : null}
+      {heading}
+      <p>{step.text}<SourceTag tag={step.tag} /></p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+        {step.mobs.flatMap(id => monsters.get(id) ?? []).map(monster => (
+          <Link key={monster.id} href={`/db/monsters/${monster.id}`} className="inline-flex items-center gap-1 font-bold ink-soft hover:text-[color:var(--maple)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={monsterImage(monster.id)} alt="" width={24} height={24} loading="lazy" className="h-6 w-6 shrink-0 object-contain" />
+            {monster.n}
+          </Link>
+        ))}
+        <Link href={`/go?to=${step.go ?? step.map}`} className="font-bold text-[color:var(--sky)] underline underline-offset-4">帶我去{maps[String(step.go ?? step.map)]?.zh}</Link>
+      </div>
+    </div>
+  );
+}
+
+/** 結論框跳轉連結的字 */
+const TOPIC_LINK: Record<NonNullable<ArticleSection["topic"]>, string> = { quests: "必解任務", skills: "技能怎麼點" };
 
 export function JobArticleView({
   jobName,
@@ -189,6 +224,7 @@ export function JobArticleView({
   /** 這篇有哪些圖；只畫裡面有的 */
   images?: ArticleImages;
 }) {
+  const pinned = pinnedSections(article.sections);
   return (
     <SeoPage
       trail={[{ name: "職業攻略", path: "/guide" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }]}
@@ -207,60 +243,78 @@ export function JobArticleView({
       <div className="space-y-1.5 rounded-xl bg-[color:var(--maple-wash)] p-3.5 text-[15px] leading-relaxed sm:p-4">
         <p className="text-sm font-bold text-[color:var(--maple)]">先講結論</p>
         <Lines lines={article.answer} ordered solid maps={maps} />
+        {/* 直接跳到必解任務、技能點法（v1.80）；那類段落不存在就不放 */}
+        {pinned.some(({ anchor }) => anchor) ? (
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-sm font-bold">
+            <span className="ink-soft">直接看</span>
+            {pinned.filter(({ anchor }) => anchor).map(({ section }) => (
+              <a key={section.topic} href={`#${section.topic}`} className="text-[color:var(--sky)] underline underline-offset-4">{TOPIC_LINK[section.topic!]}</a>
+            ))}
+          </p>
+        ) : null}
       </div>
 
       <p className="text-[15px] leading-relaxed">{article.intro}</p>
 
+      {/* 手機收合（v1.78，拍板 A）：主推卡照舊整張；備案卡只剩「備案 起～迄＋標題」一行，點開才看內文 */}
       <section className="space-y-2">
         <Heading>每個等級去哪裡</Heading>
         <ol>
-          {article.steps.map((step, index) => (
-            <li key={index} className="grid gap-x-3.5 gap-y-1 border-t border-[color:var(--paper-edge)] py-3 first:border-t-0 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
-              <p className="font-black tabular-nums text-[color:var(--maple)]">{step.from}～{step.to}</p>
-              <div className="min-w-0 space-y-1.5 text-[15px] leading-relaxed [display:flow-root]">
-                {/* 同一張圖連寫兩步（獵人 31～36、37～50）只放第一步，不然連看兩張一樣的圖 */}
-                {article.steps.findIndex(other => other.map === step.map) === index ? <StepImage step={step} jobName={jobName} monsters={monsters} maps={maps} images={images} /> : null}
-                <h3 className="font-bold">
-                  {step.title}
-                  {" "}<span className="whitespace-nowrap text-[13px] font-bold ink-soft">{step.alt ? "備案・" : ""}{step.kind === "party" ? "組隊" : "單練"}</span>
-                </h3>
-                <p>{step.text}<SourceTag tag={step.tag} /></p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
-                  {step.mobs.flatMap(id => monsters.get(id) ?? []).map(monster => (
-                    <Link key={monster.id} href={`/db/monsters/${monster.id}`} className="inline-flex items-center gap-1 font-bold ink-soft hover:text-[color:var(--maple)]">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={monsterImage(monster.id)} alt="" width={24} height={24} loading="lazy" className="h-6 w-6 shrink-0 object-contain" />
-                      {monster.n}
-                    </Link>
-                  ))}
-                  <Link href={`/go?to=${step.go ?? step.map}`} className="font-bold text-[color:var(--sky)] underline underline-offset-4">帶我去{maps[String(step.go ?? step.map)]?.zh}</Link>
-                </div>
-              </div>
-            </li>
-          ))}
+          {article.steps.map((step, index) => {
+            const card = { step, index, article, jobName, monsters, maps, images };
+            return step.alt ? (
+              <li key={index} className="border-t border-[color:var(--paper-edge)] first:border-t-0">
+                <Fold
+                  id={`alt:${index}`}
+                  summary={
+                    <>
+                      <span className="mr-1.5 whitespace-nowrap text-[13px] font-bold tabular-nums text-[color:var(--maple)]">備案 {step.from}～{step.to}</span>
+                      <h3 className="inline text-[15px] font-bold leading-snug">{step.title}</h3>
+                      {" "}<span className="whitespace-nowrap text-[13px] font-bold ink-soft">{step.kind === "party" ? "組隊" : "單練"}</span>
+                    </>
+                  }
+                >
+                  <div className="pb-3"><StepBody {...card} /></div>
+                </Fold>
+              </li>
+            ) : (
+              <li key={index} className="grid gap-x-3.5 gap-y-1 border-t border-[color:var(--paper-edge)] py-3 first:border-t-0 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
+                <p className="font-black tabular-nums text-[color:var(--maple)]">{step.from}～{step.to}</p>
+                <StepBody {...card} heading={
+                  <h3 className="font-bold">
+                    {step.title}
+                    {" "}<span className="whitespace-nowrap text-[13px] font-bold ink-soft">{step.kind === "party" ? "組隊" : "單練"}</span>
+                  </h3>
+                } />
+              </li>
+            );
+          })}
         </ol>
       </section>
 
       <section className="space-y-2">
         <Heading>幾下打死、打不打得中<SourceTag tag="calc" /></Heading>
-        <JobArticleTable table={table} />
-        <div className="space-y-1 text-[13px] leading-relaxed ink-soft">
-          <p>{dataNote}</p>
-          <p className="font-bold">這張表的假設</p>
-          <ul className="list-disc space-y-0.5 pl-5">
-            {assumptionLines(table).map(line => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-          <p>公式是舊版玩家整理，經典版沒驗證。HP、防禦、經驗來自遊戲客戶端資料。下數是平均值，沒算 MISS 跟怪的密度；不 MISS 寫 {table.from} 的代表一進這段就打得中，寫「超過 {table.to} 等」的是到 {table.to} 等還不保證打中，會有 MISS。</p>
-        </div>
+        <JobArticleTable table={table} featured={featuredMonsters(article.steps, table.rows)} />
+        <Fold id="assume" className="border-t border-[color:var(--paper-edge)]" summary={<span className="text-sm font-bold">這張表怎麼算的</span>}>
+          <div className="space-y-1 pb-3 text-[13px] leading-relaxed ink-soft">
+            <p>{dataNote}</p>
+            <p className="font-bold">這張表的假設</p>
+            <ul className="list-disc space-y-0.5 pl-5">
+              {assumptionLines(table).map(line => (
+                <li key={line}>{line}</li>
+              ))}
+            </ul>
+            <p>公式是舊版玩家整理，經典版沒驗證。HP、防禦、經驗來自遊戲客戶端資料。下數是平均值，沒算 MISS 跟怪的密度；不 MISS 寫 {table.from} 的代表一進這段就打得中，寫「超過 {table.to} 等」的是到 {table.to} 等還不保證打中，會有 MISS。</p>
+          </div>
+        </Fold>
         <SeoLinks links={[{ href: articleDamageHref(table), text: "開計算機改成自己的數值" }]} />
       </section>
 
       <AdSlot unit="article" />
 
-      {article.sections.map((section, index) => (
-        <section key={index} className="space-y-2 text-[15px] leading-relaxed">
+      {/* 必解任務、技能點法是玩家最常來查的，照舊整段露著，排在收起來的段落前面（v1.79）；必解先、點法後（v1.80） */}
+      {pinned.map(({ section, anchor }, index) => (
+        <section key={index} id={anchor ? section.topic : undefined} className="scroll-mt-header space-y-2 text-[15px] leading-relaxed">
           <Heading>{section.heading}</Heading>
           {section.paragraphs?.map((line, lineIndex) => (
             <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>
@@ -269,6 +323,22 @@ export function JobArticleView({
         </section>
       ))}
 
+      {/* 後面的段落只剩標題（標題還是 h2），一段一段點開；疊成一張清單，中間不留大空白。開關的鍵用原本的位置，露出來的段落不佔號 */}
+      <div className="border-b border-[color:var(--paper-edge)]">
+        {article.sections.map((section, index) => section.topic ? null : (
+          <section key={index} className="border-t border-[color:var(--paper-edge)] text-[15px] leading-relaxed">
+            <Fold id={`sec:${index}`} summary={<h2 className="text-base font-black leading-snug sm:text-lg">{section.heading}</h2>}>
+              <div className="space-y-2 pb-3">
+                {section.paragraphs?.map((line, lineIndex) => (
+                  <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>
+                ))}
+                {section.items?.length ? <Lines lines={section.items} /> : null}
+              </div>
+            </Fold>
+          </section>
+        ))}
+      </div>
+
       <SeoLinks
         links={[
           { href: "/plan/train", text: "照我的等級排練功圖" },
@@ -276,16 +346,17 @@ export function JobArticleView({
         ]}
       />
 
-      <section className="space-y-1.5 border-t border-[color:var(--paper-edge)] pt-3 text-[13px] leading-relaxed ink-soft">
-        <h2 className="font-bold">資料來源</h2>
-        <ul className="list-disc space-y-0.5 pl-5">
-          <li>怪物、技能數值：遊戲客戶端資料（<Link href="/db/monsters" className="underline underline-offset-2">怪物資料</Link>）</li>
-          {article.sources.map(source => (
-            <li key={source.url}>
-              <a href={source.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.label}</a>
-            </li>
-          ))}
-        </ul>
+      <section className="border-y border-[color:var(--paper-edge)] text-[13px] leading-relaxed ink-soft">
+        <Fold id="sources" summary={<h2 className="font-bold">資料來源</h2>}>
+          <ul className="list-disc space-y-0.5 pb-3 pl-5">
+            <li>怪物、技能數值：遊戲客戶端資料（<Link href="/db/monsters" className="underline underline-offset-2">怪物資料</Link>）</li>
+            {article.sources.map(source => (
+              <li key={source.url}>
+                <a href={source.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.label}</a>
+              </li>
+            ))}
+          </ul>
+        </Fold>
       </section>
     </SeoPage>
   );
