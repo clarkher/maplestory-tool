@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HEAL } from "@/lib/damage-skills";
 import { findRoute, suggestStart } from "@/lib/route";
 import { BOSS_SPAWN_MAX } from "@/lib/now-plan";
-import { JobArticleView } from "@/components/JobArticleView";
+import { JobArticleTable, JobArticleView } from "@/components/JobArticleView";
 import { applyDamageLink, computeGroup, damageLinkHref, defaultState, HEAL_ASSUMPTION, linkStartLevel, parseDamageLink, parseState, type CalcData } from "@/lib/damage-view";
 import type { GearData } from "@/lib/gear";
 import {
@@ -32,6 +32,7 @@ import {
   stepImageAlt,
   assumptionLines,
   buildCalcTable,
+  featuredMonsters,
   characterAccuracy,
   fillTokens,
   hitLvText,
@@ -805,6 +806,90 @@ describe("來源標籤的對比（全站小字 AA，v0.81）", () => {
     expect(box).toContain("社群整理");
     expect(box).not.toContain("--maple-wash");
     expect(box).toContain("bg-[color:var(--paper)]");
+  });
+});
+
+describe("手機收合（v1.78，拍板 A）：主推留著，其他收成標題，字都還在 HTML 裡給 Google 讀", () => {
+  const esc = (text: string) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
+  const render = () => {
+    const raw = realArticle(230, 31, 50);
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: raw.gear });
+    const article = resolveArticle(raw, table, data);
+    const monsters = new Map(data.monsters.map(monster => [monster.id, monster]));
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table, monsters, maps: data.maps, dataNote: "依遊戲資料計算", jsonLd: [] })).replace(/<!-- -->/g, "");
+    const folds = [...html.matchAll(/<details([^>]*)>\s*<summary[^>]*>([\s\S]*?)<\/summary>([\s\S]*?)<\/details>/g)].map(match => ({ attrs: match[1], summary: match[2], body: match[3] }));
+    return { article, table, html, folds };
+  };
+
+  it("備案卡收成一行（備案 起～迄＋標題），內文還在；主推卡不收", () => {
+    const { article, html, folds } = render();
+    expect(article.steps.some(step => step.alt)).toBe(true);
+    for (const step of article.steps) {
+      const fold = folds.find(entry => entry.body.includes(esc(step.text)));
+      if (step.alt) {
+        expect(fold, step.title).toBeDefined();
+        expect(fold!.summary).toContain(`備案 ${step.from}～${step.to}`);
+        expect(fold!.summary).toContain(esc(step.title));
+      } else {
+        expect(fold, step.title).toBeUndefined();
+        expect(html).toContain(esc(step.text));
+      }
+    }
+  });
+
+  it("表後面的段落、這張表怎麼算的、資料來源都收起來；段落標題還是 h2", () => {
+    const { article, folds } = render();
+    for (const section of article.sections) {
+      const fold = folds.find(entry => entry.summary.includes(esc(section.heading)));
+      expect(fold, section.heading).toBeDefined();
+      expect(fold!.summary).toMatch(/<h2/);
+      const first = section.paragraphs?.[0] ?? section.items?.[0];
+      expect(fold!.body).toContain(esc(first!.text));
+    }
+    const assume = folds.find(entry => entry.summary.includes("這張表怎麼算的"));
+    expect(assume?.body).toContain("公式是舊版玩家整理，經典版沒驗證");
+    expect(assume?.body).toContain("依遊戲資料計算");
+    const sources = folds.find(entry => entry.summary.includes("資料來源"));
+    expect(sources?.summary).toMatch(/<h2/);
+    for (const source of article.sources) expect(sources?.body).toContain(esc(source.url));
+  });
+
+  it("全部預設收著（伺服器畫的第一格就是收的，不會開著再縮）", () => {
+    const { folds } = render();
+    expect(folds.length).toBeGreaterThan(5);
+    for (const fold of folds) expect(fold.attrs).not.toMatch(/\bopen\b/);
+  });
+
+  it("featuredMonsters：每個主推步驟輪流挑一隻（表裡有的才算），最多 3 隻；一隻都沒有就取表的前 3 隻", () => {
+    const rows = [11, 22, 33, 44, 55].map(id => ({ id }));
+    const step = (mobs: number[], alt?: boolean) => ({ mobs, alt });
+    // 第一輪每步第一隻：44、55、33；第一段怪多也不會把後面主推的怪擠掉（獵人 31～50 露了黑斧木妖卻沒露天使猴）
+    expect(featuredMonsters([step([44]), step([22], true), step([55, 99, 11]), step([33])], rows)).toEqual([44, 55, 33]);
+    expect(featuredMonsters([step([11, 22, 33]), step([44])], rows)).toEqual([11, 44, 22]);
+    expect(featuredMonsters([step([44, 44]), step([22], true)], rows)).toEqual([44]);
+    expect(featuredMonsters([step([99])], rows)).toEqual([11, 22, 33]);
+  });
+
+  it("計算表只露 3 隻：其他列還在 HTML、藏起來，按鈕寫看全部幾隻", () => {
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+    expect(table.rows.length).toBeGreaterThan(3);
+    const featured = table.rows.slice(1, 4).map(row => row.id);
+    const html = renderToString(JobArticleTable({ table, featured })).replace(/<!-- -->/g, "");
+    const rows = [...html.matchAll(/<tr([^>]*)>([\s\S]*?)<\/tr>/g)].slice(1);
+    expect(rows).toHaveLength(table.rows.length);
+    table.rows.forEach((row, index) => {
+      const [, attrs, cells] = rows[index];
+      expect(cells).toContain(row.name);
+      expect(/data-extra/.test(attrs), row.name).toBe(!featured.includes(row.id));
+    });
+    expect(html).toContain(`看全部 ${table.rows.length} 隻怪`);
+  });
+
+  it("沒給 featured、或怪不到 4 隻：整張表都露、沒有按鈕", () => {
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
+    expect(renderToString(JobArticleTable({ table }))).not.toMatch(/data-extra|看全部/);
+    const small = { ...table, rows: table.rows.slice(0, 3) };
+    expect(renderToString(JobArticleTable({ table: small, featured: [small.rows[0].id] }))).not.toMatch(/data-extra|看全部/);
   });
 });
 
