@@ -16,6 +16,7 @@ export const SITE_PAGES: SitePage[] = [
   { path: "/future", name: "未來視", what: "下一版大概何時開、會開什麼，現在該先囤哪些材料（全部標明官方或推估）", priority: 0.8 },
   { path: "/plan/scroll", name: "衝卷模擬", what: "選裝備跟卷軸，算衝到想要的張數要準備多少", priority: 0.7 },
   { path: "/plan/avatar", name: "紙娃娃", what: "換髮型、臉型、點裝，看角色穿起來長怎樣，可以下載或分享", priority: 0.7 },
+  { path: "/plan/guild", name: "公會徽章", what: "挑底圖、圖案和顏色，先看看公會徽章做出來長怎樣", priority: 0.6 },
   { path: "/plan/pq", name: "組隊指揮", what: "月妙、超綠、女神組隊任務一關一關要做什麼、喊什麼，按一下複製；幫隊長算下一組誰換到哪", priority: 0.7 },
   { path: "/plan/speed", name: "練功測速", what: "分享遊戲畫面，自動算 10 分鐘拿多少經驗", priority: 0.7 },
   { path: "/price/fx", name: "楓幣匯率", what: "雪吉拉 1 億楓幣值多少台幣、每天走勢", priority: 0.7 },
