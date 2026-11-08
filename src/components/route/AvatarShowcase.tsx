@@ -48,32 +48,32 @@ export function AvatarShowcase({ className = "" }: { className?: string }) {
   return (
     // className（藏起來／顯示的規則）放外層，連底下那行連結一起套到
     <div className={className}>
-    <section aria-label="紙娃娃" className="overflow-hidden rounded-[var(--radius-card)] wood-frame bg-[color:var(--gold-wash)]">
-      <div className="avatar-marquee flex h-[128px] items-end overflow-hidden pb-1.5 motion-reduce:overflow-x-auto sm:h-[166px]" style={{ "--loop": `${LOOP}s` } as CSSProperties}>
-        <Row />
-        <Row copy />
-      </div>
-      <Link
-        href={DRAW_HREF}
-        onClick={() => track("avatar_showcase_click", { target: "draw" })}
-        className="flex items-center justify-between gap-3 bg-[color:var(--paper)] px-4 py-2.5"
-      >
-        <span className="min-w-0 text-[15px] font-black leading-snug">
-          紙娃娃
-          <span className="block text-[13px] font-medium ink-soft">隨機穿搭，你會抽到什麼？</span>
-        </span>
-        <span className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">抽一套</span>
-      </Link>
-    </section>
-    <p className="mt-2 text-center">
-      <Link
-        href="/plan/guild"
-        onClick={() => track("avatar_showcase_click", { target: "guild" })}
-        className="text-[13px] ink-soft underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]"
-      >
-        做公會徽章
-      </Link>
-    </p>
+      <section aria-label="紙娃娃" className="overflow-hidden rounded-[var(--radius-card)] wood-frame bg-[color:var(--gold-wash)]">
+        <div className="avatar-marquee flex h-[128px] items-end overflow-hidden pb-1.5 motion-reduce:overflow-x-auto sm:h-[166px]" style={{ "--loop": `${LOOP}s` } as CSSProperties}>
+          <Row />
+          <Row copy />
+        </div>
+        <Link
+          href={DRAW_HREF}
+          onClick={() => track("avatar_showcase_click", { target: "draw" })}
+          className="flex items-center justify-between gap-3 bg-[color:var(--paper)] px-4 py-2.5"
+        >
+          <span className="min-w-0 text-[15px] font-black leading-snug">
+            紙娃娃
+            <span className="block text-[13px] font-medium ink-soft">隨機穿搭，你會抽到什麼？</span>
+          </span>
+          <span className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">抽一套</span>
+        </Link>
+      </section>
+      <p className="text-center">
+        <Link
+          href="/plan/guild"
+          onClick={() => track("avatar_showcase_click", { target: "guild" })}
+          className="inline-block py-2 text-[13px] ink-soft underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]"
+        >
+          做公會徽章
+        </Link>
+      </p>
     </div>
   );
 }
