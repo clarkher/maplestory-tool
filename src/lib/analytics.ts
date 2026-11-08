@@ -29,6 +29,8 @@ export type EventName =
   | "boss_room_join"
   | "avatar_download"
   | "avatar_showcase_click"
+  | "guild_download"
+  | "guild_random"
   | "share";
 
 type Params = Record<string, string | number | boolean | undefined>;
