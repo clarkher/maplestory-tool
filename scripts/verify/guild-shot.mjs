@@ -147,7 +147,7 @@ try {
   });
 
   // 3. 單色圖案
-  await check(`圖案頁選顏色 7 →「其他」→ ${SINGLE.id}（只有 1 色）：色票只剩 1 能按、畫第 1 色；再點動物第 2 個 → 顏色回到 7`, async () => {
+  await check(`圖案頁選顏色 7 →「其他」→ ${SINGLE.id}（只有 1 色、格子寫「不放圖案」）：色票只剩 1 能按、畫第 1 色；再點動物第 2 個 → 顏色回到 7`, async () => {
     await open();
     await click("圖案分頁", `document.querySelector("[data-tab='mark']")`);
     await wait("圖案頁", `document.querySelector("[data-tab='mark'][data-on]") && document.querySelector("[data-cat]")`, 5000);
@@ -155,6 +155,8 @@ try {
     await wait("網址 mc=7", `new URLSearchParams(location.search).get("mc") === "7"`, 5000);
     await click("其他", `document.querySelector("[data-cat='${SINGLE.cat}']")`);
     await wait(`${SINGLE.id} 那格`, `document.querySelector("[data-cell='${SINGLE.id}']")`, 5000);
+    // v1.82：這格寫「不放圖案」（客戶端是整片幾乎透明的圖），讀屏也念「不放圖案」
+    const label = await evaluate(`(() => { const b = document.querySelector("[data-cell='${SINGLE.id}']"); return [b.textContent.trim(), b.getAttribute("aria-label")]; })()`);
     await click(String(SINGLE.id), `document.querySelector("[data-cell='${SINGLE.id}']")`);
     await wait(`網址 m=${SINGLE.id}`, `new URLSearchParams(location.search).get("m") === "${SINGLE.id}"`, 5000);
     await painted();
@@ -172,8 +174,8 @@ try {
     await evaluate(`document.querySelector("[data-tab='mark']").closest("section").scrollIntoView({ block: "start", behavior: "instant" })`);
     await painted();
     await shot("guild-mark-tab.png");
-    return [enabled.join() === "1" && q1.mc === "1" && d1.ok && q2.mc === "7" && d2.ok,
-      { enabled, single: q1, back: q2, singleStage: d1.got.stage, backStage: d2.got.stage }];
+    return [label[0] === "不放圖案" && label[1] === "不放圖案" && enabled.join() === "1" && q1.mc === "1" && d1.ok && q2.mc === "7" && d2.ok,
+      { label, enabled, single: q1, back: q2, singleStage: d1.got.stage, backStage: d2.got.stage }];
   });
 
   // 4. 隨機 10 次

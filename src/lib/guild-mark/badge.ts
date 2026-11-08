@@ -26,6 +26,9 @@ export const CATEGORIES: { key: Category; label: string }[] = [
 export type Badge = { b: number; bc: number; m: number; mc: number };
 export const DEFAULT_BADGE: Badge = { b: 1005, bc: 10, m: 2000, mc: 2 };
 
+/** 「其他」最後一個：客戶端是整片幾乎全透明（alpha 17）的圖，遊戲裡就是不放圖案；格子寫字不畫圖（11/08 使用者選 A） */
+export const NO_MARK_ID = 9026;
+
 const ATLAS_W = 16;
 const ATLAS_H = 144;
 
