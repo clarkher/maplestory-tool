@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- 分支 `feat/v1.80-guild-mark`，commit 開頭 `v1.80:`；只進 dev（PR → dev），不上正式機。
+- 分支 `feat/v1.81-guild-mark`，commit 開頭 `v1.81:`；只進 dev（PR → dev），不上正式機。
 - UI 不放 emoji；格子不寫名字，`aria-label` 寫「底圖 第 N 個」「動物 第 N 個」。
 - 網頁標題「公會徽章」，副標「挑底圖、圖案和顏色，先看看公會徽章做出來長怎樣。」。
 - 預設徽章 `b=1005&bc=10&m=2000&mc=2`。
@@ -68,7 +68,7 @@
   - 檢查（不過就 `sys.exit`、不寫任何檔）：數量同 Global Constraints；每格都有差 0；2273 格全用到。
   - 色票：底圖取 `00001000` 每色 17×17 正中那點；圖案取文字分類第一個圖案每色出現最多的不透明顏色。
 - [ ] **Step 4: 跑腳本，再跑 `npx vitest run src/lib/guild-mark`**，預期 PASS。打開圖集用眼睛看一次（每列一種、每欄一色）。
-- [ ] **Step 5: Commit** `v1.80: 公會徽章圖集——台服客戶端切圖，對舊版答案卷 2,289 格全中`
+- [ ] **Step 5: Commit** `v1.81: 公會徽章圖集——台服客戶端切圖，對舊版答案卷 2,289 格全中`
 
 ### Task 2: 徽章狀態（網址、預設、顏色規則、隨機）
 
@@ -102,7 +102,7 @@
 - [ ] **Step 2: 跑 `npx vitest run src/lib/guild-mark`**，預期 FAIL。
 - [ ] **Step 3: 實作 `badge.ts`**（`pickMark` 用 `wanted` 決定，畫面另記「使用者要的顏色」：URL 只存實際畫的顏色，`GuildSim` 把 wanted 放 state）。
 - [ ] **Step 4: 跑測試**，預期 PASS。
-- [ ] **Step 5: Commit** `v1.80: 公會徽章網址參數、預設、顏色規則、隨機`
+- [ ] **Step 5: Commit** `v1.81: 公會徽章網址參數、預設、顏色規則、隨機`
 
 ### Task 3: 頁面 `/plan/guild`
 
@@ -128,7 +128,7 @@
   - `metadata`：title `公會徽章｜挑底圖、圖案、顏色先看成品`、description 寫隨機、下載、分享，`alternates.canonical: "/plan/guild"`。
 - [ ] **Step 2: 寫 code、`npx tsc --noEmit` 過、`npm test` 過**
 - [ ] **Step 3: 起 dev server（worktree 另開埠＋`--webpack`，見記憶）用內建瀏覽器 375 寬看一次**：預設徽章是藍條紋底＋橘老鷹、換色票整排格子跟著換、網址跟著變。
-- [ ] **Step 4: Commit** `v1.80: 公會徽章頁——徽章卡＋挑選卡、隨機、下載、分享`
+- [ ] **Step 4: Commit** `v1.81: 公會徽章頁——徽章卡＋挑選卡、隨機、下載、分享`
 
 ### Task 4: 入口與文件
 
@@ -138,7 +138,7 @@
 - Modify: `README.md`（紙娃娃那段後面加公會徽章段：資料來源、`scripts/client/guild-mark.py` 用法、圖集換檔名規則、入口；GA 事件表加 `guild_download`、`guild_random`，`share` 的 page 加 guild；`public/assets` 新檔不用改 `meta.json` builtAt——檔名帶雜湊）
 - [ ] **Step 1: 改完跑 `npm test`、`npx tsc --noEmit`**
 - [ ] **Step 2: 首頁 375 寬看：第一次來、存過角色兩種狀態，連結都在輪播正下方、只出現一次**
-- [ ] **Step 3: Commit** `v1.80: 公會徽章入口（首頁輪播下、紙娃娃頁）＋README`
+- [ ] **Step 3: Commit** `v1.81: 公會徽章入口（首頁輪播下、紙娃娃頁）＋README`
 
 ### Task 5: 驗收腳本＋實測
 
@@ -157,5 +157,5 @@
   8. 首頁輪播下有「做公會徽章」，點了到 `/plan/guild`。
   9. 截圖 `guild-375.png`、`guild-mark-tab.png`、`guild-dark.png`、`guild-home.png`。
 - [ ] **Step 2: 對本機 dev 跑過**，用眼睛看四張截圖，自己玩一輪記 ≥10 點優化意見。
-- [ ] **Step 3: Commit** `v1.80: 公會徽章驗收腳本`
+- [ ] **Step 3: Commit** `v1.81: 公會徽章驗收腳本`
 - [ ] **Step 4: rebase origin/dev → push → 開 PR 到 dev → `gh pr checks` 三條綠 → 合併 → 等測試機部署 → 對測試機網址再跑一次 `guild-shot.mjs` → 回報可點網址＋截圖**

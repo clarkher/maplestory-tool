@@ -1,5 +1,5 @@
 # 台服經典版客戶端（Unity）切公會徽章：底圖 31 種、圖案 113 種，每種最多 16 色，全部 17×17。
-# 2026-11-08 v1.80 公會徽章模擬器（/plan/guild）用，設計見 docs/superpowers/specs/2026-11-08-guild-mark-design.md「圖從哪來」「資料管線」。
+# 2026-11-08 v1.81 公會徽章模擬器（/plan/guild）用，設計見 docs/superpowers/specs/2026-11-08-guild-mark-design.md「圖從哪來」「資料管線」。
 #
 # 用法（要 Python 3.11 + UnityPy、numpy、Pillow：pip install --user UnityPy numpy Pillow；還要 node）：
 #   python -E -P scripts/client/guild-mark.py [客戶端資料夾，預設 D:/屁哥/maplestory_classic]

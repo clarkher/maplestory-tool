@@ -1,4 +1,4 @@
-// 公會徽章（/plan/guild，v1.80）驗收：預設、換底圖顏色、單色圖案、隨機、下載的圖逐像素、網址參數、不橫捲、不跳（CLS）、首頁跟紙娃娃頁的入口、電腦按分享；
+// 公會徽章（/plan/guild，v1.81）驗收：預設、換底圖顏色、單色圖案、隨機、下載的圖逐像素、網址參數、不橫捲、不跳（CLS）、首頁跟紙娃娃頁的入口、電腦按分享；
 // 任何一項沒過 exit 1
 // 用法：node scripts/verify/guild-shot.mjs [網址，預設 http://localhost:9620] [輸出資料夾] [DevTools 埠，預設 9621]
 //   例：npx next dev --webpack -p 9620   （另一個視窗先開本機 dev）

@@ -661,7 +661,7 @@ node scripts/verify/avatar-shot.mjs [網址，預設 http://localhost:9381] [輸
 - 測試機要等 v1.41 進 `dev` 才過得了第 10 項之後的項目（沒進之前是真的沒有這些功能）。
 - 耗時：本機正式 build（`next start`）約 1 分 15 秒～1 分 35 秒，dev server（已編譯過）約 2 分 20 秒（2026-11-04 量）；碰到 maplestory.io 慢會多等一輪舞台逾時（量到 2 分 15 秒）。
 
-#### `guild-shot.mjs`：公會徽章 `/plan/guild`（v1.80，埠 9621）
+#### `guild-shot.mjs`：公會徽章 `/plan/guild`（v1.81，埠 9621）
 
 ```bash
 node scripts/verify/guild-shot.mjs [網址，預設 http://localhost:9620] [輸出] [DevTools 埠，預設 9621]
