@@ -102,6 +102,8 @@ function validQuery(q) {
   const bg = bgById.get(n(q.b)), mark = markById.get(n(q.m));
   return Boolean(bg && mark && bg.colours.includes(n(q.bc)) && mark.colours.includes(n(q.mc)));
 }
+// v1.83：底圖、圖案各自置中，1 倍取整數格（跟 badge.ts centreShift 同一條規則，這裡自己算一次）
+const centre = b => [Math.round((17 - b[2]) / 2 - b[0]), Math.round((17 - b[3]) / 2 - b[1])];
 const asBadge = q => ({ b: Number(q.b), bc: Number(q.bc), m: Number(q.m), mc: Number(q.mc) });
 const BUTTON = text => `[...document.querySelectorAll("button")].find(b => b.textContent.trim() === ${JSON.stringify(text)})`;
 async function open(search = "") {
@@ -198,7 +200,7 @@ try {
   });
 
   // 5. 下載
-  await check("按「下載」：公會徽章.png、68×68、每 4×4 一塊同色、跟圖集兩格疊起來逐像素一樣", async () => {
+  await check("按「下載」：公會徽章.png、68×68、每 4×4 一塊同色、跟圖集兩格各自置中疊起來逐像素一樣", async () => {
     await open("?b=1012&bc=3&m=5004&mc=7");
     await evaluate(`(() => {
       window.__dl = null;
@@ -228,7 +230,7 @@ try {
       await img.decode();
       const small = new OffscreenCanvas(${CELL}, ${CELL}).getContext("2d");
       small.imageSmoothingEnabled = false;
-      for (const [row, c] of [[${bg.row}, ${Number(q.bc)}], [${mark.row}, ${Number(q.mc)}]]) small.drawImage(img, (c - 1) * ${CELL}, row * ${CELL}, ${CELL}, ${CELL}, 0, 0, ${CELL}, ${CELL});
+      for (const [row, c, d] of [[${bg.row}, ${Number(q.bc)}, ${JSON.stringify(centre(bg.box))}], [${mark.row}, ${Number(q.mc)}, ${JSON.stringify(centre(mark.box))}]]) small.drawImage(img, (c - 1) * ${CELL}, row * ${CELL}, ${CELL}, ${CELL}, d[0], d[1], ${CELL}, ${CELL});
       const S = small.getImageData(0, 0, ${CELL}, ${CELL}).data;
       let blockBad = 0, diff = 0, opaque = 0, firstDiff = null;
       if (bmp.width === 68 && bmp.height === 68) {
@@ -254,9 +256,9 @@ try {
     return [a.ok && b.ok && onA.includes("1012"), { given: a.got.stage, picked: onA, fallback: b.got.stage }];
   });
 
-  // 6b. 置中（v1.82）：遊戲裡每格位置不一，畫面上看得到的部分要在正中間（量畫出來的位置＋資料的 box）
+  // 6b. 置中（v1.83）：遊戲裡每格位置不一（老鷹貼左上），底圖、圖案各自要在舞台正中間（量畫出來的位置＋資料的 box）
   const OFF = CATS.flatMap(c => DATA.marks[c]).find(e => e.box[0] + e.box[2] / 2 < 7.5 || e.box[1] + e.box[3] / 2 < 7.5);
-  await check(`大徽章、圖案格子看得到的部分置中（大徽章差 ≤ 4px、格子差 ≤ 1px；含偏一邊的 ${OFF.id}）`, async () => {
+  await check(`大徽章底圖、圖案各自置中、圖案格子置中（差 ≤ 半格；含偏一邊的預設老鷹跟 ${OFF.id}）`, async () => {
     const stage = [];
     for (const q of ["", `?b=1012&bc=3&m=${OFF.id}&mc=${OFF.colours[0]}`]) {
       await open(q);
@@ -265,10 +267,10 @@ try {
       stage.push(await evaluate(`(() => {
         const s = document.querySelector("[data-stage]").getBoundingClientRect();
         const r = [...document.querySelectorAll("[data-stage] [data-layer]")].map(l => l.getBoundingClientRect());
-        const boxes = ${JSON.stringify(boxes)};
-        const x0 = Math.min(...boxes.map((b, i) => r[i].left + b[0] * 8)), x1 = Math.max(...boxes.map((b, i) => r[i].left + (b[0] + b[2]) * 8));
-        const y0 = Math.min(...boxes.map((b, i) => r[i].top + b[1] * 8)), y1 = Math.max(...boxes.map((b, i) => r[i].top + (b[1] + b[3]) * 8));
-        return { dx: (x0 + x1) / 2 - (s.left + s.width / 2), dy: (y0 + y1) / 2 - (s.top + s.height / 2) };
+        return ${JSON.stringify(boxes)}.map((b, i) => ({
+          dx: r[i].left + (b[0] + b[2] / 2) * 8 - (s.left + s.width / 2),
+          dy: r[i].top + (b[1] + b[3] / 2) * 8 - (s.top + s.height / 2),
+        }));
       })()`));
     }
     await click("圖案分頁", `document.querySelector("[data-tab='mark']")`);
@@ -284,7 +286,7 @@ try {
       });
     })()`);
     const badTiles = tiles.filter(t => Math.abs(t.dx) > 1 || Math.abs(t.dy) > 1);
-    const okStage = stage.every(d => Math.abs(d.dx) <= 4 && Math.abs(d.dy) <= 4);
+    const okStage = stage.flat().every(d => Math.abs(d.dx) <= 4 && Math.abs(d.dy) <= 4);
     return [okStage && tiles.length > 0 && badTiles.length === 0, { stage, tiles: tiles.length, badTiles }];
   });
 
