@@ -28,6 +28,15 @@ export function QuestSteps({ steps }: { steps: QuestStep[] }) {
                   ))}
                 </p>
               ))}
+              {step.go ? (
+                // 跟 NPC 頁、地圖頁大標下面那顆「帶我去」同一個樣子、同一個網址
+                <Link
+                  href={step.go}
+                  className="tap-safe inline-flex min-h-6 items-center rounded-full border border-[color:var(--paper-edge)] px-2.5 text-xs font-extrabold text-[color:var(--maple)] hover:border-[color:var(--maple)]"
+                >
+                  帶我去
+                </Link>
+              ) : null}
             </div>
           </li>
         ))}

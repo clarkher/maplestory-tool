@@ -44,6 +44,6 @@ describe("questSteps（真資料）", () => {
       const found = all.find(({ quest }) => quest.id === id);
       if (found) console.log(id, found.steps.map(step => `${step.title}｜${stepText(step).join(" / ")}`).join("\n"));
     }
-    console.log(JSON.stringify({ quests: all.length, bySteps: Object.fromEntries([...count].sort((a, b) => a[0] - b[0])), kinds: Object.fromEntries(kinds), startWithRoute: routes }));
+    console.log(JSON.stringify({ quests: all.length, bySteps: Object.fromEntries([...count].sort((a, b) => a[0] - b[0])), kinds: Object.fromEntries(kinds), startWithRoute: routes, withGo: all.filter(({ steps }) => steps.some(step => step.go)).length }));
   });
 });
