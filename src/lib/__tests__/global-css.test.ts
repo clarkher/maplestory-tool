@@ -210,3 +210,22 @@ describe("小字對比過 WCAG AA（v0.81，使用者選 A1：淺色整組壓深
     expect(selection?.body ?? "").toMatch(/color:\s*var\(--on-accent\)/);
   });
 });
+
+describe("A 攻略工具配色（v1.89）", () => {
+  it("頁底是中性灰黑／淺灰，不再是羊皮紙咖啡", () => {
+    expect(themeValue("dark", "paper")).toBe("#0c0e12");
+    expect(themeValue("light", "paper")).toBe("#f5f6f8");
+  });
+
+  it("卡片底不透明（glass、glass-strong 不帶透明度）", () => {
+    for (const theme of themes) for (const name of ["glass", "glass-strong"]) expect(rgba(themeValue(theme, name))[3]).toBe(1);
+  });
+
+  it("卡片不加陰影", () => {
+    for (const theme of themes) expect(themeValue(theme, "glass-shadow")).toBe("none");
+  });
+
+  it("格紋線不再畫", () => {
+    for (const theme of themes) expect(themeValue(theme, "grid-line")).toBe("transparent");
+  });
+});
