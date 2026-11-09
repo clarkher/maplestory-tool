@@ -138,3 +138,13 @@ export function cardIcons(page: PatchPage, has: (id: number) => boolean): number
   for (const i of page.added.items) take(i.id);
   return out;
 }
+
+/** 最新一版的日期（YYYY-MM-DD）：有重點檔的版本先算；一個都沒有時退回差異檔總表 index.json 最新的一版 */
+export function latestPatchDate(opts: Opts = {}): string {
+  const first = listPatchPages(opts)[0];
+  if (first) return first.date;
+  const indexPath = path.join(opts.dataDir ?? defaultDataDir(), "index.json");
+  if (!fs.existsSync(indexPath)) return "";
+  const versions = (JSON.parse(fs.readFileSync(indexPath, "utf8")).versions ?? []) as { date: string }[];
+  return versions.map(v => v.date).sort().at(-1) ?? "";
+}

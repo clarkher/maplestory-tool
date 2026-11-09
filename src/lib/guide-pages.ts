@@ -1,6 +1,7 @@
 import type { GuideCard } from "./guide-catalog";
 import { GUIDE_UPDATED_AT } from "./guide-data";
 import { HALLOWEEN } from "./halloween";
+import { latestPatchDate } from "./patches";
 
 /** 站上本來就有、不是文章檔的攻略頁；圖在 public/assets/guides/<資料夾>/hero.webp（scripts/guide-card-heroes.mjs 產） */
 export const GUIDE_PAGES: GuideCard[] = [
@@ -44,5 +45,15 @@ export const GUIDE_PAGES: GuideCard[] = [
     category: "組隊任務",
     tags: ["組隊", "21～30 等"],
     date: GUIDE_UPDATED_AT,
+  },
+  {
+    href: "/updates",
+    title: "楓之谷經典版改版紀錄：每次更新多了什麼",
+    excerpt: "新道具、新任務、改了數字的東西，照版本整理好，附道具圖。",
+    image: "/assets/guides/updates/hero.webp",
+    imageAlt: "楓之谷經典版改版紀錄，冒險家在城鎮廣場看佈告欄與新道具",
+    category: "改版整理",
+    tags: ["改版"],
+    date: latestPatchDate(),
   },
 ];

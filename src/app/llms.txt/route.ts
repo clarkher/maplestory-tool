@@ -1,5 +1,6 @@
 import { respawnLlmsLines } from "@/lib/boss/respawn-table";
 import { articlePath, articleRangeLabel } from "@/lib/job-article";
+import { listPatchPages } from "@/lib/patches";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
 import { staticGuide, staticGuideDocs, staticGuideJobs, staticJobArticleKeys, staticMeta } from "@/lib/static-data";
@@ -29,6 +30,13 @@ function docLines(): string[] {
   return ["## 攻略文章", "", ...docs.map(doc => `- [${doc.title}](${SITE_URL}/guides/${doc.slug})：${doc.description}`), ""];
 }
 
+/** 改版整理（v1.94）：只列有重點檔的版本 */
+function patchLines(): string[] {
+  const pages = listPatchPages();
+  if (!pages.length) return [];
+  return ["## 改版紀錄（每版新增的道具、任務、改了數字的東西）", "", ...pages.map(page => `- [${page.version} ${page.title}](${SITE_URL}/updates/${page.version})`), ""];
+}
+
 export function GET() {
   const meta = staticMeta();
   const lines = [
@@ -50,6 +58,7 @@ export function GET() {
     ...respawnLlmsLines(SITE_URL),
     ...articleLines(),
     ...docLines(),
+    ...patchLines(),
     "## 單筆資料頁",
     "",
     `- 怪物：${SITE_URL}/db/monsters/<怪物編號>，例 ${SITE_URL}/db/monsters/100100（嫩寶）`,
