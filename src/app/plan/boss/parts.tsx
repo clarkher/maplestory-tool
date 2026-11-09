@@ -4,6 +4,8 @@
 import { useState } from "react";
 import { monsterImage } from "@/lib/data";
 import type { BossDef, ChannelState } from "@/lib/boss/types";
+// 重生時間、地圖的寫法 v1.90 搬去 lib（伺服器那張表、描述、llms.txt 共用）
+import { mapText, respawnText } from "@/lib/boss/respawn-table";
 
 /** 每種狀態的底色與字色（膠囊、60 格共用） */
 export const STATE_STYLE: Record<ChannelState["kind"], string> = {
@@ -27,20 +29,6 @@ const BIG_COLOR: Record<ChannelState["kind"], string> = {
 
 export const CARD = "rounded-[var(--radius-card)] glass-solid p-4";
 
-/** 王的重生時間（卡片上那行） */
-export function respawnText(boss: BossDef): string {
-  if (boss.min === null || boss.max === null) return "還沒有台服實測";
-  return boss.min === boss.max ? `約 ${boss.min} 分` : `${boss.min}～${boss.max} 分`;
-}
-
-/** 兩張圖輪流的王：「巫婆森林Ⅰ或Ⅱ」 */
-export function mapText(maps: string[]): string {
-  if (maps.length < 2) return maps[0] ?? "";
-  const [a, b] = maps;
-  let i = 0;
-  while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  return `${a}或${b.slice(i)}`;
-}
 
 /** 經過幾分鐘（無條件捨去） */
 export const mins = (s: ChannelState) => Math.floor(s.minutes);

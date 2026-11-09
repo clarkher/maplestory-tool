@@ -1,0 +1,44 @@
+name: IndexNow 通知
+
+# main 有新 commit（＝正式機要重建）時：等 Cloudflare Workers Builds 把正式機部署完（commit 的 check-run
+# 「Workers Builds: maplehelper」成功），確認 https://maplehelper.tw/<金鑰>.txt 回 200，
+# 再把正式機 sitemap 的網址一次送給 IndexNow（Bing 等搜尋引擎；ChatGPT 查網路主要靠 Bing）。v1.90。
+# 程式跟用法：scripts/indexnow.mjs。只送 maplehelper.tw，dev（測試機）不會觸發這裡。
+# 限制：資料自動更新用 github.token 推進 main 的 commit 不會觸發（GitHub 不讓 workflow 用自己的 token 觸發別的 workflow），
+# 那次部署就等下一次合併一起送，或到 Actions 頁面手動按 Run workflow（要 workflow 檔已經在 main 上）。
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  checks: read
+
+# 連續合併兩次只留最後一次：每次都送整份 sitemap，前一次送不送都一樣
+concurrency:
+  group: indexnow
+  cancel-in-progress: true
+
+jobs:
+  notify:
+    name: 通知搜尋引擎
+    if: github.repository == 'clarkher/maplestory-tool'
+    runs-on: ubuntu-latest
+    # 正式機建置約 10 分鐘，腳本最多等 25 分鐘部署、5 分鐘金鑰檔
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 等正式機部署完再送網址
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: node scripts/indexnow.mjs --wait-deploy "$SHA"
