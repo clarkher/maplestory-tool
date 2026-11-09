@@ -44,6 +44,8 @@
 
 「衝卷模擬」（`/plan/scroll`，v1.23）：挑一件裝備、一張卷軸，一張表比「成功 1～N 張」各要準備多少（平均、九成機率、白衣補次數）；單價自己填，卷軸、裝備（開白衣再加白衣）都填了才算花費。
 網址 `?eq=<裝備 id>&sc=<卷軸 id>`；查資料的卷軸卡、可衝裝備卡有入口。資料在 `public/data/scroll-sim.json`，由 `pipeline/build-gear.mjs`（`pipeline/lib/scroll-sim.mjs`）建置時產：
+
+「未來視」（`/future`，v1.68）：一條時間軸（官方發佈會→下一版→殘暴炎魔→四轉），每站標官方／推估／猜測，直接掛現在該囤什麼。時間跟內容手動維護在 `src/lib/future/forecast.ts`（官方一有消息就改，`FORECAST_UPDATED` 跟著改；發佈會過了還沒更新、預估窗過了，頁面自己會講）；材料數字由 `npm run data:future`（`pipeline/build-future.mjs`）從遊戲資料算成 `public/data/future.json`，每班資料更新都會重算。四轉任務現在的客戶端沒有，來源是快照 `data/future/fourth-job-snapshot.json`（1.15.2，`pipeline/snapshot-fourth-job.mjs`）。導覽列只在電腦版（手機放五顆會擠掉查資料），手機從首頁小卡、查資料進去。驗收 `scripts/verify/future-shot.mjs`。
 `scrolls`（卷軸：成功率、爆裝率、加的數值、能衝的部位或專用裝備）、`white`（白衣）、`equips`（可衝卷的裝備與次數）。計算在 `src/lib/scroll-sim/`。
 驗收：`npx vitest run src/lib/scroll-sim`；畫面用 `node scripts/verify/scroll-shot.mjs <網址，預設 http://localhost:9401> [輸出]`（埠 9402，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
 

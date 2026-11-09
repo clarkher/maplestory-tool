@@ -177,6 +177,10 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/build-gear.mjs
 
+      - name: 重算未來視的材料清單
+        if: steps.check.outputs.changed == 'true'
+        run: node pipeline/build-future.mjs
+
       - name: 確認產出沒有壞掉
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/verify.mjs

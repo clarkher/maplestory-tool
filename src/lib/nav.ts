@@ -21,6 +21,8 @@ export const NAV: NavItem[] = [
   { href: "/price/fx", label: "楓幣匯率", match: ["/price"], desktopOnly: true },
   // v1.18：野王計時（所有寬度都有）；要排在查資料前面，不然 /plan/boss 會亮查資料
   { href: "/plan/boss", label: "野王計時", match: ["/plan/boss"] },
+  // v1.68：未來視。手機放五顆會把查資料擠出畫面（375 寬量過），同算傷害只在電腦版，手機從首頁卡、查資料進去
+  { href: "/future", label: "未來視", match: ["/future"], desktopOnly: true },
   { href: "/go", label: "帶我去", match: ["/go"] },
   { href: "/db", label: "查資料", match: ["/db", "/plan"] },
 ];
