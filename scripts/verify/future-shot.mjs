@@ -110,8 +110,9 @@ try {
     await sleep(300);
     const m = await evaluate(`(()=>{const n=document.querySelector('nav[aria-label="主選單"]');return {page:document.documentElement.scrollWidth-innerWidth,nav:n.scrollWidth-n.clientWidth,labels:[...n.querySelectorAll('a')].filter(a=>a.offsetWidth).map(a=>a.textContent).join()}})()`);
     check(`${width} 寬不橫向捲`, m.page <= 0, `多 ${m.page}`);
-    // 放不放得下只印不擋：360、430 寬本來就多一點（正式機同樣數字）
-    check(`${width} 寬手機導覽列沒有未來視`, m.labels.includes("查資料") && !m.labels.includes("未來視"), `${m.labels}／多 ${m.nav}`);
+    check(`${width} 寬手機導覽列沒有未來視`, m.labels.includes("查資料") && !m.labels.includes("未來視"), m.labels);
+    // v1.72 起一定放得下（每個寬度的細部量法：nav-fit.mjs）
+    check(`${width} 寬導覽列不用橫向捲`, m.nav <= 0, `多 ${m.nav}`);
   }
 
   // 存了火毒二轉：自動帶火毒；再切夜使者
