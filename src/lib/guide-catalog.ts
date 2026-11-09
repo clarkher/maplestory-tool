@@ -5,7 +5,7 @@
  */
 import { jobLineOf } from "./jobs";
 
-export const GUIDE_CATEGORIES = ["職業攻略", "轉職", "組隊任務", "新手入門", "活動", "改版整理"] as const;
+export const GUIDE_CATEGORIES = ["職業攻略", "轉職", "任務", "組隊任務", "新手入門", "活動", "改版整理"] as const;
 export type GuideCategory = (typeof GUIDE_CATEGORIES)[number];
 
 /** 列表上那排可以點的標籤（卡片上的標籤可以更多，篩選只放這幾個） */

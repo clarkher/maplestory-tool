@@ -140,6 +140,55 @@ const SCENES = [
       "In the middle add a party of four young adventurers (a warrior with a sword, a mage with a staff, an archer with a bow, a thief with throwing stars) charging at the giant slime together. Energetic teamwork mood.",
     ].join(" "),
   },
+  {
+    // v1.98 冒險家的戒指任務線：魔法森林圖書館的漢斯把戒指交給冒險家（戒指小圖是三選一那三枚）
+    slug: "adventurer-ring",
+    base: { render: 101000003, crop: [0, 200, 816, 459], fill: "#3b2a4a" },
+    sprites: [
+      { file: "npcs/1032001.png", x: 0.3, y: 0.92, h: 0.42 },
+      { file: "items/1113372.png", x: 0.56, y: 0.42, h: 0.1 },
+      { file: "items/1113373.png", x: 0.64, y: 0.36, h: 0.1 },
+      { file: "items/1113374.png", x: 0.72, y: 0.42, h: 0.1 },
+    ],
+    idea: [
+      "A cozy magic library inside a giant tree: tall wooden bookshelves, floating glowing books, warm candlelight and soft green magic sparkles.",
+      "On the left is the old wizard from the sprite: a small elderly man with a long white beard, a pointed hat and robes, holding a staff. Keep him exactly like the sprite.",
+      "He is holding out his hand toward a young adventurer with short brown hair in a light tunic standing on the right, and between them three small rings float in the air glowing softly (one red, one blue, one purple), each shaped like the ring sprites.",
+      "Warm, heartfelt master-and-apprentice mood, a reward at the end of a long journey.",
+    ].join(" "),
+  },
+  {
+    // v1.98 勳章總整理：勇士之村的名譽神官達利額頒勳章
+    slug: "medals",
+    base: { render: 102000000, crop: [0, 400, 1200, 675], fill: "#c9b48a" },
+    sprites: [
+      { file: "npcs/9000040.png", x: 0.3, y: 0.92, h: 0.46 },
+      { file: "items/1142004.png", x: 0.6, y: 0.5, h: 0.14 },
+    ],
+    idea: [
+      "A rocky warrior village on a cliff in bright daylight: stone paths, wooden huts, totem poles, blue sky.",
+      "On the left is the priest from the sprite. Keep the priest exactly like the sprite: same outfit, colors and pose.",
+      "The priest is pinning a shiny gold medal shaped like the medal sprite onto the chest of a proud young adventurer with spiky brown hair in a light tunic, standing on the right. A few other medals glint on a small wooden display stand behind them.",
+      "Proud, celebratory, achievement mood.",
+    ].join(" "),
+  },
+  {
+    // v1.98 愛情象徵：五位給愛情象徵的村民（瑪亞、羅雯、義安、內拉、艾利遜）在射手村
+    slug: "love-symbols",
+    base: { render: 100000000, crop: [0, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/1012101.png", x: 0.1, y: 0.92, h: 0.34 },
+      { file: "npcs/1032101.png", x: 0.25, y: 0.92, h: 0.34 },
+      { file: "npcs/1022007.png", x: 0.75, y: 0.92, h: 0.34 },
+      { file: "npcs/1052103.png", x: 0.88, y: 0.92, h: 0.34 },
+      { file: "items/4031683.png", x: 0.5, y: 0.45, h: 0.14 },
+    ],
+    idea: [
+      "A sunny village with mushroom-cap houses, green hills and soft pink petals drifting in the air.",
+      "Keep the four villagers from the sprites exactly like the sprites (same hair, outfits and colors), two on the left and two on the right, each holding out a small glowing heart-shaped token like the heart sprite.",
+      "In the middle stands a young adventurer with short brown hair in a light tunic, looking a little puzzled, holding several of the glowing heart tokens in both hands. Sweet, light-hearted, slightly curious mood.",
+    ].join(" "),
+  },
 ];
 
 /* ------------------------------------------------------------------ 參數 */
