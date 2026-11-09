@@ -11,16 +11,10 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { runBuildPatch } from "./lib/patch-run.mjs";
+import { cliOpt, ROOT, runBuildPatch } from "./lib/patch-run.mjs";
 import { buildAt, versionTimeline } from "./lib/upstream-history.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const args = process.argv.slice(2);
-const opt = (name, fallback) => {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 ? args[i + 1] : fallback;
-};
+const opt = cliOpt(process.argv.slice(2));
 const upstream = opt("upstream");
 const out = path.resolve(ROOT, opt("out", "public/data/patches"));
 if (!upstream) {

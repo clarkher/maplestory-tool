@@ -19,18 +19,12 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { VERSION_RE } from "./lib/patch-index.mjs";
-import { findCurrentAndPrevious, runBuildPatch } from "./lib/patch-run.mjs";
+import { cliOpt, findCurrentAndPrevious, ROOT, runBuildPatch } from "./lib/patch-run.mjs";
 import { buildAt } from "./lib/upstream-history.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SHA = /^[0-9a-f]{40}$/;
-const args = process.argv.slice(2);
-const opt = (name, fallback) => {
-  const i = args.indexOf(`--${name}`);
-  return i >= 0 ? args[i + 1] : fallback;
-};
+const opt = cliOpt(process.argv.slice(2));
 
 const upstream = opt("upstream");
 if (!upstream) {

@@ -414,18 +414,22 @@ test("artifact 整個 public/data 都帶（含 public/data/patches），publish 
   assert.match(stepBlock("存下重建好的資料檔"), /\n {12}public\/data\n/);
 });
 
-test("publish 合併後才輸出要提醒的版本：有 public/data/patches/<版本>.json 才寫 patch_version，寫在 gh pr merge 之後", () => {
+test("publish 合併後才輸出要提醒的版本：這個 commit「新增」了 public/data/patches/<版本>.json（新版本）才寫 patch_version，寫在 gh pr merge 之後", () => {
   const block = stepBlock("開 PR 並自動合併");
   assert.match(block, /^ {8}id: pr$/m);
   const merge = block.indexOf("gh pr merge");
   const output = block.indexOf('echo "patch_version=${VERSION}" >> "$GITHUB_OUTPUT"');
   assert.notEqual(output, -1, "要輸出 patch_version");
   assert.ok(merge < output, "合併成功之後才輸出");
-  assert.match(block, /\[ -f "public\/data\/patches\/\$\{VERSION\}\.json" \]/);
+  // 同版修正只是改差異檔，不算新版本；比對的是剛 commit 的資料 commit 跟它的上一個（main）
+  const added = block.indexOf('PATCH_ADDED=$(git diff --name-only --diff-filter=A HEAD~1 HEAD -- "public/data/patches/${VERSION}.json")');
+  assert.notEqual(added, -1, "要用 diff-filter=A 看是不是新增");
+  assert.ok(block.indexOf("git commit -m") < added && added < merge, "commit 之後、合併之前算");
+  assert.match(block, /if \[ -n "\$PATCH_ADDED" \]; then\n\s*echo "patch_version=/);
   assert.match(PUBLISH, /^ {4}outputs:\n(?: {6}#.*\n)* {6}patch_version: \$\{\{ steps\.pr\.outputs\.patch_version \}\}$/m);
 });
 
-test("新版本開 issue 提醒寫重點：放 notify（已有 issues: write），publish 成功才跑、dry-run 不開、已有重點檔或同標題開著就不開", () => {
+test("新版本開 issue 提醒寫重點：放 notify（已有 issues: write），publish 成功才跑、dry-run 不開、main 上已有重點檔或同標題開過（含已關）就不開", () => {
   const block = stepBlock("新版本提醒寫改版重點");
   assert.ok(NOTIFY.includes(block), "要在 notify 裡（publish 的權限不加 issues）");
   assert.match(block, /^\s*if: \$\{\{ needs\.publish\.result == 'success' && needs\.publish\.outputs\.patch_version != '' \}\}\s*$/m);
@@ -439,19 +443,30 @@ test("新版本開 issue 提醒寫重點：放 notify（已有 issues: write）�
   };
   assert.ok(at('[[ "$VERSION" =~ ^[0-9A-Za-z.+-]{1,32}$ ]]') < at("gh issue create"), "版本字串先擋格式");
   assert.ok(at(GUARD) < at("gh issue create"), "dry-run 再擋一次");
-  assert.ok(at('[ -f "src/content/patches/$VERSION.md" ]') < at("gh issue create"), "已經寫了重點就不開");
+  // 看 main 上的重點檔（觸發的 commit 可能比 main 舊）
+  assert.ok(at('gh api "repos/$GITHUB_REPOSITORY/contents/src/content/patches/$VERSION.md?ref=main"') < at("gh issue create"), "main 上已經寫了重點就不開");
   assert.ok(at('TITLE="新版本 $VERSION 要寫改版重點"') < at("gh issue create"));
-  assert.ok(at("gh issue list --state open") < at("gh issue create"), "同標題開著的就不再開");
+  assert.ok(at("gh issue list --state all") < at("gh issue create"), "同標題開過（開著或關了）就不再開");
   assert.match(run, /grep -Fxq "\$TITLE"/, "標題要完全一樣才算（搜尋是模糊比對）");
-  // notify 的 checkout 只拿 pipeline，要多拿重點檔的資料夾才看得到有沒有寫
-  assert.match(NOTIFY, /sparse-checkout: \|\n {12}pipeline\n {12}src\/content\/patches\n/);
 });
 
 test("改版差異算不出來不擋資料更新：clone、refresh-patch 失敗都只印 ::warning::、這步照樣成功（不用 continue-on-error，notify 不會當成更新失敗）", () => {
   const block = stepBlock("重算目前版本的改版差異");
   assert.doesNotMatch(block, /continue-on-error/);
   const run = runScripts(block).join("\n");
-  assert.match(run, /if ! git clone --filter=blob:none [^\n]*; then\n\s*echo "::warning::[^"]*"\n\s*exit 0\n/);
-  assert.match(run, /if ! node pipeline\/refresh-patch\.mjs [^\n]*; then\n\s*echo "::warning::[^"]*"\n/);
+  assert.match(run, /if ! timeout \d+ git clone --filter=blob:none [^\n]*; then\n\s*echo "::warning::[^"]*"\n\s*exit 0\n/);
+  assert.match(run, /if ! timeout \d+ node pipeline\/refresh-patch\.mjs [^\n]*; then\n\s*echo "::warning::[^"]*"\n/);
   assert.doesNotMatch(run, /exit 1/);
+});
+
+test("改版差異卡住也不擋：clone、refresh-patch 都包 timeout（超時 124 走同一條 warning），不另設步驟 timeout-minutes（超時會被當失敗）", () => {
+  const block = stepBlock("重算目前版本的改版差異");
+  assert.doesNotMatch(block, /timeout-minutes/);
+  const run = runScripts(block).join("\n");
+  for (const command of ["git clone", "node pipeline/refresh-patch.mjs"]) {
+    const line = run.split("\n").find(text => text.includes(command));
+    assert.ok(line, `要有 ${command}`);
+    const seconds = Number(line.match(/if ! timeout (\d+) /)?.[1]);
+    assert.ok(seconds >= 60 && seconds <= 900, `${command} 要包 timeout（60～900 秒），現在：${line.trim()}`);
+  }
 });

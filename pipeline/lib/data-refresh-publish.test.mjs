@@ -107,7 +107,7 @@ function siteTemplate() {
  * staleBranch：遠端先有一條同名、內容不同的資料分支（上一輪推了分支卻在開 PR 時失敗）。
  * prepare(artifactDir)：額外動 artifact（例如放捷徑）。
  */
-async function publish({ artifact = FRESH, env = {}, staleBranch = false, prepare, branch = BRANCH } = {}) {
+async function publish({ artifact = FRESH, env = {}, staleBranch = false, prepare, branch = BRANCH, siteExtra } = {}) {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), "publish-step-"));
   try {
     const source = await siteTemplate();
@@ -119,6 +119,13 @@ async function publish({ artifact = FRESH, env = {}, staleBranch = false, prepar
     const config = path.join(work, ".git", "config");
     fs.writeFileSync(config, fs.readFileSync(config, "utf8").replaceAll(posix(path.join(source, "remote.git")), posix(remote)));
     const git = gitIn(root);
+    // siteExtra：網站 main 上先多放幾個檔（例如這一版的改版差異檔已經在了）
+    if (siteExtra) {
+      writeTree(work, siteExtra);
+      await git(work, "add", "-A");
+      await git(work, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "site extra");
+      await git(work, "push", "-q", "origin", "main");
+    }
     if (staleBranch) {
       await git(work, "checkout", "-q", "-b", branch);
       await git(work, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "上一輪推上去的");
@@ -205,7 +212,7 @@ describe("publish 那一步真的跑一次（bash＋git，本機 bare repo 當 o
     assert.equal(result.gh[1], `gh pr merge ${BRANCH} --squash --delete-branch --admin`);
   });
 
-  test("合併後：這一版有 data/patches/<版本>.json 才輸出 patch_version（給 notify 開 issue 提醒寫重點），沒有就不輸出", async () => {
+  test("合併後：這次新增了 data/patches/<版本>.json 才輸出 patch_version（給 notify 開 issue 提醒寫重點）；沒有、或網站已有只是改它（同版修正）都不輸出", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "publish-output-"));
     try {
       const withPatch = path.join(dir, "with.txt");
@@ -218,6 +225,17 @@ describe("publish 那一步真的跑一次（bash＋git，本機 bare repo 當 o
       const b = await publish({ env: { GITHUB_OUTPUT: posix(withoutPatch) } });
       assert.equal(b.code, 0, b.out);
       assert.equal(fs.readFileSync(withoutPatch, "utf8"), "");
+      // 同版修正：網站已經有 1.15.3 的差異檔，這次只是改它 → 不是新版本，不輸出
+      const samePatch = path.join(dir, "same.txt");
+      fs.writeFileSync(samePatch, "");
+      const c = await publish({
+        siteExtra: { "public/data/patches/1.15.3.json": '{"old":1}' },
+        artifact: { ...FRESH, "data/patches/1.15.3.json": '{"new":1}', "data/patches/index.json": "{}" },
+        env: { GITHUB_OUTPUT: posix(samePatch) },
+      });
+      assert.equal(c.code, 0, c.out);
+      assert.ok(c.files.includes("M\tpublic/data/patches/1.15.3.json"), c.files.join(","));
+      assert.equal(fs.readFileSync(samePatch, "utf8"), "");
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }

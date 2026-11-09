@@ -80,3 +80,10 @@ test("buildPatchArgs：前一版的最後 commit 當 base、這一版最後 comm
     "--version", "1.1", "--prev", "1.0", "--base", "a2", "--head", "b2", "--date", "2026-02-01",
   ]);
 });
+
+test("versionTimeline 用 cache：查過的 commit 不再讀 data.js（findCurrentAndPrevious 放大區間時共用一個）", () => {
+  const { dir, commits } = fakeUpstream([["1.0", "2026-10-01"], ["1.1", "2026-10-02"]]);
+  const cache = new Map([[commits[0], "0.9"]]);
+  assert.deepEqual(versionTimeline(dir, { cache }).map(s => s.version), ["0.9", "1.1"]);
+  assert.equal(cache.get(commits[1]), "1.1");
+});
