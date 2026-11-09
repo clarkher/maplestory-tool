@@ -19,7 +19,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，future-shot 是 9511，nav-fit 是 9513，guild-shot 是 9621（本機 dev 用 9620），
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，future-shot 是 9511，nav-fit 是 9513，guild-shot 是 9621（本機 dev 用 9620），updates-shot 是 9526（本機 start 用 9525），
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
@@ -682,6 +682,16 @@ node scripts/verify/guild-shot.mjs [網址，預設 http://localhost:9620] [輸�
 - 比對位置用 `data-stage`、`data-actual`、`data-layer`、`data-tab`、`data-cat`、`data-swatch`、`data-cell`、`data-on`，改版面時這幾個屬性要留著。
 - 驗過抓得到：把 `cellStyle` 的 x 改成 `-(colour)`、下載改成抹糊，13 項紅 6 項（2026-11-08）。本機 dev 已編譯過約 35 秒。
 - 輸出：`guild-375.png`、`guild-mark-tab.png`、`guild-dark.png`、`guild-home.png`、`results.json`。
+
+#### `updates-shot.mjs`：改版整理 `/updates`、`/updates/2.0.0`（v1.94，埠 9526）
+
+```bash
+node scripts/verify/updates-shot.mjs [網址，預設 http://localhost:9525] [輸出] [DevTools 埠，預設 9526]
+```
+
+- 本機先 `npm run build && npx next start -p 9525`。期望值讀**本機** `public/data/patches/2.0.0.json`（四個數字、說明改了的列數與類別數），驗測試機時本機要是同一版。
+- 兩頁 × 淺深各一張 375 整頁截圖（無破圖、不橫捲）；兩頁都有免責那句；卡片 2.0.0 在前、最新那張框是楓葉橘；第一屏看得到 h1 跟前兩條重點；四個數字；展開「看全部」列數＝json 的 changed、類別篩選；`/updates/1.14.7` 回 404；console 沒錯誤。任何一項沒過 exit 1。
+- 輸出：`updates-list-light.png`、`updates-list-dark.png`、`updates-2.0.0-light.png`、`updates-2.0.0-dark.png`、`results.json`。
 
 #### `nav-fit.mjs`：導覽列放不放得下（v1.72 手機、v1.74 平板，埠 9513）
 
