@@ -5,9 +5,11 @@ import { OpenUntil } from "@/components/atlas/OpenUntil";
 import { AtlasCard, PlaceRows, QuestRows, ShopRows } from "@/components/atlas/rows";
 import { SeoPage } from "@/components/SeoPage";
 import { npcImage } from "@/lib/asset-paths";
-import { mapSection, npcSummary, shopRows } from "@/lib/atlas-view";
+import { mapRoute, mapSection, npcSummary, shopRows } from "@/lib/atlas-view";
+import { npcLevelNote } from "@/lib/portal-text";
 import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
-import { staticAtlasMaps, staticItemNames, staticModified, staticNpcs, staticItemHref } from "@/lib/static-data";
+import type { AtlasNpc } from "@/lib/types";
+import { staticAtlasMaps, staticGraph, staticItemNames, staticMaps, staticModified, staticNearestTown, staticNpcs, staticItemHref } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -27,11 +29,30 @@ function atlasMap(id: number) {
 
 const mapName = (id: number) => atlasMap(id)?.n;
 
+/**
+ * 「怎麼去：從<城鎮>出發，A → B。」跟地圖頁、/go 同一套路線；NPC 在好幾張圖就用第一張算得出路線的。
+ * NPC 在城鎮裡、走不到就不寫（摘要本來就寫在哪）。要過傑夫的補「參考舊版資料」。
+ */
+function routeText(npc: AtlasNpc): string | null {
+  for (const id of npc.maps) {
+    const route = mapRoute(id, staticGraph(), staticMaps(), staticNearestTown());
+    if (route) return route.gate ? `${route.text}${npcLevelNote(route.gate.npc, route.gate.minLevel)}` : route.text;
+  }
+  return null;
+}
+
+/** 開頭那段話：路線放最前面（搜尋「○○在哪、怎麼去」的人第一眼看到），接原本的摘要 */
+function leadText(npc: AtlasNpc): string {
+  const route = routeText(npc);
+  const summary = npcSummary(npc, mapName);
+  return route ? `${route}${summary}` : summary;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const npc = find((await params).id);
   if (!npc) return {};
   const path = `/db/npcs/${npc.id}`;
-  const description = clip(npcSummary(npc, mapName));
+  const description = clip(leadText(npc));
   return {
     title: `${npc.n}｜在哪、賣什麼、任務`,
     description,
@@ -47,7 +68,7 @@ export default async function Page({ params }: Props) {
   const npc = find((await params).id);
   if (!npc) notFound();
   const path = `/db/npcs/${npc.id}`;
-  const summary = npcSummary(npc, mapName);
+  const summary = leadText(npc);
   const itemNames = staticItemNames();
 
   const places = npc.maps.flatMap(id => {

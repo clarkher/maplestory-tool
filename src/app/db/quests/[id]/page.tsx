@@ -3,10 +3,22 @@ import { notFound } from "next/navigation";
 import { QuestDetailBody } from "@/components/QuestDetailBody";
 import { SeoLinks, SeoPage, SeoSection } from "@/components/SeoPage";
 import { jobLabel } from "@/lib/item-view";
-import { npcHref } from "@/lib/atlas-view";
+import { QuestSteps } from "@/components/QuestSteps";
+import { mapRoute, npcHref } from "@/lib/atlas-view";
+import { questLevel, questSteps } from "@/lib/quest-steps";
 import { breadcrumbLd, clip, questSummary, webPageLd } from "@/lib/seo";
-import { staticAtlasIndex, staticHasItemPage, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
+import {
+  staticAtlasIndex,
+  staticHasItemPage,
+  staticMaps,
+  staticModified,
+  staticMonsters,
+  staticQuests,
+  staticQuestStepContext,
+} from "@/lib/static-data";
 import type { MapRecord, Quest } from "@/lib/types";
+
+const DESCRIPTION_MAX = 150;
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -33,11 +45,24 @@ function jobsText(quest: Quest): string | null {
   return names.length ? names.join("、") : null;
 }
 
+/** 搜尋結果那段話：摘要放得下（150 字）就補從最近城鎮怎麼走到接任務的地方；49 等以下不推傑夫後面 */
+function descriptionText(quest: Quest): string {
+  const summary = questSummary(quest);
+  const map = quest.sNpc?.map;
+  if (!map) return summary;
+  const ctx = staticQuestStepContext();
+  const route = mapRoute(map, ctx.graph, ctx.maps, ctx.nearestTown, questLevel(quest));
+  // 要過傑夫的路線得補「參考舊版資料」，搜尋結果那段放不下，就不放
+  if (!route || route.gate) return summary;
+  const withRoute = `${summary}${route.text}`;
+  return withRoute.length <= DESCRIPTION_MAX ? withRoute : summary;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const quest = find((await params).id);
   if (!quest) return {};
   const path = `/db/quests/${quest.id}`;
-  const description = clip(questSummary(quest));
+  const description = clip(descriptionText(quest));
   return {
     title: `${quest.n}｜任務攻略：怎麼接、要做什麼、獎勵`,
     description,
@@ -90,6 +115,7 @@ export default async function Page({ params }: Props) {
         webPageLd({ name: `${quest.n}｜任務攻略`, path, description: clip(summary), modified: staticModified() }),
       ]}
     >
+      <QuestSteps steps={questSteps(quest, staticQuestStepContext())} />
       {jobs ? <p className="text-sm"><span className="ink-faint">可接職業：</span>{jobs}</p> : null}
       {npcLinks.length ? (
         <SeoSection title="接任務、回報的 NPC">
