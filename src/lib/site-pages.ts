@@ -13,6 +13,7 @@ export const SITE_PAGES: SitePage[] = [
   { path: "/plan/buy", name: "拍賣買齊就能交的任務", what: "不用打怪、買齊東西直接交的任務", priority: 0.8 },
   { path: "/plan/damage", name: "傷害計算機", what: "算技能每一下多少、打怪幾下打死，兩套點法並排比", priority: 0.8 },
   { path: "/plan/boss", name: "野王計時", what: "打死野王按一下，算每個頻道還要多久重生", priority: 0.7 },
+  { path: "/future", name: "未來視", what: "下一版大概何時開、會開什麼，現在該先囤哪些材料（全部標明官方或推估）", priority: 0.8 },
   { path: "/plan/scroll", name: "衝卷模擬", what: "選裝備跟卷軸，算衝到想要的張數要準備多少", priority: 0.7 },
   { path: "/plan/avatar", name: "紙娃娃", what: "換髮型、臉型、點裝，看角色穿起來長怎樣，可以下載或分享", priority: 0.7 },
   { path: "/plan/guild", name: "公會徽章", what: "挑底圖、圖案和顏色，先看看公會徽章做出來長怎樣", priority: 0.6 },
