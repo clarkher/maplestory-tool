@@ -9,6 +9,7 @@ import { npcImage } from "@/lib/data";
 import { comboSay, combos, type ComboSpec } from "@/lib/pq-command/combo";
 import { OLD_NOTE, PQS, findPq, type PqInfo, type PqKey, type PqStage, type PqVisual } from "@/lib/pq-command/data";
 import { MAX_NAMES, assignAt, resetPq, usePqState, type PqState } from "@/lib/pq-command/store";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
 /**
  * 組隊指揮（2026-11-02 使用者拍板版面 C）：選任務 → 一關一張卡，試組合幫隊長算誰換到哪，喊話一行一顆複製。
@@ -48,8 +49,8 @@ export function PqCommand() {
             type="button"
             aria-pressed={p.key === pq.key}
             onClick={() => choosePq(p.key)}
-            className={`tap-safe inline-flex min-h-[38px] items-center rounded-md px-4 text-[15px] font-bold ${
-              p.key === pq.key ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
+            className={`tap-safe inline-flex min-h-[38px] items-center rounded-md border px-4 text-[15px] font-bold ${
+              p.key === pq.key ? OPTION_ON : OPTION_OFF
             }`}
           >
             {p.short}
@@ -310,6 +311,7 @@ function Positions({ spec, on, who }: { spec: ComboSpec; on: number[]; who: (pos
       <span key={pos} className="flex w-12 flex-col items-center gap-0.5">
         <span
           className={`grid h-10 w-11 place-items-center rounded-lg text-[17px] font-black tabular-nums ${
+            // 實心：站對位置的格子要一眼看到，不是選中
             lit ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "bg-[color:var(--paper-deep)] ink-soft"
           }`}
         >

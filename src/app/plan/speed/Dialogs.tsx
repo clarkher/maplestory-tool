@@ -36,7 +36,7 @@ export function Modal({ open, labelledBy, onCancel, children }: { open: boolean;
       onClose={() => {
         if (open) onCancel();
       }}
-      className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-5 text-[color:var(--ink)] shadow-[var(--glass-shadow)] backdrop:bg-[rgb(0_0_0/0.45)]"
+      className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-5 text-[color:var(--ink)] shadow-[var(--float-shadow)] backdrop:bg-[rgb(0_0_0/0.45)]"
     >
       {open ? children : null}
     </dialog>

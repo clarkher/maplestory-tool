@@ -17,7 +17,7 @@ export function SiteFooter() {
   const syncedText = meta ? dataSyncedText(meta) : "";
 
   return (
-    <footer className="mt-auto border-t border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]/60">
+    <footer className="mt-auto border-t border-[color:var(--paper-edge)] bg-[color:var(--glass)]">
       <div className="mx-auto w-full max-w-6xl px-4 py-8 text-sm sm:px-6">
         <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="max-w-md space-y-2">
@@ -36,10 +36,10 @@ export function SiteFooter() {
           </div>
 
           <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="頁尾選單">
-            <Link className="ink-soft hover:text-[color:var(--maple)]" href="/about">資料從哪來</Link>
-            <Link className="ink-soft hover:text-[color:var(--maple)]" href="/privacy">隱私權政策</Link>
-            <Link className="ink-soft hover:text-[color:var(--maple)]" href="/terms">服務條款</Link>
-            <Link className="ink-soft hover:text-[color:var(--maple)]" href="/contact">聯絡我們</Link>
+            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/about">資料從哪來</Link>
+            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/privacy">隱私權政策</Link>
+            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/terms">服務條款</Link>
+            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/contact">聯絡我們</Link>
           </nav>
         </div>
       </div>
