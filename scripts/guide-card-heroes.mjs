@@ -100,14 +100,13 @@ const SCENES = [
     slug: "updates",
     base: { backdrop: "meadow" },
     sprites: [
-      { file: "items/1302000.png", x: 0.62, y: 0.92, h: 0.16 },
-      { file: "items/1002001.png", x: 0.74, y: 0.92, h: 0.16 },
-      { file: "items/2000000.png", x: 0.86, y: 0.92, h: 0.12 },
+      { file: "items/1302000.png", x: 0.68, y: 0.92, h: 0.16 },
+      { file: "items/2000000.png", x: 0.82, y: 0.92, h: 0.12 },
     ],
     idea: [
       "Turn the scene into a sunny village square of a cute fantasy adventure world: cobblestone ground, cozy cottages, a big wooden notice board with pinned blank parchment scrolls and ribbons (the paper is completely blank, no writing at all), and a few colorful flags.",
       "On the left add a cheerful young adventurer with spiky brown hair, a light blue tunic and a small backpack, looking up at the notice board with wide excited eyes and a big smile, one hand pointing at it.",
-      "On the right ground add the three small item props from the sprites, a sword, a cap and a potion, glowing with soft sparkles as if they are brand-new rewards. Keep each one's shape and colors like the sprites. Warm, curious, fresh-update-day mood.",
+      "On the right ground add the two small item props from the sprites, a sword and a red potion bottle, glowing with soft sparkles as if they are brand-new rewards. Keep each one's shape and colors like the sprites, and add no other objects on the ground. Warm, curious, fresh-update-day mood.",
     ].join(" "),
   },
   {

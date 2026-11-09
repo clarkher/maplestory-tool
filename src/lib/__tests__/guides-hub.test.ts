@@ -7,12 +7,12 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GuidesHub } from "@/app/guides/GuidesHub";
 import { eventStatus } from "@/app/guides/EventStatus";
 import type { ArticleEntry } from "@/lib/article-entry";
 import { browseOrder, cardExcerpt, filterCards, jobArticleCard, pageCount, sortCards, type GuideCard } from "@/lib/guide-catalog";
-import { GUIDE_PAGES } from "@/lib/guide-pages";
+import { GUIDE_PAGES, guidePagesWithDates } from "@/lib/guide-pages";
 import { SITE_PAGES } from "@/lib/site-pages";
 import sitemap from "@/app/sitemap";
 import { listPatchPages } from "@/lib/patches";
@@ -180,7 +180,7 @@ describe("改版整理（v1.94）進攻略專區、sitemap、llms.txt", () => {
     expect(updates?.category).toBe("改版整理");
     expect(updates?.title).toBe("楓之谷經典版改版紀錄：每次更新多了什麼");
     expect(updates?.tags).toEqual(["改版"]);
-    expect(updates?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(guidePagesWithDates().find(c => c.href === "/updates")?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     expect(fs.existsSync(fileURLToPath(new URL(`../../../public${updates!.image}`, import.meta.url)))).toBe(true);
   });
   it("分類篩選列得出「改版整理」", () => {
@@ -197,5 +197,27 @@ describe("改版整理（v1.94）進攻略專區、sitemap、llms.txt", () => {
   });
   it("llms.txt 自動吃 SITE_PAGES、也列有重點檔的版本頁", () => {
     expect(read("../../app/llms.txt/route.ts")).toContain("patchLines");
+  });
+});
+
+describe("載入 guide-pages / static-data 不讀改版檔（首頁建置也會 import）", () => {
+  it("import 當下沒碰 public/data/patches 或 src/content/patches", async () => {
+    vi.resetModules();
+    const touched: string[] = [];
+    const wrap = <K extends "readFileSync" | "readdirSync" | "existsSync">(name: K) => {
+      const orig = fs[name] as (...a: unknown[]) => unknown;
+      return vi.spyOn(fs, name).mockImplementation(((...a: unknown[]) => {
+        if (String(a[0]).split("\\").join("/").includes("patches")) touched.push(`${name} ${String(a[0])}`);
+        return orig(...a);
+      }) as never);
+    };
+    const spies = [wrap("readFileSync"), wrap("readdirSync"), wrap("existsSync")];
+    try {
+      await import("@/lib/guide-pages");
+      await import("@/lib/static-data");
+    } finally {
+      spies.forEach(s => s.mockRestore());
+    }
+    expect(touched).toEqual([]);
   });
 });
