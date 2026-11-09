@@ -5,7 +5,9 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { mapHref, npcHref } from "./atlas-view";
 import { hasItemPage, itemPagePath, type ItemPageLookup } from "./item-page";
+import type { QuestStepContext } from "./quest-steps";
 import type { CalcData } from "./damage-view";
 import type { GearData } from "./gear";
 import type { ArticleEntry } from "./article-entry";
@@ -100,6 +102,30 @@ export function staticItemNames(): Map<number, string> {
 /** 傳送門路線（地圖頁寫「怎麼去」用，跟 /go 同一份） */
 export const staticGraph = () => read<Record<string, PortalEdge[]>>("graph");
 export const staticNearestTown = () => read<Record<string, [number, number]>>("nearest-town");
+
+/** 任務單獨頁「一步一步怎麼解」查表用的資料（lib/quest-steps.ts），整個建置只組一次 */
+export function staticQuestStepContext(): QuestStepContext {
+  const key = "quest-step-context";
+  if (!cache.has(key)) {
+    const monsters = new Map(staticMonsters().map(monster => [monster.id, monster]));
+    const items = new Map(read<Item[]>("items").filter(item => !item.un).map(item => [item.id, item]));
+    const quests = new Map(staticQuests().map(quest => [quest.id, quest.n]));
+    const index = staticAtlasIndex();
+    cache.set(key, {
+      graph: staticGraph(),
+      maps: staticMaps(),
+      nearestTown: staticNearestTown(),
+      monster: id => monsters.get(id),
+      item: id => items.get(id),
+      questName: id => quests.get(id),
+      mapHref: id => mapHref(id, index),
+      npcHref: id => npcHref(id, index),
+      monsterHref: id => (monsters.has(id) ? `/db/monsters/${id}` : undefined),
+      itemHref: id => (staticHasItemPage(id) ? itemPagePath(id) : undefined),
+    } satisfies QuestStepContext);
+  }
+  return cache.get(key) as QuestStepContext;
+}
 
 /** 已開放的圖：圖鑑只收已開放的（攻略文防呆用） */
 export const staticOpenMaps = () => new Set(staticAtlasIndex().maps);
