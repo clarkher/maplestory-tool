@@ -1,0 +1,242 @@
+/**
+ * 攻略專區卡片／頁面的主圖（v1.88）：給「不是職業攻略文」的頁面畫一張 16:9 主圖，畫風跟職業攻略文主圖一樣。
+ *
+ * 用法：
+ *   node scripts/guide-card-heroes.mjs                   只做底稿（不花錢），印出哪幾張還缺圖
+ *   node scripts/guide-card-heroes.mjs --ai              缺主圖的才呼叫 AI 畫（會花錢）
+ *   node scripts/guide-card-heroes.mjs third-job --ai    只做這幾張（可列多個 slug）
+ *   node scripts/guide-card-heroes.mjs pq-moon --ai --regen   重畫（不看快取、蓋掉 public 的圖）
+ *
+ * 做法：
+ *   1. 底稿＝真的地圖畫面（public/assets/map_renders）或 AI 背景（data/guide-backdrops），貼上真的怪／NPC 圖
+ *      （public/assets/monster_frames、public/assets/npcs，最近鄰放大保留像素感），1536×864。
+ *   2. 底稿丟 Azure gpt-image-2 edits 重繪成動畫風主圖，prompt 寫在下面 SCENES 每一張的 idea。
+ *   3. 存 public/assets/guides/<slug>/hero.webp、hero.jpg（都壓在 300KB 內）。
+ *
+ * 快取：data/cache/guide-images/（gitignore）。底稿存 cardsrc-<slug>.png，AI 原檔存 cardhero-<slug>-<雜湊>.png，
+ *   prompt 跟底稿都沒變就直接用快取，不再花錢。
+ * AI：金鑰讀 ~/.ai-keys.env（逐行用第一個 = 切，絕不印）。gpt-image-2 失敗或 429 換 gpt-image-2.5-flare 一次，再掛就停，不重試。
+ * 跑完每張都要自己用眼睛看：不准有字、怪要認得出來、不像楓之谷就加 --regen 重畫一次。
+ */
+import { createHash } from "node:crypto";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import sharp from "sharp";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const ASSETS = path.join(ROOT, "public/assets");
+const PUBLIC_DIR = path.join(ASSETS, "guides");
+const BACKDROP_DIR = path.join(ROOT, "data/guide-backdrops");
+const CACHE = process.env.ARTICLE_IMG_CACHE ?? path.join(ROOT, "data/cache/guide-images");
+const W = 1536;
+const H = 864;
+const MAX_BYTES = 300 * 1024;
+
+const STYLE =
+  "Repaint this side-scrolling game scene as a high-quality 2D anime-style game key art illustration in the spirit of a bright cute fantasy MMORPG: clean confident line art, rich painted shading, dramatic lighting and atmospheric depth, polished and appealing, vivid saturated colors.";
+const RULES =
+  "Absolutely no text, no letters, no numbers, no logos, no watermarks, no signs with writing, no UI, no speech bubbles anywhere in the image. Widescreen 16:9 composition, nothing important cut off.";
+
+/**
+ * 每張主圖的設定。
+ * base：{ render: 地圖 id, crop: [left, top, width, height], fill: 透明處墊的顏色 } 或 { backdrop: 主題名 }。
+ * sprites：貼上去的真圖。x 是腳的中心（畫面寬比例），y 是腳底（畫面高比例），h 是高度（畫面高比例），flip 左右翻。
+ * idea：prompt 裡這張要畫什麼。
+ */
+const SCENES = [
+  {
+    slug: "third-job",
+    base: { render: 211000001, crop: [48, 330, 768, 432], fill: "#5a3e2b" },
+    sprites: [
+      { file: "npcs/2020008.png", x: 0.07, y: 0.92, h: 0.26 },
+      { file: "npcs/2020009.png", x: 0.17, y: 0.92, h: 0.26 },
+      { file: "npcs/2020010.png", x: 0.27, y: 0.92, h: 0.26 },
+      { file: "npcs/2020011.png", x: 0.37, y: 0.92, h: 0.26 },
+      { file: "npcs/2020013.png", x: 0.47, y: 0.92, h: 0.26 },
+    ],
+    idea: [
+      "This is the elders' hall in a snowy mountain town: a warm wooden interior with a fireplace, lanterns and portraits, and frosty windows.",
+      "The five hooded instructors in long robes with gold trim (brown with a sword, olive-green with red hair, crimson with a bow, deep blue with a scar, purple with a pistol) stand in a row on the left half, watching; keep each one's robe color, hood and item exactly like the sprites, faces shaded under their hoods.",
+      "On the right half, in the foreground, add a young adventurer with spiky brown hair in a light blue tunic and brown boots, holding a short sword, in a fighting stance facing right toward a dark shadow clone of himself: the same silhouette and pose mirrored, made of swirling black and violet smoke with glowing red eyes.",
+      "Purple magic sparks between them, the instructors lit warmly by the fire, the clone casting a cold violet glow. A trial of strength, epic but friendly.",
+    ].join(" "),
+  },
+  {
+    slug: "halloween",
+    base: { backdrop: "snow" },
+    sprites: [{ file: "monster_frames/9602795.png", x: 0.66, y: 0.9, h: 0.62 }],
+    idea: [
+      "Turn the scene into a snowy village festival at night: deep blue night sky with a big full moon and stars, gentle falling snow, strings of warm orange paper lanterns, glowing carved jack-o'-lantern pumpkins on the snow, and colorful festival masks hanging on a wooden stall.",
+      "The monster is a red-maned white werewolf: a tall hunched white wolf-man with a huge spiky crimson mane, a crimson tail, a dark scar mark on its chest and thigh and yellow eyes. Keep it instantly recognizable as the same creature as the sprite, same shape, same colors.",
+      "On the left add a cheerful young adventurer girl with short pink hair wearing a small cute black eye mask and a warm red scarf, holding a glowing pumpkin lantern and a short sword, facing the werewolf. Playful spooky mood, not scary.",
+    ].join(" "),
+  },
+  {
+    slug: "guide-1-30",
+    base: { render: 1000000, crop: [0, 100, 1000, 563] },
+    sprites: [
+      { file: "monster_frames/100100.png", x: 0.56, y: 0.82, h: 0.14 },
+      { file: "monster_frames/1210102.png", x: 0.74, y: 0.82, h: 0.24, flip: true },
+    ],
+    idea: [
+      "A beginner's first adventure on a small sunny maple island: green grassy hills, mushroom houses, a little wooden harbor with a sailing ship in the far distance heading to a bigger continent, bright blue sky with fluffy clouds.",
+      "The monsters are a little blue-green snail with a spiral shell and a pale lavender body, and an orange mushroom with a big orange cap with yellow spots and a cream round body with a small smile. Keep them instantly recognizable as the same creatures as the sprites, same shape, same colors. Do not add other monster types.",
+      "On the left add a happy beginner adventurer boy with short spiky brown hair in a plain white shirt, blue shorts and brown shoes, holding a wooden stick, stepping forward with a confident grin, with a tiny red maple leaf floating near him. Cheerful, warm, inviting.",
+    ].join(" "),
+  },
+  {
+    slug: "pq-moon",
+    base: { backdrop: "meadow" },
+    sprites: [{ file: "npcs/1012112.png", x: 0.52, y: 0.88, h: 0.42 }],
+    idea: [
+      "Turn the scene into a calm night meadow under a huge glowing full moon that fills the upper sky, soft starlight, fireflies, and patches of pale yellow primrose flowers blooming on small grassy hills.",
+      "In the center is the character from the sprite: a small girl wearing a pink bunny costume with long bunny ears, a white face patch on the hood and a red bow tie, with brown hair and big brown eyes. Keep her costume exactly like the sprite. She looks up at the moon happily.",
+      "Next to her add a small white moon rabbit pounding rice cakes with a wooden mallet in a wooden mortar, and four small adventurers of a party (a warrior, a mage, an archer and a thief, seen from behind or the side) planting primrose seeds around them. Dreamy, cozy, teamwork mood.",
+    ].join(" "),
+  },
+  {
+    slug: "pq-kerning",
+    base: { render: 103000800, crop: [0, 317, 1200, 675], fill: "#2f4a3a" },
+    sprites: [
+      { file: "npcs/9020000.png", x: 0.14, y: 0.92, h: 0.44 },
+      { file: "monster_frames/9300003.png", x: 0.7, y: 0.92, h: 0.5, flip: true },
+    ],
+    idea: [
+      "A damp underground swamp stage below a city: mossy floating platforms, hanging vines and ropes, murky green glow, a small wooden hut.",
+      "On the left is the guide from the sprite: a slim woman with very long pale blonde hair, a lilac outfit and a tall wooden staff topped with a glowing blue orb. Keep her exactly like the sprite.",
+      "On the right is the boss: a huge glossy bright green slime blob with yellow cross-shaped eyes and a thin curved antenna tipped with a green ball, surrounded by three small bouncing green slimes. Keep it instantly recognizable as the same creature as the sprite.",
+      "In the middle add a party of four young adventurers (a warrior with a sword, a mage with a staff, an archer with a bow, a thief with throwing stars) charging at the giant slime together. Energetic teamwork mood.",
+    ].join(" "),
+  },
+];
+
+/* ------------------------------------------------------------------ 參數 */
+
+const args = process.argv.slice(2);
+const ALLOW_AI = args.includes("--ai");
+const REGEN = args.includes("--regen");
+const only = args.filter(a => !a.startsWith("--"));
+for (const slug of only) if (!SCENES.some(s => s.slug === slug)) throw new Error(`沒有這張：${slug}`);
+
+/* ------------------------------------------------------------------ AI */
+
+let aiKey;
+function loadKey() {
+  if (aiKey) return aiKey;
+  for (const line of fs.readFileSync(path.join(os.homedir(), ".ai-keys.env"), "utf8").split(/\r?\n/)) {
+    const i = line.indexOf("=");
+    if (i > 0 && !line.startsWith("#") && line.slice(0, i).trim() === "gpt-image-2_apikey") aiKey = line.slice(i + 1).trim();
+  }
+  if (!aiKey) throw new Error("~/.ai-keys.env 找不到 gpt-image-2_apikey");
+  return aiKey;
+}
+const AI_BASE = "https://officialpmswedencentral.services.ai.azure.com/openai/v1/images";
+const AI_MODELS = ["gpt-image-2", "gpt-image-2.5-flare"];
+
+/** 失敗或 429 換下一個部署一次，再掛就丟出去讓整支停下。不重試（429 是額度用完） */
+async function editImage(label, prompt, image) {
+  let last = "";
+  for (const model of AI_MODELS) {
+    try {
+      const form = new FormData();
+      form.set("model", model);
+      form.set("prompt", prompt);
+      form.set("size", `${W}x${H}`);
+      form.append("image[]", new Blob([image], { type: "image/png" }), "input0.png");
+      const response = await fetch(`${AI_BASE}/edits`, {
+        method: "POST",
+        headers: { "api-key": loadKey() },
+        body: form,
+        signal: AbortSignal.timeout(290_000),
+      });
+      const text = await response.text();
+      if (response.ok) {
+        console.log(`  AI ${label}：${model} 成功`);
+        return Buffer.from(JSON.parse(text).data[0].b64_json, "base64");
+      }
+      last = `${model} HTTP ${response.status} ${text.slice(0, 300)}`;
+    } catch (error) {
+      last = `${model} ${error.message}`;
+    }
+    console.log(`  AI ${label}：${last}`);
+  }
+  throw new Error(`AI 兩個部署都失敗，停止：${label}`);
+}
+
+/* ------------------------------------------------------------------ 底稿 */
+
+async function baseLayer(base) {
+  if (base.render) {
+    const [left, top, width, height] = base.crop;
+    const img = sharp(path.join(ASSETS, "map_renders", `${base.render}.webp`)).extract({ left, top, width, height });
+    // render 背景透明，墊一層天色
+    const filled = await img.flatten({ background: base.fill ?? "#9fd3f0" }).png().toBuffer();
+    return sharp(filled).resize(W, H, { fit: "cover", kernel: "nearest" }).png().toBuffer();
+  }
+  return sharp(path.join(BACKDROP_DIR, `${base.backdrop}.webp`)).resize(W, H, { fit: "cover" }).png().toBuffer();
+}
+
+async function sourceImage(scene) {
+  const layers = [];
+  for (const s of scene.sprites) {
+    const file = path.join(ASSETS, s.file);
+    const meta = await sharp(file).metadata();
+    const h = Math.round(H * s.h);
+    const w = Math.round((meta.width / meta.height) * h);
+    let img = sharp(file).resize(w, h, { kernel: "nearest" });
+    if (s.flip) img = img.flop();
+    const left = Math.max(0, Math.min(W - w, Math.round(W * s.x - w / 2)));
+    const top = Math.max(0, Math.min(H - h, Math.round(H * s.y - h)));
+    layers.push({ input: await img.png().toBuffer(), left, top });
+  }
+  return sharp(await baseLayer(scene.base)).composite(layers).png().toBuffer();
+}
+
+/* ------------------------------------------------------------------ 輸出 */
+
+async function writeUnder(pipeline, file, encode, start) {
+  for (let quality = start; quality >= 40; quality -= 4) {
+    const buffer = await encode(pipeline(), quality).toBuffer();
+    if (buffer.length <= MAX_BYTES) {
+      fs.writeFileSync(file, buffer);
+      return buffer.length;
+    }
+  }
+  throw new Error(`${file} 壓不到 300KB`);
+}
+
+const sha = text => createHash("sha256").update(text).digest("hex").slice(0, 12);
+
+fs.mkdirSync(CACHE, { recursive: true });
+const missing = [];
+for (const scene of SCENES) {
+  if (only.length && !only.includes(scene.slug)) continue;
+  console.log(scene.slug);
+  const dir = path.join(PUBLIC_DIR, scene.slug);
+  const webp = path.join(dir, "hero.webp");
+  const jpg = path.join(dir, "hero.jpg");
+  const source = await sourceImage(scene);
+  fs.writeFileSync(path.join(CACHE, `cardsrc-${scene.slug}.png`), source);
+  const prompt = [STYLE, scene.idea, RULES].join(" ");
+  const cached = path.join(CACHE, `cardhero-${scene.slug}-${sha(prompt + source.toString("base64"))}.png`);
+  if (!fs.existsSync(cached) || REGEN) {
+    if (fs.existsSync(webp) && !REGEN) {
+      console.log("  public 已有主圖，快取沒有對應原檔，照舊留著（要重畫加 --regen --ai）");
+      continue;
+    }
+    if (!ALLOW_AI) {
+      missing.push(scene.slug);
+      continue;
+    }
+    fs.writeFileSync(cached, await editImage(scene.slug, prompt, source));
+  }
+  fs.mkdirSync(dir, { recursive: true });
+  const meta = await sharp(cached).metadata();
+  const pipeline = () => sharp(cached).removeAlpha().resize(W, H, { fit: "cover" });
+  const jpgBytes = await writeUnder(pipeline, jpg, (p, q) => p.jpeg({ quality: q, mozjpeg: true }), 88);
+  const webpBytes = await writeUnder(pipeline, webp, (p, q) => p.webp({ quality: q }), 80);
+  console.log(`  原檔 ${meta.width}×${meta.height}，jpg ${(jpgBytes / 1024).toFixed(0)}KB、webp ${(webpBytes / 1024).toFixed(0)}KB`);
+}
+if (missing.length) console.log(`還缺主圖（要畫加 --ai）：${missing.join("、")}`);

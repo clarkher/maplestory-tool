@@ -3,7 +3,9 @@ import { articleHeroPath, articlePath, articleSlug } from "@/lib/job-article";
 import { itemPagePath } from "@/lib/item-page";
 import { SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
-import { staticArticleImages, staticAtlasMaps, staticGuideJobs, staticItemPages, staticJobArticle, staticJobArticleKeys, staticModified, staticMonsters, staticNpcs, staticQuests, staticSkills } from "@/lib/static-data";
+import fs from "node:fs";
+import path from "node:path";
+import { staticArticleImages, staticAtlasMaps, staticGuideDocs, staticGuideJobs, staticItemPages, staticJobArticle, staticJobArticleKeys, staticModified, staticMonsters, staticNpcs, staticQuests, staticSkills } from "@/lib/static-data";
 
 // 建置時產生一次（Cloudflare 上是整站靜態輸出，沒標 force-static 會建不起來）
 export const dynamic = "force-static";
@@ -34,8 +36,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       ...(images[slug]?.hero ? { images: [`${SITE_URL}${articleHeroPath(slug)}`] } : {}),
     };
   };
+  // 一般攻略文（v1.88，src/content/guides）：一樣讀自己的 updated，有主圖列圖
+  const doc = ({ slug, updated }: { slug: string; updated: string }) => ({
+    ...detail(`/guides/${slug}`, 0.8),
+    lastModified: updated,
+    ...(fs.existsSync(path.join(process.cwd(), "public", "assets", "guides", slug, "hero.webp")) ? { images: [`${SITE_URL}/assets/guides/${slug}/hero.jpg`] } : {}),
+  });
   return [
     ...fixed,
+    ...staticGuideDocs().map(doc),
     ...staticGuideJobs().map(job => detail(`/jobs/${job}`, 0.8)),
     ...staticJobArticleKeys().map(article),
     ...staticMonsters().map(monster => detail(`/db/monsters/${monster.id}`, 0.6)),
