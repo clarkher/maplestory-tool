@@ -3,7 +3,7 @@
  * 純函式，不讀檔；before／after 直接給玩家看，所以全是白話字（不露出欄位代號或 JSON）。
  * 只收看得懂的欄位：說明、商店、掉落、能力、名稱。qr／qq／un／c／sh 變了不算（玩家看不出差別）。
  * 髮型臉型（外觀/角色）只給數字（looks、goneLooks），不列清單，改了也不列。
- * 雜訊不列：商店只換店名（價錢、貨幣、件數一樣）；資料補齊（舊的是空的：未命名道具、能力全無、沒有掉落、沒賣）；
+ * 雜訊不列：商店只換店名（價錢、貨幣、件數一樣）；資料補齊（舊的是空的：未命名道具、沒有說明、能力全無、沒有掉落、沒賣）；
  * 說明只差遊戲顏色碼或空白。名字還是「未命名道具」的道具整筆不列也不算。
  */
 import { equipStatLabel, equipStatValue } from "./equip-labels.mjs";
@@ -103,7 +103,7 @@ export function diffPatch(oldData, newData) {
     if (was.n !== now.n && !unnamed(was)) push("名稱", was.n, now.n);
     const dBefore = cleanDesc(was.d);
     const dAfter = cleanDesc(now.d);
-    if (dBefore !== dAfter) push("說明", dBefore, dAfter);
+    if (dBefore !== dAfter && dBefore !== "") push("說明", dBefore, dAfter);
     const spBefore = shopText(was.sp);
     const spAfter = shopText(now.sp);
     if (spBefore !== spAfter && spBefore !== "沒賣" && shopPrices(was.sp) !== shopPrices(now.sp)) push("商店", spBefore, spAfter);
