@@ -36,33 +36,33 @@ export function SkillStrip({ guide, job, level, prefer, leftover, known }: {
   const iconId = current ? current.id : [...progress.steps].reverse().find(step => step.id)?.id ?? null;
 
   return (
-    <section aria-label="技能怎麼點" className="overflow-hidden rounded-[var(--radius-card)] wood-frame">
+    <section aria-label="技能怎麼點" className="overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] border-l-[3px] border-l-[color:var(--maple)]">
       <button
         type="button"
         onClick={() => setOpen(value => !value)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 bg-[color:var(--maple)] px-3 py-2.5 text-left text-[color:var(--on-accent)]"
+        className="flex w-full items-center gap-2.5 bg-[color:var(--glass)] px-3 py-2.5 text-left"
       >
         {iconId ? (
-          <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-white/90">
+          <span className="grid size-10 shrink-0 place-items-center rounded-md bg-[color:var(--paper-deep)]">
             <Sprite src={skillImage(iconId)} size={28} />
           </span>
         ) : null}
         <span className="min-w-0 flex-1 text-[14px] leading-snug">
-          <span className="block text-[11px] font-bold opacity-85">
+          <span className="block text-[11px] font-bold ink-soft">
             {guide.name}・技能點這個（Lv.{level} 共 {sp} 點）
           </span>
           {current ? (
             <>
-              <b className="whitespace-nowrap text-[16px]">{isFreeStep(current) ? stepText(current) : `${current.name} 點到 ${current.to}`}</b>
+              <b className="whitespace-nowrap text-[16px] text-[color:var(--maple)]">{isFreeStep(current) ? stepText(current) : `${current.name} 點到 ${current.to}`}</b>
               {/* 「再來致命毒霧 30」整塊不斷行，放不下就整塊換到下一行，「30」不會單獨一行；「，」跟著前一塊 */}
-              {next ? <span className="opacity-90">，<span className="whitespace-nowrap">再來{stepText(next)}</span></span> : null}
+              {next ? <span className="ink-soft">，<span className="whitespace-nowrap">再來{stepText(next)}</span></span> : null}
             </>
           ) : (
             <b>主流點法 {progress.total} 點已經點完{sp > progress.total ? `，還剩 ${sp - progress.total} 點` : ""}</b>
           )}
         </span>
-        <ChevronDown size={18} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={18} className={`shrink-0 ink-faint transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open ? (
