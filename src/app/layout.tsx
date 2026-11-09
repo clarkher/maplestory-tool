@@ -20,7 +20,7 @@ const notoTC = Noto_Sans_TC({
 // 英文、數字用 Inter（v1.89 A 攻略工具）：字型堆疊排在 Noto 前面，中文字 Inter 沒有，自動落到 Noto
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "600", "800"],
+  weight: ["400", "600", "700", "800"],
   variable: "--font-inter",
   display: "swap",
 });
@@ -55,8 +55,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbf5ea" },
-    { media: "(prefers-color-scheme: dark)", color: "#16110c" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0e12" },
   ],
   width: "device-width",
   initialScale: 1,
