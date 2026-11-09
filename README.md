@@ -225,6 +225,8 @@ npm run data:guides   # 把 data/guides/ 的玩家攻略編成前端用的檔案
 npm run data:all      # 以上全跑
 ```
 
+改版差異檔（`public/data/patches/<版本>.json`＋`index.json`，v1.94）：上游完整 clone 到 `data/cache/upstream-history`（`git clone --filter=blob:none`）後跑 `node pipeline/backfill-patches.mjs --upstream data/cache/upstream-history`，每一版用現在的程式重建、相鄰兩版比對（一版約 30 秒）；只比兩份已建好的資料用 `node pipeline/build-patch.mjs --old <舊> --new <新> --out public/data/patches --version <新版> --prev <舊版> --base <舊 commit> --head <新 commit> --date <YYYY-MM-DD>`。
+
 #### 紙娃娃的道具清單（`public/data/avatar.json`，v1.40）
 
 `npm run data:gear`（`pipeline/build-gear.mjs`，邏輯在 `pipeline/lib/avatar.mjs`）從 `items.json` 產生：膚色 8 種、髮型（同一款不同髮色併一筆）、臉型（同一款不同瞳色併一筆）、
