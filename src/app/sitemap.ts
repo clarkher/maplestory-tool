@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { articleHeroPath, articlePath, articleSlug } from "@/lib/job-article";
 import { itemPagePath } from "@/lib/item-page";
+import { listPatchPages } from "@/lib/patches";
 import { SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
 import fs from "node:fs";
@@ -45,6 +46,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     ...fixed,
     ...staticGuideDocs().map(doc),
+    // 改版整理：只有寫了重點檔的版本才有單版頁
+    ...listPatchPages().map(page => ({ ...detail(`/updates/${page.version}`, 0.7), lastModified: page.date })),
     ...staticGuideJobs().map(job => detail(`/jobs/${job}`, 0.8)),
     ...staticJobArticleKeys().map(article),
     ...staticMonsters().map(monster => detail(`/db/monsters/${monster.id}`, 0.6)),

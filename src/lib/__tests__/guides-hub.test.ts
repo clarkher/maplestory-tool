@@ -7,13 +7,15 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GuidesHub } from "@/app/guides/GuidesHub";
 import { eventStatus } from "@/app/guides/EventStatus";
 import type { ArticleEntry } from "@/lib/article-entry";
 import { browseOrder, cardExcerpt, filterCards, jobArticleCard, pageCount, sortCards, type GuideCard } from "@/lib/guide-catalog";
-import { GUIDE_PAGES } from "@/lib/guide-pages";
+import { GUIDE_PAGES, guidePagesWithDates } from "@/lib/guide-pages";
 import { SITE_PAGES } from "@/lib/site-pages";
+import sitemap from "@/app/sitemap";
+import { listPatchPages } from "@/lib/patches";
 
 const read = (rel: string) => fs.readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
 
@@ -169,5 +171,53 @@ describe("帶我去改名地圖導航（v1.86，只改導覽列跟這一頁的�
   });
   it("卡片上的「帶我去」按鈕留著（使用者選 3A）", () => {
     expect(read("../../app/go/GoNavigator.tsx")).toContain("直接按「帶我去」");
+  });
+});
+
+describe("改版整理（v1.94）進攻略專區、sitemap、llms.txt", () => {
+  const updates = GUIDE_PAGES.find(c => c.href === "/updates");
+  it("攻略專區有一張「改版整理」卡，標題寫楓之谷經典版，日期是 YYYY-MM-DD", () => {
+    expect(updates?.category).toBe("改版整理");
+    expect(updates?.title).toBe("楓之谷經典版改版紀錄：每次更新多了什麼");
+    expect(updates?.tags).toEqual(["改版"]);
+    expect(guidePagesWithDates().find(c => c.href === "/updates")?.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(fs.existsSync(fileURLToPath(new URL(`../../../public${updates!.image}`, import.meta.url)))).toBe(true);
+  });
+  it("分類篩選列得出「改版整理」", () => {
+    const withUpdates = sortCards([...cards, updates!]);
+    const hub = renderToString(createElement(GuidesHub, { cards: withUpdates, jobs, articles: entries })).replace(/<!-- -->/g, "");
+    expect(hub).toContain(">改版整理</button>");
+    expect(hub).toContain('href="/updates"');
+  });
+  it("sitemap 有 /updates 跟每個有重點檔的版本頁；SITE_PAGES 有 /updates", () => {
+    const urls = sitemap().map(entry => entry.url);
+    expect(urls.some(url => url.endsWith("/updates"))).toBe(true);
+    for (const page of listPatchPages()) expect(urls.some(url => url.endsWith(`/updates/${page.version}`))).toBe(true);
+    expect(SITE_PAGES.find(entry => entry.path === "/updates")?.name).toBe("改版紀錄");
+  });
+  it("llms.txt 自動吃 SITE_PAGES、也列有重點檔的版本頁", () => {
+    expect(read("../../app/llms.txt/route.ts")).toContain("patchLines");
+  });
+});
+
+describe("載入 guide-pages / static-data 不讀改版檔（首頁建置也會 import）", () => {
+  it("import 當下沒碰 public/data/patches 或 src/content/patches", async () => {
+    vi.resetModules();
+    const touched: string[] = [];
+    const wrap = <K extends "readFileSync" | "readdirSync" | "existsSync">(name: K) => {
+      const orig = fs[name] as (...a: unknown[]) => unknown;
+      return vi.spyOn(fs, name).mockImplementation(((...a: unknown[]) => {
+        if (String(a[0]).split("\\").join("/").includes("patches")) touched.push(`${name} ${String(a[0])}`);
+        return orig(...a);
+      }) as never);
+    };
+    const spies = [wrap("readFileSync"), wrap("readdirSync"), wrap("existsSync")];
+    try {
+      await import("@/lib/guide-pages");
+      await import("@/lib/static-data");
+    } finally {
+      spies.forEach(s => s.mockRestore());
+    }
+    expect(touched).toEqual([]);
   });
 });
