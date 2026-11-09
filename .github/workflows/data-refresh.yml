@@ -171,7 +171,8 @@ jobs:
       # 那份是 depth 1 的一般 clone，fetch-artale.mjs 每次 fetch --depth 1＋reset，unshallow 會連每一版的圖檔、資料檔全下載；
       # blob:none 只抓 commit 跟目錄，要看哪一版的檔才下載那一版（跟本機回填 backfill-patches.mjs 同一個做法）。
       # --head 鎖在 data/cache/upstream 的 HEAD：兩次 clone 中間上游剛好推了新 commit，也不會拿別的版本來比。
-      # 找不到前一版只印一行、不算失敗
+      # 算不出來不擋資料更新（clone 失敗、重建前一版失敗…）：印 ::warning::、這步照樣成功，public/data/patches 維持原樣
+      # （refresh-patch.mjs 先寫暫存、全成功才搬進去）。找不到前一版只印一行
       - name: 重算目前版本的改版差異
         if: steps.check.outputs.changed == 'true'
         run: |
@@ -180,8 +181,13 @@ jobs:
             exit 0
           fi
           rm -rf data/cache/upstream-history
-          git clone --filter=blob:none --no-checkout --quiet "$(git -C data/cache/upstream remote get-url origin)" data/cache/upstream-history
-          node pipeline/refresh-patch.mjs --upstream data/cache/upstream-history --head "$(git -C data/cache/upstream rev-parse HEAD)"
+          if ! git clone --filter=blob:none --no-checkout --quiet "$(git -C data/cache/upstream remote get-url origin)" data/cache/upstream-history; then
+            echo "::warning::改版差異沒算（資料照常更新）：上游歷史 clone 失敗"
+            exit 0
+          fi
+          if ! node pipeline/refresh-patch.mjs --upstream data/cache/upstream-history --head "$(git -C data/cache/upstream rev-parse HEAD)"; then
+            echo "::warning::改版差異沒算（資料照常更新）：refresh-patch.mjs 結束碼不是 0"
+          fi
 
       - name: 轉地圖畫面圖（webp）
         if: steps.check.outputs.changed == 'true'
