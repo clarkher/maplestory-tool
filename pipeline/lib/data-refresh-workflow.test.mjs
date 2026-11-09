@@ -446,3 +446,12 @@ test("新版本開 issue 提醒寫重點：放 notify（已有 issues: write）�
   // notify 的 checkout 只拿 pipeline，要多拿重點檔的資料夾才看得到有沒有寫
   assert.match(NOTIFY, /sparse-checkout: \|\n {12}pipeline\n {12}src\/content\/patches\n/);
 });
+
+test("改版差異算不出來不擋資料更新：clone、refresh-patch 失敗都只印 ::warning::、這步照樣成功（不用 continue-on-error，notify 不會當成更新失敗）", () => {
+  const block = stepBlock("重算目前版本的改版差異");
+  assert.doesNotMatch(block, /continue-on-error/);
+  const run = runScripts(block).join("\n");
+  assert.match(run, /if ! git clone --filter=blob:none [^\n]*; then\n\s*echo "::warning::[^"]*"\n\s*exit 0\n/);
+  assert.match(run, /if ! node pipeline\/refresh-patch\.mjs [^\n]*; then\n\s*echo "::warning::[^"]*"\n/);
+  assert.doesNotMatch(run, /exit 1/);
+});
