@@ -19,7 +19,13 @@ export function QuestDetailBody({
   questNames,
   npcPages,
   itemPages,
+  hide,
 }: {
+  /**
+   * 不畫的區塊：只有任務單獨頁給（上面「一步一步怎麼解」已經寫了同樣的東西）；
+   * 查資料、任務規劃、首頁這些工具頁不給，畫面不變
+   */
+  hide?: { mobs?: boolean; needItems?: boolean; rewards?: boolean };
   quest: Quest;
   maps: Record<string, MapRecord>;
   questNames?: Map<string, string>;
@@ -88,7 +94,7 @@ export function QuestDetailBody({
         </Block>
       ) : null}
 
-      {quest.needMobs?.length ? (
+      {quest.needMobs?.length && !hide?.mobs ? (
         <Block title="要打的怪">
           <ul className="flex flex-wrap gap-1.5">
             {quest.needMobs.map((mob, index) => (
@@ -106,7 +112,7 @@ export function QuestDetailBody({
         </Block>
       ) : null}
 
-      {quest.needItems?.length || pay ? (
+      {(quest.needItems?.length || pay) && !hide?.needItems ? (
         <Block title="要交的東西">
           <div className="space-y-1.5">
             {quest.needItems?.length ? <ItemChips rows={quest.needItems} linkToFarm itemPages={itemPages} /> : null}
@@ -115,7 +121,7 @@ export function QuestDetailBody({
         </Block>
       ) : null}
 
-      {reward || quest.rewardItems?.length || quest.rewardSkillNames?.length ? (
+      {(reward || quest.rewardItems?.length || quest.rewardSkillNames?.length) && !hide?.rewards ? (
         <Block title="完成後拿到">
           <div className="space-y-1.5">
           {reward ? <p className="font-bold text-[color:var(--gold)]">{reward}</p> : null}

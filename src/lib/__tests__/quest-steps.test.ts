@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mapRoute } from "@/lib/atlas-view";
-import { questLevel, questSteps, stepText, type QuestStepContext } from "@/lib/quest-steps";
+import { coveredBlocks, questLevel, questSteps, stepText, type QuestStepContext } from "@/lib/quest-steps";
 import type { Item, MapRecord, Monster, PortalEdge, Quest } from "@/lib/types";
 
 // 假資料：1 城鎮 → 2 → 3 → (傑夫，50 等) → 4；5 是沒中文名的圖；6 是另一個城鎮旁的圖
@@ -65,9 +65,34 @@ describe("questSteps", () => {
     expect(start.lines[0]).toContainEqual({ t: "巴勒圖", href: "/db/npcs/1" });
   });
 
-  it("NPC 在城鎮裡就不寫路線", () => {
+  it("NPC 在城鎮裡：不寫路線，改給「帶我去」", () => {
     const [start] = questSteps(quest({ sNpc: { id: 1, n: "楓之谷GM", map: 1, mapName: "弓箭手村" } }), ctx);
     expect(stepText(start)).toEqual(["到弓箭手村找楓之谷GM接任務。"]);
+    expect(start.go).toBe("/go?to=1");
+  });
+
+  it("有路線、不是城鎮、沒圖都不給「帶我去」", () => {
+    expect(questSteps(quest({ sNpc: { id: 1, n: "某人", map: 6, mapName: "西邊森林" } }), ctx)[0].go).toBeUndefined();
+    expect(questSteps(quest({ sNpc: { id: 1, n: "某人", map: 3, mapName: "冰雪峽谷Ⅱ" } }), { ...ctx, nearestTown: {} })[0].go).toBeUndefined();
+    expect(questSteps(quest({ sNpc: { id: 1, n: "某人" } }), ctx)[0].go).toBeUndefined();
+  });
+
+  it("回報的人在另一個城鎮：回報那步也給「帶我去」", () => {
+    const withTown = { ...maps, "9": { zh: "勇士之村", st: "", t: 1 } } as unknown as Record<string, MapRecord>;
+    const steps = questSteps(
+      quest({ sNpc: { id: 1, n: "甲", map: 6, mapName: "西邊森林" }, eNpc: { id: 2, n: "乙", map: 9, mapName: "勇士之村" } }),
+      { ...ctx, maps: withTown },
+    );
+    expect(steps.find(step => step.kind === "return")?.go).toBe("/go?to=9");
+  });
+
+  it("coveredBlocks：步驟寫過的卡片區塊才藏", () => {
+    const npc = { id: 1, n: "奈洛", map: 6, mapName: "西邊森林" };
+    const full = quest({ sNpc: npc, eNpc: npc, needMobs: [{ id: 101, n: "木妖", c: 5 }], needItems: [{ id: 4000003, n: "道具" }], money: -100, exp: 5 });
+    expect(coveredBlocks(full, questSteps(full, ctx))).toEqual({ mobs: true, needItems: true, rewards: true });
+    // 只付楓幣、沒有回報 NPC：步驟沒寫到要付錢，卡片照列
+    const payOnly = quest({ money: -100 });
+    expect(coveredBlocks(payOnly, questSteps(payOnly, ctx))).toEqual({ mobs: false, needItems: false, rewards: false });
   });
 
   it("接、回報不同 NPC：寫回去交給誰，在別張圖補路線", () => {
@@ -167,9 +192,9 @@ describe("傑夫門檻", () => {
 
   it("打怪：49 等以下不列傑夫後面的圖，沒中文名的圖也不列", () => {
     const low = questSteps(quest({ minLv: 40, needMobs: [{ id: 100, n: "白狼", c: 20 }] }), ctx);
-    expect(stepText(low[0])).toEqual(["白狼 20 隻：去冰雪峽谷Ⅱ（同時 4 隻）。"]);
+    expect(stepText(low[0])).toEqual(["白狼 20 隻：去冰雪峽谷Ⅱ。"]);
     const high = questSteps(quest({ minLv: 55, needMobs: [{ id: 100, n: "白狼", c: 20 }] }), ctx);
-    expect(stepText(high[0])).toEqual(["白狼 20 隻：最多的圖是尖銳的絕壁Ⅰ（同時 9 隻）、冰雪峽谷Ⅱ（同時 4 隻）。"]);
+    expect(stepText(high[0])).toEqual(["白狼 20 隻：最多的圖是尖銳的絕壁Ⅰ，其次冰雪峽谷Ⅱ。"]);
   });
 
   it("自己也算城鎮、回城點是別的城鎮：從回城點出發", () => {
