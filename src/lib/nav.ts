@@ -12,8 +12,8 @@ type NavItem = { href: string; label: string; match: string[]; desktopOnly?: tru
 
 export const NAV: NavItem[] = [
   { href: "/", label: "我的路線", match: [] },
-  // "/guide" 也比得到 /guides 開頭；職業頁跟活動攻略的麵包屑頭都是「攻略」
-  { href: "/guides", label: "攻略", match: ["/guide", "/jobs", "/event"] },
+  // "/guide" 也比得到 /guides 開頭；職業頁跟活動攻略的麵包屑頭都是「攻略」；v1.94 改版紀錄 /updates 同樣歸攻略
+  { href: "/guides", label: "攻略", match: ["/guide", "/jobs", "/event", "/updates"] },
   // 排在查資料前面：/plan/damage 先亮這顆，其他 /plan 照舊亮查資料；v1.18 起只在電腦版（手機從查資料進去）
   { href: "/plan/damage", label: "算傷害", match: ["/plan/damage"], desktopOnly: true },
   // v0.95：要分享遊戲畫面，手機用不了，只在電腦寬度出現（SiteHeader 用 desktopOnly 藏）；同樣要排在查資料前面

@@ -1,6 +1,7 @@
 import type { GuideCard } from "./guide-catalog";
 import { GUIDE_UPDATED_AT } from "./guide-data";
 import { HALLOWEEN } from "./halloween";
+import { latestPatchDate } from "./patches";
 
 /** 站上本來就有、不是文章檔的攻略頁；圖在 public/assets/guides/<資料夾>/hero.webp（scripts/guide-card-heroes.mjs 產） */
 export const GUIDE_PAGES: GuideCard[] = [
@@ -45,4 +46,20 @@ export const GUIDE_PAGES: GuideCard[] = [
     tags: ["組隊", "21～30 等"],
     date: GUIDE_UPDATED_AT,
   },
+  {
+    href: "/updates",
+    title: "楓之谷經典版改版紀錄：每次更新多了什麼",
+    excerpt: "新道具、新任務、改了數字的東西，照版本整理好，附道具圖。",
+    image: "/assets/guides/updates/hero.webp",
+    imageAlt: "楓之谷經典版改版紀錄，冒險家在城鎮廣場看佈告欄與新道具",
+    category: "改版整理",
+    tags: ["改版"],
+    // 日期要讀改版檔，不在載入時讀：用 guidePagesWithDates() 補（只有攻略專區建卡片時才碰 public/data/patches）
+    date: "",
+  },
 ];
+
+/** 卡片牆用：把「日期要讀檔」的卡補上日期（/updates 卡＝最新一版的日期）。patches.ts 載入時不讀檔，只有呼叫這個函式才讀 */
+export function guidePagesWithDates(): GuideCard[] {
+  return GUIDE_PAGES.map(card => (card.href === "/updates" ? { ...card, date: latestPatchDate() } : card));
+}

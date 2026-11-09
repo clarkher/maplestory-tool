@@ -44,4 +44,9 @@ describe("導覽列哪一顆亮", () => {
   it("手機四顆：我的路線、攻略、地圖導航、查資料", () => {
     expect(NAV.filter(item => !item.desktopOnly).map(item => item.label)).toEqual(["我的路線", "攻略", "地圖導航", "查資料"]);
   });
+
+  it("改版紀錄 /updates 開頭亮「攻略」（v1.94）", () => {
+    expect(activeNav("/updates")).toBe("攻略");
+    expect(activeNav("/updates/2.0.0")).toBe("攻略");
+  });
 });

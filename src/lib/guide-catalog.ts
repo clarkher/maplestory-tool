@@ -5,7 +5,7 @@
  */
 import { jobLineOf } from "./jobs";
 
-export const GUIDE_CATEGORIES = ["職業攻略", "轉職", "組隊任務", "新手入門", "活動"] as const;
+export const GUIDE_CATEGORIES = ["職業攻略", "轉職", "組隊任務", "新手入門", "活動", "改版整理"] as const;
 export type GuideCategory = (typeof GUIDE_CATEGORIES)[number];
 
 /** 列表上那排可以點的標籤（卡片上的標籤可以更多，篩選只放這幾個） */
@@ -61,7 +61,7 @@ export function filterCards(cards: readonly GuideCard[], category: GuideCategory
 export const cardDate = (date: string) => date.slice(5).replace("-", "/");
 
 /** 「全部」的卡片牆（最新那篇大圖以外）：新手先看的排前面，37 篇職業文排最後；同一類照日期新到舊 */
-export const BROWSE_ORDER: readonly GuideCategory[] = ["新手入門", "組隊任務", "轉職", "活動", "職業攻略"];
+export const BROWSE_ORDER: readonly GuideCategory[] = ["新手入門", "組隊任務", "轉職", "活動", "改版整理", "職業攻略"];
 export function browseOrder(cards: readonly GuideCard[]): GuideCard[] {
   return cards.map((card, index) => ({ card, index })).sort((a, b) => BROWSE_ORDER.indexOf(a.card.category) - BROWSE_ORDER.indexOf(b.card.category) || a.index - b.index).map(({ card }) => card);
 }

@@ -13,7 +13,7 @@ import type { GearData } from "./gear";
 import type { ArticleEntry } from "./article-entry";
 import { guideProblems, parseGuide, type GuideDoc } from "./guide-markdown";
 import { isGuideCategory, jobArticleCard, sortCards, type GuideCard } from "./guide-catalog";
-import { GUIDE_PAGES } from "./guide-pages";
+import { guidePagesWithDates } from "./guide-pages";
 import { articlePath, buildCalcTable, fillTokens, parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
 import type { AtlasIndex, AtlasMap, AtlasNpc, FutureData, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, PortalEdge, Quest, Skill, TrainingRow } from "./types";
 
@@ -241,5 +241,5 @@ export function staticGuideCards(): GuideCard[] {
     if (!isGuideCategory(doc.category)) throw new Error(`${doc.slug}.md 的 category「${doc.category}」不在 GUIDE_CATEGORIES`);
     return { href: `/guides/${doc.slug}`, title: doc.title, excerpt: doc.description, image: `/assets/guides/${doc.slug}/hero.webp`, imageAlt: doc.heroAlt, category: doc.category, tags: doc.tags, date: doc.updated };
   });
-  return sortCards([...docCards, ...jobCards, ...GUIDE_PAGES]);
+  return sortCards([...docCards, ...jobCards, ...guidePagesWithDates()]);
 }
