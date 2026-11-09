@@ -9,7 +9,10 @@ import { hasItemPage, itemPagePath, type ItemPageLookup } from "./item-page";
 import type { CalcData } from "./damage-view";
 import type { GearData } from "./gear";
 import type { ArticleEntry } from "./article-entry";
-import { articlePath, parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
+import { guideProblems, parseGuide, type GuideDoc } from "./guide-markdown";
+import { isGuideCategory, jobArticleCard, sortCards, type GuideCard } from "./guide-catalog";
+import { GUIDE_PAGES } from "./guide-pages";
+import { articlePath, buildCalcTable, fillTokens, parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
 import type { AtlasIndex, AtlasMap, AtlasNpc, FutureData, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, PortalEdge, Quest, Skill, TrainingRow } from "./types";
 
 const cache = new Map<string, unknown>();
@@ -172,4 +175,45 @@ export function staticArticleImages(): ArticleImageManifest {
 export function staticModified(): string | undefined {
   const meta = staticMeta();
   return meta.dataGeneratedAt || undefined;
+}
+
+const GUIDE_DIR = path.join(process.cwd(), "src", "content", "guides");
+
+/** 一般攻略文（v1.88，src/content/guides/<slug>.md）：照發布日新到舊；有錯（沒寫楓之谷經典版、圖不存在）建置直接失敗 */
+export function staticGuideDocs(): GuideDoc[] {
+  const key = "guide-docs";
+  if (!cache.has(key)) {
+    const files = fs.existsSync(GUIDE_DIR) ? fs.readdirSync(GUIDE_DIR).filter(file => file.endsWith(".md")) : [];
+    const docs = files.map(file => parseGuide(file.slice(0, -3), fs.readFileSync(path.join(GUIDE_DIR, file), "utf8")));
+    const exists = (publicPath: string) => fs.existsSync(path.join(/* turbopackIgnore: true */ process.cwd(), "public", publicPath));
+    // 網址只准小寫英數跟 -，也不能跟職業攻略文撞名（同一個 /guides/<slug> 路由，一般文會蓋掉職業文）；列表卡片一定要有主圖
+    // 只看檔名（不跑整套文章檢查，那個很慢）
+    const jobFiles = fs.existsSync(ARTICLE_DIR) ? fs.readdirSync(ARTICLE_DIR).flatMap(file => parseArticleFile(file) ?? []) : [];
+    const jobSlugs = new Set(jobFiles.map(key => articlePath(key.job, key.from, key.to).split("/").at(-1)));
+    const errors = docs.flatMap(doc => [
+      ...guideProblems(doc, exists),
+      ...(/^[a-z0-9]+(-[a-z0-9]+)*$/.test(doc.slug) ? [] : [`${doc.slug}.md：檔名只能用小寫英文、數字、-`]),
+      ...(jobSlugs.has(doc.slug) ? [`${doc.slug}.md：跟職業攻略文同網址`] : []),
+      ...["hero.webp", "hero.jpg"].filter(file => !exists(`/assets/guides/${doc.slug}/${file}`)).map(file => `${doc.slug}：沒有主圖 /assets/guides/${doc.slug}/${file}（scripts/guide-card-heroes.mjs 產）`),
+    ]);
+    if (errors.length) throw new Error(`攻略文有錯：\n  ${errors.join("\n  ")}`);
+    cache.set(key, docs.sort((a, b) => b.published.localeCompare(a.published)));
+  }
+  return cache.get(key) as GuideDoc[];
+}
+
+/** 攻略專區的全部卡片（職業攻略文＋一般攻略文＋站上攻略頁），新到舊 */
+export function staticGuideCards(): GuideCard[] {
+  const data = staticCalcData();
+  const jobCards = staticArticleEntries().map(entry => {
+    const raw = staticJobArticle(entry.job, entry.from, entry.to)!;
+    const table = buildCalcTable({ ...entry, data, gear: raw.gear, statCap: raw.statCap });
+    const fill = (text: string) => fillTokens(text, table, data);
+    return jobArticleCard({ ...entry, jobName: staticGuide(entry.job).name, title: fill(raw.title), description: fill(raw.description), heroAlt: raw.heroAlt, updated: raw.updated });
+  });
+  const docCards = staticGuideDocs().map((doc): GuideCard => {
+    if (!isGuideCategory(doc.category)) throw new Error(`${doc.slug}.md 的 category「${doc.category}」不在 GUIDE_CATEGORIES`);
+    return { href: `/guides/${doc.slug}`, title: doc.title, excerpt: doc.description, image: `/assets/guides/${doc.slug}/hero.webp`, imageAlt: doc.heroAlt, category: doc.category, tags: doc.tags, date: doc.updated };
+  });
+  return sortCards([...docCards, ...jobCards, ...GUIDE_PAGES]);
 }

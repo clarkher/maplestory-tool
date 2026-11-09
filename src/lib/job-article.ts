@@ -90,9 +90,9 @@ export type ArticleAssumes = {
 export type ArticleGear = { from: number; to: number; weapon: number; skill?: number; skillLevel?: number };
 
 export type JobArticle = {
-  /** 不寫「經典版」：全站模板會補 */
+  /** 一定要寫「楓之谷經典版」（11/09 使用者規則：標題、內文都要有這幾個字，模板接在 <title> 後面的不算）；TITLE_MAX 字內 */
   title: string;
-  /** 150 字內 */
+  /** 150 字內；寫得進去就也放「楓之谷經典版」 */
   description: string;
   /** 首次發布日（YYYY-MM-DD）：畫面、og、JSON-LD 都讀這個，不拿遊戲資料日期冒充 */
   published: string;
@@ -108,6 +108,7 @@ export type JobArticle = {
   gear: ArticleGear[];
   /** 文字的配點把某項能力停在哪（{"DEX": 60}）：表、代號、計算機連結都照這個算，多的點數算回主屬性 */
   statCap?: Partial<Record<StatKey, number>>;
+  /** 第一句就要有「楓之谷經典版」：內文要有這幾個字（11/09 使用者規則） */
   intro: string;
   steps: ArticleStep[];
   sections: ArticleSection[];
@@ -818,10 +819,16 @@ export function resolveArticle(article: JobArticle, table: CalcTable, data?: Cal
 
 /* ------------------------------------------------------------------ 防呆 */
 
-/** 模板會補經典版、Google 只顯示約 150 字 */
+/** Google 只顯示約 150 字 */
 const DESCRIPTION_MAX = 150;
-/** Google 標題大約顯示 30 字：模板接在後面的「｜楓之谷經典版」要落在裡面（估算） */
-const TITLE_MAX = 23;
+/** 標題、內文都要有的字（11/09 使用者規則）：模板接在 <title> 後面的「｜楓之谷經典版」不算，文章自己要寫 */
+export const GAME_NAME = "楓之谷經典版";
+/**
+ * 標題字數上限（換完代號算）。以前是 23：Google 大約顯示 30 字，要留位子給模板接的「｜楓之谷經典版」。
+ * 現在「楓之谷經典版」寫在標題最前面，被截也只截到後面的模板字，關鍵字不會掉；
+ * 上限照 Google 顯示的約 30 字，再留一點給代號換出來的長地圖名、武器名（11/09 加上之後 37 篇最長 29 字）。
+ */
+const TITLE_MAX = 30;
 /** 結論每條幾字內（換完代號算）：手機一條兩行多看完，再長就是把步驟卡的內容搬上來 */
 export const ANSWER_MAX = 70;
 const EMOJI = /[\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF]|[\u{1F300}-\u{10FFFF}]/u;
@@ -1388,8 +1395,9 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
   if (!articleEligible(job, from, to, data.guides)) errors.push(`${job}-${from}-${to}：這個範圍沒過門檻（至少 2 張非舊版來源、有地圖的練功圖）`);
 
   if (!isText(article.title)) errors.push("要有 title");
-  else if (article.title.includes("經典版")) errors.push("title 不寫「經典版」，模板會補");
+  else if (!article.title.includes(GAME_NAME)) errors.push(`title 要寫「${GAME_NAME}」（模板補的不算）`);
   if (!isText(article.intro)) errors.push("要有 intro");
+  else if (!article.intro.includes(GAME_NAME)) errors.push(`intro 要寫「${GAME_NAME}」：內文要有這幾個字`);
   checkDates(article, errors);
   if (!isRecord(article.persona) || !isText(article.persona.name) || !isText(article.persona.line)) errors.push("persona：要有 name（個性當名字）、line（一句自介）");
   checkHeroAlt(article, data, errors);
@@ -1411,7 +1419,7 @@ export function validateArticle(article: unknown, ctx: ArticleContext): string[]
     } catch {
       // 代號的錯下面會一起報
     }
-    if (length > TITLE_MAX) errors.push(`title 要 ${TITLE_MAX} 字內（現在 ${length}）：模板的「楓之谷經典版」才不會被截掉`);
+    if (length > TITLE_MAX) errors.push(`title 要 ${TITLE_MAX} 字內（現在 ${length}）：Google 標題大約只顯示 30 字`);
   }
 
   if (table) {
