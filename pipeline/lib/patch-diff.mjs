@@ -9,9 +9,20 @@ const LOOKS = "外觀/角色";
 
 const byId = list => new Map((list ?? []).map(x => [String(x.id), x]));
 
+const num = v => Number(v).toLocaleString("en-US");
+
+/**
+ * 一家店一句：楓幣店「店名 1,000」、商城「商城 100」、活動貨幣寫貨幣名「店名 10 萬聖節硬幣」，
+ * 整組賣的照站上寫「店名 10 個 1 萬聖節硬幣」。排序、去重後再接（上游換順序、同店開在好幾張分流圖都不算變動）。
+ */
 function shopText(sp) {
   if (!sp?.length) return "沒賣";
-  return sp.map(s => (s.pr === undefined ? s.p : `${s.p} ${Number(s.pr).toLocaleString("en-US")}`)).join("、");
+  const one = s => {
+    if (s.pr === undefined) return s.p;
+    const amount = s.u ? `${num(s.pr)} ${s.u}` : num(s.pr);
+    return `${s.p} ${s.k ? `${num(s.k)} 個 ${amount}` : amount}`;
+  };
+  return [...new Set(sp.map(one))].sort().join("、");
 }
 
 function dropText(dm, monsters) {
