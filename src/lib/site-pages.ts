@@ -22,6 +22,7 @@ export const SITE_PAGES: SitePage[] = [
   { path: "/price/fx", name: "楓幣匯率", what: "雪吉拉 1 億楓幣值多少台幣、每天走勢", priority: 0.7 },
   { path: "/event/halloween", name: "萬聖節任務攻略", what: "雪原的面具祭典 1～3 章照順序、要打的怪去哪打", priority: 0.7 },
   { path: "/guides", name: "攻略", what: "各職業每段等級的攻略文（去哪練、幾下打死、必解任務）、1–30 懶人包、組隊任務圖解、活動攻略", priority: 0.9 },
+  { path: "/updates", name: "改版紀錄", what: "每次改版新增的道具、任務、怪物，以及改了數字的東西，照版本整理、附道具圖", priority: 0.8 },
   { path: "/guide", name: "1–30 懶人包", what: "新手任務 → 轉職 → 月妙 → 超綠，五大職業轉職與配點", priority: 0.9 },
   { path: "/go", name: "地圖導航", what: "輸入目的地，一段一段告訴你走哪個傳送門", priority: 0.8 },
   { path: "/db", name: "查資料", what: "怪物、道具、任務、技能、地圖、NPC 資料查詢", priority: 0.8 },
