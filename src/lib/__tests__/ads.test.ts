@@ -19,8 +19,16 @@ afterEach(() => {
 });
 
 describe("廣告版位（v1.77）", () => {
-  it("還沒拿到發布商編號：什麼都不畫，網站長得跟現在一樣", async () => {
-    const { ads, html } = await load();
+  it("預設用使用者的發布商編號，ads.txt 跟它一致", async () => {
+    const { ads } = await load();
+    expect(ads.ADSENSE_CLIENT).toBe(ads.PUBLISHER_ID);
+    expect(ads.adsenseMeta()).toEqual({ "google-adsense-account": ads.PUBLISHER_ID });
+    const adsTxt = fs.readFileSync(path.resolve(process.cwd(), "public/ads.txt"), "utf8").trim();
+    expect(adsTxt).toBe(`google.com, ${ads.PUBLISHER_ID.replace("ca-", "")}, DIRECT, f08c47fec0942fa0`);
+  });
+
+  it("編號關掉（空字串）：什麼都不畫", async () => {
+    const { ads, html } = await load({ NEXT_PUBLIC_ADSENSE_CLIENT: "" });
     expect(ads.ADSENSE_CLIENT).toBe("");
     expect(ads.adsenseMeta()).toEqual({});
     expect(html("detail")).toBe("");
@@ -43,7 +51,7 @@ describe("廣告版位（v1.77）", () => {
   });
 
   it("只有正式網域才真的載廣告：測試機、本機不灌假曝光", async () => {
-    const { ads } = await load();
+    const { ads } = await load({ NEXT_PUBLIC_ADSENSE_CLIENT: "" });
     expect(ads.adsEnabledFor("maplehelper.tw", CLIENT)).toBe(true);
     expect(ads.adsEnabledFor("maplehelper-dev.pipicards.workers.dev", CLIENT)).toBe(false);
     expect(ads.adsEnabledFor("localhost", CLIENT)).toBe(false);

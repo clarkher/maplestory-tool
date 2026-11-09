@@ -505,9 +505,9 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 11/06 拍板手動版位：只放單筆資料頁（`SeoPage` 最底下）跟攻略文（中段＋最底下），工具頁不放，AdSense 後台不開自動廣告。
 
 - **程式**：`src/lib/ads.ts`、`src/components/AdSlot.tsx`。沒有編號什麼都不畫，有編號第一格就留固定高度（手機 280、電腦 250）。
-- **接上去的順序**：① 使用者開好帳號，把 `ca-pub-…` 填進 `ADSENSE_CLIENT`（版面會多驗證用的 meta），`public/ads.txt` 寫 `google.com, pub-…, DIRECT, f08c47fec0942fa0` ② 審核過、開好版位，填 `AD_UNITS` ③ 跑 `page-cls.mjs --all` 量有廣告時的跳動。
+- **接上去的順序**：① 已完成（v1.87）：發布商編號 `ca-pub-6594936757296433` 寫在 `PUBLISHER_ID`（全站多一個驗證用的 meta），`public/ads.txt` 跟它一致，11/09 把 maplehelper.tw 加進 AdSense 送審 ② 審核過、開好版位，填 `AD_UNITS` ③ 跑 `page-cls.mjs --all` 量有廣告時的跳動。
 - **只有 maplehelper.tw 真的載廣告**：測試機看得到框，看不到廣告，驗收不會灌假曝光。不要點自己的廣告。
-- **本機看框**：`.env.local` 寫 `NEXT_PUBLIC_ADSENSE_CLIENT`、`NEXT_PUBLIC_AD_UNIT_DETAIL`、`NEXT_PUBLIC_AD_UNIT_ARTICLE`，隨便填。
+- **本機看框**：`.env.local` 寫 `NEXT_PUBLIC_AD_UNIT_DETAIL`、`NEXT_PUBLIC_AD_UNIT_ARTICLE`，隨便填；`NEXT_PUBLIC_ADSENSE_CLIENT=` 填空字串會整個關掉。
 
 ## 技術
 
