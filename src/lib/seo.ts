@@ -27,7 +27,7 @@ export function clip(text: string, max = 150): string {
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-function levelText(min?: number, max?: number): string | null {
+export function levelText(min?: number, max?: number): string | null {
   if (min && max) return min === max ? `Lv.${min}` : `Lv.${min}～${max}`;
   if (min) return `Lv.${min} 以上`;
   if (max) return `Lv.${max} 以下`;

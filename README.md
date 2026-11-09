@@ -55,6 +55,8 @@
 
 地圖頁的標題跟開頭那段話（v1.51）：搜尋字有不少是「○○怎麼去」，所以路線寫在最前面（`mapRouteText`，跟 `/go` 同一套路線）。寫不出路線的圖（城鎮自己、走不到）標題不寫「怎麼去」。
 
+任務單獨頁「一步一步怎麼解」（v1.91）：Search Console 看任務頁平均排 7～8 名、點擊率幾乎 0，所以把內容加深。全部從站上資料組（`src/lib/quest-steps.ts` 的 `questSteps`，畫面 `src/components/QuestSteps.tsx`，伺服器畫好）：去哪接（圖、NPC、等級、從最近城鎮的路線）→ 要打的怪（刷怪點最多的 3 張開放圖，`monsterMaps`）→ 要交的道具（哪些怪掉、常駐楓幣店、別的任務給）→ 回去交給誰 → 獎勵。沒資料的那步不寫、不補猜。路線用 `mapRoute`（`mapRouteText` 的完整版，多回傳傑夫門檻）：49 等以下（沒寫接取等級當 1 等）不推傑夫後面的路線跟練功圖，50 等以上要過傑夫的補「參考舊版資料」。NPC 單獨頁開頭也接同一套路線（NPC 在城鎮裡就不寫）。真資料測試 `quest-steps-real.test.ts` 擋缺字句子跟 49 等傑夫；`QUEST_STEP_STATS=1` 印每個任務幾步的分佈。v1.92：打怪那步不寫「同時幾隻」，只照多到少排（最多的圖是 A，其次 B、C）；NPC 在城鎮裡、寫不出路線的那步給一顆「帶我去」（`/go?to=<圖>`，傑夫後面、不是城鎮的不給）；單獨頁下面的任務卡用 `hide`（`coveredBlocks` 決定）藏掉步驟已經寫過的「要打的怪／要交的東西／完成後拿到」，任務對話照留，工具頁不傳 `hide`、畫面不變。
+
 「紙娃娃」（`/plan/avatar`，v1.40）：換髮型（含髮色）、臉型（含瞳色）、膚色、12 類裝備＋點裝，分男女；動作、表情、翻面、隨機穿搭（可以鎖部位）、上一套、重置，跨類別搜尋、只看商城有賣，下載透明背景 PNG（4 倍）、分享連結。
 不進導覽列，入口有兩個：查資料時裝卡、裝備卡（點裝、髮型、臉型、一般裝備）上的「穿上看看」（只給畫得出來的，規則在 `src/lib/avatar/linkable.ts`；打開卡片才載 `avatar.json`，清單與第一格不載）；紙娃娃按隨機穿搭時（v1.76）舞台用輪播那 15 張圖快速換人，新圖好了才定格、閃一下，至少演 0.4 秒；換單件照舊變淡加小圈圈，討厭動畫的人只寫換裝中。首頁的紙娃娃輪播（v1.71，取代 v1.41 的入口卡）：第一次來的人放最上面、存過角色的人放角色列下面；先產好的隨機穿搭一排慢慢走，點角色穿那套（`/plan/avatar?<穿搭>`），按「抽一套」到 `/plan/avatar?draw=1` 抽新的（不穿回這個分頁上次那套、男女各半、清鎖，換好後網址不留 `draw`）。圖放 `public/avatar-showcase`、穿搭在 `src/lib/avatar/showcase.json`，不向 maplestory.io 要圖；要換一批跑 `npm run avatar:showcase` 抽候選、用眼睛挑，再 `SHOWCASE_KEEP=編號,編號 npm run avatar:showcase` 放進去（用法在 `src/lib/avatar/showcase.gen.ts` 開頭）。
 角色圖由瀏覽器向 maplestory.io 即時要（台服 TWMS 256，台服沒有的用日服 JMS 444 補），兩邊都畫不出來的照列、標「暫時看不到樣子」；道具清單、名字、小圖用我們自己的 `public/data/avatar.json`（見下面資料管線）。
@@ -499,6 +501,10 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **導覽列**（v1.86）：手機只放 我的路線、攻略、地圖導航、查資料；電腦版另有算傷害、練功測速、楓幣匯率、未來視。攻略（`/guides` 攻略專區）在 /guide、/guides/*、/jobs、/event 都亮；「帶我去」只在導覽列跟 /go 頁標題改叫地圖導航，卡片上的「帶我去」按鈕照舊；野王計時收進查資料。量放不放得下：`scripts/verify/nav-fit.mjs`。
 - **回收間隔**：把大家回報的「打死到下次出現」間隔收回來修正預估，只收 10 分～6 小時的值，同一隻王 20 筆以上才顯示，兩台伺服器合算。
   `GET /api/boss/intervals` 回 `Cache-Control: public, s-maxage=600, stale-while-revalidate=3600`（出錯不快取）。
+- **第一屏的「各野王重生時間」表**（v1.90）：GA 看到 ChatGPT 帶進來的人平均 2 秒就走，第一屏直接給答案。
+  表在 `src/app/plan/boss/RespawnTable.tsx`（伺服器元件，不跑 JavaScript 也讀得到），由 `page.tsx` 傳進 `BossTimer` 放在標題下面，計時器行為不變。
+  文字都從 `src/lib/boss/respawn-table.ts` 來（只讀 `data/boss/respawn.json`；`statsUntil` 是統計截止日）：卡片上那行、表格、頁面 description 開頭那句、`/llms.txt` 的「野王重生時間」段共用。
+  只有 1 筆實測的寫「實測只有 N 筆」、一筆都沒有寫「還沒有台服實測」，不寫分鐘。更新實測數字只改 `respawn.json`，測試會檢查表上的數字跟檔案一致。
 
 ## 廣告（v1.77）
 
@@ -522,6 +528,20 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 用無頭 Chrome 量換頁第一格（`scripts/verify/check-first-frame.mjs`，`.github/workflows/test.yml`），
 結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」「測試 / 第一格」，紅燈點進去看是哪一步；第一格沒過時截圖跟紀錄在
 那次執行的 artifact。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
+
+### IndexNow：正式機部署完通知 Bing（v1.90）
+
+ChatGPT 查網路主要靠 Bing；IndexNow 讓 Bing（跟 Yandex 等）不用等自己來爬，部署完就知道有哪些網址。
+
+- **金鑰**：`scripts/indexnow-key.mjs` 的 `INDEXNOW_KEY`，檔案 `public/<金鑰>.txt`（內容只有金鑰、不換行；換金鑰兩個一起改，`pipeline/lib/indexnow.test.mjs` 會擋）。金鑰本來就是公開的。
+- **腳本**：`scripts/indexnow.mjs`（檔頭有用法）。讀正式機 `https://maplehelper.tw/sitemap.xml`，只留 `https://maplehelper.tw` 的網址，一批最多 10,000 筆 POST 到 `https://api.indexnow.org/indexnow`。
+  - `node scripts/indexnow.mjs --dry-run`：只印筆數、批數、正式機金鑰檔狀態，不送（11/09 正式機 3,635 筆、1 批）。`--sitemap out/sitemap.xml` 改讀本機建置產出。
+  - 真送之前一定先確認金鑰檔回 200 而且內容對（還沒上正式機時送出會被拒 403），不對就失敗、不送。
+- **自動跑**：`.github/workflows/indexnow.yml`（workflow「IndexNow 通知」），main 有新 commit 時觸發，用 `--wait-deploy <sha>`：
+  等那顆 commit 的 check-run「Workers Builds: maplehelper」成功（正式機部署完，最多等 25 分鐘；失敗、取消就不送），再等金鑰檔、送出。
+  權限只有 `contents: read`、`checks: read`。dev（測試機）不觸發，測試機不送。
+  資料自動更新用 github.token 推進 main 的 commit 不會觸發（GitHub 的限制），等下一次合併一起送，或到 Actions 頁面按 Run workflow（分支 main）。
+  **workflow 檔要上 main 之後才會跑**，第一次跑的那次就是金鑰檔第一次上正式機（等部署那步會等它）。
 
 ### 搜尋引擎跟 AI 看得到的東西（v1.21）
 
