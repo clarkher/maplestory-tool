@@ -14,9 +14,17 @@ describe("選項按鈕（v1.89）", () => {
       const source = read(file);
       expect(source).not.toMatch(/rounded-full/);
       expect(source).not.toMatch(/bg-\[color:var\(--maple\)\]/);
-      expect(source).toMatch(/bg-\[color:var\(--maple-wash\)\]/);
+      expect(source).toMatch(/OPTION_ON/);
+      // 滑過只把字變深，框不變橘：橘框是「選中」專用
+      expect(source).not.toMatch(/hover:border-\[color:var\(--maple\)\]/);
     });
   }
+
+  it("共用選中樣式（option-style.ts）：橘框＋橘色淡底＋橘字；沒選中滑過不出橘框", () => {
+    const source = read("option-style.ts");
+    expect(source).toMatch(/OPTION_ON = "border-\[color:var\(--maple\)\] bg-\[color:var\(--maple-wash\)\] text-\[color:var\(--maple\)\]"/);
+    expect(source).not.toMatch(/hover:border-\[color:var\(--maple\)\]/);
+  });
 
   it("攻略專區的分類、標籤篩選（GuidesHub）：選中不是實心橘", () => {
     const source = fs.readFileSync(fileURLToPath(new URL("../../app/guides/GuidesHub.tsx", import.meta.url)), "utf8");

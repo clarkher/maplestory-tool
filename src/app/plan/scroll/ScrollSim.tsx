@@ -8,6 +8,7 @@ import { loadScrollSim, peekScrollSim } from "@/lib/data";
 import { simTable } from "@/lib/scroll-sim/calc";
 import { defaultScroll, findScroll, scrollsFor } from "@/lib/scroll-sim/pick";
 import type { ScrollSimData, SimEquip, SimScroll } from "@/lib/scroll-sim/types";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 import {
   CARD, PickRow, Picker, PriceField, ResultTable, Switch, allPriced, equipItems, equipNote, mesoText, parsePrice, scrollItems, scrollNote,
 } from "./parts";
@@ -201,7 +202,7 @@ export function ScrollSim() {
                   role="radio"
                   aria-checked={on}
                   onClick={() => setWhiteRate(w.rate)}
-                  className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-md px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
+                  className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-md border px-3.5 text-[14px] font-extrabold ${on ? OPTION_ON : OPTION_OFF}`}
                 >
                   {w.n}
                 </button>

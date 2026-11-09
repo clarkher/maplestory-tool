@@ -797,27 +797,41 @@ describe("來源標籤的對比（全站小字 AA，v0.81）", () => {
   };
   const contrast = (a: number[], b: number[]) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
-  it("每一種標籤、深淺色：段落裡的洗色底、結論框裡的實心底都到 4.5", async () => {
+  it("每一種標籤、深淺色：疊在頁底、卡片底上都到 4.5", async () => {
     const { TAG_TONE } = await import("@/components/JobArticleView");
     for (const [theme, block] of [["light", light], ["dark", dark]] as const) {
-      const paper = parse(token(block, "paper"));
-      for (const [tag, tone] of Object.entries(TAG_TONE)) {
-        const tokenOf = (cls: string) => /var\(--([\w-]+)\)/.exec(cls)![1];
-        const ink = parse(token(block, tokenOf(tone.ink)));
-        expect(contrast(ink, over(parse(token(block, tokenOf(tone.wash))), paper)), `${theme} ${tag} 段落裡`).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(ink, paper), `${theme} ${tag} 結論框裡`).toBeGreaterThanOrEqual(4.5);
+      for (const base of ["paper", "glass"]) {
+        const under = parse(token(block, base));
+        for (const [tag, tone] of Object.entries(TAG_TONE)) {
+          const tokenOf = (cls: string) => /var\(--([\w-]+)\)/.exec(cls)![1];
+          const ink = parse(token(block, tokenOf(tone.ink)));
+          expect(contrast(ink, over(parse(token(block, tokenOf(tone.wash))), under)), `${theme} ${tag} 疊在 ${base}`).toBeGreaterThanOrEqual(4.5);
+        }
       }
     }
   });
 
-  it("「先講結論」框裡的標籤用實心底，不跟框的洗色疊在一起（深色模式社群整理曾經只有 4.08）", async () => {
+  it("來源標籤照「從哪來」分三色（v1.95，拍板 6）：站上算、遊戲本身＝藍；玩家說的＝金；舊的、官方文字＝灰", async () => {
+    const { TAG_TONE } = await import("@/components/JobArticleView");
+    const colorOf = (tag: keyof typeof TAG_TONE) => /var\(--([\w-]+)\)/.exec(TAG_TONE[tag].ink)![1];
+    expect([colorOf("calc"), colorOf("game")]).toEqual(["sky", "sky"]);
+    expect([colorOf("tw"), colorOf("community")]).toEqual(["gold", "gold"]);
+    expect([colorOf("legacy"), colorOf("official")]).toEqual(["ink-soft", "ink-soft"]);
+    expect(TAG_TONE.legacy.wash).toBe(TAG_TONE.official.wash);
+  });
+
+  it("「先講結論」框（v1.95）：卡片底＋左邊 3px 橘線、每條前面兩位數編號、列跟列之間細線", async () => {
     const { JobArticleView } = await import("@/components/JobArticleView");
     const article = { ...validCleric(), answer: [{ text: "一", tag: "community" as const }, { text: "二", tag: "tw" as const }] };
     const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: {}, dataNote: "", jsonLd: [] }));
-    const box = html.slice(html.indexOf("先講結論"), html.indexOf("</ol>"));
-    expect(box).toContain("社群整理");
-    expect(box).not.toContain("--maple-wash");
-    expect(box).toContain("bg-[color:var(--paper)]");
+    const boxStart = html.lastIndexOf("<div", html.indexOf("先講結論"));
+    const box = html.slice(boxStart, html.indexOf("</ol>", boxStart));
+    expect(box).toMatch(/border-l-\[3px\]/);
+    expect(box).toMatch(/border-l-\[color:var\(--maple\)\]/);
+    expect(box).not.toContain("bg-[color:var(--maple-wash)] p-");
+    expect(box).toContain(">01<");
+    expect(box).toContain(">02<");
+    expect(box).toContain("divide-y");
   });
 });
 
@@ -1782,5 +1796,50 @@ describe("圖片防呆 articleImageProblems", () => {
   });
   it("清單裡有文章沒有的 slug 也報（改過網址、舊圖留著）", () => {
     expect(articleImageProblems(entries(), { ...manifest(), "priest-51-70": { hero: { w: 1536, h: 864 } } }, all).join()).toMatch(/priest-51-70/);
+  });
+});
+
+describe("攻略文深色頁首（v1.95，設計系統 A 拍板 1、4）", () => {
+  const render = async (images?: { dir: string; hero?: { w: number; h: number } }) => {
+    const { JobArticleView } = await import("@/components/JobArticleView");
+    return renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article: validCleric(), table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: {}, dataNote: "", jsonLd: [], images: images as never }));
+  };
+
+  it("有主圖：標題、署名壓在固定深色的頁首裡，圖先載、電腦版高度壓在 280px", async () => {
+    const html = await render({ dir: "/assets/guides/priest-31-50", hero: { w: 1536, h: 864 } });
+    const head = html.slice(html.indexOf("force-dark"), html.indexOf("</header>", html.indexOf("force-dark")));
+    expect(head).toContain("<h1");
+    expect(head).toContain("本篇寫手");
+    expect(head).toMatch(/fetchPriority="high"|fetchpriority="high"/i);
+    expect(head).toMatch(/md:h-\[280px\]/);
+    // 標題只有一個
+    expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+
+  it("沒有主圖：照舊的標題列，不出現一塊空的深色框", async () => {
+    const html = await render(undefined);
+    expect(html).not.toContain("force-dark");
+    expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+});
+
+describe("攻略文電腦版本篇目錄（v1.95）", () => {
+  it("目錄列先講結論、每個等級去哪裡、計算表跟每一段，每個連結頁面上都有那個 id；只在 lg 以上、黏著", async () => {
+    const { JobArticleView } = await import("@/components/JobArticleView");
+    const raw = realArticle(230, 31, 50);
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: raw.gear });
+    const article = resolveArticle(raw, table, data);
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table, monsters: new Map(data.monsters.map(m => [m.id, m])), maps: {}, dataNote: "", jsonLd: [] }));
+    const tocStart = html.indexOf('aria-label="本篇目錄"');
+    expect(tocStart).toBeGreaterThan(-1);
+    const toc = html.slice(html.lastIndexOf("<nav", tocStart), html.indexOf("</nav>", tocStart));
+    expect(toc).toMatch(/hidden[^"]*lg:block/);
+    expect(toc).toContain("sticky");
+    const links = [...toc.matchAll(/href="#([^"]+)"/g)].map(m => m[1]);
+    const labels = [...toc.matchAll(/<a [^>]*>([^<]+)<\/a>/g)].map(m => m[1]);
+    expect(labels.slice(0, 3)).toEqual(["先講結論", "每個等級去哪裡", "幾下打死、打不打得中"]);
+    expect(links.length).toBe(3 + article.sections.length);
+    for (const id of links) expect(html, id).toContain(`id="${id}"`);
+    expect(new Set(links).size).toBe(links.length);
   });
 });

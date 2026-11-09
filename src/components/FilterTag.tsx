@@ -1,6 +1,7 @@
 "use client";
 
 import { useHydrated } from "@/lib/hydrated";
+import { OPTION_OFF, OPTION_ON } from "./option-style";
 
 /**
  * 篩選用的標籤按鈕：點一下開、再點一下關（aria-pressed），開著是橘框＋橘色淡底＋橘字（v1.89），跟角色列選職業的按鈕同一個樣子。
@@ -19,9 +20,7 @@ export function FilterTag({ on, onClick, children }: { on: boolean; onClick: () 
       onClick={onClick}
       className={[
         "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-md border px-[11px] text-[13px] font-bold transition-colors",
-        pressed
-          ? "border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]"
-          : "border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)] hover:border-[color:var(--maple)]",
+        pressed ? OPTION_ON : OPTION_OFF,
       ].join(" ")}
     >
       {children}

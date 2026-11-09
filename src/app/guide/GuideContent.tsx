@@ -12,6 +12,7 @@ import {
 import { ArticleList } from "@/components/ArticleList";
 import type { ArticleEntry } from "@/lib/article-entry";
 import { claimVisit, useVisitState } from "@/lib/visit-state";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 import {
   KpqAnswerTable, KpqBarrelDiagram, MoonBunnySeedDiagram, PqEntryBanner, PqStageList,
 } from "./PqVisuals";
@@ -60,10 +61,8 @@ export function GuideContent({ jobs, articles = [] }: { jobs: Array<{ job: numbe
               onClick={() => setJob(entry.key)}
               aria-pressed={entry.key === job}
               className={[
-                "tap-safe shrink-0 rounded-md px-4 py-2 text-sm font-bold transition-colors",
-                entry.key === job
-                  ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] shadow-sm"
-                  : "glass wood-frame hover:bg-[color:var(--maple-wash)]",
+                "tap-safe shrink-0 rounded-md border px-4 py-2 text-sm font-bold transition-colors",
+                entry.key === job ? OPTION_ON : OPTION_OFF,
               ].join(" ")}
             >
               {entry.name}
