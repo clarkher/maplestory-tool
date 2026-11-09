@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FilterTag } from "@/components/FilterTag";
 import { parseChannel } from "@/lib/boss/input";
 import { intervalOnKill } from "@/lib/boss/interval";
@@ -50,7 +50,8 @@ function saveUnsent(list: BossEvent[]): void {
 
 const KIND_TEXT = { kill: "剛打死", empty: "沒王" } as const;
 
-export function BossTimer() {
+/** respawnTable：伺服器頁畫好的「各野王重生時間」表（v1.90），放在標題下面；計時器本身的行為不變 */
+export function BossTimer({ respawnTable }: { respawnTable?: ReactNode } = {}) {
   const [ready, setReady] = useState(false);
   const [prefs, setPrefsState] = useState<BossPrefs>(FIRST_PREFS);
   const [events, setEvents] = useState<BossEvent[]>([]);
@@ -542,6 +543,8 @@ export function BossTimer() {
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">野王計時</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">打死就按一下，幫你算哪個頻道快出了。重生時間是台服玩家實測。</p>
       </header>
+
+      {respawnTable}
 
       <div className="flex gap-2 pt-1" role="group" aria-label="伺服器">
         {SERVERS.map((s) => (

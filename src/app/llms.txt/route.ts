@@ -1,3 +1,4 @@
+import { respawnLlmsLines } from "@/lib/boss/respawn-table";
 import { articlePath, articleRangeLabel } from "@/lib/job-article";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
@@ -46,6 +47,7 @@ export function GET() {
     "",
     ...staticGuideJobs().map(job => `- [${staticGuide(job).name}](${SITE_URL}/jobs/${job})`),
     "",
+    ...respawnLlmsLines(SITE_URL),
     ...articleLines(),
     ...docLines(),
     "## 單筆資料頁",
