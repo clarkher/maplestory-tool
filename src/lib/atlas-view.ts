@@ -86,23 +86,43 @@ export function mapRouteText(
   maps: Record<string, MapRecord>,
   nearestTown: Record<string, [number, number]>,
 ): string | null {
-  const town = suggestStart(graph, maps, nearestTown, target);
+  return mapRoute(target, graph, maps, nearestTown)?.text ?? null;
+}
+
+/**
+ * mapRouteText 的完整版：另外回傳路上要過的 NPC 等級門檻（gate），讓呼叫端補「參考舊版資料」那句。
+ * level 給了就不走等級不夠的 NPC 傳送（跟 findRoute 一樣）：49 等以下的任務不推傑夫後面那 16 張圖，走不到就是 null。
+ */
+export function mapRoute(
+  target: number,
+  graph: Record<string, PortalEdge[]>,
+  maps: Record<string, MapRecord>,
+  nearestTown: Record<string, [number, number]>,
+  level?: number,
+): { text: string; town: number; gate?: { npc: string; minLevel: number } } | null {
+  let town = suggestStart(graph, maps, nearestTown, target);
+  // 自己也算城鎮的小區（寒冰平原、鯨魚號中央走廊）：改從它的回城點出發，還是寫得出路線
+  const ret = maps[String(target)]?.ret;
+  if (town === target && ret && ret !== target && maps[String(ret)]?.zh) town = ret;
   if (!town || town === target) return null;
-  const route = findRoute(graph, town, target);
+  const route = findRoute(graph, town, target, level);
   if (!route.ok) return null;
   const steps = route.steps.slice(1);
   if (!steps.length || steps.some(step => !maps[String(step.map)]?.zh)) return null;
+  let gate: { npc: string; minLevel: number } | undefined;
   const label = (step: (typeof steps)[number]) => {
     const name = maps[String(step.map)].zh;
     const warp = npcWarp(step.via);
     if (!warp) return name;
+    if (step.minLevel !== undefined && !gate) gate = { npc: warp.npc, minLevel: step.minLevel };
     return `找${warp.npc}${step.minLevel === undefined ? "" : `（Lv.${step.minLevel} 以上）`} → ${name}`;
   };
   const shorten = steps.length > ROUTE_MAX_STEPS && steps.every(step => !npcWarp(step.via));
   const path = shorten
     ? [...steps.slice(0, 3).map(label), `…（共 ${steps.length} 張）`, ...steps.slice(-2).map(label)]
     : steps.map(label);
-  return `怎麼去：從${maps[String(town)].zh}出發，${path.join(" → ")}。`;
+  const text = `怎麼去：從${maps[String(town)].zh}出發，${path.join(" → ")}。`;
+  return gate ? { text, town, gate } : { text, town };
 }
 
 /** 標籤放點的上面（up）或下面（down） */
