@@ -69,13 +69,13 @@ const themeBootstrap = `(function(){try{var t=localStorage.getItem("ms-theme");i
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // globals.css 開了全站平滑捲動；Next 16 起要有 data-scroll-behavior，換頁捲回頂端才會直接跳，不會從底部一路滑上去
-    <html lang="zh-Hant" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="zh-Hant" className={`${inter.variable} ${notoTC.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
         {/* 瀏覽器自己還原捲動位置（上一頁、重新整理）不經過 Next：這段跟 HistoryScrollJump 讓它直接跳回原位 */}
         <script dangerouslySetInnerHTML={{ __html: restoreScrollBootstrap }} />
       </head>
-      <body className={`${inter.variable} ${notoTC.variable} antialiased`}>
+      <body className="antialiased">
         <HistoryScrollJump />
         <GoogleAnalytics />
         {/* 結構化資料：告訴搜尋引擎這是什麼網站（各頁的麵包屑在頁面自己那裡）；放 body，<head> 只放畫面出來前要跑的程式 */}
