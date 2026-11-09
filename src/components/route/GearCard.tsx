@@ -218,9 +218,10 @@ function TabRow({ plan, onPick }: { plan: GearPlan; onPick: (tab: string | null)
 /* ------------------------------------------------------------------ 能力值 */
 
 const CELL_TONE = {
-  main: "bg-[color:var(--maple)] text-[color:var(--on-accent)]",
-  second: "bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
-  rest: "bg-[color:var(--paper)] ink-faint",
+  // 主屬性：橘框淡底（v1.97 不再實心）；副屬性只有橘字、底跟其他格一樣（同底只差一條框的話手機上分不出誰是主的）；框都佔 1px，三種格子一樣大
+  main: "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
+  second: "border border-transparent bg-[color:var(--paper)] text-[color:var(--maple)]",
+  rest: "border border-transparent bg-[color:var(--paper)] ink-faint",
 } as const;
 
 function StatBlock({ plan, job }: { plan: GearPlan; job: number }) {
@@ -255,7 +256,7 @@ function StatBlock({ plan, job }: { plan: GearPlan; job: number }) {
 
 function StatCell({ stat, value, tone }: { stat: StatKey; value: number; tone: keyof typeof CELL_TONE }) {
   return (
-    <div className={`rounded-lg px-1 py-1.5 text-center ${CELL_TONE[tone]}`}>
+    <div className={`rounded-md px-1 py-1.5 text-center ${CELL_TONE[tone]}`}>
       <dt className="text-[11px] font-bold leading-none">
         <span aria-hidden>{STAT_SHORT[stat]}</span>
         <span className="sr-only">

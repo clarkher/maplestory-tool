@@ -77,7 +77,7 @@ route 把進來的當壞人：只認不超過 8 位的數字（壞的逐個丟�
 按分享時順手向 maplestory.io 要一次那張圖（它第一次畫要好幾秒，先畫好爬蟲才不會等到逾時）。網址列手動複製的連結沒有預覽，照舊可以開。
 Cloudflare 上這支算 Worker 請求，跟 API、測試機道具圖共用免費額度（一天 10 萬次）；DNS 切到 Cloudflare 之前，正式機這支跑在 Vercel（同一支 route，不用改）。
 設計：`docs/superpowers/specs/2026-11-03-avatar-sim-design.md`、`docs/superpowers/specs/2026-11-04-avatar-polish-design.md`。驗收：`npx vitest run src/lib/avatar`、`node --test pipeline/lib/avatar.test.mjs`；畫面用 `node scripts/verify/avatar-shot.mjs <網址，預設 http://localhost:9381> [輸出]`（埠 9382，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
-「公會徽章」（`/plan/guild`，v1.81）：挑底圖 31 種、圖案 113 種（動物、植物、花紋、文字、其他）各 16 色，徽章即時預覽，隨機一個、下載 PNG（4 倍，不抹糊）、分享連結（手機系統分享，電腦複製網址）。圖從台服客戶端切：`python -E -P scripts/client/guild-mark.py`（用法在檔頭，需 UnityPy、numpy、Pillow），寫出 `public/assets/guild-mark/marks-<雜湊>.png` 圖集跟 `src/lib/guild-mark/marks.json` 索引；圖集檔名帶內容雜湊，`/assets/` 一年快取換檔名就會更新，所以不用動 `meta.json` 的 builtAt。入口兩個：首頁紙娃娃輪播正下方一行小字「做公會徽章」、紙娃娃頁副標下方「也可以做公會徽章」；不進導覽列。
+「公會徽章」（`/plan/guild`，v1.81）：挑底圖 31 種、圖案 113 種（動物、植物、花紋、文字、其他）各 16 色，徽章即時預覽，隨機一個、下載 PNG（4 倍，不抹糊）、分享連結（手機系統分享，電腦複製網址）。圖從台服客戶端切：`python -E -P scripts/client/guild-mark.py`（用法在檔頭，需 UnityPy、numpy、Pillow），寫出 `public/assets/guild-mark/marks-<雜湊>.png` 圖集跟 `src/lib/guild-mark/marks.json` 索引；圖集檔名帶內容雜湊，`/assets/` 一年快取換檔名就會更新，所以不用動 `meta.json` 的 builtAt。入口兩個：首頁入口清單的「做公會徽章」（v1.97 前是輪播正下方一行小字）、紙娃娃頁副標下方「也可以做公會徽章」；不進導覽列。
 
 「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。v1.86 起不在導覽列，收進攻略專區 `/guides`（卡片過了 11/11 23:59 不拿掉、改寫「活動已結束」）；首頁角色列下面的入口卡活動期間才有，過了自動不出現，頁面留著。
 能不能交易看上游道具的 `trade`（`unlimited` 而且沒有 `quest` 標記——上游把任務道具也標成 unlimited，遊戲裡其實不能交易），
@@ -635,7 +635,7 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `boss_room_create` | 野王計時開房間 | — |
 | `boss_room_join` | 加入房間 | `via`（code 打代碼／link 點連結） |
 | `avatar_download` | 紙娃娃按「下載」 | `gender`（男／女） |
-| `avatar_showcase_click` | 首頁紙娃娃輪播：點角色、按「抽一套」 | `target`（look 點角色／draw 抽一套／guild 做公會徽章） |
+| `avatar_showcase_click` | 首頁紙娃娃輪播：點角色、按「抽一套」；入口清單點「做公會徽章」 | `target`（look 點角色／draw 抽一套／guild 做公會徽章，v1.97 起在入口清單） |
 | `guild_download` | 公會徽章按「下載」 | — |
 | `guild_random` | 公會徽章按「隨機一個」 | — |
 | `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃、公會徽章分享 | `page`（boss／speed／avatar／guild）、`method`（野王計時、紙娃娃、公會徽章 copy_link 複製連結；紙娃娃、公會徽章 share 系統分享（只有手機、平板；電腦一律 copy_link）；練功測速 copy_image／download_image） |

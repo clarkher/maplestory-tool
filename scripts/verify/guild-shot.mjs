@@ -344,11 +344,11 @@ try {
   });
 
   // 8. 首頁、紙娃娃頁入口
-  await check("首頁（第一次來）輪播下有「做公會徽章」，點了到 /plan/guild", async () => {
+  await check("首頁（第一次來）入口清單有「做公會徽章」（v1.97 從輪播下搬進清單），點了到 /plan/guild", async () => {
     await navigate(`${BASE}/robots.txt`);
     await evaluate(`(localStorage.removeItem("ms-profile"), true)`);
     await navigate(`${BASE}/`);
-    const LINK = `[...document.querySelectorAll("a[href='/plan/guild']")].find(a => a.textContent.trim() === "做公會徽章" && a.checkVisibility())`;
+    const LINK = `[...document.querySelectorAll("a[href='/plan/guild']")].find(a => a.textContent.trim().startsWith("做公會徽章") && a.checkVisibility())`;
     await wait("做公會徽章", LINK, 90000);
     const m = await evaluate(`(() => {
       const a = ${LINK}; const r = a.getBoundingClientRect();
