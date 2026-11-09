@@ -1,12 +1,16 @@
 /**
  * AdSense（v1.77）。編號不是秘密，寫在這裡或建置環境都可以；還沒有就什麼都不畫。
  *
- * TODO: 使用者開好 AdSense 帳號後填 ADSENSE_CLIENT（ca-pub-…）並加 public/ads.txt；審核過、開好版位再填 AD_UNITS。
+ * v1.87：發布商編號是使用者既有的 AdSense 帳號（11/09 把 maplehelper.tw 加進去），public/ads.txt 要跟它一致。
+ * TODO: 審核過、開好版位再填 AD_UNITS。
  * 在 AdSense 後台不要開「自動廣告」：位置由 Google 決定會讓畫面跳動（11/06 拍板 1A：手動版位）。
  */
 import { PRODUCTION_HOST } from "./analytics";
 
-export const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT || "";
+export const PUBLISHER_ID = "ca-pub-6594936757296433";
+
+/** 建置環境可以蓋掉（填空字串＝關掉，本機、測試用）。 */
+export const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT ?? PUBLISHER_ID;
 
 export const AD_UNITS = {
   /** 單筆資料頁、攻略文的最底下 */
