@@ -13,7 +13,10 @@
 @theme {
   --font-sans: var(--font-noto-tc), ui-sans-serif, system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
 
-  --radius-card: 1.125rem;
+  /* A 版小圓角：卡片 8px、按鈕與輸入框 6px（rounded-md）、標籤 4px（rounded）；rounded-xl、rounded-2xl 全站自動跟著收小 */
+  --radius-card: 0.5rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
   --radius-pill: 999px;
 }
 
@@ -164,12 +167,7 @@ body {
   background-color: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
-  /* 羊皮紙的織紋：兩層極淡的斜線 + 中心暈光，避免大片死板的純色 */
-  background-image:
-    radial-gradient(120% 90% at 50% -10%, var(--maple-wash), transparent 62%),
-    repeating-linear-gradient(45deg, var(--grid-line) 0 1px, transparent 1px 7px),
-    repeating-linear-gradient(-45deg, var(--grid-line) 0 1px, transparent 1px 11px);
-  background-attachment: fixed;
+  /* A 版頁底純色：以前的羊皮紙斜格紋、頂端暈光拿掉 */
   overscroll-behavior-y: none;
 }
 
@@ -181,15 +179,15 @@ body {
   }
 }
 
-/* 毛玻璃的底：不畫框。導覽列用它，只加自己的下緣線（上、左、右貼著螢幕邊不要線） */
+/*
+  名字是以前毛玻璃、木框那一版留下來的（全站一百多處在用），v1.89 起都是實心卡片：不透明、不模糊、不加陰影。
+  glass-fill：卡片底、不畫框。導覽列用它，只加自己的下緣線（上、左、右貼著螢幕邊不要線）
+*/
 @utility glass-fill {
   background-color: var(--glass);
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(16px) saturate(1.35);
-  -webkit-backdrop-filter: blur(16px) saturate(1.35);
 }
 
-/* 毛玻璃框：底＋四邊框。邊用羊皮紙邊色，白邊在白天的米色底上看不到 */
+/* 卡片：底＋1px 細框 */
 @utility glass {
   @apply glass-fill;
   border: 1px solid var(--paper-edge);
@@ -198,18 +196,11 @@ body {
 @utility glass-solid {
   background-color: var(--glass-strong);
   border: 1px solid var(--paper-edge);
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
 }
 
-/* 木框：外深內淺的雙線，模仿遊戲介面的雕刻邊，但不用貼圖 */
+/* 以前的木框雙線，改成跟卡片一樣的 1px 細框 */
 @utility wood-frame {
-  border: 1px solid color-mix(in srgb, var(--wood) 45%, transparent);
-  box-shadow:
-    inset 0 1px 0 0 color-mix(in srgb, #fff 45%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--wood) 12%, transparent),
-    var(--glass-shadow);
+  border: 1px solid var(--paper-edge);
 }
 
 @utility ink-soft { color: var(--ink-soft); }
@@ -244,7 +235,7 @@ body {
 
 /* 捲軸配色跟著主題走，深色模式不要出現亮白捲軸 */
 * {
-  scrollbar-color: color-mix(in srgb, var(--wood) 50%, transparent) transparent;
+  scrollbar-color: var(--wood) transparent;
 }
 
 /* 紙娃娃隨機穿搭（Stage）：定格時閃一下、彈一下（圖的正中間是腳，從腳長出來）；跳格中的小方點。討厭動畫的人舞台不會掛這些 class，點不動 */

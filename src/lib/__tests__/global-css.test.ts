@@ -92,9 +92,9 @@ describe("外框顏色（2026-10-07 使用者看過對照圖選的）", () => {
     }
   });
 
-  it("導覽列用的毛玻璃底（glass-fill）不畫框：上、左、右貼著螢幕邊不要線，只留導覽列自己寫的下緣", () => {
+  it("導覽列用的實心底（glass-fill）不畫框、不模糊：上、左、右貼著螢幕邊不要線，只留導覽列自己寫的下緣", () => {
     const fill = utilityBody(css, "glass-fill");
-    expect(fill).toMatch(/backdrop-filter/);
+    expect(fill).not.toMatch(/backdrop-filter/);
     expect(fill).not.toMatch(/border/);
   });
 
@@ -227,5 +227,27 @@ describe("A 攻略工具配色（v1.89）", () => {
 
   it("格紋線不再畫", () => {
     for (const theme of themes) expect(themeValue(theme, "grid-line")).toBe("transparent");
+  });
+});
+
+describe("A 攻略工具的底、卡片、框、圓角（v1.89）", () => {
+  it("頁底純色：body 沒有斜格紋、暈光", () => {
+    const body = rules.find(r => r.selector === "body")!.body;
+    expect(body).not.toMatch(/repeating-linear-gradient|radial-gradient/);
+  });
+
+  it("卡片不模糊（glass、glass-solid、glass-fill 都沒有 backdrop-filter）", () => {
+    for (const name of ["glass-fill", "glass", "glass-solid"]) expect(utilityBody(css, name)).not.toMatch(/backdrop-filter/);
+  });
+
+  it("木框只剩一條細線，不再是內外雙線", () => {
+    expect(utilityBody(css, "wood-frame")).toMatch(/border:\s*1px solid var\(--paper-edge\)/);
+    expect(utilityBody(css, "wood-frame")).not.toMatch(/inset/);
+  });
+
+  it("圓角收小：rounded-xl 8px、rounded-2xl 10px", () => {
+    const theme = css.match(/@theme\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(theme).toMatch(/--radius-xl:\s*0\.5rem/);
+    expect(theme).toMatch(/--radius-2xl:\s*0\.625rem/);
   });
 });
