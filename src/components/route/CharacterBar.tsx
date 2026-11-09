@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronRight } from "@/components/Icons";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 import { loadGuide } from "@/lib/data";
 import { guidesToPrefetch } from "@/lib/home-data";
 import {
@@ -290,10 +291,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
                 onMouseDown={keepTyping}
                 onClick={() => pickJob(0)}
                 aria-pressed={profile.job === 0}
-                className={[
-                  "rounded-md px-3 py-1.5 text-[13px] font-bold",
-                  profile.job === 0 ? "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]" : "border border-dashed border-[color:var(--paper-edge)] ink-soft",
-                ].join(" ")}
+                className={`rounded-md border px-3 py-1.5 text-[13px] font-bold ${profile.job === 0 ? OPTION_ON : OPTION_OFF}`}
               >
                 初心者／還沒轉職
               </button>
