@@ -4,13 +4,14 @@ import Link from "next/link";
 import { itemImage } from "@/lib/asset-paths";
 import { hasItemIcon } from "@/lib/item-icons";
 import { itemPagePath } from "@/lib/item-page";
-import { CHANGED_KIND_ORDER, addedGroups } from "@/lib/patch-view";
+import { CHANGED_KIND_ORDER, addedGroups, changedKinds } from "@/lib/patch-view";
 import { getPatchPage, listPatchPages, type PatchPage } from "@/lib/patches";
 import { breadcrumbLd, clip, taiwanDateTime, webPageLd } from "@/lib/seo";
 import { staticHasItemPage } from "@/lib/static-data";
 import { patchSummary } from "../PatchCard";
 import { AddedGroups, Fold } from "./AddedGroups";
-import { ChangedList, type ChangedRowView } from "./ChangedList";
+import { ChangedList } from "./ChangedList";
+import { ChangedRows, FIRST, type ChangedRowView } from "./ChangedRows";
 
 type Props = { params: Promise<{ version: string }> };
 
@@ -156,7 +157,10 @@ export default async function Page({ params }: Props) {
 
       {changed.length > 0 && (
         <Card title="說明改了的道具">
-          <ChangedList rows={changed} />
+          <div className="flex flex-col">
+            <ChangedList total={page.counts.changed} rowCount={changed.length} first={FIRST} kinds={changedKinds(changed)} />
+            <ChangedRows rows={changed} />
+          </div>
         </Card>
       )}
 
