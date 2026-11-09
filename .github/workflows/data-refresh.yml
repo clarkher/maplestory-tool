@@ -165,6 +165,24 @@ jobs:
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/build.mjs
 
+      # 改版整理（/updates，v1.94）：拿剛建好的 public/data 跟上游「前一個不同版號」的最後一個 commit 重建結果比，
+      # 寫 public/data/patches/<目前版本>.json 與 index.json（跟著整個 public/data 進 artifact、publish）。
+      # 上游另 clone 一份 blob:none 的到 data/cache/upstream-history，不把 data/cache/upstream 補成完整歷史：
+      # 那份是 depth 1 的一般 clone，fetch-artale.mjs 每次 fetch --depth 1＋reset，unshallow 會連每一版的圖檔、資料檔全下載；
+      # blob:none 只抓 commit 跟目錄，要看哪一版的檔才下載那一版（跟本機回填 backfill-patches.mjs 同一個做法）。
+      # --head 鎖在 data/cache/upstream 的 HEAD：兩次 clone 中間上游剛好推了新 commit，也不會拿別的版本來比。
+      # 找不到前一版只印一行、不算失敗
+      - name: 重算目前版本的改版差異
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          if [ ! -d data/cache/upstream/.git ]; then
+            echo "改版差異跳過：這次沒有用上游（本機抽檔）"
+            exit 0
+          fi
+          rm -rf data/cache/upstream-history
+          git clone --filter=blob:none --no-checkout --quiet "$(git -C data/cache/upstream remote get-url origin)" data/cache/upstream-history
+          node pipeline/refresh-patch.mjs --upstream data/cache/upstream-history --head "$(git -C data/cache/upstream rev-parse HEAD)"
+
       - name: 轉地圖畫面圖（webp）
         if: steps.check.outputs.changed == 'true'
         run: node pipeline/build-map-renders.mjs
@@ -236,6 +254,9 @@ jobs:
     permissions:
       contents: write # 推資料分支、合併
       pull-requests: write # 開 PR
+    outputs:
+      # 給 notify：合併成功、而且這次有 public/data/patches/<版本>.json 時是那個版本（已擋過格式），否則空的
+      patch_version: ${{ steps.pr.outputs.patch_version }}
     steps:
       # 這裡要留 token：後面 git push 用
       - uses: actions/checkout@v4
@@ -247,6 +268,7 @@ jobs:
           path: ${{ runner.temp }}/refresh-data
 
       - name: 開 PR 並自動合併
+        id: pr
         if: needs.refresh.outputs.changed == 'true' && env.DRY_RUN != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -305,6 +327,10 @@ jobs:
             --body "自動資料更新。verify.mjs 與全套測試全數通過、next build 成功。合併後 Vercel 會自動部署。" \
             --base main --head "$BRANCH"
           gh pr merge "$BRANCH" --squash --delete-branch --admin
+          # 合併成功才走到這裡：這一版有改版差異檔，就交給 notify 看要不要開 issue 提醒寫重點
+          if [ -f "public/data/patches/${VERSION}.json" ]; then
+            echo "patch_version=${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
 
   notify:
     needs: [refresh, publish]
@@ -317,9 +343,12 @@ jobs:
       issues: write # 開 issue、留言、關閉、建 label
       actions: read # 讀 refresh、publish 是哪一步失敗、下載它的 log
     steps:
+      # src/content/patches：看這一版的改版重點寫了沒（新版本開 issue 提醒那步）
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: pipeline
+          sparse-checkout: |
+            pipeline
+            src/content/patches
 
       - uses: actions/setup-node@v4
         with:
@@ -358,3 +387,33 @@ jobs:
           else
             gh issue create --title "$TITLE" --body "$BODY" --assignee "$ASSIGNEE"
           fi
+
+      # 改版整理（v1.94）：資料更新合進正式機、這一版有改版差異檔、src/content/patches/<版本>.md 還沒寫，就開 issue 提醒寫重點
+      # （沒寫重點的版本 /updates 不會出現）。同標題開著的就不再開。版本字串是 publish 擋過格式才給的，這裡再擋一次
+      - name: 新版本提醒寫改版重點
+        if: ${{ needs.publish.result == 'success' && needs.publish.outputs.patch_version != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.publish.outputs.patch_version }}
+          ASSIGNEE: ${{ github.repository_owner }}
+        run: |
+          if ! [[ "$VERSION" =~ ^[0-9A-Za-z.+-]{1,32}$ ]]; then
+            echo "版本字串不對（長度 ${#VERSION}），不開 issue"
+            exit 1
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "dry-run：不開改版重點提醒"
+            exit 0
+          fi
+          if [ -f "src/content/patches/$VERSION.md" ]; then
+            echo "$VERSION 的改版重點已經寫了，不用提醒"
+            exit 0
+          fi
+          TITLE="新版本 $VERSION 要寫改版重點"
+          # 搜尋是模糊比對：拿回標題自己比，完全一樣才算已經開著
+          if gh issue list --state open --search "\"$TITLE\" in:title" --json title --jq '.[].title' | grep -Fxq "$TITLE"; then
+            echo "「$TITLE」已經開著，不再開"
+            exit 0
+          fi
+          BODY="資料自動更新已經把 $VERSION 的改版差異（public/data/patches/$VERSION.json）合進正式機，但還沒有改版重點，/updates 不會列這一版。寫好 src/content/patches/$VERSION.md 合進去就會出現。"
+          gh issue create --title "$TITLE" --body "$BODY" --assignee "$ASSIGNEE"

@@ -9,10 +9,10 @@
  * 第一個版本沒得比，不產檔；重建失敗的版本印「跳過 <版本>：<原因>」，跟它相鄰的兩份差異都不產（不拿更舊的版本硬比）。
  * 差異檔的 date 用新那一版第一個 commit 的日期。
  */
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { runBuildPatch } from "./lib/patch-run.mjs";
 import { buildAt, versionTimeline } from "./lib/upstream-history.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -59,21 +59,7 @@ for (let i = 1; i < timeline.length; i++) {
     console.log(`跳過 ${seg.version}：${built.has(seg.version) ? `前一版 ${prev.version}` : "這一版"}重建失敗`);
     continue;
   }
-  const line = execFileSync(
-    process.execPath,
-    [
-      path.join(ROOT, "pipeline", "build-patch.mjs"),
-      "--old", built.get(prev.version),
-      "--new", built.get(seg.version),
-      "--out", out,
-      "--version", seg.version,
-      "--prev", prev.version,
-      "--base", prev.last.commit,
-      "--head", seg.last.commit,
-      "--date", seg.first.date,
-    ],
-    { encoding: "utf8" },
-  ).trim();
+  const line = runBuildPatch({ prev, seg, oldDir: built.get(prev.version), newDir: built.get(seg.version), out });
   console.log(line);
   results.push(line);
 }
