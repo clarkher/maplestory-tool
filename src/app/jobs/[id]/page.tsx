@@ -62,13 +62,13 @@ export default async function Page({ params }: Props) {
 
   return (
     <SeoPage
-      trail={[{ name: "職業攻略", path: "/guide" }, { name: guide.name, path }]}
+      trail={[{ name: "攻略", path: "/guides" }, { name: guide.name, path }]}
       title={`${guide.name}攻略`}
       lead={summary}
       toolHref="/"
       toolLabel="填等級，看我現在去哪練"
       jsonLd={[
-        breadcrumbLd([{ name: "職業攻略", path: "/guide" }, { name: guide.name, path }]),
+        breadcrumbLd([{ name: "攻略", path: "/guides" }, { name: guide.name, path }]),
         webPageLd({ name: `${guide.name}攻略`, path, description: clip(summary), modified: staticModified() }),
       ]}
     >

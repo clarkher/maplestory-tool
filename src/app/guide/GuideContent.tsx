@@ -9,6 +9,7 @@ import { monsterImage } from "@/lib/data";
 import {
   COMMON_ROUTE, GUIDE_SOURCES, GUIDE_UPDATED_AT, JOB_GUIDES, type GuideStep, type JobGuide,
 } from "@/lib/guide-data";
+import { ArticleList } from "@/components/ArticleList";
 import type { ArticleEntry } from "@/lib/article-entry";
 import { claimVisit, useVisitState } from "@/lib/visit-state";
 import {
@@ -27,6 +28,8 @@ export function GuideContent({ jobs, articles = [] }: { jobs: Array<{ job: numbe
     <div className="space-y-6 py-3 sm:py-6">
       <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
         <Link href="/" className="hover:text-[color:var(--maple)]">我的路線</Link>
+        <ChevronRight size={13} />
+        <Link href="/guides" className="hover:text-[color:var(--maple)]">攻略</Link>
         <ChevronRight size={13} />
         <span className="text-[color:var(--ink-soft)]">1–30 懶人包</span>
       </nav>
@@ -84,24 +87,7 @@ export function GuideContent({ jobs, articles = [] }: { jobs: Array<{ job: numbe
         <section id="articles" aria-label="各職業攻略" className="scroll-mt-header rounded-[var(--radius-card)] glass wood-frame p-4">
           <h2 className="text-[15px] font-black">各職業攻略</h2>
           <p className="mt-1 mb-2.5 text-[13px] ink-soft">點等級看那一段去哪練、幾下打死、必解任務；點職業看整個職業的配點、技能點法。</p>
-          <ul className="divide-y divide-[color:var(--paper-edge)]">
-            {jobs.map(entry => (
-              <li key={entry.job} className="flex flex-wrap items-center gap-1.5 py-2">
-                <Link href={`/jobs/${entry.job}`} className="tap-safe mr-1 min-w-[5.5rem] text-sm font-bold text-[color:var(--sky)] underline underline-offset-4">
-                  {entry.name}
-                </Link>
-                {articles.filter(article => article.job === entry.job).map(article => (
-                  <Link
-                    key={article.href}
-                    href={article.href}
-                    className="tap-safe inline-block rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-[13px] font-bold tabular-nums hover:bg-[color:var(--maple-wash)]"
-                  >
-                    {article.from}～{article.to} 等
-                  </Link>
-                ))}
-              </li>
-            ))}
-          </ul>
+          <ArticleList jobs={jobs} articles={articles} />
         </section>
       ) : null}
 

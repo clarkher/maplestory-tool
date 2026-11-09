@@ -133,11 +133,11 @@ export function GoNavigator() {
       <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
         <Link href="/" className="hover:text-[color:var(--maple)]">我的路線</Link>
         <ChevronRight size={13} />
-        <span className="text-[color:var(--ink-soft)]">帶我去</span>
+        <span className="text-[color:var(--ink-soft)]">地圖導航</span>
       </nav>
 
       <header>
-        <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">帶我去</h1>
+        <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">地圖導航</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">
           一段一段告訴你走哪個傳送門。出發點不對就自己改。
         </p>
