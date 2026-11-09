@@ -77,7 +77,7 @@ Cloudflare 上這支算 Worker 請求，跟 API、測試機道具圖共用免費
 設計：`docs/superpowers/specs/2026-11-03-avatar-sim-design.md`、`docs/superpowers/specs/2026-11-04-avatar-polish-design.md`。驗收：`npx vitest run src/lib/avatar`、`node --test pipeline/lib/avatar.test.mjs`；畫面用 `node scripts/verify/avatar-shot.mjs <網址，預設 http://localhost:9381> [輸出]`（埠 9382，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
 「公會徽章」（`/plan/guild`，v1.81）：挑底圖 31 種、圖案 113 種（動物、植物、花紋、文字、其他）各 16 色，徽章即時預覽，隨機一個、下載 PNG（4 倍，不抹糊）、分享連結（手機系統分享，電腦複製網址）。圖從台服客戶端切：`python -E -P scripts/client/guild-mark.py`（用法在檔頭，需 UnityPy、numpy、Pillow），寫出 `public/assets/guild-mark/marks-<雜湊>.png` 圖集跟 `src/lib/guild-mark/marks.json` 索引；圖集檔名帶內容雜湊，`/assets/` 一年快取換檔名就會更新，所以不用動 `meta.json` 的 builtAt。入口兩個：首頁紙娃娃輪播正下方一行小字「做公會徽章」、紙娃娃頁副標下方「也可以做公會徽章」；不進導覽列。
 
-「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。活動期間（到 11/11 23:59 台灣）電腦版導覽列多一顆「萬聖節」（`navFor`），首頁角色列下面有入口卡；過了就自動不出現，頁面留著。
+「萬聖節任務攻略」（`/event/halloween`，v1.19）：2026 萬聖節「雪原的面具祭典」1～3 章任務照順序（分頁籤切章，預設開最新開放的那章，`#ch1`～`#ch3` 直接開那章）、每日任務、要打的怪去哪張圖打，可以打勾（存在這支裝置的 localStorage）。內容寫死在 `src/lib/halloween.ts`；使用者實玩更正過的事實（第三章行李在冰面Ⅰ積雪、粉末打星光精靈）由測試釘住，這活動道具的 dm 不可信。v1.86 起不在導覽列，收進攻略專區 `/guides`（卡片過了 11/11 23:59 不拿掉、改寫「活動已結束」）；首頁角色列下面的入口卡活動期間才有，過了自動不出現，頁面留著。
 能不能交易看上游道具的 `trade`（`unlimited` 而且沒有 `quest` 標記——上游把任務道具也標成 unlimited，遊戲裡其實不能交易），
 查的是任務原本要的那個編號（同名道具併成一筆時，各編號的狀態在 `tradeVariants`）。建置時 `pipeline/lib/buy-quests.mjs` 挑好寫進 `public/data/buy-quests.json`，
 `verify.mjs` 擋數量不合理、有要打怪的。拍賣價格沒有資料，不寫花費。
@@ -488,7 +488,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 
 ## 野王計時
 
-`/plan/boss`（導覽列「野王計時」）：打死野王就按一下，算每個頻道下一次大概什麼時候出，快出了排前面；可以開房間跟隊友一起記。設計：`docs/superpowers/specs/2026-10-29-boss-timer-design.md`。
+`/plan/boss`（v1.86 起從查資料的「排行與規劃」進去，導覽列沒有這顆）：打死野王就按一下，算每個頻道下一次大概什麼時候出，快出了排前面；可以開房間跟隊友一起記。設計：`docs/superpowers/specs/2026-10-29-boss-timer-design.md`。
 
 - **重生時間的來源**：台服玩家實測（波波攻略島統計等），整理在 `docs/research/2026-10-29-boss-timer.md`。
   **不用客戶端的 mobTime**：客戶端蘑菇王寫 1800 秒，玩家實測是 45～60 分，照客戶端算會差很多。
@@ -496,7 +496,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   沒設 `DATABASE_URL`（本機、預覽）時房間功能不出現，個人模式（記在自己瀏覽器）照用。
   同一個位址 10 分鐘最多開 5 間房間（`ROOM_CREATES_PER_10MIN`，`boss_rooms.ip_hash`），超過回 429；記事件跟回報間隔合計一分鐘 30 次。
 - **提醒**：最短重生前 3 分鐘響一次；響過的記在 `localStorage` 的 `ms-boss:fired`（只留紀錄還在的），重新整理不會再響。
-- **導覽列**：手機只放 我的路線、野王計時、帶我去、查資料；「算傷害」v1.18 起跟練功測速、楓幣匯率一樣只在電腦版，手機從查資料進去。
+- **導覽列**（v1.86）：手機只放 我的路線、攻略、地圖導航、查資料；電腦版另有算傷害、練功測速、楓幣匯率、未來視。攻略（`/guides` 攻略專區）在 /guide、/guides/*、/jobs、/event 都亮；「帶我去」只在導覽列跟 /go 頁標題改叫地圖導航，卡片上的「帶我去」按鈕照舊；野王計時收進查資料。量放不放得下：`scripts/verify/nav-fit.mjs`。
 - **回收間隔**：把大家回報的「打死到下次出現」間隔收回來修正預估，只收 10 分～6 小時的值，同一隻王 20 筆以上才顯示，兩台伺服器合算。
   `GET /api/boss/intervals` 回 `Cache-Control: public, s-maxage=600, stale-while-revalidate=3600`（出錯不快取）。
 
@@ -543,9 +543,9 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 一篇講一個職業一段等級去哪練、幾下打死、幾等不 MISS。規格在 `docs/superpowers/specs/2026-11-04-job-articles-design.md`。
 
 - **網址（v1.49）**：`/guides/priest-31-50`，英文職業名在 `src/lib/job-article.ts` 的 `JOB_SLUGS`（站上 29 職加 232，不重複，測試有驗）；路由 `src/app/guides/[slug]/page.tsx`。`/jobs/<職業>` 職業頁網址不動。舊網址沒上過正式機，不做轉址。
-- **範圍**：一轉 10～30；二轉 31～50、51～70；三轉 71～90、91～120（`articleRanges`）。不做每 10 等一篇、不開總表、不進導覽列。
+- **範圍**：一轉 10～30；二轉 31～50、51～70；三轉 71～90、91～120（`articleRanges`）。不做每 10 等一篇。v1.86（11/09 使用者照推薦）推翻「不開總表、不進導覽列」：導覽列「攻略」進 `/guides` 攻略專區，列活動攻略、1–30 懶人包、組隊圖解、全部分等級攻略文（清單元件 `ArticleList` 跟 /guide 共用），麵包屑頭都改「攻略」連專區。
 - **門檻**：這個範圍至少 2 張不同地圖、來源不是舊版、地圖不是 null 的練功段；三轉把接它的二轉攻略也算（`articleEligible`，寫這段時 53 個範圍過 35 個，資料更新會變）。沒過的不要寫。
-- **檔案**：文字放 `src/data/job-articles/<職業>-<起>-<迄>.json`，沒有檔案就沒有頁面；職業頁「分等級攻略」、首頁主推卡下面「你這段等級的攻略」（v1.85，存過角色才有，`articleFor`）、`/guide` 的「各職業攻略」清單（頁頂一行跳過去）、`sitemap.xml`、`/llms.txt` 都照這個資料夾自動列（`staticArticleEntries`）。`/guides` 本身沒有總表，用 meta refresh 轉去 `/guide`、noindex（`src/app/guides/page.tsx`；全靜態輸出的 `redirect()` 只寫進 RSC，HTML 沒有轉址）。**`next build` 的 Cloudflare 靜態輸出要求至少一篇**：資料夾全空時 `/guides/[slug]` 會報 missing `generateStaticParams`。
+- **檔案**：文字放 `src/data/job-articles/<職業>-<起>-<迄>.json`，沒有檔案就沒有頁面；職業頁「分等級攻略」、首頁主推卡下面「你這段等級的攻略」（v1.85，存過角色才有，`articleFor`）、`/guide` 的「各職業攻略」清單（頁頂一行跳過去）、`sitemap.xml`、`/llms.txt` 都照這個資料夾自動列（`staticArticleEntries`）。`/guides` 是攻略專區（v1.86，`src/app/guides/page.tsx`，給 Google 收，清單同樣照這個資料夾）。**`next build` 的 Cloudflare 靜態輸出要求至少一篇**：資料夾全空時 `/guides/[slug]` 會報 missing `generateStaticParams`。
 - **數字不寫死**：表用傷害計算機同一套算（`buildCalcTable`，`src/lib/job-article.ts`：預設角色換上文章 `gear` 的武器、`statCap` 的配點，招式照那把重挑，`gear` 可寫 `skill` 指定；僧侶 31～70 例外固定群體治癒、只列不死系、範圍 3 隻；王級怪不列）。文字要引用數字用代號 `{{hits:怪物id}}`（幾下打死；僧侶是範圍 3 隻那一欄）、`{{hitsOne:怪物id}}`（僧侶打 1 隻那一欄，表上排在同一級的範圍欄後面，等級才由低到高）、`{{hitLv:怪物id}}`（幾等不 MISS，範圍內打不中會換成「超過 N」，後面寫「等」）、`{{def:怪物id}}`（防禦），資料更新就跟著變。
 - **指定等級的下數（v1.44）**：`{{hits:怪物id@等級#武器id}}`、`{{hitsOne:怪物id@等級#武器id}}`，用那一級的預設角色、預設技能等級、**文字寫的那把武器**算；一定要寫 `#武器id`，等級拿不到或點數不夠穿就報錯。等級要在文章範圍內，怪不用在表上；僧侶打不是不死系算不出來，會報錯。
 - **平均下數（v1.50）**：`{{hits}}` 跟計算機畫面一樣，是平均傷害**無條件進位**（1.45 跟 1.15 都寫 2），不能拿來比。要比誰快誰慢用這四個，都一定要寫 `@等級#武器id`、都進 `assumes.pinned`（存畫面上的值）：`{{avg:怪物id@等級#武器id}}` 平均幾下（一位小數，`1.5`，後面寫「下」）、`{{oneShot:…}}` 一下打死機率（整數含 %，`78%`；沒到必死不會寫 100%，有機會不會寫 0%）、`{{killTime:…}}` 打死一隻平均秒數（含出手時間，兩位小數，`0.81`，後面寫「秒」）、`{{xp10:…}}` 不停手不找怪 10 分鐘的經驗上限（`約 3.1 萬`、`約 8,600`）。群體治癒沒寫隻數照表的 3 隻，打 1 隻寫 `{{avg:怪物id@等級#武器id*1}}`（`*1`～`*5`，別的技能寫了會報錯；`xp10` 範圍內每隻都算，跟計算機同一條）。算法 `killStats`（`src/lib/damage.ts`），不用亂數；傷害範圍、爆擊率、一次幾下、出手時間都是 `computeGroup` 算的，每下在範圍裡均勻、每下各擲一次爆擊，**全部打中、MISS 不算**（命中不到門檻的 `article:show` 會列）。測試 `src/lib/__tests__/job-article-avg.test.ts` 用 Monte Carlo 對照，差 2% 內。`article:show` 最後一段印表上每隻怪四個代號的寫法跟值，照抄改等級、武器。

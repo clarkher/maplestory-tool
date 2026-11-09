@@ -227,7 +227,7 @@ export function JobArticleView({
   const pinned = pinnedSections(article.sections);
   return (
     <SeoPage
-      trail={[{ name: "職業攻略", path: "/guide" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }]}
+      trail={[{ name: "攻略", path: "/guides" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }]}
       title={article.title}
       jsonLd={jsonLd}
     >

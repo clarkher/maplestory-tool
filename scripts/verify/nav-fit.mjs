@@ -1,9 +1,9 @@
 // 導覽列放不放得下：每個寬度量導覽列要不要橫向捲、每一顆是不是全看得到（v1.72 手機、v1.74 平板）
 // 用法：node scripts/verify/nav-fit.mjs <輸出資料夾> <網址> [--css=試改法的樣式檔]
 //   例：node scripts/verify/nav-fit.mjs out https://maplehelper-dev.pipicards.workers.dev
-// 量 360～1100 每一個寬度（3 種頁面：查資料亮、野王計時亮、都不亮）；有一個寬度放不下結束碼 1。
+// 量 360～1100 每一個寬度（3 種頁面：查資料亮、攻略亮、都不亮；v1.86 野王計時收進查資料、萬聖節收進攻略專區）；有一個寬度放不下結束碼 1。
 // 900 寬起按鈕左右要維持 12px（放得下就不該縮，v1.74 樣式順序錯過一次，放得下但電腦版變小）。
-// 手機四顆；768 寬起電腦版的按鈕全出來（萬聖節 11/11 前多一顆，只會更擠，所以活動期間量才算數）。
+// 手機四顆（我的路線、攻略、地圖導航、查資料）；768 寬起電腦版的按鈕全出來（8 顆）。
 // 存：<寬度>.png（SHOTS 那幾個寬度的頁首，查資料那顆亮著）、results.json。
 // --css 是把樣式塞進頁面再量，不用先部署就能試改法（放不放得下一樣準，第一格不準）。
 import fs from "node:fs";
@@ -17,7 +17,7 @@ const cssArg = process.argv.find(a => a.startsWith("--css="));
 const CSS = cssArg ? fs.readFileSync(cssArg.slice(6), "utf8") : "";
 const b = await start(OUT, chromePort(9513));
 
-const PAGES = ["/db", "/plan/boss", "/price/fx"];
+const PAGES = ["/db", "/guides", "/price/fx"];
 const SHOTS = [360, 375, 390, 412, 430, 480, 767, 768, 820, 899, 900, 1024];
 const LAST = 1100;
 const MEASURE = `(()=>{

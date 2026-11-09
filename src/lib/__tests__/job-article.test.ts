@@ -677,8 +677,8 @@ describe("頁面（文章清單換成假資料）", () => {
     expect(html).not.toContain("GMT");
     expect(html).toContain("僧侶這段靠群體治癒打不死系");
     expect(html).toContain("螞蟻洞Ⅰ：殭屍菇菇");
-    // 麵包屑：職業攻略 > 僧侶 > 31～50 等
-    expect(html).toMatch(/href="\/guide"[^>]*>職業攻略/);
+    // 麵包屑：攻略 > 僧侶 > 31～50 等（v1.86 頭改攻略專區）
+    expect(html).toMatch(/href="\/guides"[^>]*>攻略/);
     expect(html).toMatch(/href="\/jobs\/230"[^>]*>僧侶/);
     expect(html).toContain("31～50 等");
     // 來源等級四種字樣（這篇用到 台服回報、站上計算）
@@ -1539,7 +1539,6 @@ describe("網址：/guides/<英文職業>-<起>-<迄>", () => {
   it("畫面的職業頁連結是傳進來的，不是從文章網址切", () => {
     const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article: validCleric(), table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: data.maps, dataNote: "", jsonLd: [] }));
     expect(html).toMatch(/href="\/jobs\/230"[^>]*>僧侶/);
-    expect(html).not.toContain('href="/guides"');
     expect(fs.readFileSync(`${ROOT}src/components/JobArticleView.tsx`, "utf8")).not.toContain("path.slice");
   });
 });
