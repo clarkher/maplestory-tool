@@ -41,27 +41,27 @@ test("d 變 → 說明，before/after 是全文", () => {
 
 test("d 和 sp 都變 → 兩列，counts.changed 為 1", () => {
   const d = diffPatch(
-    mk({ items: [item(1, { d: "a" })] }),
+    mk({ items: [item(1, { d: "a", sp: [{ p: "商城", pr: 80, c: 1 }] })] }),
     mk({ items: [item(1, { d: "b", sp: [{ p: "商城", pr: 100, c: 1 }] })] }),
   );
   assert.equal(d.changed.length, 2);
   assert.equal(d.counts.changed, 1);
 });
 
-test("sp 可讀字串：沒賣 → 商城 100；多家用、接", () => {
+test("sp 可讀字串：商城 100 → 沒賣（拿掉照列）；多家用、接", () => {
   const d = diffPatch(
-    mk({ items: [item(1), item(2, { sp: [{ p: "冰原雪域武器店", n: "盧米", m: 1, pr: 100000 }] })] }),
+    mk({ items: [item(1, { sp: [{ p: "商城", pr: 100, c: 1 }] }), item(2, { sp: [{ p: "冰原雪域武器店", n: "盧米", m: 1, pr: 100000 }] })] }),
     mk({
       items: [
-        item(1, { sp: [{ p: "商城", pr: 100, c: 1 }] }),
+        item(1),
         item(2, { sp: [{ p: "冰原雪域武器店", n: "盧米", m: 1, pr: 100000 }, { p: "商城", pr: 100, c: 1 }] }),
       ],
     }),
   );
   const r = Object.fromEntries(d.changed.map(c => [c.id, c]));
   assert.equal(r[1].kind, "商店");
-  assert.equal(r[1].before, "沒賣");
-  assert.equal(r[1].after, "商城 100");
+  assert.equal(r[1].before, "商城 100");
+  assert.equal(r[1].after, "沒賣");
   assert.equal(r[2].before, "冰原雪域武器店 100,000");
   assert.equal(r[2].after, "冰原雪域武器店 100,000、商城 100");
 });
@@ -124,7 +124,7 @@ test("sp 只換順序 → 不算商店變動", () => {
 
 test("sp 活動貨幣寫貨幣名、整組賣寫件數，不像楓幣價；分流圖同一句只列一次", () => {
   const d = diffPatch(
-    mk({ items: [item(1)] }),
+    mk({ items: [item(1, { sp: [{ p: "甲", pr: 5 }] })] }),
     mk({
       items: [
         item(1, {
@@ -162,4 +162,74 @@ test("髮型臉型改了：不進 changed、不算 counts.changed", () => {
   );
   assert.deepEqual(d.changed.map(c => c.id), [2]);
   assert.equal(d.counts.changed, 1);
+});
+
+test("商店只換店名（價錢、貨幣、件數一樣）→ 不列", () => {
+  const d = diffPatch(
+    mk({ items: [item(1, { sp: [{ p: "天空之城", pr: 60000 }] }), item(2, { sp: [{ p: "甲", pr: 10, k: 5 }] })] }),
+    mk({ items: [item(1, { sp: [{ p: "天空之城武器店", pr: 60000 }] }), item(2, { sp: [{ p: "乙", pr: 10, k: 10 }] })] }),
+  );
+  assert.deepEqual(d.changed.map(c => c.id), [2]);
+  assert.equal(d.counts.changed, 1);
+});
+
+test("商店店名一樣但貨幣不同 → 照列", () => {
+  const d = diffPatch(
+    mk({ items: [item(1, { sp: [{ p: "甲", pr: 10 }] })] }),
+    mk({ items: [item(1, { sp: [{ p: "乙", pr: 10, u: "萬聖節硬幣" }] })] }),
+  );
+  assert.equal(d.changed.length, 1);
+});
+
+test("資料補齊不算改版：舊的是空的不列，新的變空的（拿掉）照列", () => {
+  const d = diffPatch(
+    mk({
+      items: [
+        item(1, { n: "未命名道具 1" }),
+        item(2, { eq: { incSTR: 1 } }),
+        item(3),
+        item(4),
+        item(5, { dm: [10] }),
+        item(6, { sp: [{ p: "甲", pr: 10 }] }),
+        item(7, { eq: { incSTR: 1 } }),
+      ],
+      monsters: [{ id: 10, n: "木妖", lv: 4 }],
+    }),
+    mk({
+      items: [
+        item(1),
+        item(2, { eq: { incSTR: 1, incDEX: 2, incLUK: 3 } }),
+        item(3, { dm: [10] }),
+        item(4, { sp: [{ p: "甲", pr: 10 }] }),
+        item(5),
+        item(6),
+        item(7, { eq: { incSTR: 2, incDEX: 2 } }),
+      ],
+      monsters: [{ id: 10, n: "木妖", lv: 4 }],
+    }),
+  );
+  assert.deepEqual(d.changed.map(c => [c.id, c.kind]), [[5, "掉落"], [6, "商店"], [7, "能力"]]);
+  assert.equal(d.counts.changed, 3);
+});
+
+test("新名字還是未命名道具：不進 added、gone、changed，也不算", () => {
+  const d = diffPatch(
+    mk({ items: [item(1, { n: "未命名道具 1", d: "a" }), item(2, { n: "未命名道具 2" })] }),
+    mk({ items: [item(1, { n: "未命名道具 1", d: "b" }), item(3, { n: "未命名道具 3" }), item(4, { n: "未命名道具 4", s: "外觀/角色" })] }),
+  );
+  assert.deepEqual(d.added.items, []);
+  assert.deepEqual(d.gone.items, []);
+  assert.deepEqual(d.changed, []);
+  assert.equal(d.counts.items, 0);
+  assert.equal(d.counts.looks, 0);
+  assert.equal(d.counts.goneItems, 0);
+  assert.equal(d.counts.changed, 0);
+});
+
+test("說明拿掉遊戲顏色碼、合併空白後再比；存的也是乾淨的字", () => {
+  const d = diffPatch(
+    mk({ items: [item(1, { d: "#c雙擊#即可獲得  道具。" }), item(2, { d: "#c所有武器#上。\n可用 #b10#k 次" })] }),
+    mk({ items: [item(1, { d: "雙擊即可獲得 道具。" }), item(2, { d: "#c所有武器#上。 可用 #e20#n 次" })] }),
+  );
+  assert.deepEqual(d.changed, [{ id: 2, n: "道具2", kind: "說明", before: "所有武器上。 可用 10 次", after: "所有武器上。 可用 20 次" }]);
 });
