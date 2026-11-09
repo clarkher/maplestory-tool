@@ -286,7 +286,7 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
         aria-modal="true"
         aria-label={title}
         onClick={(event) => event.stopPropagation()}
-        className="flex max-h-[85dvh] w-full max-w-xl flex-col rounded-t-2xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] shadow-[var(--glass-shadow)] sm:rounded-2xl"
+        className="flex max-h-[85dvh] w-full max-w-xl flex-col rounded-t-2xl border border-[color:var(--paper-edge)] bg-[color:var(--paper)] shadow-[var(--float-shadow)] sm:rounded-2xl"
       >
         <div className="flex items-center gap-2 px-4 pb-2 pt-3">
           <h2 className="flex-1 text-[16px] font-black">{title}</h2>

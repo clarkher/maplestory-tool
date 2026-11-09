@@ -262,3 +262,23 @@ describe("A 攻略工具的字（v1.89）", () => {
     expect(utilityBody(css, "num")).toMatch(/font-variant-numeric:\s*tabular-nums/);
   });
 });
+
+describe("A 第 2 輪：浮層、淡底（v1.95）", () => {
+  const read = (file: string) => fs.readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), "utf8");
+
+  it("下拉選單、對話框有專用陰影（卡片照舊不加）", () => {
+    for (const theme of themes) expect(themeValue(theme, "float-shadow")).not.toBe("none");
+    for (const file of ["components/MapPicker.tsx", "app/plan/speed/Dialogs.tsx", "app/plan/scroll/parts.tsx"]) {
+      expect(read(file), file).toMatch(/shadow-\[var\(--float-shadow\)\]/);
+      expect(read(file), file).not.toMatch(/--glass-shadow/);
+    }
+  });
+
+  it("淺色選中的橘色淡底看得出來（透明度至少 0.1）", () => {
+    expect(rgba(themeValue("light", "maple-wash"))[3]).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it("不再有羊皮紙時代的咖啡色陰影", () => {
+    expect(read("components/DbBrowser.tsx")).not.toMatch(/rgb\(60_30_10/);
+  });
+});
