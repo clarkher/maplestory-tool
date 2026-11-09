@@ -589,6 +589,14 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
   - 快取（`cache-headers.mjs`）：`/assets/` 是一年 immutable，但 `/assets/guides/` 檔名固定、重畫就蓋掉原檔，另外設每次回伺服器確認（沒變 304），換圖不用改檔名。
 - **伺服器頁的坑**：`src/lib/job-article.ts`、`static-data.ts` 一路 import 不能碰 `"use client"` 的模組，伺服器拿到的是假值（`LEVEL_CAP` 曾經從 `profile.ts` 來，會算成 NaN，所以搬到 `jobs.ts`），測試有掃。
 
+### 攻略專區、一般攻略文（v1.88，11/09 使用者選 A 雜誌式）
+
+- **`/guides` 雜誌式列表**（`src/app/guides/GuidesHub.tsx`）：最新一篇大圖在最上面，下面圖上字下的卡片（手機一欄、電腦三欄），分類（`GUIDE_CATEGORIES`：職業攻略、轉職、組隊任務、新手入門、活動，沒有文章的分類不出按鈕）跟標籤（`GUIDE_TAG_FILTERS`）可以篩，兩個都要對上。最下面照舊「依職業看」（`ArticleList`）。
+- **卡片來源** `staticGuideCards()`（`src/lib/static-data.ts`），三種合在一起照日期新到舊：職業×等級攻略文（`jobArticleCard`，標籤：職業群、職業、幾轉、等級段）、一般攻略文（下面）、站上本來就有的攻略頁（`src/lib/guide-pages.ts` 的 `GUIDE_PAGES`：萬聖節、1–30 懶人包、月妙、超綠）。**要加新類型**：一般文章丟 .md；新頁面加進 `GUIDE_PAGES`；新分類加進 `GUIDE_CATEGORIES`。篩選程式（`guide-catalog.ts`）只放瀏覽器要的，`GUIDE_PAGES` 會拉進活動跟懶人包資料，只在伺服器讀。
+- **一般攻略文**：`src/content/guides/<slug>.md` → `/guides/<slug>`（跟職業攻略文同一個路由，`[slug]/page.tsx` 先找 .md 再找職業文），sitemap、llms.txt 自動列。開頭 `---` 設定區：`title`、`description`、`category`、`tags`（逗號分）、`published`、`updated`（YYYY-MM-DD）、`heroAlt`。只認 `##`／`###`、段落、清單、表格、`>` 引言框、`![圖](路徑)`、`---`、`**粗體**`、`[連結](網址)`；`<!-- 註解 -->` 不上頁面；第一行 `#` 大標拿掉（頁面自己畫）。主圖放 `public/assets/guides/<slug>/hero.webp`＋`hero.jpg`（1536×864）。
+- **防呆**（`guideProblems`，建置時有錯直接失敗）：**標題、內文都要寫「楓之谷經典版」**（11/09 使用者規則，職業攻略文也一樣，`job-article.ts` 的檢查）、日期格式、文章裡的圖都要存在。測試 `guide-markdown.test.ts` 另驗主圖在、站內 `/guides/` 連結連得到、專區每張卡標題都有「楓之谷經典版」。
+- **卡片主圖**：`scripts/guide-card-heroes.mjs` 產 `GUIDE_PAGES` 跟一般文章的 16:9 主圖（用法寫在檔案開頭）。
+
 ### GA 事件（v1.32）
 
 GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/lib/analytics.ts`）。`GoogleAnalytics` 元件畫面出來後才載，**只有正式網域載**；測試機、分支預覽、本機網址加 `?ga_debug=1` 才載（帶 `debug_mode`，在 GA「管理 → DebugView」看）。新增、改名事件要一起改這張表。

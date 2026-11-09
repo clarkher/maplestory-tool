@@ -11,6 +11,8 @@ import { describe, expect, it } from "vitest";
 import { GuidesHub } from "@/app/guides/GuidesHub";
 import { eventStatus } from "@/app/guides/EventStatus";
 import type { ArticleEntry } from "@/lib/article-entry";
+import { browseOrder, cardExcerpt, filterCards, jobArticleCard, pageCount, sortCards, type GuideCard } from "@/lib/guide-catalog";
+import { GUIDE_PAGES } from "@/lib/guide-pages";
 import { SITE_PAGES } from "@/lib/site-pages";
 
 const read = (rel: string) => fs.readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8");
@@ -21,23 +23,70 @@ const entries: ArticleEntry[] = [
   { job: 200, from: 10, to: 30, href: "/guides/magician-10-30" },
 ];
 const jobs = [{ job: 200, name: "法師" }, { job: 230, name: "僧侶" }, { job: 210, name: "火毒巫師" }];
-const html = renderToString(createElement(GuidesHub, { jobs, articles: entries })).replace(/<!-- -->/g, "");
+const card = (over: Partial<GuideCard>): GuideCard => ({
+  href: "/x", title: "楓之谷經典版 x", excerpt: "摘要", image: "/a.webp", imageAlt: "圖", category: "職業攻略", tags: [], date: "2026-11-01", ...over,
+});
+const cards: GuideCard[] = sortCards([
+  card({ href: "/guides/third-job", title: "楓之谷經典版三轉攻略", category: "轉職", tags: ["三轉", "法師"], date: "2026-11-09" }),
+  card({ href: "/guides/priest-31-50", title: "楓之谷經典版僧侶 31～50", tags: ["法師", "僧侶", "二轉"], date: "2026-11-05" }),
+  ...GUIDE_PAGES,
+]);
+const props = { cards, jobs, articles: entries };
+const html = renderToString(createElement(GuidesHub, props)).replace(/<!-- -->/g, "");
 
 describe("攻略專區的內容", () => {
-  it("標題「攻略」，寫出幾篇", () => {
+  it("標題「攻略」，寫出幾篇（同一頁的錨點不重複算）", () => {
     expect(html).toMatch(/<h1[^>]*>攻略<\/h1>/);
-    expect(html).toContain("3 篇");
+    expect(pageCount(cards)).toBe(cards.length - 2);
+    expect(html).toContain(`攻略 ${pageCount(cards)} 篇`);
   });
 
-  it("活動攻略：萬聖節", () => {
-    expect(html).toContain('href="/event/halloween"');
-    expect(html).toContain("萬聖節任務攻略");
+  it("頁頂一行跳到「依職業看」", () => {
+    expect(html).toContain('href="#articles"');
+    expect(html).toContain('id="articles"');
   });
 
-  it("新手：1–30 懶人包、月妙、超綠組隊圖解（直接跳到那一段）", () => {
-    expect(html).toContain('href="/guide"');
-    expect(html).toContain('href="/guide#pq-moon"');
-    expect(html).toContain('href="/guide#pq-kerning"');
+  it("「全部」時新手先看的排前面、職業文排最後（大圖照舊是最新那篇）", () => {
+    const order = browseOrder(cards.slice(1)).map(c => c.category);
+    expect(order[0]).toBe("新手入門");
+    expect(order.at(-1)).toBe("職業攻略");
+    const at = (href: string) => html.indexOf(`href="${href}"`);
+    expect(at("/guides/third-job")).toBeLessThan(at("/guide"));
+    expect(at("/guide")).toBeLessThan(at("/guides/priest-31-50"));
+  });
+
+  it("卡片摘要開頭的「楓之谷經典版」拿掉（標題已經寫了）", () => {
+    expect(cardExcerpt("楓之谷經典版僧侶 31～50")).toBe("僧侶 31～50");
+    expect(cardExcerpt("三轉全流程")).toBe("三轉全流程");
+  });
+
+  it("雜誌式（v1.88 選 A）：最新一篇大圖在最上面、其他是圖上字下的卡片，每張都有圖", () => {
+    const first = html.indexOf('href="/guides/third-job"');
+    expect(first).toBeGreaterThan(-1);
+    expect(first).toBeLessThan(html.indexOf('href="/guides/priest-31-50"'));
+    expect(html.slice(first, html.indexOf("</a>", first))).toContain('fetchPriority="high"');
+    for (const entry of cards) {
+      const at = html.indexOf(`href="${entry.href}"`);
+      expect(html.slice(at, html.indexOf("</a>", at)), entry.href).toContain(`src="${entry.image}"`);
+    }
+  });
+
+  it("活動、新手、組隊圖解都在卡片裡（萬聖節卡寫到幾號）", () => {
+    for (const href of ["/event/halloween", "/guide", "/guide#pq-moon", "/guide#pq-kerning"]) expect(html).toContain(`href="${href}"`);
+    expect(html).toMatch(/到 11\/11 23:59|活動已結束/);
+  });
+
+  it("站上攻略頁的標題都有「楓之谷經典版」", () => {
+    for (const page of GUIDE_PAGES) expect(page.title, page.href).toContain("楓之谷經典版");
+  });
+
+  it("分類只列有文章的；標籤固定那幾個", () => {
+    expect(html).toContain(">全部</button>");
+    expect(html).toContain(">轉職</button>");
+    expect(html).not.toContain(">職業攻略文</button>");
+    // 標籤寫篇數，0 篇的點不了
+    expect(html).toMatch(/>#三轉 1<\/button>/);
+    expect(html).toMatch(/disabled=""[^>]*>#海盜 0<\/button>/);
   });
 
   it("分等級攻略：每篇都有連結，掛在自己的職業那列；職業名連職業頁", () => {
@@ -52,6 +101,25 @@ describe("攻略專區的內容", () => {
   it("1–30 懶人包的清單跟專區用同一個元件（不會兩邊長得不一樣）", () => {
     expect(read("../../app/guide/GuideContent.tsx")).toMatch(/<ArticleList /);
     expect(read("../../app/guides/GuidesHub.tsx")).toMatch(/<ArticleList /);
+  });
+});
+
+describe("分類、標籤篩選", () => {
+  it("分類跟標籤要同時對上；全部＝不篩", () => {
+    expect(filterCards(cards, null, null)).toHaveLength(cards.length);
+    expect(filterCards(cards, "轉職", null).map(c => c.href)).toEqual(["/guides/third-job"]);
+    expect(filterCards(cards, null, "法師").map(c => c.href)).toEqual(["/guides/third-job", "/guides/priest-31-50"]);
+    expect(filterCards(cards, "活動", "法師")).toEqual([]);
+  });
+});
+
+describe("職業攻略文的卡片", () => {
+  it("圖用那篇的主圖；標籤：職業群、職業、幾轉、等級段（一轉不重複）", () => {
+    const priest = jobArticleCard({ job: 230, from: 31, to: 50, href: "/guides/priest-31-50", jobName: "僧侶", title: "t", description: "d", heroAlt: "a", updated: "2026-11-05" });
+    expect(priest.image).toBe("/assets/guides/priest-31-50/hero.webp");
+    expect(priest.tags).toEqual(["法師", "僧侶", "二轉", "31～50 等"]);
+    const magician = jobArticleCard({ job: 200, from: 10, to: 30, href: "/guides/magician-10-30", jobName: "法師", title: "t", description: "d", heroAlt: "a", updated: "2026-11-05" });
+    expect(magician.tags).toEqual(["法師", "一轉", "10～30 等"]);
   });
 });
 
