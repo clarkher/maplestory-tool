@@ -1,5 +1,5 @@
 /**
- * 攻略文的版面（v1.49，Discover）：手機跟筆電（1280×720）第一屏看得到結論框開頭、頁面不橫捲、主圖 16:9、路線卡圖手機在文字右側約 42% 寬、電腦版約 28%。沒過 exit 1。
+ * 攻略文的版面（v1.49，Discover）：手機跟筆電（1280×720）第一屏看得到結論框開頭、頁面不橫捲、主圖 16:9、路線卡圖手機在文字右側約 42% 寬、電腦版約 28%、電腦版主圖鋪滿卡片寬高 240～280px（v1.95）。沒過 exit 1。
  *
  * 用法：node scripts/verify/article-layout.mjs [網址，預設 http://localhost:9485] [輸出] [文章路徑，逗號隔開] [DevTools 埠，預設 9499]
  * 清單 images.gen.json 有的圖頁面一定要有，頁面沒圖算沒過（拿舊的 out/ 跑才不會默默略過）；清單沒有的篇只量署名跟結論框。截圖存輸出資料夾：<篇>-390.png（第一屏）、<篇>-390-step.png（路線卡）、<篇>-1280.png。
@@ -42,7 +42,7 @@ const MEASURE = `
     innerHeight,
     pageWidth: document.documentElement.scrollWidth,
     innerWidth,
-    hero: hero ? { ratio: hero.getBoundingClientRect().width / hero.getBoundingClientRect().height, width: hero.getBoundingClientRect().width, loading: hero.getAttribute("loading"), natural: hero.naturalWidth } : null,
+    hero: hero ? { ratio: hero.getBoundingClientRect().width / hero.getBoundingClientRect().height, width: hero.getBoundingClientRect().width, height: hero.getBoundingClientRect().height, loading: hero.getAttribute("loading"), natural: hero.naturalWidth } : null,
     steps: stepInfo,
   };`;
 
@@ -80,7 +80,9 @@ try {
     check(`${name} 電腦版頁面不橫捲`, desktop.pageWidth <= desktop.innerWidth, `頁寬 ${desktop.pageWidth}、視窗 ${desktop.innerWidth}`);
     const desktopVisible = desktop.innerHeight - desktop.answerTop;
     check(`${name} 筆電 1280×720 第一屏看得到結論框開頭`, desktopVisible >= ANSWER_MIN_VISIBLE, `結論框頂端 ${Math.round(desktop.answerTop)}px，第一屏露出 ${Math.round(desktopVisible)}px`);
-    if (desktop.hero) check(`${name} 電腦版主圖還是 16:9`, Math.abs(desktop.hero.ratio - 16 / 9) < 0.02, `比例 ${desktop.hero.ratio.toFixed(3)}`);
+    // v1.95 設計系統 A：電腦版主圖鋪滿卡片寬、高度壓在 240～280px（第一屏才看得到結論框）；手機照舊 16:9。
+    // Discover 讀的是 og／JSON-LD 的原圖（1536×864），不是畫面上裁過的樣子
+    if (desktop.hero) check(`${name} 電腦版主圖鋪滿、高 240～280px`, desktop.hero.height >= 240 && desktop.hero.height <= 280 && desktop.hero.width >= 1000, `${Math.round(desktop.hero.width)}×${Math.round(desktop.hero.height)}`);
     for (const step of desktop.steps) check(`${name} 電腦版路線卡圖 ${step.src.split("/").pop()} 約 28%`, Math.abs(step.ratio - 0.28) < 0.01, `佔 ${(step.ratio * 100).toFixed(1)}%`);
   }
 } finally {

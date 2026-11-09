@@ -214,6 +214,23 @@ body {
 @utility ink-soft { color: var(--ink-soft); }
 @utility ink-faint { color: var(--ink-faint); }
 
+/*
+ * 固定深色的區塊（v1.95 攻略文頁首：大圖往下漸層到深色、標題白字）。淺色模式也是深色（設計系統 A 拍板 4），
+ * 圖上的字只要量一套對比。值跟深色主題一樣（global-css.test.ts 會比對），區塊裡用 ink-soft、--maple 這些照樣對。
+ */
+@utility force-dark {
+  --ink: #e8eaef;
+  --ink-soft: #a3abb8;
+  --ink-faint: #949cab;
+  --paper: #0c0e12;
+  --paper-edge: #464d5a;
+  --maple: #ff7a3d;
+  --sky: #7cc4ff;
+  --gold: #ffb547;
+  color: var(--ink);
+  background-color: var(--paper);
+}
+
 @utility tap-safe {
   min-height: 44px;
   touch-action: manipulation;

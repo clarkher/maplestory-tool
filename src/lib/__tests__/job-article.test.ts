@@ -1798,3 +1798,27 @@ describe("圖片防呆 articleImageProblems", () => {
     expect(articleImageProblems(entries(), { ...manifest(), "priest-51-70": { hero: { w: 1536, h: 864 } } }, all).join()).toMatch(/priest-51-70/);
   });
 });
+
+describe("攻略文深色頁首（v1.95，設計系統 A 拍板 1、4）", () => {
+  const render = async (images?: { dir: string; hero?: { w: number; h: number } }) => {
+    const { JobArticleView } = await import("@/components/JobArticleView");
+    return renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article: validCleric(), table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: {}, dataNote: "", jsonLd: [], images: images as never }));
+  };
+
+  it("有主圖：標題、署名壓在固定深色的頁首裡，圖先載、電腦版高度壓在 280px", async () => {
+    const html = await render({ dir: "/assets/guides/priest-31-50", hero: { w: 1536, h: 864 } });
+    const head = html.slice(html.indexOf("force-dark"), html.indexOf("</header>", html.indexOf("force-dark")));
+    expect(head).toContain("<h1");
+    expect(head).toContain("本篇寫手");
+    expect(head).toMatch(/fetchPriority="high"|fetchpriority="high"/i);
+    expect(head).toMatch(/md:h-\[280px\]/);
+    // 標題只有一個
+    expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+
+  it("沒有主圖：照舊的標題列，不出現一塊空的深色框", async () => {
+    const html = await render(undefined);
+    expect(html).not.toContain("force-dark");
+    expect(html.match(/<h1/g)).toHaveLength(1);
+  });
+});

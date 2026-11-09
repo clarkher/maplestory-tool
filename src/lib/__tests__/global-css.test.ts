@@ -282,3 +282,15 @@ describe("A 第 2 輪：浮層、淡底（v1.95）", () => {
     expect(read("components/DbBrowser.tsx")).not.toMatch(/rgb\(60_30_10/);
   });
 });
+
+describe("固定深色的區塊（force-dark，v1.95 攻略文頁首）", () => {
+  it("把字、底、框、重點色換成跟深色主題一樣的值，淺色模式也是深色", () => {
+    const body = /@utility force-dark\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    for (const name of ["ink", "ink-soft", "ink-faint", "paper", "paper-edge", "maple", "sky", "gold"]) {
+      const value = new RegExp(`--${name}:\\s*([^;]+);`).exec(body)?.[1].trim();
+      expect(value, name).toBe(themeValue("dark", name));
+    }
+    expect(body).toMatch(/color:\s*var\(--ink\)/);
+    expect(body).toMatch(/background-color:\s*var\(--paper\)/);
+  });
+});

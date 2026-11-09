@@ -220,6 +220,27 @@ function StepBody({ step, index, article, jobName, monsters, maps, images, headi
 /** 結論框跳轉連結的字 */
 const TOPIC_LINK: Record<NonNullable<ArticleSection["topic"]>, string> = { quests: "必解任務", skills: "技能怎麼點" };
 
+/**
+ * 攻略文頁首（v1.95，設計系統 A）：大圖鋪滿卡片寬、往下漸層到深色，標題跟署名壓在圖下緣。
+ * 固定深色（force-dark），淺色模式也一樣，圖上的字只要量一套對比。卡片的 padding 用負 margin 吃掉，圖才貼齊卡片邊。
+ * 筆電 720 高的第一屏要看得到結論框：電腦版圖高壓在 280px（整欄寬照 16:9 會 600 多高）；手機照 16:9。
+ */
+function ArticleCover({ title, alt, hero, dir, byline }: { title: string; alt: string; hero: { w: number; h: number }; dir: string; byline: React.ReactNode }) {
+  return (
+    <header className="force-dark -mx-4 -mt-4 overflow-hidden rounded-t-[var(--radius-card)] sm:-mx-5 sm:-mt-5">
+      <div className="relative">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`${dir}/hero.webp`} alt={alt} width={hero.w} height={hero.h} fetchPriority="high" className="aspect-video w-full object-cover object-[50%_35%] md:aspect-auto md:h-[280px]" />
+        <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_40%,var(--paper))]" />
+      </div>
+      <div className="relative -mt-12 space-y-3 px-4 pb-4 sm:-mt-16 sm:px-5 sm:pb-5">
+        <h1 className="text-[26px] font-black leading-tight tracking-tight sm:text-[32px]">{title}</h1>
+        {byline}
+      </div>
+    </header>
+  );
+}
+
 export function JobArticleView({
   jobName,
   rangeLabel,
@@ -254,16 +275,10 @@ export function JobArticleView({
     <SeoPage
       trail={[{ name: "攻略", path: "/guides" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }]}
       title={article.title}
+      cover={images?.hero ? <ArticleCover title={article.title} alt={article.heroAlt} hero={images.hero} dir={images.dir} byline={<Byline article={article} images={images} />} /> : undefined}
       jsonLd={jsonLd}
     >
-      {/* 手機整欄大圖；電腦版圖跟署名並排，筆電 720 高的第一屏才看得到結論框（整欄寬時圖就 597 高） */}
-      <div className={images?.hero ? "space-y-4 md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:items-end md:gap-4 md:space-y-0" : undefined}>
-        {images?.hero ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={`${images.dir}/hero.webp`} alt={article.heroAlt} width={images.hero.w} height={images.hero.h} fetchPriority="high" className="aspect-video w-full rounded-xl object-cover" />
-        ) : null}
-        <Byline article={article} images={images} />
-      </div>
+      {images?.hero ? null : <Byline article={article} images={images} />}
 
       <div id="answer" className="scroll-mt-header space-y-1.5 rounded-[var(--radius-card)] border border-l-[3px] border-[color:var(--paper-edge)] border-l-[color:var(--maple)] glass-fill p-3.5 text-[15px] leading-relaxed sm:p-4">
         <p className="text-[12px] font-extrabold tracking-[0.1em] text-[color:var(--maple)]">先講結論</p>
