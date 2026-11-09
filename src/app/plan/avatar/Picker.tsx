@@ -188,7 +188,7 @@ export function Picker({
                 if (searching) search("");
                 onTab(t.k);
               }}
-              className={`tap-safe shrink-0 whitespace-nowrap rounded-full px-4 text-[15px] font-black ${
+              className={`tap-safe shrink-0 whitespace-nowrap rounded-md px-4 text-[15px] font-black ${
                 on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
               }`}
             >
@@ -198,7 +198,7 @@ export function Picker({
         })}
       </div>
 
-      <div className="mt-2.5 flex items-center gap-2 rounded-full border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-3">
+      <div className="mt-2.5 flex items-center gap-2 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-3">
         <SearchIcon size={16} className="shrink-0 ink-faint" />
         <input
           type="search"
@@ -222,7 +222,7 @@ export function Picker({
               setShopOnly(!shopOnly);
               setLimit(PAGE);
             }}
-            className={`tap-safe shrink-0 whitespace-nowrap rounded-full px-3.5 text-[14px] font-extrabold ${
+            className={`tap-safe shrink-0 whitespace-nowrap rounded-md px-3.5 text-[14px] font-extrabold ${
               shopOnly ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
             }`}
           >
@@ -318,6 +318,7 @@ function Swatches({
                 aria-pressed={on}
                 data-colour={c}
                 onClick={() => (on ? undefined : onPick(c))}
+                // 圓形：包住圓色票的按鈕，聚焦框跟著色票一樣圓
                 className="tap-safe grid place-items-center rounded-full"
               >
                 <span

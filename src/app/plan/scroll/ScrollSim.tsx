@@ -201,7 +201,7 @@ export function ScrollSim() {
                   role="radio"
                   aria-checked={on}
                   onClick={() => setWhiteRate(w.rate)}
-                  className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-full px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
+                  className={`inline-flex min-h-[34px] items-center gap-1.5 rounded-md px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
                 >
                   {w.n}
                 </button>

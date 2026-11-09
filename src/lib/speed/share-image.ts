@@ -23,11 +23,11 @@ export type ShareColors = {
  * 數值照抄 src/app/globals.css :root（白天）的 --paper、--paper-deep、--ink、--maple、--paper-edge，那邊改了這裡要跟著改。
  */
 export const SHARE_COLORS: ShareColors = {
-  paper: "#fbf5ea",
-  paperDeep: "#f1e5d1",
-  ink: "#2c2015",
-  maple: "#b32a00",
-  edge: "#e2d2b6",
+  paper: "#f5f6f8",
+  paperDeep: "#eceef2",
+  ink: "#14171d",
+  maple: "#a8360a",
+  edge: "#dcdfe6",
 };
 
 const nf = (n: number) => Math.abs(Math.round(n)).toLocaleString("en-US");

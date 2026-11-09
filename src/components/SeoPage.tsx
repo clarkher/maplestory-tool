@@ -75,7 +75,7 @@ export function SeoPage({
         {toolHref ? (
           <Link
             href={toolHref}
-            className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm"
+            className="tap-safe inline-flex items-center gap-1.5 rounded-md bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm"
           >
             {toolLabel}
             <ChevronRight size={15} />
@@ -122,7 +122,7 @@ export function SeoLinks({ links }: { links: { href: string; text: string; note?
         <li key={index}>
           <Anchor
             href={link.href}
-            className="inline-flex items-center gap-1 rounded-full border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1 text-[13px] hover:border-[color:var(--maple)]"
+            className="inline-flex items-center gap-1 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1 text-[13px] hover:border-[color:var(--maple)]"
           >
             <span className="font-bold">{link.text}</span>
             {link.note ? <span className="ink-faint">{link.note}</span> : null}

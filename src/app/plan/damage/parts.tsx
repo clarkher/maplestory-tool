@@ -28,7 +28,7 @@ type Trust = "client" | "legacy" | "unverified";
 export function Tag({ level }: { level: Trust }) {
   const text = level === "client" ? "玩家依客戶端整理" : level === "legacy" ? "舊版公式" : "舊版國際服公式，經典版沒驗證";
   const tone = level === "unverified" ? "bg-[color:var(--gold-wash)] text-[color:var(--gold)]" : "bg-[color:var(--sky-wash)] text-[color:var(--sky)]";
-  return <span className={`inline-block shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${tone}`}>{text}</span>;
+  return <span className={`inline-block shrink-0 rounded px-2 py-0.5 text-[11px] font-bold ${tone}`}>{text}</span>;
 }
 
 /** 表格每一列數字旁邊的字樣：客戶端、舊版公式照 Tag 全文，沒驗證的在窄欄縮成「未驗證」（全文在 Tag 跟「怎麼算的」那張卡） */
@@ -542,7 +542,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
   };
   return (
     <section aria-label="兩組設定" className="rounded-[var(--radius-card)] glass wood-frame p-3.5">
-      <div role="tablist" aria-label="改哪一組" className="mb-2 grid grid-cols-2 gap-1 rounded-full bg-[color:var(--paper-deep)] p-1">
+      <div role="tablist" aria-label="改哪一組" className="mb-2 grid grid-cols-2 gap-1 rounded-md bg-[color:var(--paper-deep)] p-1">
         {GROUP_NAMES.map((label, index) => (
           <button
             key={index}
@@ -557,7 +557,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
             tabIndex={active === index ? 0 : -1}
             onClick={() => onActive(index as 0 | 1)}
             onKeyDown={event => onTabKey(event, index)}
-            className={`rounded-full py-1.5 text-[13px] ${active === index ? "font-black text-[color:var(--on-accent)]" : "font-bold ink-soft"}`}
+            className={`rounded-md py-1.5 text-[13px] ${active === index ? "font-black text-[color:var(--on-accent)]" : "font-bold ink-soft"}`}
             style={active === index ? { background: `var(--${TONES[index]})` } : undefined}
           >
             {label}
@@ -608,7 +608,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
           </>
         ) : null}
         {ammo.length ? (
-          <Row label={<span className="flex flex-col items-start gap-0.5">{ammo[0].kind}{ammo[0].kind === "飛鏢" ? null : <span className="rounded-full bg-[color:var(--gold-wash)] px-1.5 py-0.5 text-[11px] font-bold leading-tight text-[color:var(--gold)]">台服沒驗證</span>}</span>}>
+          <Row label={<span className="flex flex-col items-start gap-0.5">{ammo[0].kind}{ammo[0].kind === "飛鏢" ? null : <span className="rounded bg-[color:var(--gold-wash)] px-1.5 py-0.5 text-[11px] font-bold leading-tight text-[color:var(--gold)]">台服沒驗證</span>}</span>}>
             {group.ammoId ? <Sprite src={itemImage(group.ammoId)} size={22} /> : null}
             <select aria-label={ammo[0].kind} className={SELECT} value={group.ammoId ?? ""} onChange={event => set({ ammoId: Number(event.target.value) })}>
               {ammo.map(entry => <option key={entry.id} value={entry.id}>{`${entry.n}（攻擊 +${entry.atk}）`}</option>)}

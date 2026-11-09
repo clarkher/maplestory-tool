@@ -14,12 +14,11 @@ export function SiteHeader() {
 
   return (
     // 手指往下滑時整條往上收，剛好收掉自己的高度：黏在它下面的那一列移一樣的距離，一起動、中間不裂開。
-    // 收著時拿掉下緣的陰影，不然會在畫面頂端留一條影子。
-    // 只動 transform：切換白天／夜晚時邊框色、毛玻璃底不要跟著漸變。用鍵盤移進來就出來
+    // 只動 transform：切換白天／夜晚時邊框色、底色不要跟著漸變。用鍵盤移進來就出來
     <header
       ref={headerRef}
       onFocus={reveal}
-      className={`sticky top-0 z-40 border-b border-[color:var(--paper-edge)] glass-fill transition-transform duration-200 ease-out${hidden ? " -translate-y-full shadow-none!" : ""}`}
+      className={`sticky top-0 z-40 border-b border-[color:var(--paper-edge)] glass-fill transition-transform duration-200 ease-out${hidden ? " -translate-y-full" : ""}`}
     >
       <div className="mx-auto flex w-full max-w-6xl items-center gap-1.5 px-3 py-2.5 min-[400px]:gap-2 sm:gap-3 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2 tap-safe" aria-label="楓谷幫手首頁">
@@ -44,11 +43,11 @@ export function SiteHeader() {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={[
-                  // 只有滑鼠移上去才漸變：換頁時「目前這頁」的橘底直接換過去，不會兩顆同時偏橘
-                  "shrink-0 flex-auto rounded-full px-[7px] py-1.5 text-center text-[13px] font-bold hover:transition-colors min-[380px]:px-2 min-[380px]:text-sm min-[500px]:px-3 md:px-1 min-[56.25rem]:flex-none min-[56.25rem]:px-3",
+                  // v1.89（A 攻略工具）：目前這頁是深字＋底下一條 2px 橘線，不再是橘色膠囊；只有滑鼠移上去字才漸變
+                  "shrink-0 flex-auto px-[7px] py-1.5 text-center text-[13px] font-bold hover:transition-colors min-[380px]:px-2 min-[380px]:text-sm min-[500px]:px-3 md:px-1 min-[56.25rem]:flex-none min-[56.25rem]:px-3",
                   active
-                    ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] shadow-sm"
-                    : "text-[color:var(--ink-soft)] hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--ink)]",
+                    ? "text-[color:var(--ink)] shadow-[inset_0_-2px_0_var(--maple)]"
+                    : "text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]",
                   item.desktopOnly ? "hidden md:inline-block" : "",
                 ].join(" ")}
               >

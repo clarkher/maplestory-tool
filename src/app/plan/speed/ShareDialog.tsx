@@ -78,7 +78,7 @@ function ShareBody({ card, titleId, onClose }: { card: ShareCard; titleId: strin
           關掉
         </button>
         {copyable ? (
-          <button type="button" onClick={onCopy} disabled={!image} className="rounded-full border border-[color:var(--paper-edge)] px-4 py-2 font-bold disabled:opacity-60">
+          <button type="button" onClick={onCopy} disabled={!image} className="rounded-md border border-[color:var(--paper-edge)] px-4 py-2 font-bold disabled:opacity-60">
             複製圖片
           </button>
         ) : null}

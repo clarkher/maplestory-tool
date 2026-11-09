@@ -48,7 +48,7 @@ export function PqCommand() {
             type="button"
             aria-pressed={p.key === pq.key}
             onClick={() => choosePq(p.key)}
-            className={`tap-safe inline-flex min-h-[38px] items-center rounded-full px-4 text-[15px] font-bold ${
+            className={`tap-safe inline-flex min-h-[38px] items-center rounded-md px-4 text-[15px] font-bold ${
               p.key === pq.key ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
             }`}
           >

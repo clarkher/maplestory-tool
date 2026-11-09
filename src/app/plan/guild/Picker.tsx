@@ -205,7 +205,7 @@ export function Picker({
                   data-on={sel ? "" : undefined}
                   aria-pressed={sel}
                   onClick={() => onCat(c.key)}
-                  className={`inline-flex min-h-9 flex-none items-center whitespace-nowrap rounded-full border px-3.5 text-[14px] font-bold ${
+                  className={`inline-flex min-h-9 flex-none items-center whitespace-nowrap rounded-md border px-3.5 text-[14px] font-bold ${
                     sel
                       ? "border-[color:var(--maple)] bg-[color:var(--maple)] text-[color:var(--on-accent)]"
                       : "border-[color:var(--paper-edge)] bg-[color:var(--paper)] text-[color:var(--ink)]"

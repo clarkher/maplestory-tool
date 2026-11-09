@@ -775,7 +775,7 @@ export function PracticeSpeed() {
           <Card>
             <div className="flex flex-wrap items-center gap-2">
               {sharing ? (
-                <button type="button" onClick={() => capture.current?.stop()} className="rounded-full border border-[color:var(--paper-edge)] px-4 py-2 font-bold hover:bg-[color:var(--maple-wash)]">
+                <button type="button" onClick={() => capture.current?.stop()} className="rounded-md border border-[color:var(--paper-edge)] px-4 py-2 font-bold hover:bg-[color:var(--maple-wash)]">
                   停止分享
                 </button>
               ) : (
@@ -788,7 +788,7 @@ export function PracticeSpeed() {
                   結束
                 </button>
               ) : manualButton === "start" && tracker.last ? (
-                <button type="button" onClick={onStartCount} className="rounded-full bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]">
+                <button type="button" onClick={onStartCount} className="rounded-md bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]">
                   開始計算
                 </button>
               ) : null}

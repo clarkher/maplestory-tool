@@ -270,7 +270,7 @@ export function AvatarSim() {
           <Stage outfit={outfit} data={data} rollKey={rollKey} onBusy={setChanging} onReady={stageReady} />
 
           <div className="mt-3 flex items-center justify-between gap-2">
-            <div role="group" aria-label="性別" className="grid grid-cols-2 gap-1 rounded-full bg-[color:var(--paper-deep)] p-1">
+            <div role="group" aria-label="性別" className="grid grid-cols-2 gap-1 rounded-md bg-[color:var(--paper-deep)] p-1">
               {GENDERS.map(({ g, label }) => (
                 <Segment key={g} on={outfit.g === g} onClick={() => changeGender(g)} wide>
                   {label}
@@ -282,7 +282,7 @@ export function AvatarSim() {
             </Pill>
           </div>
 
-          <div role="group" aria-label="動作" className="mt-2 grid grid-cols-6 gap-1 rounded-full bg-[color:var(--paper-deep)] p-1">
+          <div role="group" aria-label="動作" className="mt-2 grid grid-cols-6 gap-1 rounded-md bg-[color:var(--paper-deep)] p-1">
             {POSES.map((p) => (
               <Segment key={p.key} on={outfit.pose === p.key} onClick={() => commit({ ...outfit, pose: p.key })}>
                 {p.label}
@@ -372,7 +372,7 @@ export function AvatarSim() {
 
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
         {toast ? (
-          <div className="flex min-h-11 items-center rounded-full bg-[color:var(--ink)] px-4 text-[14px] font-bold text-[color:var(--paper)] shadow-lg">
+          <div className="flex min-h-11 items-center rounded-md bg-[color:var(--ink)] px-4 text-[14px] font-bold text-[color:var(--paper)] shadow-lg">
             {toast}
           </div>
         ) : null}
@@ -419,7 +419,7 @@ function Segment({ on, onClick, wide, children }: { on: boolean; onClick: () => 
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`min-h-[34px] whitespace-nowrap rounded-full text-[14px] ${wide ? "px-4" : "px-1"} ${
+      className={`min-h-[34px] whitespace-nowrap rounded-md text-[14px] ${wide ? "px-4" : "px-1"} ${
         on ? "bg-[color:var(--maple)] font-black text-[color:var(--on-accent)]" : "font-bold ink-soft"
       }`}
     >
@@ -435,7 +435,7 @@ function Pill({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       type="button"
       aria-pressed={on}
       onClick={onClick}
-      className={`inline-flex min-h-[34px] shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[14px] font-bold ${
+      className={`inline-flex min-h-[34px] shrink-0 items-center whitespace-nowrap rounded-md px-3.5 text-[14px] font-bold ${
         on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
       }`}
     >
