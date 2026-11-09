@@ -1,9 +1,10 @@
 "use client";
 
 import { useHydrated } from "@/lib/hydrated";
+import { OPTION_OFF, OPTION_ON } from "./option-style";
 
 /**
- * 篩選用的標籤按鈕：點一下開、再點一下關（aria-pressed），開著是楓葉橘底白字，跟角色列選職業的膠囊按鈕同一個樣子。
+ * 篩選用的標籤按鈕：點一下開、再點一下關（aria-pressed），開著是橘框＋橘色淡底＋橘字（v1.89），跟角色列選職業的按鈕同一個樣子。
  * 高 36px（比 tap-safe 的 44px 矮），一排三顆在 360 寬的手機也放得進一行。
  *
  * 記住的篩選（useRemembered）第一個畫面就讀得到，伺服器畫的頁面卻沒有：接手的那一格先照「沒開」畫，兩邊的屬性才對得上，
@@ -18,10 +19,8 @@ export function FilterTag({ on, onClick, children }: { on: boolean; onClick: () 
       aria-pressed={pressed}
       onClick={onClick}
       className={[
-        "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-full border px-[11px] text-[13px] font-bold transition-colors",
-        pressed
-          ? "border-[color:var(--maple)] bg-[color:var(--maple)] text-[color:var(--on-accent)]"
-          : "border-[color:var(--paper-edge)] bg-[color:var(--paper)] hover:bg-[color:var(--maple-wash)]",
+        "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-md border px-[11px] text-[13px] font-bold transition-colors",
+        pressed ? OPTION_ON : OPTION_OFF,
       ].join(" ")}
     >
       {children}

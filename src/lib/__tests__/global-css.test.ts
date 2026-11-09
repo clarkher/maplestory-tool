@@ -92,9 +92,9 @@ describe("外框顏色（2026-10-07 使用者看過對照圖選的）", () => {
     }
   });
 
-  it("導覽列用的毛玻璃底（glass-fill）不畫框：上、左、右貼著螢幕邊不要線，只留導覽列自己寫的下緣", () => {
+  it("導覽列用的實心底（glass-fill）不畫框、不模糊：上、左、右貼著螢幕邊不要線，只留導覽列自己寫的下緣", () => {
     const fill = utilityBody(css, "glass-fill");
-    expect(fill).toMatch(/backdrop-filter/);
+    expect(fill).not.toMatch(/backdrop-filter/);
     expect(fill).not.toMatch(/border/);
   });
 
@@ -208,5 +208,89 @@ describe("小字對比過 WCAG AA（v0.81，使用者選 A1：淺色整組壓深
   it("選取文字的反白也用 --on-accent", () => {
     const selection = rules.find(rule => rule.selector === "::selection");
     expect(selection?.body ?? "").toMatch(/color:\s*var\(--on-accent\)/);
+  });
+});
+
+describe("A 攻略工具配色（v1.89）", () => {
+  it("頁底是中性灰黑／淺灰，不再是羊皮紙咖啡", () => {
+    expect(themeValue("dark", "paper")).toBe("#0c0e12");
+    expect(themeValue("light", "paper")).toBe("#f5f6f8");
+  });
+
+  it("卡片底不透明（glass、glass-strong 不帶透明度）", () => {
+    for (const theme of themes) for (const name of ["glass", "glass-strong"]) expect(rgba(themeValue(theme, name))[3]).toBe(1);
+  });
+
+  it("卡片不加陰影", () => {
+    for (const theme of themes) expect(themeValue(theme, "glass-shadow")).toBe("none");
+  });
+
+  it("格紋線不再畫", () => {
+    for (const theme of themes) expect(themeValue(theme, "grid-line")).toBe("transparent");
+  });
+});
+
+describe("A 攻略工具的底、卡片、框、圓角（v1.89）", () => {
+  it("頁底純色：body 沒有斜格紋、暈光", () => {
+    const body = rules.find(r => r.selector === "body")!.body;
+    expect(body).not.toMatch(/repeating-linear-gradient|radial-gradient/);
+  });
+
+  it("卡片不模糊（glass、glass-solid、glass-fill 都沒有 backdrop-filter）", () => {
+    for (const name of ["glass-fill", "glass", "glass-solid"]) expect(utilityBody(css, name)).not.toMatch(/backdrop-filter/);
+  });
+
+  it("木框只剩一條細線，不再是內外雙線", () => {
+    expect(utilityBody(css, "wood-frame")).toMatch(/border:\s*1px solid var\(--paper-edge\)/);
+    expect(utilityBody(css, "wood-frame")).not.toMatch(/inset/);
+  });
+
+  it("圓角收小：rounded-xl 8px、rounded-2xl 10px", () => {
+    const theme = css.match(/@theme\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(theme).toMatch(/--radius-xl:\s*0\.5rem/);
+    expect(theme).toMatch(/--radius-2xl:\s*0\.625rem/);
+  });
+});
+
+describe("A 攻略工具的字（v1.89）", () => {
+  it("英數字先用 Inter，中文再用 Noto Sans TC", () => {
+    const theme = css.match(/@theme\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(theme).toMatch(/--font-sans:\s*var\(--font-inter\),\s*var\(--font-noto-tc\)/);
+  });
+
+  it("有 num 這個 utility：數字等寬", () => {
+    expect(utilityBody(css, "num")).toMatch(/font-variant-numeric:\s*tabular-nums/);
+  });
+});
+
+describe("A 第 2 輪：浮層、淡底（v1.95）", () => {
+  const read = (file: string) => fs.readFileSync(fileURLToPath(new URL(`../../${file}`, import.meta.url)), "utf8");
+
+  it("下拉選單、對話框有專用陰影（卡片照舊不加）", () => {
+    for (const theme of themes) expect(themeValue(theme, "float-shadow")).not.toBe("none");
+    for (const file of ["components/MapPicker.tsx", "app/plan/speed/Dialogs.tsx", "app/plan/scroll/parts.tsx"]) {
+      expect(read(file), file).toMatch(/shadow-\[var\(--float-shadow\)\]/);
+      expect(read(file), file).not.toMatch(/--glass-shadow/);
+    }
+  });
+
+  it("淺色選中的橘色淡底看得出來（透明度至少 0.1）", () => {
+    expect(rgba(themeValue("light", "maple-wash"))[3]).toBeGreaterThanOrEqual(0.1);
+  });
+
+  it("不再有羊皮紙時代的咖啡色陰影", () => {
+    expect(read("components/DbBrowser.tsx")).not.toMatch(/rgb\(60_30_10/);
+  });
+});
+
+describe("固定深色的區塊（force-dark，v1.95 攻略文頁首）", () => {
+  it("把字、底、框、重點色換成跟深色主題一樣的值，淺色模式也是深色", () => {
+    const body = /@utility force-dark\s*\{([^}]*)\}/.exec(css)?.[1] ?? "";
+    for (const name of ["ink", "ink-soft", "ink-faint", "paper", "paper-edge", "maple", "sky", "gold"]) {
+      const value = new RegExp(`--${name}:\\s*([^;]+);`).exec(body)?.[1].trim();
+      expect(value, name).toBe(themeValue("dark", name));
+    }
+    expect(body).toMatch(/color:\s*var\(--ink\)/);
+    expect(body).toMatch(/background-color:\s*var\(--paper\)/);
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, type KeyboardEvent } from "react";
+import { OPTION_OFF, OPTION_ON } from "./option-style";
 
 /**
  * 互斥的幾個選項選一個（首頁「能力值與裝備」卡的點法：一般點法／全幸、全智／裝備法）：
@@ -63,10 +64,8 @@ export function ChoiceGroup({
             onClick={() => onChange(option)}
             onKeyDown={event => onKeyDown(event, index)}
             className={[
-              "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-full border px-[11px] text-[13px] font-bold transition-colors",
-              checked
-                ? "border-[color:var(--maple)] bg-[color:var(--maple)] text-[color:var(--on-accent)]"
-                : "border-[color:var(--paper-edge)] bg-[color:var(--paper)] hover:bg-[color:var(--maple-wash)]",
+              "inline-flex min-h-9 shrink-0 touch-manipulation items-center whitespace-nowrap rounded-md border px-[11px] text-[13px] font-bold transition-colors",
+              checked ? OPTION_ON : OPTION_OFF,
             ].join(" ")}
           >
             {option}

@@ -12,9 +12,10 @@ import { killExp, type Member } from "@/lib/speed/party-exp";
 import type { BoardRow } from "@/lib/speed/server/rules";
 import { jobName, partyKillLine } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
-export const BUTTON_MAIN = "rounded-full bg-[color:var(--maple)] px-4 py-2 font-bold text-[color:var(--on-accent)] disabled:opacity-60";
-export const BUTTON_LINE = "rounded-full border border-[color:var(--paper-edge)] px-3 py-1.5 text-sm font-bold hover:bg-[color:var(--maple-wash)]";
+export const BUTTON_MAIN = "rounded-md bg-[color:var(--maple)] px-4 py-2 font-bold text-[color:var(--on-accent)] disabled:opacity-60";
+export const BUTTON_LINE = "rounded-md border border-[color:var(--paper-edge)] px-3 py-1.5 text-sm font-bold hover:bg-[color:var(--maple-wash)]";
 
 export function Card({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
@@ -53,7 +54,7 @@ export function MapChoices({
       {choices.length ? (
         <div className="flex flex-wrap gap-2">
           {choices.map(id => (
-            <button key={id} type="button" onClick={() => onPick(id)} className="rounded-full border border-[color:var(--paper-edge)] px-3 py-1.5 text-sm font-bold hover:bg-[color:var(--maple-wash)]">
+            <button key={id} type="button" onClick={() => onPick(id)} className="rounded-md border border-[color:var(--paper-edge)] px-3 py-1.5 text-sm font-bold hover:bg-[color:var(--maple-wash)]">
               {mapName(maps, id)}
             </button>
           ))}
@@ -125,7 +126,7 @@ export const MapPanel = memo(function MapPanel({
                       <li key={itemId}>
                         <Link
                           href={`/db/items?id=${itemId}`}
-                          className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2 text-[12px] font-bold transition-colors hover:bg-[color:var(--maple-wash)]"
+                          className="inline-flex items-center gap-1 rounded bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2 text-[12px] font-bold transition-colors hover:bg-[color:var(--maple-wash)]"
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img src={itemImage(itemId)} alt="" width={18} height={18} loading="lazy" className="size-[18px] object-contain" />
@@ -171,7 +172,7 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
             aria-selected={tab === key}
             aria-controls={panelId}
             onClick={() => onTab(key)}
-            className={`rounded-full px-3 py-1 text-sm font-bold ${tab === key ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "ink-soft hover:bg-[color:var(--maple-wash)]"}`}
+            className={`rounded-md border px-3 py-1 text-sm font-bold ${tab === key ? OPTION_ON : "border-transparent ink-soft hover:text-[color:var(--ink)]"}`}
           >
             {key === "solo" ? "單練" : "組隊"}
           </button>

@@ -379,7 +379,7 @@ function TownChips({
           <button
             type="button"
             onClick={() => onPick(mapId)}
-            className="tap-safe rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold transition-colors hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--maple)]"
+            className="tap-safe rounded-md bg-[color:var(--paper-deep)] px-3 py-1.5 text-sm font-bold transition-colors hover:bg-[color:var(--maple-wash)] hover:text-[color:var(--maple)]"
           >
             從 {mapName(maps, mapId)} 出發
           </button>

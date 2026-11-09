@@ -252,7 +252,7 @@ function ItemDetail({
     <Link
       key={link.href}
       href={link.href}
-      className="tap-safe inline-flex self-start rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
+      className="tap-safe inline-flex self-start rounded-md bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
     >
       {link.text}
     </Link>
@@ -307,7 +307,7 @@ function ItemDetail({
                 <li key={monsterId}>
                   <Link
                     href={`/db/monsters?id=${monsterId}`}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={monsterImage(monsterId)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />
@@ -320,7 +320,7 @@ function ItemDetail({
           </ul>
           <Link
             href={`/plan/farm?want=${item.id}`}
-            className="tap-safe mt-1 inline-flex rounded-full bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
+            className="tap-safe mt-1 inline-flex rounded-md bg-[color:var(--leaf)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)]"
           >
             排出哪張圖收最快
           </Link>
@@ -357,7 +357,7 @@ function ItemDetail({
                   {group.places.map((place, index) => (
                     <li
                       key={`${index}-${place.place}`}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] px-2.5 py-1"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--paper-deep)] px-2.5 py-1"
                     >
                       <span className="text-[13px] font-bold">{place.place}</span>
                       {place.npc ? <span className="text-[11px] ink-faint">{place.npc}</span> : null}

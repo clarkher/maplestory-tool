@@ -16,6 +16,7 @@ export function SeoPage({
   chips,
   toolHref,
   toolLabel,
+  cover,
   jsonLd,
   children,
 }: {
@@ -34,6 +35,8 @@ export function SeoPage({
   /** 底下那顆連到工具頁的按鈕；不給就不放 */
   toolHref?: string;
   toolLabel?: string;
+  /** 有給就用它取代整個標題列（攻略文的深色大圖頁首，v1.95）；裡面要自己放 h1 */
+  cover?: React.ReactNode;
   jsonLd: object[];
   children: React.ReactNode;
 }) {
@@ -59,10 +62,13 @@ export function SeoPage({
       </nav>
 
       <article className="space-y-4 rounded-[var(--radius-card)] glass wood-frame p-4 sm:p-5">
-        <header className="flex items-start gap-3">
+        {cover ?? <header className="flex items-start gap-3">
           {image ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={image} alt={title} width={imageSize} height={imageSize} style={{ width: imageSize, height: imageSize }} className="shrink-0 object-contain" />
+            // v1.99：圖放在一格細框方塊裡（候選圖 A-mob），方塊大小跟著圖
+            <span className="grid shrink-0 place-items-center rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)] p-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={image} alt={title} width={imageSize} height={imageSize} style={{ width: imageSize, height: imageSize }} className="object-contain" />
+            </span>
           ) : null}
           <div className="min-w-0">
             {kicker ? <p className="text-[13px] font-bold ink-soft">{kicker}</p> : null}
@@ -70,12 +76,12 @@ export function SeoPage({
             {chips ? <div className="mt-2 flex flex-wrap gap-1.5">{chips}</div> : null}
             {lead ? <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">{lead}</p> : null}
           </div>
-        </header>
+        </header>}
         {children}
         {toolHref ? (
           <Link
             href={toolHref}
-            className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm"
+            className="tap-safe inline-flex items-center gap-1.5 rounded-md bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm"
           >
             {toolLabel}
             <ChevronRight size={15} />
@@ -90,23 +96,66 @@ export function SeoPage({
 export function SeoSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="space-y-2">
-      <h2 className="text-sm font-bold ink-faint">{title}</h2>
+      {/* 小標：小字、粗、字距加寬（v1.99） */}
+      <h2 className="text-[12px] font-black tracking-[0.1em] ink-faint">{title}</h2>
       {children}
     </section>
   );
 }
 
-/** 兩欄的數值表（怪物數值、技能資訊） */
-export function SeoStats({ rows }: { rows: [string, React.ReactNode][] }) {
+/**
+ * 數值格（怪物數值、技能資訊、道具數值；v1.99 照候選圖 A-mob）：一格一個數值，小灰字標籤在上、大粗數字在下。
+ * 格線：每格往四邊擴 1px 陰影，蓋滿格子間的 1px 空隙（交叉點也補到），外圈被 overflow-hidden 切掉；
+ * 最後一排沒排滿時空著的地方是卡片底，不會出現一塊灰。accent：前幾格的數字用橘色（怪物頁的等級、HP、經驗）。
+ * 欄數照格數跟最長的值：6 格以上、值都短（6 字以內，怪物頁）手機 3 欄、電腦 6 欄；6 格以上但有長的值
+ * （道具「上衣＋褲裙（佔兩格）」、大怪的「672,000」）手機 2 欄、電腦 4 欄；格子少的手機 2 欄、電腦 3 欄。
+ * 長的值（超過 6 字）字小一號，不在格子裡斷成三四行。
+ */
+const SHORT_VALUE = 6;
+
+function valueLength(value: React.ReactNode): number {
+  return typeof value === "string" || typeof value === "number" ? String(value).length : 0;
+}
+
+export function SeoStats({ rows, accent = 0 }: { rows: [string, React.ReactNode][]; accent?: number }) {
+  const short = rows.every(([, value]) => valueLength(value) <= SHORT_VALUE);
+  const columns = rows.length < 6 ? "grid-cols-2 sm:grid-cols-3" : short ? "grid-cols-3 lg:grid-cols-6" : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4";
   return (
-    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 rounded-xl bg-[color:var(--paper-deep)] p-3 text-sm sm:grid-cols-4">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between gap-2">
-          <dt className="ink-faint">{label}</dt>
-          <dd className="font-bold tabular-nums">{value}</dd>
+    <dl className={`grid ${columns} gap-px overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] bg-[color:var(--glass)]`}>
+      {rows.map(([label, value], index) => (
+        <div key={label} className="px-3 py-2.5 shadow-[0_0_0_1px_var(--paper-edge)]">
+          <dt className="text-[12px] font-bold ink-faint">{label}</dt>
+          <dd className={`mt-0.5 font-black tabular-nums ${valueLength(value) > SHORT_VALUE ? "text-[16px] leading-snug" : "text-[20px] leading-tight"}${index < accent ? " text-[color:var(--maple)]" : ""}`}>{value}</dd>
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * 有數量的連結清單（怪物頁的出沒地圖＋刷怪點，v1.99 照候選圖 A-mob）：一列一張圖，下面一條長條，長度照最多那張的比例。
+ * 沒有數量（value 沒給）的列只放名字、不畫長條。key 用索引（理由見 SeoLinks）。
+ */
+export function SeoBars({ rows }: { rows: { href: string; text: string; value?: number; unit: string }[] }) {
+  const max = Math.max(1, ...rows.map(row => row.value ?? 0));
+  return (
+    <ul className="divide-y divide-[color:var(--paper-edge)] overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--paper-edge)]">
+      {rows.map((row, index) => (
+        <li key={index}>
+          <Link href={row.href} className="block px-3.5 py-2.5 hover:bg-[color:var(--paper-deep)]">
+            <span className="flex items-baseline justify-between gap-3">
+              <span className="text-[14px] font-bold">{row.text}</span>
+              {row.value ? <span className="shrink-0 text-[13px] tabular-nums ink-soft">{row.value} {row.unit}</span> : null}
+            </span>
+            {row.value ? (
+              <span aria-hidden="true" className="mt-1.5 block h-1.5 overflow-hidden rounded-sm bg-[color:var(--paper-deep)]">
+                <span className="block h-full rounded-sm bg-[color:var(--maple)]" style={{ width: `${Math.round((row.value / max) * 100)}%` }} />
+              </span>
+            ) : null}
+          </Link>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -122,7 +171,7 @@ export function SeoLinks({ links }: { links: { href: string; text: string; note?
         <li key={index}>
           <Anchor
             href={link.href}
-            className="inline-flex items-center gap-1 rounded-full border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1 text-[13px] hover:border-[color:var(--maple)]"
+            className="inline-flex items-center gap-1 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)] px-2.5 py-1 text-[13px] hover:border-[color:var(--ink-faint)]"
           >
             <span className="font-bold">{link.text}</span>
             {link.note ? <span className="ink-faint">{link.note}</span> : null}

@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronRight } from "@/components/Icons";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 import { loadGuide } from "@/lib/data";
 import { guidesToPrefetch } from "@/lib/home-data";
 import {
@@ -136,8 +137,8 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
         onClick={() => pickJob(id)}
         aria-pressed={active}
         className={[
-          "w-full rounded-full px-2 py-1.5 text-[13px] font-bold transition-colors",
-          active ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]",
+          "w-full rounded-md px-2 py-1.5 text-[13px] font-bold transition-colors",
+          active ? "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]",
         ].join(" ")}
       >
         {name}
@@ -192,7 +193,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
                 type="button"
                 onClick={() => setEditing(true)}
                 aria-expanded={false}
-                className="tap-safe shrink-0 rounded-full border border-[color:var(--paper-edge)] px-4 text-sm font-bold transition-colors hover:border-[color:var(--maple)]"
+                className="tap-safe shrink-0 rounded-md border border-[color:var(--paper-edge)] px-4 text-sm font-bold transition-colors hover:border-[color:var(--maple)]"
               >
                 換其他職業
               </button>
@@ -241,7 +242,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
                 <div className="flex flex-wrap gap-1.5">
                   {JOB_LINES.map(line => {
                     const selected = profile.job === line.base;
-                    // 選的是這一系的二轉或三轉：系別也標起來，看得出下面列的是哪一系
+                    // 選的是這一系的二轉或三轉：系別也標起來（只有橘框，選中的那顆才有橘色淡底跟橘字），看得出下面列的是哪一系
                     const inLine = !selected && currentLine?.base === line.base;
                     return (
                       <button
@@ -252,12 +253,12 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
                         onClick={() => pickJob(line.base)}
                         aria-pressed={selected}
                         className={[
-                          "rounded-full px-3 py-1.5 text-[13px] font-bold transition-colors",
+                          "rounded-md px-3 py-1.5 text-[13px] font-bold transition-colors",
                           selected
-                            ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]"
+                            ? "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]"
                             : inLine
-                              ? "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]"
-                              : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]",
+                              ? "border border-[color:var(--maple)] bg-[color:var(--paper-deep)]"
+                              : "border border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]",
                         ].join(" ")}
                       >
                         {line.line}
@@ -290,10 +291,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
                 onMouseDown={keepTyping}
                 onClick={() => pickJob(0)}
                 aria-pressed={profile.job === 0}
-                className={[
-                  "rounded-full px-3 py-1.5 text-[13px] font-bold",
-                  profile.job === 0 ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-dashed border-[color:var(--paper-edge)] ink-soft",
-                ].join(" ")}
+                className={`rounded-md border px-3 py-1.5 text-[13px] font-bold ${profile.job === 0 ? OPTION_ON : OPTION_OFF}`}
               >
                 初心者／還沒轉職
               </button>
@@ -304,7 +302,7 @@ export function CharacterBar({ profile, onChange, pending = false }: { profile: 
             type="button"
             onClick={() => setEditing(false)}
             disabled={incomplete}
-            className="tap-safe w-full rounded-full bg-[color:var(--maple)] text-sm font-bold text-[color:var(--on-accent)] disabled:opacity-40"
+            className="tap-safe w-full rounded-md bg-[color:var(--maple)] text-sm font-bold text-[color:var(--on-accent)] disabled:opacity-40"
           >
             {incomplete ? "選好職業、填好等級就能看" : "看我的路線"}
           </button>

@@ -102,7 +102,7 @@ export function FarmPlanner() {
                     <button
                       type="button"
                       onClick={() => toggle(itemId)}
-                      className="tap-safe inline-flex items-center gap-1.5 rounded-full bg-[color:var(--leaf-wash)] py-1 pl-1 pr-2 text-[13px] font-bold text-[color:var(--leaf)]"
+                      className="tap-safe inline-flex items-center gap-1.5 rounded-md bg-[color:var(--leaf-wash)] py-1 pl-1 pr-2 text-[13px] font-bold text-[color:var(--leaf)]"
                       aria-label={`移除 ${itemIndex.get(itemId)?.n ?? itemId}`}
                     >
                       <Image src={itemImage(itemId)} alt="" width={20} height={20} className="size-5 object-contain" unoptimized />
@@ -140,7 +140,7 @@ export function FarmPlanner() {
 
                     <ul className="mt-2 flex flex-wrap gap-1.5">
                       {pick.items.map(itemId => (
-                        <li key={itemId} className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2">
+                        <li key={itemId} className="inline-flex items-center gap-1 rounded-md bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2">
                           <Image src={itemImage(itemId)} alt="" width={20} height={20} className="size-5 object-contain" unoptimized />
                           <span className="text-[12px] font-bold">{itemIndex.get(itemId)?.n ?? itemId}</span>
                         </li>
@@ -276,7 +276,7 @@ export function FarmPlanner() {
                         type="button"
                         onClick={() => toggle(item.id)}
                         className={[
-                          "tap-safe inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-3 text-[13px] font-bold transition-colors",
+                          "tap-safe inline-flex items-center gap-1.5 rounded-md py-1 pl-1 pr-3 text-[13px] font-bold transition-colors",
                           picked ? "bg-[color:var(--leaf)] text-[color:var(--on-accent)]" : "bg-[color:var(--paper-deep)] hover:bg-[color:var(--maple-wash)]",
                         ].join(" ")}
                       >

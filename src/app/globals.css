@@ -1,15 +1,22 @@
 @import "tailwindcss";
 
 /*
-  設計方向：楓之谷復古感 × 現代玻璃質感。
-  復古來自木質邊框、羊皮紙底色、楓葉暖色調；現代來自毛玻璃面板、柔和陰影、大留白。
-  兩套主題都要能看，深色是「夜楓」不是純黑。
+  設計方向（v1.89，使用者選 A「攻略工具」，參考 Maxroll、Mobalytics）：
+  中性深灰底、實心卡片、1px 細框、小圓角，只有楓葉橘一個重點色；遊戲圖當主視覺。
+  藍、金、綠只用在有意義的地方（出處標籤、好／壞），不拿來裝飾。設計文件：docs/superpowers/specs/2026-11-09-design-system-a-design.md
+
+  變數名沿用羊皮紙那一版（全站 120 多個檔在用，換值不換名）：
+  paper＝頁底、paper-deep＝區塊底（表頭、輸入框、次要面）、paper-edge＝框線、
+  glass／glass-strong＝卡片底（不再透明）、wood／wood-deep＝中性框色（捲軸）、maple＝重點色。
 */
 
 @theme {
-  --font-sans: var(--font-noto-tc), ui-sans-serif, system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-sans: var(--font-inter), var(--font-noto-tc), ui-sans-serif, system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
 
-  --radius-card: 1.125rem;
+  /* A 版小圓角：卡片 8px、按鈕與輸入框 6px（rounded-md）、標籤 4px（rounded）；rounded-xl、rounded-2xl 全站自動跟著收小 */
+  --radius-card: 0.5rem;
+  --radius-xl: 0.5rem;
+  --radius-2xl: 0.625rem;
   --radius-pill: 999px;
 }
 
@@ -17,42 +24,45 @@
 :root[data-theme="light"] {
   color-scheme: light;
 
-  --paper: #fbf5ea;
-  --paper-deep: #f1e5d1;
-  --paper-edge: #e2d2b6;
+  --paper: #f5f6f8;
+  --paper-deep: #eceef2;
+  --paper-edge: #dcdfe6;
 
-  --glass: rgb(255 253 249 / 0.74);
-  --glass-strong: rgb(255 253 249 / 0.92);
-  --glass-shadow: 0 10px 30px -12px rgb(89 58 28 / 0.28), 0 2px 6px -2px rgb(89 58 28 / 0.14);
+  --glass: #ffffff;
+  --glass-strong: #ffffff;
+  --glass-shadow: none;
+  /* 浮層（下拉選單、對話框）專用：卡片不加陰影，浮在上面的要看得出來 */
+  --float-shadow: 0 12px 32px -8px rgb(20 23 29 / 0.22), 0 2px 6px rgb(20 23 29 / 0.08);
 
-  --ink: #2c2015;
-  --ink-soft: #6d5943;
+  --ink: #14171d;
+  --ink-soft: #4f5765;
   /*
-    灰、橘、綠、藍、金的字色都壓到 WCAG AA：在區塊底（paper-deep）、毛玻璃、各自的淡底上對比都 4.5 以上
-    （v0.81 使用者選 A「整組壓深」：按鈕、框線跟著一起深）。淡底（*-wash）照舊用原本較亮的顏色，標籤底不跟著變深。
+    灰、橘、綠、藍、金的字色都要過 WCAG AA：在頁底、區塊底（paper-deep）、卡片、各自的淡底上對比都 4.5 以上
+    （v0.81 使用者選 A「整組壓深」，global-css.test.ts 會擋）。
   */
-  --ink-faint: #6d5c45;
+  --ink-faint: #555d6b;
 
-  --wood: #8a5a32;
-  --wood-deep: #5f3c1f;
+  --wood: #c4c9d2;
+  --wood-deep: #a9afba;
 
-  --maple: #b32a00;
-  --maple-soft: #f0784a;
-  --maple-wash: rgb(216 79 38 / 0.1);
+  --maple: #a8360a;
+  --maple-soft: #ea6a2e;
+  --maple-wash: rgb(194 65 12 / 0.1);
 
-  --leaf: #2f6a18;
-  --leaf-wash: rgb(74 134 54 / 0.12);
+  --leaf: #146c34;
+  --leaf-wash: rgb(23 128 61 / 0.1);
 
-  --sky: #05638c;
-  --sky-wash: rgb(43 123 165 / 0.12);
+  --sky: #0b5cad;
+  --sky-wash: rgb(11 92 173 / 0.08);
 
-  --gold: #835400;
-  --gold-wash: rgb(184 134 42 / 0.14);
+  --gold: #8a5300;
+  --gold-wash: rgb(138 83 0 / 0.1);
 
   /* 實心按鈕（楓葉橘、綠、天藍底）上的字：白天是白字 */
   --on-accent: #fff;
 
-  --grid-line: rgb(138 90 50 / 0.07);
+  /* 以前羊皮紙的斜格紋，A 版頁底純色不畫 */
+  --grid-line: transparent;
 
   /*
     楓幣匯率頁（/price/fx）：台灣習慣紅漲綠跌，不拿楓葉橘、葉綠當漲跌色。
@@ -62,66 +72,65 @@
   --fx-down: #25855b;
   --fx-up-text: #c41f10;
   --fx-down-text: #1f7550;
-  --fx-grid: rgb(109 89 67 / 0.14);
-  --fx-cross: rgb(44 32 21 / 0.55);
-  --fx-ma5: #05638c;
-  --fx-ma20: #835400;
-  --fx-panel: #f1e5d1;
-  --fx-surface: #fbf5ea;
-  --fx-market: rgb(184 134 42 / 0.2);
+  --fx-grid: rgb(93 101 116 / 0.16);
+  --fx-cross: rgb(20 23 29 / 0.55);
+  --fx-ma5: #0b5cad;
+  --fx-ma20: #8a5300;
+  --fx-panel: #eceef2;
+  --fx-surface: #f5f6f8;
+  --fx-market: rgb(138 83 0 / 0.16);
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --paper: #16110c;
-  --paper-deep: #0e0b07;
-  /* 夜晚的邊要比頁底亮一階（對比約 2:1），輸入框、按鈕才看得出能點；不亮過卡片的木框 */
-  --paper-edge: #5b442e;
+  --paper: #0c0e12;
+  --paper-deep: #1a1e26;
+  /* 夜晚的框要看得出來：跟頁底對比至少 2（使用者選過 B，輸入框、按鈕才看得出能點），比候選圖的細線亮一點 */
+  --paper-edge: #464d5a;
 
-  --glass: rgb(56 43 30 / 0.52);
-  --glass-strong: rgb(46 35 24 / 0.86);
-  --glass-shadow: 0 14px 40px -16px rgb(0 0 0 / 0.75), 0 2px 6px -2px rgb(0 0 0 / 0.5);
+  --glass: #14171d;
+  --glass-strong: #14171d;
+  --glass-shadow: none;
+  --float-shadow: 0 12px 32px -8px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(255 255 255 / 0.04);
 
-  --ink: #f6ead9;
-  --ink-soft: #c3ae93;
-  /* 要在毛玻璃卡片、金色淡底上都過 4.5（原本 #8d7a63 在毛玻璃上 3.9、金色淡底上 3.6） */
-  --ink-faint: #b7a38b;
+  --ink: #e8eaef;
+  --ink-soft: #a3abb8;
+  --ink-faint: #949cab;
 
-  --wood: #b3814f;
-  --wood-deep: #7a5330;
+  --wood: #3a4150;
+  --wood-deep: #2a303b;
 
-  --maple: #ff8148;
-  --maple-soft: #ffa273;
-  --maple-wash: rgb(255 129 72 / 0.14);
+  --maple: #ff7a3d;
+  --maple-soft: #ff9a66;
+  --maple-wash: rgb(255 122 61 / 0.12);
 
-  /* 綠字疊在金色淡底裡的綠標籤上要過 4.5（原本 #7ec263 只有 4.2） */
-  --leaf: #87cb6c;
-  --leaf-wash: rgb(126 194 99 / 0.14);
+  --leaf: #5fd38d;
+  --leaf-wash: rgb(95 211 141 / 0.12);
 
-  --sky: #6cb8e0;
-  --sky-wash: rgb(108 184 224 / 0.14);
+  --sky: #7cc4ff;
+  --sky-wash: rgb(124 196 255 / 0.12);
 
-  --gold: #e6b453;
-  --gold-wash: rgb(230 180 83 / 0.16);
+  --gold: #ffb547;
+  --gold-wash: rgb(255 181 71 / 0.12);
 
-  /* 夜晚的按鈕底很亮（白字只有 2.5），按鈕上的字改深咖啡（v0.81 使用者選 1「亮底深字」） */
-  --on-accent: #1a1209;
+  /* 夜晚的按鈕底很亮（白字不到 3），按鈕上的字改深色（v0.81 使用者選 1「亮底深字」） */
+  --on-accent: #1a0d05;
 
-  --grid-line: rgb(255 210 160 / 0.05);
+  --grid-line: transparent;
 
   /* 楓幣匯率頁的漲跌色（夜晚版） */
   --fx-up: #f53f2d;
   --fx-down: #389469;
   --fx-up-text: #ff7a68;
   --fx-down-text: #5cbf8f;
-  --fx-grid: rgb(246 234 217 / 0.1);
-  --fx-cross: rgb(246 234 217 / 0.6);
-  --fx-ma5: #6cb8e0;
-  --fx-ma20: #e6b453;
-  --fx-panel: #0e0b07;
-  --fx-surface: #16110c;
-  --fx-market: rgb(230 180 83 / 0.2);
+  --fx-grid: rgb(232 234 239 / 0.1);
+  --fx-cross: rgb(232 234 239 / 0.6);
+  --fx-ma5: #7cc4ff;
+  --fx-ma20: #ffb547;
+  --fx-panel: #1a1e26;
+  --fx-surface: #0c0e12;
+  --fx-market: rgb(255 181 71 / 0.18);
 }
 
 /*
@@ -161,12 +170,7 @@ body {
   background-color: var(--paper);
   color: var(--ink);
   font-family: var(--font-sans);
-  /* 羊皮紙的織紋：兩層極淡的斜線 + 中心暈光，避免大片死板的純色 */
-  background-image:
-    radial-gradient(120% 90% at 50% -10%, var(--maple-wash), transparent 62%),
-    repeating-linear-gradient(45deg, var(--grid-line) 0 1px, transparent 1px 7px),
-    repeating-linear-gradient(-45deg, var(--grid-line) 0 1px, transparent 1px 11px);
-  background-attachment: fixed;
+  /* A 版頁底純色：以前的羊皮紙斜格紋、頂端暈光拿掉 */
   overscroll-behavior-y: none;
 }
 
@@ -178,15 +182,15 @@ body {
   }
 }
 
-/* 毛玻璃的底：不畫框。導覽列用它，只加自己的下緣線（上、左、右貼著螢幕邊不要線） */
+/*
+  名字是以前毛玻璃、木框那一版留下來的（全站一百多處在用），v1.89 起都是實心卡片：不透明、不模糊、不加陰影。
+  glass-fill：卡片底、不畫框。導覽列用它，只加自己的下緣線（上、左、右貼著螢幕邊不要線）
+*/
 @utility glass-fill {
   background-color: var(--glass);
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(16px) saturate(1.35);
-  -webkit-backdrop-filter: blur(16px) saturate(1.35);
 }
 
-/* 毛玻璃框：底＋四邊框。邊用羊皮紙邊色，白邊在白天的米色底上看不到 */
+/* 卡片：底＋1px 細框 */
 @utility glass {
   @apply glass-fill;
   border: 1px solid var(--paper-edge);
@@ -195,22 +199,37 @@ body {
 @utility glass-solid {
   background-color: var(--glass-strong);
   border: 1px solid var(--paper-edge);
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
 }
 
-/* 木框：外深內淺的雙線，模仿遊戲介面的雕刻邊，但不用貼圖 */
+/* 以前的木框雙線，改成跟卡片一樣的 1px 細框 */
 @utility wood-frame {
-  border: 1px solid color-mix(in srgb, var(--wood) 45%, transparent);
-  box-shadow:
-    inset 0 1px 0 0 color-mix(in srgb, #fff 45%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--wood) 12%, transparent),
-    var(--glass-shadow);
+  border: 1px solid var(--paper-edge);
+}
+
+/* 數字等寬：表格、數值格、等級、HP、經驗用，上下對得齊 */
+@utility num {
+  font-variant-numeric: tabular-nums;
 }
 
 @utility ink-soft { color: var(--ink-soft); }
 @utility ink-faint { color: var(--ink-faint); }
+
+/*
+ * 固定深色的區塊（v1.95 攻略文頁首：大圖往下漸層到深色、標題白字）。淺色模式也是深色（設計系統 A 拍板 4），
+ * 圖上的字只要量一套對比。值跟深色主題一樣（global-css.test.ts 會比對），區塊裡用 ink-soft、--maple 這些照樣對。
+ */
+@utility force-dark {
+  --ink: #e8eaef;
+  --ink-soft: #a3abb8;
+  --ink-faint: #949cab;
+  --paper: #0c0e12;
+  --paper-edge: #464d5a;
+  --maple: #ff7a3d;
+  --sky: #7cc4ff;
+  --gold: #ffb547;
+  color: var(--ink);
+  background-color: var(--paper);
+}
 
 @utility tap-safe {
   min-height: 44px;
@@ -241,7 +260,7 @@ body {
 
 /* 捲軸配色跟著主題走，深色模式不要出現亮白捲軸 */
 * {
-  scrollbar-color: color-mix(in srgb, var(--wood) 50%, transparent) transparent;
+  scrollbar-color: var(--wood) transparent;
 }
 
 /* 紙娃娃隨機穿搭（Stage）：定格時閃一下、彈一下（圖的正中間是腳，從腳長出來）；跳格中的小方點。討厭動畫的人舞台不會掛這些 class，點不動 */

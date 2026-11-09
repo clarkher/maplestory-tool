@@ -10,7 +10,7 @@ import { BUTTON_MAIN, MapChoices } from "./parts";
 
 const FIELD =
   "mt-1 block w-full rounded-lg border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 py-2 text-base font-normal outline-none focus:border-[color:var(--maple)]";
-export const SECOND = "rounded-full px-3 py-2 text-sm font-bold ink-soft hover:bg-[color:var(--maple-wash)]";
+export const SECOND = "rounded-md px-3 py-2 text-sm font-bold ink-soft hover:bg-[color:var(--maple-wash)]";
 
 /**
  * 瀏覽器內建的對話框（showModal）：鍵盤焦點關在裡面、按 Esc 等於 onCancel、背後的頁面點不到。
@@ -36,7 +36,7 @@ export function Modal({ open, labelledBy, onCancel, children }: { open: boolean;
       onClose={() => {
         if (open) onCancel();
       }}
-      className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-5 text-[color:var(--ink)] shadow-[var(--glass-shadow)] backdrop:bg-[rgb(0_0_0/0.45)]"
+      className="m-auto w-[min(26rem,calc(100vw-2rem))] rounded-[var(--radius-card)] border border-[color:var(--paper-edge)] bg-[color:var(--paper)] p-5 text-[color:var(--ink)] shadow-[var(--float-shadow)] backdrop:bg-[rgb(0_0_0/0.45)]"
     >
       {open ? children : null}
     </dialog>

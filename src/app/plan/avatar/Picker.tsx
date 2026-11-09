@@ -25,6 +25,7 @@ import type { Outfit } from "@/lib/avatar/outfit";
 import type { AvatarData, AvatarStyle, SlotKey } from "@/lib/avatar/types";
 import { itemImage } from "@/lib/data";
 import { CARD, SLOTS } from "./parts";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
 export type { TabKey };
 
@@ -188,8 +189,8 @@ export function Picker({
                 if (searching) search("");
                 onTab(t.k);
               }}
-              className={`tap-safe shrink-0 whitespace-nowrap rounded-full px-4 text-[15px] font-black ${
-                on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
+              className={`tap-safe shrink-0 whitespace-nowrap rounded-md border px-4 text-[15px] font-black ${
+                on ? OPTION_ON : OPTION_OFF
               }`}
             >
               {t.label}
@@ -198,7 +199,7 @@ export function Picker({
         })}
       </div>
 
-      <div className="mt-2.5 flex items-center gap-2 rounded-full border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-3">
+      <div className="mt-2.5 flex items-center gap-2 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-3">
         <SearchIcon size={16} className="shrink-0 ink-faint" />
         <input
           type="search"
@@ -222,8 +223,8 @@ export function Picker({
               setShopOnly(!shopOnly);
               setLimit(PAGE);
             }}
-            className={`tap-safe shrink-0 whitespace-nowrap rounded-full px-3.5 text-[14px] font-extrabold ${
-              shopOnly ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] bg-[color:var(--paper)]"
+            className={`tap-safe shrink-0 whitespace-nowrap rounded-md border px-3.5 text-[14px] font-extrabold ${
+              shopOnly ? OPTION_ON : OPTION_OFF
             }`}
           >
             只看商城有賣
@@ -318,6 +319,7 @@ function Swatches({
                 aria-pressed={on}
                 data-colour={c}
                 onClick={() => (on ? undefined : onPick(c))}
+                // 圓形：包住圓色票的按鈕，聚焦框跟著色票一樣圓
                 className="tap-safe grid place-items-center rounded-full"
               >
                 <span

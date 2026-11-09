@@ -18,6 +18,7 @@ import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
 import { goddessNoteFor } from "@/lib/v002-notes";
 import { useVisitState } from "@/lib/visit-state";
+import { track } from "@/lib/analytics";
 import { AvatarShowcase } from "./AvatarShowcase";
 import { CalcPickCard } from "./CalcPickCard";
 import { CharacterBar } from "./CharacterBar";
@@ -168,9 +169,6 @@ export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[
     return <p className="py-10 text-center text-sm ink-soft">資料讀取失敗：{error}。重新整理一次試試。</p>;
   }
 
-  // 下面兩張入口卡：存過角色的人硬重新整理時，上面的大標收起來、讀取區塊換成角色列，會把它們往上推（首頁跳一下）。跟大標一樣先藏著（只等讀本機角色，不等路線），第一次來的人第一眼照樣看得到；藏著的元素不算位移
-  const entryClass = `tap-safe flex items-center justify-between gap-3 rounded-[var(--radius-card)] glass px-4 py-3 text-sm font-bold hover:text-[color:var(--maple)]${loaded ? "" : " [[data-profile=saved]_&]:invisible"}`;
-
   return (
     <div className="mx-auto max-w-2xl space-y-3.5 py-3 sm:py-6">
       {/* 硬重新整理那一下，伺服器畫的版本還不知道你有沒有存角色：畫面畫出來之前先看本機（SAVED_PROFILE_HINT），
@@ -198,28 +196,11 @@ export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[
       )}
       <CharacterBar profile={profile} onChange={setProfile} pending={!loaded} />
 
-      {/* v1.19：萬聖節活動期間的入口（手機導覽列放不下，從這裡進）；11/11 23:59 後不出現 */}
-      {halloweenOn(Date.now()) ? (
-        <Link href="/event/halloween" className={entryClass}>
-          <span>
-            萬聖節面具祭典攻略
-            <span className="block text-[13px] font-medium ink-soft">三章任務照順序、要打的怪去哪打</span>
-          </span>
-          <ChevronRight size={16} />
-        </Link>
-      ) : null}
-
       {/* 存過角色的人：輪播放角色列下面，主推卡才不會被推走；硬重新整理還沒讀到角色時先佔位不顯示（跟入口卡同一招） */}
       {ready ? <AvatarShowcase /> : null}
       {loaded ? null : <AvatarShowcase className="hidden invisible [[data-profile=saved]_&]:block" />}
-      {/* v1.68：未來視的入口（使用者選 A：導覽列之外首頁也放一張） */}
-      <Link href="/future" className={entryClass}>
-        <span>
-          未來視
-          <span className="block text-[13px] font-medium ink-soft">下一版大概何時開、現在該先囤什麼</span>
-        </span>
-        <ChevronRight size={16} />
-      </Link>
+      {/* 萬聖節（v1.19）、未來視（v1.68）、公會徽章（v1.82）的入口收成一張清單（v1.97 A 第 3 輪） */}
+      <HomeLinks pending={!loaded} />
 
       {/* 至少佔一個螢幕高：從捲到底的長頁換過來時，首頁頂端被推出畫面，Next 才會捲回頂端。只比螢幕高一點的話，
           位置被截在頁底、頁尾也在畫面裡，路線長出來時瀏覽器的捲動錨定會把畫面一路推到頁底 */}
@@ -325,6 +306,39 @@ export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[
         </>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * 首頁的入口清單（v1.97 照候選圖 A-home：一張卡多列、列之間 1px 線、右邊箭頭）。
+ * 萬聖節只在活動期間出現（11/11 23:59 後不出現；手機導覽列放不下，從這裡進）、未來視導覽列之外首頁也放一張（v1.68 使用者選 A）、
+ * 公會徽章本來是輪播下面那行字。
+ * 存過角色的人硬重新整理時，上面的大標收起來、讀取區塊換成角色列，會把清單往上推（首頁跳一下）：還沒讀到本機角色（pending）時
+ * 先藏著（只等讀本機角色，不等路線），第一次來的人第一眼照樣看得到；藏著的元素不算位移。
+ */
+function HomeLinks({ pending }: { pending: boolean }) {
+  const links = [
+    ...(halloweenOn(Date.now()) ? [{ href: "/event/halloween", title: "萬聖節面具祭典攻略", hint: "三章任務照順序、要打的怪去哪打" }] : []),
+    { href: "/future", title: "未來視", hint: "下一版大概何時開、現在該先囤什麼" },
+    { href: "/plan/guild", title: "做公會徽章", hint: "拼圖案、配顏色，下載照遊戲位置", guild: true },
+  ];
+  return (
+    <nav aria-label="其他入口" className={`divide-y divide-[color:var(--paper-edge)] overflow-hidden rounded-[var(--radius-card)] glass${pending ? " [[data-profile=saved]_&]:invisible" : ""}`}>
+      {links.map(link => (
+        <Link
+          key={link.href}
+          href={link.href}
+          onClick={link.guild ? () => track("avatar_showcase_click", { target: "guild" }) : undefined}
+          className="tap-safe flex items-center justify-between gap-3 px-4 py-3 text-sm font-bold hover:bg-[color:var(--paper-deep)]"
+        >
+          <span>
+            {link.title}
+            <span className="block text-[13px] font-medium ink-soft">{link.hint}</span>
+          </span>
+          <ChevronRight size={16} className="shrink-0 ink-faint" />
+        </Link>
+      ))}
+    </nav>
   );
 }
 

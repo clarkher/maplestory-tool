@@ -17,7 +17,7 @@ export function ArticleList({ jobs, articles }: { jobs: ReadonlyArray<{ job: num
             <Link
               key={article.href}
               href={article.href}
-              className="tap-safe inline-block rounded-full bg-[color:var(--paper-deep)] px-3 py-1.5 text-[13px] font-bold tabular-nums hover:bg-[color:var(--maple-wash)]"
+              className="tap-safe inline-block rounded-md bg-[color:var(--paper-deep)] px-3 py-1.5 text-[13px] font-bold tabular-nums hover:bg-[color:var(--maple-wash)]"
             >
               {article.from}～{article.to} 等
             </Link>

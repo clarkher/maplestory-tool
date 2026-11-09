@@ -12,23 +12,29 @@ import { SeoLinks, SeoPage } from "./SeoPage";
  * 表、假設一律用算出來的 CalcTable，不另外寫數字。站上色票都是 CSS 變數，深淺色跟著主題走。
  */
 
-/** 標籤的底跟字色（對比測試讀這張表） */
+/**
+ * 標籤的底跟字色（對比測試讀這張表）。v1.95 照「從哪來」分三色（設計系統 A 拍板 6）：
+ * 站上算的、遊戲本身的資料＝藍；玩家說的＝金；舊的、官方文字＝灰。橘色留給重點，不當標籤色。
+ */
+const SKY = { wash: "bg-[color:var(--sky-wash)]", ink: "text-[color:var(--sky)]" };
+const GOLD = { wash: "bg-[color:var(--gold-wash)]", ink: "text-[color:var(--gold)]" };
+const GRAY = { wash: "bg-[color:var(--paper-deep)]", ink: "text-[color:var(--ink-soft)]" };
 export const TAG_TONE: Record<ClaimTag, { wash: string; ink: string }> = {
-  tw: { wash: "bg-[color:var(--leaf-wash)]", ink: "text-[color:var(--leaf)]" },
-  community: { wash: "bg-[color:var(--maple-wash)]", ink: "text-[color:var(--maple)]" },
-  legacy: { wash: "bg-[color:var(--gold-wash)]", ink: "text-[color:var(--gold)]" },
-  calc: { wash: "bg-[color:var(--sky-wash)]", ink: "text-[color:var(--sky)]" },
-  game: { wash: "bg-[color:var(--paper-deep)]", ink: "text-[color:var(--ink-soft)]" },
-  official: { wash: "bg-[color:var(--paper-deep)]", ink: "text-[color:var(--ink)]" },
+  calc: SKY,
+  game: SKY,
+  tw: GOLD,
+  community: GOLD,
+  legacy: GRAY,
+  official: GRAY,
 };
 
 /**
- * solid：放在有底色的框裡（先講結論）用實心底，洗色底疊上去深色模式對比不到 AA（社群整理曾經只有 4.08）。
  * 跟前面的字隔一個空白不用 margin：換行到行首時空白會收掉，margin 會留一段內縮。
+ * 結論框（v1.95 起是卡片底，不再是橘色洗底）跟段落一樣用洗色底；對比測試量疊在頁底、卡片底兩種。
  */
-function SourceTag({ tag, solid }: { tag: ClaimTag; solid?: boolean }) {
+function SourceTag({ tag }: { tag: ClaimTag }) {
   const tone = TAG_TONE[tag];
-  return <>{" "}<span className={`inline-block whitespace-nowrap rounded-full px-2 align-[1px] text-[12px] font-bold leading-[1.5] ${solid ? "bg-[color:var(--paper)]" : tone.wash} ${tone.ink}`}>{TAG_LABEL[tag]}</span></>;
+  return <>{" "}<span className={`inline-block whitespace-nowrap rounded px-2 align-[1px] text-[12px] font-bold leading-[1.5] ${tone.wash} ${tone.ink}`}>{TAG_LABEL[tag]}</span></>;
 }
 
 /**
@@ -46,7 +52,7 @@ function Byline({ article, images }: { article: JobArticle; images?: ArticleImag
       <p className="flex items-center gap-1.5">
         {images?.author ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={`${images.dir}/author.webp`} alt="" width={images.author.w} height={images.author.h} className="h-6 w-6 shrink-0 rounded-full object-cover" />
+          <img src={`${images.dir}/author.webp`} alt="" width={images.author.w} height={images.author.h} className="size-6 shrink-0 rounded-full object-cover" />
         ) : null}
         <span>
           <span className="font-bold">本篇寫手：{persona.name}</span>｜{persona.line}
@@ -61,19 +67,38 @@ function Heading({ children }: { children: React.ReactNode }) {
   return <h2 className="pt-2 text-lg font-black leading-snug sm:text-xl">{children}</h2>;
 }
 
-function Lines({ lines, ordered, solid, maps }: { lines: ArticleAnswer[]; ordered?: boolean; solid?: boolean; maps?: Record<string, MapRecord> }) {
+function Lines({ lines, ordered, maps }: { lines: ArticleAnswer[]; ordered?: boolean; maps?: Record<string, MapRecord> }) {
   const List = ordered ? "ol" : "ul";
   return (
     <List className={`${ordered ? "list-decimal" : "list-disc"} space-y-1.5 pl-5`}>
       {lines.map((line, index) => (
         <li key={index}>
           {line.alt ? <span className="mr-1 font-bold">備案：</span> : null}
-          {line.text}<SourceTag tag={line.tag} solid={solid} />
+          {line.text}<SourceTag tag={line.tag} />
           {/* 網址跟步驟卡的帶我去同一種；字色跟著框裡的字（--sky 疊在結論框的洗色底上對比不保證到 AA）。inline-block：手機上整顆換行，不在字中間斷 */}
           {line.go !== undefined ? <>{" "}<Link href={`/go?to=${line.go}`} className="inline-block font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">帶我去{maps?.[String(line.go)]?.zh}</Link></> : null}
         </li>
       ))}
     </List>
+  );
+}
+
+/** 先講結論的條目（v1.95）：前面兩位數編號（01、02…），列跟列之間細線；用 ol 讀螢幕軟體照樣念第幾條 */
+function NumberedLines({ lines, maps }: { lines: ArticleAnswer[]; maps?: Record<string, MapRecord> }) {
+  return (
+    <ol className="divide-y divide-[color:var(--paper-edge)]">
+      {lines.map((line, index) => (
+        <li key={index} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 py-2.5 first:pt-1 last:pb-0">
+          <span aria-hidden="true" className="pt-px text-[13px] font-black tabular-nums text-[color:var(--maple)]">{String(index + 1).padStart(2, "0")}</span>
+          <span>
+            {line.alt ? <span className="mr-1 font-bold">備案：</span> : null}
+            {line.text}<SourceTag tag={line.tag} />
+            {/* 網址跟步驟卡的帶我去同一種；字色跟著框裡的字（--sky 疊在結論框的洗色底上對比不保證到 AA）。inline-block：手機上整顆換行，不在字中間斷 */}
+            {line.go !== undefined ? <>{" "}<Link href={`/go?to=${line.go}`} className="inline-block font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">帶我去{maps?.[String(line.go)]?.zh}</Link></> : null}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -195,6 +220,53 @@ function StepBody({ step, index, article, jobName, monsters, maps, images, headi
 /** 結論框跳轉連結的字 */
 const TOPIC_LINK: Record<NonNullable<ArticleSection["topic"]>, string> = { quests: "必解任務", skills: "技能怎麼點" };
 
+/**
+ * 段落的 id（v1.95 目錄要跳得到每一段）：「必解任務」「技能點法」這類有錨點的照舊用 topic（v1.80 結論框的「直接看」連它），
+ * 其他用在 article.sections 裡的位置，收合的段落也有，點目錄會停在它的標題。
+ */
+function sectionId(section: ArticleSection, anchor: boolean, sections: ArticleSection[]) {
+  return anchor && section.topic ? section.topic : `section-${sections.indexOf(section)}`;
+}
+
+/** 本篇目錄（v1.95，設計系統 A）：電腦版右邊黏著，手機不放 */
+function ArticleToc({ entries }: { entries: { id: string; label: string }[] }) {
+  return (
+    <nav aria-label="本篇目錄" className="hidden lg:block">
+      <div className="sticky top-[calc(var(--header-offset)+1rem)] space-y-2">
+        <p className="text-[12px] font-extrabold tracking-[0.1em] ink-faint">本篇目錄</p>
+        <ul className="space-y-0.5 border-l border-[color:var(--paper-edge)] text-[13px]">
+          {entries.map(entry => (
+            <li key={entry.id}>
+              <a href={`#${entry.id}`} className="-ml-px block border-l-2 border-transparent py-1 pl-3 leading-snug ink-soft hover:border-[color:var(--maple)] hover:text-[color:var(--ink)]">{entry.label}</a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </nav>
+  );
+}
+
+/**
+ * 攻略文頁首（v1.95，設計系統 A）：大圖鋪滿卡片寬、往下漸層到深色，標題跟署名壓在圖下緣。
+ * 固定深色（force-dark），淺色模式也一樣，圖上的字只要量一套對比。卡片的 padding 用負 margin 吃掉，圖才貼齊卡片邊。
+ * 筆電 720 高的第一屏要看得到結論框：電腦版圖高壓在 280px（整欄寬照 16:9 會 600 多高）；手機照 16:9。
+ */
+function ArticleCover({ title, alt, hero, dir, byline }: { title: string; alt: string; hero: { w: number; h: number }; dir: string; byline: React.ReactNode }) {
+  return (
+    <header className="force-dark -mx-4 -mt-4 overflow-hidden rounded-t-[var(--radius-card)] sm:-mx-5 sm:-mt-5">
+      <div className="relative">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={`${dir}/hero.webp`} alt={alt} width={hero.w} height={hero.h} fetchPriority="high" className="aspect-video w-full object-cover object-[50%_35%] md:aspect-auto md:h-[280px]" />
+        <div aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_40%,var(--paper))]" />
+      </div>
+      <div className="relative -mt-12 space-y-3 px-4 pb-4 sm:-mt-16 sm:px-5 sm:pb-5">
+        <h1 className="text-[26px] font-black leading-tight tracking-tight sm:text-[32px]">{title}</h1>
+        {byline}
+      </div>
+    </header>
+  );
+}
+
 export function JobArticleView({
   jobName,
   rangeLabel,
@@ -229,135 +301,142 @@ export function JobArticleView({
     <SeoPage
       trail={[{ name: "攻略", path: "/guides" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }]}
       title={article.title}
+      cover={images?.hero ? <ArticleCover title={article.title} alt={article.heroAlt} hero={images.hero} dir={images.dir} byline={<Byline article={article} images={images} />} /> : undefined}
       jsonLd={jsonLd}
     >
-      {/* 手機整欄大圖；電腦版圖跟署名並排，筆電 720 高的第一屏才看得到結論框（整欄寬時圖就 597 高） */}
-      <div className={images?.hero ? "space-y-4 md:grid md:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] md:items-end md:gap-4 md:space-y-0" : undefined}>
-        {images?.hero ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={`${images.dir}/hero.webp`} alt={article.heroAlt} width={images.hero.w} height={images.hero.h} fetchPriority="high" className="aspect-video w-full rounded-xl object-cover" />
-        ) : null}
-        <Byline article={article} images={images} />
-      </div>
+      {images?.hero ? null : <Byline article={article} images={images} />}
 
-      <div className="space-y-1.5 rounded-xl bg-[color:var(--maple-wash)] p-3.5 text-[15px] leading-relaxed sm:p-4">
-        <p className="text-sm font-bold text-[color:var(--maple)]">先講結論</p>
-        <Lines lines={article.answer} ordered solid maps={maps} />
-        {/* 直接跳到必解任務、技能點法（v1.80）；那類段落不存在就不放 */}
-        {pinned.some(({ anchor }) => anchor) ? (
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-sm font-bold">
-            <span className="ink-soft">直接看</span>
-            {pinned.filter(({ anchor }) => anchor).map(({ section }) => (
-              <a key={section.topic} href={`#${section.topic}`} className="text-[color:var(--sky)] underline underline-offset-4">{TOPIC_LINK[section.topic!]}</a>
-            ))}
-          </p>
-        ) : null}
-      </div>
+      {/* 電腦版（lg 以上）右邊黏著本篇目錄（v1.95）；手機不放，內文照舊一欄 */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_12rem] lg:gap-8">
+        <div className="min-w-0 space-y-4">
 
-      <p className="text-[15px] leading-relaxed">{article.intro}</p>
-
-      {/* 手機收合（v1.78，拍板 A）：主推卡照舊整張；備案卡只剩「備案 起～迄＋標題」一行，點開才看內文 */}
-      <section className="space-y-2">
-        <Heading>每個等級去哪裡</Heading>
-        <ol>
-          {article.steps.map((step, index) => {
-            const card = { step, index, article, jobName, monsters, maps, images };
-            return step.alt ? (
-              <li key={index} className="border-t border-[color:var(--paper-edge)] first:border-t-0">
-                <Fold
-                  id={`alt:${index}`}
-                  summary={
-                    <>
-                      <span className="mr-1.5 whitespace-nowrap text-[13px] font-bold tabular-nums text-[color:var(--maple)]">備案 {step.from}～{step.to}</span>
-                      <h3 className="inline text-[15px] font-bold leading-snug">{step.title}</h3>
-                      {" "}<span className="whitespace-nowrap text-[13px] font-bold ink-soft">{step.kind === "party" ? "組隊" : "單練"}</span>
-                    </>
-                  }
-                >
-                  <div className="pb-3"><StepBody {...card} /></div>
-                </Fold>
-              </li>
-            ) : (
-              <li key={index} className="grid gap-x-3.5 gap-y-1 border-t border-[color:var(--paper-edge)] py-3 first:border-t-0 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
-                <p className="font-black tabular-nums text-[color:var(--maple)]">{step.from}～{step.to}</p>
-                <StepBody {...card} heading={
-                  <h3 className="font-bold">
-                    {step.title}
-                    {" "}<span className="whitespace-nowrap text-[13px] font-bold ink-soft">{step.kind === "party" ? "組隊" : "單練"}</span>
-                  </h3>
-                } />
-              </li>
-            );
-          })}
-        </ol>
-      </section>
-
-      <section className="space-y-2">
-        <Heading>幾下打死、打不打得中<SourceTag tag="calc" /></Heading>
-        <JobArticleTable table={table} featured={featuredMonsters(article.steps, table.rows)} />
-        <Fold id="assume" className="border-t border-[color:var(--paper-edge)]" summary={<span className="text-sm font-bold">這張表怎麼算的</span>}>
-          <div className="space-y-1 pb-3 text-[13px] leading-relaxed ink-soft">
-            <p>{dataNote}</p>
-            <p className="font-bold">這張表的假設</p>
-            <ul className="list-disc space-y-0.5 pl-5">
-              {assumptionLines(table).map(line => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-            <p>公式是舊版玩家整理，經典版沒驗證。HP、防禦、經驗來自遊戲客戶端資料。下數是平均值，沒算 MISS 跟怪的密度；不 MISS 寫 {table.from} 的代表一進這段就打得中，寫「超過 {table.to} 等」的是到 {table.to} 等還不保證打中，會有 MISS。</p>
-          </div>
-        </Fold>
-        <SeoLinks links={[{ href: articleDamageHref(table), text: "開計算機改成自己的數值" }]} />
-      </section>
-
-      <AdSlot unit="article" />
-
-      {/* 必解任務、技能點法是玩家最常來查的，照舊整段露著，排在收起來的段落前面（v1.79）；必解先、點法後（v1.80） */}
-      {pinned.map(({ section, anchor }, index) => (
-        <section key={index} id={anchor ? section.topic : undefined} className="scroll-mt-header space-y-2 text-[15px] leading-relaxed">
-          <Heading>{section.heading}</Heading>
-          {section.paragraphs?.map((line, lineIndex) => (
-            <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>
-          ))}
-          {section.items?.length ? <Lines lines={section.items} /> : null}
-        </section>
-      ))}
-
-      {/* 後面的段落只剩標題（標題還是 h2），一段一段點開；疊成一張清單，中間不留大空白。開關的鍵用原本的位置，露出來的段落不佔號 */}
-      <div className="border-b border-[color:var(--paper-edge)]">
-        {article.sections.map((section, index) => section.topic ? null : (
-          <section key={index} className="border-t border-[color:var(--paper-edge)] text-[15px] leading-relaxed">
-            <Fold id={`sec:${index}`} summary={<h2 className="text-base font-black leading-snug sm:text-lg">{section.heading}</h2>}>
-              <div className="space-y-2 pb-3">
-                {section.paragraphs?.map((line, lineIndex) => (
-                  <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>
+          <div id="answer" className="scroll-mt-header space-y-1.5 rounded-[var(--radius-card)] border border-l-[3px] border-[color:var(--paper-edge)] border-l-[color:var(--maple)] glass-fill p-3.5 text-[15px] leading-relaxed sm:p-4">
+            <p className="text-[12px] font-extrabold tracking-[0.1em] text-[color:var(--maple)]">先講結論</p>
+            <NumberedLines lines={article.answer} maps={maps} />
+            {/* 直接跳到必解任務、技能點法（v1.80）；那類段落不存在就不放 */}
+            {pinned.some(({ anchor }) => anchor) ? (
+              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-sm font-bold">
+                <span className="ink-soft">直接看</span>
+                {pinned.filter(({ anchor }) => anchor).map(({ section }) => (
+                  <a key={section.topic} href={`#${section.topic}`} className="text-[color:var(--sky)] underline underline-offset-4">{TOPIC_LINK[section.topic!]}</a>
                 ))}
-                {section.items?.length ? <Lines lines={section.items} /> : null}
+              </p>
+            ) : null}
+          </div>
+
+          <p className="text-[15px] leading-relaxed">{article.intro}</p>
+
+          {/* 手機收合（v1.78，拍板 A）：主推卡照舊整張；備案卡只剩「備案 起～迄＋標題」一行，點開才看內文 */}
+          <section id="route" className="scroll-mt-header space-y-2">
+            <Heading>每個等級去哪裡</Heading>
+            <ol>
+              {article.steps.map((step, index) => {
+                const card = { step, index, article, jobName, monsters, maps, images };
+                return step.alt ? (
+                  <li key={index} className="border-t border-[color:var(--paper-edge)] first:border-t-0">
+                    <Fold
+                      id={`alt:${index}`}
+                      summary={
+                        <>
+                          <span className="mr-1.5 whitespace-nowrap text-[13px] font-bold tabular-nums text-[color:var(--maple)]">備案 {step.from}～{step.to}</span>
+                          <h3 className="inline text-[15px] font-bold leading-snug">{step.title}</h3>
+                          {" "}<span className="whitespace-nowrap text-[13px] font-bold ink-soft">{step.kind === "party" ? "組隊" : "單練"}</span>
+                        </>
+                      }
+                    >
+                      <div className="pb-3"><StepBody {...card} /></div>
+                    </Fold>
+                  </li>
+                ) : (
+                  <li key={index} className="grid gap-x-3.5 gap-y-1 border-t border-[color:var(--paper-edge)] py-3 first:border-t-0 sm:grid-cols-[5.5rem_minmax(0,1fr)]">
+                    <p className="font-black tabular-nums text-[color:var(--maple)]">{step.from}～{step.to}</p>
+                    <StepBody {...card} heading={
+                      <h3 className="font-bold">
+                        {step.title}
+                        {" "}<span className="whitespace-nowrap text-[13px] font-bold ink-soft">{step.kind === "party" ? "組隊" : "單練"}</span>
+                      </h3>
+                    } />
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+
+          <section id="calc" className="scroll-mt-header space-y-2">
+            <Heading>幾下打死、打不打得中<SourceTag tag="calc" /></Heading>
+            <JobArticleTable table={table} featured={featuredMonsters(article.steps, table.rows)} />
+            <Fold id="assume" className="border-t border-[color:var(--paper-edge)]" summary={<span className="text-sm font-bold">這張表怎麼算的</span>}>
+              <div className="space-y-1 pb-3 text-[13px] leading-relaxed ink-soft">
+                <p>{dataNote}</p>
+                <p className="font-bold">這張表的假設</p>
+                <ul className="list-disc space-y-0.5 pl-5">
+                  {assumptionLines(table).map(line => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                <p>公式是舊版玩家整理，經典版沒驗證。HP、防禦、經驗來自遊戲客戶端資料。下數是平均值，沒算 MISS 跟怪的密度；不 MISS 寫 {table.from} 的代表一進這段就打得中，寫「超過 {table.to} 等」的是到 {table.to} 等還不保證打中，會有 MISS。</p>
               </div>
             </Fold>
+            <SeoLinks links={[{ href: articleDamageHref(table), text: "開計算機改成自己的數值" }]} />
           </section>
-        ))}
-      </div>
 
-      <SeoLinks
-        links={[
-          { href: "/plan/train", text: "照我的等級排練功圖" },
-          { href: jobPath, text: `${jobName}完整攻略` },
-        ]}
-      />
+          <AdSlot unit="article" />
 
-      <section className="border-y border-[color:var(--paper-edge)] text-[13px] leading-relaxed ink-soft">
-        <Fold id="sources" summary={<h2 className="font-bold">資料來源</h2>}>
-          <ul className="list-disc space-y-0.5 pb-3 pl-5">
-            <li>怪物、技能數值：遊戲客戶端資料（<Link href="/db/monsters" className="underline underline-offset-2">怪物資料</Link>）</li>
-            {article.sources.map(source => (
-              <li key={source.url}>
-                <a href={source.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.label}</a>
-              </li>
+          {/* 必解任務、技能點法是玩家最常來查的，照舊整段露著，排在收起來的段落前面（v1.79）；必解先、點法後（v1.80） */}
+          {pinned.map(({ section, anchor }, index) => (
+            <section key={index} id={sectionId(section, anchor, article.sections)} className="scroll-mt-header space-y-2 text-[15px] leading-relaxed">
+              <Heading>{section.heading}</Heading>
+              {section.paragraphs?.map((line, lineIndex) => (
+                <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>
+              ))}
+              {section.items?.length ? <Lines lines={section.items} /> : null}
+            </section>
+          ))}
+
+          {/* 後面的段落只剩標題（標題還是 h2），一段一段點開；疊成一張清單，中間不留大空白。開關的鍵用原本的位置，露出來的段落不佔號 */}
+          <div className="border-b border-[color:var(--paper-edge)]">
+            {article.sections.map((section, index) => section.topic ? null : (
+              <section key={index} id={sectionId(section, false, article.sections)} className="scroll-mt-header border-t border-[color:var(--paper-edge)] text-[15px] leading-relaxed">
+                <Fold id={`sec:${index}`} summary={<h2 className="text-base font-black leading-snug sm:text-lg">{section.heading}</h2>}>
+                  <div className="space-y-2 pb-3">
+                    {section.paragraphs?.map((line, lineIndex) => (
+                      <p key={lineIndex}>{line.text}<SourceTag tag={line.tag} /></p>
+                    ))}
+                    {section.items?.length ? <Lines lines={section.items} /> : null}
+                  </div>
+                </Fold>
+              </section>
             ))}
-          </ul>
-        </Fold>
-      </section>
+          </div>
+
+          <SeoLinks
+            links={[
+              { href: "/plan/train", text: "照我的等級排練功圖" },
+              { href: jobPath, text: `${jobName}完整攻略` },
+            ]}
+          />
+
+          <section className="border-y border-[color:var(--paper-edge)] text-[13px] leading-relaxed ink-soft">
+            <Fold id="sources" summary={<h2 className="font-bold">資料來源</h2>}>
+              <ul className="list-disc space-y-0.5 pb-3 pl-5">
+                <li>怪物、技能數值：遊戲客戶端資料（<Link href="/db/monsters" className="underline underline-offset-2">怪物資料</Link>）</li>
+                {article.sources.map(source => (
+                  <li key={source.url}>
+                    <a href={source.url} target="_blank" rel="noopener noreferrer" className="underline underline-offset-2">{source.label}</a>
+                  </li>
+                ))}
+              </ul>
+            </Fold>
+          </section>
+        </div>
+        <ArticleToc entries={[
+          { id: "answer", label: "先講結論" },
+          { id: "route", label: "每個等級去哪裡" },
+          { id: "calc", label: "幾下打死、打不打得中" },
+          ...[...pinned.map(({ section, anchor }) => ({ section, anchor })), ...article.sections.filter(section => !section.topic).map(section => ({ section, anchor: false }))]
+            .map(({ section, anchor }) => ({ id: sectionId(section, anchor, article.sections), label: section.heading })),
+        ]} />
+      </div>
     </SeoPage>
   );
 }

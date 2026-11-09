@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Noto_Sans_TC } from "next/font/google";
+import { Inter, Noto_Sans_TC } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -14,6 +14,14 @@ const notoTC = Noto_Sans_TC({
   subsets: ["latin"],
   weight: ["400", "500", "700", "900"],
   variable: "--font-noto-tc",
+  display: "swap",
+});
+
+// 英文、數字用 Inter（v1.89 A 攻略工具）：字型堆疊排在 Noto 前面，中文字 Inter 沒有，自動落到 Noto
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800"],
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -47,8 +55,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbf5ea" },
-    { media: "(prefers-color-scheme: dark)", color: "#16110c" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f6f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0e12" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -61,13 +69,13 @@ const themeBootstrap = `(function(){try{var t=localStorage.getItem("ms-theme");i
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // globals.css 開了全站平滑捲動；Next 16 起要有 data-scroll-behavior，換頁捲回頂端才會直接跳，不會從底部一路滑上去
-    <html lang="zh-Hant" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="zh-Hant" className={`${inter.variable} ${notoTC.variable}`} data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
         {/* 瀏覽器自己還原捲動位置（上一頁、重新整理）不經過 Next：這段跟 HistoryScrollJump 讓它直接跳回原位 */}
         <script dangerouslySetInnerHTML={{ __html: restoreScrollBootstrap }} />
       </head>
-      <body className={`${notoTC.variable} antialiased`}>
+      <body className="antialiased">
         <HistoryScrollJump />
         <GoogleAnalytics />
         {/* 結構化資料：告訴搜尋引擎這是什麼網站（各頁的麵包屑在頁面自己那裡）；放 body，<head> 只放畫面出來前要跑的程式 */}

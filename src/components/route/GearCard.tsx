@@ -162,7 +162,7 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
           type="button"
           onClick={() => setOpen(value => !value)}
           aria-expanded={open}
-          className="tap-safe flex w-full items-center justify-center gap-1 rounded-full border border-[color:var(--paper-edge)] text-[14px] font-bold"
+          className="tap-safe flex w-full items-center justify-center gap-1 rounded-md border border-[color:var(--paper-edge)] text-[14px] font-bold"
         >
           {open ? "收起" : "看全部"}
           <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
@@ -218,9 +218,10 @@ function TabRow({ plan, onPick }: { plan: GearPlan; onPick: (tab: string | null)
 /* ------------------------------------------------------------------ 能力值 */
 
 const CELL_TONE = {
-  main: "bg-[color:var(--maple)] text-[color:var(--on-accent)]",
-  second: "bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
-  rest: "bg-[color:var(--paper)] ink-faint",
+  // 主屬性：橘框淡底（v1.97 不再實心）；副屬性只有橘字、底跟其他格一樣（同底只差一條框的話手機上分不出誰是主的）；框都佔 1px，三種格子一樣大
+  main: "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]",
+  second: "border border-transparent bg-[color:var(--paper)] text-[color:var(--maple)]",
+  rest: "border border-transparent bg-[color:var(--paper)] ink-faint",
 } as const;
 
 function StatBlock({ plan, job }: { plan: GearPlan; job: number }) {
@@ -255,7 +256,7 @@ function StatBlock({ plan, job }: { plan: GearPlan; job: number }) {
 
 function StatCell({ stat, value, tone }: { stat: StatKey; value: number; tone: keyof typeof CELL_TONE }) {
   return (
-    <div className={`rounded-lg px-1 py-1.5 text-center ${CELL_TONE[tone]}`}>
+    <div className={`rounded-md px-1 py-1.5 text-center ${CELL_TONE[tone]}`}>
       <dt className="text-[11px] font-bold leading-none">
         <span aria-hidden>{STAT_SHORT[stat]}</span>
         <span className="sr-only">
@@ -362,7 +363,7 @@ function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where
             {word} +{piece.v}
           </span>
           {source?.kind === "quest" && source.quest.rand ? (
-            <span className="whitespace-nowrap rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--ink)]">
+            <span className="whitespace-nowrap rounded bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--ink)]">
               隨機，不一定拿到
             </span>
           ) : null}
@@ -546,7 +547,7 @@ function SourceLine({ pick, where, quiet = false }: { pick: SourcePick | null; w
       {go !== null ? (
         <Link
           href={`/go?to=${go}`}
-          className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold ${
+          className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-[12px] font-bold ${
             quiet ? "border-[color:var(--ink-soft)] text-[color:var(--ink-soft)]" : "border-[color:var(--maple)] text-[color:var(--maple)]"
           }`}
         >

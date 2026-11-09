@@ -101,7 +101,7 @@ export function MapPicker({
       )}
 
       {open && matches.length > 0 ? (
-        <ul className="absolute z-30 mt-1.5 max-h-72 w-full overflow-y-auto rounded-xl glass-solid p-1">
+        <ul className="absolute z-30 mt-1.5 max-h-72 w-full overflow-y-auto rounded-xl glass-solid p-1 shadow-[var(--float-shadow)]">
           {matches.map(row => (
             <li key={String(row[1])}>
               <button

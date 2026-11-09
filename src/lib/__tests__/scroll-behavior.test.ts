@@ -12,6 +12,7 @@ import { HistoryScrollJump } from "@/components/HistoryScrollJump";
 // next/font 要靠 Next 編譯時換掉，在測試裡是空檔；這裡只看 <html> 的屬性，字型給個空殼
 vi.mock("next/font/google", () => ({
   Noto_Sans_TC: () => ({ className: "", style: { fontFamily: "" }, variable: "" }),
+  Inter: () => ({ className: "", style: { fontFamily: "" }, variable: "" }),
 }));
 
 const css = fs.readFileSync(fileURLToPath(new URL("../../app/globals.css", import.meta.url)), "utf8");

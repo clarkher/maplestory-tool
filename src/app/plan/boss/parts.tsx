@@ -40,7 +40,7 @@ export function agoText(s: ChannelState): string {
 
 export function StatePill({ s }: { s: ChannelState }) {
   return (
-    <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-[3px] text-[13px] font-extrabold ${STATE_STYLE[s.kind]}`}>
+    <span className={`inline-flex items-center whitespace-nowrap rounded-md px-2.5 py-[3px] text-[13px] font-extrabold ${STATE_STYLE[s.kind]}`}>
       {s.label}
     </span>
   );
@@ -217,7 +217,8 @@ export function ActionButton({
       type={type}
       onClick={onClick}
       className={[
-        "tap-safe inline-flex shrink-0 items-center whitespace-nowrap rounded-full px-4 text-[15px] font-bold transition-colors",
+        "tap-safe inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-4 text-[15px] font-bold transition-colors",
+        // 實心：主要按鈕，不是選中
         solid
           ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] hover:brightness-110"
           : "border border-[color:var(--paper-edge)] hover:bg-[color:var(--maple-wash)]",

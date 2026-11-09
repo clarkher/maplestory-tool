@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ChevronDown, ChevronRight } from "@/components/Icons";
 import { itemImage, monsterImage, npcImage } from "@/lib/data";
 import { HALLOWEEN, halloweenChapterFor, type HalloweenChapter, type HalloweenHunt, type HalloweenNpc } from "@/lib/halloween";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
 /** 打勾記在這支裝置（localStorage）：活動做好幾天，關掉分頁還要在 */
 const DONE_KEY = "ms-event:halloween:done";
@@ -82,10 +83,8 @@ export function HalloweenGuide() {
               history.replaceState(history.state, "", `#ch${c.no}`);
             }}
             className={[
-              "tap-safe rounded-xl px-2 py-2 text-center text-sm font-bold leading-tight",
-              c.no === chapterNo
-                ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] shadow-sm"
-                : "glass text-[color:var(--ink-soft)] hover:text-[color:var(--ink)]",
+              "tap-safe rounded-md border px-2 py-2 text-center text-sm font-bold leading-tight",
+              c.no === chapterNo ? OPTION_ON : OPTION_OFF,
             ].join(" ")}
           >
             第{"一二三"[c.no - 1]}章
@@ -115,7 +114,7 @@ export function HalloweenGuide() {
             </span>
             <button
               type="button"
-              className="tap-safe rounded-full border border-[color:var(--paper-edge)] px-3 py-1 text-[13px] font-bold ink-soft"
+              className="tap-safe rounded-md border border-[color:var(--paper-edge)] px-3 py-1 text-[13px] font-bold ink-soft"
               onClick={() => {
                 const next = steps.find(s => !done[s.id]);
                 if (next) document.getElementById(`step-${next.id}`)?.scrollIntoView({ behavior: "instant", block: "center" });

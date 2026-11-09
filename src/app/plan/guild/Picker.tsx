@@ -5,6 +5,7 @@
  * 格子畫 2 倍、顏色照目前選的（shownColour：這格沒那色就畫它的第一色）。圖案頁目前圖案沒有的顏色變淡、按不到。
  */
 import marksJson from "@/lib/guild-mark/marks.json";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 import {
   type Badge,
   type Category,
@@ -205,10 +206,8 @@ export function Picker({
                   data-on={sel ? "" : undefined}
                   aria-pressed={sel}
                   onClick={() => onCat(c.key)}
-                  className={`inline-flex min-h-9 flex-none items-center whitespace-nowrap rounded-full border px-3.5 text-[14px] font-bold ${
-                    sel
-                      ? "border-[color:var(--maple)] bg-[color:var(--maple)] text-[color:var(--on-accent)]"
-                      : "border-[color:var(--paper-edge)] bg-[color:var(--paper)] text-[color:var(--ink)]"
+                  className={`inline-flex min-h-9 flex-none items-center whitespace-nowrap rounded-md border px-3.5 text-[14px] font-bold ${
+                    sel ? OPTION_ON : OPTION_OFF
                   }`}
                 >
                   {c.label} {data.marks[c.key].length}

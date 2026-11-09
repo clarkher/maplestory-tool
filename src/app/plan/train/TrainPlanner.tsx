@@ -158,7 +158,7 @@ function TrainCard({
               return (
                 <span
                   key={mobId}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5"
                 >
                   <Image
                     src={monsterImage(mobId)}

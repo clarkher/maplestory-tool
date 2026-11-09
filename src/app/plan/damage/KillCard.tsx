@@ -12,6 +12,7 @@ import { magicSureHitAccuracy, sureHitAccuracy } from "@/lib/damage";
 import { BOMB_ARROW, HEAL } from "@/lib/damage-skills";
 import { isMagicJob } from "@/lib/gear";
 import { accuracyText, Tag } from "./parts";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
 const CELL = 38;
 const GAP = 6;
@@ -145,8 +146,8 @@ function Sheet({ entry, kind, hitText, onClose, onPick }: { entry: KillEntry; ki
           </button>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-1.5">
-          <button ref={first} type="button" onClick={onPick} className="rounded-full bg-[color:var(--maple)] py-2.5 text-[14px] font-bold text-[color:var(--on-accent)]">設成要打的怪</button>
-          <Link href={`/db/monsters?id=${monster.id}`} className="rounded-full border border-[color:var(--paper-edge)] py-2.5 text-center text-[14px] font-bold">看掉寶、出沒地點</Link>
+          <button ref={first} type="button" onClick={onPick} className="rounded-md bg-[color:var(--maple)] py-2.5 text-[14px] font-bold text-[color:var(--on-accent)]">設成要打的怪</button>
+          <Link href={`/db/monsters?id=${monster.id}`} className="rounded-md border border-[color:var(--paper-edge)] py-2.5 text-center text-[14px] font-bold">看掉寶、出沒地點</Link>
         </div>
       </div>
     </div>
@@ -185,7 +186,7 @@ export function KillCard({ data, state, active, label, onPick, choices }: {
           type="button"
           aria-pressed={weakOnly}
           onClick={() => setWeakOnly(value => !value)}
-          className={`rounded-full px-3 py-1.5 text-[13px] font-bold ${weakOnly ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] text-[color:var(--sky)]"}`}
+          className={`rounded-md border px-3 py-1.5 text-[13px] font-bold ${weakOnly ? OPTION_ON : OPTION_OFF}`}
         >
           只看怕{elementWord(lists.element)}的怪（{weakCount} 隻）
         </button>
