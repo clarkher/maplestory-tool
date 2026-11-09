@@ -218,6 +218,7 @@ export function ActionButton({
       onClick={onClick}
       className={[
         "tap-safe inline-flex shrink-0 items-center whitespace-nowrap rounded-md px-4 text-[15px] font-bold transition-colors",
+        // 實心：主要按鈕，不是選中
         solid
           ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] hover:brightness-110"
           : "border border-[color:var(--paper-edge)] hover:bg-[color:var(--maple-wash)]",

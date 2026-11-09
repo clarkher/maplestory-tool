@@ -12,6 +12,7 @@ import { killExp, type Member } from "@/lib/speed/party-exp";
 import type { BoardRow } from "@/lib/speed/server/rules";
 import { jobName, partyKillLine } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
 export const BUTTON_MAIN = "rounded-md bg-[color:var(--maple)] px-4 py-2 font-bold text-[color:var(--on-accent)] disabled:opacity-60";
 export const BUTTON_LINE = "rounded-md border border-[color:var(--paper-edge)] px-3 py-1.5 text-sm font-bold hover:bg-[color:var(--maple-wash)]";
@@ -171,7 +172,7 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
             aria-selected={tab === key}
             aria-controls={panelId}
             onClick={() => onTab(key)}
-            className={`rounded-md px-3 py-1 text-sm font-bold ${tab === key ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "ink-soft hover:bg-[color:var(--maple-wash)]"}`}
+            className={`rounded-md border px-3 py-1 text-sm font-bold ${tab === key ? OPTION_ON : "border-transparent ink-soft hover:text-[color:var(--ink)]"}`}
           >
             {key === "solo" ? "單練" : "組隊"}
           </button>

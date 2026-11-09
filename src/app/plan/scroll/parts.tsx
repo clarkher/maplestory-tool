@@ -8,6 +8,7 @@ import { itemImage } from "@/lib/data";
 import type { SimRow } from "@/lib/scroll-sim/calc";
 import { statLine } from "@/lib/scroll-sim/pick";
 import type { SimEquip, SimScroll } from "@/lib/scroll-sim/types";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
 export const CARD = "rounded-[var(--radius-card)] glass-solid p-4 sm:p-[18px]";
 
@@ -320,7 +321,7 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
                     type="button"
                     aria-pressed={on}
                     onClick={() => setSlot(on ? "" : name)}
-                    className={`inline-flex min-h-[34px] shrink-0 items-center whitespace-nowrap rounded-md px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
+                    className={`inline-flex min-h-[34px] shrink-0 items-center whitespace-nowrap rounded-md border px-3.5 text-[14px] font-extrabold ${on ? OPTION_ON : OPTION_OFF}`}
                   >
                     {name}
                   </button>

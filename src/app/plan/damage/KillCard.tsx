@@ -12,6 +12,7 @@ import { magicSureHitAccuracy, sureHitAccuracy } from "@/lib/damage";
 import { BOMB_ARROW, HEAL } from "@/lib/damage-skills";
 import { isMagicJob } from "@/lib/gear";
 import { accuracyText, Tag } from "./parts";
+import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
 const CELL = 38;
 const GAP = 6;
@@ -185,7 +186,7 @@ export function KillCard({ data, state, active, label, onPick, choices }: {
           type="button"
           aria-pressed={weakOnly}
           onClick={() => setWeakOnly(value => !value)}
-          className={`rounded-md px-3 py-1.5 text-[13px] font-bold ${weakOnly ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)] text-[color:var(--sky)]"}`}
+          className={`rounded-md border px-3 py-1.5 text-[13px] font-bold ${weakOnly ? OPTION_ON : OPTION_OFF}`}
         >
           只看怕{elementWord(lists.element)}的怪（{weakCount} 隻）
         </button>
