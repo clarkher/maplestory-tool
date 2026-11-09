@@ -5,14 +5,13 @@ import { SeoLinks, SeoPage, SeoSection } from "@/components/SeoPage";
 import { jobLabel } from "@/lib/item-view";
 import { QuestSteps } from "@/components/QuestSteps";
 import { mapRoute, npcHref } from "@/lib/atlas-view";
-import { questLevel, questSteps } from "@/lib/quest-steps";
+import { coveredBlocks, questLevel, questSteps } from "@/lib/quest-steps";
 import { breadcrumbLd, clip, questSummary, webPageLd } from "@/lib/seo";
 import {
   staticAtlasIndex,
   staticHasItemPage,
   staticMaps,
   staticModified,
-  staticMonsters,
   staticQuests,
   staticQuestStepContext,
 } from "@/lib/static-data";
@@ -83,8 +82,7 @@ export default async function Page({ params }: Props) {
       return found ? [[id, found.n] as [string, string]] : [];
     }),
   );
-  const monsterIds = new Set(staticMonsters().map(monster => monster.id));
-  const mobs = (quest.needMobs ?? []).filter(mob => monsterIds.has(mob.id));
+  const steps = questSteps(quest, staticQuestStepContext());
   const jobs = jobsText(quest);
   // 接任務、回報、還會碰到的 NPC：有 NPC 頁的才連過去（頁面只帶這個任務用得到的 id）
   const atlasIndex = staticAtlasIndex();
@@ -115,19 +113,22 @@ export default async function Page({ params }: Props) {
         webPageLd({ name: `${quest.n}｜任務攻略`, path, description: clip(summary), modified: staticModified() }),
       ]}
     >
-      <QuestSteps steps={questSteps(quest, staticQuestStepContext())} />
+      <QuestSteps steps={steps} />
       {jobs ? <p className="text-sm"><span className="ink-faint">可接職業：</span>{jobs}</p> : null}
       {npcLinks.length ? (
         <SeoSection title="接任務、回報的 NPC">
           <SeoLinks links={npcLinks} />
         </SeoSection>
       ) : null}
-      <QuestDetailBody quest={quest} maps={mapsFor(quest, staticMaps())} questNames={questNames} npcPages={npcPages} itemPages={itemPages} />
-      {mobs.length ? (
-        <SeoSection title="要打的怪">
-          <SeoLinks links={mobs.map(mob => ({ href: `/db/monsters/${mob.id}`, text: mob.n, note: mob.c ? `${mob.c} 隻` : undefined }))} />
-        </SeoSection>
-      ) : null}
+      {/* 上面的步驟已經寫了的區塊（要打的怪、要交的東西、完成後拿到）不再列；任務對話照留 */}
+      <QuestDetailBody
+        quest={quest}
+        maps={mapsFor(quest, staticMaps())}
+        questNames={questNames}
+        npcPages={npcPages}
+        itemPages={itemPages}
+        hide={coveredBlocks(quest, steps)}
+      />
     </SeoPage>
   );
 }

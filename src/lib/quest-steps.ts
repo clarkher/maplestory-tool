@@ -24,6 +24,8 @@ export type QuestStep = {
   title: string;
   /** 每一行是一段話，畫成一個 <p> */
   lines: StepSeg[][];
+  /** 「帶我去」按鈕（/go?to=<圖>）：NPC 在城鎮裡、寫不出路線那一步才有 */
+  go?: string;
 };
 
 export type QuestStepContext = {
@@ -76,13 +78,25 @@ function routeLine(map: number | undefined, level: number, ctx: QuestStepContext
   return [route.gate ? `${route.text}${npcLevelNote(route.gate.npc, route.gate.minLevel)}` : route.text];
 }
 
+/**
+ * NPC 在城鎮裡（寫不出「從哪出發」的路線）就給一顆「帶我去」，連 /go?to=<圖>（跟 NPC 頁、地圖頁的帶我去同一個網址）。
+ * 有路線、沒圖、圖沒中文名、不是城鎮、等級不夠走到（傑夫後面）都不給。
+ */
+function goHref(map: number | undefined, hasRoute: boolean, level: number, ctx: QuestStepContext): string | undefined {
+  if (!map || hasRoute) return undefined;
+  const record = ctx.maps[String(map)];
+  if (!record?.zh || !record.t || belowGate(record, level)) return undefined;
+  return `/go?to=${map}`;
+}
+
 function startStep(quest: Quest, ctx: QuestStepContext): QuestStep | null {
   if (!quest.sNpc) return null;
   const level = levelText(quest.minLv, quest.maxLv);
   const lines: StepSeg[][] = [[...npcAt(quest.sNpc, ctx), `接任務${level ? `（${level}${/以[上下]$/.test(level) ? "" : " "}可接）` : ""}。`]];
   const route = routeLine(quest.sNpc.map, questLevel(quest), ctx);
   if (route) lines.push(route);
-  return { kind: "start", title: "去哪接", lines };
+  const go = goHref(quest.sNpc.map, Boolean(route), questLevel(quest), ctx);
+  return go ? { kind: "start", title: "去哪接", lines, go } : { kind: "start", title: "去哪接", lines };
 }
 
 function mobStep(quest: Quest, ctx: QuestStepContext): QuestStep | null {
@@ -95,11 +109,10 @@ function mobStep(quest: Quest, ctx: QuestStepContext): QuestStep | null {
     // 49 等以下不推傑夫後面的圖（maps.json 的 g）
     const rows = monsterMaps(monster, ctx.maps).rows.filter(row => !belowGate(ctx.maps[String(row.id)], level)).slice(0, MOB_MAPS);
     if (!rows.length) return [...line, "。"];
-    const places = rows.map(row => [
-      link(ctx.maps[String(row.id)].zh, ctx.mapHref(row.id)),
-      row.spawns ? `（同時 ${row.spawns} 隻）` : "",
-    ]);
-    return [...line, "：", rows.length > 1 ? "最多的圖是" : "去", ...joined(places), "。"];
+    // 只照怪多到少排，不寫隻數（新手看不懂「同時幾隻」）
+    const places = rows.map(row => [link(ctx.maps[String(row.id)].zh, ctx.mapHref(row.id))]);
+    if (places.length === 1) return [...line, "：去", ...places[0], "。"];
+    return [...line, "：最多的圖是", ...places[0], "，其次", ...joined(places.slice(1)), "。"];
   });
   return { kind: "mobs", title: "要打的怪", lines };
 }
@@ -168,6 +181,8 @@ function returnStep(quest: Quest, ctx: QuestStepContext): QuestStep | null {
   if (end.map && end.map !== start?.map) {
     const route = routeLine(end.map, questLevel(quest), ctx);
     if (route) lines.push(route);
+    const go = goHref(end.map, Boolean(route), questLevel(quest), ctx);
+    if (go) return { kind: "return", title: "回去交給誰", lines, go };
   }
   return { kind: "return", title: "回去交給誰", lines };
 }
@@ -190,6 +205,20 @@ export function questSteps(quest: Quest, ctx: QuestStepContext): QuestStep[] {
   return [startStep(quest, ctx), mobStep(quest, ctx), itemStep(quest, ctx), returnStep(quest, ctx), rewardStep(quest, ctx)].filter(
     (step): step is QuestStep => step !== null,
   );
+}
+
+/**
+ * 任務單獨頁下面的卡片（QuestDetailBody）哪幾塊已經被步驟寫過、不用再列：
+ * 要打的怪＝有打怪那步；要交的東西＝道具有那步、要付的楓幣有回報那步寫；完成後拿到＝有獎勵那步。
+ */
+export function coveredBlocks(quest: Quest, steps: QuestStep[]): { mobs: boolean; needItems: boolean; rewards: boolean } {
+  const has = (kind: QuestStep["kind"]) => steps.some(step => step.kind === kind);
+  const pay = payText(quest.money, Boolean(quest.needItems?.length));
+  return {
+    mobs: has("mobs"),
+    needItems: (!quest.needItems?.length || has("items")) && (!pay || has("return")),
+    rewards: has("reward"),
+  };
 }
 
 /** 整步的純文字（測試、統計用） */
