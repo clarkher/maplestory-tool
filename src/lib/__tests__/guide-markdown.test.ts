@@ -186,22 +186,23 @@ describe("站上的文章（src/content/guides）", () => {
     expect(doc.title).toMatch(/陸服.*台服未公布/);
     const text = guideText(doc.blocks);
     expect(text.split("\n")[0]).toContain("這是陸服情報，台服還沒公布");
-    expect(text).toContain("數值（台服遊戲檔案已有）");
-    expect(text).toContain("成功率 15%，攻擊力 +5，STR +3，物理防禦力 +1");
+    expect(text).toContain("台服名稱、等級、數值：楓之谷經典版台服遊戲檔案已有");
+    expect(text).toContain("武器（台服名稱） 台服數值 陸服");
+    // v1.96 手機表格改窄：卷軸第一欄只留成功率，完整台服名稱＋ID 寫在表上方
+    expect(text).toMatch(/^\s*15% 攻擊力 \+5，STR \+3，物理防禦力 \+1 /m);
     expect(text).not.toContain("台服遊戲檔案還沒有");
     // 21 張卷軸的台服名稱照站上道具資料（public/data/items.json 的 n），成功率跟說明 d 對得上
     const items = JSON.parse(fs.readFileSync(path.join(ROOT, "public/data/items.json"), "utf8")) as { id: number; n: string; d?: string }[];
     const scrolls = items.filter(item => item.id >= 2046414 && item.id <= 2046434);
     expect(scrolls).toHaveLength(21);
     for (const scroll of scrolls) {
-      const row = text.split("\n").find(line => line.includes(String(scroll.id)))!;
-      expect(row, String(scroll.id)).toContain(scroll.n);
-      expect(scroll.d, String(scroll.id)).toContain(`${/成功率 (\d+)%/.exec(row)![1]}%`);
+      expect(text, String(scroll.id)).toContain(`${scroll.n}（${scroll.id}）`);
+      expect(scroll.d, String(scroll.id)).toContain(`${/(\d+)%$/.exec(scroll.n)![1]}%`);
     }
     const icons = guideImages(doc.blocks).filter(src => src.startsWith("/assets/items/"));
     expect(new Set(icons).size).toBe(19 + 21);
     // 兩把劍名稱對調：陸服「楓葉戰劍」＝台服 35 級楓葉之劍（1302020）
-    expect(text).toMatch(/楓葉之劍（單手劍） 35 等[^\n]* 100 枚 楓葉戰劍$/m);
+    expect(text).toMatch(/楓葉之劍 35 等 單手劍，不限職業；[^\n]* 100\s枚，叫楓葉戰劍$/m);
     // 表格裡的道具小圖要 max-w-none，不然算欄寬時被當 0 寬，名字壓到隔壁欄
     const html = renderToString(createElement(GuideDocView, { doc, hero: null, jsonLd: [] }));
     const icon = /<td[^>]*><img [^>]*src="\/assets\/items\/1302020\.png"[^>]*>/.exec(html)![0];
