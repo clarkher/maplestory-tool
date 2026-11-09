@@ -1,7 +1,7 @@
 import { articlePath, articleRangeLabel } from "@/lib/job-article";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 import { SITE_PAGES } from "@/lib/site-pages";
-import { staticGuide, staticGuideJobs, staticJobArticleKeys, staticMeta } from "@/lib/static-data";
+import { staticGuide, staticGuideDocs, staticGuideJobs, staticJobArticleKeys, staticMeta } from "@/lib/static-data";
 
 /**
  * /llms.txt：給 AI（ChatGPT、Claude、Perplexity…）讀的網站說明（llmstxt.org 的格式）。
@@ -19,6 +19,13 @@ function articleLines(): string[] {
     ...keys.map(({ job, from, to }) => `- [${staticGuide(job).name} ${articleRangeLabel(from, to)}](${SITE_URL}${articlePath(job, from, to)})`),
     "",
   ];
+}
+
+/** 一般攻略文（v1.88，src/content/guides）：轉職、活動這類不是「職業×等級」的文章 */
+function docLines(): string[] {
+  const docs = staticGuideDocs();
+  if (!docs.length) return [];
+  return ["## 攻略文章", "", ...docs.map(doc => `- [${doc.title}](${SITE_URL}/guides/${doc.slug})：${doc.description}`), ""];
 }
 
 export function GET() {
@@ -40,6 +47,7 @@ export function GET() {
     ...staticGuideJobs().map(job => `- [${staticGuide(job).name}](${SITE_URL}/jobs/${job})`),
     "",
     ...articleLines(),
+    ...docLines(),
     "## 單筆資料頁",
     "",
     `- 怪物：${SITE_URL}/db/monsters/<怪物編號>，例 ${SITE_URL}/db/monsters/100100（嫩寶）`,

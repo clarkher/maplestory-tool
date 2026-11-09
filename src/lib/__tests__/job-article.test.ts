@@ -49,6 +49,7 @@ import {
 import { undeadOnlyStage } from "@/lib/job-rules";
 import { JOB_OPTIONS } from "@/lib/jobs";
 import { articleLd, SITE_ROBOTS } from "@/lib/seo";
+import { staticGuideDocs } from "@/lib/static-data";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Skill, TrainingRow } from "@/lib/types";
 
 // 頁面、網站地圖、llms.txt 讀的文章清單換成這裡的假資料；掃真檔那段用 importActual
@@ -416,7 +417,7 @@ function validCleric(): JobArticle {
   const monkey = byName("天使猴").id;
   const zombie = byName("殭屍菇菇").id;
   return {
-    title: "僧侶 31～50 等怎麼練",
+    title: "楓之谷經典版僧侶 31～50 等怎麼練",
     description: "僧侶 31 到 50 等先打{{mob:殭屍菇菇}}，再打{{mob:天使猴}}。",
     published: "2026-11-04",
     updated: "2026-11-04",
@@ -427,7 +428,7 @@ function validCleric(): JobArticle {
       { text: `40～50 打{{mob:天使猴}} {{hits:${monkey}}} 下、{{hitLv:${monkey}}} 等不 MISS`, tag: "calc", from: 40, to: 50 },
     ],
     gear: [{ from: 31, to: 39, weapon: 1372005 }, { from: 40, to: 50, weapon: 1302016 }],
-    intro: "僧侶這段靠群體治癒打不死系。",
+    intro: "楓之谷經典版的僧侶這段靠群體治癒打不死系。",
     steps: [
       { from: 31, to: 39, kind: "party", map: 105050000, mobs: [zombie], title: "{{map:105050000}}：{{mob:殭屍菇菇}}", text: "魔防低。", tag: "tw" },
       { from: 40, to: 50, kind: "party", map: 107000403, mobs: [monkey], title: "{{map:107000403}}：{{mob:天使猴}}", text: "主線。", tag: "tw" },
@@ -518,17 +519,25 @@ describe("validateArticle：防呆每一條都擋得住", () => {
   it("範圍要過門檻", () => {
     expect(broken(() => {}, { ...ctx, job: 210, from: 51, to: 70 })).toMatch(/門檻/);
   });
-  it("標題不寫經典版（模板會補）", () => {
-    expect(broken(article => { article.title = "楓之谷經典版僧侶攻略"; })).toMatch(/經典版/);
+  it("標題要寫「楓之谷經典版」（11/09 使用者規則，模板補的不算）", () => {
+    expect(broken(article => { article.title = "僧侶 31～50 等怎麼練"; })).toMatch(/title.*楓之谷經典版/);
+    // 只寫「經典版」不算
+    expect(broken(article => { article.title = "經典版僧侶 31～50 等怎麼練"; })).toMatch(/title.*楓之谷經典版/);
+    expect(broken(() => {})).not.toMatch(/title/);
   });
-  it("標題 23 字內（換完代號算）：Google 大約顯示 30 字，模板後面的「楓之谷經典版」才看得到", () => {
-    expect(broken(article => { article.title = "字".repeat(24); })).toMatch(/title.*23/);
-    expect(broken(article => { article.title = "字".repeat(23); })).not.toMatch(/title/);
+  it("內文（intro）要寫「楓之谷經典版」", () => {
+    expect(broken(article => { article.intro = "僧侶這段靠群體治癒打不死系。"; })).toMatch(/intro.*楓之谷經典版/);
+    expect(broken(() => {})).not.toMatch(/intro/);
+  });
+  it("標題 30 字內（換完代號算）：Google 大約顯示 30 字，「楓之谷經典版」寫在最前面不會被截", () => {
+    const at = "楓之谷經典版" + "字".repeat(30 - 6);
+    expect(broken(article => { article.title = at + "字"; })).toMatch(/title.*30/);
+    expect(broken(article => { article.title = at; })).not.toMatch(/title/);
   });
   it("文中提到的怪名要查得到：{{mob:}} 的名字要完全對、{{mobs:}} 要有怪的名字含這幾個字", () => {
     expect(broken(article => { article.intro = "打{{mob:天使猴猴}}"; })).toMatch(/intro.*天使猴猴/);
     expect(broken(article => { article.intro = "打{{mobs:妖魔}}"; })).toMatch(/intro.*妖魔/);
-    expect(broken(article => { article.intro = "打{{mobs:獨角獅}}"; })).toEqual("");
+    expect(broken(article => { article.intro = "楓之谷經典版打{{mobs:獨角獅}}"; })).toEqual("");
     const gone = { ...ctx, data: { ...data, monsters: data.monsters.filter(monster => monster.n !== "天使猴") } };
     expect(broken(() => {}, gone)).toMatch(/天使猴/);
     // 標未開放的怪不算查得到
@@ -541,7 +550,7 @@ describe("validateArticle：防呆每一條都擋得住", () => {
     // 只打一部分的名字（紅獨角獅打成獨角獅）也擋，要走 {{mobs:}}
     expect(broken(article => { article.intro = "48 等打獨角獅"; })).toMatch(/intro.*獨角獅/);
     // 地圖名裡的怪名不算：猴子森林不是在講猴子
-    expect(broken(article => { article.intro = "去猴子森林、猴子沼澤地、鱷魚潭"; })).toEqual("");
+    expect(broken(article => { article.intro = "楓之谷經典版去猴子森林、猴子沼澤地、鱷魚潭"; })).toEqual("");
     expect(broken(article => { article.sources[0].label = "玩家討論：天使猴"; })).toEqual("");
   });
   it("文字依賴的前提（assumes）要跟表對得上：武器、技能、命中變了就擋", () => {
@@ -646,7 +655,8 @@ describe("頁面（文章清單換成假資料）", () => {
   it("只出有檔案的範圍；沒有檔案的範圍 404", async () => {
     const { default: Page, dynamicParams, generateStaticParams } = await import("@/app/guides/[slug]/page");
     expect(dynamicParams).toBe(false);
-    expect(generateStaticParams()).toEqual([{ slug: "priest-31-50" }]);
+    // 一般攻略文（src/content/guides，v1.88）也走這個路由，跟著列
+    expect(generateStaticParams()).toEqual([{ slug: "priest-31-50" }, ...staticGuideDocs().map(doc => ({ slug: doc.slug }))]);
     mockArticles.article = undefined;
     await expect(Page(params("priest-31-50"))).rejects.toThrow();
     mockArticles.article = validCleric();
@@ -656,7 +666,7 @@ describe("頁面（文章清單換成假資料）", () => {
   it("標題、描述、canonical、openGraph", async () => {
     const { generateMetadata } = await import("@/app/guides/[slug]/page");
     const meta = await generateMetadata(params("priest-31-50"));
-    expect(meta.title).toBe("僧侶 31～50 等怎麼練");
+    expect(meta.title).toEqual({ absolute: "楓之谷經典版僧侶 31～50 等怎麼練｜楓谷幫手" });
     expect(meta.description).toBe("僧侶 31 到 50 等先打殭屍菇菇，再打天使猴。");
     expect(meta.alternates?.canonical).toBe("/guides/priest-31-50");
     expect(meta.openGraph?.url).toBe("/guides/priest-31-50");
@@ -762,7 +772,9 @@ describe("頁面（文章清單換成假資料）", () => {
     expect(urls.some(url => /\/jobs\/\d+\/\d+-\d+/.test(url))).toBe(false);
     expect(await GET().text()).toContain("https://maplehelper.tw/guides/priest-31-50");
     mockArticles.keys = [];
-    expect(sitemap().map(entry => entry.url).some(url => url.includes("/guides/"))).toBe(false);
+    // 一般攻略文（v1.88）不跟職業文章的資料夾走，照舊列
+    const docs = new Set(staticGuideDocs().map(doc => `https://maplehelper.tw/guides/${doc.slug}`));
+    expect(sitemap().map(entry => entry.url).some(url => url.includes("/guides/") && !docs.has(url))).toBe(false);
     expect(await GET().text()).not.toContain("分等級攻略文");
   });
 });
@@ -1142,7 +1154,7 @@ describe("assumes 也比對文字用到的資料代號（資料一變就下架�
   const ctx = { job: 230, from: 31, to: 50, data, openMaps };
   const table = buildCalcTable({ job: 230, from: 31, to: 50, data });
   const base = () => {
-    const article: JobArticle = { ...validCleric(), intro: `打 {{hits:${monkey.id}@45#${umbrella}}} 下，單打 {{hitsOne:${monkey.id}@45#${umbrella}}} 下` };
+    const article: JobArticle = { ...validCleric(), intro: `楓之谷經典版打 {{hits:${monkey.id}@45#${umbrella}}} 下，單打 {{hitsOne:${monkey.id}@45#${umbrella}}} 下` };
     article.assumes = articleAssumes(article, table, data);
     return article;
   };
@@ -1560,7 +1572,7 @@ describe("Discover 規格", () => {
     const meta = await generateMetadata(params);
     const hero = "https://maplehelper.tw/assets/guides/priest-31-50/hero.jpg";
     expect(meta.openGraph).toMatchObject({ type: "article", publishedTime: "2026-11-04T00:00:00+08:00", modifiedTime: "2026-11-04T00:00:00+08:00", images: [{ url: hero, width: 1536, height: 864, alt: "僧侶在螞蟻洞Ⅰ面對殭屍菇菇" }] });
-    expect(meta.twitter).toMatchObject({ card: "summary_large_image", title: "僧侶 31～50 等怎麼練", images: [hero] });
+    expect(meta.twitter).toMatchObject({ card: "summary_large_image", title: "楓之谷經典版僧侶 31～50 等怎麼練", images: [hero] });
   });
   it("還沒有主圖時退回全站預覽圖，不指到不存在的檔案", async () => {
     mockArticles.images = {};
@@ -1579,7 +1591,7 @@ describe("Discover 規格", () => {
     const org = { "@type": "Organization", name: "楓谷幫手", url: "https://maplehelper.tw" };
     expect(ld).toMatchObject({
       "@context": "https://schema.org",
-      headline: "僧侶 31～50 等怎麼練",
+      headline: "楓之谷經典版僧侶 31～50 等怎麼練",
       description: "僧侶 31 到 50 等先打殭屍菇菇，再打天使猴。",
       image: ["https://maplehelper.tw/assets/guides/priest-31-50/hero.jpg"],
       datePublished: "2026-11-04T00:00:00+08:00",
