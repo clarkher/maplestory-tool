@@ -2,6 +2,7 @@
  * 改版整理的比對：拿兩份 build.mjs 的輸出（items／quests／monsters／maps），列出新增、改了、站上不再列出。
  * 純函式，不讀檔；before／after 直接給玩家看，所以全是白話字（不露出欄位代號或 JSON）。
  * 只收看得懂的欄位：說明、商店、掉落、能力、名稱。qr／qq／un／c／sh 變了不算（玩家看不出差別）。
+ * 髮型臉型（外觀/角色）只給數字（looks、goneLooks），不列清單，改了也不列。
  */
 import { equipStatLabel, equipStatValue } from "./equip-labels.mjs";
 
@@ -58,6 +59,7 @@ export function diffPatch(oldData, newData) {
   const gone = { items: [], quests: [] };
   const changed = [];
   let looks = 0;
+  let goneLooks = 0;
   let changedItems = 0;
 
   for (const [key, it] of newItems) {
@@ -70,11 +72,16 @@ export function diffPatch(oldData, newData) {
       }
     }
   }
-  for (const [key, it] of oldItems) if (!newItems.has(key)) gone.items.push({ id: it.id, n: it.n });
+  // 髮型臉型只給數字不列清單（新增、不再列出、改了都一樣）
+  for (const [key, it] of oldItems) {
+    if (newItems.has(key)) continue;
+    if (it.s === LOOKS) goneLooks++;
+    else gone.items.push({ id: it.id, n: it.n });
+  }
 
   for (const [key, now] of newItems) {
     const was = oldItems.get(key);
-    if (!was) continue;
+    if (!was || was.s === LOOKS || now.s === LOOKS) continue;
     const rows = [];
     const push = (kind, before, after) => rows.push({ id: now.id, n: now.n, kind, before, after });
     if (was.n !== now.n) push("名稱", was.n, now.n);
@@ -118,6 +125,7 @@ export function diffPatch(oldData, newData) {
       maps: added.maps.length,
       changed: changedItems,
       goneItems: gone.items.length,
+      goneLooks,
       goneQuests: gone.quests.length,
     },
     added,

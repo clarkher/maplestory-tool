@@ -144,3 +144,22 @@ test("sp 活動貨幣寫貨幣名、整組賣寫件數，不像楓幣價；分�
     "商城 100、楓之谷通行證遠端商店 2,000 個 1,400、雪原的面具祭典現場 10 個 1 萬聖節硬幣、雪原的面具祭典現場 10 萬聖節硬幣",
   );
 });
+
+test("髮型臉型不再列出：不進 gone.items，只算 counts.goneLooks", () => {
+  const d = diffPatch(
+    mk({ items: [item(1), item(2, { c: "時裝", s: "外觀/角色" }), item(3, { c: "時裝", s: "外觀/角色" })] }),
+    mk(),
+  );
+  assert.deepEqual(d.gone.items, [{ id: 1, n: "道具1" }]);
+  assert.equal(d.counts.goneItems, 1);
+  assert.equal(d.counts.goneLooks, 2);
+});
+
+test("髮型臉型改了：不進 changed、不算 counts.changed", () => {
+  const d = diffPatch(
+    mk({ items: [item(1, { c: "時裝", s: "外觀/角色", n: "不高興的臉型" }), item(2, { d: "a" })] }),
+    mk({ items: [item(1, { c: "時裝", s: "外觀/角色", n: "不高興的臉" }), item(2, { d: "b" })] }),
+  );
+  assert.deepEqual(d.changed.map(c => c.id), [2]);
+  assert.equal(d.counts.changed, 1);
+});
