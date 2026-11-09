@@ -27,6 +27,7 @@ import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
 import { copyMissingFrames } from "./lib/monster-frames.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
+import { buildPaths } from "./lib/build-paths.mjs";
 import { shopPrice, shopRows } from "./lib/shops.mjs";
 import { buyQuestIds, buyQuestShops, buyQuestSkills, tradeTable } from "./lib/buy-quests.mjs";
 import { givenRewardRows, rewardSkillNames, splitPreQuests, splitStartNone } from "./lib/quest-fields.mjs";
@@ -36,8 +37,10 @@ import { cleanSkillDesc, clientLevels, expiredOn, linkPrereqs, skillLevelText, s
 import { DEFAULT_RESPAWN_SECONDS, mergeSpawns, respawnSeconds, twSpawns } from "./lib/spawns.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
-const RAW = path.join(ROOT, "data", "raw");
-const OUT = path.join(ROOT, "public", "data");
+// 輸入／輸出位置可用環境變數換掉（改版比對要把舊版上游資料重建到暫存資料夾），見 lib/build-paths.mjs
+const PATHS = buildPaths(process.env, ROOT);
+const RAW = PATHS.rawDir;
+const OUT = PATHS.outDir;
 
 /**
  * 台服《新楓之谷：經典版》目前開放的範圍。
@@ -95,10 +98,10 @@ function v002OpenDate(id, zh) {
 }
 
 function main() {
-  const artale = readJson(path.join(RAW, "artale.json"));
+  const artale = readJson(PATHS.artaleFile);
   const v83 = readJson(path.join(RAW, "v83-maps.json"));
   const msio = readJson(path.join(RAW, "msio-maps.json"), null);
-  if (!artale) throw new Error("缺 data/raw/artale.json，先跑 npm run data:artale");
+  if (!artale) throw new Error(`缺 ${PATHS.artaleFile}，先跑 npm run data:artale`);
   if (!v83) throw new Error("缺 data/raw/v83-maps.json，先跑 npm run data:v83");
 
   fs.mkdirSync(OUT, { recursive: true });
@@ -121,10 +124,13 @@ function main() {
   // 上游讓新怪物借用別隻的圖時（6300001 變形雪吉拉 → 6300000.png），補一張 <id>.png，前端才不會是壞圖。
   // 放在建置而不放在 fetch：資料自動更新每次先 fetch（rsync 鏡像會刪掉這張複製檔）再 build（補回來），所以不會被洗掉
   const rawMonster = new Map((artale.monsters || []).map(monster => [Number(monster.id), monster]));
-  copyMissingFrames(
-    path.join(ROOT, "public", "assets", "monster_frames"),
-    monsters.list.map(monster => ({ id: monster.id, image: rawMonster.get(monster.id)?.image })),
-  );
+  // 指定了輸出資料夾（暫存重建）時不准動 public/assets
+  if (PATHS.writeAssets) {
+    copyMissingFrames(
+      path.join(ROOT, "public", "assets", "monster_frames"),
+      monsters.list.map(monster => ({ id: monster.id, image: rawMonster.get(monster.id)?.image })),
+    );
+  }
   const items = buildItems(artale, monsters, maps);
   // 技能先建：任務的獎勵技能要寫技能名（buildQuests）
   const skills = buildSkills(artale, allJobs);
