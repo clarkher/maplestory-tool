@@ -1822,3 +1822,24 @@ describe("攻略文深色頁首（v1.95，設計系統 A 拍板 1、4）", () =>
     expect(html.match(/<h1/g)).toHaveLength(1);
   });
 });
+
+describe("攻略文電腦版本篇目錄（v1.95）", () => {
+  it("目錄列先講結論、每個等級去哪裡、計算表跟每一段，每個連結頁面上都有那個 id；只在 lg 以上、黏著", async () => {
+    const { JobArticleView } = await import("@/components/JobArticleView");
+    const raw = realArticle(230, 31, 50);
+    const table = buildCalcTable({ job: 230, from: 31, to: 50, data, gear: raw.gear });
+    const article = resolveArticle(raw, table, data);
+    const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table, monsters: new Map(data.monsters.map(m => [m.id, m])), maps: {}, dataNote: "", jsonLd: [] }));
+    const tocStart = html.indexOf('aria-label="本篇目錄"');
+    expect(tocStart).toBeGreaterThan(-1);
+    const toc = html.slice(html.lastIndexOf("<nav", tocStart), html.indexOf("</nav>", tocStart));
+    expect(toc).toMatch(/hidden[^"]*lg:block/);
+    expect(toc).toContain("sticky");
+    const links = [...toc.matchAll(/href="#([^"]+)"/g)].map(m => m[1]);
+    const labels = [...toc.matchAll(/<a [^>]*>([^<]+)<\/a>/g)].map(m => m[1]);
+    expect(labels.slice(0, 3)).toEqual(["先講結論", "每個等級去哪裡", "幾下打死、打不打得中"]);
+    expect(links.length).toBe(3 + article.sections.length);
+    for (const id of links) expect(html, id).toContain(`id="${id}"`);
+    expect(new Set(links).size).toBe(links.length);
+  });
+});
