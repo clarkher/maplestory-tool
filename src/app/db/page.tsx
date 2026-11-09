@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ChevronRight } from "@/components/Icons";
 import { Sprite } from "@/components/route/bits";
 
 export const metadata: Metadata = {
@@ -33,6 +34,31 @@ const MARKET = [
   { href: "/price/fx", title: "楓幣匯率", lead: "雪吉拉 1 億楓幣現在值多少台幣、每天怎麼變", image: "/assets/meso/bag.png" },
 ];
 
+/** 小標：小字、粗、字距加寬（v1.99，跟單筆頁的 SeoSection 同一套） */
+const LABEL = "px-1 text-[12px] font-black tracking-[0.1em] ink-faint";
+
+/** 工具、行情：一張卡多列，列之間 1px 線、右邊箭頭（v1.99 照候選圖 A-db 的清單入口） */
+function EntryList({ entries }: { entries: { href: string; title: string; lead: string; image: string }[] }) {
+  return (
+    <ul className="divide-y divide-[color:var(--paper-edge)] overflow-hidden rounded-[var(--radius-card)] glass">
+      {entries.map(entry => (
+        <li key={entry.href}>
+          <Link href={entry.href} className="flex items-center gap-3 px-3.5 py-3 hover:bg-[color:var(--paper-deep)]">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-[color:var(--paper-deep)]">
+              <Sprite src={entry.image} size={30} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block font-bold">{entry.title}</span>
+              <span className="block text-[13px] leading-snug ink-soft">{entry.lead}</span>
+            </span>
+            <ChevronRight size={16} className="shrink-0 ink-faint" />
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function Page() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-4 sm:py-8">
@@ -44,16 +70,19 @@ export default function Page() {
       </header>
 
       <section aria-label="圖鑑" className="space-y-2">
-        <h2 className="px-1 text-sm font-bold ink-soft">圖鑑</h2>
-        <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        <h2 className={LABEL}>圖鑑</h2>
+        {/* 圖鑑：圖在左、字在右的橫卡（v1.99 照候選圖 A-db），手機一欄、電腦三欄 */}
+        <ul className="grid gap-2.5 sm:grid-cols-3">
           {LOOKUPS.map(entry => (
             <li key={entry.href}>
-              <Link href={entry.href} className="flex h-full flex-col items-center gap-1.5 rounded-[var(--radius-card)] glass wood-frame p-3.5 text-center transition-transform hover:-translate-y-0.5">
-                <span className="grid size-14 place-items-center rounded-2xl bg-[color:var(--paper-deep)]">
-                  <Sprite src={entry.image} size={40} />
+              <Link href={entry.href} className="flex h-full items-center gap-3 rounded-[var(--radius-card)] glass p-3.5 hover:bg-[color:var(--paper-deep)]">
+                <span className="grid size-11 shrink-0 place-items-center rounded-md bg-[color:var(--paper-deep)]">
+                  <Sprite src={entry.image} size={32} />
                 </span>
-                <span className="text-[16px] font-black">{entry.title}</span>
-                <span className="text-[12px] leading-snug ink-soft">{entry.lead}</span>
+                <span className="min-w-0">
+                  <span className="block text-[16px] font-black">{entry.title}</span>
+                  <span className="block text-[12px] leading-snug ink-soft">{entry.lead}</span>
+                </span>
               </Link>
             </li>
           ))}
@@ -61,41 +90,13 @@ export default function Page() {
       </section>
 
       <section aria-label="排行與規劃" className="space-y-2">
-        <h2 className="px-1 text-sm font-bold ink-soft">排行與規劃</h2>
-        <ul className="space-y-2">
-          {TOOLS.map(entry => (
-            <li key={entry.href}>
-              <Link href={entry.href} className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-3 transition-transform hover:-translate-y-0.5">
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[color:var(--paper-deep)]">
-                  <Sprite src={entry.image} size={34} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-bold">{entry.title}</span>
-                  <span className="block text-[13px] leading-snug ink-soft">{entry.lead}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <h2 className={LABEL}>排行與規劃</h2>
+        <EntryList entries={TOOLS} />
       </section>
 
       <section aria-label="行情" className="space-y-2">
-        <h2 className="px-1 text-sm font-bold ink-soft">行情</h2>
-        <ul className="space-y-2">
-          {MARKET.map(entry => (
-            <li key={entry.href}>
-              <Link href={entry.href} className="flex items-center gap-3 rounded-[var(--radius-card)] glass wood-frame p-3 transition-transform hover:-translate-y-0.5">
-                <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-[color:var(--paper-deep)]">
-                  <Sprite src={entry.image} size={34} />
-                </span>
-                <span className="min-w-0">
-                  <span className="block font-bold">{entry.title}</span>
-                  <span className="block text-[13px] leading-snug ink-soft">{entry.lead}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <h2 className={LABEL}>行情</h2>
+        <EntryList entries={MARKET} />
       </section>
     </div>
   );
