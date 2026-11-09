@@ -295,7 +295,7 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
           </button>
         </div>
         <div className="px-4">
-          <div className="flex items-center gap-2 rounded-full border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-3">
+          <div className="flex items-center gap-2 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--glass-strong)] px-3">
             <SearchIcon size={16} className="shrink-0 ink-faint" />
             <input
               ref={input}
@@ -320,7 +320,7 @@ export function Picker({ title, items, selected, onPick, onClose, hint }: {
                     type="button"
                     aria-pressed={on}
                     onClick={() => setSlot(on ? "" : name)}
-                    className={`inline-flex min-h-[34px] shrink-0 items-center whitespace-nowrap rounded-full px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
+                    className={`inline-flex min-h-[34px] shrink-0 items-center whitespace-nowrap rounded-md px-3.5 text-[14px] font-extrabold ${on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "border border-[color:var(--paper-edge)]"}`}
                   >
                     {name}
                   </button>

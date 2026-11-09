@@ -101,7 +101,7 @@ export function QuestDetailBody({
               <li key={`${mob.id}-${index}`}>
                 <Link
                   href={`/db/monsters?id=${mob.id}`}
-                  className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] px-3 py-1 text-[13px] font-bold hover:bg-[color:var(--maple-wash)]"
+                  className="inline-flex items-center gap-1 rounded-md bg-[color:var(--paper-deep)] px-3 py-1 text-[13px] font-bold hover:bg-[color:var(--maple-wash)]"
                 >
                   {mob.n}
                   {mob.c ? <span className="tabular-nums text-[color:var(--maple)]">×{mob.c}</span> : null}
@@ -227,7 +227,7 @@ export function ItemChips({
         <li key={`${row.id}-${index}`}>
           <Anchor
             href={href}
-            className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
+            className="inline-flex items-center gap-1 rounded-md bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
             title={href.startsWith("/plan/farm") ? "看這個道具去哪打" : undefined}
           >
             <Image src={itemImage(row.id)} alt="" width={22} height={22} className="size-[22px] object-contain" unoptimized />
@@ -236,10 +236,10 @@ export function ItemChips({
               <span className="text-[11px] tabular-nums text-[color:var(--maple)]">×{row.c}</span>
             ) : null}
             {"rand" in row && row.rand ? (
-              <span className="rounded-full bg-[color:var(--sky-wash)] px-1.5 text-[10px] font-bold text-[color:var(--sky)]">隨機</span>
+              <span className="rounded bg-[color:var(--sky-wash)] px-1.5 text-[10px] font-bold text-[color:var(--sky)]">隨機</span>
             ) : null}
             {"job" in row && row.job ? (
-              <span className="rounded-full bg-[color:var(--gold-wash)] px-1.5 text-[10px] font-bold text-[color:var(--gold)]">職業限定</span>
+              <span className="rounded bg-[color:var(--gold-wash)] px-1.5 text-[10px] font-bold text-[color:var(--gold)]">職業限定</span>
             ) : null}
           </Anchor>
         </li>

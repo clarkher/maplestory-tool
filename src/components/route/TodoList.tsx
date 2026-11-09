@@ -48,7 +48,7 @@ export function TodoList({ items, routable, maps, questNames }: Omit<RowProps, "
           type="button"
           onClick={() => setShowAll(value => !value)}
           aria-expanded={showAll}
-          className="tap-safe w-full rounded-full border border-[color:var(--paper-edge)] text-[14px] font-bold"
+          className="tap-safe w-full rounded-md border border-[color:var(--paper-edge)] text-[14px] font-bold"
         >
           {showAll ? "收起" : `還有 ${items.length - FIRST_SHOWN} 個任務`}
         </button>
@@ -81,7 +81,7 @@ function TodoRow({ item, routable, maps, questNames, memoryKey }: RowProps) {
               {item.pickOne ? <PartsText text={item.title} /> : item.title}
             </button>
             {item.reward ? (
-              <span className="rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--gold)]">{item.reward}</span>
+              <span className="rounded bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--gold)]">{item.reward}</span>
             ) : null}
           </span>
           {/* 每一塊（+經驗、約幾級、第幾段／共幾段）各自不斷行，375 寬不會把「段」字單獨擠到下一行；
@@ -102,7 +102,7 @@ function TodoRow({ item, routable, maps, questNames, memoryKey }: RowProps) {
             {/* 要去的地圖名不能被截掉：放不下就換行 */}
             <span className="min-w-0 text-[12px] leading-snug ink-faint">{item.npc ? `${item.npc.n}・${item.npc.mapName ?? ""}` : ""}</span>
             {go ? (
-              <Link href={`/go?to=${go.map}`} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[color:var(--maple)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--maple)]">
+              <Link href={`/go?to=${go.map}`} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[color:var(--maple)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--maple)]">
                 <RouteIcon size={13} />
                 {go.viaReturn ? `帶我去${mapName(maps, go.map)}` : "帶我去"}
               </Link>
@@ -188,7 +188,7 @@ function PartList({ item, maps, questNames, memoryKey }: Omit<RowProps, "routabl
           type="button"
           onClick={() => setShowAll(value => !value)}
           aria-expanded={showAll}
-          className="tap-safe w-full rounded-full border border-[color:var(--paper-edge)] text-[13px] font-bold"
+          className="tap-safe w-full rounded-md border border-[color:var(--paper-edge)] text-[13px] font-bold"
         >
           {showAll ? "收起" : `還有 ${item.quests.length - FIRST_PARTS} 段`}
         </button>

@@ -263,7 +263,7 @@ function BandDetail({ plan, next, context, active, memoryKey }: { plan: BandPlan
         <Block label={`先存著，Lv.${next.from} 以後要交`}>
           <div className="flex flex-wrap gap-1.5">
             {detail.prep.map(material => (
-              <span key={material.id} className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper)] py-0.5 pl-0.5 pr-2.5 text-[13px] font-bold">
+              <span key={material.id} className="inline-flex items-center gap-1 rounded-md bg-[color:var(--paper)] py-0.5 pl-0.5 pr-2.5 text-[13px] font-bold">
                 <Sprite src={itemImage(material.id)} size={22} />
                 {material.n} ×{formatNumber(material.c)}
                 <span className="font-normal ink-faint">{monsterIndex.get(material.droppers[0])?.n}</span>
@@ -347,7 +347,7 @@ function TrainRowItem({
         {row.go !== undefined ? (
           <GoButton to={row.go} label="去" />
         ) : row.pq?.guide ? (
-          <Link href={row.pq.guide} className="tap-safe inline-flex shrink-0 items-center rounded-full bg-[color:var(--sky)] px-3 text-[13px] font-bold text-[color:var(--on-accent)]">
+          <Link href={row.pq.guide} className="tap-safe inline-flex shrink-0 items-center rounded-md bg-[color:var(--sky)] px-3 text-[13px] font-bold text-[color:var(--on-accent)]">
             圖解
           </Link>
         ) : null}
@@ -374,7 +374,7 @@ function MustDoRow({ item, memoryKey }: { item: BandQuest; memoryKey: string }) 
       <p className="flex flex-wrap items-center gap-1.5 text-[11px] ink-faint">
         Lv.{item.level} 起
         {item.rec ? (
-          <button type="button" onClick={() => setOpen(value => !value)} className={`rounded-full px-2 py-0.5 font-bold ${recFromPlayers(item.rec) ? "bg-[color:var(--gold-wash)] text-[color:var(--gold)]" : "bg-[color:var(--sky-wash)] text-[color:var(--sky)]"}`}>
+          <button type="button" onClick={() => setOpen(value => !value)} className={`rounded-md px-2 py-0.5 font-bold ${recFromPlayers(item.rec) ? "bg-[color:var(--gold-wash)] text-[color:var(--gold)]" : "bg-[color:var(--sky-wash)] text-[color:var(--sky)]"}`}>
             {recFromPlayers(item.rec) ? "玩家推薦" : "遊戲資料"}{open ? "" : "・為什麼"}
           </button>
         ) : null}

@@ -191,7 +191,7 @@ function MonsterDetail({
             {elements.map(element => (
               <li
                 key={element.element}
-                className="rounded-full px-2.5 py-1 text-[13px] font-bold"
+                className="rounded-md px-2.5 py-1 text-[13px] font-bold"
                 style={{
                   backgroundColor: element.tone === "good" ? "var(--leaf-wash)" : "var(--maple-wash)",
                   color: element.tone === "good" ? "var(--leaf)" : "var(--maple)",
@@ -266,7 +266,7 @@ function MonsterDetail({
                   <li key={itemId}>
                     <Link
                       href={`/db/items?id=${itemId}`}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--paper-deep)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={itemImage(itemId)} alt="" width={22} height={22} loading="lazy" className="size-[22px] object-contain" />

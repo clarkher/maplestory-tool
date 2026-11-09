@@ -115,7 +115,7 @@ export function HalloweenGuide() {
             </span>
             <button
               type="button"
-              className="tap-safe rounded-full border border-[color:var(--paper-edge)] px-3 py-1 text-[13px] font-bold ink-soft"
+              className="tap-safe rounded-md border border-[color:var(--paper-edge)] px-3 py-1 text-[13px] font-bold ink-soft"
               onClick={() => {
                 const next = steps.find(s => !done[s.id]);
                 if (next) document.getElementById(`step-${next.id}`)?.scrollIntoView({ behavior: "instant", block: "center" });

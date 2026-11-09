@@ -70,7 +70,7 @@ export function QuestPlanner() {
               <button
                 type="button"
                 onClick={() => setShowBlocked(value => !value)}
-                className="tap-safe rounded-full bg-[color:var(--paper-deep)] px-3 py-1 text-[13px] font-bold ink-soft hover:text-[color:var(--maple)]"
+                className="tap-safe rounded-md bg-[color:var(--paper-deep)] px-3 py-1 text-[13px] font-bold ink-soft hover:text-[color:var(--maple)]"
               >
                 {showBlocked ? "只看現在接得到的" : "連卡住的一起看"}
               </button>
@@ -135,7 +135,7 @@ function QuestCard({ plan, maps }: { plan: QuestPlan; maps: Record<string, MapRe
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h3 className="text-[17px] font-black leading-tight">{quest.n}</h3>
-              <span className="rounded-full bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold ink-soft">
+              <span className="rounded bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold ink-soft">
                 {quest.cat}
               </span>
               {quest.minLv ? (
@@ -144,17 +144,17 @@ function QuestCard({ plan, maps }: { plan: QuestPlan; maps: Record<string, MapRe
                 </span>
               ) : null}
               {plan.bucket === "expiring" && plan.levelsLeft !== undefined ? (
-                <span className="rounded-full bg-[color:var(--maple)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--on-accent)]">
+                <span className="rounded bg-[color:var(--maple)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--on-accent)]">
                   再 {plan.levelsLeft} 級就接不到
                 </span>
               ) : null}
               {blocked ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--maple-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--maple)]">
+                <span className="inline-flex items-center gap-1 rounded bg-[color:var(--maple-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--maple)]">
                   <AlertIcon size={11} />
                   需先完成前置
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--leaf-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--leaf)]">
+                <span className="inline-flex items-center gap-1 rounded bg-[color:var(--leaf-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--leaf)]">
                   <CheckIcon size={11} />
                   現在可接
                 </span>
@@ -179,7 +179,7 @@ function QuestCard({ plan, maps }: { plan: QuestPlan; maps: Record<string, MapRe
                   <Link
                     key={item.id}
                     href={`/plan/farm?want=${item.id}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2 transition-colors hover:bg-[color:var(--maple-wash)]"
+                    className="inline-flex items-center gap-1 rounded-md bg-[color:var(--paper-deep)] py-0.5 pl-0.5 pr-2 transition-colors hover:bg-[color:var(--maple-wash)]"
                     title="去看這個道具在哪打"
                   >
                     <Image

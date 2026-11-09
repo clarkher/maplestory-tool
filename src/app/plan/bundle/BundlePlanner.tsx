@@ -170,7 +170,7 @@ function BundleCard({
               <span className="font-bold tabular-nums">{bundle.reward.maybeItems} 樣隨機／職業限定</span>
             </span>
           ) : null}
-          <span className="ml-auto rounded-full bg-[color:var(--leaf-wash)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--leaf)]">
+          <span className="ml-auto rounded-md bg-[color:var(--leaf-wash)] px-2.5 py-1 text-[12px] font-bold text-[color:var(--leaf)]">
             {bundle.quests.length} 個任務
           </span>
         </div>

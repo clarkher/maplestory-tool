@@ -92,7 +92,7 @@ function FourthJobCard({ fourthJob, itemHrefs }: { fourthJob: FutureData["fourth
           <select
             value={job ?? ""}
             onChange={event => setPicked(Number(event.target.value) || null)}
-            className="tap-safe rounded-full border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 py-1.5 text-sm font-bold text-[color:var(--ink)]"
+            className="tap-safe rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 py-1.5 text-sm font-bold text-[color:var(--ink)]"
           >
             <option value="">選職業</option>
             {FOURTH_JOBS.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
@@ -139,7 +139,7 @@ function StationBlock({ station, now, crafts, notNow, fourthJob, itemHrefs }: {
             {station.range ? <span className="ml-1.5 text-[13px] font-medium ink-soft">{station.range}</span> : null}
           </p>
           <h2 className="text-lg font-black leading-snug">
-            <span className={`mr-2 inline-block rounded-full px-2 py-0.5 align-[2px] text-xs font-bold ${CERTAINTY_CLASS[station.certainty]}`}>{station.certainty}</span>
+            <span className={`mr-2 inline-block rounded-md px-2 py-0.5 align-[2px] text-xs font-bold ${CERTAINTY_CLASS[station.certainty]}`}>{station.certainty}</span>
             {station.title}
           </h2>
           {late ? <p className="text-sm font-bold text-[color:var(--maple)]">已經過了預估時間，官方還沒開放，這一站可能更晚。</p> : null}

@@ -62,7 +62,7 @@ export function AvatarShowcase({ className = "" }: { className?: string }) {
             紙娃娃
             <span className="block text-[13px] font-medium ink-soft">隨機穿搭，你會抽到什麼？</span>
           </span>
-          <span className="inline-flex min-h-11 shrink-0 items-center rounded-full bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">抽一套</span>
+          <span className="inline-flex min-h-11 shrink-0 items-center rounded-md bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">抽一套</span>
         </Link>
       </section>
       <p className="text-center">

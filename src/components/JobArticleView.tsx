@@ -28,7 +28,7 @@ export const TAG_TONE: Record<ClaimTag, { wash: string; ink: string }> = {
  */
 function SourceTag({ tag, solid }: { tag: ClaimTag; solid?: boolean }) {
   const tone = TAG_TONE[tag];
-  return <>{" "}<span className={`inline-block whitespace-nowrap rounded-full px-2 align-[1px] text-[12px] font-bold leading-[1.5] ${solid ? "bg-[color:var(--paper)]" : tone.wash} ${tone.ink}`}>{TAG_LABEL[tag]}</span></>;
+  return <>{" "}<span className={`inline-block whitespace-nowrap rounded px-2 align-[1px] text-[12px] font-bold leading-[1.5] ${solid ? "bg-[color:var(--paper)]" : tone.wash} ${tone.ink}`}>{TAG_LABEL[tag]}</span></>;
 }
 
 /**
@@ -46,7 +46,7 @@ function Byline({ article, images }: { article: JobArticle; images?: ArticleImag
       <p className="flex items-center gap-1.5">
         {images?.author ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={`${images.dir}/author.webp`} alt="" width={images.author.w} height={images.author.h} className="h-6 w-6 shrink-0 rounded-full object-cover" />
+          <img src={`${images.dir}/author.webp`} alt="" width={images.author.w} height={images.author.h} className="size-6 shrink-0 rounded-full object-cover" />
         ) : null}
         <span>
           <span className="font-bold">本篇寫手：{persona.name}</span>｜{persona.line}
