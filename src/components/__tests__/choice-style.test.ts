@@ -18,6 +18,11 @@ describe("選項按鈕（v1.89）", () => {
     });
   }
 
+  it("攻略專區的分類、標籤篩選（GuidesHub）：選中不是實心橘", () => {
+    const source = fs.readFileSync(fileURLToPath(new URL("../../app/guides/GuidesHub.tsx", import.meta.url)), "utf8");
+    expect(source).not.toMatch(/bg-\[color:var\(--maple\)\]/);
+  });
+
   it("首頁選職業（CharacterBar）：只有頭像是圓的，實心橘底只剩最下面那顆主要按鈕", () => {
     const lines = read("route/CharacterBar.tsx").split("\n");
     expect(lines.filter(line => /rounded-full/.test(line) && !/size-\[60px\]/.test(line))).toEqual([]);
