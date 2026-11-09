@@ -11,7 +11,7 @@
 */
 
 @theme {
-  --font-sans: var(--font-noto-tc), ui-sans-serif, system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --font-sans: var(--font-inter), var(--font-noto-tc), ui-sans-serif, system-ui, "PingFang TC", "Microsoft JhengHei", sans-serif;
 
   /* A 版小圓角：卡片 8px、按鈕與輸入框 6px（rounded-md）、標籤 4px（rounded）；rounded-xl、rounded-2xl 全站自動跟著收小 */
   --radius-card: 0.5rem;
@@ -201,6 +201,11 @@ body {
 /* 以前的木框雙線，改成跟卡片一樣的 1px 細框 */
 @utility wood-frame {
   border: 1px solid var(--paper-edge);
+}
+
+/* 數字等寬：表格、數值格、等級、HP、經驗用，上下對得齊 */
+@utility num {
+  font-variant-numeric: tabular-nums;
 }
 
 @utility ink-soft { color: var(--ink-soft); }

@@ -251,3 +251,14 @@ describe("A 攻略工具的底、卡片、框、圓角（v1.89）", () => {
     expect(theme).toMatch(/--radius-2xl:\s*0\.625rem/);
   });
 });
+
+describe("A 攻略工具的字（v1.89）", () => {
+  it("英數字先用 Inter，中文再用 Noto Sans TC", () => {
+    const theme = css.match(/@theme\s*\{([^}]*)\}/)?.[1] ?? "";
+    expect(theme).toMatch(/--font-sans:\s*var\(--font-inter\),\s*var\(--font-noto-tc\)/);
+  });
+
+  it("有 num 這個 utility：數字等寬", () => {
+    expect(utilityBody(css, "num")).toMatch(/font-variant-numeric:\s*tabular-nums/);
+  });
+});
