@@ -153,7 +153,7 @@ function StepRow({ step }: { step: PlannedStep }) {
       </span>
       {STATE_TEXT[step.state] ? (
         <span
-          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+          className={`shrink-0 rounded px-2 py-0.5 text-[11px] font-bold ${
             step.state === "now" ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : step.state === "next" ? "bg-[color:var(--paper-deep)]" : "ink-faint"
           }`}
         >

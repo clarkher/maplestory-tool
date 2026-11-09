@@ -107,7 +107,7 @@ export function GuideDocView({ doc, hero, jsonLd }: { doc: GuideDoc; hero: { src
       ) : null}
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] ink-faint">
         <span className="font-bold text-[color:var(--maple)]">{doc.category}</span>
-        {doc.tags.map(tag => <span key={tag} className="rounded-full bg-[color:var(--paper-deep)] px-2 py-0.5 text-[12px] ink-soft">{tag}</span>)}
+        {doc.tags.map(tag => <span key={tag} className="rounded bg-[color:var(--paper-deep)] px-2 py-0.5 text-[12px] ink-soft">{tag}</span>)}
         <span>更新 {cardDate(doc.updated)}</span>
       </p>
       <article className="space-y-3 text-[15px] leading-relaxed">

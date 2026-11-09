@@ -53,7 +53,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 const chipClass =
-  "inline-flex min-h-6 items-center rounded-full border border-[color:var(--paper-edge)] px-2.5 text-xs font-extrabold";
+  "inline-flex min-h-6 items-center rounded-md border border-[color:var(--paper-edge)] px-2.5 text-xs font-extrabold";
 
 export default async function Page({ params }: Props) {
   const map = find((await params).id);

@@ -60,7 +60,7 @@ export function GuideContent({ jobs, articles = [] }: { jobs: Array<{ job: numbe
               onClick={() => setJob(entry.key)}
               aria-pressed={entry.key === job}
               className={[
-                "tap-safe shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-colors",
+                "tap-safe shrink-0 rounded-md px-4 py-2 text-sm font-bold transition-colors",
                 entry.key === job
                   ? "bg-[color:var(--maple)] text-[color:var(--on-accent)] shadow-sm"
                   : "glass wood-frame hover:bg-[color:var(--maple-wash)]",
@@ -95,9 +95,9 @@ export function GuideContent({ jobs, articles = [] }: { jobs: Array<{ job: numbe
         <h2 className="mb-2 text-[15px] font-black">出處</h2>
         <p className="mb-2 text-[13px] leading-relaxed ink-soft">
           這頁是社群攻略的整理，不是本站從遊戲資料推導的。標
-          <span className="mx-1 rounded-full bg-[color:var(--leaf-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--leaf)]">台服實測</span>
+          <span className="mx-1 rounded bg-[color:var(--leaf-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--leaf)]">台服實測</span>
           的是經典版上線後社群實際驗證過的；標
-          <span className="mx-1 rounded-full bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold ink-soft">舊版經驗</span>
+          <span className="mx-1 rounded bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold ink-soft">舊版經驗</span>
           的是沿用 2005 年代舊版的通識，實際數字以遊戲內為準。
         </p>
         <ul className="space-y-1">
@@ -276,17 +276,17 @@ function StepCard({
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="rounded-full bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold tabular-nums ink-soft">
+            <span className="rounded bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold tabular-nums ink-soft">
               Lv.{step.range}
             </span>
             <span className="text-[16px] font-black leading-tight">{step.title}</span>
             {step.verified === "tw" ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--leaf-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--leaf)]">
+              <span className="inline-flex items-center gap-1 rounded bg-[color:var(--leaf-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--leaf)]">
                 <CheckIcon size={11} />
                 台服實測
               </span>
             ) : (
-              <span className="rounded-full bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold ink-soft">
+              <span className="rounded bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] font-bold ink-soft">
                 舊版經驗
               </span>
             )}
@@ -313,7 +313,7 @@ function StepCard({
                 <li key={mob.id}>
                   <Link
                     href={`/db/monsters?id=${mob.id}`}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--paper)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
+                    className="inline-flex items-center gap-1.5 rounded-md bg-[color:var(--paper)] py-1 pl-1 pr-2.5 transition-colors hover:bg-[color:var(--maple-wash)]"
                   >
                     <Image src={monsterImage(mob.id)} alt="" width={22} height={22} className="size-[22px] object-contain" unoptimized />
                     <span className="text-[13px] font-bold">{mob.name}</span>

@@ -144,7 +144,7 @@ export function BuyQuestPlanner() {
                   type="button"
                   onClick={() => setShowAll(value => !value)}
                   aria-expanded={showAll}
-                  className="tap-safe w-full rounded-full border border-[color:var(--paper-edge)] text-[14px] font-bold"
+                  className="tap-safe w-full rounded-md border border-[color:var(--paper-edge)] text-[14px] font-bold"
                 >
                   {showAll ? "收起" : `還有 ${rows.length - FIRST_SHOWN} 個任務`}
                 </button>

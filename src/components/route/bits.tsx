@@ -27,10 +27,10 @@ const VERIFIED_TEXT: Record<Verified, string> = {
 /** 每塊內容都標清楚從哪來：遊戲資料推算，還是玩家攻略（再分台服實測、社群整理、舊版經驗）。 */
 export function SourceTag({ kind, verified }: { kind: "data" | "guide"; verified?: Verified }) {
   if (kind === "data") {
-    return <span className="shrink-0 rounded-full bg-[color:var(--sky-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--sky)]">遊戲資料</span>;
+    return <span className="shrink-0 rounded bg-[color:var(--sky-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--sky)]">遊戲資料</span>;
   }
   return (
-    <span className="shrink-0 rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--gold)]">
+    <span className="shrink-0 rounded bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-bold text-[color:var(--gold)]">
       玩家攻略{verified ? `・${VERIFIED_TEXT[verified]}` : ""}
     </span>
   );
@@ -62,7 +62,7 @@ export function Chip({ tone, children }: { tone: "maple" | "gold" | "sky" | "lea
     sky: "bg-[color:var(--sky-wash)] text-[color:var(--sky)]",
     leaf: "bg-[color:var(--leaf-wash)] text-[color:var(--leaf)]",
   };
-  return <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${tones[tone]}`}>{children}</span>;
+  return <span className={`rounded px-2 py-0.5 text-[11px] font-black ${tones[tone]}`}>{children}</span>;
 }
 
 export function Panel({ title, aside, children, className = "" }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {

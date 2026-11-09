@@ -14,9 +14,12 @@ import { EventStatus } from "./EventStatus";
  * 「全部」時卡片牆新手先看的排前面（browseOrder），篩選後照日期新到舊。
  */
 // 手機好點：分類 36px 高、標籤 32px 高
+// v1.89：選中跟全站選項一樣是橘框＋橘色淡底＋橘字
 const pill = (on: boolean) =>
-  `min-h-9 shrink-0 rounded-full px-3.5 text-[13px] font-bold transition-colors ${
-    on ? "bg-[color:var(--maple)] text-[color:var(--on-accent)]" : "bg-[color:var(--paper-deep)] ink-soft hover:text-[color:var(--ink)]"
+  `min-h-9 shrink-0 rounded-md px-3.5 text-[13px] font-bold transition-colors ${
+    on
+      ? "border border-[color:var(--maple)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]"
+      : "border border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)] ink-soft hover:text-[color:var(--ink)]"
   }`;
 
 function Meta({ card, builtAt }: { card: GuideCard; builtAt: number }) {
@@ -37,7 +40,7 @@ function Tags({ tags }: { tags: string[] }) {
   return (
     <span className="flex flex-wrap gap-1">
       {tags.map(tag => (
-        <span key={tag} className="rounded-full bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] ink-soft">
+        <span key={tag} className="rounded bg-[color:var(--paper-deep)] px-2 py-0.5 text-[11px] ink-soft">
           {tag}
         </span>
       ))}
@@ -125,9 +128,9 @@ export function GuidesHub({
             aria-pressed={tag === name}
             disabled={tag !== name && !tagCounts.get(name)}
             onClick={() => setTag(tag === name ? null : name)}
-            className={`min-h-8 rounded-full border px-3 text-[12px] transition-colors disabled:opacity-40 ${
+            className={`min-h-8 rounded-md border px-3 text-[12px] transition-colors disabled:opacity-40 ${
               tag === name
-                ? "border-[color:var(--maple)] bg-[color:var(--maple)] font-bold text-[color:var(--on-accent)]"
+                ? "border-[color:var(--maple)] bg-[color:var(--maple-wash)] font-bold text-[color:var(--maple)]"
                 : "border-[color:var(--paper-edge)] ink-soft hover:text-[color:var(--ink)]"
             }`}
           >

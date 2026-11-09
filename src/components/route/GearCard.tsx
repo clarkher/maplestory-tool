@@ -162,7 +162,7 @@ function GearContent({ gear, job, level, title, where }: { gear: GearData; job: 
           type="button"
           onClick={() => setOpen(value => !value)}
           aria-expanded={open}
-          className="tap-safe flex w-full items-center justify-center gap-1 rounded-full border border-[color:var(--paper-edge)] text-[14px] font-bold"
+          className="tap-safe flex w-full items-center justify-center gap-1 rounded-md border border-[color:var(--paper-edge)] text-[14px] font-bold"
         >
           {open ? "收起" : "看全部"}
           <ChevronDown size={16} className={`transition-transform ${open ? "rotate-180" : ""}`} />
@@ -362,7 +362,7 @@ function KitBlock({ plan, level, where }: { plan: GearPlan; level: number; where
             {word} +{piece.v}
           </span>
           {source?.kind === "quest" && source.quest.rand ? (
-            <span className="whitespace-nowrap rounded-full bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--ink)]">
+            <span className="whitespace-nowrap rounded bg-[color:var(--gold-wash)] px-2 py-0.5 text-[11px] font-black text-[color:var(--ink)]">
               隨機，不一定拿到
             </span>
           ) : null}
@@ -546,7 +546,7 @@ function SourceLine({ pick, where, quiet = false }: { pick: SourcePick | null; w
       {go !== null ? (
         <Link
           href={`/go?to=${go}`}
-          className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[12px] font-bold ${
+          className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 text-[12px] font-bold ${
             quiet ? "border-[color:var(--ink-soft)] text-[color:var(--ink-soft)]" : "border-[color:var(--maple)] text-[color:var(--maple)]"
           }`}
         >

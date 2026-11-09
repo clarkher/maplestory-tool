@@ -388,7 +388,7 @@ export function Stage({
             <button
               type="button"
               onClick={() => setRetry({ sig, n: tries + 1 })}
-              className={`tap-safe mx-auto rounded-full bg-[color:var(--maple)] font-bold text-[color:var(--on-accent)] ${
+              className={`tap-safe mx-auto rounded-md bg-[color:var(--maple)] font-bold text-[color:var(--on-accent)] ${
                 compact ? "px-3 text-[12px]" : "px-4 text-[14px]"
               }`}
             >

@@ -59,7 +59,7 @@ export function GuildSim() {
       />
       <div aria-live="polite" className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center px-4">
         {toast ? (
-          <div className="flex min-h-11 items-center rounded-full bg-[color:var(--ink)] px-4 text-[14px] font-bold text-[color:var(--paper)] shadow-lg">
+          <div className="flex min-h-11 items-center rounded-md bg-[color:var(--ink)] px-4 text-[14px] font-bold text-[color:var(--paper)] shadow-lg">
             {toast}
           </div>
         ) : null}
