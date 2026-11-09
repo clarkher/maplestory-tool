@@ -5,6 +5,7 @@
  *   findCurrentAndPrevious(gitDir, version, { ref, now }) 找這一版與前一個不同版號的段落（區間由近到遠逐步放大）
  *   buildPatchArgs({ prev, seg, oldDir, newDir, out })    build-patch.mjs 的參數
  *   runBuildPatch(opts)                                   跑 build-patch.mjs，回傳它印的那一行
+ *   ROOT、cliOpt(argv)                                    repo 根目錄；讀 --名稱 值 的參數（兩支 CLI 共用）
  *
  * 差異檔的口徑（兩邊一樣）：base＝前一版最後一個動到 data.js 的 commit、head＝這一版最後一個、
  * date＝這一版第一個 commit 的日期。
@@ -14,7 +15,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { versionTimeline } from "./upstream-history.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 // 為什麼要分段放大、不直接看全部歷史：上游是 blob:none 的 clone，每看一個 commit 的版號都要另外下載那一版的
 // data.js（約 7.5 MB），全部歷史一百多個 commit、本機要 3 分鐘以上。上游大約一兩週出一版，
@@ -34,9 +35,11 @@ export function sinceDate(now, days) {
  */
 export function findCurrentAndPrevious(gitDir, version, { ref, now = new Date(), windows = SINCE_WINDOWS } = {}) {
   let last = { seg: null, prev: null, since: undefined };
+  // 區間放大時舊的 commit 會再出現一次：版號記起來，不用再下載、解析一次 data.js
+  const cache = new Map();
   for (const days of windows) {
     const since = sinceDate(now, days);
-    const timeline = versionTimeline(gitDir, { since, ref });
+    const timeline = versionTimeline(gitDir, { since, ref, cache });
     const newest = timeline.at(-1);
     if (newest && newest.version !== version) return { seg: null, prev: null, since, mismatch: newest.version };
     if (timeline.length >= 2) return { seg: newest, prev: timeline.at(-2), since };
@@ -60,4 +63,12 @@ export function buildPatchArgs({ prev, seg, oldDir, newDir, out }) {
 
 export function runBuildPatch(opts) {
   return execFileSync(process.execPath, [path.join(ROOT, "pipeline", "build-patch.mjs"), ...buildPatchArgs(opts)], { encoding: "utf8" }).trim();
+}
+
+/** 讀 `--名稱 值` 的參數；沒有就回 fallback。 */
+export function cliOpt(argv) {
+  return (name, fallback) => {
+    const i = argv.indexOf(`--${name}`);
+    return i >= 0 ? argv[i + 1] : fallback;
+  };
 }

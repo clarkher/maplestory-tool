@@ -3,8 +3,8 @@
  * 改版比對（/updates）拿「這一版」跟「前一個不同版號」的資料相比，所以要能重建舊版。
  *
  *   versionAt(gitDir, commit)             那個 commit 的 data.js metadata.gameVersion（只讀 data.js）
- *   versionTimeline(gitDir, { since, ref }) 依版號分段，舊到新（ref：只看到這個 commit 為止，預設 HEAD）
- *   previousVersion(timeline, version)    不同版號的前一段（同版修正不算）
+ *   versionTimeline(gitDir, { since, ref, cache }) 依版號分段，舊到新（ref：只看到這個 commit 為止，預設 HEAD；
+ *                                        cache：commit → 版號的 Map，同一批 commit 重查不用再讀 data.js）
  *   buildAt(gitDir, commit, outDir)       重建那個 commit 的網站資料到 outDir
  *
  * git 一律用陣列參數（不經 shell）；commit 只收 7～40 碼 16 進位。
@@ -48,7 +48,7 @@ export function versionAt(gitDir, commit) {
   return typeof v === "string" && v ? v : null;
 }
 
-export function versionTimeline(gitDir, { since, ref } = {}) {
+export function versionTimeline(gitDir, { since, ref, cache } = {}) {
   const args = ["log", "--format=%H %cs"];
   if (since) args.push(`--since=${since}`);
   if (ref !== undefined) args.push(checkCommit(ref));
@@ -57,19 +57,17 @@ export function versionTimeline(gitDir, { since, ref } = {}) {
   const segments = []; // 新到舊
   for (const line of lines) {
     const [commit, date] = line.split(" ");
-    const version = versionAt(gitDir, commit);
+    let version = cache?.get(commit);
+    if (version === undefined) {
+      version = versionAt(gitDir, commit);
+      cache?.set(commit, version);
+    }
     if (!version) continue;
     const top = segments[segments.length - 1];
     if (top && top.version === version) top.first = { commit, date };
     else segments.push({ version, first: { commit, date }, last: { commit, date } });
   }
   return segments.reverse();
-}
-
-export function previousVersion(timeline, version) {
-  const i = timeline.findIndex((e) => e.version === version);
-  if (i <= 0) return null;
-  return timeline[i - 1];
 }
 
 export function buildAt(gitDir, commit, outDir) {

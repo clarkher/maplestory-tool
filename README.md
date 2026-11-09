@@ -226,7 +226,7 @@ npm run data:all      # 以上全跑
 ```
 
 改版差異檔（`public/data/patches/<版本>.json`＋`index.json`，v1.94）：上游完整 clone 到 `data/cache/upstream-history`（`git clone --filter=blob:none`）後跑 `node pipeline/backfill-patches.mjs --upstream data/cache/upstream-history`，每一版用現在的程式重建、相鄰兩版比對（一版約 30 秒）；只比兩份已建好的資料用 `node pipeline/build-patch.mjs --old <舊> --new <新> --out public/data/patches --version <新版> --prev <舊版> --base <舊 commit> --head <新 commit> --date <YYYY-MM-DD>`。
-資料自動更新（`data-refresh.yml`）有重建時，在 `build.mjs` 之後跑 `node pipeline/refresh-patch.mjs --upstream data/cache/upstream-history --head <data/cache/upstream 的 HEAD>`：只重算目前這一版（跟前一個不同版號比，口徑同回填，邏輯共用 `pipeline/lib/patch-run.mjs`），歷史由近到遠逐步放大區間找前一版（找不到就印一行跳過；其他任何錯印 `::warning::`、結束碼 0、`public/data/patches` 不動，不擋資料更新）；本機約 10 秒。合進正式機後若 `src/content/patches/<版本>.md` 還沒寫，notify 會開 issue「新版本 <版本> 要寫改版重點」（同標題開著就不再開）。
+資料自動更新（`data-refresh.yml`）有重建時，在 `build.mjs` 之後跑 `node pipeline/refresh-patch.mjs --upstream data/cache/upstream-history --head <data/cache/upstream 的 HEAD>`：只重算目前這一版（跟前一個不同版號比，口徑同回填，邏輯共用 `pipeline/lib/patch-run.mjs`），歷史由近到遠逐步放大區間找前一版（找不到就印一行跳過；其他任何錯印 `::warning::`、結束碼 0、`public/data/patches` 不動，不擋資料更新）；本機約 10 秒。clone 包 `timeout 300`、refresh-patch 包 `timeout 600`，卡住也只是 warning。這次合併「新增」了 `public/data/patches/<版本>.json`（新版本，同版修正不算）、main 上 `src/content/patches/<版本>.md` 還沒寫，notify 會開 issue「新版本 <版本> 要寫改版重點」（同標題開過就不再開，關掉的也算）。
 
 #### 紙娃娃的道具清單（`public/data/avatar.json`，v1.40）
 
