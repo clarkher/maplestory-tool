@@ -40,7 +40,7 @@ export function ChangedList({ total, rowCount, first, kinds }: {
       <style>{rules.join(" ")}</style>
       {open && kinds.length > 1 && (
         <div className="order-1 mt-2.5 flex flex-wrap gap-2" role="group" aria-label="類別">
-          {chip(`全部 ${total}`, null)}
+          {chip("全部", null)}
           {kinds.map(k => chip(`${k.kind} ${k.count}`, k.kind))}
         </div>
       )}
