@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { itemImage } from "@/lib/asset-paths";
 import { hasItemIcon } from "@/lib/item-icons";
-import { itemPagePath } from "@/lib/item-page";
 import { CHANGED_KIND_ORDER, addedGroups, changedKinds } from "@/lib/patch-view";
 import { getPatchPage, listPatchPages, type PatchPage } from "@/lib/patches";
 import { breadcrumbLd, clip, taiwanDateTime, webPageLd } from "@/lib/seo";
@@ -22,11 +21,10 @@ export function generateStaticParams() {
   return listPatchPages().map(page => ({ version: page.version }));
 }
 
-/** "10/15 收錄" → "10/15" */
-const monthDay = (page: PatchPage) => page.dateText.replace(/\s*收錄$/, "");
-const heading = (page: PatchPage) => `${monthDay(page)} 改版整理（${page.version}）`;
+/** 日期照 /updates 卡片的 dateText（沒寫官方日期就是「10/15 收錄」），不讓收錄日看起來像官方改版日 */
+const heading = (page: PatchPage) => `改版整理（${page.version}）・${page.dateText}`;
 const pagePath = (page: PatchPage) => `/updates/${page.version}`;
-const describe = (page: PatchPage) => clip(`${page.title}。${patchSummary(page)}`);
+const describe = (page: PatchPage) => clip(`楓之谷經典版 ${page.title}。${patchSummary(page)}`);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const page = getPatchPage((await params).version);
@@ -63,7 +61,7 @@ function Stat({ n, label }: { n: number; label: string }) {
 
 /** 版本選單：只列有重點檔的版本；不用 JS，打開是連結清單 */
 function VersionPicker({ current, pages }: { current: PatchPage; pages: PatchPage[] }) {
-  const label = (p: PatchPage) => `${p.date.replace(/-/g, "/")} · ${p.version} ${p.title}`;
+  const label = (p: PatchPage) => `${p.dateText} · ${p.version} ${p.title}`;
   return (
     <details className="group">
       <summary
@@ -119,7 +117,7 @@ export default async function Page({ params }: Props) {
           <Link href="/guides" className="underline-offset-2 hover:underline">攻略</Link> › <Link href="/updates" className="underline-offset-2 hover:underline">改版整理</Link>
         </nav>
         <h1 className="mt-1.5 text-[25px] font-extrabold leading-tight tracking-tight">{heading(page)}</h1>
-        <p className="ink-soft mt-1.5 text-sm leading-relaxed">這次最值得看的 4 件事，下面再列全部新東西。</p>
+        <p className="ink-soft mt-1.5 text-sm leading-relaxed">楓之谷經典版這次更新最值得看的 4 件事，下面再列全部新東西。</p>
       </header>
 
       <VersionPicker current={page} pages={pages} />
@@ -135,9 +133,8 @@ export default async function Page({ params }: Props) {
                 <span className="flex-none" style={{ width: 32, height: 32 }} aria-hidden="true" />
               )}
               <div className="min-w-0 flex-1">
-                <div className="text-[15px] font-bold">
-                  {staticHasItemPage(h.icon) ? <a href={itemPagePath(h.icon)} className="underline-offset-2 hover:underline">{h.title}</a> : h.title}
-                </div>
+                {/* 圖示常是沾邊的道具，標題不連道具頁，免得點進去對不上 */}
+                <div className="text-[15px] font-bold">{h.title}</div>
                 {h.sub ? <div className="ink-soft mt-0.5 text-[13px] leading-relaxed">{h.sub}</div> : null}
               </div>
               <span className="inline-flex h-[22px] flex-none items-center whitespace-nowrap px-[7px] text-xs font-bold" style={{ borderRadius: 4, color: "var(--sky)", background: "var(--sky-wash)" }}>客戶端資料</span>

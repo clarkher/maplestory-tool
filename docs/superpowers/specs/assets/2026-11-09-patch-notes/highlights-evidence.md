@@ -15,6 +15,7 @@
    - 依據：2.0.0 added.quests 裡 cat === 冰原雪域，共 85 筆；有 minLv 的最小 10、最大 90。
      `node -e "const P=require('./public/data/patches/2.0.0.json');const q=P.added.quests.filter(x=>x.cat==='冰原雪域');const l=q.map(x=>x.minLv).filter(Boolean);console.log(q.length,Math.min(...l),Math.max(...l))"` → 85 10 90
    - 圖示：雪吉拉之角（4000049）在 2.0.0 changed（掉落多了變形雪吉拉），且是冰原雪域任務 3052「收集毛皮衣材料」用到的道具。
+   - 終審（11/09）想換成這批任務的新道具：把 85 個任務在 quests.json 裡用到的道具（要收集、獎勵、接取道具）全部比對 2.0.0 added.items，一件都沒有——這批任務用的全是舊道具（雪吉拉之角、各種母礦、60%／10% 卷軸、食物），所以沒有「新道具又跟這批任務有關」的選擇，維持 4000049。重點標題已不連道具頁，圖示只當裝飾。
 3. `2046414` 楓葉武器卷軸｜五個職業共 21 張，分 100%、70%、15%
    - 依據：2.0.0 added.items 裡 n 含「楓葉」且 s === 卷軸，共 21 筆；職業前綴為劍士 3、弓箭手 3、法師 3、盜賊 6（拳套、短劍）、海盜 6（指虎、火槍），每組都是 100%／70%／15%。
      `node -e "const P=require('./public/data/patches/2.0.0.json');console.log(P.added.items.filter(i=>i.n.includes('楓葉')&&i.s==='卷軸').map(i=>i.n))"`

@@ -104,3 +104,28 @@ describe("真資料", () => {
     for (const p of listPatchPages()) expect(patchProblems(p), p.version).toEqual([]);
   });
 });
+
+describe("改版頁面原始碼（v1.94 終審）", () => {
+  const src = (rel: string) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+  const list = src("src/app/updates/page.tsx");
+  const version = src("src/app/updates/[version]/page.tsx");
+  const visible = (code: string) => (code.match(/<(?:h1|p)\b[^>]*>([^<{]+)</g) ?? []).join("");
+
+  it("兩頁看得到的開頭都寫「楓之谷經典版」（不只 <title>）", () => {
+    expect(visible(list)).toContain("楓之谷經典版");
+    expect(visible(version)).toContain("楓之谷經典版");
+  });
+  it("版本頁 meta description 開頭是楓之谷經典版", () => {
+    expect(version).toMatch(/const describe = .*clip\(`楓之谷經典版 /);
+  });
+  it("版本頁標題、選單日期都用 dateText（沒官方日期會帶「收錄」）", () => {
+    expect(version).toMatch(/const heading = .*page\.dateText/);
+    expect(version).toMatch(/const label = .*p\.dateText/);
+    expect(version).not.toMatch(/p\.date\.replace/);
+  });
+  it("重點標題不連道具頁", () => {
+    const block = version.slice(version.indexOf('<Card title="這次重點">'), version.indexOf('<Card title="改了多少">'));
+    expect(block).not.toContain("<a ");
+    expect(block).not.toContain("itemPagePath");
+  });
+});
