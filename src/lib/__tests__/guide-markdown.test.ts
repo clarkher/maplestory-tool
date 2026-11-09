@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { GuideDocView } from "@/components/GuideDocView";
 import { GUIDE_CATEGORIES } from "@/lib/guide-catalog";
 import { guideImages, guideProblems, guideText, parseGuide, parseInline } from "@/lib/guide-markdown";
-import { staticGuideCards, staticGuideDocs } from "@/lib/static-data";
+import { staticGuideCards, staticGuideDocs, staticItemPages, staticMonsters, staticQuests } from "@/lib/static-data";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const exists = (publicPath: string) => fs.existsSync(path.join(ROOT, "public", publicPath));
@@ -207,6 +207,66 @@ describe("站上的文章（src/content/guides）", () => {
     const html = renderToString(createElement(GuideDocView, { doc, hero: null, jsonLd: [] }));
     const icon = /<td[^>]*><img [^>]*src="\/assets\/items\/1302020\.png"[^>]*>/.exec(html)![0];
     expect(icon).toContain("max-w-none");
+  });
+
+  it("文章連到 /db/items、/db/quests、/db/monsters 單獨頁的，那一頁都要真的有（v1.98，404 會被 Google 抓）", () => {
+    const pages = {
+      items: new Set(staticItemPages().map(item => String(item.id))),
+      quests: new Set(staticQuests().map(quest => quest.id)),
+      monsters: new Set(staticMonsters().map(monster => String(monster.id))),
+    };
+    for (const doc of docs) {
+      for (const [, kind, id] of JSON.stringify(doc.blocks).matchAll(/"href":"\/db\/(items|quests|monsters)\/([^"?#]+)"/g)) {
+        expect(pages[kind as keyof typeof pages].has(id), `${doc.slug} → /db/${kind}/${id}`).toBe(true);
+      }
+    }
+  });
+
+  const questLinks = (slug: string) => {
+    const doc = docs.find(entry => entry.slug === slug)!;
+    return { doc, text: guideText(doc.blocks), quests: new Set([...JSON.stringify(doc.blocks).matchAll(/"href":"\/db\/quests\/(\d+)"/g)].map(match => match[1])) };
+  };
+
+  it("冒險家的戒指（v1.98，使用者拍板 1A）：資料裡整條任務線每個任務都連到、經驗合計對得上、三枚戒指能力照資料", () => {
+    const { doc, text, quests } = questLinks("adventurer-ring");
+    expect(doc.category).toBe("任務");
+    const chain = staticQuests().filter(quest => quest.n.includes("[冒險家的戒指]"));
+    expect(chain.length).toBe(56);
+    for (const quest of chain) expect(quests.has(quest.id), `${quest.id} ${quest.n}`).toBe(true);
+    const exp = chain.reduce((sum, quest) => sum + (quest.exp ?? 0), 0);
+    expect(text).toContain(`合計 ${exp.toLocaleString("en-US")}`);
+    // 缺的那一步照實寫
+    expect(chain.some(quest => quest.id === "69044")).toBe(false);
+    expect(text).toContain("69044");
+    const items = JSON.parse(fs.readFileSync(path.join(ROOT, "public/data/items.json"), "utf8")) as { id: number; eq?: Record<string, number> }[];
+    const ring = (id: number) => items.find(item => item.id === id)!.eq!;
+    expect(text).toContain(`生命 HP +${ring(1113372).incMHP}`);
+    expect(text).toContain(`靈魂 MP +${ring(1113373).incMMP}`);
+    expect(text).toContain(`調和 HP、MP 各 +${ring(1113374).incMHP}`);
+  });
+
+  it("勳章總整理（v1.98，使用者拍板 2A）：查得到取得方式的勳章全部列出、每個都連到給它的任務", () => {
+    const { doc, text, quests } = questLinks("medals");
+    const items = JSON.parse(fs.readFileSync(path.join(ROOT, "public/data/items.json"), "utf8")) as { id: number; n: string; s?: string; c: string; qr?: string[] }[];
+    const medals = items.filter(item => item.c === "裝備" && item.s === "勳章");
+    const known = medals.filter(item => item.qr?.length);
+    expect(text).toContain(`${known.length} 個`);
+    expect(text).toContain(`${medals.length} 個勳章`);
+    expect(text).toContain(`另外 ${medals.length - known.length} 個`);
+    const blocks = JSON.stringify(doc.blocks);
+    for (const medal of known) {
+      expect(blocks, medal.n).toContain(`"href":"/db/items/${medal.id}"`);
+      expect(medal.qr!.some(id => quests.has(id)), `${medal.n} 的任務`).toBe(true);
+    }
+  });
+
+  it("愛情象徵（v1.98，使用者拍板 3A）：五個都列、照實寫目前沒有地方收", () => {
+    const { text, quests } = questLinks("love-symbols");
+    for (const id of ["1115", "1116", "1117", "1118", "1119"]) expect(quests.has(id), id).toBe(true);
+    expect(text).toContain("找不到任何任務、商店或 NPC 收它");
+    // 真的沒有任務要交愛情象徵：之後有了，這篇要改
+    const symbols = new Set([4031683, 4031684, 4031685, 4031686, 4031687, 4031692]);
+    for (const quest of staticQuests()) for (const need of quest.needItems ?? []) expect(symbols.has(need.id), `${quest.id} 收愛情象徵了，改文章`).toBe(false);
   });
 
   it("頁面畫得出來：標題、主圖、麵包屑回攻略專區", () => {
