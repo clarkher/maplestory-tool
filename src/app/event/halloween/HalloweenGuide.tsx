@@ -55,6 +55,8 @@ export function HalloweenGuide() {
       <nav aria-label="麵包屑" className="flex items-center gap-1 text-sm ink-faint">
         <Link href="/" className="hover:text-[color:var(--maple)]">我的路線</Link>
         <ChevronRight size={13} />
+        <Link href="/guides" className="hover:text-[color:var(--maple)]">攻略</Link>
+        <ChevronRight size={13} />
         <span className="text-[color:var(--ink-soft)]">萬聖節攻略</span>
       </nav>
 

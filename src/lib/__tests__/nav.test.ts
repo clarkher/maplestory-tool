@@ -2,44 +2,46 @@ import { describe, expect, it } from "vitest";
 import { NAV, activeNav } from "@/lib/nav";
 
 describe("導覽列哪一顆亮", () => {
-  it("首頁跟 1–30 懶人包（麵包屑寫「我的路線 › 1–30 懶人包」）亮「我的路線」", () => {
+  it("首頁亮「我的路線」", () => {
     expect(activeNav("/")).toBe("我的路線");
-    expect(activeNav("/guide")).toBe("我的路線");
   });
 
-  it("帶我去、查資料（含舊工具頁）照舊", () => {
-    expect(activeNav("/go")).toBe("帶我去");
+  it("攻略（v1.86 使用者照推薦）：專區、1–30 懶人包、分等級攻略文、職業頁、活動攻略都亮「攻略」", () => {
+    for (const path of ["/guides", "/guide", "/guides/priest-31-50", "/jobs/230", "/event/halloween"]) expect(activeNav(path), path).toBe("攻略");
+  });
+
+  it("地圖導航（v1.86 帶我去改名）、查資料（含舊工具頁）", () => {
+    expect(activeNav("/go")).toBe("地圖導航");
     expect(activeNav("/db/quests")).toBe("查資料");
     expect(activeNav("/plan/train")).toBe("查資料");
     expect(activeNav("/privacy")).toBeUndefined();
   });
 
-  it("傷害計算機拉出來放「我的路線」旁邊（v0.85 使用者選 A「算傷害」），在計算機頁亮它、不亮查資料", () => {
-    expect(NAV.map(item => item.label)).toEqual(["我的路線", "算傷害", "練功測速", "楓幣匯率", "野王計時", "未來視", "帶我去", "查資料"]);
-    expect(NAV[1].href).toBe("/plan/damage");
+  it("野王計時收進查資料（v1.86）：導覽列沒有這顆，/plan/boss 亮查資料", () => {
+    expect(NAV.some(item => item.label === "野王計時")).toBe(false);
+    expect(activeNav("/plan/boss")).toBe("查資料");
+  });
+
+  it("萬聖節收進攻略專區（v1.86）：導覽列沒有這顆", () => {
+    expect(NAV.some(item => item.href.startsWith("/event"))).toBe(false);
+  });
+
+  it("電腦版順序：攻略排我的路線後面，地圖導航、查資料在最後", () => {
+    expect(NAV.map(item => item.label)).toEqual(["我的路線", "攻略", "算傷害", "練功測速", "楓幣匯率", "未來視", "地圖導航", "查資料"]);
+    expect(NAV.find(item => item.label === "攻略")?.href).toBe("/guides");
+    expect(NAV.find(item => item.label === "地圖導航")?.href).toBe("/go");
+  });
+
+  it("算傷害、練功測速、楓幣匯率、未來視照舊只在電腦版，在自己那頁亮自己", () => {
+    expect(NAV.filter(item => item.desktopOnly).map(item => item.label)).toEqual(["算傷害", "練功測速", "楓幣匯率", "未來視"]);
     expect(activeNav("/plan/damage")).toBe("算傷害");
+    expect(activeNav("/plan/speed")).toBe("練功測速");
+    expect(activeNav("/price/fx")).toBe("楓幣匯率");
+    expect(activeNav("/future")).toBe("未來視");
     expect(activeNav("/plan/farm")).toBe("查資料");
   });
 
-  it("野王計時（v1.18）在 /plan/boss 亮它、不亮查資料；所有寬度都有", () => {
-    expect(activeNav("/plan/boss")).toBe("野王計時");
-    expect(NAV.find(item => item.label === "野王計時")?.desktopOnly).toBeUndefined();
-  });
-
-  it("練功測速（v0.95）在測速頁亮它、不亮查資料；只在電腦版出現", () => {
-    expect(activeNav("/plan/speed")).toBe("練功測速");
-    expect(NAV.find(item => item.label === "練功測速")).toMatchObject({ href: "/plan/speed", desktopOnly: true });
-    expect(NAV.filter(item => item.desktopOnly).map(item => item.label)).toEqual(["算傷害", "練功測速", "楓幣匯率", "未來視"]);
-  });
-
-  it("楓幣匯率（v1.03 使用者選 A）拉出來放導覽列、只在電腦版；/price 開頭亮它，手機照舊從查資料的「行情」區進去", () => {
-    expect(NAV.find(item => item.label === "楓幣匯率")).toMatchObject({ href: "/price/fx", desktopOnly: true });
-    expect(activeNav("/price/fx")).toBe("楓幣匯率");
-    expect(activeNav("/db")).toBe("查資料");
-  });
-
-  it("手機導覽列（v1.18 使用者選 A）只剩 我的路線、野王計時、帶我去、查資料；算傷害、未來視只在電腦版", () => {
-    expect(NAV.filter(item => !item.desktopOnly).map(item => item.label)).toEqual(["我的路線", "野王計時", "帶我去", "查資料"]);
-    expect(NAV.find(item => item.label === "算傷害")).toMatchObject({ href: "/plan/damage", desktopOnly: true });
+  it("手機四顆：我的路線、攻略、地圖導航、查資料", () => {
+    expect(NAV.filter(item => !item.desktopOnly).map(item => item.label)).toEqual(["我的路線", "攻略", "地圖導航", "查資料"]);
   });
 });

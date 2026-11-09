@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createFingerScroll, nextHeader, type HeaderMotion } from "@/lib/header-hide";
-import { activeNav, navFor } from "@/lib/nav";
+import { activeNav, NAV } from "@/lib/nav";
 import { MoonIcon, SunIcon } from "./Icons";
 
 export function SiteHeader() {
@@ -34,9 +34,9 @@ export function SiteHeader() {
           <span className="hidden text-[17px] font-black tracking-tight min-[500px]:inline">楓谷幫手</span>
         </Link>
 
-        {/* 手機四顆：我的路線、野王計時、帶我去、查資料（v1.18 加「野王計時」，使用者選 A：「算傷害」改成跟「練功測速」「楓幣匯率」一樣只在 768 寬以上出現）。v1.72（使用者選 1）：500 寬以下只留楓葉、四顆平分填滿，品牌字跟大按鈕 500 寬起才一起出現——原本 400 寬起就出現，400～487 寬把查資料擠出去；380 寬以下字 13px、按鈕左右 7px（360 寬才放得下）。v1.74：768～899 寬（平板直放）電腦版的按鈕全出來，品牌字留著、按鈕左右縮成 4px 再平分，不然查資料一樣被擠出去。每個寬度量過：scripts/verify/nav-fit.mjs */}
+        {/* 手機四顆：我的路線、攻略、地圖導航、查資料（v1.86；v1.18 起「算傷害」跟「練功測速」「楓幣匯率」一樣只在 768 寬以上出現）。v1.72（使用者選 1）：500 寬以下只留楓葉、四顆平分填滿，品牌字跟大按鈕 500 寬起才一起出現——原本 400 寬起就出現，400～487 寬把查資料擠出去；380 寬以下字 13px、按鈕左右 7px（360 寬才放得下）。v1.74：768～899 寬（平板直放）電腦版的按鈕全出來，品牌字留著、按鈕左右縮成 4px 再平分，不然查資料一樣被擠出去。每個寬度量過：scripts/verify/nav-fit.mjs */}
         <nav className="scroll-x -mx-1 flex flex-1 items-center gap-0.5 px-1 min-[500px]:gap-1" aria-label="主選單">
-          {navFor(Date.now()).map(item => {
+          {NAV.map(item => {
             const active = activeNav(pathname) === item.label;
             return (
               <Link
