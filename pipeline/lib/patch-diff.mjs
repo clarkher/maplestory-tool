@@ -3,10 +3,15 @@
  * 純函式，不讀檔；before／after 直接給玩家看，所以全是白話字（不露出欄位代號或 JSON）。
  * 只收看得懂的欄位：說明、商店、掉落、能力、名稱。qr／qq／un／c／sh 變了不算（玩家看不出差別）。
  * 髮型臉型（外觀/角色）只給數字（looks、goneLooks），不列清單，改了也不列。
+ * 雜訊不列：商店只換店名（價錢、貨幣、件數一樣）；資料補齊（舊的是空的：未命名道具、能力全無、沒有掉落、沒賣）；
+ * 說明只差遊戲顏色碼或空白。名字還是「未命名道具」的道具整筆不列也不算。
  */
 import { equipStatLabel, equipStatValue } from "./equip-labels.mjs";
 
 const LOOKS = "外觀/角色";
+
+const UNNAMED = "未命名道具";
+const unnamed = it => String(it?.n ?? "").startsWith(UNNAMED);
 
 const byId = list => new Map((list ?? []).map(x => [String(x.id), x]));
 
@@ -24,6 +29,16 @@ function shopText(sp) {
     return `${s.p} ${s.k ? `${num(s.k)} 個 ${amount}` : amount}`;
   };
   return [...new Set(sp.map(one))].sort().join("、");
+}
+
+/** 價錢、貨幣、件數的多重集合（不看店名） */
+function shopPrices(sp) {
+  return (sp ?? []).map(s => `${s.pr}|${s.u ?? (s.c ? "c" : "")}|${s.k ?? 1}`).sort().join(",");
+}
+
+/** 說明拿掉遊戲顏色／格式碼（#c #b #k #e #n）跟落單的 #，空白合併 */
+export function cleanDesc(text) {
+  return String(text ?? "").replace(/#[bcekn]/g, "").replace(/#/g, "").replace(/\s+/g, " ").trim();
 }
 
 function dropText(dm, monsters) {
@@ -63,7 +78,7 @@ export function diffPatch(oldData, newData) {
   let changedItems = 0;
 
   for (const [key, it] of newItems) {
-    if (!oldItems.has(key)) {
+    if (!oldItems.has(key) && !unnamed(it)) {
       if (it.s === LOOKS) looks++;
       else {
         const row = { id: it.id, n: it.n, c: it.c, s: it.s };
@@ -74,26 +89,29 @@ export function diffPatch(oldData, newData) {
   }
   // 髮型臉型只給數字不列清單（新增、不再列出、改了都一樣）
   for (const [key, it] of oldItems) {
-    if (newItems.has(key)) continue;
+    if (newItems.has(key) || unnamed(it)) continue;
     if (it.s === LOOKS) goneLooks++;
     else gone.items.push({ id: it.id, n: it.n });
   }
 
   for (const [key, now] of newItems) {
     const was = oldItems.get(key);
-    if (!was || was.s === LOOKS || now.s === LOOKS) continue;
+    if (!was || was.s === LOOKS || now.s === LOOKS || unnamed(now)) continue;
     const rows = [];
     const push = (kind, before, after) => rows.push({ id: now.id, n: now.n, kind, before, after });
-    if (was.n !== now.n) push("名稱", was.n, now.n);
-    if ((was.d ?? "") !== (now.d ?? "")) push("說明", was.d ?? "", now.d ?? "");
+    // 舊的是空的＝資料補齊，不是改版，不列；新的變空的（拿掉）照列
+    if (was.n !== now.n && !unnamed(was)) push("名稱", was.n, now.n);
+    const dBefore = cleanDesc(was.d);
+    const dAfter = cleanDesc(now.d);
+    if (dBefore !== dAfter) push("說明", dBefore, dAfter);
     const spBefore = shopText(was.sp);
     const spAfter = shopText(now.sp);
-    if (spBefore !== spAfter) push("商店", spBefore, spAfter);
+    if (spBefore !== spAfter && spBefore !== "沒賣" && shopPrices(was.sp) !== shopPrices(now.sp)) push("商店", spBefore, spAfter);
     const dmBefore = dropText(was.dm, oldMon);
     const dmAfter = dropText(now.dm, newMon);
-    if (dmBefore !== dmAfter) push("掉落", dmBefore, dmAfter);
+    if (dmBefore !== dmAfter && dmBefore !== "沒有") push("掉落", dmBefore, dmAfter);
     const eqKeys = statChangedKeys(was.eq, now.eq);
-    if (eqKeys.length) push("能力", statText(was.eq, eqKeys), statText(now.eq, eqKeys));
+    if (eqKeys.length && eqKeys.some(k => was.eq?.[k] !== undefined)) push("能力", statText(was.eq, eqKeys), statText(now.eq, eqKeys));
     if (rows.length) {
       changedItems++;
       changed.push(...rows);
