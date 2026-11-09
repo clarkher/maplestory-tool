@@ -11,11 +11,11 @@
    - 依據：萬聖節硬幣（4310522）在 items.json 的說明是「可向行商人交換各種道具」；2.0.0 changed 裡 kind === 商店 且 after 含「萬聖節硬幣」共 4 筆（棒冰棒、烤鰻魚、礦泉水、紅豆刨冰，地點「雪原的面具祭典現場」）。
      `node -e "const P=require('./public/data/patches/2.0.0.json');console.log(P.changed.filter(c=>c.kind==='商店'&&c.after.includes('萬聖節硬幣')).map(c=>c.n))"`
    - 地圖名：2.0.0 added.maps 有「雪原的面具祭典現場」。
-2. `4000049` 冰原雪域新任務｜85 個任務，10～90 等都有
+2. `4000049` 天空之城、冰原雪域新任務｜85 個任務，10～90 等都有（依起始 NPC 地圖：天空之城 49、冰原雪域 25、維多利亞島四村賢者 9、艾利傑的庭園 2）
    - 依據：2.0.0 added.quests 裡 cat === 冰原雪域，共 85 筆；有 minLv 的最小 10、最大 90。
      `node -e "const P=require('./public/data/patches/2.0.0.json');const q=P.added.quests.filter(x=>x.cat==='冰原雪域');const l=q.map(x=>x.minLv).filter(Boolean);console.log(q.length,Math.min(...l),Math.max(...l))"` → 85 10 90
    - 圖示：雪吉拉之角（4000049）在 2.0.0 changed（掉落多了變形雪吉拉），且是冰原雪域任務 3052「收集毛皮衣材料」用到的道具。
-3. `2046414` 楓葉武器攻擊力卷軸｜五個職業共 21 張，分 100%、70%、15%
+3. `2046414` 楓葉武器卷軸｜五個職業共 21 張，分 100%、70%、15%
    - 依據：2.0.0 added.items 裡 n 含「楓葉」且 s === 卷軸，共 21 筆；職業前綴為劍士 3、弓箭手 3、法師 3、盜賊 6（拳套、短劍）、海盜 6（指虎、火槍），每組都是 100%／70%／15%。
      `node -e "const P=require('./public/data/patches/2.0.0.json');console.log(P.added.items.filter(i=>i.n.includes('楓葉')&&i.s==='卷軸').map(i=>i.n))"`
 4. `2450247` 經驗值加倍券｜1.5 倍、2 倍共 7 種，每張 30 分鐘
@@ -24,7 +24,7 @@
 
 ## 1.15.0（冒險家的戒指、菇菇通行證）
 
-1. `1113372` 冒險家的戒指任務｜56 個任務、30 等起，獎勵 3 款戒指
+1. `1113372` 冒險家的戒指任務｜56 個任務、30 等起，最後從 3 款戒指挑 1 個（任務 69099 文字：三款中選擇一個）
    - 依據：1.15.0 added.quests 裡 n 含「冒險家的戒指」共 56 筆，minLv 全部是 30。
      `node -e "const P=require('./public/data/patches/1.15.0.json');const q=P.added.quests.filter(x=>x.n.includes('冒險家的戒指'));console.log(q.length,[...new Set(q.map(x=>x.minLv))])"` → 56 [30]
    - 依據：冒險家的戒指-生命／靈魂／調和（1113372～1113374）在 items.json 的 qr 都是 ["69099"]（任務「[冒險家的戒指]冒險家的戒指」的獎勵）。
@@ -32,10 +32,10 @@
 2. `1302378` 楓之谷薰衣草裝備｜15 把 30 等武器，另有帽子、披風、臉飾
    - 依據：1.15.0 added.items 裡 n 以「楓之谷薰衣草」開頭且 c === 裝備，共 18 筆：s 是帽子、披風、臉飾各 1，其餘 15 筆是武器，items.json 的 eq.reqLevel 都是 30（武器選擇箱是消耗類，不算）。
      `node -e "const P=require('./public/data/patches/1.15.0.json');const it=require('./public/data/items.json');const w=P.added.items.filter(i=>i.n.startsWith('楓之谷薰衣草')&&i.c==='裝備'&&!['帽子','披風','臉飾'].includes(i.s));console.log(w.length,[...new Set(w.map(i=>it.find(x=>x.id===i.id).eq.reqLevel))])"` → 15 [30]
-3. `3801913` 菇菇通行證活動｜活動任務，加上第 1、2 階段的通行證祝福
+3. `3801913` 菇菇通行證活動｜新的活動任務，還有「菇菇通行證的祝福」第 1、2 階段
    - 依據：1.15.0 added.quests 裡 n 含「菇菇通行證」共 4 筆（其中「菇菇通行證參與確認用」是系統用，所以小字不寫數字）；added.items 有 菇菇通行證（3801913）、菇菇通行證的祝福第1階段（2024329）、第2階段（2024366）。
      `node -e "const P=require('./public/data/patches/1.15.0.json');console.log(P.added.quests.filter(x=>x.n.includes('菇菇通行證')).map(x=>x.n),P.added.items.filter(i=>i.n.includes('菇菇通行證')).map(i=>i.n))"`
-4. `2000000` 楓之谷通行證遠端商店｜賣 25 種藥水、卷軸、箭矢
+4. `2000000` 楓之谷通行證遠端商店｜賣 25 種藥水、食物、卷軸、箭矢、飛鏢
    - 依據：1.15.0 changed 裡 kind === 商店、after 含「楓之谷通行證遠端商店」且 before 沒有，共 25 筆（含紅色藥水、回家卷軸、弓箭手村卷軸、箭矢、弩箭矢等）。
      `node -e "const P=require('./public/data/patches/1.15.0.json');const s=P.changed.filter(c=>c.kind==='商店'&&c.after.includes('楓之谷通行證遠端商店')&&!c.before.includes('楓之谷通行證遠端商店'));console.log(s.length,s.map(c=>c.n))"` → 25
 
