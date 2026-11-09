@@ -12,23 +12,29 @@ import { SeoLinks, SeoPage } from "./SeoPage";
  * 表、假設一律用算出來的 CalcTable，不另外寫數字。站上色票都是 CSS 變數，深淺色跟著主題走。
  */
 
-/** 標籤的底跟字色（對比測試讀這張表） */
+/**
+ * 標籤的底跟字色（對比測試讀這張表）。v1.95 照「從哪來」分三色（設計系統 A 拍板 6）：
+ * 站上算的、遊戲本身的資料＝藍；玩家說的＝金；舊的、官方文字＝灰。橘色留給重點，不當標籤色。
+ */
+const SKY = { wash: "bg-[color:var(--sky-wash)]", ink: "text-[color:var(--sky)]" };
+const GOLD = { wash: "bg-[color:var(--gold-wash)]", ink: "text-[color:var(--gold)]" };
+const GRAY = { wash: "bg-[color:var(--paper-deep)]", ink: "text-[color:var(--ink-soft)]" };
 export const TAG_TONE: Record<ClaimTag, { wash: string; ink: string }> = {
-  tw: { wash: "bg-[color:var(--leaf-wash)]", ink: "text-[color:var(--leaf)]" },
-  community: { wash: "bg-[color:var(--maple-wash)]", ink: "text-[color:var(--maple)]" },
-  legacy: { wash: "bg-[color:var(--gold-wash)]", ink: "text-[color:var(--gold)]" },
-  calc: { wash: "bg-[color:var(--sky-wash)]", ink: "text-[color:var(--sky)]" },
-  game: { wash: "bg-[color:var(--paper-deep)]", ink: "text-[color:var(--ink-soft)]" },
-  official: { wash: "bg-[color:var(--paper-deep)]", ink: "text-[color:var(--ink)]" },
+  calc: SKY,
+  game: SKY,
+  tw: GOLD,
+  community: GOLD,
+  legacy: GRAY,
+  official: GRAY,
 };
 
 /**
- * solid：放在有底色的框裡（先講結論）用實心底，洗色底疊上去深色模式對比不到 AA（社群整理曾經只有 4.08）。
  * 跟前面的字隔一個空白不用 margin：換行到行首時空白會收掉，margin 會留一段內縮。
+ * 結論框（v1.95 起是卡片底，不再是橘色洗底）跟段落一樣用洗色底；對比測試量疊在頁底、卡片底兩種。
  */
-function SourceTag({ tag, solid }: { tag: ClaimTag; solid?: boolean }) {
+function SourceTag({ tag }: { tag: ClaimTag }) {
   const tone = TAG_TONE[tag];
-  return <>{" "}<span className={`inline-block whitespace-nowrap rounded px-2 align-[1px] text-[12px] font-bold leading-[1.5] ${solid ? "bg-[color:var(--paper)]" : tone.wash} ${tone.ink}`}>{TAG_LABEL[tag]}</span></>;
+  return <>{" "}<span className={`inline-block whitespace-nowrap rounded px-2 align-[1px] text-[12px] font-bold leading-[1.5] ${tone.wash} ${tone.ink}`}>{TAG_LABEL[tag]}</span></>;
 }
 
 /**
@@ -61,19 +67,38 @@ function Heading({ children }: { children: React.ReactNode }) {
   return <h2 className="pt-2 text-lg font-black leading-snug sm:text-xl">{children}</h2>;
 }
 
-function Lines({ lines, ordered, solid, maps }: { lines: ArticleAnswer[]; ordered?: boolean; solid?: boolean; maps?: Record<string, MapRecord> }) {
+function Lines({ lines, ordered, maps }: { lines: ArticleAnswer[]; ordered?: boolean; maps?: Record<string, MapRecord> }) {
   const List = ordered ? "ol" : "ul";
   return (
     <List className={`${ordered ? "list-decimal" : "list-disc"} space-y-1.5 pl-5`}>
       {lines.map((line, index) => (
         <li key={index}>
           {line.alt ? <span className="mr-1 font-bold">備案：</span> : null}
-          {line.text}<SourceTag tag={line.tag} solid={solid} />
+          {line.text}<SourceTag tag={line.tag} />
           {/* 網址跟步驟卡的帶我去同一種；字色跟著框裡的字（--sky 疊在結論框的洗色底上對比不保證到 AA）。inline-block：手機上整顆換行，不在字中間斷 */}
           {line.go !== undefined ? <>{" "}<Link href={`/go?to=${line.go}`} className="inline-block font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">帶我去{maps?.[String(line.go)]?.zh}</Link></> : null}
         </li>
       ))}
     </List>
+  );
+}
+
+/** 先講結論的條目（v1.95）：前面兩位數編號（01、02…），列跟列之間細線；用 ol 讀螢幕軟體照樣念第幾條 */
+function NumberedLines({ lines, maps }: { lines: ArticleAnswer[]; maps?: Record<string, MapRecord> }) {
+  return (
+    <ol className="divide-y divide-[color:var(--paper-edge)]">
+      {lines.map((line, index) => (
+        <li key={index} className="grid grid-cols-[2rem_minmax(0,1fr)] gap-x-1 py-2.5 first:pt-1 last:pb-0">
+          <span aria-hidden="true" className="pt-px text-[13px] font-black tabular-nums text-[color:var(--maple)]">{String(index + 1).padStart(2, "0")}</span>
+          <span>
+            {line.alt ? <span className="mr-1 font-bold">備案：</span> : null}
+            {line.text}<SourceTag tag={line.tag} />
+            {/* 網址跟步驟卡的帶我去同一種；字色跟著框裡的字（--sky 疊在結論框的洗色底上對比不保證到 AA）。inline-block：手機上整顆換行，不在字中間斷 */}
+            {line.go !== undefined ? <>{" "}<Link href={`/go?to=${line.go}`} className="inline-block font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">帶我去{maps?.[String(line.go)]?.zh}</Link></> : null}
+          </span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -240,9 +265,9 @@ export function JobArticleView({
         <Byline article={article} images={images} />
       </div>
 
-      <div className="space-y-1.5 rounded-xl bg-[color:var(--maple-wash)] p-3.5 text-[15px] leading-relaxed sm:p-4">
-        <p className="text-sm font-bold text-[color:var(--maple)]">先講結論</p>
-        <Lines lines={article.answer} ordered solid maps={maps} />
+      <div id="answer" className="scroll-mt-header space-y-1.5 rounded-[var(--radius-card)] border border-l-[3px] border-[color:var(--paper-edge)] border-l-[color:var(--maple)] glass-fill p-3.5 text-[15px] leading-relaxed sm:p-4">
+        <p className="text-[12px] font-extrabold tracking-[0.1em] text-[color:var(--maple)]">先講結論</p>
+        <NumberedLines lines={article.answer} maps={maps} />
         {/* 直接跳到必解任務、技能點法（v1.80）；那類段落不存在就不放 */}
         {pinned.some(({ anchor }) => anchor) ? (
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-1 text-sm font-bold">

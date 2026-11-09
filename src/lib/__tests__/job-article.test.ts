@@ -797,27 +797,41 @@ describe("來源標籤的對比（全站小字 AA，v0.81）", () => {
   };
   const contrast = (a: number[], b: number[]) => { const [x, y] = [luminance(a), luminance(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
-  it("每一種標籤、深淺色：段落裡的洗色底、結論框裡的實心底都到 4.5", async () => {
+  it("每一種標籤、深淺色：疊在頁底、卡片底上都到 4.5", async () => {
     const { TAG_TONE } = await import("@/components/JobArticleView");
     for (const [theme, block] of [["light", light], ["dark", dark]] as const) {
-      const paper = parse(token(block, "paper"));
-      for (const [tag, tone] of Object.entries(TAG_TONE)) {
-        const tokenOf = (cls: string) => /var\(--([\w-]+)\)/.exec(cls)![1];
-        const ink = parse(token(block, tokenOf(tone.ink)));
-        expect(contrast(ink, over(parse(token(block, tokenOf(tone.wash))), paper)), `${theme} ${tag} 段落裡`).toBeGreaterThanOrEqual(4.5);
-        expect(contrast(ink, paper), `${theme} ${tag} 結論框裡`).toBeGreaterThanOrEqual(4.5);
+      for (const base of ["paper", "glass"]) {
+        const under = parse(token(block, base));
+        for (const [tag, tone] of Object.entries(TAG_TONE)) {
+          const tokenOf = (cls: string) => /var\(--([\w-]+)\)/.exec(cls)![1];
+          const ink = parse(token(block, tokenOf(tone.ink)));
+          expect(contrast(ink, over(parse(token(block, tokenOf(tone.wash))), under)), `${theme} ${tag} 疊在 ${base}`).toBeGreaterThanOrEqual(4.5);
+        }
       }
     }
   });
 
-  it("「先講結論」框裡的標籤用實心底，不跟框的洗色疊在一起（深色模式社群整理曾經只有 4.08）", async () => {
+  it("來源標籤照「從哪來」分三色（v1.95，拍板 6）：站上算、遊戲本身＝藍；玩家說的＝金；舊的、官方文字＝灰", async () => {
+    const { TAG_TONE } = await import("@/components/JobArticleView");
+    const colorOf = (tag: keyof typeof TAG_TONE) => /var\(--([\w-]+)\)/.exec(TAG_TONE[tag].ink)![1];
+    expect([colorOf("calc"), colorOf("game")]).toEqual(["sky", "sky"]);
+    expect([colorOf("tw"), colorOf("community")]).toEqual(["gold", "gold"]);
+    expect([colorOf("legacy"), colorOf("official")]).toEqual(["ink-soft", "ink-soft"]);
+    expect(TAG_TONE.legacy.wash).toBe(TAG_TONE.official.wash);
+  });
+
+  it("「先講結論」框（v1.95）：卡片底＋左邊 3px 橘線、每條前面兩位數編號、列跟列之間細線", async () => {
     const { JobArticleView } = await import("@/components/JobArticleView");
     const article = { ...validCleric(), answer: [{ text: "一", tag: "community" as const }, { text: "二", tag: "tw" as const }] };
     const html = renderToString(JobArticleView({ jobName: "僧侶", rangeLabel: "31～50 等", path: "/guides/priest-31-50", jobPath: "/jobs/230", article, table: buildCalcTable({ job: 230, from: 31, to: 50, data }), monsters: new Map(), maps: {}, dataNote: "", jsonLd: [] }));
-    const box = html.slice(html.indexOf("先講結論"), html.indexOf("</ol>"));
-    expect(box).toContain("社群整理");
-    expect(box).not.toContain("--maple-wash");
-    expect(box).toContain("bg-[color:var(--paper)]");
+    const boxStart = html.lastIndexOf("<div", html.indexOf("先講結論"));
+    const box = html.slice(boxStart, html.indexOf("</ol>", boxStart));
+    expect(box).toMatch(/border-l-\[3px\]/);
+    expect(box).toMatch(/border-l-\[color:var\(--maple\)\]/);
+    expect(box).not.toContain("bg-[color:var(--maple-wash)] p-");
+    expect(box).toContain(">01<");
+    expect(box).toContain(">02<");
+    expect(box).toContain("divide-y");
   });
 });
 
