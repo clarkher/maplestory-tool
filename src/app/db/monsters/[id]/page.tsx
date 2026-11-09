@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { SeoLinks, SeoPage, SeoSection, SeoStats } from "@/components/SeoPage";
+import { SeoBars, SeoLinks, SeoPage, SeoSection, SeoStats } from "@/components/SeoPage";
 import { mapHref } from "@/lib/atlas-view";
 import { monsterImage } from "@/lib/asset-paths";
 import { elementalNotes, formatNumber } from "@/lib/format";
@@ -61,6 +61,7 @@ export default async function Page({ params }: Props) {
       ]}
     >
       <SeoStats
+        accent={3}
         rows={[
           ["等級", monster.lv ?? "—"],
           ["HP", formatNumber(monster.hp)],
@@ -82,24 +83,28 @@ export default async function Page({ params }: Props) {
         </SeoSection>
       ) : null}
 
-      {mapRows.length ? (
-        <SeoSection title={`出沒地圖（${mapRows.length} 張）`}>
-          <SeoLinks
-            links={mapRows.map(row => ({
-              // 有地圖頁連地圖頁（頁上有帶我去），沒有照舊連帶路
-              href: mapHref(row.id, atlasIndex),
-              text: maps[String(row.id)].zh,
-              note: row.spawns ? `${row.spawns} 個刷怪點` : undefined,
-            }))}
-          />
-        </SeoSection>
-      ) : null}
+      {/* 電腦版出沒地圖、掉落物左右兩欄（v1.99 照候選圖 A-mob）；只有一邊就照舊佔滿 */}
+      <div className={`grid gap-4${mapRows.length && drops.length ? " lg:grid-cols-2 lg:items-start" : ""}`}>
+        {mapRows.length ? (
+          <SeoSection title={`出沒地圖（${mapRows.length} 張）`}>
+            <SeoBars
+              rows={mapRows.map(row => ({
+                // 有地圖頁連地圖頁（頁上有帶我去），沒有照舊連帶路
+                href: mapHref(row.id, atlasIndex),
+                text: maps[String(row.id)].zh,
+                value: row.spawns || undefined,
+                unit: "個刷怪點",
+              }))}
+            />
+          </SeoSection>
+        ) : null}
 
-      {drops.length ? (
-        <SeoSection title={`掉落物（${drops.length} 樣，官方未公開機率）`}>
-          <SeoLinks links={drops.map(id => ({ href: staticItemHref(id), text: itemNames.get(id)! }))} />
-        </SeoSection>
-      ) : null}
+        {drops.length ? (
+          <SeoSection title={`掉落物（${drops.length} 樣，官方未公開機率）`}>
+            <SeoLinks links={drops.map(id => ({ href: staticItemHref(id), text: itemNames.get(id)! }))} />
+          </SeoSection>
+        ) : null}
+      </div>
 
       {quests.length ? (
         <SeoSection title="要打這隻怪的任務">
