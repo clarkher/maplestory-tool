@@ -180,6 +180,20 @@ describe("站上的文章（src/content/guides）", () => {
     }
   });
 
+  it("陸服楓葉商會情報（v1.95，使用者拍板 2A）：標題、開頭講明陸服＋台服未公布，19 把武器都有台服道具圖，卷軸不補數值", () => {
+    const doc = docs.find(entry => entry.slug === "maple-leaf-shop")!;
+    expect(doc.category).toBe("活動");
+    expect(doc.title).toMatch(/陸服.*台服未公布/);
+    const text = guideText(doc.blocks);
+    expect(text.split("\n")[0]).toContain("這是陸服情報，台服還沒公布");
+    expect(text).toContain("數值（台服遊戲檔案已有）");
+    expect(text).toContain("陸服沒寫能力加多少，台服遊戲檔案還沒有");
+    const icons = guideImages(doc.blocks).filter(src => src.startsWith("/assets/items/"));
+    expect(new Set(icons).size).toBe(19);
+    // 兩把劍名稱對調：陸服「楓葉戰劍」＝台服 35 級楓葉之劍（1302020）
+    expect(text).toMatch(/楓葉之劍（單手劍） 35 等[^\n]* 100 枚 楓葉戰劍$/m);
+  });
+
   it("頁面畫得出來：標題、主圖、麵包屑回攻略專區", () => {
     const doc = docs.find(entry => entry.slug === "third-job")!;
     const html = renderToString(createElement(GuideDocView, { doc, hero: { src: "/assets/guides/third-job/hero.webp", w: 1536, h: 864 }, jsonLd: [] }));
