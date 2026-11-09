@@ -24,3 +24,14 @@ describe("layout 跟 A 設計系統對齊（v1.89）", () => {
     expect(inter).toMatch(/"700"/);
   });
 });
+
+describe("字型變數掛在 <html>（v1.93）", () => {
+  // --font-sans 定義在 :root，裡面的 var(--font-inter) 也要在 :root 就查得到，不然整串失效、全站掉回系統字
+  it("next/font 的 variable class 掛在 html，不是 body", () => {
+    const html = layout.match(/<html[^>]*>/)![0];
+    const body = layout.match(/<body[^>]*>/)![0];
+    expect(html).toMatch(/inter\.variable/);
+    expect(html).toMatch(/notoTC\.variable/);
+    expect(body).not.toMatch(/\.variable/);
+  });
+});

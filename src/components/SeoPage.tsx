@@ -16,6 +16,7 @@ export function SeoPage({
   chips,
   toolHref,
   toolLabel,
+  cover,
   jsonLd,
   children,
 }: {
@@ -34,6 +35,8 @@ export function SeoPage({
   /** 底下那顆連到工具頁的按鈕；不給就不放 */
   toolHref?: string;
   toolLabel?: string;
+  /** 有給就用它取代整個標題列（攻略文的深色大圖頁首，v1.95）；裡面要自己放 h1 */
+  cover?: React.ReactNode;
   jsonLd: object[];
   children: React.ReactNode;
 }) {
@@ -59,7 +62,7 @@ export function SeoPage({
       </nav>
 
       <article className="space-y-4 rounded-[var(--radius-card)] glass wood-frame p-4 sm:p-5">
-        <header className="flex items-start gap-3">
+        {cover ?? <header className="flex items-start gap-3">
           {image ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={image} alt={title} width={imageSize} height={imageSize} style={{ width: imageSize, height: imageSize }} className="shrink-0 object-contain" />
@@ -70,7 +73,7 @@ export function SeoPage({
             {chips ? <div className="mt-2 flex flex-wrap gap-1.5">{chips}</div> : null}
             {lead ? <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">{lead}</p> : null}
           </div>
-        </header>
+        </header>}
         {children}
         {toolHref ? (
           <Link
@@ -114,11 +117,12 @@ export function SeoStats({ rows }: { rows: [string, React.ReactNode][] }) {
 export function SeoLinks({ links }: { links: { href: string; text: string; note?: string }[] }) {
   return (
     <ul className="flex flex-wrap gap-1.5">
-      {links.map(link => {
+      {links.map((link, index) => {
         // 道具單獨頁只留 html（省 Cloudflare 檔案額度），next/link 預先載入會 404，用一般連結整頁載入
         const Anchor = link.href.startsWith("/db/items/") ? "a" : Link;
         return (
-        <li key={link.href + link.text}>
+        // key 會寫進頁面的 RSC 資料，放網址＋名稱會被 Googlebot 當成 /db/npcs/9402807樂師 這種壞連結去抓
+        <li key={index}>
           <Anchor
             href={link.href}
             className="inline-flex items-center gap-1 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-2.5 py-1 text-[13px] hover:border-[color:var(--maple)]"

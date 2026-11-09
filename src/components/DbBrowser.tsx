@@ -86,7 +86,7 @@ const siteHeader = () => document.querySelector("body > header");
  * 導覽列收起來時 --header-offset 變 0，跟著導覽列一起移到最上面（同樣 0.2 秒）
  */
 const STUCK =
-  "sticky top-[var(--header-offset)] z-10 transition-[top] duration-200 ease-out bg-[color:color-mix(in_srgb,var(--maple)_12%,var(--paper))] ring-1 ring-[color:var(--maple)] shadow-[0_8px_14px_-10px_rgb(60_30_10/0.45)]";
+  "sticky top-[var(--header-offset)] z-10 transition-[top] duration-200 ease-out bg-[color:color-mix(in_srgb,var(--maple)_12%,var(--paper))] ring-1 ring-[color:var(--maple)] shadow-[0_8px_14px_-10px_rgb(0_0_0/0.35)]";
 
 /**
  * 四個資料頁共用的骨架：桌機左邊清單、右邊細節；手機、平板點了哪一筆，細節就展開在那一筆下面。
