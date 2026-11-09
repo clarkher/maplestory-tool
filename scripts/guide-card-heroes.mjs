@@ -64,6 +64,23 @@ const SCENES = [
     ].join(" "),
   },
   {
+    // v1.95 陸服楓葉商會情報：射手村香菇屋前的楓葉武器攤（武器小圖是台服客戶端那 19 把裡的 5 把）
+    slug: "maple-leaf-shop",
+    base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [
+      { file: "items/1302030.png", x: 0.2, y: 0.86, h: 0.26 },
+      { file: "items/1382012.png", x: 0.32, y: 0.86, h: 0.26 },
+      { file: "items/1452022.png", x: 0.44, y: 0.86, h: 0.26 },
+      { file: "items/1472032.png", x: 0.56, y: 0.86, h: 0.2 },
+      { file: "items/1492021.png", x: 0.68, y: 0.86, h: 0.2 },
+    ],
+    idea: [
+      "Turn the scene into a cozy autumn mushroom village at golden hour: mushroom-cap houses with yellow and red caps, warm sunset light, bright red and orange maple leaves drifting through the air and piled on the ground.",
+      "In the foreground is a wooden market stall with a red cloth canopy, and on its rack and counter the maple-leaf weapons from the sprites are displayed: a sword, a staff, a bow, a throwing-star claw and a pistol, each made of glowing red-orange maple leaf shapes with gold trim. Keep each weapon recognizable like its sprite, same shape and colors.",
+      "Next to the stall stands a cheerful young adventurer with short brown hair in a light tunic, holding up a shiny maple-leaf coin with a maple leaf emblem, eyes sparkling as she looks at the weapons. A small pile of the same maple-leaf coins sits on the counter. Warm, festive, inviting mood.",
+    ].join(" "),
+  },
+  {
     slug: "halloween",
     base: { backdrop: "snow" },
     sprites: [{ file: "monster_frames/9602795.png", x: 0.66, y: 0.9, h: 0.62 }],
