@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import fs from "node:fs";
-import path from "node:path";
 import Link from "next/link";
+import { hasItemIcon } from "@/lib/item-icons";
 import { cardIcons, listPatchPages } from "@/lib/patches";
 import { PatchCard } from "./PatchCard";
 
@@ -12,11 +11,6 @@ export const metadata: Metadata = {
   description: "新楓之谷經典版每次遊戲更新多了什麼：新道具、新任務、新怪物，照時間排，點進去看這次改了什麼。",
   alternates: { canonical: "/updates" },
 };
-
-// 圖檔清單讀一次（逐個 existsSync 拼路徑會讓 Turbopack 把 1.7 萬張圖都當成相依）
-const itemDir = path.join(/*turbopackIgnore: true*/ process.cwd(), "public", "assets", "items");
-const ICONS = new Set(fs.existsSync(itemDir) ? fs.readdirSync(itemDir) : []);
-const has = (id: number) => ICONS.has(`${id}.png`);
 
 export default function Page() {
   const pages = listPatchPages();
@@ -32,7 +26,7 @@ export default function Page() {
       {pages.length === 0 ? (
         <p className="ink-soft text-sm">改版整理整理中，晚點再來看。</p>
       ) : (
-        pages.map((page, i) => <PatchCard key={page.version} page={page} icons={cardIcons(page, has)} latest={i === 0} />)
+        pages.map((page, i) => <PatchCard key={page.version} page={page} icons={cardIcons(page, hasItemIcon)} latest={i === 0} />)
       )}
       <p className="ink-soft text-[13px] leading-relaxed">比的是更新前後的遊戲資料，不是官方公告；什麼時候開放、怎麼拿到，以遊戲內為準。</p>
     </div>
