@@ -389,3 +389,60 @@ test("notify 也拿得到兩邊的內容雜湊（上游改內容不改時間時�
   // 這兩個值只放在 env 區塊（縮排 10 格）：不會有別的地方（run、with）另外貼 ${{ }}
   assert.equal((NOTIFY.match(/needs\.refresh\.outputs\.(?:hash|before_hash)/g) ?? []).length, 2);
 });
+
+// ---- 改版整理（v1.94）：資料更新時重算目前版本的改版差異，新版本開 issue 提醒寫重點 ----
+
+test("refresh 有一步跑 refresh-patch.mjs：在 build.mjs 之後、verify.mjs 之前，有重建才跑，run 裡沒有 ${{ }}", () => {
+  const block = stepBlock("重算目前版本的改版差異");
+  assert.ok(REFRESH.includes(block), "要在 refresh 裡");
+  assert.match(block, /node pipeline\/refresh-patch\.mjs/);
+  assert.match(block, /^\s*if: steps\.check\.outputs\.changed == 'true'\s*$/m);
+  const at = text => REFRESH.indexOf(text);
+  assert.ok(at("node pipeline/build.mjs") < at("node pipeline/refresh-patch.mjs"), "要在 build.mjs 之後");
+  assert.ok(at("node pipeline/refresh-patch.mjs") < at("node pipeline/verify.mjs"), "要在 verify.mjs 之前");
+  for (const script of runScripts(block)) assert.doesNotMatch(script, /\$\{\{/);
+});
+
+test("refresh-patch 那步：上游另 clone 一份看得到歷史的（blob:none），比對的上游版本鎖在取資料那份 clone 的 HEAD", () => {
+  const block = stepBlock("重算目前版本的改版差異");
+  assert.match(block, /git clone --filter=blob:none --no-checkout [^\n]*data\/cache\/upstream-history/);
+  assert.match(block, /--upstream data\/cache\/upstream-history/);
+  assert.match(block, /--head "\$\(git -C data\/cache\/upstream rev-parse HEAD\)"/);
+});
+
+test("artifact 整個 public/data 都帶（含 public/data/patches），publish 不用另外收", () => {
+  assert.match(stepBlock("存下重建好的資料檔"), /\n {12}public\/data\n/);
+});
+
+test("publish 合併後才輸出要提醒的版本：有 public/data/patches/<版本>.json 才寫 patch_version，寫在 gh pr merge 之後", () => {
+  const block = stepBlock("開 PR 並自動合併");
+  assert.match(block, /^ {8}id: pr$/m);
+  const merge = block.indexOf("gh pr merge");
+  const output = block.indexOf('echo "patch_version=${VERSION}" >> "$GITHUB_OUTPUT"');
+  assert.notEqual(output, -1, "要輸出 patch_version");
+  assert.ok(merge < output, "合併成功之後才輸出");
+  assert.match(block, /\[ -f "public\/data\/patches\/\$\{VERSION\}\.json" \]/);
+  assert.match(PUBLISH, /^ {4}outputs:\n(?: {6}#.*\n)* {6}patch_version: \$\{\{ steps\.pr\.outputs\.patch_version \}\}$/m);
+});
+
+test("新版本開 issue 提醒寫重點：放 notify（已有 issues: write），publish 成功才跑、dry-run 不開、已有重點檔或同標題開著就不開", () => {
+  const block = stepBlock("新版本提醒寫改版重點");
+  assert.ok(NOTIFY.includes(block), "要在 notify 裡（publish 的權限不加 issues）");
+  assert.match(block, /^\s*if: \$\{\{ needs\.publish\.result == 'success' && needs\.publish\.outputs\.patch_version != '' \}\}\s*$/m);
+  assert.match(block, /\n {10}VERSION: \$\{\{ needs\.publish\.outputs\.patch_version \}\}\n/);
+  const run = runScripts(block).join("\n");
+  assert.doesNotMatch(run, /\$\{\{/);
+  const at = text => {
+    const index = run.indexOf(text);
+    assert.notEqual(index, -1, `要有 ${text}`);
+    return index;
+  };
+  assert.ok(at('[[ "$VERSION" =~ ^[0-9A-Za-z.+-]{1,32}$ ]]') < at("gh issue create"), "版本字串先擋格式");
+  assert.ok(at(GUARD) < at("gh issue create"), "dry-run 再擋一次");
+  assert.ok(at('[ -f "src/content/patches/$VERSION.md" ]') < at("gh issue create"), "已經寫了重點就不開");
+  assert.ok(at('TITLE="新版本 $VERSION 要寫改版重點"') < at("gh issue create"));
+  assert.ok(at("gh issue list --state open") < at("gh issue create"), "同標題開著的就不再開");
+  assert.match(run, /grep -Fxq "\$TITLE"/, "標題要完全一樣才算（搜尋是模糊比對）");
+  // notify 的 checkout 只拿 pipeline，要多拿重點檔的資料夾才看得到有沒有寫
+  assert.match(NOTIFY, /sparse-checkout: \|\n {12}pipeline\n {12}src\/content\/patches\n/);
+});

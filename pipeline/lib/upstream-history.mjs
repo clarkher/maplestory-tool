@@ -3,7 +3,7 @@
  * 改版比對（/updates）拿「這一版」跟「前一個不同版號」的資料相比，所以要能重建舊版。
  *
  *   versionAt(gitDir, commit)             那個 commit 的 data.js metadata.gameVersion（只讀 data.js）
- *   versionTimeline(gitDir, { since })    依版號分段，舊到新
+ *   versionTimeline(gitDir, { since, ref }) 依版號分段，舊到新（ref：只看到這個 commit 為止，預設 HEAD）
  *   previousVersion(timeline, version)    不同版號的前一段（同版修正不算）
  *   buildAt(gitDir, commit, outDir)       重建那個 commit 的網站資料到 outDir
  *
@@ -48,9 +48,10 @@ export function versionAt(gitDir, commit) {
   return typeof v === "string" && v ? v : null;
 }
 
-export function versionTimeline(gitDir, { since } = {}) {
+export function versionTimeline(gitDir, { since, ref } = {}) {
   const args = ["log", "--format=%H %cs"];
   if (since) args.push(`--since=${since}`);
+  if (ref !== undefined) args.push(checkCommit(ref));
   args.push("--", "data.js");
   const lines = git(gitDir, args).split("\n").map((l) => l.trim()).filter(Boolean); // 新到舊
   const segments = []; // 新到舊

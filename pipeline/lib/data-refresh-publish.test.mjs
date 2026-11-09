@@ -205,6 +205,24 @@ describe("publish 那一步真的跑一次（bash＋git，本機 bare repo 當 o
     assert.equal(result.gh[1], `gh pr merge ${BRANCH} --squash --delete-branch --admin`);
   });
 
+  test("合併後：這一版有 data/patches/<版本>.json 才輸出 patch_version（給 notify 開 issue 提醒寫重點），沒有就不輸出", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "publish-output-"));
+    try {
+      const withPatch = path.join(dir, "with.txt");
+      const withoutPatch = path.join(dir, "without.txt");
+      fs.writeFileSync(withPatch, "");
+      fs.writeFileSync(withoutPatch, "");
+      const a = await publish({ artifact: { ...FRESH, "data/patches/1.15.3.json": "{}", "data/patches/index.json": "{}" }, env: { GITHUB_OUTPUT: posix(withPatch) } });
+      assert.equal(a.code, 0, a.out);
+      assert.equal(fs.readFileSync(withPatch, "utf8"), "patch_version=1.15.3\n");
+      const b = await publish({ env: { GITHUB_OUTPUT: posix(withoutPatch) } });
+      assert.equal(b.code, 0, b.out);
+      assert.equal(fs.readFileSync(withoutPatch, "utf8"), "");
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   test("dry-run：一開始就結束，不動 public/、不推、不開 PR", async () => {
     const result = await publish({ env: { DRY_RUN: "true" } });
     assert.equal(result.code, 0, result.out);
