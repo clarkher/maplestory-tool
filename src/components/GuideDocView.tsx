@@ -13,9 +13,11 @@ const SPRITE = /^\/assets\/(items|npcs|monster_frames|skills|meso)\//;
 function Img({ src, alt, inline, captioned }: { src: string; alt: string; inline?: boolean; captioned?: boolean }) {
   if (captioned) alt = "";
   if (SPRITE.test(src)) {
+    // 行內小圖要 max-w-none：Tailwind 預設 img max-width:100%，放在表格裡算欄寬時圖被當 0 寬，
+    // 不折行的第一欄「圖＋名字」會壓到隔壁欄（v1.95 楓葉武器表，手機 375 量到超出 24px）
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={src} alt={alt} loading="lazy" className={inline ? "inline-block max-h-8 align-middle [image-rendering:pixelated]" : "max-h-28 w-auto [image-rendering:pixelated]"} />
+      <img src={src} alt={alt} loading="lazy" className={inline ? "inline-block max-h-8 max-w-none align-middle [image-rendering:pixelated]" : "max-h-28 w-auto [image-rendering:pixelated]"} />
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
