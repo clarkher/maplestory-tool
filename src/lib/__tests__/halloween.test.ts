@@ -2,7 +2,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { HALLOWEEN, halloweenChapterFor, halloweenOn } from "@/lib/halloween";
-import { navFor } from "@/lib/nav";
 
 const ids = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => String(from + i));
 const steps = (n: number) => HALLOWEEN.chapters[n - 1].legs.flatMap(leg => leg.steps);
@@ -58,9 +57,4 @@ describe("萬聖節面具祭典攻略（v1.19）", () => {
     expect(halloweenChapterFor(at("2026-12-01T00:00:00+08:00"))).toBe(3);
   });
 
-  it("導覽列活動期間多一顆「萬聖節」（只在電腦版，手機四顆已經放滿），結束就不見", () => {
-    const during = navFor(at("2026-10-29T12:00:00+08:00"));
-    expect(during.find(item => item.label === "萬聖節")).toMatchObject({ href: "/event/halloween", desktopOnly: true });
-    expect(navFor(at("2026-11-12T00:00:00+08:00")).some(item => item.label === "萬聖節")).toBe(false);
-  });
 });

@@ -63,7 +63,7 @@ export default async function Page({ params }: Props) {
   const jobName = staticGuide(job).name;
   const jobPath = `/jobs/${job}`;
   const rangeLabel = articleRangeLabel(from, to);
-  const trail = [{ name: "職業攻略", path: "/guide" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }];
+  const trail = [{ name: "攻略", path: "/guides" }, { name: jobName, path: jobPath }, { name: rangeLabel, path }];
   const data = staticCalcData();
   const heroUrl = `${SITE_URL}${images.hero ? articleHeroPath(slug) : OG_BASE.images[0].url}`;
   return (
