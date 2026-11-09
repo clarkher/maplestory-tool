@@ -233,3 +233,12 @@ test("說明拿掉遊戲顏色碼、合併空白後再比；存的也是乾淨�
   );
   assert.deepEqual(d.changed, [{ id: 2, n: "道具2", kind: "說明", before: "所有武器上。 可用 10 次", after: "所有武器上。 可用 20 次" }]);
 });
+
+test("說明舊的是空的（只有顏色碼、空白也算）＝資料補齊，不列；變空的照列", () => {
+  const d = diffPatch(
+    mk({ items: [item(1), item(2, { d: " #c# " }), item(3, { d: "舊說明" })] }),
+    mk({ items: [item(1, { d: "新說明" }), item(2, { d: "新說明" }), item(3)] }),
+  );
+  assert.deepEqual(d.changed, [{ id: 3, n: "道具3", kind: "說明", before: "舊說明", after: "" }]);
+  assert.equal(d.counts.changed, 1);
+});
