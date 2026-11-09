@@ -114,3 +114,33 @@ test("任務、怪物、地圖新增；maps 以 key 當 id", () => {
   assert.deepEqual(d.added.maps, [{ id: "6", zh: "新圖", st: "冰原雪域" }]);
   assert.deepEqual([d.counts.quests, d.counts.monsters, d.counts.maps], [1, 1, 1]);
 });
+
+test("sp 只換順序 → 不算商店變動", () => {
+  const a = { p: "冰原雪域武器店", pr: 100000 };
+  const b = { p: "商城", pr: 100, c: 1 };
+  const d = diffPatch(mk({ items: [item(1, { sp: [a, b] })] }), mk({ items: [item(1, { sp: [b, a] })] }));
+  assert.deepEqual(d.changed, []);
+});
+
+test("sp 活動貨幣寫貨幣名、整組賣寫件數，不像楓幣價；分流圖同一句只列一次", () => {
+  const d = diffPatch(
+    mk({ items: [item(1)] }),
+    mk({
+      items: [
+        item(1, {
+          sp: [
+            { p: "雪原的面具祭典現場", n: "行商人", m: 1, pr: 10, u: "萬聖節硬幣", e: "2026-11-11T23:59+08:00" },
+            { p: "雪原的面具祭典現場", n: "行商人", m: 2, pr: 1, k: 10, u: "萬聖節硬幣" },
+            { p: "雪原的面具祭典現場", n: "行商人", m: 3, pr: 1, k: 10, u: "萬聖節硬幣" },
+            { p: "楓之谷通行證遠端商店", pr: 1400, k: 2000 },
+            { p: "商城", pr: 100, c: 1 },
+          ],
+        }),
+      ],
+    }),
+  );
+  assert.equal(
+    d.changed[0].after,
+    "商城 100、楓之谷通行證遠端商店 2,000 個 1,400、雪原的面具祭典現場 10 個 1 萬聖節硬幣、雪原的面具祭典現場 10 萬聖節硬幣",
+  );
+});
