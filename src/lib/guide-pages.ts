@@ -54,6 +54,12 @@ export const GUIDE_PAGES: GuideCard[] = [
     imageAlt: "楓之谷經典版改版紀錄，冒險家在城鎮廣場看佈告欄與新道具",
     category: "改版整理",
     tags: ["改版"],
-    date: latestPatchDate(),
+    // 日期要讀改版檔，不在載入時讀：用 guidePagesWithDates() 補（只有攻略專區建卡片時才碰 public/data/patches）
+    date: "",
   },
 ];
+
+/** 卡片牆用：把「日期要讀檔」的卡補上日期（/updates 卡＝最新一版的日期）。patches.ts 載入時不讀檔，只有呼叫這個函式才讀 */
+export function guidePagesWithDates(): GuideCard[] {
+  return GUIDE_PAGES.map(card => (card.href === "/updates" ? { ...card, date: latestPatchDate() } : card));
+}
