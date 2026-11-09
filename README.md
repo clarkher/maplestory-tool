@@ -499,6 +499,10 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **導覽列**（v1.86）：手機只放 我的路線、攻略、地圖導航、查資料；電腦版另有算傷害、練功測速、楓幣匯率、未來視。攻略（`/guides` 攻略專區）在 /guide、/guides/*、/jobs、/event 都亮；「帶我去」只在導覽列跟 /go 頁標題改叫地圖導航，卡片上的「帶我去」按鈕照舊；野王計時收進查資料。量放不放得下：`scripts/verify/nav-fit.mjs`。
 - **回收間隔**：把大家回報的「打死到下次出現」間隔收回來修正預估，只收 10 分～6 小時的值，同一隻王 20 筆以上才顯示，兩台伺服器合算。
   `GET /api/boss/intervals` 回 `Cache-Control: public, s-maxage=600, stale-while-revalidate=3600`（出錯不快取）。
+- **第一屏的「各野王重生時間」表**（v1.90）：GA 看到 ChatGPT 帶進來的人平均 2 秒就走，第一屏直接給答案。
+  表在 `src/app/plan/boss/RespawnTable.tsx`（伺服器元件，不跑 JavaScript 也讀得到），由 `page.tsx` 傳進 `BossTimer` 放在標題下面，計時器行為不變。
+  文字都從 `src/lib/boss/respawn-table.ts` 來（只讀 `data/boss/respawn.json`；`statsUntil` 是統計截止日）：卡片上那行、表格、頁面 description 開頭那句、`/llms.txt` 的「野王重生時間」段共用。
+  只有 1 筆實測的寫「實測只有 N 筆」、一筆都沒有寫「還沒有台服實測」，不寫分鐘。更新實測數字只改 `respawn.json`，測試會檢查表上的數字跟檔案一致。
 
 ## 廣告（v1.77）
 
@@ -522,6 +526,20 @@ npm test   # 管線測試（node:test）＋ 路線規劃邏輯測試（vitest）
 用無頭 Chrome 量換頁第一格（`scripts/verify/check-first-frame.mjs`，`.github/workflows/test.yml`），
 結果在 PR 頁面下面的檢查「測試 / 單元測試」「測試 / 建置」「測試 / 第一格」，紅燈點進去看是哪一步；第一格沒過時截圖跟紀錄在
 那次執行的 artifact。資料自動更新開的 PR 不會觸發（那條自己有跑檢查）。
+
+### IndexNow：正式機部署完通知 Bing（v1.90）
+
+ChatGPT 查網路主要靠 Bing；IndexNow 讓 Bing（跟 Yandex 等）不用等自己來爬，部署完就知道有哪些網址。
+
+- **金鑰**：`scripts/indexnow-key.mjs` 的 `INDEXNOW_KEY`，檔案 `public/<金鑰>.txt`（內容只有金鑰、不換行；換金鑰兩個一起改，`pipeline/lib/indexnow.test.mjs` 會擋）。金鑰本來就是公開的。
+- **腳本**：`scripts/indexnow.mjs`（檔頭有用法）。讀正式機 `https://maplehelper.tw/sitemap.xml`，只留 `https://maplehelper.tw` 的網址，一批最多 10,000 筆 POST 到 `https://api.indexnow.org/indexnow`。
+  - `node scripts/indexnow.mjs --dry-run`：只印筆數、批數、正式機金鑰檔狀態，不送（11/09 正式機 3,635 筆、1 批）。`--sitemap out/sitemap.xml` 改讀本機建置產出。
+  - 真送之前一定先確認金鑰檔回 200 而且內容對（還沒上正式機時送出會被拒 403），不對就失敗、不送。
+- **自動跑**：`.github/workflows/indexnow.yml`（workflow「IndexNow 通知」），main 有新 commit 時觸發，用 `--wait-deploy <sha>`：
+  等那顆 commit 的 check-run「Workers Builds: maplehelper」成功（正式機部署完，最多等 25 分鐘；失敗、取消就不送），再等金鑰檔、送出。
+  權限只有 `contents: read`、`checks: read`。dev（測試機）不觸發，測試機不送。
+  資料自動更新用 github.token 推進 main 的 commit 不會觸發（GitHub 的限制），等下一次合併一起送，或到 Actions 頁面按 Run workflow（分支 main）。
+  **workflow 檔要上 main 之後才會跑**，第一次跑的那次就是金鑰檔第一次上正式機（等部署那步會等它）。
 
 ### 搜尋引擎跟 AI 看得到的東西（v1.21）
 
