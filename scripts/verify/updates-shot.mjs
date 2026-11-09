@@ -143,6 +143,26 @@ try {
     return [m.rows >= 2 && m.h1Bottom > 0 && m.h1Bottom <= m.vh && m.firstTwoBottom !== null && m.firstTwoBottom <= m.vh, m];
   });
 
+  await check("/updates/2.0.0 標題寫「收錄」、開頭寫楓之谷經典版、版本選單日期也是「收錄」、重點標題不連結", async () => {
+    await open("/updates/2.0.0");
+    const r = await evaluate(`(() => {
+      const sec = ${SECTION("這次重點")};
+      return {
+        h1: document.querySelector("h1").textContent,
+        lead: document.querySelector("header p")?.textContent ?? "",
+        menu: document.querySelector("details summary")?.textContent ?? "",
+        highlightLinks: sec ? sec.querySelectorAll("a").length : -1,
+      };
+    })()`);
+    return [/收錄/.test(r.h1) && r.lead.includes("楓之谷經典版") && /收錄/.test(r.menu) && r.highlightLinks === 0, r];
+  });
+
+  await check("/updates 開頭那句寫楓之谷經典版", async () => {
+    await open("/updates");
+    const lead = await evaluate(`document.querySelector("header p")?.textContent ?? ""`);
+    return [lead.includes("楓之谷經典版"), lead];
+  });
+
   await check("/updates/2.0.0 「改了多少」四個數字 = 本機 json 的 items／quests／monsters／changed（新道具不含髮型臉型）", async () => {
     await open("/updates/2.0.0");
     const got = await evaluate(`(() => {

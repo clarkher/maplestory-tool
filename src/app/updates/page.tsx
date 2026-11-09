@@ -21,7 +21,7 @@ export default function Page() {
           <Link href="/guides" className="underline-offset-2 hover:underline">攻略</Link> › 改版整理
         </nav>
         <h1 className="mt-1.5 text-[25px] font-extrabold leading-tight tracking-tight">改版紀錄</h1>
-        <p className="ink-soft mt-1.5 text-sm leading-relaxed">每次遊戲更新多了什麼，照時間排。</p>
+        <p className="ink-soft mt-1.5 text-sm leading-relaxed">楓之谷經典版每次遊戲更新多了什麼，照時間排。</p>
       </header>
       {pages.length === 0 ? (
         <p className="ink-soft text-sm">改版整理整理中，晚點再來看。</p>
