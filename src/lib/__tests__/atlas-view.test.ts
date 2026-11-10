@@ -106,6 +106,19 @@ describe("mapRouteText", () => {
     expect(mapRouteText(9, graph, maps, near)).toBeNull();
     expect(mapRouteText(5, graph, maps, near)).toBeNull();
   });
+  it("城鎮從最近的另一個城鎮走過去（有人搜「奇幻村怎麼去」）", () => {
+    const towns = { ...maps, "6": { zh: "奇幻村", t: 1 } } as unknown as Record<string, MapRecord>;
+    const withTown = { ...graph, "2": [...graph["2"], [6, "右邊", 0, 0]] } as Record<string, PortalEdge[]>;
+    // 大城鎮＝至少 10 張圖的回城點
+    const tenNear = { ...near, "6": [6, 0] } as Record<string, [number, number]>;
+    for (let i = 0; i < 10; i += 1) tenNear[String(900 + i)] = [1, 0];
+    expect(mapRouteText(6, withTown, towns, tenNear)).toBe("怎麼去：從弓箭手村出發，東邊森林 → 奇幻村。");
+  });
+  it("小站不當城鎮的起點", () => {
+    const towns = { ...maps, "6": { zh: "奇幻村", t: 1 } } as unknown as Record<string, MapRecord>;
+    const withTown = { ...graph, "2": [...graph["2"], [6, "右邊", 0, 0]] } as Record<string, PortalEdge[]>;
+    expect(mapRouteText(6, withTown, towns, { ...near, "6": [6, 0] })).toBeNull();
+  });
   it("路太長只留頭尾", () => {
     const long: Record<string, PortalEdge[]> = {};
     const names: Record<string, unknown> = { "100": { zh: "城鎮", t: 1 } };

@@ -89,6 +89,38 @@ export function mapRouteText(
   return mapRoute(target, graph, maps, nearestTown)?.text ?? null;
 }
 
+/** 大城鎮：至少 10 張圖的回城點（散步路、地鐵售票處這種小站不算） */
+const MAJOR_TOWN_MIN = 10;
+const majorTownCache = new WeakMap<object, number[]>();
+function majorTowns(nearestTown: Record<string, [number, number]>): number[] {
+  const cached = majorTownCache.get(nearestTown);
+  if (cached) return cached;
+  const counts = new Map<number, number>();
+  for (const [town] of Object.values(nearestTown)) counts.set(town, (counts.get(town) ?? 0) + 1);
+  const towns = [...counts].filter(([, count]) => count >= MAJOR_TOWN_MIN).map(([town]) => town);
+  majorTownCache.set(nearestTown, towns);
+  return towns;
+}
+
+/** 城鎮自己的起點：別的大城鎮裡路最短的那個（同名的不算，不然會寫「從菇菇村出發，菇菇村」） */
+function closestOtherTown(
+  target: number,
+  graph: Record<string, PortalEdge[]>,
+  maps: Record<string, MapRecord>,
+  nearestTown: Record<string, [number, number]>,
+  level?: number,
+): number | null {
+  const name = maps[String(target)]?.zh;
+  let best: { town: number; steps: number } | null = null;
+  for (const town of majorTowns(nearestTown)) {
+    const townName = maps[String(town)]?.zh;
+    if (town === target || !townName || townName === name) continue;
+    const route = findRoute(graph, town, target, level);
+    if (route.ok && (!best || route.steps.length < best.steps)) best = { town, steps: route.steps.length };
+  }
+  return best?.town ?? null;
+}
+
 /**
  * mapRouteText 的完整版：另外回傳路上要過的 NPC 等級門檻（gate），讓呼叫端補「參考舊版資料」那句。
  * level 給了就不走等級不夠的 NPC 傳送（跟 findRoute 一樣）：49 等以下的任務不推傑夫後面那 16 張圖，走不到就是 null。
@@ -104,6 +136,8 @@ export function mapRoute(
   // 自己也算城鎮的小區（寒冰平原、鯨魚號中央走廊）：改從它的回城點出發，還是寫得出路線
   const ret = maps[String(target)]?.ret;
   if (town === target && ret && ret !== target && maps[String(ret)]?.zh) town = ret;
+  // 城鎮自己（奇幻村、天空之城）：改從路最短的另一個大城鎮走過去，玩家會搜「奇幻村怎麼去」
+  if (town === target) town = closestOtherTown(target, graph, maps, nearestTown, level);
   if (!town || town === target) return null;
   const route = findRoute(graph, town, target, level);
   if (!route.ok) return null;

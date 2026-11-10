@@ -40,8 +40,18 @@ export function monsterSummary(monster: Monster, maps: Record<string, MapRecord>
   const stats = `${head}，HP ${formatNumber(monster.hp)}、經驗 ${formatNumber(monster.exp)}。`;
   const { rows } = monsterMaps(monster, maps);
   if (!rows.length) return stats;
-  const names = rows.slice(0, 3).map(row => maps[String(row.id)].zh);
-  return `${stats}最常出現在${names.join("、")}（共 ${rows.length} 張圖）。`;
+  const top = rows.slice(0, 3);
+  // 玩家會搜「○○哪裡最多」：有刷怪點數字就照數字排給他看，沒有就只列圖名
+  if (top[0].spawns) {
+    const parts = top.map((row, index) => {
+      const name = maps[String(row.id)].zh;
+      if (!row.spawns) return name;
+      return `${name}（${row.spawns} 個${index ? "" : "刷怪點"}）`;
+    });
+    return `${stats}哪裡最多：${parts.join("、")}，共 ${rows.length} 張圖。`;
+  }
+  const names = top.map(row => maps[String(row.id)].zh);
+  return `${stats}出現在${names.join("、")}（共 ${rows.length} 張圖）。`;
 }
 
 /** 任務：分類、等級、誰接、要做什麼、給什麼 */
@@ -71,6 +81,27 @@ export function skillSummary(skill: Skill): string {
 }
 
 /** 職業攻略頁：寫有幾段練功點，舉第一段當例子 */
+/** 玩家搜的俗稱（Search Console 11/10：「標賊配點」「刀賊練等」），攻略資料的點法標題也這樣叫 */
+const JOB_NICKNAMES: Record<number, string> = { 400: "標賊、刀賊", 410: "標賊", 420: "刀賊" };
+
+/** 職業頁標題用的名字：一轉標「一轉」（玩家搜「法師一轉技能配點」），有俗稱補俗稱 */
+export function jobTitleName(job: number, name: string): string {
+  const tags = [job % 100 === 0 ? "一轉" : "", JOB_NICKNAMES[job] ?? ""].filter(Boolean);
+  return tags.length ? `${name}（${tags.join("，")}）` : name;
+}
+
+/** 職業頁頁首結論：先挑不是「舊版」的第一套（經典版／台服的說法優先），都是舊版才用第一套；另外還有幾套 */
+export function jobTopPick(guide: GuideJob): { label: string; order: string; others: number } | null {
+  const builds = guide.builds.filter(build => build.steps.length);
+  const pick = builds.find(build => !build.label.includes("舊版")) ?? builds[0];
+  if (!pick) return null;
+  return {
+    label: pick.label,
+    order: pick.steps.map(step => `${step.name} ${step.to}`).join(" → "),
+    others: builds.length - 1,
+  };
+}
+
 export function jobGuideSummary(guide: GuideJob): string {
   let text = `新楓之谷經典版${guide.name}怎麼練：素質怎麼配、技能點法、每個等級去哪練。`;
   const [first] = guide.train;
