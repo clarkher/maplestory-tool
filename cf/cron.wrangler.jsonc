@@ -1,0 +1,11 @@
+// 排程叫醒鐘（v2.00）：準時打 GitHub workflow_dispatch，說明在 cf/cron.ts。
+// 時間是 UTC，改了要一起改 cf/cron.ts 的 JOBS（測試會比對）。
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "maplehelper-cron",
+  "main": "cron.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "triggers": { "crons": ["55 */2 * * *", "10 0,12 * * *"] },
+  "observability": { "enabled": true }
+}
