@@ -153,7 +153,7 @@ function SkillDetail({ skill, find }: { skill: Skill; find: FindSkill }) {
   ) : null;
 
   return (
-    <DetailCard pageHref={`/db/skills/${skill.id}`}>
+    <DetailCard pageHref={`/db/skills/${skill.id}`} pageLabel={skill.req?.length ? "看學這招要先點哪些技能" : "看同職業的其他技能"}>
       <header className="flex items-start gap-3">
         {icon ? (
           // eslint-disable-next-line @next/next/no-img-element

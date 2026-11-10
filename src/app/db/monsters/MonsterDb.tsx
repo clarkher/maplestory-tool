@@ -157,7 +157,7 @@ function MonsterDetail({
   const { shown: drops, hidden: hiddenDrops } = monsterDrops(monster.drops, itemIndex);
 
   return (
-    <DetailCard pageHref={monster.un ? undefined : `/db/monsters/${monster.id}`}>
+    <DetailCard pageHref={monster.un ? undefined : `/db/monsters/${monster.id}`} pageLabel="看完整刷怪點與相關任務">
       <header className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={monsterImage(monster.id)} alt="" width={56} height={56} className="size-14 object-contain" />
@@ -172,40 +172,9 @@ function MonsterDetail({
         </div>
       </header>
 
-      <StatGrid
-        rows={[
-          ["物理攻擊", monster.pad],
-          ["物理防禦", monster.pdd],
-          ["魔法攻擊", monster.mad],
-          ["魔法防禦", monster.mdd],
-          ["命中", monster.acc],
-          ["迴避", monster.eva],
-          ["移動速度", monster.spd],
-          ["不死", monster.und ? "是" : "否"],
-        ]}
-      />
-
-      {elements.length ? (
-        <Section title="屬性抗性">
-          <ul className="flex flex-wrap gap-1.5">
-            {elements.map(element => (
-              <li
-                key={element.element}
-                className="rounded-md px-2.5 py-1 text-[13px] font-bold"
-                style={{
-                  backgroundColor: element.tone === "good" ? "var(--leaf-wash)" : "var(--maple-wash)",
-                  color: element.tone === "good" ? "var(--leaf)" : "var(--maple)",
-                }}
-              >
-                {element.element} {element.text}
-              </li>
-            ))}
-          </ul>
-        </Section>
-      ) : null}
-
+      {/* 刷怪點前三名放最上面：玩家查怪多半是要知道去哪打最多（11/10 使用者） */}
       {mapRows.length || hiddenMaps ? (
-        <Section title="出沒地圖" extra={mapRows.length ? `${mapRows.length} 張` : undefined}>
+        <Section title="出沒地圖：哪裡最多" extra={mapRows.length ? `${mapRows.length} 張` : undefined}>
           {mapRows.length ? (
             <ul className="space-y-1.5">
               {visibleMaps.map((row, index) => (
@@ -253,6 +222,38 @@ function MonsterDetail({
               {mapRows.length ? `另有 ${hiddenMaps} 張還沒開放的地圖沒列出來` : `出沒的 ${hiddenMaps} 張地圖都還沒開放，沒列出來`}
             </p>
           ) : null}
+        </Section>
+      ) : null}
+
+      <StatGrid
+        rows={[
+          ["物理攻擊", monster.pad],
+          ["物理防禦", monster.pdd],
+          ["魔法攻擊", monster.mad],
+          ["魔法防禦", monster.mdd],
+          ["命中", monster.acc],
+          ["迴避", monster.eva],
+          ["移動速度", monster.spd],
+          ["不死", monster.und ? "是" : "否"],
+        ]}
+      />
+
+      {elements.length ? (
+        <Section title="屬性抗性">
+          <ul className="flex flex-wrap gap-1.5">
+            {elements.map(element => (
+              <li
+                key={element.element}
+                className="rounded-md px-2.5 py-1 text-[13px] font-bold"
+                style={{
+                  backgroundColor: element.tone === "good" ? "var(--leaf-wash)" : "var(--maple-wash)",
+                  color: element.tone === "good" ? "var(--leaf)" : "var(--maple)",
+                }}
+              >
+                {element.element} {element.text}
+              </li>
+            ))}
+          </ul>
         </Section>
       ) : null}
 
