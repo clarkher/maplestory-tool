@@ -16,6 +16,7 @@ name: 楓幣匯率收集
 
 on:
   schedule:
+    # 備援（v2.00 起主要由 Cloudflare 的 cf/cron.ts 準時用 workflow_dispatch 叫；GitHub 排程常晚、常跳過）
     # 台灣時間 00:55 起每 2 小時（參考站在偶數整點 :41 左右更新，晚一點再抓）
     - cron: "55 */2 * * *"
   workflow_dispatch:
