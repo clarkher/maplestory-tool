@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { SeoLinks, SeoPage, SeoSection } from "@/components/SeoPage";
 import { levelRange, sourceLabels } from "@/lib/format";
 import { articlePath, articleRangeLabel } from "@/lib/job-article";
-import { breadcrumbLd, clip, jobGuideSummary, OG_BASE, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, jobGuideSummary, jobTitleName, jobTopPick, OG_BASE, webPageLd } from "@/lib/seo";
 import { staticGuide, staticGuideJobs, staticJobArticleRanges, staticModified, staticMonsters, staticSkills } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
@@ -25,7 +25,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const path = `/jobs/${guide.job}`;
   const description = clip(jobGuideSummary(guide));
   return {
-    title: `${guide.name}攻略｜配點、技能點法、各等級練功地圖`,
+    // 配點擺最前面：玩家搜「○○配點」「標賊配點」（Search Console 11/10）
+    title: `${jobTitleName(guide.job, guide.name)}配點、技能點法｜各等級練功地圖`,
     description,
     alternates: { canonical: path },
     openGraph: { ...OG_BASE, title: `${guide.name}攻略｜楓谷幫手`, description, url: path },
@@ -59,11 +60,12 @@ export default async function Page({ params }: Props) {
   const skills = staticSkills().filter(skill => skill.job === guide.job);
   const others = staticGuideJobs().filter(job => job !== guide.job).map(job => staticGuide(job));
   const articles = staticJobArticleRanges(guide.job);
+  const pick = jobTopPick(guide);
 
   return (
     <SeoPage
       trail={[{ name: "攻略", path: "/guides" }, { name: guide.name, path }]}
-      title={`${guide.name}攻略`}
+      title={`${jobTitleName(guide.job, guide.name)}攻略：配點、技能點法`}
       lead={summary}
       toolHref="/"
       toolLabel="填等級，看我現在去哪練"
@@ -72,6 +74,17 @@ export default async function Page({ params }: Props) {
         webPageLd({ name: `${guide.name}攻略`, path, description: clip(summary), modified: staticModified() }),
       ]}
     >
+      {pick ? (
+        <SeoSection title="先看結論：技能先點什麼">
+          <p className="text-sm font-bold leading-relaxed">{pick.order}</p>
+          <p className="mt-1.5 text-xs ink-soft">
+            照「{pick.label}」這套
+            {pick.others ? `，另外還有 ${pick.others} 套點法，往下看「技能點法」` : ""}
+            {guide.stat.length ? `；能力值怎麼配看下面「素質怎麼配」（${guide.stat.length} 種說法）` : ""}。
+          </p>
+        </SeoSection>
+      ) : null}
+
       {articles.length ? (
         <SeoSection title="分等級攻略">
           <SeoLinks links={articles.map(({ from, to }) => ({ href: articlePath(guide.job, from, to), text: articleRangeLabel(from, to) }))} />
