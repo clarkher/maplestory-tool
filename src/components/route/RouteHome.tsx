@@ -178,6 +178,8 @@ export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[
       {!ready ? <AvatarShowcase className={loaded ? "" : "[[data-profile=saved]_&]:hidden"} /> : null}
       {!ready ? (
         <header className={loaded ? "px-1 pt-2 text-center" : "px-1 pt-2 text-center [[data-profile=saved]_&]:invisible"}>
+          {/* v2.01：大標上面一行說清楚這是哪個版本的站（使用者選 D2：不寫「最」） */}
+          <p className="mb-1 text-[13px] font-bold tracking-wide text-[color:var(--maple)]">台服楓之谷經典版 攻略資料站</p>
           <h1 className="text-[26px] font-black leading-tight sm:text-[34px]">你現在幾等、什麼職業？</h1>
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed ink-soft">
             選好之後，直接告訴你現在去哪練、先解哪些任務、技能點哪個。
