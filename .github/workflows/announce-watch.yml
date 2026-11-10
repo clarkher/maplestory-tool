@@ -1,0 +1,48 @@
+name: 官網公告追蹤
+
+# 抓官網公告列表（maplestoryclassic.beanfun.com），新公告在「官網公告追蹤」issue（label「官方公告」）留言通知，
+# 寫是哪一類（維護／改版、活動、商城外觀）、網站哪裡要看。不會自動改網站。程式：pipeline/announce/watch.mjs。v2.00。
+# 主要由 Cloudflare 的排程叫醒鐘（cf/cron.ts）每天 08:10、20:10 準時用 workflow_dispatch 觸發；
+# 下面的 schedule 是備援（GitHub 自己的排程會晚好幾小時、有時整個跳過），兩邊都跑也不會重複通知。
+# 抓不到公告列表（官網壞了或格式改了）就整個失敗，GitHub 會寄失敗信。
+
+on:
+  schedule:
+    # 備援：台灣時間 09:40、21:40
+    - cron: "40 1,13 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "測試用：只印不留言、不改 issue"
+        type: boolean
+        default: false
+
+concurrency:
+  group: announce-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    if: github.repository == 'clarkher/maplestory-tool'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: pipeline/announce
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 看有沒有新公告
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSIGNEE: ${{ github.repository_owner }}
+          # main 以外的分支一律 dry-run，不在測試時亂留言
+          DRY_RUN: ${{ (inputs.dry_run || github.ref != 'refs/heads/main') && 'true' || 'false' }}
+        run: node pipeline/announce/watch.mjs

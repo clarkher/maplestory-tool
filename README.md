@@ -468,7 +468,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 
 ## 楓幣匯率收集
 
-`.github/workflows/fx-collect.yml`（workflow「楓幣匯率收集」）每 2 小時（台灣 00:55 起）抓一次參考站
+`.github/workflows/fx-collect.yml`（workflow「楓幣匯率收集」）每 2 小時（台灣 00:55 起，v2.00 起由 Cloudflare 準時叫，見下一節）抓一次參考站
 [maple-classic-wiki.pages.dev/price](https://maple-classic-wiki.pages.dev/price) 的 `data/price.json`——它每 2 小時整理一次
 8591《新楓之谷：經典版》公開掛單的雪吉拉市價（排除代練與引流單、MAD 去離群、最便宜四分之一的中位數）。
 比 `fx-data` 新的市價接進孤兒分支 **`fx-data`**（參考站只留最近 60 筆，這裡存全部），重算最新一筆與每日 K 棒。
@@ -490,6 +490,29 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   填錯格式 workflow 會紅並說明）。每日 K 棒照算，`daily.json` 的 `days[].source` 變成 `ref`／`manual`／`mixed`（給拍賣查價讀 `close` 不受影響）；
   最新一筆是手動的，`latest.json` 的 `src` 是 `manual`、沒有掛單數與價位分布，頁面更新時間那行寫「手動輸入」、當天讀數標「含手動輸入」。
   「匯率收集失敗」的 issue 內文也寫了這個做法。
+
+## 排程叫醒鐘、官網公告追蹤（v2.00，11/10 拍板 1A 2A）
+
+**什麼資料多久抓一次**（11/10 盤點）：
+
+| 資料 | 多久 | 誰叫 |
+|---|---|---|
+| 上游遊戲資料（查資料、路線、計算機、任務、攻略文、改版整理） | 每天 2 次 | GitHub 排程（`data-refresh.yml`）。上游改動集中在改版那幾天，晚幾小時沒關係 |
+| 楓幣匯率 | 每 2 小時 | **Cloudflare**（GitHub 排程留著當備援） |
+| 官網公告 | 每天 2 次（08:10、20:10） | **Cloudflare**（GitHub 排程 09:40、21:40 當備援） |
+| v83 地圖、舊版商店、maplestory.io 紙娃娃圖、本機客戶端字串 | 不排程 | 凍結版；客戶端更新時手動重抽 |
+
+- **為什麼要 Cloudflare 叫**：GitHub 自己的 schedule 會延遲、會整個跳過。`fx-collect` 寫每 2 小時，10/29～11/09 實際一天只跑 3～5 次。
+  `cf/cron.ts`（Worker `maplehelper-cron`）用 Cron Triggers 準時打 GitHub `workflow_dispatch`（分支 main），工作照舊在 GitHub Actions 跑。
+  時間表在 `cf/cron.wrangler.jsonc`，跟 `cf/cron.ts` 的 `JOBS` 要一致（測試比對）。
+- **部署**：`npx wrangler deploy -c cf/cron.wrangler.jsonc`（只有一支小程式，不用 build，Windows 也可以）。
+  權杖：`npx wrangler secret put GH_DISPATCH_TOKEN -c cf/cron.wrangler.jsonc`，要能對這個 repo 觸發 workflow（fine-grained 權杖勾 Actions: Read and write）。
+  沒設權杖每次排程都會記成失敗（Cloudflare 後台 Workers → maplehelper-cron → 記錄看得到）。
+- **官網公告追蹤**：`.github/workflows/announce-watch.yml` → `pipeline/announce/watch.mjs`。打官網公告列表 API（`FindBulletin`），
+  新公告在「官網公告追蹤」issue（label「官方公告」，一直開著）留言：哪一類（維護／改版、活動、商城外觀、其他）、網站哪裡要看。
+  **不自動改網站**。制裁公告不通知。看過的公告 id 記在 issue 內文最後的註解（最多 300 個）；第一次跑只開 issue 不留言。
+  分類規則在 `pipeline/announce/lib/bulletin.mjs`（`node --test pipeline/announce/lib/bulletin.test.mjs`）。
+  本機試跑：`DRY_RUN=true GH_TOKEN=$(gh auth token --user clarkher) node pipeline/announce/watch.mjs`。main 以外的分支一律 dry-run。
 
 ## 野王計時
 
