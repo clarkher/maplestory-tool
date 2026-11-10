@@ -3,6 +3,8 @@ import {
   breadcrumbLd,
   clip,
   jobGuideSummary,
+  jobTitleName,
+  jobTopPick,
   monsterSummary,
   questSummary,
   skillSummary,
@@ -63,6 +65,33 @@ describe("seo：給搜尋引擎跟 AI 讀的那一段話", () => {
       desc: "[等級上限：12] 利用精靈之力使角色得到強化。",
     };
     expect(skillSummary(skill)).toBe("精靈的祝福是初心者的技能，最高 20 級。利用精靈之力使角色得到強化。");
+  });
+
+  it("職業頁標題：玩家搜俗稱（標賊、刀賊）跟一轉，名字後面要帶到", () => {
+    expect(jobTitleName(410, "刺客")).toBe("刺客（標賊）");
+    expect(jobTitleName(420, "俠盜")).toBe("俠盜（刀賊）");
+    expect(jobTitleName(400, "盜賊")).toBe("盜賊（一轉，標賊、刀賊）");
+    expect(jobTitleName(300, "弓箭手")).toBe("弓箭手（一轉）");
+    expect(jobTitleName(131, "龍騎士")).toBe("龍騎士");
+  });
+
+  it("職業頁頁首結論：照第一套點法列先點什麼，標明是哪一套", () => {
+    const guide = {
+      job: 131, name: "龍騎士", stat: [], train: [], notes: [], gaps: [], notOpenYet: [],
+      builds: [{ label: "舊版主流點法：雙修（巴哈姆特 2006）", s: [], steps: [
+        { id: 1, name: "無雙矛", to: 10 }, { id: 2, name: "魔法抵抗", to: 1 }, { id: 3, name: "槍連擊", to: 30 },
+        { id: 4, name: "龍之魂", to: 20 }, { id: 5, name: "龍咆哮", to: 30 },
+      ] }, { label: "舊版：單修槍", s: [], steps: [{ id: 1, name: "無雙矛", to: 30 }] }],
+    } as unknown as GuideJob;
+    expect(jobTopPick(guide)).toEqual({
+      label: "舊版主流點法：雙修（巴哈姆特 2006）",
+      order: "無雙矛 10 → 魔法抵抗 1 → 槍連擊 30 → 龍之魂 20 → 龍咆哮 30",
+      others: 1,
+    });
+    expect(jobTopPick({ ...guide, builds: [] })).toBeNull();
+    // 有經典版的說法就不拿舊版當結論
+    const mixed = { ...guide, builds: [guide.builds[0], { label: "經典版板上建議", s: [], steps: [{ id: 9, name: "聖光", to: 1 }] }] } as unknown as GuideJob;
+    expect(jobTopPick(mixed)).toEqual({ label: "經典版板上建議", order: "聖光 1", others: 1 });
   });
 
   it("職業：從攻略寫幾段練功點", () => {
