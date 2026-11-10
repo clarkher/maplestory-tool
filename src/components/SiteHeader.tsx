@@ -30,7 +30,11 @@ export function SiteHeader() {
             priority
             className="size-[30px] shrink-0"
           />
-          <span className="hidden text-[17px] font-black tracking-tight min-[500px]:inline">楓谷幫手</span>
+          {/* v2.01：品牌字底下小字「經典版」，一眼看出是經典版的站（使用者選 D2）；兩行疊著不加寬，導覽列量過的寬度不動 */}
+          <span className="hidden flex-col leading-none min-[500px]:flex">
+            <span className="text-[17px] font-black tracking-tight">楓谷幫手</span>
+            <span className="mt-0.5 text-[11px] font-bold tracking-wide text-[color:var(--maple)]">經典版</span>
+          </span>
         </Link>
 
         {/* 手機四顆：我的路線、攻略、地圖導航、查資料（v1.86；v1.18 起「算傷害」跟「練功測速」「楓幣匯率」一樣只在 768 寬以上出現）。v1.72（使用者選 1）：500 寬以下只留楓葉、四顆平分填滿，品牌字跟大按鈕 500 寬起才一起出現——原本 400 寬起就出現，400～487 寬把查資料擠出去；380 寬以下字 13px、按鈕左右 7px（360 寬才放得下）。v1.74：768～899 寬（平板直放）電腦版的按鈕全出來，品牌字留著、按鈕左右縮成 4px 再平分，不然查資料一樣被擠出去。每個寬度量過：scripts/verify/nav-fit.mjs */}
