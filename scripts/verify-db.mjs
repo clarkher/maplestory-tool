@@ -945,7 +945,7 @@ try {
     let r = await ev(`const id = "210100"; window.scrollTo({ top: 0, behavior: "instant" }); await __sleep(200);
       __tap(id); await __waitFor(() => __id() === id); await __sleep(1300);
       const label = __rowBtn(id).textContent; const otherLabel = __rowBtn(__rowId(0)).textContent;
-      // 出沒地圖先只列 5 張（v0.51），按「看全部」把卡片撐長再往下看
+      // 出沒地圖先只列 3 張（v0.51 是 5、v2.04 改 3），按「看全部」把卡片撐長再往下看
       [...__row(id).querySelectorAll("article button")].find(b => b.textContent.includes("看全部"))?.click(); await __sleep(400);
       window.scrollBy({ top: 1500, behavior: "instant" }); await __sleep(400);
       const header = __headerBottom(); const stuck = Math.round(__rowBtn(id).getBoundingClientRect().top);
@@ -1145,7 +1145,7 @@ try {
     check("N13 補救時直接跳、不滑", r.frames.length <= 3, r.frames);
   });
 
-  // N14 怪物卡：出沒地圖不列還沒開放的圖、先列 5 張（現在就能去、刷怪點多的在前）＋「看全部 N 張」；
+  // N14 怪物卡：出沒地圖不列還沒開放的圖、先列 3 張（現在就能去、刷怪點多的在前）＋「看全部 N 張」；
   // 掉落物不列沒有名字的道具；卡片下面那顆按鈕寫「收起」。答案拿網站自己的資料檔（怪物、地圖、道具）另外算
   const N14_DATA = `
     const urlOf = name => performance.getEntriesByType("resource").map(e => e.name).find(u => u.includes("/data/" + name + ".json")) ?? "/data/" + name + ".json";
@@ -1182,7 +1182,7 @@ try {
       return { want, header, before, moreText, focusInSixth, active: document.activeElement?.textContent?.trim().slice(0, 20) ?? null, after, note: noteOf(maps),
         unopened: card.textContent.includes("未開放地圖"), bottom: card.nextElementSibling?.textContent.trim() ?? null };`);
     const sorted = r.after.every((row, i, all) => i === 0 || all[i - 1].spawns >= row.spawns);
-    check("N14 出沒地圖只列開放的圖，先列 5 張，下面一顆「看全部 N 張」", r.header === r.want.openMaps && r.before === Math.min(5, r.header) && r.moreText === `看全部 ${r.want.openMaps} 張`, { want: r.want, header: r.header, before: r.before, moreText: r.moreText });
+    check("N14 出沒地圖只列開放的圖，先列 3 張（刷怪點前三名），下面一顆「看全部 N 張」", r.header === r.want.openMaps && r.before === Math.min(3, r.header) && r.moreText === `看全部 ${r.want.openMaps} 張`, { want: r.want, header: r.header, before: r.before, moreText: r.moreText });
     check("N14 按「看全部」：全部列出來，刷怪點多的在前", r.after.length === r.want.openMaps && sorted, { count: r.after.length, rows: r.after.slice(0, 8) });
     check("N14 按「看全部」後焦點落在新列出來的第一列（用鍵盤、讀螢幕的人不會被丟回頁首）", r.focusInSixth, r.active);
     check("N14 還沒開放的圖不列，最後寫另有幾張", !r.unopened && r.note === `另有 ${r.want.hiddenMaps} 張還沒開放的地圖沒列出來`, { note: r.note, want: r.want, unopened: r.unopened });

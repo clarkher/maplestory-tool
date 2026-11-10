@@ -107,7 +107,7 @@ export default async function Page({ params }: Props) {
       title={quest.n}
       lead={summary}
       toolHref={`/db/quests?id=${quest.id}`}
-      toolLabel="在查資料裡看（可打勾、帶路）"
+      toolLabel="邊解邊打勾，一鍵帶路"
       jsonLd={[
         breadcrumbLd([{ name: "任務", path: "/db/quests" }, { name: quest.n, path }]),
         webPageLd({ name: `${quest.n}｜任務攻略`, path, description: clip(summary), modified: staticModified() }),

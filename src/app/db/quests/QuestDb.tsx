@@ -182,7 +182,7 @@ function QuestDetail({
   const reward = rewardSummary(quest.exp, quest.money, quest.pop);
 
   return (
-    <DetailCard pageHref={`/db/quests/${encodeURIComponent(quest.id)}`}>
+    <DetailCard pageHref={`/db/quests/${encodeURIComponent(quest.id)}`} pageLabel="看一步一步怎麼解">
       <header>
         <h2 className="text-2xl font-black leading-tight">
           {quest.n}
