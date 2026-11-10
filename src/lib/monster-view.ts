@@ -4,8 +4,8 @@
 import { formatNumber } from "./format";
 import type { Item, MapRecord, Monster } from "./types";
 
-/** 出沒地圖一開始先列幾張，其他按「看全部」才展開 */
-export const FIRST_MAPS = 5;
+/** 出沒地圖一開始先列幾張（刷怪點前三名，11/10 從 5 改 3），其他按「看全部」才展開 */
+export const FIRST_MAPS = 3;
 
 export type MonsterMapRow = {
   id: number;

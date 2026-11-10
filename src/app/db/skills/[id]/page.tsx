@@ -50,7 +50,7 @@ export default async function Page({ params }: Props) {
       lead={summary}
       image={skillIcon(skill.id)}
       toolHref={`/db/skills?id=${skill.id}`}
-      toolLabel="在查資料裡看每一級數值"
+      toolLabel="看每一級加多少"
       jsonLd={[
         breadcrumbLd([{ name: "技能", path: "/db/skills" }, { name: skill.n, path }]),
         webPageLd({ name: `${skill.n}｜技能資料`, path, description: clip(summary), modified: staticModified() }),

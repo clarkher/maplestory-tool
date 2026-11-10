@@ -54,7 +54,7 @@ export default async function Page({ params }: Props) {
       lead={summary}
       image={monsterImage(monster.id)}
       toolHref={`/db/monsters?id=${monster.id}`}
-      toolLabel="在查資料裡看（可直接帶路）"
+      toolLabel="一鍵帶路到刷怪點"
       jsonLd={[
         breadcrumbLd([{ name: "怪物", path: "/db/monsters" }, { name: monster.n, path }]),
         webPageLd({ name: `${monster.n}｜怪物資料`, path, description: clip(summary), modified: staticModified() }),

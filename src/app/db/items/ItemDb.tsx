@@ -268,7 +268,7 @@ function ItemDetail({
   });
 
   return (
-    <DetailCard pageHref={hasPage ? itemPagePath(item.id) : undefined} pageFullLoad>
+    <DetailCard pageHref={hasPage ? itemPagePath(item.id) : undefined} pageLabel="看哪些怪會掉、哪裡買、哪些任務要用" pageFullLoad>
       <header className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={itemImage(item.id)} alt="" width={48} height={48} className="size-12 object-contain" />

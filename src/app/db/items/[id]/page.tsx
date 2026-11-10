@@ -58,8 +58,9 @@ export default async function Page({ params }: Props) {
       title={item.n}
       lead={summary}
       image={itemImage(item.id)}
-      toolHref={drops.length ? `/plan/farm?want=${item.id}` : `/db/items?id=${item.id}`}
-      toolLabel={drops.length ? "排出哪張圖收最快" : "在查資料裡看"}
+      // 沒有怪會掉就不放：查資料卡片給的東西這頁都有了，只剩「在查資料裡看」這種講機制的字（11/10）
+      toolHref={drops.length ? `/plan/farm?want=${item.id}` : undefined}
+      toolLabel={drops.length ? "排出哪張圖收最快" : undefined}
       jsonLd={[
         breadcrumbLd([{ name: "道具", path: "/db/items" }, { name: item.n, path }]),
         webPageLd({ name: `${item.n}｜道具資料`, path, description: clip(summary), modified: staticModified() }),
