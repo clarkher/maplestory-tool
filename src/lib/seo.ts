@@ -40,8 +40,18 @@ export function monsterSummary(monster: Monster, maps: Record<string, MapRecord>
   const stats = `${head}，HP ${formatNumber(monster.hp)}、經驗 ${formatNumber(monster.exp)}。`;
   const { rows } = monsterMaps(monster, maps);
   if (!rows.length) return stats;
-  const names = rows.slice(0, 3).map(row => maps[String(row.id)].zh);
-  return `${stats}最常出現在${names.join("、")}（共 ${rows.length} 張圖）。`;
+  const top = rows.slice(0, 3);
+  // 玩家會搜「○○哪裡最多」：有刷怪點數字就照數字排給他看，沒有就只列圖名
+  if (top[0].spawns) {
+    const parts = top.map((row, index) => {
+      const name = maps[String(row.id)].zh;
+      if (!row.spawns) return name;
+      return `${name}（${row.spawns} 個${index ? "" : "刷怪點"}）`;
+    });
+    return `${stats}哪裡最多：${parts.join("、")}，共 ${rows.length} 張圖。`;
+  }
+  const names = top.map(row => maps[String(row.id)].zh);
+  return `${stats}出現在${names.join("、")}（共 ${rows.length} 張圖）。`;
 }
 
 /** 任務：分類、等級、誰接、要做什麼、給什麼 */

@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const path = `/db/monsters/${monster.id}`;
   const description = clip(monsterSummary(monster, staticMaps()));
   return {
-    title: `${monster.n}｜在哪打、怪物數值、掉落物`,
+    title: `${monster.n}｜哪裡最多、在哪打、數值、掉落物`,
     description,
     alternates: { canonical: path },
     openGraph: { title: `${monster.n}｜楓谷幫手`, description, url: path },
@@ -86,7 +86,7 @@ export default async function Page({ params }: Props) {
       {/* 電腦版出沒地圖、掉落物左右兩欄（v1.99 照候選圖 A-mob）；只有一邊就照舊佔滿 */}
       <div className={`grid gap-4${mapRows.length && drops.length ? " lg:grid-cols-2 lg:items-start" : ""}`}>
         {mapRows.length ? (
-          <SeoSection title={`出沒地圖（${mapRows.length} 張）`}>
+          <SeoSection title={`出沒地圖：哪裡最多（${mapRows.length} 張）`}>
             <SeoBars
               rows={mapRows.map(row => ({
                 // 有地圖頁連地圖頁（頁上有帶我去），沒有照舊連帶路
