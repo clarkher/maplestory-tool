@@ -162,7 +162,7 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
       ) : null}
       {/* 讀屏的說明區塊一直掛著、只換字（沒字時藏起來），換職業拉等級時才念得出來 */}
       <p role="status" className={levelNotice ? "pb-1 text-right text-[12px] font-bold text-[color:var(--gold)]" : "sr-only"}>{levelNotice ?? ""}</p>
-      {state && job > 0 ? <p className="pb-1 text-right text-[11px] ink-faint">換等級會把兩組的能力值、武器重設成那一級的預設（其他攻擊、增益留著）</p> : null}
+      {state && job > 0 ? <p className="pb-1 text-right text-[11px] ink-faint">換等級時，你改過的武器、能力值都留著；沒改過的跟著新等級換成建議值</p> : null}
       {data && state ? (
         <>
           <Row label="技能">

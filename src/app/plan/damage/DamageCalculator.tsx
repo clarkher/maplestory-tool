@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { jobParams, trackSettled } from "@/lib/analytics";
 import { useBuildChoice } from "@/lib/build-choice";
+import { localStore, recallJob, rememberJob } from "@/lib/damage-store";
 import { loadGear, loadGuide, loadGuideCommon, loadMaps, loadMonsters, loadSkills, loadTraining } from "@/lib/data";
 import {
   applyDamageLink,
@@ -117,6 +118,8 @@ export function DamageCalculator() {
     [base, guides],
   );
   const startLevel = Math.max(linkStartLevel(job, profile.level || 0, link), job > 0 ? minLevelFor(job) : 1);
+  // 這個職業上次在這台電腦設好的（每個職業各一份，存在 damage-store）：這次瀏覽還沒動過時接上
+  const stored = useMemo(() => (loaded && job > 0 ? recallJob(localStore(), job) : null), [loaded, job]);
 
   useEffect(() => {
     if (pendingJob === null || !data) return;
@@ -131,12 +134,13 @@ export function DamageCalculator() {
   const state: CalcState | null = useMemo(() => {
     if (pendingJob !== null || !data || job <= 0) return null;
     if (savedState) return savedState;
-    // 連結是要對答案的：開出來要跟表一樣，第二套點法也不套
-    const fresh = link?.job === job ? applyDamageLink(defaultState(data, job, startLevel, null), data, link) : defaultState(data, job, startLevel, buildTab);
+    // 連結是要對答案的：開出來要跟表一樣，第二套點法也不套；沒帶連結就接上這個職業上次設好的
+    const fresh =
+      link?.job === job ? applyDamageLink(defaultState(data, job, startLevel, null), data, link) : stored ?? defaultState(data, job, startLevel, buildTab);
     // 練功測速的「算傷害」帶 ?mob=：這次瀏覽還沒動過計算機時先選好那隻怪
     const mob = Number(searchParams.get("mob"));
     return mob ? withMonster(fresh, data, mob) : fresh;
-  }, [pendingJob, data, job, savedState, startLevel, buildTab, link, searchParams]);
+  }, [pendingJob, data, job, savedState, startLevel, buildTab, link, stored, searchParams]);
 
   // 怪物選單、打的怪、兩組的結果：每次按 −／＋ 都會重畫，不重算（選單要重排一百多隻怪，兩組要各算一遍）
   const choices = useMemo(() => (base ? monsterChoices(base.monsters, base.maps) : []), [base]);
@@ -159,12 +163,21 @@ export function DamageCalculator() {
 
   const update = (next: CalcState) => {
     setSaved(JSON.stringify(next));
+    rememberJob(localStore(), next);
     // 只算玩家自己動過的（一進來的預設結果不算）；一直在調只送停下來那次
     const monster = next.shared.monsterId !== null ? data?.monsters.find(entry => entry.id === next.shared.monsterId)?.n : undefined;
     trackSettled("calc-damage", "calc_result", { tool: "damage", ...jobParams(next.shared.job, next.groups[0].level), monster });
   };
   const pickJob = (next: number) => {
     setLevelNotice(null);
+    // 這個職業設過：直接換回上次那套（等級也是那時的），不重算預設
+    const previous = recallJob(localStore(), next);
+    if (previous) {
+      levelBeforeSwitch.current = null;
+      setPendingJob(null);
+      setSaved(JSON.stringify(previous));
+      return;
+    }
     // ??=：攻略還在載時又換一次職業，留第一次換之前畫面上的等級（那時 state 是 null，savedState 還是換之前那份）
     levelBeforeSwitch.current ??= state?.groups[0].level ?? savedState?.groups[0].level ?? (profile.level || null);
     setPendingJob(next);
