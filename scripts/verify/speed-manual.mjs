@@ -1,4 +1,4 @@
-// 練功測速 v2.09 驗收：首屏「自己填等級、經驗」（防呆、拉 %、算 10 分鐘經驗、記進跟我之前比）＋手機沒有分享畫面的區塊，任何一項沒過 exit 1
+// 練功測速 v2.09 驗收（v2.11 改：兩列一起填不帶分鐘）：首屏「自己填等級、經驗」（防呆、拉 %、算 10 分鐘經驗、記進跟我之前比）＋手機沒有分享畫面的區塊，任何一項沒過 exit 1
 // 用法：node scripts/verify/speed-manual.mjs [輸出資料夾] [網址，預設 http://localhost:3095] [DevTools 埠，預設 9535]
 // 網址用 localhost，不要用 127.0.0.1（next dev 對 127.0.0.1 的互動不理）。
 // 欄位用原生 setter＋input 事件填（React 收得到），拉 % 也是；輸出 manual-desktop.png、manual-mobile.png、manual-mobile-compare.png、results.json
@@ -108,7 +108,8 @@ try {
   await setValue(FIELD("現在", "目前經驗"), "253182");
   await sleep(200);
   const autoMinutes = await value(FIELD(null, "練了幾分鐘"));
-  record("兩列都填好：練了幾分鐘照兩次填的時間自己填（剛剛填的＝1 分）", autoMinutes === "1", { autoMinutes });
+  // v2.11：兩列差不到 3 分鐘＝一起填的，看不出練多久，不帶（以前帶 1 分，10 分鐘經驗灌水十倍）
+  record("兩列一起填：練了幾分鐘不自己帶、請玩家填（沒有結果）", autoMinutes === "" && /看不出練了多久：請填練了幾分鐘/.test((await card()) ?? "") && !/10 分鐘經驗 \d/.test((await card()) ?? ""), { autoMinutes });
   await setValue(FIELD(null, "練了幾分鐘"), "0");
   await sleep(200);
   record("防呆：分鐘填 0，寫「分鐘要填 1～1440」", /分鐘要填 1～1440/.test((await card()) ?? ""));
