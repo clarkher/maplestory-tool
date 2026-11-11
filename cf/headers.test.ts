@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { CACHE_HEADERS } from "../cache-headers.mjs";
-import { toHeadersFile, trimItemPageFiles } from "../scripts/cf/build.mjs";
+import { CF_HEADERS, toHeadersFile, trimItemPageFiles } from "../scripts/cf/build.mjs";
 
 describe("快取規則轉成 Cloudflare _headers", () => {
   const file = toHeadersFile(CACHE_HEADERS);
@@ -16,6 +16,13 @@ describe("快取規則轉成 Cloudflare _headers", () => {
   it("入口檔先拿掉前面規則的 Cache-Control 再設 must-revalidate（Cloudflare 會把多條命中的值串起來）", () => {
     expect(file).toContain("/data/meta.json\n  ! Cache-Control\n  Cache-Control: public, max-age=0, must-revalidate");
     expect(file).not.toContain("/data/*\n  ! Cache-Control");
+  });
+
+  it("Cloudflare 才需要的：/_next/static 檔名帶雜湊，放最前面長快取（Vercel 自己會給，next headers 不准設）", () => {
+    const cf = toHeadersFile(CF_HEADERS);
+    expect(cf.startsWith("/_next/static/*\n  Cache-Control: public, max-age=31536000, immutable\n")).toBe(true);
+    expect(CACHE_HEADERS.some(rule => rule.source.startsWith("/_next/"))).toBe(false);
+    expect(cf).toContain("/data/meta.json\n  ! Cache-Control\n  Cache-Control: public, max-age=0, must-revalidate");
   });
 
   it("測試機整站加 noindex，正式機不加", () => {
