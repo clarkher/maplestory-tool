@@ -198,28 +198,38 @@ describe("npcSummary", () => {
     const text = npcSummary(sam, names);
     expect(text).toContain("弓箭手村武器店");
     expect(text).toContain("90 樣");
+    expect(text).toContain("鞋子");
     expect(text).not.toContain("任務");
   });
   it("麥加：在哪、幾個任務，不提賣東西", () => {
     const maple: AtlasNpc = { id: 12100, n: "麥加", maps: [1020000], quests: [{ id: "1016", n: "麥加的修煉", r: "接・交" }, { id: "1019", n: "桑姆的考驗", r: "交" }] };
-    expect(npcSummary(maple, names)).toBe("麥加在楓葉村東郊平原，有 2 個任務。");
+    expect(npcSummary(maple, names)).toBe("麥加在楓葉村東郊平原；2 個任務：麥加的修煉、桑姆的考驗。");
   });
   it("同名的分流圖只寫一次（行商人開在 5 張雪原的面具祭典現場）", () => {
     const vendor: AtlasNpc = { id: 9402818, n: "行商人", maps: [1, 2, 3, 4, 5], shop: [{ id: 2001001, pr: 1, s: "藥水" }] };
-    expect(npcSummary(vendor, () => "雪原的面具祭典現場")).toBe("行商人在雪原的面具祭典現場，賣 1 樣東西。");
+    expect(npcSummary(vendor, () => "雪原的面具祭典現場")).toBe("行商人在雪原的面具祭典現場；賣 1 樣：藥水。");
   });
   it("活動店過期後只算還在賣的（跟「賣什麼」卡同一個判斷），全過期就不提賣東西", () => {
     const end = "2026-11-11T23:59+08:00";
     const during = Date.parse("2026-10-24T12:00:00+08:00");
     const after = Date.parse("2026-11-12T00:00:00+08:00");
     const mixed: AtlasNpc = { id: 1, n: "雜貨商", maps: [1020000], shop: [{ id: 2001001, pr: 1, u: "萬聖節硬幣", e: end, s: "藥水" }, { id: 1002033, pr: 3000, s: "帽子" }] };
-    expect(npcSummary(mixed, names, during)).toBe("雜貨商在楓葉村東郊平原，賣 2 樣東西。");
-    expect(npcSummary(mixed, names, after)).toBe("雜貨商在楓葉村東郊平原，賣 1 樣東西。");
+    expect(npcSummary(mixed, names, during)).toBe("雜貨商在楓葉村東郊平原；賣 2 樣：藥水、帽子。");
+    expect(npcSummary(mixed, names, after)).toBe("雜貨商在楓葉村東郊平原；賣 1 樣：帽子。");
     expect(openShopCount(mixed, after)).toBe(1);
     const event: AtlasNpc = { id: 2, n: "行商人", maps: [1020000], shop: [{ id: 2001001, pr: 1, u: "萬聖節硬幣", e: end, s: "藥水" }] };
     expect(npcSummary(event, names, after)).toBe("行商人在楓葉村東郊平原。");
     expect(openShopCount(event, after)).toBe(0);
     expect(openShopCount({}, after)).toBe(0);
+  });
+  it("賣的、任務都講出名字：分類照樣數多到少前 3 個，任務前 3 個，多的寫「等」（搜尋結果一眼看到這個 NPC 能幹嘛）", () => {
+    const shop = [...Array(5).fill("槍"), ...Array(3).fill("矛"), ...Array(2).fill("單手劍"), "雙手劍"].map((s, id) => ({ id, pr: 1, s }));
+    const quests = ["A", "B", "C", "D"].map((n, i) => ({ id: String(i), n, r: "接" as const }));
+    expect(npcSummary({ id: 3, n: "武器商", maps: [1020000], shop, quests }, names)).toBe("武器商在楓葉村東郊平原；賣 11 樣：槍、矛、單手劍等；4 個任務：A、B、C等。");
+  });
+  it("同名任務（接、交分兩筆）只寫一次名字", () => {
+    const quests = [{ id: "1", n: "A", r: "接" as const }, { id: "2", n: "A", r: "交" as const }];
+    expect(npcSummary({ id: 4, n: "某人", maps: [1020000], quests }, names)).toBe("某人在楓葉村東郊平原；2 個任務：A。");
   });
 });
 

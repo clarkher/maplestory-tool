@@ -713,7 +713,7 @@ export function DetailCard({ children, pageHref, pageLabel, pageFullLoad }: { ch
       {children}
       {pageHref && pageLabel ? (
         <p className="border-t border-[color:var(--paper-edge)] pt-3 text-right">
-          <PageLink href={pageHref} className="inline-flex items-center gap-0.5 text-[13px] font-bold text-[color:var(--sky)] hover:underline">
+          <PageLink href={pageHref} data-ga="detail_page" className="inline-flex items-center gap-0.5 text-[13px] font-bold text-[color:var(--sky)] hover:underline">
             {pageLabel}
             <ChevronRight size={13} />
           </PageLink>
