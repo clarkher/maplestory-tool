@@ -158,6 +158,15 @@ export function sortCategories(categories: string[]): string[] {
 }
 
 /**
+ * 道具說明拿掉遊戲的顏色碼：上游照抄客戶端原字串，「#c帳號間可共享1次#」在遊戲裡是橘字，網頁上會直接印出「#c」（11/12 盤點 1,215 件）。
+ * 只拿小寫的格式碼（#c #b #k #e #n）跟落單的 #；「#Buff」「#SSS」這種後面接大寫的是內文，只拿掉 #。換行照留。
+ * 資料檔不改：衝卷模擬要靠「#c失敗時…」的 #c 切出失敗那一句（scroll-sim/linkable.ts）。
+ */
+export function itemDescText(text: string | undefined): string {
+  return (text ?? "").replace(/#[bcekn]/g, "").replace(/#/g, "").trim();
+}
+
+/**
  * 搜尋時額外比對的字：說明、種類（短刀）、需求職業（劍士、盜賊）。
  * 沒有職業限制的不放職業名，免得搜「劍士」被全職業裝備洗版（要看全部能用的，按「〇〇能用」標籤）；
  * 時裝也不放（「劍士一、二轉技能效果」這類不是玩家搜職業時要找的）。
@@ -166,7 +175,7 @@ export function itemKeywords(item: Item): string {
   const reqJob = item.c === "裝備" ? reqJobOf(item) : undefined;
   // 認不得的值 equipStatValue 會照原數字寫，那個數字對搜尋沒意義，不放
   const jobs = typeof reqJob === "number" && reqJob !== 0 && isKnownReqJob(reqJob) ? equipStatValue("reqJob", reqJob) : "";
-  return [item.d, item.s, jobs].filter(Boolean).join(" ");
+  return [itemDescText(item.d), item.s, jobs].filter(Boolean).join(" ");
 }
 
 /** 搜尋字是職業系或初心者的話，回它在需求職業裡的位元（初心者是 -1）；其他字回 null */
