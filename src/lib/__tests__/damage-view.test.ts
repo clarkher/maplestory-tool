@@ -522,12 +522,42 @@ describe("換等級（等級在最上面、兩組共用）", () => {
     expect(next.groups[1].weaponId).toBe(want ? want.id : next.groups[0].weaponId);
     expect(next.groups[0].weaponId).toBe(defaultGroup(data, 110, 55, null).weaponId);
   });
-  it("其他攻擊、增益留著；武器攻擊改過的會重設", () => {
+  it("其他攻擊、增益、改過的武器攻擊都留著", () => {
     const state = defaultState(data, 410, 50, null);
     const touched = { ...state, groups: [{ ...state.groups[0], extra: 5, weaponAtk: 33 }, state.groups[1]] as typeof state.groups };
     const next = relevel(data, touched, 60);
     expect(next.groups[0].extra).toBe(5);
-    expect(next.groups[0].weaponAtk).toBeNull();
+    expect(next.groups[0].weaponAtk).toBe(33);
+    expect(next.groups[0].weaponId).toBe(state.groups[0].weaponId);
+  });
+  // 2026-11-11 使用者：設好武器等數值，按 +1 等全部歸零。自己動過的留著，沒動過的才跟著新等級的預設走
+  it("自己換的武器、彈藥、改過的能力值、技能等級：+1 等都留著（兩組都是）", () => {
+    const state = defaultState(data, 410, 50, null);
+    const other = weaponChoices(data.gear, 410).find(weapon => weapon.lv <= 50 && weapon.id !== state.groups[0].weaponId)!;
+    const stats = { ...state.groups[0].stats, LUK: state.groups[0].stats.LUK + 7 };
+    const skillId = Number(Object.keys(state.groups[0].levels)[0]);
+    const left = { ...state.groups[0], weaponId: other.id, stats, levels: { ...state.groups[0].levels, [skillId]: 1 } };
+    const right = { ...state.groups[1], extra: 9, stats: { ...state.groups[1].stats, DEX: 99 } };
+    const next = relevel(data, { ...state, groups: [left, right] }, 51);
+    expect(next.groups[0].weaponId).toBe(other.id);
+    expect(next.groups[0].ammoId).toBe(left.ammoId);
+    expect(next.groups[0].stats).toEqual(stats);
+    expect(next.groups[0].levels[skillId]).toBe(1);
+    expect(next.groups[1].stats.DEX).toBe(99);
+    expect(next.groups[1].extra).toBe(9);
+    expect(next.groups.map(group => group.level)).toEqual([51, 51]);
+  });
+  it("沒動過的能力值、技能等級照樣跟著新等級的預設", () => {
+    const state = defaultState(data, 410, 50, null);
+    const left = { ...state.groups[0], weaponAtk: 40 };
+    const next = relevel(data, { ...state, groups: [left, state.groups[1]] }, 60);
+    expect(next.groups[0].stats).toEqual(defaultGroup(data, 410, 60, "一般點法").stats);
+    expect(next.groups[0].levels).toEqual(defaultGroup(data, 410, 60, "一般點法").levels);
+  });
+  it("自己調過的技能等級留著，不被新等級的點法蓋掉", () => {
+    const state = defaultState(data, 410, 50, null);
+    const touched = { ...state, shared: { ...state.shared, skillLevel: 1 } };
+    expect(relevel(data, touched, 60).shared.skillLevel).toBe(1);
   });
   it("怪是預設那隻就跟著換成新等級的預設；自己選的留著", () => {
     const state = defaultState(data, 410, 50, null);

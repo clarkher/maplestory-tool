@@ -790,22 +790,64 @@ export function regroup(data: CalcData, job: number, group: GroupConfig, change:
   return { ...fresh, extra: group.extra, buffs: group.buffs, charge: group.charge, booster: group.booster };
 }
 
+/** 兩組照各自的點法、在這一級的預設（右組照預設的規則挑武器） */
+function defaultsAt(data: CalcData, job: number, groups: CalcState["groups"], level: number): [GroupConfig, GroupConfig] {
+  const left = defaultGroup(data, job, level, groups[0].tab);
+  return [left, rightGroup(data, job, left, defaultGroup(data, job, level, groups[1].tab))];
+}
+
+const sameStats = (a: Record<StatKey, number>, b: Record<StatKey, number>) => STAT_KEY_LIST.every(key => a[key] === b[key]);
+
 /**
- * 換等級（等級在最上面、兩組共用）：兩組各自照自己的點法重設成那一級的預設（regroup），右組照預設的規則再挑一次武器；
- * 技能等級跟著技能點法在新等級點到的級數（沒點到留原本的）；怪是舊等級的預設怪才跟著換，自己選的留著。等級夾在職業範圍。
+ * 換等級時一組怎麼帶過去：跟舊等級預設一樣的（沒動過）換成新等級的預設，自己改過的留著。
+ * 武器（換了別把、改過武器攻擊）、彈藥（換過、而且武器種類沒變）、能力值（四項整組看）、技能等級（一個一個看）各自判斷。
+ */
+function carry(data: CalcData, group: GroupConfig, before: GroupConfig, after: GroupConfig): GroupConfig {
+  const weaponType = (id: number | null) => data.gear.weapons.find(weapon => weapon.id === id)?.s;
+  const keepWeapon = group.weaponId !== before.weaponId || group.weaponAtk !== null;
+  const weaponId = keepWeapon ? group.weaponId : after.weaponId;
+  const type = weaponType(weaponId);
+  const keepAmmo = group.ammoId !== before.ammoId && type === weaponType(group.weaponId);
+  const ammoId = keepAmmo ? group.ammoId : keepWeapon ? (type ? defaultAmmo(data.gear.ammo ?? [], type, after.level)?.id ?? null : group.ammoId) : after.ammoId;
+  const levels: Record<number, number> = {};
+  for (const id of new Set([...Object.keys(group.levels), ...Object.keys(after.levels)].map(Number))) {
+    const value = group.levels[id] === before.levels[id] ? after.levels[id] : group.levels[id];
+    if (value !== undefined) levels[id] = value;
+  }
+  return {
+    ...after,
+    weaponId,
+    weaponAtk: keepWeapon ? group.weaponAtk : null,
+    ammoId,
+    stats: sameStats(group.stats, before.stats) ? after.stats : { ...group.stats },
+    levels,
+    extra: group.extra,
+    buffs: group.buffs,
+    charge: group.charge,
+    booster: group.booster,
+  };
+}
+
+/**
+ * 換等級（等級在最上面、兩組共用）：兩組各自跟舊等級的預設比，沒動過的換成新等級的預設、自己改過的留著（carry；
+ * 2026-11-11 使用者：設好武器按 +1 等全部歸零）。用的技能等級同一條：跟舊等級點法一樣才跟著新等級；
+ * 怪是舊等級的預設怪才跟著換，自己選的留著。等級夾在職業範圍。
  */
 export function relevel(data: CalcData, state: CalcState, level: number): CalcState {
   const { job } = state.shared;
   const lv = clampLevel(job, level);
-  const left = regroup(data, job, state.groups[0], { level: lv });
-  const right = rightGroup(data, job, left, regroup(data, job, state.groups[1], { level: lv }));
+  const before = defaultsAt(data, job, state.groups, state.groups[0].level);
+  const after = defaultsAt(data, job, state.groups, lv);
+  const left = carry(data, state.groups[0], before[0], after[0]);
+  const right = carry(data, state.groups[1], before[1], after[1]);
   const oldDefault = defaultMonster(data, job, state.groups[0].level);
   let monsterId = state.shared.monsterId === oldDefault ? defaultMonster(data, job, lv) : state.shared.monsterId;
   // 群體治癒跟著預設怪換到不是不死系的怪時，改挑這一級的不死系
   if (state.shared.skillId === HEAL && monsterId !== state.shared.monsterId && !data.monsters.find(monster => monster.id === monsterId)?.und) {
     monsterId = undeadDefault(monsterChoices(data.monsters, data.maps), lv);
   }
-  const skillLevel = left.levels[state.shared.skillId] || state.shared.skillLevel;
+  const { skillId } = state.shared;
+  const skillLevel = state.shared.skillLevel === before[0].levels[skillId] ? left.levels[skillId] || state.shared.skillLevel : state.shared.skillLevel;
   return { shared: { ...state.shared, skillLevel, monsterId }, groups: [left, right] };
 }
 
