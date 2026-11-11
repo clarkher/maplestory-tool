@@ -4,7 +4,7 @@ import { SeoLinks, SeoPage, SeoSection, SeoStats } from "@/components/SeoPage";
 import { itemImage } from "@/lib/asset-paths";
 import { itemPagePath, itemPageTitle, itemSummary } from "@/lib/item-page";
 import { equipGroups, shopGroups } from "@/lib/item-view";
-import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, OG_BASE, webPageLd } from "@/lib/seo";
 import { staticItemPageLookup, staticItemPages, staticModified } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: itemPageTitle(item),
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${item.n}｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${item.n}｜楓谷幫手`, description, url: path },
   };
 }
 

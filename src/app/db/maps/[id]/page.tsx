@@ -6,7 +6,7 @@ import { MapView } from "@/components/atlas/MapView";
 import { SeoPage } from "@/components/SeoPage";
 import { mapRenderImage } from "@/lib/asset-paths";
 import { doorList, levelRange, mapRouteText, mapSection, mapSummary, openShopCount } from "@/lib/atlas-view";
-import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, OG_BASE, webPageLd } from "@/lib/seo";
 import { staticAtlasIndex, staticAtlasMaps, staticGraph, staticMapRenders, staticMaps, staticModified, staticNearestTown, staticNpcs } from "@/lib/static-data";
 import type { AtlasMap } from "@/lib/types";
 
@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: routeText(map) ? `${map.n}｜怎麼去、怪物、NPC` : `${map.n}｜怪物、NPC、傳送門`,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${map.n}｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${map.n}｜楓谷幫手`, description, url: path },
   };
 }
 
