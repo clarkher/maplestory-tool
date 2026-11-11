@@ -1,6 +1,7 @@
 // src/lib/speed/read-extras.ts
 /**
  * 練功測速 v1.22 每張畫面多讀的：HP 比例（每張）、快捷鍵的數量跟藥水種類（每 SLOT_EVERY_MS 讀一次）。
+ * v2.06：同一輪也讀狀態列的角色名（字樣板 speed-chars.json 開始後才載，載好才讀），頁面拿來先填好角色 ID。
  * 在讀畫面的地方跑（Worker；沒有 Worker 的退路是主執行緒），結果跟著讀數一起傳回頁面。
  * 認藥水很花時間（參考圖幾百個）：同一格圖示＋數量跟上次一模一樣就直接用上次的結果，有變就整池重認。
  */
@@ -8,6 +9,7 @@ import type { Frame } from "./frame";
 import { hpRatio } from "./hp";
 import { matchPotion, potionKey, potionRefOf, type PotionKey, type PotionRef } from "./potions";
 import { readQuickslot } from "./quickslot";
+import { parseChars, readName, usableName, type RawSpeedChars, type SpeedChars } from "./read-name";
 import type { StatusBar } from "./status-bar";
 import type { Item } from "../types";
 
@@ -48,16 +50,24 @@ export function slotReads(slots: SlotSeen[], nonPotion: ReadonlySet<number>): { 
 export type SlotSeen = { index: number; ids: number[] | null; count: number | null };
 /**
  * hp：HP 比例（讀不到 null）；slots：這張有讀快捷鍵才有這欄，null＝找不到快捷鍵；
- * poolReady：讀快捷鍵時藥水參考圖載好了沒（還沒載好時 ids 全是 null，不能當「認不出」）
+ * poolReady：讀快捷鍵時藥水參考圖載好了沒（還沒載好時 ids 全是 null，不能當「認不出」）；
+ * name：這張有讀角色名才有這欄（字樣板載好、跟快捷鍵同一輪），讀不到或不像名字（不是 2～12 個字）是 null
  */
-export type FrameExtras = { hp: number | null; slots?: SlotSeen[] | null; poolReady?: boolean };
+export type FrameExtras = { hp: number | null; slots?: SlotSeen[] | null; poolReady?: boolean; name?: string | null };
 
 type Cached = { sig: number; refs: PotionRef[]; ids: number[] | null };
 /** stats：整池認了幾次、畫面沒變直接沿用幾次（測試看用） */
-export type ExtrasState = { lastSlotsAt: number; refs: PotionRef[] | null; cache: Map<number, Cached>; stats: { full: number; cached: number } };
+export type ExtrasState = {
+  lastSlotsAt: number;
+  refs: PotionRef[] | null;
+  /** 角色名的字樣板（loadSpeedChars 載好才放進來） */
+  chars: SpeedChars | null;
+  cache: Map<number, Cached>;
+  stats: { full: number; cached: number };
+};
 
 export function createExtrasState(): ExtrasState {
-  return { lastSlotsAt: -Infinity, refs: null, cache: new Map(), stats: { full: 0, cached: 0 } };
+  return { lastSlotsAt: -Infinity, refs: null, chars: null, cache: new Map(), stats: { full: 0, cached: 0 } };
 }
 
 /**
@@ -101,7 +111,20 @@ export function readExtras(frame: Frame, bar: StatusBar | null, now: number, sta
         return { index: slot.index, ids, count: slot.count };
       })
     : null;
+  if (state.chars) out.name = usableName(readName(frame, bar, state.chars));
   return out;
+}
+
+/** 角色名的字樣板（約 750KB，壓縮後 370KB）：開始分享後才在讀畫面的地方載；載不到回 null，只是不幫忙填 ID */
+export async function loadSpeedChars(): Promise<SpeedChars | null> {
+  try {
+    // 跟 speed-names.json 一樣每次問伺服器有沒有改（沒改回 304），樣板重產之後不會吃到舊的
+    const response = await fetch("/data/speed-chars.json", { cache: "no-cache" });
+    if (!response.ok) return null;
+    return parseChars((await response.json()) as RawSpeedChars);
+  } catch {
+    return null;
+  }
 }
 
 /** 瀏覽器（Worker 或頁面）載一張站上道具圖成 RGBA；載不到回 null */

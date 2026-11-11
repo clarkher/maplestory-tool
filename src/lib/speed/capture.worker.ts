@@ -2,7 +2,7 @@
 // src/lib/speed/capture.worker.ts
 import { createFrameThrottle } from "./frame-throttle";
 import { parseNames, type RawSpeedNames } from "./names";
-import { createExtrasState, loadPotionRefs, readExtras } from "./read-extras";
+import { createExtrasState, loadPotionRefs, loadSpeedChars, readExtras } from "./read-extras";
 import { readFrameWithBar, type ReaderInit } from "./read-frame";
 
 /**
@@ -44,6 +44,9 @@ async function run(message: Start) {
   // 參考圖載好之前快捷鍵照讀數量，只是還不知道是哪種藥水
   void loadPotionRefs(message.potionIds ?? []).then(refs => {
     extras.refs = refs;
+  });
+  void loadSpeedChars().then(chars => {
+    extras.chars = chars;
   });
   try {
     const init: ReaderInit = { toNext: message.toNext, names: parseNames(message.names) };

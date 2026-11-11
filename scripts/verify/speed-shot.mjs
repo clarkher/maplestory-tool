@@ -529,9 +529,9 @@ try {
         })()`)
       : null;
     if (darkInfo) fs.writeFileSync(path.join(OUT, "speed-share-dark.png"), Buffer.from(darkInfo.url.split(",")[1], "base64"));
-    // 白天紙張 --paper #fbf5ea＝(251,245,234)；深色的 --paper 是 #16110c
-    const light = darkInfo !== null && darkInfo.corner.every((v, i) => Math.abs(v - [251, 245, 234][i]) <= 12);
-    record("深色主題下產的分享圖還是白天紙張（左上角接近 #fbf5ea）", darkInfo?.theme === "dark" && light, darkInfo ? { theme: darkInfo.theme, corner: darkInfo.corner } : null);
+    // 白天紙張 --paper #f5f6f8＝(245,246,248)（設計系統 A 起；之前是 #fbf5ea）；深色的 --paper 是深底
+    const light = darkInfo !== null && darkInfo.corner.every((v, i) => Math.abs(v - [245, 246, 248][i]) <= 12);
+    record("深色主題下產的分享圖還是白天紙張（左上角接近 #f5f6f8）", darkInfo?.theme === "dark" && light, darkInfo ? { theme: darkInfo.theme, corner: darkInfo.corner } : null);
     await click(BUTTON("關掉"));
     await sleep(300);
     await setTheme("light");
