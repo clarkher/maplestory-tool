@@ -48,13 +48,19 @@ function leadText(npc: AtlasNpc): string {
   return route ? `${route}${summary}` : summary;
 }
 
+/** 標題只寫這個 NPC 真的有的（v2.08）：沒賣東西不寫「賣什麼」、沒任務不寫「任務」，搜「○○怎麼去」也對得到 */
+function npcTitle(npc: AtlasNpc): string {
+  const what = [shopRows(npc.shop).length ? "賣什麼" : "", npc.quests?.length ? "任務" : ""].filter(Boolean);
+  return `${npc.n}｜在哪、怎麼去${what.length ? `、${what.join("、")}` : ""}`;
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const npc = find((await params).id);
   if (!npc) return {};
   const path = `/db/npcs/${npc.id}`;
   const description = clip(leadText(npc));
   return {
-    title: `${npc.n}｜在哪、賣什麼、任務`,
+    title: npcTitle(npc),
     description,
     alternates: { canonical: path },
     openGraph: { title: `${npc.n}｜楓谷幫手`, description, url: path },

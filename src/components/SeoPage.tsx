@@ -81,6 +81,7 @@ export function SeoPage({
         {toolHref ? (
           <Link
             href={toolHref}
+            data-ga="tool"
             className="tap-safe inline-flex items-center gap-1.5 rounded-md bg-[color:var(--maple)] px-3.5 py-2 text-sm font-bold text-[color:var(--on-accent)] shadow-sm"
           >
             {toolLabel}

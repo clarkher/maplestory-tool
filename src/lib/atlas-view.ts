@@ -205,16 +205,30 @@ export function openShopCount(npc: Pick<AtlasNpc, "shop">, now = Date.now()): nu
   return (npc.shop ?? []).filter(row => shopOpen(row, now)).length;
 }
 
-/** 「山姆在弓箭手村武器店，賣 90 樣東西。」：在哪（同名只算一次，最多 3 個名字）、賣幾樣（過期活動店不算）、幾個任務，沒有的那段不寫 */
+/** 前 3 個名字，多的寫「等」 */
+function firstNames(names: string[]): string {
+  return names.length > 3 ? `${names.slice(0, 3).join("、")}等` : names.join("、");
+}
+
+/**
+ * 「山姆在弓箭手村武器店；賣 90 樣：單手劍、槍、矛等；2 個任務：A、B。」
+ * 在哪（同名只算一次，最多 3 個名字）、賣什麼（分類照樣數多到少，過期活動店不算）、哪些任務，沒有的那段不寫。
+ * v2.08：搜尋結果只看得到這一段，要講出名字，看的人才知道這個 NPC 能幫他做什麼（原本只寫「賣 90 樣東西」，NPC 頁點閱率 2.6%）。
+ */
 export function npcSummary(npc: AtlasNpc, nameOf: (id: number) => string | undefined, now = Date.now()): string {
   // 同名的分流圖（活動場地開好幾張）只寫一次
   const places = [...new Set(npc.maps.map(nameOf).filter((name): name is string => Boolean(name)))];
   const parts: string[] = [];
-  const selling = openShopCount(npc, now);
-  if (selling) parts.push(`賣 ${selling} 樣東西`);
-  if (npc.quests?.length) parts.push(`有 ${npc.quests.length} 個任務`);
+  const open = (npc.shop ?? []).filter(row => shopOpen(row, now));
+  if (open.length) {
+    const counts = new Map<string, number>();
+    for (const row of open) counts.set(row.s, (counts.get(row.s) ?? 0) + 1);
+    const kinds = [...counts].sort((a, b) => b[1] - a[1]).map(([kind]) => kind);
+    parts.push(`賣 ${open.length} 樣：${firstNames(kinds)}`);
+  }
+  if (npc.quests?.length) parts.push(`${npc.quests.length} 個任務：${firstNames([...new Set(npc.quests.map(quest => quest.n))])}`);
   const head = places.length ? `${npc.n}在${listNames(places, 3, "張圖")}` : npc.n;
-  return parts.length ? `${head}，${parts.join("，")}。` : `${head}。`;
+  return parts.length ? `${head}；${parts.join("；")}。` : `${head}。`;
 }
 
 /** 地圖清單的大陸順序：跟建置時的開放地區（pipeline/build.mjs RELEASE.mapRegions）同一個順序，沒列到的排最後 */
