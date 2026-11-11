@@ -14,7 +14,7 @@ import {
 import type { Prefer } from "@/lib/db-browse";
 import { isSimEquip, isSimScroll } from "@/lib/scroll-sim/linkable";
 import {
-  compareItems, equipGroups, fitsJobSearch, hiddenFromList, itemKeywords, itemNote, jobLabel, jobSearchBit, shopGroups, sortCategories,
+  compareItems, equipGroups, fitsJobSearch, hiddenFromList, itemDescText, itemKeywords, itemNote, jobLabel, jobSearchBit, shopGroups, sortCategories,
   subcategoryGroups, usableBy, wearableNow, wearFit, type WearFit,
 } from "@/lib/item-view";
 import { useStoredProfile } from "@/lib/profile";
@@ -220,6 +220,7 @@ function ItemDetail({
   fit: WearFit | null;
 }) {
   const { requirements, stats } = equipGroups(item);
+  const itemText = itemDescText(item.d);
   const shops = shopGroups(item);
   // 衝卷模擬的入口：只給頁面真的算得了的卷軸／裝備（規則在 lib/scroll-sim/linkable.ts，有測試跟 scroll-sim.json 對齊）
   const scrollLink = isSimScroll(item)
@@ -284,7 +285,7 @@ function ItemDetail({
         </div>
       </header>
 
-      {item.d ? <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{item.d}</p> : null}
+      {itemText ? <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{itemText}</p> : null}
 
       {requirements.length ? (
         <Section title="穿戴條件" extra={fit ? <Chip tone={fit.tone}>{fit.text}</Chip> : undefined}>
