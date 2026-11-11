@@ -9,6 +9,7 @@
  *  public/data/atlas-maps.json   收進圖鑑的每張圖：怪（分組、數量、座標）、NPC、門
  *  public/data/npcs.json         每個 NPC 在哪幾張圖、賣什麼（items.json 的 sp）、跟哪些任務有關
  *  public/data/atlas-index.json  收進來的圖 id、NPC id（排好序）
+ *  public/data/go-doors.json     地圖導航用：每張圖的範圍、通往每個目的地的門座標
  * 圖鑑收圖的規則比 maps.json 的 zh 寬（多收各村店面、室內），只用在圖鑑，不回寫 maps.json。
  *
  * 合的原則：中文名與遊戲數值一律以 Artale 為準；地圖拓樸用 v83；刷怪以台服客戶端為準，客戶端沒有的圖才用 v83 補。
@@ -22,6 +23,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { isClassicJob } from "./lib/classic-jobs.mjs";
 import { buildAtlas, doorEdges } from "./lib/atlas.mjs";
+import { goDoors } from "./lib/go-doors.mjs";
 import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
@@ -233,6 +235,8 @@ function main() {
   report["atlas-maps.json"] = write("atlas-maps.json", atlas.maps);
   report["npcs.json"] = write("npcs.json", atlas.npcs);
   report["atlas-index.json"] = write("atlas-index.json", atlas.index);
+  // 地圖導航在圖上圈出要走的門（lib/go-doors.mjs）
+  report["go-doors.json"] = write("go-doors.json", goDoors(atlas.maps));
 
   console.log("=== 輸出 ===");
   for (const [name, size] of Object.entries(report)) console.log(`  ${name.padEnd(18)} ${humanBytes(size)}`);

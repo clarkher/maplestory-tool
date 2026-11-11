@@ -341,6 +341,12 @@ function main() {
     sampleMap?.mobs?.length === 4 && sampleTotal === 21 && sampleWood?.k === 7
       && sampleMap.npcs.some(npc => npc.id === 12100) && sampleMap.doors.length === 4,
     sampleMap ? `${sampleMap.mobs.length} 種怪 ${sampleTotal} 隻、NPC ${sampleMap.npcs.map(npc => npc.n).join("、")}、門 ${sampleMap.doors.length} 個` : "找不到 1020000");
+  // 地圖導航圈門用的小檔（v2.10，lib/go-doors.mjs）：空的話 /go 每一段都退回純文字
+  const goDoorMaps = readJson(path.join(OUT, "go-doors.json")) ?? {};
+  const sampleDoor = goDoorMaps["1020000"]?.d?.["1010000"]?.[0];
+  check("地圖導航的門資料：圖數合理、樣本楓葉村東郊平原往楓葉村的門在 -216,93",
+    Object.keys(goDoorMaps).length > 300 && sampleDoor?.[0] === -216 && sampleDoor?.[1] === 93,
+    `${Object.keys(goDoorMaps).length} 張、樣本 ${sampleDoor ?? "找不到"}`);
   // 地圖頁的門、回城都會連 /db/maps/<id>：連過去的圖一定要有頁面
   const atlasIds = new Set(atlasMaps.map(map => map.id));
   const deadLinks = atlasMaps.flatMap(map => [

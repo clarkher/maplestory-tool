@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { npcLevelNote, npcSentence, npcWarp, portalDirection, portalSentence } from "@/lib/portal-text";
+import { npcLevelNote, npcSentence, npcWarp, exitSentence, portalDirection } from "@/lib/portal-text";
 
 const spread: Array<[number, number]> = [[-1400, 0], [-700, 0], [0, 0], [700, 0], [1400, 0], [0, -600]];
 
@@ -53,14 +53,14 @@ describe("傳送門方向：名稱看不出來時用它在這張圖所有傳送�
   });
 });
 
-describe("傳送門句子", () => {
+describe("傳送門句子：寫在這張圖的卡片上，講走哪個門、往哪裡", () => {
   it("組成給玩家看的一句話，不露出代碼", () => {
-    expect(portalSentence("左邊")).toBe("從上一張圖左邊的傳送門進來");
-    expect(portalSentence("右邊")).toBe("從上一張圖右邊的傳送門進來");
-    expect(portalSentence("上面")).toBe("從上一張圖上面的傳送門進來");
-    expect(portalSentence("下面")).toBe("從上一張圖下面的傳送門進來");
-    expect(portalSentence("中間")).toBe("從上一張圖中間的傳送門進來");
-    expect(portalSentence(null)).toBe("從上一張圖的傳送門進來");
+    expect(exitSentence("最右邊", "海岸草叢Ⅰ", false)).toBe("走最右邊的傳送門，往 海岸草叢Ⅰ");
+    expect(exitSentence("上面", "番茄園", true)).toBe("走上面的傳送門，往 番茄園");
+  });
+  it("看不出方向：圖上有圈就說圈起來的，沒圖只說傳送門", () => {
+    expect(exitSentence(null, "番茄園", true)).toBe("走圈起來的傳送門，往 番茄園");
+    expect(exitSentence(null, "番茄園", false)).toBe("走傳送門，往 番茄園");
   });
 });
 
@@ -75,8 +75,8 @@ describe("NPC 傳送那一步（冰雪峽谷Ⅱ的傑夫，v1.04 使用者拍板
     expect(npcWarp("npc:")).toBeNull();
   });
 
-  it("那一步的字：跟上一張圖最上面的傑夫說話，他會送你進來", () => {
-    expect(npcSentence({ npc: "傑夫", spot: "最上面" })).toBe("跟上一張圖最上面的傑夫說話，他會送你進來");
+  it("那一步的字寫在這張圖的卡片上：跟最上面的傑夫說話，他會送你到下一張", () => {
+    expect(npcSentence({ npc: "傑夫", spot: "最上面" }, "尖銳的絕壁Ⅰ")).toBe("跟最上面的傑夫說話，他會送你到 尖銳的絕壁Ⅰ");
   });
 
   it("有等級門檻再加一行：傑夫只讓 50 等以上的人進去，參考舊版資料", () => {
