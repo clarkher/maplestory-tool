@@ -5,15 +5,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertIcon, BoatIcon, ChevronDown, ChevronRight, PinIcon, RouteIcon } from "@/components/Icons";
 import { MapPicker } from "@/components/MapPicker";
+import { DoorView } from "@/components/go/DoorView";
 import { PixelMinimap } from "@/components/PixelMinimap";
 import { EmptyBlock, LoadingBlock } from "@/components/PlanShell";
 import {
-  loadAtlasIndex, loadGraph, loadMaps, loadNearestTown, mapName, minimapImage, peekAtlasIndex, peekGraph, peekMaps, peekNearestTown,
+  loadAtlasIndex, loadGoDoors, loadGraph, loadMapRenders, loadMaps, loadNearestTown, mapName, minimapImage, peekAtlasIndex, peekGoDoors, peekGraph,
+  peekMapRenders, peekMaps, peekNearestTown,
 } from "@/lib/data";
+import { mapRenderImage } from "@/lib/asset-paths";
+import { exitSide, pickDoor, type GoDoors } from "@/lib/go-view";
 /** 玩家上次自己選的起點（目的地本身是城鎮時拿來當預設起點） */
 import { GO_START_KEY as START_KEY } from "@/lib/go-start";
 import { normalizeJob } from "@/lib/jobs";
-import { npcLevelNote, npcSentence, npcWarp, portalDirection, portalSentence } from "@/lib/portal-text";
+import { exitSentence, npcLevelNote, npcSentence, npcWarp, portalDirection } from "@/lib/portal-text";
 import { useProfile } from "@/lib/profile";
 import {
   MAIN_TOWNS, VICTORIA_PORT, crossAreaText, findRoute, goNoteText, goStart, isAirshipArea, suggestStart, townChips, townsTitle, victoriaReach, type GoNote, type RouteStep,
@@ -21,6 +25,10 @@ import {
 } from "@/lib/route";
 import type { AtlasIndex, MapRecord, PortalEdge } from "@/lib/types";
 import { useVisitState } from "@/lib/visit-state";
+
+/** 圖上圈門要的兩份資料；載不到時兩個都是空的（每段照舊只有文字） */
+type DoorData = { doors: GoDoors; renders: Record<string, string> };
+const NO_DOORS: DoorData = { doors: {}, renders: {} };
 
 function readRememberedStart(): number | null {
   try {
@@ -50,18 +58,27 @@ export function GoNavigator() {
   const [graph, setGraph] = useState<Record<string, PortalEdge[]> | null>(peekGraph);
   const [nearestTown, setNearestTown] = useState<Record<string, [number, number]> | null>(peekNearestTown);
   const [error, setError] = useState<string | null>(null);
+  // 每段圖上圈出要走的門（v2.10）：門的位置、哪些圖有地圖畫面。跟路線一起載，路線第一次畫出來就有圖、不會後來才長高；
+  // 載不到不算錯（當成都沒有，每段退回純文字＋小地圖）
+  const [doorData, setDoorData] = useState<DoorData | null>(() => {
+    const doors = peekGoDoors();
+    const renders = peekMapRenders();
+    return doors && renders ? { doors, renders } : null;
+  });
   // 有地圖頁的圖：目的地有頁才在「到了」旁邊放「看這張圖」。載到前不放（一行短字，放進來不會換行、不推動版面），也不擋路線
   const [atlasIndex, setAtlasIndex] = useState<AtlasIndex | null>(peekAtlasIndex);
   // 上次自己選的起點也一開始就讀，不會先排一條路再換掉（這頁用了網址參數，只在瀏覽器上畫，讀得到本機儲存）
   const [remembered, setRemembered] = useState<number | null>(readRememberedStart);
 
   useEffect(() => {
-    if (maps && graph && nearestTown) return;
-    Promise.all([loadMaps(), loadGraph(), loadNearestTown()])
-      .then(([mapData, graphData, townData]) => {
+    if (maps && graph && nearestTown && doorData) return;
+    const doorsLoad = Promise.all([loadGoDoors(), loadMapRenders()]).then(([doors, renders]) => ({ doors, renders }), () => NO_DOORS);
+    Promise.all([loadMaps(), loadGraph(), loadNearestTown(), doorsLoad])
+      .then(([mapData, graphData, townData, doors]) => {
         setMaps(mapData);
         setGraph(graphData);
         setNearestTown(townData);
+        setDoorData(doors);
       })
       .catch(loadError => setError(String(loadError.message ?? loadError)));
   }, []);
@@ -126,7 +143,7 @@ export function GoNavigator() {
   );
 
   // 角色也要讀到（初心者的起點不一樣），不然會先排一條路再換掉
-  const ready = Boolean(maps && graph && nearestTown) && loaded;
+  const ready = Boolean(maps && graph && nearestTown && doorData) && loaded;
 
   return (
     <div className="space-y-5 py-3 sm:py-6">
@@ -187,7 +204,7 @@ export function GoNavigator() {
               hint="這張圖在客戶端資料裡沒有連到任何城鎮，可能是活動地圖或副本。"
             />
           ) : plan?.ok ? (
-            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} notes={notes} atlasIndex={atlasIndex} />
+            <RouteList steps={plan.steps} maps={maps!} hops={plan.hops} graph={graph!} notes={notes} atlasIndex={atlasIndex} doorData={doorData!} />
           ) : plan && plan.reason === "different-area" ? (
             <CrossAreaNotice
               maps={maps!}
@@ -228,6 +245,7 @@ function RouteList({
   graph,
   notes,
   atlasIndex,
+  doorData,
 }: {
   steps: RouteStep[];
   maps: Record<string, MapRecord>;
@@ -235,6 +253,7 @@ function RouteList({
   graph: Record<string, PortalEdge[]>;
   notes: GoNote[];
   atlasIndex: AtlasIndex | null;
+  doorData: DoorData;
 }) {
   return (
     <section aria-label="路線">
@@ -256,7 +275,9 @@ function RouteList({
             maps={maps}
             graph={graph}
             previous={steps[index - 1]?.map}
+            next={steps[index + 1]}
             atlasIndex={atlasIndex}
+            doorData={doorData}
           />
         ))}
       </ol>
@@ -271,15 +292,21 @@ function RouteCard({
   maps,
   graph,
   previous,
+  next,
   atlasIndex,
+  doorData,
 }: {
   step: RouteStep;
   index: number;
   total: number;
   maps: Record<string, MapRecord>;
   graph: Record<string, PortalEdge[]>;
+  /** 上一張圖（進來的位置用） */
   previous?: number;
+  /** 下一步：它的 via／x／y 是「這張圖」要走的那個傳送門 */
+  next?: RouteStep;
   atlasIndex: AtlasIndex | null;
+  doorData: DoorData;
 }) {
   // 小地圖展開記在這一筆瀏覽紀錄上（lib/visit-state）：重新整理、按返回時路線一樣長，才捲得回同一段（跟 React key 同一組）
   const [open, setOpen] = useVisitState(`go:map:${step.map}-${index}`, false);
@@ -288,12 +315,25 @@ function RouteCard({
   const isStart = index === 0;
   const isEnd = index === total - 1;
   const unnamed = !record?.zh;
-  const previousEdges = previous !== undefined ? graph[String(previous)] ?? [] : [];
-  // 靠 NPC 傳送的那一步（冰雪峽谷Ⅱ的傑夫）寫找誰說話，不寫傳送門
-  const warp = npcWarp(step.via);
-  // 左右上下拿上一張圖的傳送門當基準，NPC 站的位置不算（code review）
-  const doors = previousEdges.filter(([, via]) => !npcWarp(via)).map(([, , px, py]) => [px, py] as [number, number]);
-  const direction = warp ? null : portalDirection(step.via, step.x, step.y, doors);
+  const nextName = next ? (maps[String(next.map)]?.zh ? mapName(maps, next.map) : "一條小通道") : "";
+  // 靠 NPC 傳送的那一步（冰雪峽谷Ⅱ的傑夫）寫找誰說話，不寫傳送門、圖上也不圈
+  const warp = next ? npcWarp(next.via) : null;
+  // 這張圖要走的門：go-doors.json 有位置、又有地圖畫面才畫圖；進來的位置＝通往上一張圖的門
+  const { doors, renders } = doorData;
+  const entry = previous !== undefined ? pickDoor(doors, step.map, previous) : null;
+  const exit = next && !warp ? pickDoor(doors, step.map, next.map, entry) : null;
+  const render = renders[String(step.map)];
+  const bounds = doors[String(step.map)]?.b;
+  const figure = exit && bounds && render !== undefined ? { exit, bounds, src: `${mapRenderImage(step.map)}?v=${render}` } : null;
+  // 方向：有圖就照圈的位置在整張圖的哪一邊（跟角落小圖一致；門名是舊版資料的，up00 在台服可能畫在最下面，不看）；
+  // 沒圖才照門名、它在這張圖所有傳送門（NPC 站的位置不算）裡的位置猜
+  let direction: string | null = null;
+  if (figure) {
+    direction = exitSide(figure.bounds, figure.exit, Object.values(doors[String(step.map)]?.d ?? {}).flat());
+  } else if (next && !warp) {
+    const siblings = (graph[String(step.map)] ?? []).filter(([, via]) => !npcWarp(via)).map(([, , px, py]) => [px, py] as [number, number]);
+    direction = portalDirection(next.via, next.x, next.y, siblings);
+  }
   // 目的地有地圖頁：接在「到了」（起點就是目的地時接在「出發點」）後面
   const mapPage = isEnd && atlasIndex?.maps.includes(step.map) ? (
     <Link href={`/db/maps/${step.map}`} className="ml-2 text-[13px] font-bold ink-soft underline decoration-[color:var(--ink-faint)] underline-offset-4 hover:text-[color:var(--maple)]">
@@ -323,19 +363,20 @@ function RouteCard({
             {record?.st ? <span className="text-xs ink-faint">{record.st}</span> : null}
           </p>
 
-          {isStart ? (
-            <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點{mapPage}</p>
-          ) : (
-            <>
-              <p className="mt-0.5 text-sm ink-soft">{warp ? npcSentence(warp) : portalSentence(direction)}</p>
-              {warp && step.minLevel !== undefined ? <p className="mt-0.5 text-sm ink-soft">{npcLevelNote(warp.npc, step.minLevel)}</p> : null}
-            </>
-          )}
+          {isStart ? <p className="mt-0.5 text-sm font-bold text-[color:var(--leaf)]">出發點{mapPage}</p> : null}
           {isEnd && !isStart ? (
             <p className="mt-0.5 text-sm font-bold text-[color:var(--maple)]">到了{mapPage}</p>
           ) : null}
+          {next ? (
+            <>
+              <p className="mt-0.5 text-[15px] font-bold" data-go-say>
+                {warp ? npcSentence(warp, nextName) : exitSentence(direction, nextName, Boolean(figure))}
+              </p>
+              {warp && next.minLevel !== undefined ? <p className="mt-0.5 text-sm ink-soft">{npcLevelNote(warp.npc, next.minLevel)}</p> : null}
+            </>
+          ) : null}
 
-          {record?.mm ? (
+          {!figure && record?.mm ? (
             <>
               <button
                 type="button"
@@ -355,6 +396,12 @@ function RouteCard({
           ) : null}
         </div>
       </div>
+      {/* 圖放在編號那一欄外面、吃滿卡片寬（手機上多 50px 寬，門看得更清楚） */}
+      {figure ? (
+        <div className="px-3.5 pb-3.5">
+          <DoorView src={figure.src} bounds={figure.bounds} exit={figure.exit} entry={entry} mapName={name} nextName={nextName} />
+        </div>
+      ) : null}
     </li>
   );
 }

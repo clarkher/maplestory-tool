@@ -5,6 +5,7 @@ import type {
   TrainingRow,
 } from "./types";
 import type { GearData } from "./gear";
+import type { GoDoors } from "./go-view";
 import type { RawSpeedNames } from "./speed/names";
 import type { ScrollSimData } from "./scroll-sim/types";
 import type { AvatarData } from "./avatar/types";
@@ -91,6 +92,8 @@ export const peekGuide = (job: number) => peek<GuideJob>(`guides/${job}`);
 export const peekFarming = () => peek<Record<string, FarmingRow[]>>("farming");
 export const peekBuyQuests = () => peek<BuyQuestData>("buy-quests");
 export const peekAtlasIndex = () => peek<AtlasIndex>("atlas-index");
+export const peekGoDoors = () => peek<GoDoors>("go-doors");
+export const peekMapRenders = () => peek<Record<string, string>>("map-renders");
 
 export const loadMeta = (): Promise<Meta> => {
   const cached = cache.get("meta") as Promise<Meta> | undefined;
@@ -98,7 +101,15 @@ export const loadMeta = (): Promise<Meta> => {
   return loadVersion().then(() => cache.get("meta") as Promise<Meta>);
 };
 export const loadMaps = () => load<Record<string, MapRecord>>("maps");
-export const loadGraph = () => load<Record<string, PortalEdge[]>>("graph");
+/**
+ * 載 graph 的頁（首頁、練功、任務…）之後多半會按「帶我去」：圈門要的兩個小檔（共約 50 KB）順手先載，
+ * 進 /go 時 peek 得到，第一個畫面就是有圖的路線，不會多閃一次「載入地圖資料…」。載不到不管（/go 自己會再載、再退回純文字）。
+ */
+export const loadGraph = () => {
+  void load("go-doors").catch(() => {});
+  void load("map-renders").catch(() => {});
+  return load<Record<string, PortalEdge[]>>("graph");
+};
 export const loadNearestTown = () => load<Record<string, [number, number]>>("nearest-town");
 export const loadMonsters = () => load<Monster[]>("monsters");
 export const loadItems = () => load<Item[]>("items");
@@ -112,6 +123,10 @@ export const loadSearch = () => load<SearchRow[]>("search");
 export const loadBuyQuests = () => load<BuyQuestData>("buy-quests");
 /** 有頁的地圖、NPC id（atlas-index.json 跟 meta 同一次建置寫，照其他資料檔掛版本號＋長快取） */
 export const loadAtlasIndex = () => load<AtlasIndex>("atlas-index");
+/** 地圖導航圈出要走的門：每張圖的範圍、通往每個目的地的門座標（go-doors.json，跟 meta 同一次建置寫） */
+export const loadGoDoors = () => load<GoDoors>("go-doors");
+/** 有整張地圖畫面的圖 → 圖檔版本（map-renders.json；圖檔網址另外掛這個版本） */
+export const loadMapRenders = () => load<Record<string, string>>("map-renders");
 /**
  * 練功測速的名字樣板（職業、街道、地圖名；本機 npm run speed:glyphs 產）。
  * 檔案是手動重產的、不跟 meta 的建置時間走，掛版本號 + 長快取會一直拿到舊樣板，
