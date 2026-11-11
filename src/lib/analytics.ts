@@ -18,7 +18,19 @@ export function gaEnabledFor(hostname: string, search: string) {
   return hostname === PRODUCTION_HOST || new URLSearchParams(search).has("ga_debug");
 }
 
+/** 自己人不算流量（v2.08）：網址帶過一次 ?ga_off=1 的瀏覽器一直不送（記在 localStorage GA_OFF_KEY），?ga_off=0 解除 */
+export const GA_OFF_KEY = "ms-ga-off";
+
+export function gaOptOut(search: string, stored: string | null): boolean {
+  const flag = new URLSearchParams(search).get("ga_off");
+  if (flag === "1") return true;
+  if (flag === "0") return false;
+  return stored === "1";
+}
+
 export type EventName =
+  | "tool_click"
+  | "detail_page_click"
   | "calc_result"
   | "db_search"
   | "db_open"
@@ -42,6 +54,21 @@ export function track(name: EventName, params: Params = {}) {
   } catch {
     // 統計壞掉不能弄壞網站
   }
+}
+
+/** 連結上標 data-ga 的種類：tool＝單獨頁底下連到工具那顆、detail_page＝查資料卡片底下連到單獨頁那行 */
+const LINK_EVENTS: Record<string, EventName> = { tool: "tool_click", detail_page: "detail_page_click" };
+
+/**
+ * 點了標過的連結要送什麼（v2.08）：from＝從哪一類頁（db/monsters、jobs…），page＝那一頁，to＝點去哪（不帶 ?#，報表才不會散成上千列），label＝按鈕字。
+ * 沒標、標錯回 null。GoogleAnalytics 元件在整頁聽點擊，伺服器元件（SeoPage）不用改成 client。
+ */
+export function linkClick(kind: string | undefined, pathname: string, href: string, label: string): { name: EventName; params: Params } | null {
+  const name = kind ? LINK_EVENTS[kind] : undefined;
+  if (!name) return null;
+  const segments = pathname.split("/").filter(Boolean);
+  const from = segments[0] === "db" ? segments.slice(0, 2).join("/") : (segments[0] ?? "home");
+  return { name, params: { from, page: pathname, to: href.split(/[?#]/)[0] || "/", label: label.trim() } };
 }
 
 const SETTLE_MS = 1500;
