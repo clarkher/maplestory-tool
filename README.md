@@ -49,6 +49,8 @@
 `scrolls`（卷軸：成功率、爆裝率、加的數值、能衝的部位或專用裝備）、`white`（白衣）、`equips`（可衝卷的裝備與次數）。計算在 `src/lib/scroll-sim/`。
 驗收：`npx vitest run src/lib/scroll-sim`；畫面用 `node scripts/verify/scroll-shot.mjs <網址，預設 http://localhost:9401> [輸出]`（埠 9402，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
 
+「地圖導航圖上指路」（`/go`，v2.10）：每一段把整張地圖畫面放大到出口附近，要走的傳送門畫橘圈＋「往 X」，角落小圖標出這一塊在整張地圖的哪裡；那句話寫在要走出去的那張圖上（「走最右邊的傳送門，往 海岸草叢Ⅰ」）。門的位置在 `public/data/go-doors.json`（`pipeline/lib/go-doors.mjs`，build 時從圖鑑抽：每張圖的範圍＋通往每個目的地的門座標），地圖畫面沿用 `public/assets/map_renders/`。沒有畫面或查不到門位置的段落只有文字＋「看小地圖」；NPC 傳送（傑夫）不畫圈。算術在 `src/lib/go-view.ts`，畫面在 `src/components/go/DoorView.tsx`。驗收：`node scripts/verify/go-door-shot.mjs <輸出> <網址>`（埠 9541）。設計：`docs/superpowers/specs/2026-11-12-go-door-view-design.md`。
+
 「地圖＋NPC 圖鑑」（`/db/maps`、`/db/maps/<id>`、`/db/npcs`、`/db/npcs/<id>`，v1.24）：查資料的兩個分頁加單筆頁。地圖頁是整張地圖畫面，上面標怪物圓點（同時在場幾隻）、NPC、傳送門，下面列怪物、NPC、門通往；NPC 頁寫在哪、賣什麼（標參考舊版資料）、任務。只收已開放的地圖；資料在 `public/data/atlas-maps.json`、`atlas-index.json`、`npcs.json`，畫面圖在 `public/assets/map_renders/`。怪物卡、任務卡、`/go` 的「看這張圖」都連得進來。驗收：`node scripts/verify/atlas-shot.mjs <網址，預設 http://localhost:9303> [輸出]`（埠 9304，沒過 exit 1，見 [scripts/verify/README.md](scripts/verify/README.md)）。
 
 「道具單獨頁」（`/db/items/<id>`，v1.54，11/05 拍板 A）：查得到來源的一般道具才出頁（規則 `src/lib/item-page.ts`，時裝、現金、查不到來源的不出），給搜尋引擎跟分享用；`?id=` 卡片行為不動。為了省 Cloudflare 檔案額度，建置時每頁只留 html（`trimItemPageFiles`），所以連過去一律用一般連結 `<a>`，不能用 `next/link`（預先載入會 404）。任務單獨頁的道具膠囊也連過去（v1.58，`itemPages`）；任務工具頁照舊留在工具裡。

@@ -1,5 +1,5 @@
 /**
- * 「帶我去」每一步的傳送門說明。玩家看不懂 sub00、in01 這種代碼，也不需要座標。
+ * 「帶我去」每一步的傳送門說明（寫在要走出去的那張圖上）。玩家看不懂 sub00、in01 這種代碼，也不需要座標。
  * 名稱只認方向字（east、west、up、top、down、dn、under、bottom），其他一律用它在上一張圖所有傳送門裡的位置判斷；
  * 都判斷不出來就不猜，只說「傳送門」。
  * in／out／st 不是方向：森林迷宮、地鐵的每一步都叫 in／out，照名稱寫「走進建築」會整條路線都在走進建築（final review F2）。
@@ -46,9 +46,9 @@ export function npcWarp(via: string): { npc: string; spot: string } | null {
   return kind === "npc" && npc ? { npc, spot: spot ?? "" } : null;
 }
 
-/** 跟上一張圖最上面的傑夫說話，他會送你進來 */
-export function npcSentence({ npc, spot }: { npc: string; spot: string }): string {
-  return `跟上一張圖${spot}的${npc}說話，他會送你進來`;
+/** 跟最上面的傑夫說話，他會送你到 尖銳的絕壁Ⅰ（寫在傑夫站的那張圖的卡片上） */
+export function npcSentence({ npc, spot }: { npc: string; spot: string }, next: string): string {
+  return `跟${spot}的${npc}說話，他會送你到 ${next}`;
 }
 
 /** 等級門檻那一行。台服查不到門檻，數字是舊版的（2026-10-16 使用者拍板 A），台服確認後改 npc-warps.mjs 跟這句 */
@@ -56,8 +56,11 @@ export function npcLevelNote(npc: string, minLevel: number): string {
   return `（${npc}只讓 ${minLevel} 等以上的人進去，參考舊版資料）`;
 }
 
-/** 左邊／右邊／上面／下面／中間都是同一句；看不出來就只說傳送門 */
-export function portalSentence(direction: string | null): string {
-  if (!direction) return "從上一張圖的傳送門進來";
-  return `從上一張圖${direction}的傳送門進來`;
+/**
+ * 寫在這張圖的卡片上：走哪個傳送門、往哪裡（v2.10，原本寫在下一張「從上一張圖右邊的傳送門進來」）。
+ * 看不出方向時：圖上有圈（circled）就說圈起來的，沒圖只說傳送門。
+ */
+export function exitSentence(direction: string | null, next: string, circled: boolean): string {
+  if (direction) return `走${direction}的傳送門，往 ${next}`;
+  return circled ? `走圈起來的傳送門，往 ${next}` : `走傳送門，往 ${next}`;
 }
