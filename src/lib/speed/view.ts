@@ -213,6 +213,15 @@ export function mapSource(title: { key: string | null; mapId: number | null }, p
   return { key: null, mapId: null };
 }
 
+/**
+ * 現在先當成哪張圖：認得準的（或玩家點過的）就是那張；認不準就先用最像的那張（候選第一個），
+ * 頁面標「對嗎？」、結束存檔前再請玩家確認（2026-11-11 使用者：地圖名稱從來沒有自動認出來過）。
+ */
+export function likelyMap(guess: { mapId: number | null; confident?: boolean; choices: number[] } | null): number | null {
+  if (!guess) return null;
+  return guess.mapId ?? guess.choices[0] ?? null;
+}
+
 /** 存一筆送給 /api/speed/runs 的內容。組隊送其他隊員等級跟誰在打（伺服器自己算隊伍人數，不送 partySize） */
 export function runBody(
   seg: Segment,

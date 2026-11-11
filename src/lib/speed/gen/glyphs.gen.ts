@@ -5,6 +5,8 @@
  *   2026-10-17 以前是微軟正黑體，跟遊戲的字長得不一樣，1 被認成 ]、3 跟 5 被認成 8，經驗幾乎都讀不出來。
  * - public/data/speed-names.json：職業名（微軟正黑體）、小地圖的街道名跟地圖名（微軟正黑體粗體，照遊戲的畫法畫，見 renderTitle）
  * 只存縮成格子的特徵（每字 8×12、每行高 8 格），不存字型本身。
+ * - public/data/speed-chars.json：狀態列角色名的逐字樣板（read-name.ts）：Big5 常用字 5,401 個＋英數，微軟正黑體 12px、13px 各一張。
+ *   2026-11-11 拿使用者截圖比過：遊戲客戶端沒帶中文字型，角色名是系統的正黑體，12＋13px 樣板兩張真截圖原尺寸全對。
  * 地圖資料（public/data/maps.json）多了新地圖名就要重跑，不然新圖認不到（頁面會改請玩家點選）。
  */
 import fs from "node:fs";
@@ -14,6 +16,7 @@ import { it } from "vitest";
 import type { Frame } from "../frame";
 import { bbox, grid, inkMask } from "../ink";
 import { JOB_TEXT } from "../read-job";
+import { NAME_CELL, nameCharset } from "../read-name";
 import { buildStatusTemplates } from "./status-templates";
 
 const JOB_FONT = "C:/Windows/Fonts/msjh.ttc";
@@ -98,4 +101,29 @@ it("產 speed-names.json", () => {
     titles: [...titles].sort().map(text => line(text, "SpeedTitle")),
   };
   fs.writeFileSync(path.join(ROOT, "public/data/speed-names.json"), `${JSON.stringify(out)}\n`);
+});
+
+/**
+ * 角色名樣板：同一個字畫 12px、13px 兩張（read-name 取比較像的那張）。只用 13px 時新客戶端原尺寸「士」認成「七」、「K」認成「h」，
+ * 兩種字級一起比，兩張真截圖原尺寸全對（2026-11-11 試過 13px 錯開 0.5 格、12/13 各錯開兩次，都比較差）。
+ */
+const NAME_PX = [12, 13];
+
+it("產 speed-chars.json", () => {
+  registerFont(JOB_FONT, "SpeedName");
+  const chars = nameCharset();
+  const aspects: number[] = [];
+  let cells = "";
+  for (const px of NAME_PX) {
+    for (const ch of chars) {
+      const frame = render(ch, "SpeedName", px);
+      const mask = inkMask(frame, { x: 0, y: 0, w: frame.width, h: frame.height }, false, 0.99)!;
+      const box = bbox(mask)!;
+      aspects.push(round((box.x1 - box.x0) / (box.y1 - box.y0)));
+      cells += hex(grid(mask, box, NAME_CELL, NAME_CELL));
+    }
+  }
+  const out = { font: "Microsoft JhengHei", sizes: NAME_PX, cell: NAME_CELL, chars: chars.join(""), aspects, cells };
+  fs.writeFileSync(path.join(ROOT, "public/data/speed-chars.json"), `${JSON.stringify(out)}
+`);
 });

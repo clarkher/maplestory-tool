@@ -14,7 +14,16 @@ export type SpeedRecord = {
   charId: string | null;
   exp10: number;
   net10: number | null;
+  /** 這段開始的時間（回答加倍券時用它找回這筆）；v2.06 以前的紀錄沒有 */
+  segAt?: number;
+  /** 這段練了幾秒（拆加倍券用）；v2.06 以前的紀錄沒有 */
+  sec?: number;
+  /** 加倍券：沒回答（undefined）、沒開（null）、有開（倍率＋其中幾分鐘） */
+  coupon?: Coupon | null;
 };
+
+/** 加倍券（跟 view.ts、伺服器 rules.ts 的 Coupon 同一個形狀） */
+export type Coupon = { mult: number; minutes: number };
 
 const KEY = "ms-speed:records";
 const MAX_RECORDS = 50;
@@ -29,7 +38,19 @@ function parseRecord(value: unknown): SpeedRecord | null {
   if (!isNum(v.at) || !isNumOrNull(v.mapId) || typeof v.mapName !== "string") return null;
   if (!isNum(v.level) || !isNumOrNull(v.job) || !isNum(v.exp10) || !isNumOrNull(v.net10)) return null;
   if (v.charId !== null && typeof v.charId !== "string") return null;
-  return { at: v.at, mapId: v.mapId, mapName: v.mapName, level: v.level, job: v.job, charId: v.charId, exp10: v.exp10, net10: v.net10 };
+  const out: SpeedRecord = { at: v.at, mapId: v.mapId, mapName: v.mapName, level: v.level, job: v.job, charId: v.charId, exp10: v.exp10, net10: v.net10 };
+  // 新欄位壞掉不丟整筆（比較少一點資訊而已）：當沒有
+  if (isNum(v.segAt)) out.segAt = v.segAt;
+  if (isNum(v.sec) && v.sec > 0) out.sec = v.sec;
+  if (v.coupon === null) out.coupon = null;
+  else if (isCoupon(v.coupon)) out.coupon = { mult: v.coupon.mult, minutes: v.coupon.minutes };
+  return out;
+}
+
+function isCoupon(value: unknown): value is Coupon {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return isNum(v.mult) && v.mult >= 1 && isNum(v.minutes) && v.minutes > 0;
 }
 
 export function loadRecords(storage: Storage): SpeedRecord[] {
@@ -55,29 +76,59 @@ export function addRecord(storage: Storage, r: SpeedRecord): SpeedRecord[] {
   return next;
 }
 
-type Current = { mapId: number | null; mapName: string; exp10: number; job: number | null; charId: string | null };
+/** 回答加倍券之後：改同一段那筆（segAt 對得上的），回傳改完的清單；找不到就原樣回 */
+export function setRecordCoupon(storage: Storage, segAt: number, coupon: Coupon | null): SpeedRecord[] {
+  const list = loadRecords(storage);
+  if (!list.some(r => r.segAt === segAt)) return list;
+  const next = list.map(r => (r.segAt === segAt ? { ...r, coupon } : r));
+  try {
+    storage.setItem(KEY, JSON.stringify(next));
+  } catch {
+    // 存不了：這次照樣顯示
+  }
+  return next;
+}
+
+/**
+ * 10 分鐘經驗拆成「還原值」（扣掉加倍券，回推沒開會拿多少）跟「加倍多拿的」：
+ * 還原值＝經驗 ÷（沒開的分鐘＋有開的分鐘×倍率）×10，跟伺服器 realExpPer10 同一條；填的分鐘比這段長就當整段都開。
+ * 沒開、沒回答、不知道這段多長（v2.06 以前的紀錄）：全部算還原值。
+ */
+export function splitCoupon(exp10: number, sec: number | undefined, coupon: Coupon | null | undefined): { base: number; bonus: number } {
+  if (!coupon || !sec) return { base: exp10, bonus: 0 };
+  const total = sec / 60;
+  const on = Math.min(coupon.minutes, total);
+  const base = Math.round((exp10 * total) / (total - on + on * coupon.mult));
+  return { base, bonus: exp10 - base };
+}
+
+type Current = { mapId: number | null; mapName: string; exp10: number; job: number | null; charId: string | null; sec?: number; coupon?: Coupon | null };
+export type CompareRow = { label: string; exp10: number; bonus: number; current: boolean };
 
 const mapKey = (mapId: number | null, mapName: string) => (mapId !== null ? `id:${mapId}` : `name:${mapName}`);
 
 /**
  * 「跟我之前比」：第一列是這段；其他是「同一隻角色」（有 ID 看 ID，沒 ID 看職業）
- * 在別張圖的紀錄，每張圖取最好一筆、最多 4 張，照 10 分鐘經驗由大到小。
+ * 在別張圖的紀錄，每張圖取最好一筆、最多 4 張。exp10 是扣掉加倍券的還原值、bonus 是加倍多拿的（splitCoupon），
+ * 「最好」跟排序都照還原值（2026-11-11 使用者選 A：開了加倍券的不能贏過真的練得比較快的圖）。
  */
-export function compareRows(records: SpeedRecord[], current: Current): { label: string; exp10: number; current: boolean }[] {
-  const rows = [{ label: `${current.mapName}（這段）`, exp10: current.exp10, current: true }];
+export function compareRows(records: SpeedRecord[], current: Current): CompareRow[] {
+  const now = splitCoupon(current.exp10, current.sec, current.coupon);
+  const rows: CompareRow[] = [{ label: `${current.mapName}（這段）`, exp10: now.base, bonus: now.bonus, current: true }];
   const curKey = mapKey(current.mapId, current.mapName);
-  const best = new Map<string, SpeedRecord>();
+  const best = new Map<string, { label: string; base: number; bonus: number }>();
   for (const r of records) {
     const same = current.charId ? r.charId === current.charId : current.job !== null && r.job === current.job;
     if (!same) continue;
     const key = mapKey(r.mapId, r.mapName);
     if (key === curKey) continue;
+    const { base, bonus } = splitCoupon(r.exp10, r.sec, r.coupon);
     const prev = best.get(key);
-    if (!prev || r.exp10 > prev.exp10) best.set(key, r);
+    if (!prev || base > prev.base) best.set(key, { label: r.mapName, base, bonus });
   }
   const others = [...best.values()]
-    .sort((a, b) => b.exp10 - a.exp10)
+    .sort((a, b) => b.base - a.base)
     .slice(0, MAX_OTHER_MAPS)
-    .map((r) => ({ label: r.mapName, exp10: r.exp10, current: false }));
+    .map((r) => ({ label: r.label, exp10: r.base, bonus: r.bonus, current: false }));
   return [...rows, ...others];
 }

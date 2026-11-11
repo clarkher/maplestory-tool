@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { MemberExp } from "../party-exp";
 import { createTracker, feed, startManual, type Sample, type Segment, type Tracker } from "../tracker";
-import {
+import { likelyMap,
   backCalcLine, BLIND_PICK_MS, checkCharId, couponMinutes, couponNote, draftParty, fillNeeds, parseCoupon, FRESH_BLIND, HINT_RESET_AFTER, hitterAfterRemove, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, statusLine, partyKillLine, partyLevel, partySize, runBody, sameParty, saveNote, splitOnIdChange, splitOnPartyChange,
   type BlindMap, type HintState,
 } from "../view";
@@ -460,5 +460,19 @@ describe("加倍券", () => {
     expect(couponNote({ ok: true, expPer10: 100_000 }, null)).toBe("記成沒開加倍券。");
     expect(couponNote({ ok: false, error: "找不到這筆紀錄（超過一天就不能改了）" }, { mult: 1.5, minutes: 12 })).toBe("加倍券沒記到：找不到這筆紀錄（超過一天就不能改了）。");
     expect(couponNote({ ok: false }, { mult: 1.5, minutes: 12 })).toBe("加倍券沒記到：網路不通，等一下再過來。");
+  });
+});
+
+// 2026-11-11 使用者「地圖名稱從來沒有辨識成功過」：認不準時不要空著，先用最像的那張，結束存檔前再請玩家確認
+describe("likelyMap：認不準時先用最像的", () => {
+  it("認得準就是那張", () => {
+    expect(likelyMap({ mapId: 5, confident: true, choices: [] })).toBe(5);
+  });
+  it("認不準：用排第一的候選", () => {
+    expect(likelyMap({ mapId: null, confident: false, choices: [101030111, 101030110] })).toBe(101030111);
+  });
+  it("沒有候選、還沒認：null", () => {
+    expect(likelyMap({ mapId: null, confident: false, choices: [] })).toBeNull();
+    expect(likelyMap(null)).toBeNull();
   });
 });
