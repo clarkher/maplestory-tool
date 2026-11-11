@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GA_ID, gaEnabledFor, jobParams, track, trackSettled } from "../analytics";
+import { GA_ID, gaEnabledFor, gaOptOut, jobParams, linkClick, track, trackSettled } from "../analytics";
 
 type Win = { gtag?: (...args: unknown[]) => void };
 
@@ -57,5 +57,31 @@ describe("GA 事件（v1.32）", () => {
     expect(jobParams(110, 35)).toEqual({ job: "狂戰士", level: 35, level_band: "31-40" });
     expect(jobParams(0, 10)).toEqual({ job: "初心者", level: 10, level_band: "1-10" });
     expect(jobParams(-1, 1)).toMatchObject({ job: "未選" });
+  });
+});
+
+describe("自己人不算流量、單獨頁點去工具（v2.08）", () => {
+  it("網址帶過一次 ?ga_off=1 的瀏覽器一直不送；?ga_off=0 解除", () => {
+    expect(gaOptOut("", null)).toBe(false);
+    expect(gaOptOut("?ga_off=1", null)).toBe(true);
+    expect(gaOptOut("", "1")).toBe(true);
+    expect(gaOptOut("?ga_off=0", "1")).toBe(false);
+  });
+  it("單獨頁底下那顆工具按鈕：記從哪一類頁、點去哪、按鈕字", () => {
+    expect(linkClick("tool", "/db/monsters/100100", "/go?to=104040000", "一鍵帶路到刷怪點")).toEqual({
+      name: "tool_click",
+      params: { from: "db/monsters", page: "/db/monsters/100100", to: "/go", label: "一鍵帶路到刷怪點" },
+    });
+    expect(linkClick("tool", "/jobs/410", "/", "填等級，看我現在去哪練")?.params).toMatchObject({ from: "jobs", to: "/" });
+  });
+  it("查資料卡片底下連到單獨頁那行", () => {
+    expect(linkClick("detail_page", "/db/monsters", "/db/monsters/100100", "看完整刷怪點與相關任務")).toEqual({
+      name: "detail_page_click",
+      params: { from: "db/monsters", page: "/db/monsters", to: "/db/monsters/100100", label: "看完整刷怪點與相關任務" },
+    });
+  });
+  it("沒標的連結不送", () => {
+    expect(linkClick(undefined, "/", "/db", "x")).toBeNull();
+    expect(linkClick("other", "/", "/db", "x")).toBeNull();
   });
 });

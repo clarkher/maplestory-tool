@@ -653,6 +653,8 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `calc_result` | 傷害計算機玩家自己改過設定（停 1.5 秒）；衝卷模擬選好裝備＋卷軸 | `tool`（damage／scroll），damage 帶 `job`、`level`、`level_band`、`monster`；scroll 帶 `equip`、`scroll` |
 | `db_search` | 查資料搜尋框停 1.5 秒 | `db`（怪物／任務…頁標題）、`query` |
 | `db_open` | 查資料從清單點開一筆 | `db`、`id`、`name` |
+| `detail_page_click` | 查資料卡片底下點「看完整刷怪點與相關任務」這類連到單獨頁那行（v2.08） | `from`（db/monsters…）、`page`（在哪一頁點）、`to`（點去哪，不帶 `?`）、`label`（連結字） |
+| `tool_click` | 單獨頁（怪物、任務、職業、攻略文…）底下那顆連到工具的按鈕（v2.08） | 同上 |
 | `speed_read` | 練功測速開始分享後第一次讀到狀態列 | — |
 | `speed_save` | 練功測速一段存上伺服器 | `job`、`level`、`level_band`、`map`、`minutes`、`ranked` |
 | `boss_room_create` | 野王計時開房間 | — |
@@ -664,6 +666,8 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃、公會徽章分享 | `page`（boss／speed／avatar／guild）、`method`（野王計時、紙娃娃、公會徽章 copy_link 複製連結；紙娃娃、公會徽章 share 系統分享（只有手機、平板；電腦一律 copy_link）；練功測速 copy_image／download_image） |
 
 外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。
+
+**自己人不算（v2.08）**：在自己的瀏覽器開一次 `https://maplehelper.tw/?ga_off=1`，這台這個瀏覽器之後都不送（記在 localStorage `ms-ga-off`；`?ga_off=0` 解除，清網站資料也會解除）；手機、別的瀏覽器要各開一次。無頭 Chrome 驗收（`navigator.webdriver`）一律不送，要測事件就帶 `?ga_debug=1`。
 
 ### 查資料頁驗收（改查資料四頁之後跑）
 
