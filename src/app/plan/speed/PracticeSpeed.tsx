@@ -21,7 +21,7 @@ import { nonPotionIds, potionPoolIds, slotReads, type FrameExtras } from "@/lib/
 import type { FrameReading } from "@/lib/speed/read-frame";
 import { resolveMap, settleTitle, type MapGuess, type TitleSettle } from "@/lib/speed/read-map";
 import type { BoardRow } from "@/lib/speed/server/rules";
-import { addRecord, compareRows, loadRecords, type SpeedRecord } from "@/lib/speed/records";
+import { addRecord, compareRows, loadRecords, setRecordCoupon, type SpeedRecord } from "@/lib/speed/records";
 import { readMapMemory, rememberMap, useSpeedSettings, type SpeedParty, type SpeedSettings } from "@/lib/speed/settings";
 import type { ShareCard } from "@/lib/speed/share-image";
 import {
@@ -29,12 +29,12 @@ import {
   type Sample, type Segment, type Step, type Tracker,
 } from "@/lib/speed/tracker";
 import {
-  backCalcLine, couponMinutes, couponNote, fillNeeds, FRESH_BLIND, jobName, levelPercent, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnIdChange, splitOnPartyChange, statusLine,
+  backCalcLine, couponMinutes, couponNote, fillNeeds, FRESH_BLIND, jobName, levelPercent, likelyMap, manualControl, mapSource, nextBlind, nextHints, partySize, runBody, saveNote, splitOnIdChange, splitOnPartyChange, statusLine,
   type BlindMap, type Coupon, type HintState, type SaveOutcome, type SpeedStatus,
 } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
 import { CompareCard } from "./CompareCard";
-import { CouponDialog, FillDialog, IdDialog, StartDialog, type FillAnswer, type IdChoice, type PendingCoupon, type PendingFill } from "./Dialogs";
+import { CouponDialog, EndDialog, FillDialog, IdDialog, StartDialog, type EndAnswer, type FillAnswer, type IdChoice, type PendingCoupon, type PendingEnd, type PendingFill } from "./Dialogs";
 import { ExpCard } from "./ExpCard";
 import { MesoCard, type PotionRow } from "./MesoCard";
 import { MiniWindow, pipSupported } from "./MiniWindow";
@@ -63,6 +63,8 @@ declare global {
   interface Window {
     /** 驗收腳本用（正式機不掛）：直接丟一段進來存。假的分享畫面是靜止的，等不到真的一段，量不到「存好跳加倍券」 */
     __speedTestSave?: (seg: Segment) => void;
+    /** 驗收腳本用（正式機不掛）：丟一段進來，當成剛按了「結束」（跳存檔前確認） */
+    __speedTestEnd?: (seg: Segment) => void;
   }
 }
 
@@ -129,6 +131,12 @@ export function PracticeSpeed() {
   const [startDismissed, setStartDismissed] = useState(false);
   /** 存好、等玩家說有沒有開加倍券的段（排隊，一次問一段） */
   const [coupons, setCoupons] = useState<PendingCoupon[]>([]);
+  /** 按了「結束」、等玩家確認地圖跟角色 ID 才存的段（v2.06：存檔前確認）；那段本身跟隊伍放在 ref */
+  const [pendingEnd, setPendingEnd] = useState<PendingEnd | null>(null);
+  const endSegRef = useRef<{ seg: Segment; party: SpeedParty } | null>(null);
+  /** 狀態列讀到的角色名（字樣板載好後每 3 秒讀一次，讀到最新的那個）：開始、結束時先填進角色 ID */
+  const [screenName, setScreenName] = useState<string | null>(null);
+  const screenNameRef = useRef<string | null>(null);
   /** 每分鐘經驗曲線跟畫的時間（一段停了留著最後的樣子，下一段開始才換） */
   const [curveView, setCurveView] = useState<{ curve: Curve; at: number } | null>(null);
   /** 藥水用量：跟著哪一段（startedAt）算的 */
@@ -236,7 +244,7 @@ export function PracticeSpeed() {
    * 一段收掉了：夠長就存進排行，「上一段」那行寫結果。party、charId 是這段練的時候的隊伍跟角色 ID
    * （練到一半換隊伍、改 ID 會先收掉這段，照原本的存）
    */
-  const save = useCallback(async (seg: Segment, party: SpeedParty, charId: string | null) => {
+  const save = useCallback(async (seg: Segment, party: SpeedParty, charId: string | null, confirmed = false) => {
     if (seg.gained <= 0) return;
     const current = dataRef.current;
     const set = settingsRef.current;
@@ -254,7 +262,7 @@ export function PracticeSpeed() {
     const store = storage();
     if (store && mapId !== null && exp10 !== null && current) {
       const job = seg.job ?? (profileJobRef.current >= 0 ? profileJobRef.current : null);
-      setRecords(addRecord(store, { at: Date.now(), mapId, mapName: mapName(current.maps, mapId), level: seg.level, job, charId, exp10, net10 }));
+      setRecords(addRecord(store, { at: Date.now(), mapId, mapName: mapName(current.maps, mapId), level: seg.level, job, charId, exp10, net10, segAt: seg.startedAt, sec: Math.round(durationMs(seg) / 1000) }));
     }
     try {
       const response = await fetch("/api/speed/runs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -266,8 +274,8 @@ export function PracticeSpeed() {
         const job = seg.job ?? profileJobRef.current;
         track("speed_save", { ...jobParams(job, seg.level), map: mapId !== null && current ? mapName(current.maps, mapId) : undefined, minutes: Math.round(durationMs(seg) / 60000), ranked: result.ranked === true });
       }
-      // 缺地圖或角色 ID：先問補不補（先存了，選了再改同一筆），再問加倍券
-      if (ok && result.id && result.token) {
+      // 缺地圖或角色 ID：先問補不補（先存了，選了再改同一筆），再問加倍券。按「結束」的段存之前已經確認過了，不再問
+      if (ok && result.id && result.token && !confirmed) {
         const needs = fillNeeds({ mapId, charId }, set.askId);
         if (needs.map || needs.id) {
           setFills(queue => [
@@ -300,6 +308,14 @@ export function PracticeSpeed() {
       delete window.__speedTestSave;
     };
   }, [save]);
+  const askRef = useRef<(seg: Segment) => void>(() => {});
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_VERCEL_ENV === "production") return;
+    window.__speedTestEnd = seg => askRef.current(seg);
+    return () => {
+      delete window.__speedTestEnd;
+    };
+  }, []);
 
   /** 換上新的練功狀態；有收掉的一段就存（隊伍、角色 ID 沒給就是現在的） */
   const apply = useCallback(
@@ -326,6 +342,11 @@ export function PracticeSpeed() {
     const low = nextLowHp(lowHpRef.current, extras.hp);
     lowHpRef.current = low.s;
     if (low.beep && settingsRef.current.lowHp) playBeep();
+    // 狀態列的角色名：讀到就記最新的（讀不到那一輪不蓋掉上次讀到的）
+    if (extras.name && extras.name !== screenNameRef.current) {
+      screenNameRef.current = extras.name;
+      setScreenName(extras.name);
+    }
     if (extras.slots === undefined) return;
     const slots = extras.slots;
     slotMissRef.current = slots ? null : (slotMissRef.current ?? at);
@@ -414,7 +435,11 @@ export function PracticeSpeed() {
     return () => window.clearInterval(timer);
   }, [sharing, apply]);
 
-  const mapId = mapSource({ key: place.key, mapId: place.guess?.mapId ?? null }, place.picked).mapId;
+  // 認得準（或玩家點過）的那張；認不準先用最像的那張（guessed），頁面標「對嗎？」、結束存檔前再確認
+  const sureMapId = mapSource({ key: place.key, mapId: place.guess?.mapId ?? null }, place.picked).mapId;
+  const likelyId = sureMapId === null && place.key !== null ? likelyMap(place.guess) : null;
+  const mapId = sureMapId ?? likelyId;
+  const guessed = sureMapId === null && likelyId !== null;
   useEffect(() => {
     if (mapId === null) return;
     let cancelled = false;
@@ -495,16 +520,86 @@ export function PracticeSpeed() {
     void onStart();
   };
 
-  const onStartCount = () => {
+  /** 開始對話框按「開始計算」：帶進來的 ID（狀態列讀到、玩家可改、可空）就是這次分享的角色 ID */
+  const onStartCount = (startId: string | null = charIdRef.current) => {
     const at = Date.now();
+    charIdRef.current = startId;
+    setCharId(startId);
     setNow(at);
     setStartDismissed(true);
     apply({ tracker: startManual(trackerRef.current, at), closed: null });
   };
 
+  /**
+   * 按「結束」：夠長要存的段先不送，跳「存檔前確認一下」（地圖、角色 ID 都先填好，2026-11-11 使用者）；
+   * 太短、沒拿到經驗的照舊直接收（apply 會寫「上一段」那行）
+   */
   const onEndCount = () => {
     setStartDismissed(true);
-    apply(stopManual(trackerRef.current, Date.now()));
+    const step = stopManual(trackerRef.current, Date.now());
+    const seg = step.closed;
+    if (!seg || seg.gained <= 0 || !shouldSave(seg)) {
+      apply(step);
+      return;
+    }
+    trackerRef.current = step.tracker;
+    setTracker(step.tracker);
+    prevEndRef.current = seg.mode === "auto" ? seg.lastChangeAt : seg.endedAt;
+    askBeforeSave(seg);
+  };
+
+  /** 「存檔前確認一下」：地圖先填認到的（認不準是最像的那張）、ID 先填這次填的（沒有就是狀態列讀到的名字） */
+  const askBeforeSave = (seg: Segment) => {
+    const where = mainMap(seg);
+    const known = where.mapId ?? (where.key !== null ? knownMaps.current.get(where.key) ?? null : null);
+    const current = placeRef.current;
+    // 這段沒記到地圖（標題一直讀不到）或就是現在這張：用頁面現在當成的那張（點過的、認到的、最像的）
+    const placeMap = mapSource({ key: current.key, mapId: current.guess?.mapId ?? null }, current.picked).mapId ?? (current.key !== null ? likelyMap(current.guess) : null);
+    const likely = known ?? (where.key === null || where.key === current.key ? placeMap : null);
+    endSegRef.current = { seg, party: settingsRef.current.party };
+    setPendingEnd({
+      startedAt: seg.startedAt,
+      duration: durationText(durationMs(seg)),
+      gained: seg.gained,
+      mapId: likely,
+      choices: [...new Set([...(current.guess?.choices ?? []), ...knownMaps.current.values()])].slice(0, 6),
+      charId: charIdRef.current ?? screenNameRef.current,
+    });
+  };
+
+  useEffect(() => {
+    askRef.current = askBeforeSave;
+  });
+
+  /** 存檔前確認按下去（或關掉＝照先填好的）：記住這個長相是哪張圖、ID 用在接下來的段，然後才存 */
+  const onEndSave = (pending: PendingEnd, answer: EndAnswer) => {
+    const held = endSegRef.current;
+    setPendingEnd(null);
+    if (!held || held.seg.startedAt !== pending.startedAt) return;
+    endSegRef.current = null;
+    charIdRef.current = answer.charId;
+    setCharId(answer.charId);
+    updateSettings({ isPublic: answer.isPublic });
+    let seg = held.seg;
+    if (answer.mapId !== null) {
+      const picked = answer.mapId;
+      // 這段沒記到標題（練的時候一直認不準）就用現在畫面上的標題：存檔前確認時先填的也是它
+      const key = mainMap(seg).key ?? placeRef.current.key;
+      // 小地圖標題的長相記成這張圖：下次同一張圖直接認得
+      if (key !== null && !key.startsWith("pick:")) {
+        rememberMap(key, picked);
+        knownMaps.current.set(key, picked);
+        if (placeRef.current.key === key) {
+          placeRef.current = { ...placeRef.current, guess: { mapId: picked, confident: true, choices: [] } };
+          setPlace(placeRef.current);
+        }
+      }
+      // 這段整段記到確認的那張圖（認錯、或練的時候還沒認出來的都改掉）
+      const pickKey = `pick:${picked}`;
+      knownMaps.current.set(pickKey, picked);
+      seg = { ...seg, mapKey: pickKey, byMap: { [pickKey]: { mapId: picked, gained: seg.gained } } };
+    }
+    void save(seg, held.party, answer.charId, true);
   };
 
   /** 角色 ID 對話框按下去：ID 只記在這次開著的頁面；公開與否、要不要再問記在電腦裡。start＝接著開始分享（還在玩家點擊的當下） */
@@ -536,6 +631,9 @@ export function PracticeSpeed() {
       const result = (await response.json().catch(() => ({}))) as { ok?: boolean; ranked?: boolean; expPer10?: number; error?: string };
       const ok = response.ok && result.ok === true;
       if (!ok) return couponNote({ ok: false, error: result.error ?? "等一下再過來" }, coupon);
+      // 這台電腦的紀錄也記上（跟我之前比要拆還原值、加倍多拿的）
+      const store = storage();
+      if (store) setRecords(setRecordCoupon(store, pending.startedAt, coupon));
       // 「上一段」那行是同一段才換：進不進排行照伺服器重算的（扣掉加倍後組隊隻數可能變成在上限內），再補上回推的速度；排隊問的是更早的段就不動
       const note = `${saveNote({ kind: "response", status: response.status, ok: true, ranked: result.ranked }, pending.run)}${couponNote({ ok: true, expPer10: result.expPer10 }, coupon)}`;
       setLastSaved(last => (last && last.seg.startedAt === pending.startedAt ? { ...last, note } : last));
@@ -725,8 +823,17 @@ export function PracticeSpeed() {
   // 「讀到你的角色了，要開始計算嗎？」：這次分享讀到兩張對得上的（起點）、還沒在算、其他對話框都沒開
   const last = tracker.last;
   const startRead =
-    sharing && last && !tracker.manualOn && !startDismissed && idDialog === null && shareCard === null && fills.length === 0 && coupons.length === 0
-      ? { job: jobName(reading?.job ?? (profile.job >= 0 ? profile.job : null)), fromProfile: reading?.job == null, level: last.level, exp: last.exp, percent: levelPercent(last.exp, last.level, data.toNext) }
+    sharing && last && !tracker.manualOn && !startDismissed && idDialog === null && shareCard === null && fills.length === 0 && coupons.length === 0 && pendingEnd === null
+      ? {
+          job: jobName(reading?.job ?? (profile.job >= 0 ? profile.job : null)),
+          fromProfile: reading?.job == null,
+          level: last.level,
+          exp: last.exp,
+          percent: levelPercent(last.exp, last.level, data.toNext),
+          charId: charId ?? screenName,
+          mapName: mapId !== null ? mapName(data.maps, mapId) : null,
+          guessed,
+        }
       : null;
 
   // 楓幣收益卡
@@ -747,7 +854,11 @@ export function PracticeSpeed() {
   const shownJob = shownSeg?.job ?? jobId;
   const rows =
     shownPer10 !== null && shownMapName !== null
-      ? compareRows(records, { mapId: shownMapId, mapName: shownMapName, exp10: shownPer10, job: shownJob, charId })
+      ? compareRows(records, {
+          mapId: shownMapId, mapName: shownMapName, exp10: shownPer10, job: shownJob, charId,
+          sec: shownSeg ? durationMs(shownSeg) / 1000 : undefined,
+          coupon: shownSeg ? records.find(record => record.segAt === shownSeg.startedAt)?.coupon : undefined,
+        })
       : [];
   const onShare = () => {
     if (!shownSeg || shownPer10 === null) return;
@@ -788,7 +899,7 @@ export function PracticeSpeed() {
                   結束
                 </button>
               ) : manualButton === "start" && tracker.last ? (
-                <button type="button" onClick={onStartCount} className="rounded-md bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]">
+                <button type="button" onClick={() => onStartCount()} className="rounded-md bg-[color:var(--maple)] px-3 py-1.5 text-sm font-bold text-[color:var(--on-accent)]">
                   開始計算
                 </button>
               ) : null}
@@ -872,6 +983,19 @@ export function PracticeSpeed() {
         <div className="space-y-4">
           {mapId !== null ? (
             <>
+              {guessed && place.guess ? (
+                <Card>
+                  <p className="text-sm">
+                    看起來是<span className="mx-1 font-black">{mapName(data.maps, mapId)}</span>，對嗎？
+                    <button type="button" onClick={() => onPickMap(mapId)} className="ml-2 font-bold text-[color:var(--sky)] hover:underline">
+                      對，記住
+                    </button>
+                  </p>
+                  <div className="mt-3">
+                    <MapChoices choices={place.guess.choices.filter(id => id !== mapId)} maps={data.maps} onPick={onPickMap} heading="不對的話點這裡換（點一次，之後會記住）" />
+                  </div>
+                </Card>
+              ) : null}
               <MapPanel mapId={mapId} maps={data.maps} monsterById={data.monsterById} items={data.items} training={data.training} party={members} />
               <Leaderboard board={board} tab={tab} onTab={setTab} />
             </>
@@ -893,14 +1017,15 @@ export function PracticeSpeed() {
       <Disclaimer />
       <IdDialog mode={idDialog} initial={{ charId, isPublic: settings.isPublic, askId: settings.askId }} onConfirm={onIdConfirm} onClose={() => setIdDialog(null)} />
       <StartDialog read={startRead} onStart={onStartCount} onClose={() => setStartDismissed(true)} />
+      <EndDialog pending={pendingEnd} maps={data.maps} isPublic={settings.isPublic} onSave={onEndSave} />
       <FillDialog
-        pending={idDialog === null && shareCard === null ? fills[0] ?? null : null}
+        pending={idDialog === null && shareCard === null && pendingEnd === null ? fills[0] ?? null : null}
         maps={data.maps}
         initial={{ isPublic: settings.isPublic, askId: settings.askId }}
         onSubmit={onFill}
         onClose={closeFill}
       />
-      <CouponDialog pending={idDialog === null && shareCard === null && fills.length === 0 ? coupons[0] ?? null : null} onSubmit={onCoupon} onClose={closeCoupon} />
+      <CouponDialog pending={idDialog === null && shareCard === null && fills.length === 0 && pendingEnd === null ? coupons[0] ?? null : null} onSubmit={onCoupon} onClose={closeCoupon} />
       <ShareDialog card={shareCard} onClose={() => setShareCard(null)} />
       <MiniWindow open={mini} onClose={closeMini}>
         <div className="space-y-1 p-3">

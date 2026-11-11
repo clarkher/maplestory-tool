@@ -119,6 +119,19 @@ describe("讀 EXP 那行", () => {
     expect(lastGroup(readExpText(frame, findStatusBar(frame)!))).toBe("406947[7973%]");
   });
 
+  // 2026-11-11 客戶端 2.0.4（使用者「從來沒有辨識成功過」那天截的，第2軍營、Lv.53 刺客）：條的下半段漸層變深，
+  // 下緣被量成 759（實際 764）、條高 18 量成 13，往上框字的範圍跟著縮，數字上半截被切掉，經驗整張讀不到
+  it.each([1, 1.25, 2])("新版客戶端（2.0.4）縮放 %s 倍：讀得出經驗跟等級", async scale => {
+    const frame = await loadFixture("barracks-1366.png", scale);
+    expect(parseExp(readExpText(frame, findStatusBar(frame)!), toNext)).toEqual({ exp: 133182, percent: 15.99, level: 53 });
+  });
+  // 1.5 倍時 15.99 的一個 9 被抹成像 8（舊的縮放問題，基準截圖也是 8～9 成讀得到），對不上經驗表就整張丟掉，不准讀錯
+  it("新版客戶端（2.0.4）縮放 1.5 倍：讀對或丟掉，不會讀錯", async () => {
+    const frame = await loadFixture("barracks-1366.png", 1.5);
+    const read = parseExp(readExpText(frame, findStatusBar(frame)!), toNext);
+    expect(read === null || (read.exp === 133182 && read.level === 53)).toBe(true);
+  });
+
   // 截圖上沒有 8：用遊戲的點陣字把 EXP 那串換掉再讀（每個數字都至少出現一次）。
   // 每個縮放，讀出來的數字開頭都要是經驗那幾位、一個不差；括號偶爾淡到漏掉沒關係（那張讀不到、丟掉，見 read-frame 的「讀錯不行」）。原尺寸整串不差
   const LINES: Array<[string, string]> = [

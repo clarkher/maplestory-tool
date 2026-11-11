@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { potionRefOf, type PotionRef } from "../potions";
+import { parseChars } from "../read-name";
 import { createExtrasState, nonPotionIds, potionPoolIds, slotReads, readExtras, SLOT_EVERY_MS } from "../read-extras";
 import { findQuickslot } from "../quickslot";
 import { findStatusBar } from "../status-bar";
@@ -62,6 +63,19 @@ describe("nonPotionIds、slotReads", () => {
       { index: 2, itemId: null, count: 5 },
       { index: 3, itemId: 2000002, count: null },
     ]);
+  });
+});
+
+describe("readExtras 讀角色名（2026-11-11 使用者：開始時自動帶入 ID）", () => {
+  it("樣板載好才讀；跟快捷鍵同一輪（3 秒一次），讀到放 name、讀不到放 null", async () => {
+    const frame = await loadFixture("barracks-1366.png");
+    const bar = findStatusBar(frame)!;
+    const state = createExtrasState();
+    expect("name" in readExtras(frame, bar, 0, state)).toBe(false);
+    state.chars = parseChars(JSON.parse(fs.readFileSync("public/data/speed-chars.json", "utf8")));
+    expect(readExtras(frame, bar, SLOT_EVERY_MS, state).name).toBe("沙士K");
+    expect("name" in readExtras(frame, bar, SLOT_EVERY_MS + 1, state)).toBe(false);
+    expect(readExtras(frame, null, 3 * SLOT_EVERY_MS, state).name).toBeUndefined();
   });
 });
 

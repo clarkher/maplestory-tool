@@ -2,7 +2,7 @@
 import { classifyGlyph, matchGlyph } from "./glyphs";
 import { components, inkMask, textRows, type Box, type Mask } from "./ink";
 import { clampRect, type Frame, type Rect } from "./frame";
-import type { StatusBar } from "./status-bar";
+import { BASE_BAR_H, type StatusBar } from "./status-bar";
 
 /**
  * EXP 條正上方那一行（「EXP 406947[79.73%]」）認成字串：組跟組之間隔得開的插空白。
@@ -13,7 +13,9 @@ import type { StatusBar } from "./status-bar";
  * 先拿掉的話，縮放後變矮的小圈會被丟掉、只剩斜線，% 就被認成 /。小數點拿掉後 parseExp 自己補回來。
  */
 export function readExpText(frame: Frame, bar: StatusBar): string {
-  const h = bar.bottom - bar.top;
+  // 條高用 scale × 基準條高，不用 bottom - top：2026-11-11 客戶端 2.0.4 的條下半段漸層變深，下緣被量短（18 量成 13），
+  // 框跟著變矮、數字上半截被切掉，經驗整張讀不到（跟 read-job 同一個理由）
+  const h = bar.scale * BASE_BAR_H;
   const rect = { x: bar.exp[0], y: bar.top - 0.8 * h, w: bar.exp[1] - bar.exp[0], h: 0.8 * h };
   const mask = inkMask(frame, rect);
   if (!mask) return "";

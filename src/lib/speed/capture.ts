@@ -80,7 +80,7 @@ export async function startCapture(init: { toNext: number[]; names: RawSpeedName
   // 退路：主執行緒。分頁被遊戲蓋住時計時器可能被放慢，所以只有沒有 MediaStreamTrackProcessor 才走這裡。
   // 認畫面的程式（含字樣板，近 200KB）只有走到這裡才載入，不放進頁面本身的檔案。
   try {
-    const [{ readFrameWithBar }, { parseNames }, { createExtrasState, loadPotionRefs, readExtras }] = await Promise.all([
+    const [{ readFrameWithBar }, { parseNames }, { createExtrasState, loadPotionRefs, loadSpeedChars, readExtras }] = await Promise.all([
       import("./read-frame"),
       import("./names"),
       import("./read-extras"),
@@ -89,6 +89,9 @@ export async function startCapture(init: { toNext: number[]; names: RawSpeedName
     const extras = createExtrasState();
     void loadPotionRefs(init.potionIds).then(refs => {
       extras.refs = refs;
+    });
+    void loadSpeedChars().then(chars => {
+      extras.chars = chars;
     });
     const video = document.createElement("video");
     video.muted = true;
