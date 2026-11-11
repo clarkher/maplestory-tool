@@ -16,9 +16,9 @@ const BONUS_STYLE = (color: string): React.CSSProperties => ({
 /**
  * 「跟我之前比」卡（v1.22 版面 C；v2.06 改橫向堆疊）：這段（楓葉橘）跟同一隻角色（沒填 ID 就是同一個職業）在別張圖最好的那筆（綠）。
  * 每條長條前段實色＝扣掉加倍券的還原值（排序、右邊的數字都用它），後段淡色斜線＝加倍券多拿的（2026-11-11 使用者選 A）。
- * 長度照「還原值＋加倍」最長的那條比；右上「產生分享圖」。
+ * 長度照「還原值＋加倍」最長的那條比；右上「產生分享圖」（沒給 onShare＝手機自己填的，不放）。
  */
-export function CompareCard({ rows, byId, onShare, canShare }: { rows: CompareRow[]; byId: boolean; onShare: () => void; canShare: boolean }) {
+export function CompareCard({ rows, byId, onShare, canShare }: { rows: CompareRow[]; byId: boolean; onShare?: () => void; canShare: boolean }) {
   const max = Math.max(1, ...rows.map(row => row.exp10 + row.bonus));
   const others = rows.some(row => !row.current);
   const boosted = rows.some(row => row.bonus > 0);
@@ -26,9 +26,11 @@ export function CompareCard({ rows, byId, onShare, canShare }: { rows: CompareRo
     <Card>
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-[15px] font-black">跟我之前比</h2>
-        <button type="button" onClick={onShare} disabled={!canShare} className={BUTTON_MAIN}>
-          產生分享圖
-        </button>
+        {onShare ? (
+          <button type="button" onClick={onShare} disabled={!canShare} className={BUTTON_MAIN}>
+            產生分享圖
+          </button>
+        ) : null}
       </div>
       {rows.length ? (
         <ul className="mt-2">

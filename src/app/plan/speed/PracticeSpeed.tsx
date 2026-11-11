@@ -21,6 +21,7 @@ import { nonPotionIds, potionPoolIds, slotReads, type FrameExtras } from "@/lib/
 import type { FrameReading } from "@/lib/speed/read-frame";
 import { resolveMap, settleTitle, type MapGuess, type TitleSettle } from "@/lib/speed/read-map";
 import type { BoardRow } from "@/lib/speed/server/rules";
+import { EMPTY_MANUAL, readManual, writeManual, type ManualState } from "@/lib/speed/manual";
 import { addRecord, compareRows, loadRecords, setRecordCoupon, type SpeedRecord } from "@/lib/speed/records";
 import { readMapMemory, rememberMap, useSpeedSettings, type SpeedParty, type SpeedSettings } from "@/lib/speed/settings";
 import type { ShareCard } from "@/lib/speed/share-image";
@@ -33,9 +34,11 @@ import {
   type BlindMap, type Coupon, type HintState, type SaveOutcome, type SpeedStatus,
 } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
+import Link from "next/link";
 import { CompareCard } from "./CompareCard";
 import { CouponDialog, EndDialog, FillDialog, IdDialog, StartDialog, type EndAnswer, type FillAnswer, type IdChoice, type PendingCoupon, type PendingEnd, type PendingFill } from "./Dialogs";
 import { ExpCard } from "./ExpCard";
+import { ManualCard } from "./ManualCard";
 import { MesoCard, type PotionRow } from "./MesoCard";
 import { MiniWindow, pipSupported } from "./MiniWindow";
 import { PartyCard } from "./PartyCard";
@@ -102,6 +105,8 @@ export function PracticeSpeed() {
   const [settings, saveSettings, settingsLoaded] = useSpeedSettings();
   const [support, setSupport] = useState<"checking" | "ok" | "no">("checking");
   const [data, setData] = useState<Data | null>(null);
+  /** 手機只有自己填：地圖（記進跟我之前比用）、經驗表 */
+  const [lite, setLite] = useState<Pick<Data, "maps" | "toNext"> | null>(null);
   const [failed, setFailed] = useState(false);
   const [status, setStatus] = useState<SpeedStatus>("idle");
   const [starting, setStarting] = useState(false);
@@ -151,6 +156,10 @@ export function PracticeSpeed() {
   const [nowText, setNowText] = useState("");
   /** 我的練功紀錄（只在這台電腦），掛上去之後才讀 */
   const [records, setRecords] = useState<SpeedRecord[]>([]);
+  /** 首屏自己填的開始／現在（v2.09）：存在這台電腦，手機切出去打遊戲回來還在；分享畫面讀到的也填進來 */
+  const [manual, setManual] = useState<ManualState>(EMPTY_MANUAL);
+  /** 自己填的最近記進「跟我之前比」的那筆：沒有分享畫面的段時，比較卡用它當「這段」 */
+  const [manualShown, setManualShown] = useState<SpeedRecord | null>(null);
   const [shareCard, setShareCard] = useState<ShareCard | null>(null);
 
   const capture = useRef<CaptureHandle | null>(null);
@@ -194,14 +203,50 @@ export function PracticeSpeed() {
   useEffect(() => {
     const store = storage();
     if (store) setRecords(loadRecords(store));
+    const saved = store ? readManual(store) : null;
+    if (saved) setManual(saved);
   }, []);
+  const onManual = useCallback((next: ManualState) => {
+    setManual(next);
+    const store = storage();
+    if (store) writeManual(store, next);
+  }, []);
+  // 分享畫面在算（按了「開始計算」）：首屏的「現在」跟著讀到的等級、經驗走（剛升級分不出哪一級時照練功計算挑的那級）
+  const liveExp = reading?.exp ?? null;
+  const liveLevel = liveExp ? (liveExp.alt !== undefined && tracker.last?.exp === liveExp.exp ? tracker.last.level : liveExp.level) : null;
+  useEffect(() => {
+    if (!tracker.manualOn || !liveExp || liveLevel === null) return;
+    setManual(previous => {
+      if (previous.now.level === String(liveLevel) && previous.now.exp === String(liveExp.exp)) return previous;
+      const next = { ...previous, now: { level: String(liveLevel), exp: String(liveExp.exp), at: Date.now() }, minutes: "" };
+      const store = storage();
+      if (store) writeManual(store, next);
+      return next;
+    });
+  }, [tracker.manualOn, liveExp, liveLevel]);
   useEffect(() => {
     if (!settingsLoaded) return;
     trackerRef.current = createTracker("manual");
     setTracker(trackerRef.current);
   }, [settingsLoaded]);
 
-  // 資料只在能用的瀏覽器才載（手機上用不到，不白抓那幾個檔）
+  // 手機（不能分享畫面）只載自己填要用的地圖、經驗表（v2.09），怪物、道具那幾個大檔不抓
+  useEffect(() => {
+    if (support !== "no") return;
+    let cancelled = false;
+    Promise.all([loadMaps(), loadGuideCommon()]).then(
+      ([maps, common]) => {
+        if (!cancelled) setLite({ maps, toNext: common.expTable.toNext });
+      },
+      () => {
+        if (!cancelled) setFailed(true);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [support]);
+  // 完整的資料只在能分享畫面的瀏覽器才載
   useEffect(() => {
     if (support !== "ok") return;
     let cancelled = false;
@@ -527,6 +572,9 @@ export function PracticeSpeed() {
     setCharId(startId);
     setNow(at);
     setStartDismissed(true);
+    // 首屏的「開始」填成畫面上這一刻的等級、經驗，「現在」清掉等讀數跟著填
+    const from = trackerRef.current.last;
+    if (from) onManual({ start: { level: String(from.level), exp: String(from.exp), at }, now: { level: String(from.level), exp: "", at: null }, minutes: "" });
     apply({ tracker: startManual(trackerRef.current, at), closed: null });
   };
 
@@ -781,17 +829,6 @@ export function PracticeSpeed() {
   });
   const manualButton = manualControl(tracker.mode, tracker.manualOn, sharing);
 
-  if (support === "no") {
-    return (
-      <Shell>
-        <Card>
-          <p className="font-bold">要用電腦的 Chrome 或 Edge 開。</p>
-          <p className="mt-1.5 text-sm ink-soft">手機的瀏覽器不能分享畫面。</p>
-        </Card>
-        <Disclaimer />
-      </Shell>
-    );
-  }
   if (failed) {
     return (
       <Shell>
@@ -801,7 +838,60 @@ export function PracticeSpeed() {
       </Shell>
     );
   }
-  if (!data || support === "checking" || !settingsLoaded) {
+  const base = data ?? lite;
+  if (!base || support === "checking" || !settingsLoaded) {
+    return (
+      <Shell>
+        <LoadingBlock />
+      </Shell>
+    );
+  }
+
+  const manualCard = (
+    <ManualCard
+      state={manual}
+      toNext={base.toNext}
+      maps={base.maps}
+      now={() => Date.now()}
+      onChange={onManual}
+      onRecord={entry => {
+        const store = storage();
+        if (!store) return false;
+        const at = Date.now();
+        const record: SpeedRecord = {
+          at, mapId: entry.mapId, mapName: mapName(base.maps, entry.mapId), level: entry.level, job: jobId, charId, exp10: entry.per10, net10: null, segAt: at, sec: entry.sec,
+        };
+        setRecords(addRecord(store, record));
+        setManualShown(record);
+        return true;
+      }}
+    />
+  );
+  // 自己填的記進去之後：比較卡把那筆當「這段」，跟同一隻（沒 ID 就同職業）在別張圖的比
+  const manualRows = manualShown
+    ? compareRows(records.filter(record => record !== manualShown && record.at !== manualShown.at), {
+        mapId: manualShown.mapId, mapName: manualShown.mapName, exp10: manualShown.exp10, job: manualShown.job, charId: manualShown.charId,
+      })
+    : [];
+
+  // 手機不能分享畫面：只有自己填（v2.09，2026-11-11 使用者：手機打開就不會有分享螢幕的區塊）
+  if (support === "no") {
+    return (
+      <Shell>
+        {manualCard}
+        {manualRows.length ? <CompareCard rows={manualRows} byId={manualShown?.charId != null} canShare={false} /> : null}
+        {manualShown && manualShown.job === null && !manualShown.charId ? (
+          <p className="text-[13px] ink-soft">
+            還沒選職業，比不了以前練的：先到<Link href="/" className="mx-0.5 font-bold text-[color:var(--sky)] hover:underline">我的路線</Link>選職業，之後記的就會並排比較。
+          </p>
+        ) : null}
+        <p className="text-[13px] ink-soft">用電腦的 Chrome 或 Edge 開，可以分享遊戲畫面自動算。</p>
+        <Disclaimer />
+      </Shell>
+    );
+  }
+
+  if (!data) {
     return (
       <Shell>
         <LoadingBlock />
@@ -880,6 +970,8 @@ export function PracticeSpeed() {
 
   return (
     <Shell>
+      {manualCard}
+      <h2 className="pt-2 text-[17px] font-black">分享遊戲畫面，自動算</h2>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           <PartyCard party={party} selfLevel={selfLevel} onChange={onParty} />
@@ -977,7 +1069,7 @@ export function PracticeSpeed() {
             restocked={summary.restocked}
             slotsRead={process.env.NEXT_PUBLIC_VERCEL_ENV !== "production" ? slotsRead : null}
           />
-          <CompareCard rows={rows} byId={charId !== null} onShare={onShare} canShare={shownPer10 !== null} />
+          <CompareCard rows={rows.length ? rows : manualRows} byId={rows.length ? charId !== null : manualShown?.charId != null} onShare={onShare} canShare={shownPer10 !== null} />
         </div>
 
         <div className="space-y-4">
@@ -1045,7 +1137,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="mx-auto max-w-5xl space-y-4 py-3 sm:py-6">
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">練功測速</h1>
-        <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">分享遊戲畫面，自動算 10 分鐘拿多少經驗、還要多久升級；看每張圖別人練得多快。</p>
+        <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">填等級跟經驗，或在電腦分享遊戲畫面自動讀，算 10 分鐘拿多少經驗、還要多久升級；看每張圖別人練得多快。</p>
       </header>
       {children}
     </div>
