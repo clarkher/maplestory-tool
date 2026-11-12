@@ -7,6 +7,8 @@
  * 剩下的幣只夠「一把＋7 張」時，那把直接全衝 70%。43 級算出來平均 +11.642、+12 以上 52.6%（單元測試對答案）。
  */
 
+import { LEAF_FIRST_SHOP_DAY } from "./calendar";
+
 export type Rate = 100 | 70 | 15;
 export type Strategy = "pick" | "s70" | "s100";
 
@@ -68,10 +70,10 @@ export function scrollDist(rates: Rate[]): Dist {
   return dist;
 }
 
-/** 照順序排日子：每天進帳 100 枚，幣夠就換，不會比前一步早 */
+/** 照順序排日子：每天進帳 100 枚，幣夠就換，不會比前一步早；DAY 1 只能存，最早 DAY 2 換 */
 function schedule(steps: Omit<PlanStep, "day">[]): PlanStep[] {
   let spent = 0;
-  let day = 1;
+  let day = LEAF_FIRST_SHOP_DAY;
   return steps.map(step => {
     spent += step.coins;
     day = Math.max(day, Math.ceil(spent / DAILY_COINS));
@@ -166,7 +168,7 @@ export type Evaluation = {
   coinsUsed: number;
   /** 硬幣第一天不夠的那天、差幾枚 */
   short: { day: number; lack: number } | null;
-  /** 排在武器換到之前、或那把已經衝滿 7 次的卷 */
+  /** 排在 DAY 1（還不能換）、武器換到之前、或那把已經衝滿 7 次的卷 */
   invalid: PlanItem[];
 };
 
@@ -196,6 +198,10 @@ export function evaluate(items: PlanItem[], weaponCost: 100 | 200): Evaluation {
   let paidScrolls = 0;
   let coinsUsed = 0;
   for (const item of sorted) {
+    if (item.day < LEAF_FIRST_SHOP_DAY) {
+      invalid.push(item);
+      continue;
+    }
     if (item.kind === "weapon") {
       if (!weapons.has(item.target)) weapons.set(item.target, { target: item.target, day: item.day, rates: [] });
       coinsUsed += weaponCost;
@@ -211,7 +217,7 @@ export function evaluate(items: PlanItem[], weaponCost: 100 | 200): Evaluation {
   let short: Evaluation["short"] = null;
   let spent = 0;
   const byDay = new Map<number, number>();
-  for (const item of sorted) byDay.set(item.day, (byDay.get(item.day) ?? 0) + (item.kind === "weapon" ? weaponCost : SCROLL_COINS));
+  for (const item of sorted) if (item.day >= LEAF_FIRST_SHOP_DAY) byDay.set(item.day, (byDay.get(item.day) ?? 0) + (item.kind === "weapon" ? weaponCost : SCROLL_COINS));
   for (let day = 1; day <= LAST_SHOP_DAY && !short; day++) {
     spent += byDay.get(day) ?? 0;
     const income = DAILY_COINS * Math.min(day, COIN_DAYS);
@@ -220,6 +226,11 @@ export function evaluate(items: PlanItem[], weaponCost: 100 | 200): Evaluation {
 
   const list = [...weapons.values()].sort((a, b) => a.target - b.target).map(w => ({ ...w, dist: scrollDist(w.rates) }));
   return { weapons: list, outcome: list.length ? maxDist(list.map(w => w.dist)) : null, paidScrolls, coinsUsed, short, invalid };
+}
+
+/** 這天再換這樣東西，硬幣撐不撐得住（後面排好的也算進去）：撐不住按鈕就不給按（使用者 11/12：「幣不夠不能按超過」） */
+export function affordable(items: PlanItem[], item: PlanItem, weaponCost: 100 | 200): boolean {
+  return evaluate([...items, item], weaponCost).short === null;
 }
 
 /** 推薦衝法的步驟轉成可以自己改的清單（「沒中才換」的標記拿掉：改過就照排的全部換、全部衝） */

@@ -7,10 +7,10 @@ import { OPTION_ON } from "@/components/option-style";
 import { track } from "@/lib/analytics";
 import { itemImage } from "@/lib/asset-paths";
 import {
-  buildPlan, COIN_DAYS, DAILY_COINS, evaluate, PAID_MESO, SCROLL_COINS, SLOTS, sortItems, statsOf, toItems, TOTAL_COINS,
+  affordable, buildPlan, COIN_DAYS, DAILY_COINS, evaluate, PAID_MESO, SCROLL_COINS, SLOTS, sortItems, statsOf, toItems, TOTAL_COINS,
   type Dist, type Plan, type PlanItem, type PlanStep, type Rate, type Strategy,
 } from "@/lib/leaf-planner/calc";
-import { dateOfDay, dayOf, LEAF_DAYS, LEAF_LAST_SHOP_DAY, WEEKDAYS } from "@/lib/leaf-planner/calendar";
+import { dateOfDay, dayOf, LEAF_DAYS, LEAF_FIRST_SHOP_DAY, LEAF_LAST_SHOP_DAY, WEEKDAYS } from "@/lib/leaf-planner/calendar";
 import { DEFAULT_WEAPON, findWeapon, LEAF_WEAPONS, type LeafWeapon } from "@/lib/leaf-planner/weapons";
 import { CoinFarm } from "./CoinFarm";
 import { downloadSchedule } from "./download";
@@ -64,7 +64,7 @@ function loadCustom(): PlanItem[] {
   try {
     const raw = JSON.parse(localStorage.getItem(STORE_KEY) ?? "null");
     if (!Array.isArray(raw)) return [];
-    return raw.filter((x): x is PlanItem => x && Number.isInteger(x.day) && x.day >= 1 && x.day <= LEAF_LAST_SHOP_DAY && (x.kind === "weapon" || (x.kind === "scroll" && [100, 70, 15].includes(x.rate))) && Number.isInteger(x.target));
+    return raw.filter((x): x is PlanItem => x && Number.isInteger(x.day) && x.day >= LEAF_FIRST_SHOP_DAY && x.day <= LEAF_LAST_SHOP_DAY && (x.kind === "weapon" || (x.kind === "scroll" && [100, 70, 15].includes(x.rate))) && Number.isInteger(x.target));
   } catch {
     return [];
   }
@@ -142,7 +142,7 @@ export function LeafPlanner() {
 
   const weaponOptions = useMemo(() => LEAF_WEAPONS.map(w => ({ value: w.id, label: `${w.name}（${w.job}・${w.lv} 級・${w.magic ? "魔攻" : "攻擊"} ${w.atk}）` })), []);
   const atkWord = weapon.magic ? "魔攻" : "攻擊";
-  const focus = picked ?? (today !== null && today >= 1 && today <= LEAF_LAST_SHOP_DAY ? today : rows[0]?.day ?? 1);
+  const focus = picked ?? (today !== null && today >= LEAF_FIRST_SHOP_DAY && today <= LEAF_LAST_SHOP_DAY ? today : rows[0]?.day ?? LEAF_FIRST_SHOP_DAY);
   const customStats = useMemo(() => {
     const out = evaluate(custom, weapon.cost).outcome;
     return out ? statsOf(out) : null;
@@ -302,13 +302,14 @@ function AtLeastList({ stats, base }: { stats: ReturnType<typeof statsOf>; base:
 function DayCell({ day, rows, allRows, weapon, tries, lastDay, invalid, short, today, picked, onPick }: {
   day: number; rows: Row[]; allRows: Row[]; weapon: LeafWeapon; tries: number | null; lastDay: number; invalid: Set<PlanItem>; short: boolean; today: boolean; picked: boolean; onPick: () => void;
 }) {
-  const shop = day >= 1 && day <= LEAF_LAST_SHOP_DAY;
+  // DAY 1 只能存幣，鎖死點不開（使用者 11/12）
+  const shop = day >= LEAF_FIRST_SHOP_DAY && day <= LEAF_LAST_SHOP_DAY;
   const active = day >= 1 && day <= LEAF_DAYS;
   const dashed = rows.length > 0 && rows.every(r => r.ifMiss);
   const status = rows.length ? null : dayStatus(day, lastDay);
   const expire = day === LEAF_LAST_SHOP_DAY + 1;
   const border = short || today ? "border-2 border-[color:var(--maple)]" : picked ? "border border-[color:var(--maple)]" : "border border-[color:var(--paper-edge)]";
-  const bg = picked && shop ? "bg-[color:var(--maple-wash)]" : active ? "bg-[color:var(--glass-strong)]" : "bg-[color:var(--paper-deep)]";
+  const bg = picked && shop ? "bg-[color:var(--maple-wash)]" : shop && active ? "bg-[color:var(--glass-strong)]" : "bg-[color:var(--paper-deep)]";
   return (
     <button type="button" onClick={onPick} disabled={!shop} aria-label={`${md(day)}${active ? ` DAY ${day}` : ""}${rows.length ? `：${rows.map(r => itemTitle(r, weapon)).join("、")}` : ""}`} aria-pressed={picked} data-day={day}
       className={`relative min-h-[60px] min-w-0 rounded-[6px] p-[3px] text-center md:min-h-[92px] md:px-2 md:py-1.5 md:text-left ${border} ${dashed ? "border-dashed" : ""} ${bg}`}>
@@ -332,7 +333,7 @@ function DayCell({ day, rows, allRows, weapon, tries, lastDay, invalid, short, t
         );
       })}
       {status && <span className={`mt-1 block text-[10px] leading-tight md:text-[12px] ${expire ? "font-bold text-[color:var(--maple)]" : "ink-soft"}`}>
-        <span className="md:hidden">{expire ? "失效" : day > LEAF_DAYS ? "只能換" : status}</span>
+        <span className="md:hidden">{expire ? "失效" : day > LEAF_DAYS ? "只能換" : day < LEAF_FIRST_SHOP_DAY ? "存幣" : status}</span>
         <span className="hidden md:inline">{status}</span>
       </span>}
     </button>
@@ -362,6 +363,9 @@ function DayEditor({ day, today, rows, allRows, weapon, tries, invalid, onEdit }
   });
   const addScroll = (rate: Rate) => aim !== undefined && onEdit(items => [...items, { day, kind: "scroll", rate, target: aim }]);
   const full = aim === undefined || used(aim) >= SLOTS;
+  // 幣不夠就不給按：連後面排好的一起算，這天再換會害哪天不夠也不行
+  const canWeapon = affordable(allRows, { day, kind: "weapon", target: nextTarget }, weapon.cost);
+  const canScroll = aim !== undefined && affordable(allRows, { day, kind: "scroll", rate: 100, target: aim }, weapon.cost);
 
   return (
     <div className="mt-3 rounded-[var(--radius-card)] border border-[color:var(--maple)] p-3" aria-live="polite" data-testid="day-editor">
@@ -390,11 +394,11 @@ function DayEditor({ day, today, rows, allRows, weapon, tries, invalid, onEdit }
 
       <div className="mt-3 border-t border-[color:var(--paper-edge)] pt-3">
         <div className="flex flex-wrap items-center gap-1.5">
-          <button type="button" className={BTN} disabled={weaponCount >= MAX_WEAPONS} onClick={() => onEdit(items => [...items, { day, kind: "weapon", target: nextTarget }])}>
+          <button type="button" className={BTN} disabled={weaponCount >= MAX_WEAPONS || !canWeapon} onClick={() => onEdit(items => [...items, { day, kind: "weapon", target: nextTarget }])}>
             ＋換一把（{weapon.cost} 枚）
           </button>
           {([100, 70, 15] as Rate[]).map(rate => (
-            <button key={rate} type="button" className={BTN} disabled={full} onClick={() => addScroll(rate)}>＋{rate}% 卷</button>
+            <button key={rate} type="button" className={BTN} disabled={full || !canScroll} onClick={() => addScroll(rate)}>＋{rate}% 卷</button>
           ))}
         </div>
         {owned.length > 1 && (
@@ -405,6 +409,11 @@ function DayEditor({ day, today, rows, allRows, weapon, tries, invalid, onEdit }
                 className={`${BTN} min-w-10 ${t === aim ? OPTION_ON : ""}`}>{CIRCLED[t] ?? t}</button>
             ))}
           </div>
+        )}
+        {!canWeapon && (
+          <p className="mt-2 text-[12px] font-bold text-[color:var(--maple)]">
+            {canScroll ? `幣不夠再換一把（${weapon.cost} 枚）` : "幣不夠，這天不能再換"}：先拿掉別的，或改排到後面的日子。
+          </p>
         )}
         <p className="mt-2 text-[12px] ink-soft">
           {aim === undefined ? "這天以前還沒換武器，先換一把才有東西衝。" : full ? `${CIRCLED[aim]}已經衝滿 7 次。` : `卷軸衝 ${CIRCLED[aim]}，還能衝 ${SLOTS - used(aim)} 次。`}

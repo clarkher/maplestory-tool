@@ -1,6 +1,6 @@
 // 楓葉武器衝卷規劃器的字（畫面跟下載的行程表共用）
 import type { PlanItem } from "@/lib/leaf-planner/calc";
-import { dateOfDay, LEAF_DAYS, LEAF_LAST_SHOP_DAY } from "@/lib/leaf-planner/calendar";
+import { dateOfDay, LEAF_DAYS, LEAF_FIRST_SHOP_DAY, LEAF_LAST_SHOP_DAY } from "@/lib/leaf-planner/calendar";
 import type { LeafWeapon } from "@/lib/leaf-planner/weapons";
 
 /** 日曆上的一樣東西；ifMiss＝推薦衝法裡前面的 15% 沒中才會走到 */
@@ -28,6 +28,7 @@ export function missNote(row: Row, rows: Row[], tries: number | null): string | 
 
 export function dayStatus(day: number, lastDay: number): string | null {
   if (day < 1) return null;
+  if (day < LEAF_FIRST_SHOP_DAY) return "只能存幣，還不能換";
   if (day <= LEAF_DAYS) return day <= lastDay ? "存著" : "不用換";
   if (day <= LEAF_LAST_SHOP_DAY) return "不掉幣，還能換";
   if (day === LEAF_LAST_SHOP_DAY + 1) return "硬幣、卷軸失效";
