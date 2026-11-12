@@ -3,6 +3,8 @@
  * 換東西到 12/16 23:59（DAY 28），12/17 00:00 硬幣、卷軸失效。日期都用台灣時間算。
  */
 export const LEAF_DAYS = 21;
+/** 最早能換東西那天：DAY 1 只能存幣（使用者 11/12：「DAY1 不能換東西吧，直接鎖死」） */
+export const LEAF_FIRST_SHOP_DAY = 2;
 /** 最後能換東西那天 */
 export const LEAF_LAST_SHOP_DAY = 28;
 const DAY1_UTC = Date.UTC(2026, 10, 19);
