@@ -109,7 +109,7 @@ try {
   await sleep(200);
   const autoMinutes = await value(FIELD(null, "練了幾分鐘"));
   // v2.11：兩列差不到 3 分鐘＝一起填的，看不出練多久，不帶（以前帶 1 分，10 分鐘經驗灌水十倍）
-  record("兩列一起填：練了幾分鐘不自己帶、請玩家填（沒有結果）", autoMinutes === "" && /看不出練了多久：請填練了幾分鐘/.test((await card()) ?? "") && !/10 分鐘經驗 \d/.test((await card()) ?? ""), { autoMinutes });
+  record("兩列一起填：練了幾分鐘不自己帶、請玩家填（沒有結果）", autoMinutes === "" && /看不出練了多久：請填練了幾分鐘/.test((await card()) ?? "") && /填好練了幾分鐘就會算出來/.test((await card()) ?? "") && !/兩列都填好就會算出來/.test((await card()) ?? "") && !/10 分鐘經驗 \d/.test((await card()) ?? ""), { autoMinutes });
   await setValue(FIELD(null, "練了幾分鐘"), "0");
   await sleep(200);
   record("防呆：分鐘填 0，寫「分鐘要填 1～1440」", /分鐘要填 1～1440/.test((await card()) ?? ""));
