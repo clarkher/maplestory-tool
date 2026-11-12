@@ -114,6 +114,8 @@ export type JobArticle = {
   sections: ArticleSection[];
   sources: ArticleSource[];
   assumes: ArticleAssumes;
+  /** 文末「接著看」手動指定的頁（["/guides/third-job"]），排在自動配的前面；沒寫就全自動（v2.19，guide-related.ts） */
+  related?: string[];
 };
 
 /* ------------------------------------------------------------------ 範圍、門檻 */

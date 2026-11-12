@@ -6,7 +6,7 @@ import { GuideDocView } from "@/components/GuideDocView";
 import { JobArticleView } from "@/components/JobArticleView";
 import { articleHeroPath, articleImages, articleRangeLabel, articleSlug, buildCalcTable, resolveArticle } from "@/lib/job-article";
 import { articleLd, breadcrumbLd, OG_BASE, SITE_URL, taiwanDateTime, webPageLd } from "@/lib/seo";
-import { staticArticleImages, staticCalcData, staticGuide, staticGuideDocs, staticJobArticle, staticJobArticleKeys, staticMeta } from "@/lib/static-data";
+import { staticArticleImages, staticCalcData, staticGuide, staticGuideDocs, staticGuideRelated, staticJobArticle, staticJobArticleKeys, staticMeta } from "@/lib/static-data";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -100,6 +100,7 @@ export default async function Page({ params }: Props) {
       <GuideDocView
         doc={doc}
         hero={hero}
+        related={staticGuideRelated(docPath).related}
         jsonLd={[
           breadcrumbLd([{ name: "攻略", path: "/guides" }, { name: doc.title, path: docPath }]),
           articleLd({ headline: doc.title, description: doc.description, path: docPath, images: [image], published: doc.published, modified: doc.updated }),
@@ -129,6 +130,7 @@ export default async function Page({ params }: Props) {
       maps={data.maps}
       dataNote={`依遊戲資料 ${staticMeta().gameVersion ?? "最新版"} 計算。`}
       images={images}
+      related={staticGuideRelated(path)}
       jsonLd={[
         breadcrumbLd(trail),
         articleLd({ headline: article.title, description: article.description, path, images: [heroUrl], published: article.published, modified: article.updated }),

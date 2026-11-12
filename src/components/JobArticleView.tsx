@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { monsterImage } from "@/lib/asset-paths";
 import { formatNumber } from "@/lib/format";
+import type { GuideCard } from "@/lib/guide-catalog";
+import type { JobSeries } from "@/lib/guide-related";
 import { articleDamageHref, assumptionLines, avgText, featuredMonsters, hitLvText, pinnedSections, stepImageAlt, tableGearLine, withOneTargetCell, FEATURED_LIMIT, TAG_LABEL, type ArticleAnswer, type ArticleImages, type ArticleSection, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { AdSlot } from "./AdSlot";
+import { ReadNext, SeriesStrip } from "./GuideRelated";
 import { ExpandRows, Fold } from "./ArticleFold";
 import { SeoLinks, SeoPage } from "./SeoPage";
 
@@ -279,6 +282,7 @@ export function JobArticleView({
   dataNote,
   jsonLd,
   images,
+  related,
 }: {
   jobName: string;
   rangeLabel: string;
@@ -295,6 +299,8 @@ export function JobArticleView({
   jsonLd: object[];
   /** 這篇有哪些圖；只畫裡面有的 */
   images?: ArticleImages;
+  /** 互導（v2.19）：頁首等級條、文末下一段＋相關；static-data 的 staticGuideRelated */
+  related?: { series?: JobSeries; next?: GuideCard; related: GuideCard[] };
 }) {
   const pinned = pinnedSections(article.sections);
   return (
@@ -309,6 +315,8 @@ export function JobArticleView({
       {/* 電腦版（lg 以上）右邊黏著本篇目錄（v1.95）；手機不放，內文照舊一欄 */}
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_12rem] lg:gap-8">
         <div className="min-w-0 space-y-4">
+
+          {related?.series ? <SeriesStrip series={related.series} /> : null}
 
           <div id="answer" className="scroll-mt-header space-y-1.5 rounded-[var(--radius-card)] border border-l-[3px] border-[color:var(--paper-edge)] border-l-[color:var(--maple)] glass-fill p-3.5 text-[15px] leading-relaxed sm:p-4">
             <p className="text-[12px] font-extrabold tracking-[0.1em] text-[color:var(--maple)]">先講結論</p>
@@ -408,6 +416,8 @@ export function JobArticleView({
               </section>
             ))}
           </div>
+
+          {related ? <ReadNext next={related.next} related={related.related} /> : null}
 
           <SeoLinks
             links={[

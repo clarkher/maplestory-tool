@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { cardDate } from "@/lib/guide-catalog";
+import type { GuideCard } from "@/lib/guide-catalog";
 import type { Block, GuideDoc, Inline } from "@/lib/guide-markdown";
+import { ReadNext } from "./GuideRelated";
 import { SeoPage } from "./SeoPage";
 
 /**
@@ -100,7 +102,8 @@ function Blocks({ blocks }: { blocks: Block[] }) {
   );
 }
 
-export function GuideDocView({ doc, hero, jsonLd }: { doc: GuideDoc; hero: { src: string; w: number; h: number } | null; jsonLd: object[] }) {
+/** related：文末「看完這篇，接著看」（v2.19，static-data 的 staticGuideRelated） */
+export function GuideDocView({ doc, hero, jsonLd, related }: { doc: GuideDoc; hero: { src: string; w: number; h: number } | null; jsonLd: object[]; related?: GuideCard[] }) {
   return (
     <SeoPage trail={[{ name: "攻略", path: "/guides" }, { name: doc.title, path: `/guides/${doc.slug}` }]} title={doc.title} jsonLd={jsonLd}>
       {hero ? (
@@ -115,6 +118,7 @@ export function GuideDocView({ doc, hero, jsonLd }: { doc: GuideDoc; hero: { src
       <article className="space-y-3 text-[15px] leading-relaxed">
         <Blocks blocks={doc.blocks} />
       </article>
+      {related ? <ReadNext related={related} /> : null}
     </SeoPage>
   );
 }
