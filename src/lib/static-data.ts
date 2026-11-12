@@ -14,6 +14,7 @@ import type { ArticleEntry } from "./article-entry";
 import { guideProblems, parseGuide, type GuideDoc } from "./guide-markdown";
 import { isGuideCategory, jobArticleCard, sortCards, type GuideCard } from "./guide-catalog";
 import { guidePagesWithDates } from "./guide-pages";
+import { jobSeries, pickRelated, RELATED_RULES, type JobSeries } from "./guide-related";
 import { articlePath, buildCalcTable, fillTokens, parseArticleFile, splitArticles, type ArticleImageManifest, type ArticleKey, type JobArticle } from "./job-article";
 import type { AtlasIndex, AtlasMap, AtlasNpc, FutureData, GuideCommon, GuideJob, Item, MapRecord, Meta, Monster, PortalEdge, Quest, Skill, TrainingRow } from "./types";
 
@@ -230,6 +231,8 @@ export function staticGuideDocs(): GuideDoc[] {
 
 /** 攻略專區的全部卡片（職業攻略文＋一般攻略文＋站上攻略頁），新到舊 */
 export function staticGuideCards(): GuideCard[] {
+  // 每篇攻略文的「接著看」都要整包卡片，37 篇各算一次計算表太慢：建置時算一次就好
+  if (cache.has("guide-cards")) return cache.get("guide-cards") as GuideCard[];
   const data = staticCalcData();
   const jobCards = staticArticleEntries().map(entry => {
     const raw = staticJobArticle(entry.job, entry.from, entry.to)!;
@@ -241,5 +244,28 @@ export function staticGuideCards(): GuideCard[] {
     if (!isGuideCategory(doc.category)) throw new Error(`${doc.slug}.md 的 category「${doc.category}」不在 GUIDE_CATEGORIES`);
     return { href: `/guides/${doc.slug}`, title: doc.title, excerpt: doc.description, image: `/assets/guides/${doc.slug}/hero.webp`, imageAlt: doc.heroAlt, category: doc.category, tags: doc.tags, date: doc.updated };
   });
-  return sortCards([...docCards, ...jobCards, ...guidePagesWithDates()]);
+  const cards = sortCards([...docCards, ...jobCards, ...guidePagesWithDates()]);
+  cache.set("guide-cards", cards);
+  return cards;
+}
+
+/**
+ * 一篇攻略文的互導（v2.19）：職業文有等級條（series）跟下一段大卡（next）；所有攻略文都有文末相關卡（related）。
+ * href 是 /guides/<slug>；不是攻略文丟錯。活動過期看建置時間（每次部署重算）。
+ */
+export function staticGuideRelated(href: string, now = Date.now()): { series?: JobSeries; next?: GuideCard; related: GuideCard[] } {
+  const cards = staticGuideCards();
+  const byHref = new Map(cards.map(card => [card.href, card]));
+  const entries = staticArticleEntries();
+  const entry = entries.find(item => item.href === href);
+  if (entry) {
+    const series = jobSeries(entries.map(item => ({ ...item, jobName: staticGuide(item.job).name })), entry.job, entry.from);
+    const next = series.next ? byHref.get(series.next.href) : undefined;
+    const override = staticJobArticle(entry.job, entry.from, entry.to)?.related ?? [];
+    return { series, next, related: pickRelated({ href, from: entry.from, to: entry.to, cards, now, override, exclude: next ? [next.href] : [] }) };
+  }
+  const doc = staticGuideDocs().find(item => `/guides/${item.slug}` === href);
+  const rule = RELATED_RULES[href];
+  if (!doc || !rule) throw new Error(`${href} 不是攻略文，或沒在 guide-related.ts 的 RELATED_RULES 登記`);
+  return { related: pickRelated({ href, from: rule.from, to: rule.to, cards, now, override: doc.related }) };
 }
