@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { coinRange, dropsCoin, planCoinFarm } from "@/lib/leaf-planner/farm";
 import type { MapRecord, Monster, TrainingRow } from "@/lib/types";
-import { buildPlan, evaluate, statsOf, toItems, type PlanItem } from "@/lib/leaf-planner/calc";
+import { affordable, buildPlan, evaluate, statsOf, toItems, type PlanItem } from "@/lib/leaf-planner/calc";
 import { dateOfDay, dayOf, LEAF_DAYS } from "@/lib/leaf-planner/calendar";
 import { LEAF_WEAPONS } from "@/lib/leaf-planner/weapons";
 
@@ -63,7 +63,7 @@ describe("楓葉武器衝卷規劃器（v2.18）：三種衝法精確算", () =>
     expect(s.atLeast(7)).toBe(1);
     expect(s.atLeast(8)).toBe(0);
     expect(plan.paidScrolls.max).toBe(0);
-    expect(plan.steps[0].day).toBe(1);
+    expect(plan.steps[0].day).toBe(2);
   });
 
   it("機率加起來是 1", () => {
@@ -119,9 +119,20 @@ describe("自己排（v2.18 使用者要可以自訂）", () => {
     expect(ev.weapons).toHaveLength(2);
   });
 
-  it("幣不夠：DAY 1 就換 43 級（200 枚）＝DAY 1 差 100 枚", () => {
-    const ev = evaluate([{ day: 1, kind: "weapon", target: 1 }], 200);
-    expect(ev.short).toEqual({ day: 1, lack: 100 });
+  it("幣不夠：DAY 2 換兩把 43 級（400 枚）＝DAY 2 差 200 枚", () => {
+    const ev = evaluate([{ day: 2, kind: "weapon", target: 1 }, { day: 2, kind: "weapon", target: 2 }], 200);
+    expect(ev.short).toEqual({ day: 2, lack: 200 });
+  });
+
+  it("DAY 1 鎖死：三種衝法都從 DAY 2 起，自己排到 DAY 1 的不算", () => {
+    for (const kind of ["pick", "s70", "s100"] as const) {
+      for (const cost of [100, 200] as const) expect(buildPlan(kind, cost).steps[0].day).toBe(2);
+    }
+    const ev = evaluate([{ day: 1, kind: "weapon", target: 1 }, { day: 1, kind: "scroll", rate: 100, target: 1 }], 100);
+    expect(ev.invalid).toHaveLength(2);
+    expect(ev.outcome).toBeNull();
+    expect(ev.coinsUsed).toBe(0);
+    expect(ev.short).toBeNull();
   });
 
   it("DAY 22 之後不掉幣：存的幣還能換，超過 2,100 就不夠", () => {
@@ -138,6 +149,18 @@ describe("自己排（v2.18 使用者要可以自訂）", () => {
     const ev = evaluate(items, 200);
     expect(ev.invalid).toHaveLength(2);
     expect(ev.weapons[0].rates).toHaveLength(7);
+  });
+
+  it("幣不夠不給加：DAY 2 有 200 枚，換了 43 級就不能再換卷；後面排好的也算", () => {
+    const w: PlanItem = { day: 2, kind: "weapon", target: 1 };
+    expect(affordable([], w, 200)).toBe(true);
+    expect(affordable([w], { day: 2, kind: "scroll", rate: 70, target: 1 }, 200)).toBe(false);
+    expect(affordable([w], { day: 3, kind: "scroll", rate: 70, target: 1 }, 200)).toBe(true);
+    // DAY 3 已經排了一張：DAY 2 再塞一張就讓 DAY 3 不夠
+    const later: PlanItem = { day: 3, kind: "scroll", rate: 70, target: 1 };
+    expect(affordable([w, later], { day: 3, kind: "scroll", rate: 15, target: 1 }, 200)).toBe(false);
+    // 推薦衝法全部排滿 2,100 枚：最後一天再加什麼都不行
+    expect(affordable(toItems(buildPlan("pick", 200).steps), { day: 28, kind: "scroll", rate: 100, target: 4 }, 200)).toBe(false);
   });
 
   it("清空：沒有武器就沒有結果", () => {
