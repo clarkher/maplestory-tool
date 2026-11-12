@@ -6,7 +6,7 @@ import { MapPicker } from "@/components/MapPicker";
 import { formatNumber } from "@/lib/format";
 import type { MapRecord } from "@/lib/types";
 import { etaText } from "@/lib/speed/format";
-import { autoMinutes, expFromPercent, manualResult, parseManualRow, parseMinutes, type ManualState, type ManualText } from "@/lib/speed/manual";
+import { autoMinutes, expFromPercent, manualResult, parseManualRow, parseMinutes, rowsError, type ManualState, type ManualText } from "@/lib/speed/manual";
 import { BUTTON_LINE, BUTTON_MAIN, Card } from "./parts";
 
 const FIELD =
@@ -55,8 +55,10 @@ export function ManualCard({
   const current = rowView(state.now, toNext);
   const auto = autoMinutes(state.start.at, state.now.at);
   const minutesText = state.minutes || (auto !== null ? String(auto) : "");
+  // 兩列本身有錯（填反了）先講，不用等分鐘
+  const rowsProblem = start.parsed.ok && current.parsed.ok ? rowsError(start.parsed.row, current.parsed.row, toNext) : null;
   // 兩列都填好、卻看不出練了多久（同時填的）：請玩家自己填，不猜
-  const askMinutes = !minutesText && start.parsed.ok && current.parsed.ok;
+  const askMinutes = !minutesText && start.parsed.ok && current.parsed.ok && !rowsProblem;
   const minutes = parseMinutes(minutesText);
   const result = start.parsed.ok && current.parsed.ok && minutes.ok ? manualResult(start.parsed.row, current.parsed.row, minutes.minutes, toNext) : null;
 
@@ -151,7 +153,7 @@ export function ManualCard({
             {saved ? <p role="status" className="mt-1 text-[13px] font-bold">{saved}</p> : null}
           </>
         ) : (
-          <p className="text-sm ink-soft">{result && !result.ok ? result.error : "兩列都填好就會算出來。"}</p>
+          <p className="text-sm ink-soft">{result && !result.ok ? result.error : rowsProblem ?? (askMinutes ? "填好練了幾分鐘就會算出來。" : "兩列都填好就會算出來。")}</p>
         )}
       </div>
     </Card>

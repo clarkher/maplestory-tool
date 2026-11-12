@@ -80,15 +80,23 @@ export function gainedBetween(start: ManualRow, now: ManualRow, toNext: number[]
   return gained;
 }
 
+/** 開始、現在兩列本身對不對（填反了、還沒拿到經驗），跟分鐘無關：分鐘還沒填也要先講（v2.12） */
+export function rowsError(start: ManualRow, now: ManualRow, toNext: number[]): string | null {
+  const gained = gainedBetween(start, now, toNext);
+  if (gained === null) return "現在比開始還少，開始跟現在是不是填反了？";
+  if (gained === 0) return "現在的經驗跟開始一樣，還沒拿到經驗";
+  return null;
+}
+
 export function manualResult(
   start: ManualRow,
   now: ManualRow,
   minutes: number,
   toNext: number[],
 ): { ok: true; gained: number; per10: number; etaMinutes: number } | { ok: false; error: string } {
-  const gained = gainedBetween(start, now, toNext);
-  if (gained === null) return { ok: false, error: "現在比開始還少，開始跟現在是不是填反了？" };
-  if (gained === 0) return { ok: false, error: "現在的經驗跟開始一樣，還沒拿到經驗" };
+  const error = rowsError(start, now, toNext);
+  if (error) return { ok: false, error };
+  const gained = gainedBetween(start, now, toNext) as number;
   const per10 = (gained / minutes) * 10;
   return { ok: true, gained, per10, etaMinutes: ((toNext[now.level] - now.exp) / per10) * 10 };
 }

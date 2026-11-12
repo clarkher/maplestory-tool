@@ -1,6 +1,6 @@
 // src/lib/speed/__tests__/manual.test.ts
 import { describe, expect, it } from "vitest";
-import { autoMinutes, expFromPercent, gainedBetween, manualResult, parseManualRow, parseMinutes, readManual, writeManual } from "../manual";
+import { autoMinutes, expFromPercent, gainedBetween, manualResult, rowsError, parseManualRow, parseMinutes, readManual, writeManual } from "../manual";
 
 // toNext[等級]＝這一級升到下一級要的經驗；0 級不用
 const toNext = [0, 15, 34, 57, 92, 135];
@@ -97,5 +97,13 @@ describe("練了幾分鐘：照兩列填的時間自己帶（v2.11）", () => {
     expect(autoMinutes(null, at(12))).toBeNull();
     expect(autoMinutes(at(0), null)).toBeNull();
     expect(autoMinutes(at(12), at(0))).toBeNull();
+  });
+});
+
+describe("開始、現在填反了：不用等分鐘就先講（v2.12）", () => {
+  it("現在比開始少、一樣多：回錯誤字；有拿到經驗：null", () => {
+    expect(rowsError({ level: 4, exp: 40 }, { level: 4, exp: 10 }, toNext)).toBe("現在比開始還少，開始跟現在是不是填反了？");
+    expect(rowsError({ level: 4, exp: 10 }, { level: 4, exp: 10 }, toNext)).toBe("現在的經驗跟開始一樣，還沒拿到經驗");
+    expect(rowsError({ level: 4, exp: 10 }, { level: 5, exp: 1 }, toNext)).toBeNull();
   });
 });
