@@ -204,6 +204,22 @@ describe("站上的文章（src/content/guides）", () => {
     }
     const icons = guideImages(doc.blocks).filter(src => src.startsWith("/assets/items/"));
     expect(new Set(icons).size).toBe(19 + 21);
+    // v2.16 懶人包：流程圖在、機率表最好／最糟兩列都在，各列機率加起來 100%
+    expect(guideImages(doc.blocks)).toContain("/assets/guides/maple-leaf-shop/plan.svg");
+    expect(exists("/assets/guides/maple-leaf-shop/plan.svg")).toBe(true);
+    // v2.17 使用者：最上面放台服官方圖，不要全是字
+    const official = guideImages(doc.blocks).filter(src => src.includes("/maple-leaf-shop/tw-"));
+    expect(official.length).toBeGreaterThanOrEqual(7);
+    for (const src of official) expect(exists(src), src).toBe(true);
+    expect(guideImages(doc.blocks)[0]).toContain("/maple-leaf-shop/tw-");
+    // v2.17 手機 375 寬放得下：只留 4 欄、第一欄短（共用表格第一欄不折行，長了會撐寬整張表）
+    expect(text).toMatch(/^結果 機率 平均攻擊 收工$/m);
+    expect(text).toMatch(/^最好 1\.8% \+17 DAY 9$/m);
+    expect(text).toMatch(/^最糟 0\.008% \+0 DAY 21$/m);
+    const paths = [...text.matchAll(/^(?:第 \d 把中|都沒中) ([\d.]+)%/gm)].map(m => +m[1]);
+    expect(paths).toHaveLength(4);
+    expect(paths.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 0);
+    expect(text).not.toContain("不會爆裝");
     // 台服公告商店圖：35 級楓葉之劍（1302020）100 枚
     expect(text).toMatch(/楓葉之劍 35 等 單手劍，不限職業；[^\n]* 100\s枚$/m);
     // 表格裡的道具小圖要 max-w-none，不然算欄寬時被當 0 寬，名字壓到隔壁欄
