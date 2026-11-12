@@ -3,12 +3,13 @@ import { Suspense } from "react";
 import { DbFallback } from "@/components/DbFallback";
 import { DB_HEADS } from "@/lib/db-heads";
 import { ItemDb } from "./ItemDb";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "道具資料｜裝備數值與掉落來源",
   description: "新楓之谷經典版道具查詢：裝備數值、需求等級、說明，以及哪些怪會掉、哪些任務會給、哪些任務要用到。",
   alternates: { canonical: "/db/items" },
-};
+});
 
 export default function Page() {
   return (

@@ -7,7 +7,7 @@ import { SeoPage } from "@/components/SeoPage";
 import { npcImage } from "@/lib/asset-paths";
 import { mapRoute, mapSection, npcSummary, shopRows } from "@/lib/atlas-view";
 import { npcLevelNote } from "@/lib/portal-text";
-import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, OG_BASE, webPageLd } from "@/lib/seo";
 import type { AtlasNpc } from "@/lib/types";
 import { staticAtlasMaps, staticGraph, staticItemNames, staticMaps, staticModified, staticNearestTown, staticNpcs, staticItemHref } from "@/lib/static-data";
 
@@ -63,7 +63,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: npcTitle(npc),
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${npc.n}｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${npc.n}｜楓谷幫手`, description, url: path },
   };
 }
 

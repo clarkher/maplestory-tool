@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { hasItemIcon } from "@/lib/item-icons";
 import { cardIcons, listPatchPages } from "@/lib/patches";
+import { OG_BASE } from "@/lib/seo";
 import { PatchCard } from "./PatchCard";
 
 const TITLE = "楓之谷經典版改版紀錄：每次更新多了什麼";
+const DESCRIPTION = "新楓之谷經典版每次遊戲更新多了什麼：新道具、新任務、新怪物，照時間排，點進去看這次改了什麼。";
 
 export const metadata: Metadata = {
   title: { absolute: `${TITLE}｜楓谷幫手` },
-  description: "新楓之谷經典版每次遊戲更新多了什麼：新道具、新任務、新怪物，照時間排，點進去看這次改了什麼。",
+  description: DESCRIPTION,
   alternates: { canonical: "/updates" },
+  openGraph: { ...OG_BASE, title: `${TITLE}｜楓谷幫手`, description: DESCRIPTION, url: "/updates" },
 };
 
 export default function Page() {

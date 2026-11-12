@@ -3,12 +3,13 @@ import { Suspense } from "react";
 import { DbFallback } from "@/components/DbFallback";
 import { DB_HEADS } from "@/lib/db-heads";
 import { SkillDb } from "./SkillDb";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "技能資料｜每一級的實際數值",
   description: "新楓之谷經典版技能查詢：依職業分類，列出每個技能每一級的實際數值，不用自己推算公式。",
   alternates: { canonical: "/db/skills" },
-};
+});
 
 export default function Page() {
   return (

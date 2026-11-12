@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ChevronRight } from "@/components/Icons";
 import { Sprite } from "@/components/route/bits";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "查資料｜怪物、道具、任務、技能、練功排行",
   description: "新楓之谷經典版資料查詢：怪物數值與掉落、道具、任務條件與獎勵、技能逐級數值、每張地圖的怪物與 NPC、NPC 商店，以及依等級排的練功地圖、可接任務、打寶地點。",
   alternates: { canonical: "/db" },
-};
+});
 
 const LOOKUPS = [
   { href: "/db/monsters", title: "怪物", lead: "數值、抗性、在哪出沒、掉什麼", image: "/assets/monster_frames/100100.png" },

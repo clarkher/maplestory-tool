@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "聯絡我們",
   description: "回報資料錯誤、建議功能，或任何關於楓谷幫手的問題。",
   alternates: { canonical: "/contact" },
-};
+});
 
 export default function Page() {
   return (

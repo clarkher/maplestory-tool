@@ -6,7 +6,7 @@
  *   - API（src/app/api）在 Cloudflare 由 cf/worker.ts 直接 import 跑，靜態輸出不收：建置時先搬到 .cf-stash/，建完一定搬回來；
  *     上次建到一半被砍、api 還在 .cf-stash/ 的話，開頭先搬回來
  *   - Cloudflare 免費方案一個 Worker 版本最多 20,000 個靜態檔：道具圖（約 1.7 萬張）拆去 .cf-items/，out/ 超過 19,500 檔就失敗
- *   - 快取規則（cache-headers.mjs）寫成 out/_headers；不是 production 的再加整站 X-Robots-Tag: noindex
+ *   - 快取規則（cache-headers.mjs ＋ /_next/static 長快取）寫成 out/_headers；不是 production 的再加整站 X-Robots-Tag: noindex
  */
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -20,6 +20,16 @@ const STASH = join(ROOT, ".cf-stash", "api");
 const OUT = join(ROOT, "out");
 const ITEMS_OUT = join(ROOT, ".cf-items");
 export const MAX_FILES = 19_500;
+
+/**
+ * Cloudflare 的 _headers 規則：next.config 那份（CACHE_HEADERS）前面再加 /_next/static。
+ * 那裡的 js、css、字型檔名都帶內容雜湊，改了就換檔名，可以放心長快取；Vercel 自己會給這條，
+ * next.config 的 headers() 不准設 /_next/static，所以只放在這裡。沒有這條時 Cloudflare 預設 max-age=0，回訪每個檔都要回伺服器問。
+ */
+export const CF_HEADERS = [
+  { source: "/_next/static/:path*", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
+  ...CACHE_HEADERS,
+];
 
 /** next.config 的 headers 規則 → Cloudflare _headers。後面的規則要蓋掉前面的同名標頭：Cloudflare 會把多條命中的值串起來，所以先「! 名稱」拿掉 */
 export function toHeadersFile(rules, { noindex = false } = {}) {
@@ -86,7 +96,7 @@ function main() {
   mkdirSync(join(ITEMS_OUT, "assets"), { recursive: true });
   renameSync(join(OUT, "assets", "items"), join(ITEMS_OUT, "assets", "items"));
   // 測試機（APP_ENV 不是 production）整站叫搜尋引擎別收，不然 workers.dev 的網址會跟正式網域搶收錄（Vercel 的預覽網址是它自己擋的）
-  writeFileSync(join(OUT, "_headers"), toHeadersFile(CACHE_HEADERS, { noindex: env.APP_ENV !== "production" }));
+  writeFileSync(join(OUT, "_headers"), toHeadersFile(CF_HEADERS, { noindex: env.APP_ENV !== "production" }));
   writeFileSync(join(ITEMS_OUT, "_headers"), toHeadersFile(CACHE_HEADERS.filter(rule => rule.source.startsWith("/assets/"))));
 
   const files = countFiles(OUT);
