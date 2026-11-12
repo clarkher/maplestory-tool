@@ -1,8 +1,10 @@
 "use client";
 
-import { Fragment, memo, useId, useMemo, useRef, useState, type InputHTMLAttributes, type KeyboardEvent } from "react";
+import { Fragment, useId, useMemo, useRef, useState, type InputHTMLAttributes, type KeyboardEvent } from "react";
 import { ChoiceGroup } from "@/components/ChoiceGroup";
 import { ChevronDown } from "@/components/Icons";
+import { SearchSelect } from "@/components/SearchSelect";
+import type { SearchOption } from "@/lib/search-select";
 import { Sprite, SourceLinks } from "@/components/route/bits";
 import { itemImage, monsterImage, skillImage } from "@/lib/data";
 import { ammoChoices, boosterFor, defaultAmmo, HEAL_ASSUMPTION, levelNeededText, levelPercentText, monsterStats, secondsText, tenMinuteExpText, tenMinuteText, LEVEL_CAP, regroup, sameGroups, skillLevelsAt, weaponChoices, type CalcData, type CalcState, type GroupConfig, type GroupResult, type MonsterChoice, type SharedConfig } from "@/lib/damage-view";
@@ -101,19 +103,8 @@ function DraftNumber({ value, min, max, onCommit, onStep, ...rest }: {
   );
 }
 
-/**
- * 怪物選單的選項：一百多個 option（monsters.json 約 125 隻），包成 memo——按 −／＋ 時整張卡重畫，選項不用跟著一個一個比對
- * （props 沒變就整串跳過）。
- */
-const MonsterOptions = memo(function MonsterOptions({ choices }: { choices: MonsterChoice[] }) {
-  return (
-    <>
-      {choices.map(({ monster }) => (
-        <option key={monster.id} value={monster.id}>{`${monster.n} Lv.${monster.lv}`}</option>
-      ))}
-    </>
-  );
-});
+/** 不選怪那一項（群體治癒打不到木樁，不放） */
+const NO_MONSTER: SearchOption = { value: null, label: "不選怪（打木樁）" };
 
 /** 上方分頁固定的兩組名字（2026-10-12 使用者選 A：分頁不寫點法，免得跟分頁裡的「點法」選項重複） */
 export const GROUP_NAMES = ["左組", "右組"] as const;
@@ -141,6 +132,12 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
   const skill = data && state && state.shared.skillId !== BASIC_ATTACK ? data.skills.get(state.shared.skillId) : undefined;
   // 選的怪（顯示 HP、經驗用）
   const target = data && state && state.shared.monsterId !== null ? data.monsters.find(monster => monster.id === state.shared.monsterId) : undefined;
+  // 打哪隻怪的選項（v2.13 能打字找）：一百多隻，choices 沒變就不重排
+  const healOnly = state?.shared.skillId === HEAL;
+  const monsterOptions = useMemo<SearchOption[]>(
+    () => [...(healOnly ? [] : [NO_MONSTER]), ...choices.map(({ monster }) => ({ value: monster.id, label: `${monster.n} Lv.${monster.lv}` }))],
+    [choices, healOnly],
+  );
   return (
     <section aria-label="共用設定" className="rounded-[var(--radius-card)] glass wood-frame px-3.5 py-1.5">
       <Row label="職業">
@@ -202,16 +199,15 @@ export function SharedCard({ data, state, job, onJob, onShared, onLevel, levelNo
           {missing.length ? <p className="pb-1 text-[12px] ink-faint">沒算的：{missing.map(entry => entry.name).filter((name, index, all) => all.indexOf(name) === index).join("、")}（原因在最下面）</p> : null}
           <Row label="打哪隻怪">
             {state.shared.monsterId !== null ? <Sprite src={monsterImage(state.shared.monsterId)} size={24} /> : null}
-            <select
-              aria-label="打哪隻怪"
+            {/* 群體治癒打不到木樁（只打得到不死系，v0.88 使用者：只顯示打得到的怪） */}
+            <SearchSelect
+              label="打哪隻怪"
               className={SELECT}
-              value={state.shared.monsterId ?? ""}
-              onChange={event => onShared({ monsterId: event.target.value === "" ? null : Number(event.target.value) })}
-            >
-              {/* 群體治癒打不到木樁（只打得到不死系，v0.88 使用者：只顯示打得到的怪） */}
-              {state.shared.skillId === HEAL ? null : <option value="">不選怪（打木樁）</option>}
-              <MonsterOptions choices={choices} />
-            </select>
+              value={state.shared.monsterId}
+              options={monsterOptions}
+              onSelect={monsterId => onShared({ monsterId })}
+              placeholder="打怪物名字找"
+            />
           </Row>
           {target ? <p className="pb-1 text-right text-[12px] font-bold ink-soft">{monsterStats(target)}</p> : null}
         </>
@@ -507,6 +503,11 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
   const tabs = useMemo(() => tabsFor(data.gear.rules, job), [data.gear, job]);
   const weapons = useMemo(() => weaponChoices(data.gear, job), [data.gear, job]);
   const weapon = data.gear.weapons.find(entry => entry.id === group.weaponId);
+  // 武器選單（v2.13 能打字找）：「Lv.35 戰斧（攻擊 60）」
+  const weaponOptions = useMemo<SearchOption[]>(
+    () => weapons.map(entry => ({ value: entry.id, label: `Lv.${entry.lv} ${entry.n}（${isMagicJob(job) ? `魔攻 ${entry.mag ?? 0}` : `攻擊 ${entry.atk ?? 0}`}）` })),
+    [weapons, job],
+  );
   const ammo = useMemo(() => (weapon ? ammoChoices(data.gear.ammo ?? [], weapon.s) : []), [data.gear, weapon]);
   const magic = isMagicJob(job);
   const lineage = useMemo(() => new Set(jobLineage(job)), [job]);
@@ -573,16 +574,13 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
         {tabs.length > 1 ? <p className="pb-1 text-right text-[11px] ink-faint">換點法會把能力值、武器重設成那套的預設</p> : null}
         <Row label="武器">
           {weapon ? <Sprite src={itemImage(weapon.id)} size={22} /> : null}
-          <select aria-label="武器" className={SELECT} value={group.weaponId ?? ""} onChange={event => {
-            const next = data.gear.weapons.find(entry => entry.id === Number(event.target.value));
+          <SearchSelect label="武器" className={SELECT} value={group.weaponId} options={weaponOptions} placeholder="打武器名字找" emptyText="選武器" onSelect={id => {
+            const next = data.gear.weapons.find(entry => entry.id === id);
             const nextAmmo = next ? ammoChoices(data.gear.ammo ?? [], next.s) : [];
             // 同一種彈藥還能用就留著；換了種類（弓換弩）就用預設：商店買得到、攻擊最高那種
             const keep = nextAmmo.some(entry => entry.id === group.ammoId);
             set({ weaponId: next?.id ?? null, weaponAtk: null, ammoId: keep ? group.ammoId : next ? defaultAmmo(data.gear.ammo ?? [], next.s, group.level)?.id ?? null : null });
-          }}>
-            {group.weaponId === null ? <option value="" disabled>選武器</option> : null}
-            {weapons.map(entry => <option key={entry.id} value={entry.id}>{`Lv.${entry.lv} ${entry.n}（${magic ? `魔攻 ${entry.mag ?? 0}` : `攻擊 ${entry.atk ?? 0}`}）`}</option>)}
-          </select>
+          }} />
         </Row>
         {result.ok && result.levelNeeded !== null ? (
           <p className="my-1 rounded-lg bg-[color:var(--gold-wash)] px-2.5 py-1.5 text-[12px] font-bold">{levelNeededText(result.levelNeeded)}</p>

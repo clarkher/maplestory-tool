@@ -102,7 +102,8 @@ try {
     results[key] = await evaluate(`({
       result: document.querySelector('section[aria-label="結果"]')?.innerText,
       kills: [...document.querySelectorAll('section[aria-label="一下、兩下打死的怪"] h2, section[aria-label="一下、兩下打死的怪"] h3')].map(h => h.innerText),
-      shared: [...document.querySelectorAll('section[aria-label="共用設定"] select')].map(s => s.selectedOptions[0]?.text),
+      // v2.13 打哪隻怪改成能打字找的按鈕（SearchSelect），不是 <select> 了，一起讀按鈕上的字
+      shared: [...document.querySelectorAll('section[aria-label="共用設定"] select, section[aria-label="共用設定"] button[aria-haspopup="listbox"]')].map(s => s.selectedOptions ? s.selectedOptions[0]?.text : s.innerText),
     })`);
     // 點細節：看細節是受控的 <details>（記在瀏覽紀錄上），要真的點 summary 讓 React 知道，不能直接改 open
     await evaluate(`(() => { const d = document.querySelector('section[aria-label="結果"] details'); if (d && !d.open) d.querySelector("summary").click(); return true; })()`);
