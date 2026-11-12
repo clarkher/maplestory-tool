@@ -81,6 +81,22 @@ const SCENES = [
     ].join(" "),
   },
   {
+    slug: "maple-leaf-weapon-jobs",
+    base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [
+      { file: "items/1432012.png", x: 0.16, y: 0.86, h: 0.3 },
+      { file: "items/1472032.png", x: 0.34, y: 0.86, h: 0.2 },
+      { file: "items/1452022.png", x: 0.5, y: 0.86, h: 0.28 },
+      { file: "items/1482021.png", x: 0.66, y: 0.86, h: 0.2 },
+      { file: "items/1382012.png", x: 0.84, y: 0.86, h: 0.3 },
+    ],
+    idea: [
+      "Turn the scene into a bright autumn field outside a mushroom village, red and orange maple leaves swirling in the wind, clear blue sky with soft clouds.",
+      "Five young adventurers of different classes stand side by side in heroic poses, each proudly holding one of the maple-leaf weapons from the sprites: a warrior in light armor with the long maple spear, a hooded thief with the maple claw on one hand, an archer with the maple bow drawn, a pirate with the maple knuckle raised as a fist, and a mage in a robe with the maple staff glowing. Keep each weapon recognizable like its sprite, made of red-orange maple leaf shapes with gold trim.",
+      "Friendly competitive mood, like a team lineup comparing their new weapons.",
+    ].join(" "),
+  },
+  {
     slug: "halloween",
     base: { backdrop: "snow" },
     sprites: [{ file: "monster_frames/9602795.png", x: 0.66, y: 0.9, h: 0.62 }],
