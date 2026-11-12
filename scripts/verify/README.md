@@ -46,7 +46,7 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 node scripts/verify/check-first-frame.mjs [輸出] [網址，預設 http://localhost:3000]
 ```
 
-- 九項，只看結構、不看時間（GitHub 的機器快慢不穩，時間門檻會偶發紅燈）：
+- 十項，只看結構、不看時間（GitHub 的機器快慢不穩，時間門檻會偶發紅燈）：
   1 首頁 → 查資料 → 我的路線，DOM 只有一個狀態、就是完整路線；2 硬重新整理、存過角色，不出現「你現在幾等、什麼職業？」；
   3 硬重新整理、沒存過角色，第一格就看得到那句問題跟選職業的表單、沒有讀取中（v1.56）；4 首頁「帶我去」→ /go 第一格就是路線；5 查資料 → 練功地圖排行第一格就是結果；
   7 刺客 35 選了全幸（`ms-build` `{"400":"全幸"}`）：硬重新整理、站內換頁（查資料 → 我的路線）進首頁，「能力值與裝備」卡
@@ -777,6 +777,9 @@ node scripts/verify/go-door-shot.mjs <輸出資料夾> <網址>
   再跳過去，DevTools 呼叫也要設等待上限（gear-source-shot 的 `send` 每個最多 60 秒）。
 - **剛開的 Chrome 停在 `about:blank`，再 `Page.navigate` 到 `about:blank` 不會有 load 事件**，沒設逾時會一直等下去。
   第一頁直接導到要量的網址。
+- **用滑鼠點之前捲過去，`scrollIntoView` 一定要帶 `behavior: "instant"`**：全站 `html` 是平滑捲動，不帶就是邊滑邊量，
+  量到捲之前的座標，按下去時按鈕已經滑走、點到旁邊的區塊，什麼都沒發生也不報錯。speed-shot「重新整理再分享」
+  時好時壞就是這個（10/17 改前 5 次點空 4 次；組隊那格把按鈕推到中線以下才要捲，所以只有那一步會中）。新寫的照抄 speed-shot 的 `centerOf`。
 - **手機觸控點長頁面底部的輸入框可能點不到**：點完檢查 `activeElement`，沒點中就 `el.focus()`（border-* 的 `tap`）。
 - **改前／改後要用每個 commit 固定的部署網址**，不要拿 dev 測試機當改前（它一小時會被合好幾次）。
   `gh api "repos/clarkher/maplestory-tool/deployments?sha=<完整 sha>"` 拿 id，
