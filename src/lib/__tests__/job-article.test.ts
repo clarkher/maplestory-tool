@@ -1595,8 +1595,9 @@ describe("Discover 規格", () => {
     expect(JSON.stringify(meta)).not.toContain("hero.jpg");
     expect(meta.twitter).toMatchObject({ card: "summary_large_image", images: ["/og.jpg"] });
     const html = renderToString(await Page(params));
-    expect(html).not.toContain("hero.jpg");
-    expect(html).not.toContain("hero.webp");
+    // 只看本篇自己的主圖：文末「接著看」（v2.19）的卡片是別篇的主圖，不算
+    expect(html).not.toContain("priest-31-50/hero.jpg");
+    expect(html).not.toContain("priest-31-50/hero.webp");
   });
   it("Article JSON-LD：作者跟發布者是站，不是虛構寫手；放在 body，不進 head", async () => {
     const { default: Page } = await import("@/app/guides/[slug]/page");
