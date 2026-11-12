@@ -14,6 +14,7 @@ export const SITE_PAGES: SitePage[] = [
   { path: "/plan/damage", name: "傷害計算機", what: "算技能每一下多少、打怪幾下打死，兩套點法並排比", priority: 0.8 },
   { path: "/plan/boss", name: "野王計時", what: "打死野王按一下，算每個頻道還要多久重生", priority: 0.7 },
   { path: "/future", name: "未來視", what: "下一版大概何時開、會開什麼，現在該先囤哪些材料（全部標明官方或推估）", priority: 0.8 },
+  { path: "/plan/leaf", name: "楓葉武器衝卷規劃器", what: "楓葉商會每天換武器還是卷軸，日曆排好，算最後攻擊衝到幾以上的機會", priority: 0.7 },
   { path: "/plan/scroll", name: "衝卷模擬", what: "選裝備跟卷軸，算衝到想要的張數要準備多少", priority: 0.7 },
   { path: "/plan/avatar", name: "紙娃娃", what: "換髮型、臉型、點裝，看角色穿起來長怎樣，可以下載或分享", priority: 0.7 },
   { path: "/plan/guild", name: "公會徽章", what: "挑底圖、圖案和顏色，先看看公會徽章做出來長怎樣", priority: 0.6 },

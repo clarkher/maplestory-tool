@@ -7,8 +7,10 @@
  * v1.86（使用者 11/09 照推薦）：多一顆「攻略」（/guides 攻略專區），1–30 懶人包、分等級攻略文、職業頁、活動攻略都亮它；
  * 「帶我去」改叫「地圖導航」；野王計時收進查資料（/plan/boss 亮查資料），萬聖節收進攻略專區。
  * 手機四顆：我的路線、攻略、地圖導航、查資料（字數比原本的「野王計時」少，放得下，scripts/verify/nav-fit.mjs 量過）。
+ * v2.18（使用者 11/12 選 1C）：楓葉商會活動期間電腦版多一顆「楓葉衝卷」（/plan/leaf），跟萬聖節一樣時間到就收（until），
+ * 收掉後只剩攻略文連得過去；手機導覽列放不下，同算傷害只在電腦版。
  */
-type NavItem = { href: string; label: string; match: string[]; desktopOnly?: true };
+type NavItem = { href: string; label: string; match: string[]; desktopOnly?: true; /** 活動入口：這個時間（含）之後不出現 */ until?: string };
 
 export const NAV: NavItem[] = [
   { href: "/", label: "我的路線", match: [] },
@@ -22,9 +24,16 @@ export const NAV: NavItem[] = [
   { href: "/price/fx", label: "楓幣匯率", match: ["/price"], desktopOnly: true },
   // v1.68：未來視。手機放五顆會把查資料擠出畫面（375 寬量過），同算傷害只在電腦版，手機從首頁卡、查資料進去
   { href: "/future", label: "未來視", match: ["/future"], desktopOnly: true },
+  // v2.18：楓葉商會活動入口，12/17 00:00（硬幣、卷軸失效）起收掉；排在查資料前面，/plan/leaf 亮自己
+  { href: "/plan/leaf", label: "楓葉衝卷", match: ["/plan/leaf"], desktopOnly: true, until: "2026-12-17T00:00:00+08:00" },
   { href: "/go", label: "地圖導航", match: ["/go"] },
   { href: "/db", label: "查資料", match: ["/db", "/plan"] },
 ];
+
+/** 這個時間點要出現的幾顆（活動入口過期就拿掉） */
+export function navItems(now: number): NavItem[] {
+  return NAV.filter(item => !item.until || now < Date.parse(item.until));
+}
 
 /** 這個網址亮哪一顆（都不是就沒有） */
 export function activeNav(pathname: string): string | undefined {
