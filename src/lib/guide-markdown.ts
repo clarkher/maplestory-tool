@@ -26,6 +26,8 @@ export type GuideMeta = {
   published: string;
   updated: string;
   heroAlt: string;
+  /** 文末「接著看」手動指定的頁（related: /guides/a, /guide），排在自動配的前面（v2.19，guide-related.ts） */
+  related: string[];
 };
 
 export type GuideDoc = GuideMeta & { slug: string; blocks: Block[] };
@@ -168,6 +170,7 @@ export function parseGuide(slug: string, source: string): GuideDoc {
     published: meta.published,
     updated: meta.updated,
     heroAlt: meta.heroAlt,
+    related: (meta.related ?? "").split(/[,，]/).map(link => link.trim()).filter(Boolean),
     blocks: parseBlocks(text.slice(m[0].length)),
   };
 }
