@@ -207,9 +207,16 @@ describe("站上的文章（src/content/guides）", () => {
     // v2.16 懶人包：流程圖在、機率表最好／最糟兩列都在，各列機率加起來 100%
     expect(guideImages(doc.blocks)).toContain("/assets/guides/maple-leaf-shop/plan.svg");
     expect(exists("/assets/guides/maple-leaf-shop/plan.svg")).toBe(true);
-    expect(text).toMatch(/^最好：第 1 把第一張 15% 就中、6 張 70% 全中 1\.8% DAY 9（11\/27） \+17 /m);
-    expect(text).toMatch(/^最糟：每一張都沒中 0\.008%/m);
-    const paths = [...text.matchAll(/^第 \d 把的 15% 中了 ([\d.]+)%|^六張 15% 全沒中，第 4 把衝 70% ([\d.]+)%/gm)].map(m => +(m[1] ?? m[2]));
+    // v2.17 使用者：最上面放台服官方圖，不要全是字
+    const official = guideImages(doc.blocks).filter(src => src.includes("/maple-leaf-shop/tw-"));
+    expect(official.length).toBeGreaterThanOrEqual(7);
+    for (const src of official) expect(exists(src), src).toBe(true);
+    expect(guideImages(doc.blocks)[0]).toContain("/maple-leaf-shop/tw-");
+    // v2.17 手機 375 寬放得下：只留 4 欄、第一欄短（共用表格第一欄不折行，長了會撐寬整張表）
+    expect(text).toMatch(/^結果 機率 平均攻擊 收工$/m);
+    expect(text).toMatch(/^最好 1\.8% \+17 DAY 9$/m);
+    expect(text).toMatch(/^最糟 0\.008% \+0 DAY 21$/m);
+    const paths = [...text.matchAll(/^(?:第 \d 把中|都沒中) ([\d.]+)%/gm)].map(m => +m[1]);
     expect(paths).toHaveLength(4);
     expect(paths.reduce((a, b) => a + b, 0)).toBeCloseTo(100, 0);
     expect(text).not.toContain("不會爆裝");
