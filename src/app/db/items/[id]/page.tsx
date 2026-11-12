@@ -3,8 +3,8 @@ import { notFound } from "next/navigation";
 import { SeoLinks, SeoPage, SeoSection, SeoStats } from "@/components/SeoPage";
 import { itemImage } from "@/lib/asset-paths";
 import { itemPagePath, itemPageTitle, itemSummary } from "@/lib/item-page";
-import { equipGroups, shopGroups } from "@/lib/item-view";
-import { breadcrumbLd, clip, webPageLd } from "@/lib/seo";
+import { equipGroups, itemDescText, shopGroups } from "@/lib/item-view";
+import { breadcrumbLd, clip, OG_BASE, webPageLd } from "@/lib/seo";
 import { staticItemPageLookup, staticItemPages, staticModified } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: itemPageTitle(item),
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${item.n}｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${item.n}｜楓谷幫手`, description, url: path },
   };
 }
 
@@ -39,6 +39,7 @@ export default async function Page({ params }: Props) {
   const path = itemPagePath(item.id);
   const summary = itemSummary(item, lookup);
   const { requirements, stats } = equipGroups(item);
+  const itemText = itemDescText(item.d);
   const shops = shopGroups(item);
   const questLinks = (ids: string[] | undefined) =>
     (ids ?? []).flatMap(id => {
@@ -66,7 +67,7 @@ export default async function Page({ params }: Props) {
         webPageLd({ name: `${item.n}｜道具資料`, path, description: clip(summary), modified: staticModified() }),
       ]}
     >
-      {item.d ? <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{item.d}</p> : null}
+      {itemText ? <p className="whitespace-pre-wrap text-sm leading-relaxed ink-soft">{itemText}</p> : null}
 
       {requirements.length ? (
         <SeoSection title="穿戴條件">

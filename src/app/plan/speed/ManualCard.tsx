@@ -6,7 +6,7 @@ import { MapPicker } from "@/components/MapPicker";
 import { formatNumber } from "@/lib/format";
 import type { MapRecord } from "@/lib/types";
 import { etaText } from "@/lib/speed/format";
-import { expFromPercent, manualResult, parseManualRow, parseMinutes, type ManualState, type ManualText } from "@/lib/speed/manual";
+import { autoMinutes, expFromPercent, manualResult, parseManualRow, parseMinutes, rowsError, type ManualState, type ManualText } from "@/lib/speed/manual";
 import { BUTTON_LINE, BUTTON_MAIN, Card } from "./parts";
 
 const FIELD =
@@ -29,7 +29,7 @@ function clock(at: number): string {
 /**
  * 首屏「自己填等級、經驗」（v2.09，2026-11-11 使用者選 A）：開始、現在各一列，經驗可以打數字也可以拉 %（防呆：
  * 等級要在表裡、經驗不能超過這一級、現在不能比開始少）。填好一列就記下時間，兩列都好就算 10 分鐘經驗、升級還要多久；
- * 分鐘照兩次的時間差先填，可以改。結果不進排行（手打的沒辦法驗證），選了地圖可以記進「跟我之前比」。
+ * 分鐘照兩次的時間差先填（差不到 3 分鐘＝一起填的，不帶、請玩家填），可以改。結果不進排行（手打的沒辦法驗證），選了地圖可以記進「跟我之前比」。
  */
 export function ManualCard({
   state,
@@ -53,8 +53,12 @@ export function ManualCard({
   const [saved, setSaved] = useState<string | null>(null);
   const start = rowView(state.start, toNext);
   const current = rowView(state.now, toNext);
-  const autoMinutes = state.start.at !== null && state.now.at !== null ? Math.max(1, Math.round((state.now.at - state.start.at) / 60_000)) : null;
-  const minutesText = state.minutes || (autoMinutes !== null ? String(autoMinutes) : "");
+  const auto = autoMinutes(state.start.at, state.now.at);
+  const minutesText = state.minutes || (auto !== null ? String(auto) : "");
+  // 兩列本身有錯（填反了）先講，不用等分鐘
+  const rowsProblem = start.parsed.ok && current.parsed.ok ? rowsError(start.parsed.row, current.parsed.row, toNext) : null;
+  // 兩列都填好、卻看不出練了多久（同時填的）：請玩家自己填，不猜
+  const askMinutes = !minutesText && start.parsed.ok && current.parsed.ok && !rowsProblem;
   const minutes = parseMinutes(minutesText);
   const result = start.parsed.ok && current.parsed.ok && minutes.ok ? manualResult(start.parsed.row, current.parsed.row, minutes.minutes, toNext) : null;
 
@@ -93,9 +97,9 @@ export function ManualCard({
             className={`${FIELD} w-40 ${minutesText !== "" && !minutes.ok ? "border-[color:var(--maple)]" : "border-[color:var(--paper-edge)]"}`}
           />
         </label>
-        {state.minutes && autoMinutes !== null ? (
+        {state.minutes && auto !== null ? (
           <button type="button" onClick={() => onChange({ ...state, minutes: "" })} className="pb-2 text-sm font-bold text-[color:var(--sky)] hover:underline">
-            照填的時間算（{autoMinutes} 分）
+            照填的時間算（{auto} 分）
           </button>
         ) : null}
         <button
@@ -110,6 +114,7 @@ export function ManualCard({
           從現在接著算
         </button>
       </div>
+      {askMinutes ? <p className="mt-1 text-[13px] font-bold text-[color:var(--maple)]">兩列差不多同時填的，看不出練了多久：請填練了幾分鐘</p> : null}
       {minutesText !== "" && !minutes.ok ? <p role="alert" className="mt-1 text-[13px] font-bold text-[color:var(--maple)]">{minutes.error}</p> : null}
 
       <div className="mt-4 border-t border-[color:var(--paper-edge)] pt-3" aria-live="polite">
@@ -148,7 +153,7 @@ export function ManualCard({
             {saved ? <p role="status" className="mt-1 text-[13px] font-bold">{saved}</p> : null}
           </>
         ) : (
-          <p className="text-sm ink-soft">{result && !result.ok ? result.error : "兩列都填好就會算出來。"}</p>
+          <p className="text-sm ink-soft">{result && !result.ok ? result.error : rowsProblem ?? (askMinutes ? "填好練了幾分鐘就會算出來。" : "兩列都填好就會算出來。")}</p>
         )}
       </div>
     </Card>

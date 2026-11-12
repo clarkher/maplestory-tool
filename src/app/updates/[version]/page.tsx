@@ -5,7 +5,7 @@ import { itemImage } from "@/lib/asset-paths";
 import { hasItemIcon } from "@/lib/item-icons";
 import { CHANGED_KIND_ORDER, addedGroups, changedKinds } from "@/lib/patch-view";
 import { getPatchPage, listPatchPages, type PatchPage } from "@/lib/patches";
-import { breadcrumbLd, clip, taiwanDateTime, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, OG_BASE, taiwanDateTime, webPageLd } from "@/lib/seo";
 import { staticHasItemPage } from "@/lib/static-data";
 import { patchSummary } from "../PatchCard";
 import { AddedGroups, Fold } from "./AddedGroups";
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: { absolute: `${title}｜楓谷幫手` },
     description: describe(page),
     alternates: { canonical: pagePath(page) },
-    openGraph: { title: `${title}｜楓谷幫手`, description: describe(page), url: pagePath(page) },
+    openGraph: { ...OG_BASE, title: `${title}｜楓谷幫手`, description: describe(page), url: pagePath(page) },
   };
 }
 

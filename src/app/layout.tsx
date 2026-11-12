@@ -42,10 +42,9 @@ export const metadata: Metadata = {
     title: "楓谷幫手｜楓之谷經典版 各職業升級路線",
     description: "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解、材料先存什麼。",
   },
+  // 不寫標題、說明：子頁會沿用 layout 的 twitter，寫了每一頁的 twitter:title 都是首頁這句；沒寫 X 改讀各頁自己的 og:title
   twitter: {
     card: "summary_large_image",
-    title: "楓谷幫手｜楓之谷經典版 各職業升級路線",
-    description: "選職業、填等級，馬上知道今天去哪練、技能點哪個、哪些任務順便解。",
     images: ["/og.jpg"],
   },
   robots: SITE_ROBOTS,

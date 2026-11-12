@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { staticFuture, staticItemHref } from "@/lib/static-data";
 import { FutureView } from "./FutureView";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "未來視｜下一版大概何時開、現在該囤什麼",
   description: "新楓之谷經典版下一次改版的推估：比對上一版間隔、2005 年台服與 Artale 的順序，列出玩具城、殘暴炎魔、四轉開放前現在就拿得到的材料。全部標明官方或推估。",
   alternates: { canonical: "/future" },
-};
+});
 
 /** 玩具城製作材料放幾件：後面的配方數已經少很多 */
 const CRAFTS_SHOWN = 8;

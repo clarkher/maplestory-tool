@@ -58,6 +58,19 @@ export function parseMinutes(text: string): { ok: true; minutes: number } | { ok
   return minutes >= 1 && minutes <= MAX_MINUTES ? { ok: true, minutes } : { ok: false, error: `分鐘要填 1～${MAX_MINUTES}` };
 }
 
+/** 兩列填好的時間差不到這麼多分鐘，就當是練完才回來一起填的：一列打字加拉 % 不會超過這麼久，練 3 分鐘以內也量不準 */
+export const MIN_AUTO_MINUTES = 3;
+
+/**
+ * 練了幾分鐘照兩列填好的時間自己帶（v2.11）。兩列幾乎同時填好（練完才回來一起填）時看不出練多久，回 null 要玩家自己填
+ * ——以前一律至少帶 1 分鐘，練 10 分鐘才回來填的人會看到 10 倍的 10 分鐘經驗（11/12 盤點）。
+ */
+export function autoMinutes(startAt: number | null, nowAt: number | null): number | null {
+  if (startAt === null || nowAt === null) return null;
+  const minutes = (nowAt - startAt) / 60_000;
+  return minutes >= MIN_AUTO_MINUTES ? Math.round(minutes) : null;
+}
+
 /** 開始到現在拿了多少：同一級相減，跨級＝開始那級剩的＋中間整級＋現在這級的；現在比開始少回 null */
 export function gainedBetween(start: ManualRow, now: ManualRow, toNext: number[]): number | null {
   if (now.level < start.level || (now.level === start.level && now.exp < start.exp)) return null;
@@ -67,15 +80,23 @@ export function gainedBetween(start: ManualRow, now: ManualRow, toNext: number[]
   return gained;
 }
 
+/** 開始、現在兩列本身對不對（填反了、還沒拿到經驗），跟分鐘無關：分鐘還沒填也要先講（v2.12） */
+export function rowsError(start: ManualRow, now: ManualRow, toNext: number[]): string | null {
+  const gained = gainedBetween(start, now, toNext);
+  if (gained === null) return "現在比開始還少，開始跟現在是不是填反了？";
+  if (gained === 0) return "現在的經驗跟開始一樣，還沒拿到經驗";
+  return null;
+}
+
 export function manualResult(
   start: ManualRow,
   now: ManualRow,
   minutes: number,
   toNext: number[],
 ): { ok: true; gained: number; per10: number; etaMinutes: number } | { ok: false; error: string } {
-  const gained = gainedBetween(start, now, toNext);
-  if (gained === null) return { ok: false, error: "現在比開始還少，開始跟現在是不是填反了？" };
-  if (gained === 0) return { ok: false, error: "現在的經驗跟開始一樣，還沒拿到經驗" };
+  const error = rowsError(start, now, toNext);
+  if (error) return { ok: false, error };
+  const gained = gainedBetween(start, now, toNext) as number;
   const per10 = (gained / minutes) * 10;
   return { ok: true, gained, per10, etaMinutes: ((toNext[now.level] - now.exp) / per10) * 10 };
 }

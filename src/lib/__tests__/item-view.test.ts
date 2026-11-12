@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  canJobUse, compareItems, equipGroups, fitsJobSearch, hiddenFromList, itemKeywords, itemNote, jobSearchBit, shopGroups, wearFit,
+  canJobUse, compareItems, equipGroups, fitsJobSearch, hiddenFromList, itemDescText, itemKeywords, itemNote, jobSearchBit, shopGroups, wearFit,
   jobLabel, sortCategories, subcategoryGroups, subcategoryOptions, usableBy, wearableNow,
 } from "@/lib/item-view";
 import type { Item } from "@/lib/types";
@@ -457,4 +457,25 @@ describe("哪裡買得到", () => {
     expect(shopGroups(water, Date.parse("2026-11-11T23:59:30+08:00")).groups).toHaveLength(2);
   });
 
+});
+
+describe("itemDescText：道具說明拿掉遊戲的顏色碼（v2.11）", () => {
+  it("#c…# 是遊戲裡的橘字標記，字留著、碼拿掉", () => {
+    expect(itemDescText("放進倉庫後#c帳號間可共享1次#，之後無法交易。")).toBe("放進倉庫後帳號間可共享1次，之後無法交易。");
+    expect(itemDescText("#c雙擊#後使用，可在#c30分鐘#內獲得#c經驗值1.5倍#Buff。")).toBe("雙擊後使用，可在30分鐘內獲得經驗值1.5倍Buff。");
+  });
+
+  it("大寫開頭的字不是顏色碼（#Buff、#SSS 只拿掉 #），換行照留", () => {
+    expect(itemDescText("是#c像素綠水靈#SSS級")).toBe("是像素綠水靈SSS級");
+    expect(itemDescText("第一行\n#b第二行#k")).toBe("第一行\n第二行");
+  });
+
+  it("全部都是碼就當沒有說明", () => {
+    expect(itemDescText("#c#")).toBe("");
+    expect(itemDescText(undefined)).toBe("");
+  });
+
+  it("搜尋字也用清過的說明", () => {
+    expect(itemKeywords({ ...potion, d: "#c雙擊#後使用" })).toBe("雙擊後使用 藥水");
+  });
 });

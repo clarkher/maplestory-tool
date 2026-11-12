@@ -1,6 +1,6 @@
 // src/lib/speed/__tests__/manual.test.ts
 import { describe, expect, it } from "vitest";
-import { expFromPercent, gainedBetween, manualResult, parseManualRow, parseMinutes, readManual, writeManual } from "../manual";
+import { autoMinutes, expFromPercent, gainedBetween, manualResult, rowsError, parseManualRow, parseMinutes, readManual, writeManual } from "../manual";
 
 // toNext[等級]＝這一級升到下一級要的經驗；0 級不用
 const toNext = [0, 15, 34, 57, 92, 135];
@@ -76,5 +76,34 @@ describe("手動輸入存在這台電腦", () => {
     expect(readManual(store)).toBeNull();
     store.setItem("ms-speed-manual", JSON.stringify({ start: 3 }));
     expect(readManual(store)).toBeNull();
+  });
+});
+
+describe("練了幾分鐘：照兩列填的時間自己帶（v2.11）", () => {
+  const at = (minutes: number) => 1_700_000_000_000 + minutes * 60_000;
+
+  it("先填開始、練完再填現在：帶兩次的時間差（四捨五入到分）", () => {
+    expect(autoMinutes(at(0), at(12))).toBe(12);
+    expect(autoMinutes(at(0), at(29.6))).toBe(30);
+  });
+
+  it("兩列幾乎同時填（練完才回來一起填）：看不出練多久，不帶——以前會帶 1 分，10 分鐘經驗灌水十倍", () => {
+    expect(autoMinutes(at(0), at(0.3))).toBeNull();
+    expect(autoMinutes(at(0), at(2.4))).toBeNull();
+    expect(autoMinutes(at(0), at(3))).toBe(3);
+  });
+
+  it("有一列還沒填好、或現在比開始早：不帶", () => {
+    expect(autoMinutes(null, at(12))).toBeNull();
+    expect(autoMinutes(at(0), null)).toBeNull();
+    expect(autoMinutes(at(12), at(0))).toBeNull();
+  });
+});
+
+describe("開始、現在填反了：不用等分鐘就先講（v2.12）", () => {
+  it("現在比開始少、一樣多：回錯誤字；有拿到經驗：null", () => {
+    expect(rowsError({ level: 4, exp: 40 }, { level: 4, exp: 10 }, toNext)).toBe("現在比開始還少，開始跟現在是不是填反了？");
+    expect(rowsError({ level: 4, exp: 10 }, { level: 4, exp: 10 }, toNext)).toBe("現在的經驗跟開始一樣，還沒拿到經驗");
+    expect(rowsError({ level: 4, exp: 10 }, { level: 5, exp: 1 }, toNext)).toBeNull();
   });
 });

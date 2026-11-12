@@ -6,7 +6,7 @@ import { jobLabel } from "@/lib/item-view";
 import { QuestSteps } from "@/components/QuestSteps";
 import { mapRoute, npcHref } from "@/lib/atlas-view";
 import { coveredBlocks, questLevel, questSteps } from "@/lib/quest-steps";
-import { breadcrumbLd, clip, questSummary, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, OG_BASE, questSummary, webPageLd } from "@/lib/seo";
 import {
   staticAtlasIndex,
   staticHasItemPage,
@@ -66,7 +66,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${quest.n}｜任務攻略：怎麼接、要做什麼、獎勵`,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${quest.n}｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${quest.n}｜楓谷幫手`, description, url: path },
   };
 }
 

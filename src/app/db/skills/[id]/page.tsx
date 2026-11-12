@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { SeoLinks, SeoPage, SeoSection, SeoStats } from "@/components/SeoPage";
 import { jobLabel } from "@/lib/item-view";
-import { breadcrumbLd, clip, skillSummary, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, OG_BASE, skillSummary, webPageLd } from "@/lib/seo";
 import { skillEffect, skillIcon } from "@/lib/skill-view";
 import { staticModified, staticSkills } from "@/lib/static-data";
 
@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${skill.n}｜${job}技能效果、每級數值`,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${skill.n}｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${skill.n}｜楓谷幫手`, description, url: path },
   };
 }
 
