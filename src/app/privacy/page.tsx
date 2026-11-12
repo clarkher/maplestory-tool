@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "隱私權政策",
   description: "楓谷幫手的隱私權政策：我們收集什麼、不收集什麼，以及資料存在哪裡。",
   alternates: { canonical: "/privacy" },
-};
+});
 
 export default function Page() {
   return (

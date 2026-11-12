@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { GuildSim } from "./GuildSim";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "公會徽章｜挑底圖、圖案、顏色先看成品",
   description: "挑公會徽章的底圖、圖案和顏色，放大看也看遊戲裡實際大小；可以隨機配一個、下載圖片、分享連結給公會的人。",
   alternates: { canonical: "/plan/guild" },
-};
+});
 
 export default function Page() {
   return (

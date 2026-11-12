@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { PqCommand } from "./PqCommand";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "組隊指揮｜月妙、超綠、女神組隊任務一關一關照著喊",
   description: "隊長用的組隊任務小抄：月妙、超級綠水靈、女神組隊任務每一關要做什麼、要喊什麼，按一下複製；超綠爬繩、站平台、跳木桶幫你算下一組誰換到哪。",
   alternates: { canonical: "/plan/pq" },
-};
+});
 
 export default function Page() {
   return (

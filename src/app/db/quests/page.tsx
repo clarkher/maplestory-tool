@@ -3,12 +3,13 @@ import { Suspense } from "react";
 import { DbFallback } from "@/components/DbFallback";
 import { DB_HEADS } from "@/lib/db-heads";
 import { QuestDb } from "./QuestDb";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "任務資料｜條件、NPC、獎勵一次看",
   description: "新楓之谷經典版任務查詢：等級與職業條件、接任務與回報的 NPC 位置、要交的道具、要打的怪、完成獎勵與前置任務。",
   alternates: { canonical: "/db/quests" },
-};
+});
 
 export default function Page() {
   return (
