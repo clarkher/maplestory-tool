@@ -5,12 +5,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createFingerScroll, nextHeader, type HeaderMotion } from "@/lib/header-hide";
-import { activeNav, NAV } from "@/lib/nav";
+import { activeNav, navItems } from "@/lib/nav";
 import { MoonIcon, SunIcon } from "./Icons";
 
 export function SiteHeader() {
   const pathname = usePathname();
   const { headerRef, hidden, reveal } = useHideOnSwipe(pathname);
+  // 活動入口（楓葉衝卷）過期就收：第一次畫照建置時（0＝全部都在，跟伺服器畫的一樣），畫好後再照看的人的時鐘拿掉；每天兩次重建後建置時就不會有
+  const [now, setNow] = useState(0);
+  useEffect(() => setNow(Date.now()), []);
 
   return (
     // 手指往下滑時整條往上收，剛好收掉自己的高度：黏在它下面的那一列移一樣的距離，一起動、中間不裂開。
@@ -39,7 +42,7 @@ export function SiteHeader() {
 
         {/* 手機四顆：我的路線、攻略、地圖導航、查資料（v1.86；v1.18 起「算傷害」跟「練功測速」「楓幣匯率」一樣只在 768 寬以上出現）。v1.72（使用者選 1）：500 寬以下只留楓葉、四顆平分填滿，品牌字跟大按鈕 500 寬起才一起出現——原本 400 寬起就出現，400～487 寬把查資料擠出去；380 寬以下字 13px、按鈕左右 7px（360 寬才放得下）。v1.74：768～899 寬（平板直放）電腦版的按鈕全出來，品牌字留著、按鈕左右縮成 4px 再平分，不然查資料一樣被擠出去。每個寬度量過：scripts/verify/nav-fit.mjs */}
         <nav className="scroll-x -mx-1 flex flex-1 items-center gap-0.5 px-1 min-[500px]:gap-1" aria-label="主選單">
-          {NAV.map(item => {
+          {navItems(now).map(item => {
             const active = activeNav(pathname) === item.label;
             return (
               <Link

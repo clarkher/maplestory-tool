@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NAV, activeNav } from "@/lib/nav";
+import { NAV, activeNav, navItems } from "@/lib/nav";
 
 describe("導覽列哪一顆亮", () => {
   it("首頁亮「我的路線」", () => {
@@ -27,13 +27,13 @@ describe("導覽列哪一顆亮", () => {
   });
 
   it("電腦版順序：攻略排我的路線後面，地圖導航、查資料在最後", () => {
-    expect(NAV.map(item => item.label)).toEqual(["我的路線", "攻略", "算傷害", "練功測速", "楓幣匯率", "未來視", "地圖導航", "查資料"]);
+    expect(NAV.map(item => item.label)).toEqual(["我的路線", "攻略", "算傷害", "練功測速", "楓幣匯率", "未來視", "楓葉衝卷", "地圖導航", "查資料"]);
     expect(NAV.find(item => item.label === "攻略")?.href).toBe("/guides");
     expect(NAV.find(item => item.label === "地圖導航")?.href).toBe("/go");
   });
 
   it("算傷害、練功測速、楓幣匯率、未來視照舊只在電腦版，在自己那頁亮自己", () => {
-    expect(NAV.filter(item => item.desktopOnly).map(item => item.label)).toEqual(["算傷害", "練功測速", "楓幣匯率", "未來視"]);
+    expect(NAV.filter(item => item.desktopOnly).map(item => item.label)).toEqual(["算傷害", "練功測速", "楓幣匯率", "未來視", "楓葉衝卷"]);
     expect(activeNav("/plan/damage")).toBe("算傷害");
     expect(activeNav("/plan/speed")).toBe("練功測速");
     expect(activeNav("/price/fx")).toBe("楓幣匯率");
@@ -48,5 +48,12 @@ describe("導覽列哪一顆亮", () => {
   it("改版紀錄 /updates 開頭亮「攻略」（v1.94）", () => {
     expect(activeNav("/updates")).toBe("攻略");
     expect(activeNav("/updates/2.0.0")).toBe("攻略");
+  });
+
+  it("楓葉衝卷（v2.18 使用者選 1C）：活動期間電腦版才有、/plan/leaf 亮自己，12/17 00:00 起收掉", () => {
+    expect(activeNav("/plan/leaf")).toBe("楓葉衝卷");
+    expect(navItems(Date.parse("2026-12-16T23:59:59+08:00")).some(item => item.href === "/plan/leaf")).toBe(true);
+    expect(navItems(Date.parse("2026-12-17T00:00:00+08:00")).some(item => item.href === "/plan/leaf")).toBe(false);
+    expect(navItems(Date.parse("2026-12-17T00:00:00+08:00"))).toHaveLength(NAV.length - 1);
   });
 });
