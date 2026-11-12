@@ -2,6 +2,7 @@
  * 給搜尋引擎跟 AI 讀的東西：每一頁開頭那段話、頁面描述、結構化資料（JSON-LD）。
  * 只用資料裡有的欄位組句子，沒有的那半句就不寫，不補猜的內容。
  */
+import type { Metadata } from "next";
 import { formatNumber } from "./format";
 import { jobLabel } from "./item-view";
 import { monsterMaps } from "./monster-view";
@@ -15,6 +16,14 @@ export const TITLE_TEMPLATE = "%s｜楓之谷經典版｜楓谷幫手";
 export const SITE_NAME = "楓谷幫手";
 /** 頁面自己的 openGraph 會整包蓋掉 layout 的，要分享預覽圖的頁面把這包帶上 */
 export const OG_BASE = { type: "website" as const, locale: "zh_TW", siteName: SITE_NAME, images: [{ url: "/og.jpg", width: 1200, height: 630, alt: SITE_NAME }] };
+
+/**
+ * 固定頁（工具頁、清單頁）的 metadata 補上自己的 openGraph：沒寫的頁會沿用 layout 那份，
+ * 分享出去 og:title、og:url 都是首頁的（11/12 盤點 29 頁）。og 標題照單筆頁的寫法加站名，網址用 canonical。
+ */
+export function withOpenGraph<T extends Metadata & { title: string; description: string; alternates: { canonical: string } }>(meta: T): Metadata {
+  return { ...meta, openGraph: { ...OG_BASE, title: `${meta.title}｜${SITE_NAME}`, description: meta.description, url: meta.alternates.canonical } };
+}
 
 /** 文章日期 YYYY-MM-DD 加上台灣時區：只寫日期的話，搜尋引擎照自己的時區讀，可能差一天。給 og、JSON-LD；sitemap 的 lastmod、畫面照舊寫日期 */
 export const taiwanDateTime = (date: string) => `${date}T00:00:00+08:00`;

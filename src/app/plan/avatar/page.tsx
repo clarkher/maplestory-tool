@@ -3,12 +3,13 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { LoadingBlock } from "@/components/PlanShell";
 import { AvatarSim } from "./AvatarSim";
+import { withOpenGraph } from "@/lib/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withOpenGraph({
   title: "紙娃娃｜換髮型、臉型、點裝看穿起來的樣子",
   description: "選髮型、髮色、臉型、瞳色、膚色和 12 類裝備點裝，即時看角色穿起來長怎樣，可以隨機穿搭、下載透明背景圖、分享連結。",
   alternates: { canonical: "/plan/avatar" },
-};
+});
 
 export default function Page() {
   return (
