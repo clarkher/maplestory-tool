@@ -47,6 +47,62 @@ const RULES =
  */
 const SCENES = [
   {
+    // v2.26 波達系列：天空之城，波達等主人豪克
+    slug: "quest-line-3053",
+    base: { render: 200000000, crop: [400, 200, 480, 270], fill: "#cfe6f7" },
+    sprites: [
+      { file: "npcs/2012019.png", x: 0.36, y: 0.9, h: 0.22 },
+      { file: "npcs/2030012.png", x: 0.8, y: 0.9, h: 0.34 },
+    ],
+    idea: [
+      "Turn the scene into a bright floating sky city above the clouds: white and pale-blue stone buildings with domes, soft clouds below, clear morning light.",
+      "In the left-center sits the small dog from the sprite, keep its look, color and shape exactly like the sprite, waiting patiently at a doorway and looking up hopefully.",
+      "On the right stands the bearded explorer from the sprite with goggles on his hat and a big backpack, keep his look exactly like the sprite, reading an old map and not noticing the dog yet.",
+      "A young adventurer with short brown hair in a light tunic kneels beside the dog, gently patting it. A few small penguin-king fish shapes lie in a basket next to them. Warm, tender, hopeful mood.",
+    ].join(" "),
+  },
+  {
+    // v2.26 珍的挑戰：維多利亞港，煉金術士珍跟黑肥肥
+    slug: "quest-line-2010",
+    base: { render: 104000000, crop: [380, 60, 480, 270], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/1002100.png", x: 0.3, y: 0.9, h: 0.32 },
+      { file: "monster_frames/2230102.png", x: 0.72, y: 0.9, h: 0.24 },
+    ],
+    idea: [
+      "Turn the scene into a sunny harbor town by the sea: wooden docks, sailing ships, seagulls, red-roofed houses, blue water sparkling.",
+      "On the left stands the alchemist woman from the sprite, keep her hair, clothes and colors exactly like the sprite, at a small outdoor table full of colorful potion bottles and bubbling flasks.",
+      "On the right is the black wild boar monster from the sprite, keep its look like the sprite, snorting. A young adventurer with short brown hair in a light tunic runs toward the alchemist holding up a bundle of boar tusks and spiky mushroom caps.",
+      "Bright, adventurous, slightly comedic mood.",
+    ].join(" "),
+  },
+  {
+    // v2.26 維多利亞島任務總整理：弓箭手村一帶
+    slug: "quests-victoria",
+    base: { render: 104000000, crop: [0, 40, 540, 304], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/1002100.png", x: 0.2, y: 0.9, h: 0.22 },
+      { file: "npcs/2012019.png", x: 0.86, y: 0.9, h: 0.14 },
+    ],
+    idea: [
+      "Turn the scene into a wide panoramic view of a green fantasy island seen from a hilltop at golden hour: a harbor town, a forest village with giant trees, a rocky warrior town on cliffs, and a dark city in the distance, connected by winding dirt roads.",
+      "In the foreground a young adventurer with short brown hair in a light tunic stands at a signpost at a crossroads, holding a long rolled-out quest list scroll and looking out over the island, excited.",
+      "Keep the two small characters from the sprites as tiny friendly figures near the road, same look as the sprites. Warm, inviting, sense of many places to explore.",
+    ].join(" "),
+  },
+  {
+    // v2.26 龍騎士配點：龍穴，龍騎士對青龍
+    slug: "skill-build-spearman",
+    base: { render: 105090300, crop: [300, 900, 480, 270], fill: "#3b4a3a" },
+    sprites: [{ file: "monster_frames/5130100.png", x: 0.74, y: 0.88, h: 0.42 }],
+    idea: [
+      "Turn the scene into a dramatic dragon cave: dark rocky walls, glowing green crystals, mist and embers in the air.",
+      "On the right the blue dragon monster from the sprite, keep its look, color and shape exactly like the sprite, rears up and roars.",
+      "On the left a young dragon knight warrior with short dark hair in blue and silver armor holds a long spear with both hands, braced and calm, a faint blue dragon-shaped aura rising behind him.",
+      "Epic but clean, strong rim light on the knight, cool blue and green palette.",
+    ].join(" "),
+  },
+  {
     slug: "third-job",
     base: { render: 211000001, crop: [48, 330, 768, 432], fill: "#5a3e2b" },
     sprites: [

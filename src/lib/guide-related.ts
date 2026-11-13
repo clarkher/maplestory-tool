@@ -30,6 +30,11 @@ export const RELATED_RULES: Record<string, RelatedRule> = {
   // 誰都用得到
   "/guides/medals": { from: 8, to: 120, rank: 3 },
   "/guides/love-symbols": { from: 50, to: 120, rank: 4 },
+  // v2.26 系列任務、地區懶人包、職業配點：照接得到的等級
+  "/guides/quest-line-3053": { from: 30, to: 45, rank: 3 },
+  "/guides/quest-line-2010": { from: 25, to: 50, rank: 3 },
+  "/guides/quests-victoria": { from: 8, to: 70, rank: 2 },
+  "/guides/skill-build-spearman": { from: 10, to: 120, rank: 4 },
   "/updates": { from: 1, to: 120, rank: 5 },
 };
 
