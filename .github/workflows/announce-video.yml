@@ -10,6 +10,7 @@ on:
   workflow_run:
     workflows: ["官網公告追蹤"]
     types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       bulletin_id:
@@ -29,7 +30,8 @@ jobs:
   video:
     if: >-
       github.repository == 'clarkher/maplestory-tool' &&
-      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:

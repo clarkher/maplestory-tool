@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { run } from "./run.mjs";
+import { run, shortReason } from "./run.mjs";
 import { readVideoState } from "./lib/pick.mjs";
 
 const REPO = "clarkher/maplestory-tool";
@@ -12,12 +12,13 @@ const ROWS = [
   { bullentinId: "84004", title: "11/13 例行維護", startDate: "2026/11/12" },
 ];
 
-function deps({ body = "說明\n\n<!-- seen:84001,84002,84003 -->", makeFails = {}, env = {} } = {}) {
+function deps({ body = "說明\n\n<!-- seen:84001,84002,84003 -->", makeFails = {}, env = {}, failComment = false } = {}) {
   const log = [];
   let issueBody = body;
   const made = [];
   const call = async (method, url, payload) => {
     log.push({ method, url, payload });
+    if (method === "POST" && url.endsWith("/comments") && failComment) throw new Error("POST → HTTP 502：bad gateway");
     if (method === "GET" && url.includes("/issues?")) return [{ number: 313, body: issueBody }];
     if (method === "GET" && url.endsWith("/issues/313")) return { number: 313, body: issueBody + "\n<!-- fresh -->" };
     if (method === "POST" && url.endsWith("/comments")) return {};
@@ -105,4 +106,48 @@ test("run：沒有要做的就不 PATCH", async () => {
   await run(d.opts);
   assert.deepEqual(d.made, []);
   assert.ok(!d.log.some((c) => c.method === "PATCH"));
+});
+
+test("run：留言 POST 丟錯 → 照樣記狀態、PATCH 一次", async () => {
+  const d = deps({ failComment: true, body: "x\n\n<!-- video:84002=2 -->", makeFails: { 84002: { msg: "配音不過" } } });
+  await run(d.opts);
+  assert.equal(d.log.filter((c) => c.method === "PATCH").length, 1);
+  const s = readVideoState(d.body);
+  assert.deepEqual(s.get("84001"), { n: 0, done: true });
+  assert.deepEqual(s.get("84002"), { n: 3, done: false });
+  assert.deepEqual(s.get("84003"), { n: 0, done: true });
+});
+
+test("run：make 以外的錯（例如 release 失敗）也記次數；PATCH 本身在 finally", async () => {
+  const d = deps();
+  d.opts.upsertRelease = async () => { throw new Error("POST → HTTP 500"); };
+  await run(d.opts);
+  const s = readVideoState(d.body);
+  assert.deepEqual([...s.values()].map((v) => v.n), [1, 1, 1]);
+});
+
+test("run：超過時間預算就不開新的一則，已做的照記", async () => {
+  const d = deps();
+  let t = 0;
+  d.opts.clock = () => t;
+  d.opts.budgetMs = 100;
+  const make = d.opts.make;
+  d.opts.make = async (id) => { t += 150; return make(id); };
+  await run(d.opts);
+  assert.deepEqual(d.made, ["84001"]);
+  const s = readVideoState(d.body);
+  assert.deepEqual(s.get("84001"), { n: 0, done: true });
+  assert.equal(s.has("84002"), false);
+});
+
+test("run：BULLETIN_ID 不是數字就丟錯", async () => {
+  const d = deps({ env: { BULLETIN_ID: "84140;rm" } });
+  await assert.rejects(() => run(d.opts), /BULLETIN_ID/);
+  assert.deepEqual(d.made, []);
+});
+
+test("shortReason：只留前 3 行、最多 500 字", () => {
+  const e = new Error("Command failed: npx render\n\nline2\nline3\nline4 stderr 噪音");
+  assert.equal(shortReason(e), "Command failed: npx render / line2 / line3");
+  assert.equal(shortReason(new Error("x".repeat(900))).length, 500);
 });

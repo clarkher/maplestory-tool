@@ -13,8 +13,10 @@ function key() {
   return k;
 }
 
+const TIMEOUT_MS = 120_000;
+
 async function call(fetcher, url, init) {
-  const res = await fetcher(url, init);
+  const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Azure ${res.status}: ${String(await res.text()).slice(0, 300)}`);
   return res.json();
 }
@@ -48,26 +50,34 @@ export const SCRIPT_SCHEMA = {
   type: "object", additionalProperties: false,
   required: ["title", "subtitle", "ticker", "cards", "narration", "shortsNarration", "ytTitle", "description", "images"],
   properties: {
-    title: str, subtitle: str, ticker: strs,
+    title: str, subtitle: str,
+    ticker: { type: "array", description: "跑馬燈 2～4 則，每則「日期＋發生什麼」，例「11/05 維護後開賣」", items: str },
     cards: { type: "array", items: { type: "object", additionalProperties: false, required: ["big", "line"], properties: { big: str, line: str } } },
-    narration: strs, shortsNarration: strs, ytTitle: str, description: str, images: strs,
+    narration: { type: "array", description: "正片旁白；第 i 句（i < 卡片數）就是念出第 i 張卡片", items: str },
+    shortsNarration: { type: "array", description: "Shorts 旁白 4～6 句；前幾句對應同順序的卡片", items: str },
+    ytTitle: str, description: str, images: strs,
   },
 };
 
 const RULES = `你是「楓谷幫手」YouTube 頻道的公告快報編輯，觀眾是第一次看的台灣玩家。遊戲名稱寫「楓之谷經典版」。
 規則：
-1. 每個數字、日期、時間只能照抄「來源」，不可自己推算或改寫。
-2. 片頭標題 title 不超過 10 字；cards 每張 big（大字）不超過 8 字，line 是一句補充。
-3. narration（正片旁白）6～12 句，每句不超過 28 字；shortsNarration（Shorts 旁白）4～6 句。
-4. 繁體中文台灣用字，白話口語，不寫內部術語；講玩家拿得到什麼，不講機制。
-5. 不寫來源沒有的玩家評價或比較。
-6. description 第一行固定為 {{LINK}}（程式會換成連結），其後是簡短說明。
-7. images 只能從「可用圖片」清單挑，沒有就回空陣列。
-8. 若有「延伸閱讀」，可在旁白或說明提一次站內有這一頁可看，不帶任何數字；沒有「延伸閱讀」就完全不要提站內頁。
-9. 日期、數字一律寫阿拉伯數字（例：11/19、11月19日、3 張），不寫國字數字。`;
+1. 每個數字、日期、時間只能照抄「來源」，不可自己推算或改寫。日期旁邊的「維護後／維護前／幾點」一定要一起寫（來源寫「2026/11/05 維護後~2026/11/19 維護前」，就要寫「11/05 維護後」「11/19 維護前」）。
+2. 日期、數字一律寫阿拉伯數字（例：11/19、11月19日、3 張），不寫國字數字。
+3. 片頭標題 title 不超過 10 字；cards 2～5 張，每張 big（大字）不超過 8 字，line 是一句補充（不加句號）。
+4. 卡片跟旁白要成對：narration 第 i 句（i 小於卡片數）就是把 cards 第 i 張「念出來」，講同一件事；shortsNarration 前幾句也一樣對應同順序的卡片。卡片講完之後多的旁白配官方圖，可以補充細節。
+   例：cards = [{big:"喵喵管家登場", line:"閃亮彗星新外觀"}, {big:"11/19 維護前結束", line:"想要的別拖"}]
+       narration = ["閃亮彗星換新外觀了，這次是喵喵管家跟軟綿綿雪兔", "11/19 維護前就收掉，想要的別拖", …]
+5. narration（正片旁白）6～12 句、每句不超過 28 字；shortsNarration（Shorts 旁白）4～6 句。來源資訊少就寫少，不要用空話湊句數。
+6. 第一句直接講最大的重點，像 YouTuber 開場（例：「閃亮彗星換新外觀了，這次是喵喵管家跟軟綿綿雪兔」）。不要講「這次是快報」「歡迎收看」這種空話。台灣口語、短句、親切自然。
+7. ticker（跑馬燈）2～4 則，每則是「日期＋發生什麼」，例：「11/05 維護後開賣」「11/19 維護前結束」。不要放關鍵字清單。
+8. 繁體中文台灣用字，講玩家拿得到什麼，不講機制。禁用字詞：站內、快報、本公告、敬請期待。提到我們的網站一律寫「楓谷幫手網站」或「楓谷幫手的○○」。
+9. 不寫來源沒有的玩家評價或比較。
+10. description 第一行固定為 {{LINK}}（程式會換成連結），其後是簡短說明。
+11. images 只能從「可用圖片」清單挑，沒有就回空陣列。
+12. 若有「楓谷幫手網站可以看的頁面」，可在最後一兩句旁白或說明提一次，講好處（例：「想先看穿起來的樣子，楓谷幫手的紙娃娃可以直接試穿」），不帶任何數字；沒有就完全不要提網站。`;
 
 export async function writeScript({ title, startDate, sourceText, site, images = [] }, { fetcher = fetch } = {}) {
-  const ext = site ? `\n\n延伸閱讀（站內頁）：${site.title}——${site.summary}` : "";
+  const ext = site ? `\n\n楓谷幫手網站可以看的頁面：${site.title}——${site.summary}` : "";
   const imgs = images.length ? `\n\n可用圖片：\n${images.join("\n")}` : "";
   const text = `${RULES}\n\n公告標題：${title}\n公告日期：${startDate}\n\n來源：\n${sourceText}${ext}${imgs}`;
   const raw = await respond([{ type: "input_text", text }],

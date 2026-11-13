@@ -28,8 +28,12 @@ export function readVideoState(body) {
   return state;
 }
 
+const KEEP = 200;
+
+/** 只留 id 最大（最新）的 200 則，免得 issue 內文一直長 */
 export function writeVideoState(body, state) {
-  const text = [...state].map(([id, s]) => `${id}=${s.done ? "done" : s.n}`).join(",");
+  const keep = new Set([...state.keys()].sort((a, b) => Number(b) - Number(a)).slice(0, KEEP));
+  const text = [...state].filter(([id]) => keep.has(id)).map(([id, s]) => `${id}=${s.done ? "done" : s.n}`).join(",");
   const stripped = (body ?? "").replace(VIDEO, "");
   const comment = `<!-- video:${text} -->`;
   if (SEEN_AT_END.test(stripped)) return stripped.replace(SEEN_AT_END, `\n\n${comment}\n\n$1`);

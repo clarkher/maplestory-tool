@@ -59,13 +59,23 @@ export function filterScript(script, sourceText) {
   out.subtitle = keep(script.subtitle) ? script.subtitle : "";
   out.ticker = (script.ticker ?? []).filter(keep);
   out.ytTitle = keep(script.ytTitle) ? script.ytTitle : out.title;
-  out.cards = (script.cards ?? []).filter((c) => {
-    const ok = grounded(c.big, sourceText) && grounded(c.line, sourceText);
-    if (!ok) dropped.push(`${c.big} ${c.line}`);
+  // 卡片 i 跟旁白 i（正片、Shorts 都是）講同一件事：任一邊對不到來源，兩邊一起拿掉，畫面跟聲音才不會錯開
+  const cards = script.cards ?? [];
+  const narr = script.narration ?? [];
+  const shorts = script.shortsNarration ?? [];
+  const cardOk = cards.map((c) => grounded(c.big, sourceText) && grounded(c.line, sourceText));
+  const narrOk = narr.map((s) => grounded(s, sourceText));
+  const shortsOk = shorts.map((s) => grounded(s, sourceText));
+  const pairOk = cards.map((_, i) => cardOk[i] && (i >= narr.length || narrOk[i]) && (i >= shorts.length || shortsOk[i]));
+  cards.forEach((c, i) => { if (!pairOk[i]) dropped.push(`${c.big} ${c.line}`); });
+  const lineKeep = (list, okList) => list.filter((s, i) => {
+    const ok = okList[i] && (i >= cards.length || pairOk[i]);
+    if (!ok) dropped.push(s);
     return ok;
   });
-  out.narration = (script.narration ?? []).filter(keep);
-  out.shortsNarration = (script.shortsNarration ?? []).filter(keep);
+  out.cards = cards.filter((_, i) => pairOk[i]);
+  out.narration = lineKeep(narr, narrOk);
+  out.shortsNarration = lineKeep(shorts, shortsOk);
   out.description = String(script.description ?? "").split("\n").filter((l) => keep(l)).join("\n");
   return { script: out, dropped };
 }

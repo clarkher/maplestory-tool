@@ -49,6 +49,7 @@ const LAYOUTS = {
     height: 1080,
     headline: { base: 170, maxW: 1100 },
     card: { base: 150, maxW: 1100 },
+    cardLine: { size: 52, maxW: 1100 },
     segTitle: { base: 120, maxW: 1100 },
     cap: { base: 62, min: 44, maxW: 1536 },
     endUrl: { base: 150, maxW: 1500 },
@@ -71,6 +72,7 @@ const LAYOUTS = {
     height: 1920,
     headline: { base: 150, maxW: 864 },
     card: { base: 140, maxW: 864 },
+    cardLine: { size: 46, maxW: 864 },
     segTitle: { base: 96, maxW: 864 },
     cap: { base: 66, min: 46, maxW: 900 },
     endUrl: { base: 120, maxW: 900 },
@@ -231,6 +233,16 @@ function captionHtml(text, spec) {
   const w = Math.max(...lines.map(vlen), 1);
   const size = Math.max(spec.min, Math.min(spec.base, Math.floor(spec.maxW / w)));
   return { size, inner: lines.map((l) => `<span class="cap-line">${esc(l)}</span>`).join("") };
+}
+
+/**
+ * 卡片補充句：去句尾句號；放不下就自己切兩行（兩行長度平均、優先斷在標點），不讓瀏覽器折出單一個字的尾行。
+ * @returns {string}
+ */
+export function cardLineHtml(text, spec) {
+  const t = clean(text).trim().replace(/[。．]+$/u, "");
+  const lines = splitCaption(t, Math.floor(spec.maxW / spec.size)).map((l) => l.replace(/[，、；：,;:]+$/u, ""));
+  return lines.map((l) => `<span class="ln">${esc(l)}</span>`).join("");
 }
 
 function tickerHtml(items, L, durationSec) {
@@ -406,7 +418,7 @@ export async function composeProject(input, outDir, layout) {
     let inner;
     if (p.kind === "card") {
       const c = script.cards[p.index];
-      inner = `<div class="card">${titleBlock(clean(c.big), L.card, "big")}${c.line ? `<div class="line">${esc(clean(c.line))}</div>` : ""}</div>`;
+      inner = `<div class="card">${titleBlock(clean(c.big), L.card, "big")}${c.line ? `<div class="line">${cardLineHtml(c.line, L.cardLine)}</div>` : ""}</div>`;
     } else if (p.kind === "image") {
       const t = layout === "shorts" ? `<div class="seg-title">${titleBlock(title, L.segTitle, "headline")}</div>` : "";
       const b = imgBoxes[p.index];

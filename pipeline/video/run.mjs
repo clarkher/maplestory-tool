@@ -16,6 +16,15 @@ import { makeCall, upsertRelease as realUpsert, renderVideoComment, renderSkipCo
 
 const LABEL = "官方公告";
 const MAX_TRIES = 3;
+const BUDGET_MS = 35 * 60 * 1000; // workflow 上限 60 分，超過 35 分不開新的一則
+
+/** 留言用的失敗原因：前 3 行有字的、最多 500 字（render 失敗會帶一大串 stderr） */
+export function shortReason(err) {
+  const msg = String(err?.message ?? err ?? "不明錯誤");
+  const lines = msg.split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 3);
+  const t = lines.join(" / ");
+  return t.length > 500 ? `${t.slice(0, 499)}…` : t;
+}
 
 export async function run({
   env = process.env,
@@ -24,8 +33,11 @@ export async function run({
   call,
   fetchBulletins = realFetchBulletins,
   now = Date.now(),
+  clock = Date.now,
+  budgetMs = BUDGET_MS,
   log = console.log,
 } = {}) {
+  const started = clock();
   const repo = env.GITHUB_REPOSITORY ?? "clarkher/maplestory-tool";
   const dryRun = env.DRY_RUN === "true";
   const outBase = resolve(env.VIDEO_OUT ?? join(tmpdir(), "maplehelper-video-out"));
@@ -35,6 +47,7 @@ export async function run({
   // 手動測試：只做指定那則，不看 pending、不留言、不改 issue 狀態
   if (env.BULLETIN_ID) {
     const id = String(env.BULLETIN_ID).trim();
+    if (!/^\d+$/.test(id)) throw new Error(`BULLETIN_ID 要是數字：${id}`);
     const res = await make(id, { out: join(outBase, id) });
     log(`做好 ${id}：${res.title}`);
     if (dryRun) {
@@ -64,28 +77,47 @@ export async function run({
     return;
   }
 
-  for (const row of todo) {
-    const id = row.bullentinId;
-    try {
-      const res = await make(id, { out: join(outBase, id) });
-      const release = await upsertRelease(id, res.title, res.files, { call, repo });
-      await call("POST", `/repos/${repo}/issues/${issue.number}/comments`, { body: renderVideoComment({ title: res.title, row, release }) });
-      state.set(id, { n: 0, done: true });
-      log(`${id} 做好了：${release.htmlUrl}`);
-    } catch (err) {
-      const n = err?.permanent ? MAX_TRIES : (state.get(id)?.n ?? 0) + 1;
-      state.set(id, { n, done: false });
-      log(`${id} 失敗（第 ${n} 次）：${err?.message ?? err}`);
-      if (n >= MAX_TRIES) {
-        await call("POST", `/repos/${repo}/issues/${issue.number}/comments`, { body: renderSkipComment(row, err?.message ?? String(err)) });
+  let tried = 0;
+  try {
+    for (const row of todo) {
+      const id = row.bullentinId;
+      if (clock() - started > budgetMs) {
+        log(`已經跑超過 ${Math.round(budgetMs / 60000)} 分鐘，${id} 留給下一班`);
+        break;
+      }
+      tried++;
+      try {
+        const res = await make(id, { out: join(outBase, id) });
+        const release = await upsertRelease(id, res.title, res.files, { call, repo });
+        state.set(id, { n: 0, done: true });
+        log(`${id} 做好了：${release.htmlUrl}`);
+        try {
+          await call("POST", `/repos/${repo}/issues/${issue.number}/comments`, { body: renderVideoComment({ title: res.title, row, release }) });
+        } catch (err) {
+          log(`${id} 留言失敗（片已放在 release）：${shortReason(err)}`);
+        }
+      } catch (err) {
+        const n = err?.permanent ? MAX_TRIES : (state.get(id)?.n ?? 0) + 1;
+        const reason = shortReason(err);
+        state.set(id, { n, done: false });
+        log(`${id} 失敗（第 ${n} 次）：${reason}`);
+        if (n >= MAX_TRIES) {
+          try {
+            await call("POST", `/repos/${repo}/issues/${issue.number}/comments`, { body: renderSkipComment(row, reason) });
+          } catch (e) {
+            log(`${id} 留言失敗：${shortReason(e)}`);
+          }
+        }
       }
     }
+  } finally {
+    if (tried) {
+      // announce-watch 可能在做片這段時間改過 seen，PATCH 前重讀最新內文
+      const fresh = await call("GET", `/repos/${repo}/issues/${issue.number}`);
+      await call("PATCH", `/repos/${repo}/issues/${issue.number}`, { body: writeVideoState(fresh.body, state) });
+      log(`#${issue.number} 記好做片狀態`);
+    }
   }
-
-  // announce-watch 可能在做片這段時間改過 seen，PATCH 前重讀最新內文
-  const fresh = await call("GET", `/repos/${repo}/issues/${issue.number}`);
-  await call("PATCH", `/repos/${repo}/issues/${issue.number}`, { body: writeVideoState(fresh.body, state) });
-  log(`#${issue.number} 記好做片狀態`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

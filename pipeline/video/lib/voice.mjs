@@ -25,6 +25,7 @@ export async function synth(text, { fetcher = fetch } = {}) {
       audioConfig: { speakingRate: 1.2 },
       deliveryMode: "STABLE",
     }),
+    signal: AbortSignal.timeout(120_000),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");

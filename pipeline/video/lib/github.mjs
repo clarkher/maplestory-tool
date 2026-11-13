@@ -18,7 +18,9 @@ export function makeCall({ token, api = "https://api.github.com", fetcher = fetc
     };
     if (body !== undefined) headers["content-type"] = raw ? contentType ?? "application/octet-stream" : "application/json";
     const full = /^https?:\/\//.test(url) ? url : `${api}${url}`;
-    const response = await fetcher(full, { method, headers, body: body === undefined ? undefined : raw ? body : JSON.stringify(body) });
+    // 上傳大檔給 10 分鐘，其他 2 分鐘
+    const signal = AbortSignal.timeout(raw ? 600_000 : 120_000);
+    const response = await fetcher(full, { method, headers, body: body === undefined ? undefined : raw ? body : JSON.stringify(body), signal });
     if (!response.ok) throw new Error(`${method} ${url.split("?")[0]} → HTTP ${response.status}：${String(await response.text()).slice(0, 300)}`);
     return response.status === 204 ? null : response.json();
   };
