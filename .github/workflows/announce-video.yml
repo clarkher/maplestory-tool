@@ -2,7 +2,7 @@ name: 官網公告做片
 
 # 官網新公告（活動、商城外觀、改版／更新；維護、開機、制裁不做）自動做快報片：
 # 正片 1920×1080＋Shorts 1080×1920，用使用者的複製聲配音，放 GitHub prerelease（tag video-<公告id>，標題「待審｜…」），
-# 同時用「私人」上傳到楓谷幫手 YouTube 頻道（v2.24），在「官網公告追蹤」issue 留言附封面圖、下載連結跟 YouTube 工作室連結，使用者看完改公開。程式：pipeline/video/run.mjs。v2.22。
+# 同時公開上傳到楓谷幫手 YouTube 頻道（v2.24），在「官網公告追蹤」issue 留言附封面圖、下載連結跟 YouTube 工作室連結，使用者看完改公開。程式：pipeline/video/run.mjs。v2.22。
 # 接在「官網公告追蹤」（announce-watch.yml）成功跑完後面；每則最多試 3 次，公告超過 7 天不補做。
 # 手動做一則（不留言、不改 issue 狀態）：gh workflow run announce-video.yml -f bulletin_id=<id>
 
@@ -65,7 +65,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
           INWORLD_API_KEY: ${{ secrets.INWORLD_API_KEY }}
-          # 有這三個就把片私人上傳到楓谷幫手頻道（Google Cloud 專案 maplehelper-youtube）
+          # 有這三個就把片公開上傳到楓谷幫手頻道（Google Cloud 專案 maplehelper-youtube）
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}

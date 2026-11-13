@@ -4,7 +4,7 @@
 import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { bulletinUrl } from "../../announce/lib/bulletin.mjs";
-import { studioUrl } from "./youtube.mjs";
+import { studioUrl, watchUrl } from "./youtube.mjs";
 
 const TYPES = { ".mp4": "video/mp4", ".png": "image/png", ".txt": "text/plain; charset=utf-8", ".json": "application/json" };
 
@@ -87,9 +87,9 @@ function youtubeLines(youtube) {
   if (!youtube) return ["看完上傳到楓谷幫手頻道，標題說明欄在 youtube.txt。"];
   if (youtube.error) return [`YouTube 自動上傳失敗：${youtube.error}`, "", "看完手動上傳到楓谷幫手頻道，標題說明欄在 youtube.txt。"];
   return [
-    "已經用「私人」傳到楓谷幫手頻道，看完在 YouTube 工作室改成公開：",
-    `- 正片：${studioUrl(youtube.main)}`,
-    `- Shorts：${studioUrl(youtube.shorts)}`,
+    "已經公開在楓谷幫手頻道，有問題到 YouTube 工作室改私人或刪掉：",
+    `- 正片：${watchUrl(youtube.main)}（工作室 ${studioUrl(youtube.main)}）`,
+    `- Shorts：${watchUrl(youtube.shorts)}（工作室 ${studioUrl(youtube.shorts)}）`,
   ];
 }
 
