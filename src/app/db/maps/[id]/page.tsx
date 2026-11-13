@@ -5,8 +5,8 @@ import { AtlasCard, DoorRows, MobRows, NpcRows } from "@/components/atlas/rows";
 import { MapView } from "@/components/atlas/MapView";
 import { SeoPage } from "@/components/SeoPage";
 import { mapRenderImage } from "@/lib/asset-paths";
-import { doorList, levelRange, mapRouteText, mapSection, mapSummary, openShopCount } from "@/lib/atlas-view";
-import { breadcrumbLd, clip, OG_BASE, webPageLd } from "@/lib/seo";
+import { doorList, levelRange, mapRoute, mapSection, mapSummary, openShopCount } from "@/lib/atlas-view";
+import { aliasNote, breadcrumbLd, clip, mapTitle, OG_BASE, webPageLd } from "@/lib/seo";
 import { staticAtlasIndex, staticAtlasMaps, staticGraph, staticMapRenders, staticMaps, staticModified, staticNearestTown, staticNpcs } from "@/lib/static-data";
 import type { AtlasMap } from "@/lib/types";
 
@@ -28,14 +28,24 @@ function mapName(id: number): string | undefined {
 }
 
 /** 開頭那段話：路線放前面，搜尋結果顯示得到；不少玩家搜「○○怎麼去」 */
-function routeText(map: AtlasMap): string | null {
-  return mapRouteText(map.id, staticGraph(), staticMaps(), staticNearestTown());
+function routeOf(map: AtlasMap) {
+  return mapRoute(map.id, staticGraph(), staticMaps(), staticNearestTown());
 }
 
+/** 有別名（巫婆森林2、第一軍營）就寫在最前面，搜不同寫法也對得上（11/13 拍板 C） */
 function leadText(map: AtlasMap): string {
-  const route = routeText(map);
+  const route = routeOf(map)?.text;
   const summary = mapSummary(map, mapName);
-  return route ? `${route}${summary}` : summary;
+  const note = aliasNote(map.n);
+  if (route) return note ? `${map.n}${note}${route}${summary}` : `${route}${summary}`;
+  return note ? `${map.n}${note}。${summary}` : summary;
+}
+
+function titleText(map: AtlasMap): string {
+  const route = routeOf(map);
+  const mobs = [...map.mobs].sort((a, b) => b.k - a.k);
+  const from = route ? staticMaps()[String(route.town)]?.zh : undefined;
+  return mapTitle(map.n, mobs, route && from ? { from, steps: route.steps } : null);
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -45,7 +55,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = clip(leadText(map));
   return {
     // 寫不出路線的圖（城鎮自己、走不到）標題就不寫「怎麼去」
-    title: routeText(map) ? `${map.n}｜怎麼去、怪物、NPC` : `${map.n}｜怪物、NPC、傳送門`,
+    title: titleText(map),
     description,
     alternates: { canonical: path },
     openGraph: { ...OG_BASE, title: `${map.n}｜楓谷幫手`, description, url: path },
