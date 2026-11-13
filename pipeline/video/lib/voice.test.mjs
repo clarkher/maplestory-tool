@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, isAbsolute } from "node:path";
-import { synth, heardOk, voiceLines } from "./voice.mjs";
+import { synth, heardOk, voiceLines, spokenDates } from "./voice.mjs";
 
 test("heardOk：全形、大小寫、標點不影響", () => {
   assert.equal(heardOk("V002 開跑 10%", "v002開跑10％"), true);
@@ -89,4 +89,23 @@ test("voiceLines：三次都不過 → 「第 2 句配音不過：…」", async
     (e) => e.message === "第 2 句配音不過：第二句永遠錯誤",
   );
   assert.equal(calls, 4);
+});
+
+test("spokenDates：M/D、YYYY/M/D 念成「M月D日」，時間、小數、不合理日期不動", () => {
+  assert.equal(spokenDates("11/19 開跑，到 2026/12/03 23:59"), "11月19日 開跑，到 12月3日 23:59");
+  assert.equal(spokenDates("機率 1.5%，13/40 不是日期"), "機率 1.5%，13/40 不是日期");
+  assert.equal(spokenDates("沒有日期"), "沒有日期");
+});
+
+test("voiceLines：spoken 只改送去念跟比對的字，字幕 text 保留原文", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "vl-"));
+  const said = [];
+  const out = await voiceLines(["11/19 楓葉商會開跑"], dir, {
+    synth: async (t) => { said.push(t); return Buffer.from("a"); },
+    transcribe: async () => "十一月十九日楓葉商會開跑",
+    probe: async () => 2,
+    spoken: spokenDates,
+  });
+  assert.deepEqual(said, ["11月19日 楓葉商會開跑"]);
+  assert.equal(out[0].text, "11/19 楓葉商會開跑");
 });
