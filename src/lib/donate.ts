@@ -20,9 +20,14 @@ export const DONATE_METHOD_LABEL: Record<DonateMethod, string> = {
   linepay: "用 LINE Pay 付款",
 };
 
-/** 金額：快選三個，也可以自己填（整數 NT$30～10,000；超商代碼最低 30） */
-export const DONATE_PICKS = [50, 100, 300];
-export const DONATE_DEFAULT = 100;
+/** 金額：快選三個（11/13 使用者定的文案），也可以自己填（整數 NT$30～10,000；超商代碼最低 30） */
+/** 圖是站上寫手角色（紙娃娃）的 AI 重繪，scripts/donate-images.mjs 產的 */
+export const DONATE_PICKS: { amount: number; label: string; image: string }[] = [
+  { amount: 60, label: "一杯珍奶", image: "/assets/support/tea.webp" },
+  { amount: 150, label: "珍奶＋雞排", image: "/assets/support/chicken.webp" },
+  { amount: 200, label: "一頓麥當勞", image: "/assets/support/burger.webp" },
+];
+export const DONATE_DEFAULT = 150;
 export const DONATE_MIN = 30;
 export const DONATE_MAX = 10000;
 
