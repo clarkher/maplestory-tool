@@ -86,6 +86,12 @@ export default function Page() {
         網站分析只會記錄「點了贊助按鈕」這個事件（在哪點的、選哪種付款方式），不記金額，也不知道你最後有沒有付。
       </Block>
 
+      <Block title="YouTube 頻道">
+        楓谷幫手的 YouTube 頻道用 YouTube API 服務上傳我們自己做的影片。這個上傳工具只碰我們自己的頻道，不會讀取或保存你的 YouTube 資料。
+        使用 YouTube 時適用 <ExternalLink href="https://www.youtube.com/t/terms">YouTube 服務條款</ExternalLink> 與{" "}
+        <ExternalLink href="https://policies.google.com/privacy">Google 隱私權政策</ExternalLink>。
+      </Block>
+
       <Block title="第三方">
         <p>本站的網頁字型由 Google Fonts 在建置時取得並自行提供，瀏覽字型不會連到 Google。遊戲圖片與資料檔大多由本站自己提供。</p>
         <p className="mt-2">
