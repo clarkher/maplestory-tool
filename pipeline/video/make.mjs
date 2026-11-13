@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fetchDetail, extractContent } from "./lib/detail.mjs";
-import { filterScript, isUsable } from "./lib/facts.mjs";
+import { filterScript, isUsable, trimExtras } from "./lib/facts.mjs";
 import { sitePages, matchSitePage, utmUrl, withCta } from "./lib/site.mjs";
 import { ocrImage, writeScript, transcribe } from "./lib/llm.mjs";
 import { voiceLines, spokenDates } from "./lib/voice.mjs";
@@ -122,6 +122,10 @@ export async function make(id, { out = join(tmpdir(), "maplehelper-video-out", S
   }
   script.description = script.description.replace("{{LINK}}", utmUrl(page?.path ?? "/", id));
   if (!script.description.includes("maplehelper.tw")) script.description = `${utmUrl(page?.path ?? "/", id)}\n${script.description}`;
+  // 卡片後的補充句只留有數字日期的、最多 2 句（沒事實的多是空話）；都拿掉時結尾那句的畫面自然換成官方圖
+  const trimmed = trimExtras(script);
+  script = trimmed.script;
+  if (trimmed.dropped.length) log(`補充句沒有事實、拿掉 ${trimmed.dropped.length} 句：${trimmed.dropped.join("／")}`);
   // 結尾那句（正片、Shorts、說明欄）由程式加這頁的 cta，模型不准自己寫網站有什麼
   script = withCta(script, page);
   await writeFile(join(work, "script-final.json"), JSON.stringify(script, null, 2));

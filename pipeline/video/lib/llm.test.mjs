@@ -123,3 +123,11 @@ test("writeScript：卡片少了 say 就 reject；攤平後 narration[i] 就是�
   assert.deepEqual(s.shortsNarration, ["11/4 開賣", "短B", "多一句"]);
   assert.deepEqual(s.cards, [{ big: "11/4", line: "起販售" }, { big: "B", line: "L" }]);
 });
+
+test("RULES：跑馬燈動詞也照抄來源", async () => {
+  const { f, calls } = capture({ output_text: JSON.stringify(GOOD) });
+  await writeScript({ title: "T", startDate: "d", sourceText: "s" }, { fetcher: f });
+  const text = JSON.parse(calls[0].init.body).input[0].content[0].text;
+  assert.ok(text.includes("動詞也照抄來源"));
+  assert.ok(!text.includes("維護後開賣"));
+});

@@ -84,3 +84,24 @@ export function filterScript(script, sourceText) {
 export function isUsable(script) {
   return (script.cards?.length ?? 0) >= 2 && (script.narration?.length ?? 0) >= 4;
 }
+
+/**
+ * 卡片後面的補充句（不配卡片的那些）只留有事實的：至少要有一個數字／日期／時間，最多留 max 句。
+ * 沒事實的補充句多半是「這次重點就是…」這種重複前面的空話（84140 實例），整句拿掉。
+ * 回傳新的 script 跟被拿掉的句子。
+ * @param {Script} script
+ */
+export function trimExtras(script, max = 2) {
+  const n = script.cards?.length ?? 0;
+  const dropped = [];
+  const trim = (lines) => {
+    const head = lines.slice(0, n);
+    const kept = [];
+    for (const l of lines.slice(n)) {
+      if (factTokens(l).length && kept.length < max) kept.push(l);
+      else dropped.push(l);
+    }
+    return [...head, ...kept];
+  };
+  return { script: { ...script, narration: trim(script.narration ?? []), shortsNarration: trim(script.shortsNarration ?? []) }, dropped };
+}

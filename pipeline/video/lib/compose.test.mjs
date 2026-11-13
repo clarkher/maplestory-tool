@@ -228,3 +228,10 @@ test("splitCaption：不切開 11/21、13:00、KKTIX 這類英數串", () => {
   const j = lines.join("|");
   for (const tok of ["10/31", "13:00", "KKTIX"]) assert.ok(lines.some((l) => l.includes(tok)), j);
 });
+
+test("segmentPlan：補充句都拿掉、只剩結尾那句時，有官方圖就放官方圖（圖還是看得到）", () => {
+  // 3 張卡＋1 句結尾（cta）＋1 張官方圖
+  assert.deepEqual(segmentPlan(4, 3, 1).at(-1), { kind: "image", index: 0 });
+  // 沒有官方圖就停在最後一張卡
+  assert.deepEqual(segmentPlan(4, 3, 0).at(-1), { kind: "card", index: 2 });
+});
