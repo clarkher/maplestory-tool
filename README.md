@@ -653,7 +653,7 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | 事件 | 什麼時候送 | 參數 |
 |---|---|---|
 | `profile_set` | 存角色（拉等級停 1.5 秒才送一次） | `job`（職業名）、`level`、`level_band`（1-10、11-20…） |
-| `calc_result` | 傷害計算機玩家自己改過設定（停 1.5 秒）；衝卷模擬選好裝備＋卷軸 | `tool`（damage／scroll），damage 帶 `job`、`level`、`level_band`、`monster`；scroll 帶 `equip`、`scroll` |
+| `calc_result` | 傷害計算機玩家自己改過設定（停 1.5 秒）；衝卷模擬選好裝備＋卷軸；楓葉衝卷規劃器換武器或衝法 | `tool`（damage／scroll／leaf），damage 帶 `job`、`level`、`level_band`、`monster`；scroll 帶 `equip`、`scroll`；leaf 帶 `weapon`、`strategy`（pick／s70／s100） |
 | `db_search` | 查資料搜尋框停 1.5 秒 | `db`（怪物／任務…頁標題）、`query` |
 | `db_open` | 查資料從清單點開一筆 | `db`、`id`、`name` |
 | `detail_page_click` | 查資料卡片底下點「看完整刷怪點與相關任務」這類連到單獨頁那行（v2.08） | `from`（db/monsters…）、`page`（在哪一頁點）、`to`（點去哪，不帶 `?`）、`label`（連結字） |
