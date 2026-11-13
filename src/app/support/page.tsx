@@ -13,7 +13,7 @@ export const metadata: Metadata = withOpenGraph({
 export default function Page() {
   const methods = donateMethods();
   return (
-    <article className="space-y-5 py-6">
+    <article className="mx-auto max-w-2xl space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">贊助楓谷幫手</h1>
       {methods.length > 0 ? (
         // eslint-disable-next-line @next/next/no-img-element
