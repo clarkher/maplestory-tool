@@ -9,18 +9,18 @@ const DEFAULT_TITLE = "官方公告重點";
 
 const FULL = (s) =>
   s.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
-    .replace(/[．。](?=\d)/g, ".").replace(/％/g, "%").replace(/：/g, ":").replace(/／/g, "/");
+    .replace(/．(?=\d)/g, ".").replace(/％/g, "%").replace(/：/g, ":").replace(/／/g, "/");
 
 const okDate = (m, d) => m >= 1 && m <= 12 && d >= 1 && d <= 31;
 
-// 由左到右依序比：完整日期、M月D日、時間、M/D、M.D、一般數字
+// 由左到右依序比：完整日期、M月D日、時間、M/D、一般數字（小數點寫法 1.5 一律當數字，不當日期）
+// 注意：單獨的數字（月份、日、數量）只要來源有「相同數字」就算有據，對月份／日單獨宣稱的保護較弱
 const RE = new RegExp(
   [
     String.raw`(?<![\d])(\d{4})[/.\-年](\d{1,2})[/.\-月](\d{1,2})(?!\d)`,
     String.raw`(\d{1,2})月(\d{1,2})[日號]`,
     String.raw`(?<![\d:])(\d{1,2}):(\d{2})(?![\d:])`,
     String.raw`(?<![\d/])(\d{1,2})/(\d{1,2})(?![\d/])`,
-    String.raw`(?<![\d.])(\d{1,2})\.(\d{1,2})(?![\d.%])`,
     String.raw`\d+(?:\.\d+)?%?`,
   ].join("|"),
   "g",
@@ -37,10 +37,7 @@ export function factTokens(s) {
     } else if (m[4] !== undefined) out.push(`${+m[4]}/${+m[5]}`);
     else if (m[6] !== undefined) out.push(`${m[6].padStart(2, "0")}:${m[7]}`);
     else if (m[8] !== undefined) out.push(`${+m[8]}/${+m[9]}`);
-    else if (m[10] !== undefined) {
-      if (okDate(+m[10], +m[11])) out.push(`${+m[10]}/${+m[11]}`);
-      else out.push(m[0]);
-    } else out.push(m[0]);
+    else out.push(m[0]);
   }
   return out;
 }
@@ -61,6 +58,7 @@ export function filterScript(script, sourceText) {
   out.title = keep(script.title) ? script.title : DEFAULT_TITLE;
   out.subtitle = keep(script.subtitle) ? script.subtitle : "";
   out.ticker = (script.ticker ?? []).filter(keep);
+  out.ytTitle = keep(script.ytTitle) ? script.ytTitle : out.title;
   out.cards = (script.cards ?? []).filter((c) => {
     const ok = grounded(c.big, sourceText) && grounded(c.line, sourceText);
     if (!ok) dropped.push(`${c.big} ${c.line}`);
