@@ -71,9 +71,15 @@ async function ffprobeSec(file) {
 
 const okMD = (m, d) => m >= 1 && m <= 12 && d >= 1 && d <= 31;
 
-/** 念的時候把 M/D、YYYY/M/D 換成「M月D日」（字幕照原文；時間 23:59、小數 1.5 不動） */
+const okHM = (h, m) => h >= 0 && h <= 24 && m >= 0 && m <= 59;
+const hm = (h, m) => (+m === 0 ? `${+h}點` : `${+h}點${+m}分`);
+
+/** 念的時候把 M/D、YYYY/M/D 換成「M月D日」、HH:MM 換成「H點M分」、時間區間的 - 念「到」（字幕照原文；小數 1.5 不動） */
 export function spokenDates(text) {
   return String(text)
+    .replace(/(?<![\d:])(\d{1,2}):(\d{2})\s*[-－~～]\s*(\d{1,2}):(\d{2})(?![\d:])/g, (x, h1, m1, h2, m2) =>
+      okHM(+h1, +m1) && okHM(+h2, +m2) ? `${hm(h1, m1)}到${hm(h2, m2)}` : x)
+    .replace(/(?<![\d:])(\d{1,2}):(\d{2})(?![\d:])/g, (x, h, m) => (okHM(+h, +m) ? hm(h, m) : x))
     .replace(/(?<![\d/])\d{4}\/(\d{1,2})\/(\d{1,2})(?![\d/])/g, (m, mo, d) => (okMD(+mo, +d) ? `${+mo}月${+d}日` : m))
     .replace(/(?<![\d/.])(\d{1,2})\/(\d{1,2})(?![\d/])/g, (m, mo, d) => (okMD(+mo, +d) ? `${+mo}月${+d}日` : m));
 }

@@ -91,8 +91,8 @@ test("voiceLines：三次都不過 → 「第 2 句配音不過：…」", async
   assert.equal(calls, 4);
 });
 
-test("spokenDates：M/D、YYYY/M/D 念成「M月D日」，時間、小數、不合理日期不動", () => {
-  assert.equal(spokenDates("11/19 開跑，到 2026/12/03 23:59"), "11月19日 開跑，到 12月3日 23:59");
+test("spokenDates：M/D、YYYY/M/D 念成「M月D日」，小數、不合理日期不動", () => {
+  assert.equal(spokenDates("11/19 開跑，到 2026/12/03 23:59"), "11月19日 開跑，到 12月3日 23點59分");
   assert.equal(spokenDates("機率 1.5%，13/40 不是日期"), "機率 1.5%，13/40 不是日期");
   assert.equal(spokenDates("沒有日期"), "沒有日期");
 });
@@ -108,4 +108,17 @@ test("voiceLines：spoken 只改送去念跟比對的字，字幕 text 保留原
   });
   assert.deepEqual(said, ["11月19日 楓葉商會開跑"]);
   assert.equal(out[0].text, "11/19 楓葉商會開跑");
+});
+
+test("spokenDates：時間念成幾點幾分，區間念「到」", () => {
+  assert.equal(spokenDates("10:00 開放入場"), "10點 開放入場");
+  assert.equal(spokenDates("13:30 開始"), "13點30分 開始");
+  assert.equal(spokenDates("11:00-13:00 互動"), "11點到13點 互動");
+  assert.equal(spokenDates("11/19 23:59 截止"), "11月19日 23點59分 截止");
+});
+
+test("heardOk：短句裡的數字念成國字也算過", () => {
+  assert.equal(heardOk("10點 開放入場", "十點開放入場"), true);
+  assert.equal(heardOk("11月19日開始", "十一月十九日開始"), true);
+  assert.equal(heardOk("10點 開放入場", "十點開放入場十點開放入場十點開放入場"), false);
 });
