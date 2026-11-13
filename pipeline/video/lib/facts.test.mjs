@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { factTokens, grounded, filterScript, isUsable } from "./facts.mjs";
+import { factTokens, grounded, filterScript, isUsable, trimExtras } from "./facts.mjs";
 
 test("factTokens：日期、百分比、時間、千分位、全形", () => {
   const t = factTokens("11月19日開跑，12/9 最後掉幣，機率 0.5%");
@@ -99,4 +99,17 @@ test("filterScript：旁白對不到來源 → 配的卡片也拿掉", () => {
   const { script } = filterScript(s, "11/19");
   assert.deepEqual(script.cards.map((c) => c.big), ["換武器"]);
   assert.deepEqual(script.narration, ["硬幣換楓葉武器"]);
+});
+
+test("trimExtras：卡片後的補充句沒有數字日期就拿掉，最多留 2 句；卡片配的句子不動", () => {
+  const s = {
+    title: "t", subtitle: "", ticker: [], ytTitle: "t", description: "", images: [],
+    cards: [{ big: "新外觀", line: "喵喵管家" }, { big: "11/19 結束", line: "維護前" }],
+    narration: ["新外觀是喵喵管家", "11/19 維護前結束", "這波主題就是喵喵管家", "公告標題列出的內容，就是這次上架組合", "售票到 11/20 23:59", "10:00 開放入場", "18:00 散場"],
+    shortsNarration: ["喵喵管家", "11/19 結束", "這次組合是喵喵管家"],
+  };
+  const { script, dropped } = trimExtras(s);
+  assert.deepEqual(script.narration, ["新外觀是喵喵管家", "11/19 維護前結束", "售票到 11/20 23:59", "10:00 開放入場"]);
+  assert.deepEqual(script.shortsNarration, ["喵喵管家", "11/19 結束"]);
+  assert.ok(dropped.includes("這波主題就是喵喵管家") && dropped.includes("18:00 散場") && dropped.includes("這次組合是喵喵管家"));
 });
