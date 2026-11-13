@@ -57,6 +57,12 @@ describe("regionMarkdown", () => {
     }
   });
 
+  it("隨機給一樣的獎勵寫「隨機一樣（共 N 種）」，不寫成全部都給（珍和黑肥肥）", () => {
+    const row = md("victoria").table.split("\n").find(line => line.includes("/db/quests/2010)"))!;
+    expect(row).toMatch(/隨機一樣（共 \d+ 種）/);
+    expect(row).not.toMatch(/等 \d+ 樣/);
+  });
+
   it("summary 寫這區幾個任務、幾個必解", () => {
     expect(md("victoria").summary).toMatch(/\*\*\d+ 個任務\*\*/);
     expect(md("victoria").summary).toContain("必解");

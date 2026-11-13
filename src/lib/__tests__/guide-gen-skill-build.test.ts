@@ -59,6 +59,14 @@ describe("skillBuildMarkdown", () => {
     }
   });
 
+  it("others 每行名字不重複，跟主推同名的分得出來（槍騎兵三套都叫雙修）", () => {
+    const names = skillBuildMarkdown(130, guideOf, skillHref).others.split("\n").map(line => line.split("：")[0]);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names.every(name => name !== "- 槍騎兵・雙修")).toBe(true);
+    // 出處（玩家暱稱、網站）不進文章
+    expect(names.some(name => /[（(]/.test(name))).toBe(false);
+  });
+
   it("others 列同一轉的其他主流點法（槍騎兵二轉有 3 套主流）", () => {
     expect(skillBuildMarkdown(130, guideOf, skillHref).others.split("\n").filter(line => line.startsWith("- ")).length).toBeGreaterThanOrEqual(2);
   });

@@ -20,8 +20,14 @@ const BAND = 10;
 function rewardCell(quest: Quest): string {
   const items = quest.rewardItems ?? [];
   if (!items.length) return "";
-  const head = items.slice(0, 2).map(item => `${item.n}${item.c && item.c > 1 ? ` ×${item.c}` : ""}`).join("、");
-  return items.length > 2 ? `${head} 等 ${items.length} 樣` : head;
+  const name = (item: (typeof items)[number]) => `${item.n}${item.c && item.c > 1 ? ` ×${item.c}` : ""}`;
+  // rand＝一堆裡隨機給一樣，不能寫成「A、B 等 N 樣」讓人以為全部都拿得到
+  const fixed = items.filter(item => !item.rand);
+  const random = items.filter(item => item.rand);
+  const parts: string[] = [];
+  if (fixed.length) parts.push(`${fixed.slice(0, 2).map(name).join("、")}${fixed.length > 2 ? ` 等 ${fixed.length} 樣` : ""}`);
+  if (random.length) parts.push(random.length === 1 ? name(random[0]) : `隨機一樣（共 ${random.length} 種）`);
+  return parts.join("，");
 }
 
 export function regionMarkdown(

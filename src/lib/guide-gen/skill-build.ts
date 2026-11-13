@@ -62,7 +62,11 @@ export function skillBuildMarkdown(
     if (!guide || !build) continue;
     out[key] = stageTable(job, build, guideOf, prefer, skillHref);
     for (const other of guide.builds.filter(entry => entry.main && entry !== build)) {
-      others.push(`- ${guide.name}・${shortLabel(other.label)}：${buildRows(job, other, guideOf, prefer).slice(0, 5).map(row => row.text).join("、")}…${other.v === "legacy" ? " {{src:legacy}}" : ""}`);
+      // 短名字跟主推或前面一套撞名（槍騎兵三套都叫「雙修」）就寫第幾套；完整名字有玩家暱稱，不進文章
+      const short = `${guide.name}・${shortLabel(other.label)}`;
+      const same = (shortLabel(build.label) === shortLabel(other.label) ? 1 : 0) + others.filter(line => line.startsWith(`- ${short}`)).length;
+      const label = same ? `${short} 第 ${same + 1} 套` : short;
+      others.push(`- ${label}：${buildRows(job, other, guideOf, prefer).slice(0, 5).map(row => row.text).join("、")}…${other.v === "legacy" ? " {{src:legacy}}" : ""}`);
     }
   }
   out.others = others.join("\n");

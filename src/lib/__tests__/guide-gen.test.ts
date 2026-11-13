@@ -53,6 +53,9 @@ describe("文章裡的產生區塊跟資料一致", () => {
       const text = fs.readFileSync(path.join(DIR, file), "utf8");
       expect(text, `${slug} 還有骨架沒寫完的「<!-- 寫」`).not.toContain("<!-- 寫");
       const got = readGenSections(text);
+      // 人寫的字（標題、開頭、一分鐘看懂）提到「N 個任務」的，要跟 summary 算的一樣，資料變了才看得出來
+      const count = /\*\*(\d+) 個任務\*\*/.exec(want!.summary ?? "")?.[1];
+      if (count) for (const [, n] of text.replace(/<!-- gen:[\s\S]*?<!-- \/gen -->/g, "").matchAll(/(\d+) 個(?:一般)?任務/g)) expect(n, `${slug} 人寫的「${n} 個任務」跟資料（${count}）對不上`).toBe(count);
       for (const key of Object.keys(want!)) {
         expect(got[key], `${slug} 的 gen:${key} 跟現在資料不一樣，跑 npm run guide:gen 重產`).toBe(want![key]);
       }
