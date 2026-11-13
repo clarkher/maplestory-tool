@@ -206,6 +206,6 @@ describe("傑夫門檻", () => {
   it("mapRoute 給等級就擋、不給照走", () => {
     expect(mapRoute(4, graph, maps, nearestTown, 49)).toBeNull();
     expect(mapRoute(4, graph, maps, nearestTown)?.gate).toEqual({ npc: "傑夫", minLevel: 50 });
-    expect(mapRoute(2, graph, maps, nearestTown, 1)).toEqual({ text: "怎麼去：從弓箭手村出發，東邊森林。", town: 1 });
+    expect(mapRoute(2, graph, maps, nearestTown, 1)).toEqual({ text: "怎麼去：從弓箭手村出發，東邊森林。", town: 1, steps: 1 });
   });
 });

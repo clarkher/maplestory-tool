@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { doorList, mapHref, npcHref, labelSides, levelRange, mobCountNote, mapGroups, mapMatches, mapSearchText, mapRouteText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, openShopCount, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
+import { mapRoute, doorList, mapHref, npcHref, labelSides, levelRange, mobCountNote, mapGroups, mapMatches, mapSearchText, mapRouteText, mapSection, mapSummary, MOB_COLORS, mobColor, npcListRows, npcMatches, npcSummary, openShopCount, pinPercent, shopRows, showNpcLabels } from "@/lib/atlas-view";
 import type { AtlasMap, AtlasNpc, MapRecord, PortalEdge } from "@/lib/types";
 
 const map1020000: AtlasMap = {
@@ -97,6 +97,9 @@ describe("mapRouteText", () => {
 
   it("從最近的城鎮走到這張圖", () => {
     expect(mapRouteText(3, graph, maps, near)).toBe("怎麼去：從弓箭手村出發，東邊森林 → 猴子森林。");
+  });
+  it("回傳出發城鎮跟走幾張圖（標題用）", () => {
+    expect(mapRoute(3, graph, maps, near)).toMatchObject({ town: 1, steps: 2 });
   });
   it("NPC 傳送要寫找誰、幾等", () => {
     expect(mapRouteText(4, graph, maps, near)).toBe("怎麼去：從弓箭手村出發，東邊森林 → 猴子森林 → 找傑夫（Lv.50 以上） → 冰雪峽谷。");

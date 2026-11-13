@@ -131,7 +131,7 @@ export function mapRoute(
   maps: Record<string, MapRecord>,
   nearestTown: Record<string, [number, number]>,
   level?: number,
-): { text: string; town: number; gate?: { npc: string; minLevel: number } } | null {
+): { text: string; town: number; steps: number; gate?: { npc: string; minLevel: number } } | null {
   let town = suggestStart(graph, maps, nearestTown, target);
   // 自己也算城鎮的小區（寒冰平原、鯨魚號中央走廊）：改從它的回城點出發，還是寫得出路線
   const ret = maps[String(target)]?.ret;
@@ -156,7 +156,7 @@ export function mapRoute(
     ? [...steps.slice(0, 3).map(label), `…（共 ${steps.length} 張）`, ...steps.slice(-2).map(label)]
     : steps.map(label);
   const text = `怎麼去：從${maps[String(town)].zh}出發，${path.join(" → ")}。`;
-  return gate ? { text, town, gate } : { text, town };
+  return gate ? { text, town, steps: steps.length, gate } : { text, town, steps: steps.length };
 }
 
 /** 標籤放點的上面（up）或下面（down） */
