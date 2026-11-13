@@ -13,11 +13,12 @@ test("shouldMakeVideo：商城外觀、活動、改版做；維護、開機、�
   assert.equal(shouldMakeVideo("系統說明"), false);
 });
 
-test("shouldMakeVideo：只要有「維護」「異常」「修正」「補償」都不做，即使有改版／更新", () => {
+test("shouldMakeVideo：只要有「維護」「異常」「補償」都不做，即使有改版／更新", () => {
   assert.equal(shouldMakeVideo("V003 改版維護公告"), false);
   assert.equal(shouldMakeVideo("改版更新緊急維護"), false);
   assert.equal(shouldMakeVideo("【活動】異常修正說明"), false);
   assert.equal(shouldMakeVideo("活動異常修正說明"), false);
+  assert.equal(shouldMakeVideo("【更新】V003 改版更新及修正說明"), true);
   assert.equal(shouldMakeVideo("【活動】補償發放"), false);
   assert.equal(shouldMakeVideo("【活動】楓葉商會開張"), true);
 });
