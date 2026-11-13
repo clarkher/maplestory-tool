@@ -109,3 +109,4 @@ export function donateMethods(): ("ecpay" | "linepay")[] { ... } // 回傳有填
 5. 文案統一「請楓谷幫手喝杯珍奶」。
 6. 不做：工具頁入口（使用者照推薦，先不放）。
 7. **防灌**：`/api/donate/ecpay`、`/api/donate/linepay` 同一個位址一分鐘最多 5 次，超過回 `/support?status=failed`。計數放 Worker 記憶體（同一台機器內有效、不保證全域），擋的是狂按產生一堆過期付款單，不是資安邊界。
+8. **v2.25 防灌改用 Cloudflare 限流**：v2.24 的記憶體計數上測試機實測連按 7 次都過（每個請求可能落在不同 isolate），改成 `wrangler.jsonc` 的 `ratelimits` 綁定 `DONATE_LIMITER`，在 `cf/worker.ts` 擋開付款單的兩支；綠界背景通知、付完導回不擋。
