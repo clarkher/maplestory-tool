@@ -191,3 +191,53 @@ test("run：額度／權限錯誤（401、403、429）→ 整班停下，這則�
     assert.equal(s.has("84003"), false);
   }
 });
+
+async function ytFiles() {
+  const { mkdtemp, writeFile } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const dir = await mkdtemp(join(tmpdir(), "run-yt-"));
+  const txt = join(dir, "youtube.txt");
+  await writeFile(txt, "標題\n\n說明\n");
+  return [join(dir, "main.mp4"), join(dir, "shorts.mp4"), join(dir, "cover.png"), txt];
+}
+const YT_ENV = { YT_CLIENT_ID: "a", YT_CLIENT_SECRET: "b", YT_REFRESH_TOKEN: "c" };
+
+test("run：有 YouTube 秘密 → 私人上傳，留言附 YouTube 工作室連結", async () => {
+  const files = await ytFiles();
+  const d = deps({ body: "x\n\n<!-- seen:84003 -->", env: YT_ENV });
+  d.opts.fetchBulletins = async () => [ROWS[2]];
+  d.opts.make = async () => ({ title: "片", files });
+  const seen = [];
+  d.opts.uploadPair = async (a) => { seen.push(a); return { main: "M1", shorts: "S1" }; };
+  await run(d.opts);
+  assert.equal(seen.length, 1);
+  assert.match(seen[0].ytText, /^標題/);
+  assert.deepEqual(seen[0].creds, { clientId: "a", clientSecret: "b", refreshToken: "c" });
+  const c = d.log.find((x) => x.method === "POST" && x.url.endsWith("/comments")).payload.body;
+  assert.match(c, /studio\.youtube\.com\/video\/M1\/edit/);
+  assert.match(c, /studio\.youtube\.com\/video\/S1\/edit/);
+});
+
+test("run：YouTube 上傳失敗 → release、留言、done 照做，留言寫失敗原因", async () => {
+  const files = await ytFiles();
+  const d = deps({ body: "x\n\n<!-- seen:84003 -->", env: YT_ENV });
+  d.opts.fetchBulletins = async () => [ROWS[2]];
+  d.opts.make = async () => ({ title: "片", files });
+  d.opts.uploadPair = async () => { throw new Error("YouTube 上傳影片 → HTTP 403：quotaExceeded"); };
+  await run(d.opts);
+  assert.deepEqual(readVideoState(d.body).get("84003"), { n: 0, done: true });
+  const c = d.log.find((x) => x.method === "POST" && x.url.endsWith("/comments")).payload.body;
+  assert.match(c, /自動上傳失敗.*quotaExceeded/);
+});
+
+test("run：沒有 YouTube 秘密 → 不上傳，留言照舊請使用者自己傳", async () => {
+  const d = deps({ body: "x\n\n<!-- seen:84003 -->" });
+  d.opts.fetchBulletins = async () => [ROWS[2]];
+  let called = 0;
+  d.opts.uploadPair = async () => { called++; return {}; };
+  await run(d.opts);
+  assert.equal(called, 0);
+  const c = d.log.find((x) => x.method === "POST" && x.url.endsWith("/comments")).payload.body;
+  assert.match(c, /看完上傳到楓谷幫手頻道/);
+});
