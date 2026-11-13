@@ -38,18 +38,19 @@ function deps({ body = "說明\n\n<!-- seen:84001,84002,84003 -->", makeFails = 
         if (makeFails[id]) { const e = new Error(makeFails[id].msg); if (makeFails[id].permanent) e.permanent = true; throw e; }
         return { title: `片 ${id}`, files: [`/x/${id}/main.mp4`] };
       },
+      releaseExists: async () => false,
       upsertRelease: async (id) => ({ htmlUrl: `https://github.com/${REPO}/releases/tag/video-${id}`, assetUrls: { "cover.png": `https://x/video-${id}/cover.png` } }),
       log: () => {},
     },
   };
 }
 
-test("run：三則中第二則失敗 → 一、三 done，第二則 n=1，只 PATCH 一次，維護不做", async () => {
+test("run：三則中第二則失敗 → 一、三 done，第二則 n=1，每則做完各存一次＋最後一次，維護不做", async () => {
   const d = deps({ makeFails: { 84002: { msg: "配音不過" } } });
   await run(d.opts);
   assert.deepEqual(d.made, ["84001", "84002", "84003"]);
   const patches = d.log.filter((c) => c.method === "PATCH");
-  assert.equal(patches.length, 1);
+  assert.equal(patches.length, 4);
   const s = readVideoState(d.body);
   assert.deepEqual(s.get("84001"), { n: 0, done: true });
   assert.deepEqual(s.get("84003"), { n: 0, done: true });
@@ -108,10 +109,10 @@ test("run：沒有要做的就不 PATCH", async () => {
   assert.ok(!d.log.some((c) => c.method === "PATCH"));
 });
 
-test("run：留言 POST 丟錯 → 照樣記狀態、PATCH 一次", async () => {
+test("run：留言 POST 丟錯 → 照樣記狀態", async () => {
   const d = deps({ failComment: true, body: "x\n\n<!-- video:84002=2 -->", makeFails: { 84002: { msg: "配音不過" } } });
   await run(d.opts);
-  assert.equal(d.log.filter((c) => c.method === "PATCH").length, 1);
+  assert.ok(d.log.filter((c) => c.method === "PATCH").length >= 1);
   const s = readVideoState(d.body);
   assert.deepEqual(s.get("84001"), { n: 0, done: true });
   assert.deepEqual(s.get("84002"), { n: 3, done: false });
@@ -150,4 +151,43 @@ test("shortReason：只留前 3 行、最多 500 字", () => {
   const e = new Error("Command failed: npx render\n\nline2\nline3\nline4 stderr 噪音");
   assert.equal(shortReason(e), "Command failed: npx render / line2 / line3");
   assert.equal(shortReason(new Error("x".repeat(900))).length, 500);
+});
+
+test("run：每則做完就存狀態（第二則做到一半被殺，第一則已記 done）", async () => {
+  const d = deps();
+  let patchesAtSecond = null;
+  const make = d.opts.make;
+  d.opts.make = async (id) => {
+    if (id === "84002") patchesAtSecond = readVideoState(d.body).get("84001");
+    return make(id);
+  };
+  await run(d.opts);
+  assert.deepEqual(patchesAtSecond, { n: 0, done: true });
+});
+
+test("run：已經有完整發布頁 → 不重做、不留言，直接記 done", async () => {
+  const d = deps();
+  d.opts.releaseExists = async (tag) => tag === "video-84002";
+  await run(d.opts);
+  assert.deepEqual(d.made, ["84001", "84003"]);
+  assert.deepEqual(readVideoState(d.body).get("84002"), { n: 0, done: true });
+  const comments = d.log.filter((c) => c.method === "POST" && c.url.endsWith("/comments"));
+  assert.equal(comments.length, 2);
+});
+
+test("run：額度／權限錯誤（401、403、429）→ 整班停下，這則不扣次數、後面的不做", async () => {
+  for (const status of [401, 403, 429]) {
+    const d = deps();
+    const make = d.opts.make;
+    d.opts.make = async (id) => {
+      if (id === "84002") { const e = new Error(`Azure ${status}: quota`); e.status = status; throw e; }
+      return make(id);
+    };
+    await run(d.opts);
+    assert.deepEqual(d.made, ["84001"]);
+    const s = readVideoState(d.body);
+    assert.deepEqual(s.get("84001"), { n: 0, done: true });
+    assert.equal(s.has("84002"), false);
+    assert.equal(s.has("84003"), false);
+  }
 });

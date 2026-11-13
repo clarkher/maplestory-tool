@@ -30,6 +30,7 @@ test("fetchDetail：POST、回整理後的欄位", async () => {
   const d = await fetchDetail("84140", { fetcher });
   assert.equal(seen.url, "https://maplestoryclassic.beanfun.com/api/Bulletin/BulletinDetail?pbid=84140");
   assert.equal(seen.init.method, "POST");
+  assert.ok(seen.init.signal, "要有逾時 signal");
   assert.equal(seen.init.body, '{"pbid":84140}');
   assert.equal(d.id, "84140");
   assert.equal(typeof d.startDate, "string");

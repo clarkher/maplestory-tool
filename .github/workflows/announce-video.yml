@@ -49,10 +49,10 @@ jobs:
           node-version: "22"
 
       # pipeline/video 只用 Node 內建模組＋npx hyperframes，不用 npm ci
-      - name: 裝 ffmpeg 跟中文字型
+      - name: 裝 ffmpeg（字型由 ensureFonts 下載）
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk
+          sudo apt-get install -y -qq ffmpeg
 
       - name: 字型快取
         uses: actions/cache@v4

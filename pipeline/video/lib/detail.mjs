@@ -11,6 +11,7 @@ export async function fetchDetail(id, { fetcher = fetch } = {}) {
     method: "POST",
     headers: { "Content-Type": "application/json", "User-Agent": UA, Referer: REFERER },
     body: JSON.stringify({ pbid: Number(id) }),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`公告內文 HTTP ${response.status}`);
   const json = await response.json();

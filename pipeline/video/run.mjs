@@ -12,10 +12,11 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { fetchBulletins as realFetchBulletins } from "../announce/lib/bulletin.mjs";
 import { pendingVideos, readVideoState, writeVideoState } from "./lib/pick.mjs";
-import { makeCall, upsertRelease as realUpsert, renderVideoComment, renderSkipComment } from "./lib/github.mjs";
+import { makeCall, releaseExists as realReleaseExists, upsertRelease as realUpsert, renderVideoComment, renderSkipComment } from "./lib/github.mjs";
 
 const LABEL = "官方公告";
 const MAX_TRIES = 3;
+const QUOTA_STATUS = new Set([401, 403, 429]); // 金鑰失效／額度用完：整班停，不扣每則的次數
 const BUDGET_MS = 35 * 60 * 1000; // workflow 上限 60 分，超過 35 分不開新的一則
 
 /** 留言用的失敗原因：前 3 行有字的、最多 500 字（render 失敗會帶一大串 stderr） */
@@ -30,6 +31,7 @@ export async function run({
   env = process.env,
   make,
   upsertRelease = realUpsert,
+  releaseExists = realReleaseExists,
   call,
   fetchBulletins = realFetchBulletins,
   now = Date.now(),
@@ -77,6 +79,19 @@ export async function run({
     return;
   }
 
+  // 每則做完就存一次（job 被 timeout 殺掉也不會重做已完成的）；announce-watch 可能改過 seen，所以每次先重讀
+  const save = async () => {
+    const fresh = await call("GET", `/repos/${repo}/issues/${issue.number}`);
+    await call("PATCH", `/repos/${repo}/issues/${issue.number}`, { body: writeVideoState(fresh.body, state) });
+  };
+  const saveSafe = async () => {
+    try {
+      await save();
+    } catch (e) {
+      log(`存做片狀態失敗（最後還會再存一次）：${shortReason(e)}`);
+    }
+  };
+
   let tried = 0;
   try {
     for (const row of todo) {
@@ -87,6 +102,12 @@ export async function run({
       }
       tried++;
       try {
+        if (await releaseExists(`video-${id}`, { call, repo })) {
+          state.set(id, { n: 0, done: true });
+          log(`${id} 已經有發布頁了，不重做`);
+          await saveSafe();
+          continue;
+        }
         const res = await make(id, { out: join(outBase, id) });
         const release = await upsertRelease(id, res.title, res.files, { call, repo });
         state.set(id, { n: 0, done: true });
@@ -96,7 +117,12 @@ export async function run({
         } catch (err) {
           log(`${id} 留言失敗（片已放在 release）：${shortReason(err)}`);
         }
+        await saveSafe();
       } catch (err) {
+        if (QUOTA_STATUS.has(err?.status)) {
+          log(`${id} 遇到 HTTP ${err.status}（金鑰或額度問題），整班停下、這則不扣次數：${shortReason(err)}`);
+          break;
+        }
         const n = err?.permanent ? MAX_TRIES : (state.get(id)?.n ?? 0) + 1;
         const reason = shortReason(err);
         state.set(id, { n, done: false });
@@ -108,13 +134,12 @@ export async function run({
             log(`${id} 留言失敗：${shortReason(e)}`);
           }
         }
+        await saveSafe();
       }
     }
   } finally {
     if (tried) {
-      // announce-watch 可能在做片這段時間改過 seen，PATCH 前重讀最新內文
-      const fresh = await call("GET", `/repos/${repo}/issues/${issue.number}`);
-      await call("PATCH", `/repos/${repo}/issues/${issue.number}`, { body: writeVideoState(fresh.body, state) });
+      await save();
       log(`#${issue.number} 記好做片狀態`);
     }
   }
