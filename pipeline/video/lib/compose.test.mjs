@@ -1,0 +1,158 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, mkdir, writeFile, readFile, readdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { composeProject, computeTimings, segmentPlan, splitCaption, layoutDims } from "./compose.mjs";
+
+const SCRIPT = {
+  title: "楓葉商會 11/19 開跑",
+  subtitle: "19 把楓葉武器，打怪掉硬幣就能換",
+  ticker: ["最後掉幣 12/9", "最後能換 12/16"],
+  cards: [
+    { big: "11/19 開跑", line: "打怪掉楓葉硬幣" },
+    { big: "19 把武器", line: "硬幣拿去換楓葉武器" },
+  ],
+  narration: ["楓葉商會十一月十九日開跑。", "總共有十九把楓葉武器可以換。", "完整整理在楓谷幫手。"],
+  shortsNarration: ["楓葉商會開跑。"],
+  ytTitle: "楓葉商會 11/19 開跑",
+  description: "",
+  images: [],
+};
+
+async function fixture() {
+  const root = await mkdtemp(join(tmpdir(), "compose-test-"));
+  const src = join(root, "src");
+  const fonts = join(root, "fonts");
+  await mkdir(src, { recursive: true });
+  await mkdir(fonts, { recursive: true });
+  await writeFile(join(fonts, "NotoSansTC-Black.otf"), "x");
+  await writeFile(join(fonts, "NotoSansTC-Bold.otf"), "x");
+  const files = {};
+  for (const n of ["a.mp3", "b.mp3", "c.mp3", "s.mp3", "av1.png", "av2.png", "img1.jpg"]) {
+    files[n] = join(src, n);
+    await writeFile(files[n], "x");
+  }
+  const voice = [
+    { file: files["a.mp3"], text: SCRIPT.narration[0], sec: 2.0 },
+    { file: files["b.mp3"], text: SCRIPT.narration[1], sec: 3.0 },
+    { file: files["c.mp3"], text: SCRIPT.narration[2], sec: 1.5 },
+  ];
+  const shortsVoice = [{ file: files["s.mp3"], text: SCRIPT.shortsNarration[0], sec: 1.2 }];
+  return { root, fonts, files, voice, shortsVoice };
+}
+
+test("computeTimings：片頭 3 秒＋每句（秒數＋0.25）＋片尾 3 秒", () => {
+  const t = computeTimings([{ sec: 2.0 }, { sec: 3.0 }, { sec: 1.5 }]);
+  assert.equal(t.durationSec, 3 + (2 + 3 + 1.5) + 0.25 * 3 + 3);
+  assert.deepEqual(t.starts, [3, 5.25, 8.5]);
+});
+
+test("layoutDims：正片 1920×1080、Shorts 1080×1920", () => {
+  assert.deepEqual(layoutDims("main"), { width: 1920, height: 1080 });
+  assert.deepEqual(layoutDims("shorts"), { width: 1080, height: 1920 });
+  assert.throws(() => layoutDims("square"));
+});
+
+test("segmentPlan：先配卡片，再輪流配官方圖", () => {
+  assert.deepEqual(segmentPlan(5, 2, 2), [
+    { kind: "card", index: 0 },
+    { kind: "card", index: 1 },
+    { kind: "image", index: 0 },
+    { kind: "image", index: 1 },
+    { kind: "image", index: 0 },
+  ]);
+});
+
+test("segmentPlan：沒有官方圖就停在最後一張卡；連卡都沒有就放標題", () => {
+  assert.deepEqual(segmentPlan(3, 1, 0), [
+    { kind: "card", index: 0 },
+    { kind: "card", index: 0 },
+    { kind: "card", index: 0 },
+  ]);
+  assert.deepEqual(segmentPlan(2, 0, 0), [{ kind: "title" }, { kind: "title" }]);
+  assert.deepEqual(segmentPlan(2, 0, 1), [{ kind: "image", index: 0 }, { kind: "image", index: 0 }]);
+});
+
+test("splitCaption：短句一行，長句兩行且優先斷在標點後", () => {
+  assert.deepEqual(splitCaption("楓葉商會開跑", 14), ["楓葉商會開跑"]);
+  const two = splitCaption("楓葉商會十一月十九日開跑，打怪掉硬幣就能換楓葉武器", 14);
+  assert.equal(two.length, 2);
+  assert.equal(two[0], "楓葉商會十一月十九日開跑，");
+  assert.ok(splitCaption("一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十", 14).length <= 2);
+});
+
+test("splitCaption：不把數字或英文字從中間切開", () => {
+  for (const text of ["活動到 12/16 為止記得去換 maplehelper 看整理", "一二三四五六七八九十12/16一二三四五六七八九十"]) {
+    const lines = splitCaption(text, 12);
+    assert.equal(lines.length, 2);
+    const a = lines[0].trimEnd().slice(-1);
+    const b = lines[1].trimStart()[0];
+    assert.ok(!(/[0-9A-Za-z/.]/.test(a) && /[0-9A-Za-z/.]/.test(b)), lines.join("|"));
+    assert.equal(lines.join("").replace(/\s/g, ""), text.replace(/\s/g, ""));
+  }
+});
+
+for (const layout of ["main", "shorts"]) {
+  test(`composeProject（${layout}）：時長、字幕時間、音檔、尺寸、沒有禁用字元`, async () => {
+    const { root, fonts, files, voice, shortsVoice } = await fixture();
+    const outDir = join(root, "out-" + layout);
+    const r = await composeProject(
+      {
+        script: SCRIPT,
+        voice,
+        shortsVoice,
+        images: [files["img1.jpg"]],
+        avatars: [files["av1.png"], files["av2.png"]],
+        date: "11/12",
+        fonts,
+      },
+      outDir,
+      layout,
+    );
+    const lines = layout === "main" ? voice : shortsVoice;
+    const t = computeTimings(lines);
+    assert.equal(r.dir, outDir);
+    assert.equal(r.durationSec, t.durationSec);
+
+    const html = await readFile(join(outDir, "index.html"), "utf8");
+    const dims = layoutDims(layout);
+    assert.match(html, new RegExp(`id="root"[^>]*data-duration="${t.durationSec}"`));
+    assert.match(html, new RegExp(`data-width="${dims.width}"[^>]*data-height="${dims.height}"`));
+
+    const capStarts = [...html.matchAll(/<div[^>]*class="[^"]*\bcap\b[^"]*"[^>]*data-start="([\d.]+)"/g)].map((m) => Number(m[1]));
+    assert.deepEqual(capStarts, t.starts);
+    for (let i = 1; i < capStarts.length; i++) assert.ok(capStarts[i] > capStarts[i - 1]);
+    const capDurs = [...html.matchAll(/<div[^>]*class="[^"]*\bcap\b[^"]*"[^>]*data-duration="([\d.]+)"/g)].map((m) => Number(m[1]));
+    assert.deepEqual(capDurs, lines.map((l) => l.sec));
+
+    const audios = [...html.matchAll(/<audio[^>]*id="(vo-\d+)"[^>]*src="(assets\/[^"]+)"[^>]*data-start="([\d.]+)"/g)];
+    assert.equal(audios.length, lines.length);
+    assert.deepEqual(audios.map((a) => Number(a[3])), t.starts);
+    for (const a of audios) await readFile(join(outDir, a[2]));
+
+    assert.ok(!/[⌀-⏿■-◿]/u.test(html), "有 U+2300–23FF 或 U+25A0–25FF");
+    assert.ok(![...html].some((c) => c.codePointAt(0) >= 0x1f300), "有 U+1F300 以上字元");
+    assert.ok(!/src="\//.test(html), "素材路徑不能用 / 開頭");
+    assert.match(html, /@font-face/);
+
+    const assets = await readdir(join(outDir, "assets"));
+    for (const n of ["brand-emblem.png", "map.webp"]) assert.ok(assets.includes(n), n);
+    const fontFiles = await readdir(join(outDir, "assets", "fonts"));
+    assert.deepEqual(fontFiles.sort(), ["NotoSansTC-Black.otf", "NotoSansTC-Bold.otf"]);
+    assert.ok(html.includes("maplehelper.tw"));
+    assert.ok(html.includes("官方公告 11/12"));
+  });
+}
+
+test("imageSize：讀 PNG、JPEG 檔頭的長寬，讀不到回 null", async () => {
+  const { imageSize } = await import("./compose.mjs");
+  const png = Buffer.alloc(32);
+  png.writeUInt32BE(0x89504e47, 0);
+  png.writeUInt32BE(900, 16);
+  png.writeUInt32BE(450, 20);
+  assert.deepEqual(imageSize(png), { w: 900, h: 450 });
+  const jpg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x00, 0x00, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x01, 0x2c, 0x02, 0x58, 0x03, 0, 0, 0, 0]);
+  assert.deepEqual(imageSize(jpg), { w: 600, h: 300 });
+  assert.equal(imageSize(Buffer.from("nope")), null);
+});
