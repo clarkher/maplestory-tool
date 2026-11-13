@@ -5,13 +5,14 @@ import { factTokens, grounded, filterScript, isUsable } from "./facts.mjs";
 test("factTokens：日期、百分比、時間、千分位、全形", () => {
   const t = factTokens("11月19日開跑，12/9 最後掉幣，機率 0.5%");
   assert.ok(t.includes("11/19") && t.includes("12/9") && t.includes("0.5%"));
-  for (const s of ["11/19", "11月19日", "2026/11/19", "11.19"]) assert.ok(factTokens(s).includes("11/19"), s);
+  for (const s of ["11/19", "11月19日", "2026/11/19"]) assert.ok(factTokens(s).includes("11/19"), s);
   assert.deepEqual(factTokens("11/19～12/16").filter((x) => x.includes("/")), ["11/19", "12/16"]);
   assert.ok(factTokens("每天 14:00 開始").includes("14:00"));
   assert.ok(factTokens("1,000 個").includes("1000"));
   assert.deepEqual(factTokens("０．５％"), ["0.5%"]);
   assert.ok(factTokens("2026 年").includes("2026"));
-  assert.ok(factTokens("1.5 倍").length === 1);
+  assert.deepEqual(factTokens("1.5 倍"), ["1.5"]);
+  assert.deepEqual(factTokens("11.09"), ["11.09"]);
 });
 
 test("grounded：來源有才算；沒數字的句子永遠算", () => {
@@ -53,4 +54,25 @@ test("isUsable：cards>=2 且 narration>=4", () => {
   assert.equal(isUsable(ok), true);
   assert.equal(isUsable({ cards: [1], narration: [1, 2, 3, 4] }), false);
   assert.equal(isUsable({ cards: [1, 2], narration: [1, 2, 3] }), false);
+});
+
+test("小數不當日期：互不相通", () => {
+  assert.equal(grounded("1.5 倍", "1月5日"), false);
+  assert.equal(grounded("1月5日", "1.5 倍"), false);
+  assert.equal(grounded("3.5 倍", "3月5日"), false);
+  assert.equal(grounded("1.5", "1.05"), false);
+  assert.equal(grounded("11.9", "11.09"), false);
+  assert.equal(grounded("1.5 倍", "活動 1.5 倍"), true);
+});
+
+test("全形句號不造小數", () => {
+  const t = factTokens("限量100。5天後");
+  assert.ok(t.includes("100") && t.includes("5") && !t.includes("100.5"));
+});
+
+test("filterScript：ytTitle 編造換成（已過濾的）title", () => {
+  const s = base(); s.ytTitle = "12/20 結束！";
+  const { script, dropped } = filterScript(s, "活動 11/19 起，送 5 個");
+  assert.equal(script.ytTitle, "標題");
+  assert.ok(dropped.includes("12/20 結束！"));
 });
