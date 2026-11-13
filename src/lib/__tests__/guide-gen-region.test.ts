@@ -5,12 +5,11 @@ import { describe, expect, it } from "vitest";
 import { isLineQuest, questLines } from "@/lib/guide-gen/quest-lines";
 import { REGIONS, regionMarkdown } from "@/lib/guide-gen/region-quests";
 import { mustDoIndex } from "@/lib/route-planner";
-import { staticGuide, staticQuests } from "@/lib/static-data";
-import type { GuideCommon } from "@/lib/types";
+import { staticGuideCommon, staticQuests } from "@/lib/static-data";
 
 const quests = staticQuests();
 const lines = questLines(quests);
-const mustDo = mustDoIndex(staticGuide("common") as unknown as GuideCommon);
+const mustDo = mustDoIndex(staticGuideCommon());
 const region = (slug: string) => REGIONS.find(entry => entry.slug === slug)!;
 const linked = new Set(["3053"]);
 const lineHref = (lineId: string) => (linked.has(lineId) ? `/guides/quest-line-${lineId}` : undefined);
