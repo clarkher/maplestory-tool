@@ -53,3 +53,16 @@ export function donateStatus(search: string): DonateStatus | null {
   const value = new URLSearchParams(search).get("status");
   return value && value in DONATE_STATUS_TEXT ? (value as DonateStatus) : null;
 }
+
+/** 付好了（v2.24）：thanks＝付完、issued＝ATM／超商繳費資料產生了。這兩種才送 GA donate_paid、頁面換成謝謝 */
+export function isPaidStatus(status: DonateStatus): boolean {
+  return status === "thanks" || status === "issued";
+}
+
+/** 付完導回來的網址（v2.24）：?status=…&method=…，method 不認得就當 null */
+export function donateReturn(search: string): { status: DonateStatus; method: DonateMethod | null } | null {
+  const status = donateStatus(search);
+  if (!status) return null;
+  const method = new URLSearchParams(search).get("method");
+  return { status, method: method === "ecpay" || method === "linepay" ? method : null };
+}

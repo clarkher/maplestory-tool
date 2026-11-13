@@ -8,6 +8,6 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request): Promise<Response> {
   const keys = ecpayKeys();
   const fields = await formFields(request);
-  if (!keys || !fields || !verifyCheckMac(fields, keys)) return backToSupport(request, "failed");
-  return backToSupport(request, ecpayResultStatus(fields.RtnCode));
+  if (!keys || !fields || !verifyCheckMac(fields, keys)) return backToSupport(request, "failed", "ecpay");
+  return backToSupport(request, ecpayResultStatus(fields.RtnCode), "ecpay");
 }

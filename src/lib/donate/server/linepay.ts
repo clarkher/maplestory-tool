@@ -37,7 +37,7 @@ export function requestBody(input: { tradeNo: string; amount: number; origin: st
   });
 }
 
-type LinePayReply = { returnCode?: string; info?: { paymentUrl?: { web?: string } } };
+type LinePayReply = { returnCode?: string; info?: { paymentUrl?: { web?: string } } | unknown[] };
 
 async function call(api: string, keys: LinePayKeys, apiPath: string, body: string): Promise<LinePayReply | null> {
   try {
@@ -48,15 +48,33 @@ async function call(api: string, keys: LinePayKeys, apiPath: string, body: strin
   }
 }
 
+/** 付款紀錄（Payment Details API）：GET，簽章用查詢字串代替 body。查得到這筆＝已經付好了 */
+async function paid(api: string, keys: LinePayKeys, transactionId: string): Promise<boolean> {
+  const apiPath = "/v3/payments";
+  const query = `transactionId=${transactionId}`;
+  try {
+    const res = await fetch(`${api}${apiPath}?${query}`, { method: "GET", headers: linePayHeaders(keys, apiPath, query) });
+    const reply = (await res.json()) as LinePayReply;
+    return reply.returnCode === "0000" && Array.isArray(reply.info) && reply.info.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 /** 回 LINE Pay 付款頁網址；失敗回 null */
 export async function requestPayment(api: string, keys: LinePayKeys, input: { tradeNo: string; amount: number; origin: string }): Promise<string | null> {
   const reply = await call(api, keys, "/v3/payments/request", requestBody(input));
-  return reply?.returnCode === "0000" ? reply.info?.paymentUrl?.web ?? null : null;
+  const info = reply?.info;
+  return reply?.returnCode === "0000" && info && !Array.isArray(info) ? info.paymentUrl?.web ?? null : null;
 }
 
-/** 真的扣款；金額要跟 request 一樣，不一樣 LINE Pay 會拒絕 */
+/**
+ * 真的扣款；金額要跟 request 一樣，不一樣 LINE Pay 會拒絕。
+ * v2.24：付完重新整理、按上一頁會再 confirm 一次，LINE Pay 回錯誤碼——錢其實扣了。confirm 失敗就查付款紀錄，查得到算付好了。
+ */
 export async function confirmPayment(api: string, keys: LinePayKeys, transactionId: string, amount: number): Promise<boolean> {
   if (!/^\d{1,30}$/.test(transactionId)) return false;
   const reply = await call(api, keys, `/v3/payments/${transactionId}/confirm`, JSON.stringify({ amount, currency: "TWD" }));
-  return reply?.returnCode === "0000";
+  if (reply?.returnCode === "0000") return true;
+  return paid(api, keys, transactionId);
 }

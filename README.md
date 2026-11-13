@@ -433,7 +433,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   測試機放沙盒（綠界公開測試商店 3002607、LINE Pay 沙盒 `~/.ecpay-secrets/_linepay-sandbox.json`），正式機放正式（`~/.ecpay-secrets/pipicards.json` 的 `payment`、`linepay`，跟姓名學同一組商店）；
   用 `node -e` 讀 JSON 直接 pipe 進 `wrangler secret put`，不印。`APP_ENV=production` 才打兩家正式網址，其他打沙盒。
   付款流程：`/support` 表單 POST `/api/donate/ecpay`（回自動送出頁到綠界 AIO）或 `/api/donate/linepay`（v3 request 拿付款網址 303 過去）；
-  綠界背景通知 `/api/donate/ecpay/notify` 驗章回 `1|OK`、付完導回 `/api/donate/ecpay/result`；LINE Pay 導回 `/api/donate/linepay/confirm` 打 confirm 才扣款。
+  綠界背景通知 `/api/donate/ecpay/notify` 驗章回 `1|OK`、付完導回 `/api/donate/ecpay/result`；LINE Pay 導回 `/api/donate/linepay/confirm` 打 confirm 才扣款。v2.24：confirm 失敗（付完重新整理、按上一頁又送一次）就查付款紀錄 `GET /v3/payments?transactionId=`，查得到算付好；導回 `/support` 帶 `?status=…&method=…`；兩個付款端點同一個位址一分鐘最多 5 次（Worker 記憶體計數，擋狂按，不是資安邊界）。
   都回 `/support?status=thanks|issued|cancel|failed`。不存資料庫，對帳看兩家後台。
   資料庫 11/03 使用者拍板**重建、舊的（Vercel 整合的 Neon）捨棄**：新 Neon 專案 `cold-river-55616355`（新加坡 `aws-ap-southeast-1`，`npx neon claim create` 建的，
   11/03 已認領進使用者的 Neon 帳號）。測試機用 `main` 分支、正式機用 `production` 分支（v1.38 開的，各自一份資料，測試機寫壞也碰不到正式機）；
@@ -682,6 +682,7 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `guild_download` | 公會徽章按「下載」 | — |
 | `guild_random` | 公會徽章按「隨機一個」 | — |
 | `donate_click` | 贊助（v2.22）：頁尾「贊助楓谷幫手」、攻略文結尾小卡「贊助」（進 /support）；/support 按付款按鈕 | `placement`（footer／guide_end／support_page）、`method`（ecpay／linepay；page＝只是進 /support）。轉換率＝`method` 是 ecpay／linepay 的次數 ÷ 同期間工作階段；有沒有真的付錢 GA 量不到，看綠界／LINE Pay 後台，報數字兩個分開寫 |
+| `donate_paid` | 贊助付完導回 /support（v2.24）：綠界付好或 ATM／超商取號、LINE Pay 確認成功；送完就把網址的 `?status=` 拿掉，重新整理不會重送 | `status`（thanks＝付完／issued＝取號了還沒繳）、`method`（ecpay／linepay／unknown）。「點了 → 真的付」＝`donate_paid` ÷ `donate_click`（method 是 ecpay／linepay）；網址可以手打，數字跟綠界／LINE Pay 後台對過才當真 |
 | `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃、公會徽章分享 | `page`（boss／speed／avatar／guild）、`method`（野王計時、紙娃娃、公會徽章 copy_link 複製連結；紙娃娃、公會徽章 share 系統分享（只有手機、平板；電腦一律 copy_link）；練功測速 copy_image／download_image） |
 
 外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。
