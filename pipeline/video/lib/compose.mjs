@@ -5,7 +5,7 @@
 //   接著 `npx hyperframes render` 在 dir 裡出 mp4。
 // 時長公式（寫死）：3 秒片頭 + Σ(每句秒數 + 0.25) + 3 秒片尾；第 i 句從 3 + Σ_{j<i}(sec_j + 0.25) 開始。
 // 字型不進 repo：ensureFonts() 第一次會從 noto-cjk 下載到快取資料夾；測試傳 fonts 選項就不下載。
-import { mkdir, copyFile, readFile, writeFile, stat } from "node:fs/promises";
+import { mkdir, copyFile, readFile, writeFile, rename, open } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname, extname } from "node:path";
@@ -20,7 +20,28 @@ export const END_SEC = 3;
 export const GAP_SEC = 0.25;
 
 const FONT_FILES = ["NotoSansTC-Black.otf", "NotoSansTC-Bold.otf"];
-const FONT_URL = "https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/TC/";
+// 釘在 noto-cjk 的固定 commit（2026-11-13 的 main），避免上游改檔造成每次出片字型不同
+const FONT_COMMIT = "f8d157532fbfaeda587e826d4cd5b21a49186f7c";
+const FONT_URL = `https://github.com/notofonts/noto-cjk/raw/${FONT_COMMIT}/Sans/SubsetOTF/TC/`;
+
+/** OTF 檔頭是 "OTTO"。 */
+function isOtf(buf) {
+  return buf.length >= 4 && buf.toString("ascii", 0, 4) === "OTTO";
+}
+
+async function fileIsOtf(file) {
+  if (!existsSync(file)) return false;
+  const fh = await open(file, "r");
+  try {
+    const { size } = await fh.stat();
+    if (size < 100_000) return false;
+    const head = Buffer.alloc(4);
+    await fh.read(head, 0, 4, 0);
+    return isOtf(head);
+  } finally {
+    await fh.close();
+  }
+}
 
 const LAYOUTS = {
   main: {
@@ -275,10 +296,15 @@ export async function ensureFonts(cacheDir = process.env.VIDEO_CACHE || join(tmp
   await mkdir(dir, { recursive: true });
   for (const name of FONT_FILES) {
     const file = join(dir, name);
-    if (existsSync(file) && (await stat(file)).size > 100_000) continue;
+    if (await fileIsOtf(file)) continue;
     const res = await fetcher(FONT_URL + name);
     if (!res.ok) throw new Error(`字型下載失敗 ${res.status}：${name}`);
-    await writeFile(file, Buffer.from(await res.arrayBuffer()));
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (!isOtf(buf)) throw new Error(`字型下載內容不是 OTF：${name}`);
+    // 先寫暫存名再改名，中途斷掉不會留下半個檔
+    const tmp = `${file}.${process.pid}.tmp`;
+    await writeFile(tmp, buf);
+    await rename(tmp, file);
   }
   return dir;
 }
@@ -297,6 +323,9 @@ export async function composeProject(input, outDir, layout) {
   const { script, date } = input;
   const lines = (layout === "shorts" ? input.shortsVoice : input.voice) || [];
   if (!lines.length) throw new Error(`${layout} 沒有旁白音檔`);
+  lines.forEach((l, i) => {
+    if (!Number.isFinite(l.sec) || l.sec <= 0) throw new Error(`第 ${i + 1} 句旁白秒數不對：${l.sec}`);
+  });
   const images = input.images || [];
   const avatars = (input.avatars || []).slice(0, 2);
   const publicDir = input.publicDir || PUBLIC_DIR;
@@ -307,6 +336,7 @@ export async function composeProject(input, outDir, layout) {
   // 素材
   const fontDir = input.fonts || (await ensureFonts());
   for (const f of FONT_FILES) await ensureCopied(join(fontDir, f), join(assets, "fonts", f));
+  await ensureCopied(join(TEMPLATE_DIR, "gsap.min.js"), join(assets, "gsap.min.js"));
   await ensureCopied(join(publicDir, "brand-emblem.png"), join(assets, "brand-emblem.png"));
   await ensureCopied(join(publicDir, "assets", "map_renders", "100000000.webp"), join(assets, "map.webp"));
   const avPaths = [];
@@ -423,6 +453,7 @@ export async function composeProject(input, outDir, layout) {
     segs,
     caps,
     avEnd,
+    hasAvatars: avPaths.length > 0,
     avShift: L.avShift && avEnd > OPEN_SEC ? L.avShift : null,
     tickerDist: tk.dist,
     bgPan: L.bgPan,

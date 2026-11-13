@@ -156,3 +156,46 @@ test("imageSize：讀 PNG、JPEG 檔頭的長寬，讀不到回 null", async () 
   assert.deepEqual(imageSize(jpg), { w: 600, h: 300 });
   assert.equal(imageSize(Buffer.from("nope")), null);
 });
+
+test("ensureFonts：下載內容不是 OTF（沒有 OTTO 檔頭）就拒絕，也不留檔", async () => {
+  const { ensureFonts } = await import("./compose.mjs");
+  const cache = await mkdtemp(join(tmpdir(), "fonts-bad-"));
+  const fetcher = async () => ({ ok: true, arrayBuffer: async () => new TextEncoder().encode("<html>not a font</html>").buffer });
+  await assert.rejects(() => ensureFonts(cache, { fetcher }), /不是 OTF/);
+  assert.deepEqual(await readdir(join(cache, "fonts")), []);
+});
+
+test("ensureFonts：OTTO 檔頭就寫進快取，網址釘在固定 commit", async () => {
+  const { ensureFonts } = await import("./compose.mjs");
+  const cache = await mkdtemp(join(tmpdir(), "fonts-ok-"));
+  const urls = [];
+  const body = Buffer.concat([Buffer.from("OTTO"), Buffer.alloc(200_000)]);
+  const fetcher = async (u) => (urls.push(u), { ok: true, arrayBuffer: async () => body.buffer.slice(body.byteOffset, body.byteOffset + body.length) });
+  const dir = await ensureFonts(cache, { fetcher });
+  assert.deepEqual((await readdir(dir)).sort(), ["NotoSansTC-Black.otf", "NotoSansTC-Bold.otf"]);
+  for (const u of urls) assert.match(u, /noto-cjk\/raw\/[0-9a-f]{40}\//);
+  await ensureFonts(cache, { fetcher: async () => { throw new Error("已快取不該再下載"); } });
+});
+
+test("composeProject：旁白秒數不是正數就丟錯", async () => {
+  const { root, fonts, files, voice, shortsVoice } = await fixture();
+  for (const bad of [0, -1, NaN, Infinity, undefined]) {
+    const v = voice.map((l, i) => (i === 1 ? { ...l, sec: bad } : l));
+    await assert.rejects(
+      () => composeProject({ script: SCRIPT, voice: v, shortsVoice, images: [], avatars: [files["av1.png"]], date: "11/12", fonts }, join(root, "bad"), "main"),
+      /秒數不對/,
+    );
+  }
+});
+
+test("composeProject：GSAP 用本機 assets/gsap.min.js（含授權註記），不連 CDN", async () => {
+  const { root, fonts, files, voice, shortsVoice } = await fixture();
+  const out = join(root, "gsap");
+  await composeProject({ script: SCRIPT, voice, shortsVoice, images: [], avatars: [], date: "11/12", fonts }, out, "main");
+  const html = await readFile(join(out, "index.html"), "utf8");
+  assert.match(html, /<script src="assets\/gsap\.min\.js"><\/script>/);
+  assert.ok(!/cdn\.jsdelivr|https?:\/\/[^"]*\.js/.test(html));
+  const js = await readFile(join(out, "assets", "gsap.min.js"), "utf8");
+  assert.match(js.slice(0, 400), /@license/);
+  assert.match(html, /"hasAvatars":false/);
+});

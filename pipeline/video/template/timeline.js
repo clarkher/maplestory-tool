@@ -19,13 +19,11 @@ tl.to("#open .open-in", { opacity: 0, duration: 0.2, ease: "power2.in" }, 2.78);
 gsap.utils.toArray("#avs .av").forEach((el, i) => {
   tl.fromTo(el, { opacity: 0, y: 90 }, { opacity: 1, y: 0, duration: 0.55, ease: "back.out(1.4)" }, 0.4 + i * 0.14);
 });
-if (D.avShift) {
+if (D.hasAvatars && D.avShift) {
   tl.to("#avs .avs-in", { scale: D.avShift.scale, x: D.avShift.x, y: D.avShift.y, duration: 0.5, ease: "power2.inOut" }, 2.85);
 }
-if (D.avEnd > 3) {
-  tl.to("#avs .avs-in", { opacity: 0, duration: 0.18, ease: "power2.in" }, D.avEnd - 0.2);
-} else {
-  tl.to("#avs .avs-in", { opacity: 0, duration: 0.18, ease: "power2.in" }, 2.78);
+if (D.hasAvatars) {
+  tl.to("#avs .avs-in", { opacity: 0, duration: 0.18, ease: "power2.in" }, (D.avEnd > 3 ? D.avEnd : 3) - 0.2);
 }
 
 // 右上品牌、跑馬燈
