@@ -8,6 +8,11 @@ import * as avatarShare from "../src/app/api/avatar/share/route";
 import * as bossEvents from "../src/app/api/boss/events/route";
 import * as bossIntervals from "../src/app/api/boss/intervals/route";
 import * as bossRooms from "../src/app/api/boss/rooms/route";
+import * as donateEcpay from "../src/app/api/donate/ecpay/route";
+import * as donateEcpayNotify from "../src/app/api/donate/ecpay/notify/route";
+import * as donateEcpayResult from "../src/app/api/donate/ecpay/result/route";
+import * as donateLinePay from "../src/app/api/donate/linepay/route";
+import * as donateLinePayConfirm from "../src/app/api/donate/linepay/confirm/route";
 import * as speedBoard from "../src/app/api/speed/board/route";
 import * as speedRuns from "../src/app/api/speed/runs/route";
 
@@ -20,6 +25,11 @@ export const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   "/api/boss/events": bossEvents,
   "/api/boss/intervals": bossIntervals,
   "/api/boss/rooms": bossRooms,
+  "/api/donate/ecpay": donateEcpay,
+  "/api/donate/ecpay/notify": donateEcpayNotify,
+  "/api/donate/ecpay/result": donateEcpayResult,
+  "/api/donate/linepay": donateLinePay,
+  "/api/donate/linepay/confirm": donateLinePayConfirm,
   "/api/speed/board": speedBoard,
   "/api/speed/runs": speedRuns,
 };

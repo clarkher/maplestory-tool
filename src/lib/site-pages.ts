@@ -35,6 +35,7 @@ export const SITE_PAGES: SitePage[] = [
   { path: "/db/npcs", name: "NPC 資料", what: "在哪、賣什麼、有哪些任務", priority: 0.7 },
   { path: "/about", name: "資料從哪來", what: "資料來源、更新方式與限制", priority: 0.5 },
   { path: "/contact", name: "聯絡我們", what: "回報錯誤、建議", priority: 0.3 },
+  { path: "/support", name: "贊助楓谷幫手", what: "自願贊助，用信用卡、ATM、超商代碼或 LINE Pay，不會解鎖任何功能", priority: 0.2 },
   { path: "/privacy", name: "隱私權政策", what: "", priority: 0.2 },
   { path: "/terms", name: "服務條款", what: "", priority: 0.2 },
 ];

@@ -22,7 +22,7 @@ function optedOut(search: string): boolean {
 /**
  * 畫面出來後才載 GA，不擋第一格；只有正式網域（或網址帶 ?ga_debug=1）才載，測試機不灌假流量。
  * v2.08 自己人不算：無頭 Chrome 驗收（navigator.webdriver，帶 ?ga_debug=1 照送）、開過一次 ?ga_off=1 的瀏覽器都不載。
- * 也在整頁聽點擊：連結標 data-ga（SeoPage 工具按鈕、查資料卡片連單獨頁）就送 linkClick 那筆事件。
+ * 也在整頁聽點擊：連結標 data-ga（SeoPage 工具按鈕、查資料卡片連單獨頁、贊助連結帶 data-placement）就送 linkClick 那筆事件。
  */
 export function GoogleAnalytics() {
   useEffect(() => {
@@ -32,7 +32,7 @@ export function GoogleAnalytics() {
     const onClick = (event: MouseEvent) => {
       const link = (event.target as Element | null)?.closest?.("a[data-ga]");
       if (!(link instanceof HTMLAnchorElement)) return;
-      const hit = linkClick(link.dataset.ga, window.location.pathname, link.getAttribute("href") ?? "", link.textContent ?? "");
+      const hit = linkClick(link.dataset.ga, window.location.pathname, link.getAttribute("href") ?? "", link.textContent ?? "", link.dataset.placement);
       if (hit) track(hit.name, hit.params);
     };
     document.addEventListener("click", onClick, true);

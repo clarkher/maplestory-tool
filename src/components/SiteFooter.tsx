@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { loadMeta } from "@/lib/data";
+import { donateMethods } from "@/lib/donate";
+import { footerLinks } from "@/lib/footer-links";
 import { dataSyncedText } from "@/lib/format";
 import type { Meta } from "@/lib/types";
 
@@ -36,10 +38,16 @@ export function SiteFooter() {
           </div>
 
           <nav className="flex flex-wrap gap-x-5 gap-y-2" aria-label="頁尾選單">
-            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/about">資料從哪來</Link>
-            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/privacy">隱私權政策</Link>
-            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/terms">服務條款</Link>
-            <Link className="ink-soft hover:text-[color:var(--ink)]" href="/contact">聯絡我們</Link>
+            {footerLinks(donateMethods().length > 0).map(link => (
+              <Link
+                key={link.href}
+                className="ink-soft hover:text-[color:var(--ink)]"
+                href={link.href}
+                {...(link.href === "/support" ? { "data-ga": "donate", "data-placement": "footer" } : {})}
+              >
+                {link.text}
+              </Link>
+            ))}
           </nav>
         </div>
       </div>

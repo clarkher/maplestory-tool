@@ -90,3 +90,11 @@ export function donateMethods(): ("ecpay" | "linepay")[] { ... } // 回傳有填
 - 分支 `feat/v2.22-donate`（從 `dev` 開），commit `v2.22: …`，PR → `dev`，合併後到測試機驗。
 - **上正式機要等使用者看過截圖、說可以**，再走 dev → main 發版（`--match-head-commit` 鎖 PR 頭）。
 - 上正式機後貼 https://maplehelper.tw/support 跟一篇攻略文網址。
+
+## 實作變更（11/13 實作時）
+
+- 使用者指示「我們不是都接過了，參考姓名學」：金鑰已在本機（`~/.ecpay-secrets/`，姓名學／屁TCG 同一組商店），**改走 API、不用後台付款連結**。
+  站上本來就有 Cloudflare Worker（練功測速、野王的 API），付款端點放在 `/api/donate/*`，金鑰是 Worker secret，仍然不進 repo、不進前端。
+  測試機打綠界／LINE Pay 沙盒，正式機打正式。細節見 README「秘密」那段、`src/lib/donate.ts`。
+- 因為有 API，`/support` 可以選金額（50／100／300 或自己填 30～10,000），兩家都不用另外產生連結；LINE Pay 不再卡「只能出 QR」。
+- 「連結空就不畫」改成 `DONATE_ENABLED` 開關，行為一樣。
