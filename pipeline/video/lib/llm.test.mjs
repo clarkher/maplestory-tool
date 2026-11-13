@@ -3,11 +3,17 @@ import assert from "node:assert/strict";
 import { writeFile, mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ocrImage, writeScript, transcribe } from "./llm.mjs";
+import { ocrImage, writeScript, transcribe, OCR_PROMPT } from "./llm.mjs";
 
 const GOOD = {
   title: "閃亮彗星", subtitle: "新外觀", ticker: ["11/4 起販售"],
-  cards: [{ big: "11/4", line: "起販售" }], narration: ["一句"], shortsNarration: ["一句"],
+  cards: [{ big: "11/4", line: "起販售", say: "11/4 起開賣", shortsSay: "11/4 開賣" }], moreNarration: ["補一句"], moreShorts: [],
+  ytTitle: "標題", description: "{{LINK}}\n內文", images: [],
+};
+// writeScript 攤平後：卡片念的那句排在 narration 最前面
+const FLAT = {
+  title: "閃亮彗星", subtitle: "新外觀", ticker: ["11/4 起販售"],
+  cards: [{ big: "11/4", line: "起販售" }], narration: ["11/4 起開賣", "補一句"], shortsNarration: ["11/4 開賣"],
   ytTitle: "標題", description: "{{LINK}}\n內文", images: [],
 };
 const respond = (body, ok = true, status = 200) => async () => ({
@@ -51,7 +57,7 @@ test("writeScript：解析 output_text JSON，prompt 含來源與延伸閱讀，
   const { f, calls } = capture({ output_text: JSON.stringify(GOOD) });
   const s = await writeScript({ title: "T", startDate: "2026-11-04", sourceText: "來源文字ABC",
     site: { path: "/plan/avatar", title: "紙娃娃", keywords: [], summary: "先看看" } }, { fetcher: f });
-  assert.deepEqual(s, GOOD);
+  assert.deepEqual(s, FLAT);
   const body = JSON.parse(calls[0].init.body);
   assert.equal(body.text.format.type, "json_schema");
   assert.equal(body.text.format.strict, true);
@@ -71,7 +77,7 @@ test("writeScript：缺欄位或型別錯 reject", async () => {
   await assert.rejects(writeScript({ title: "T", startDate: "d", sourceText: "s", site: null },
     { fetcher: respond({ output_text: JSON.stringify({ ...GOOD, cards: [{ big: "a" }] }) }) }), /cards/);
   await assert.rejects(writeScript({ title: "T", startDate: "d", sourceText: "s", site: null },
-    { fetcher: respond({ output_text: JSON.stringify({ ...GOOD, narration: [1] }) }) }), /narration/);
+    { fetcher: respond({ output_text: JSON.stringify({ ...GOOD, moreNarration: [1] }) }) }), /moreNarration/);
 });
 
 test("非 OK 回應 reject，含狀態碼", async () => {
@@ -101,4 +107,19 @@ test("writeScript：prompt 寫卡片旁白成對、跑馬燈日期＋事件、�
   for (const k of ["成對", "跑馬燈", "維護後", "禁用字詞：站內", "楓谷幫手網站", "阿拉伯數字"]) assert.ok(text.includes(k), k);
   assert.ok(!/延伸閱讀（站內頁）/.test(text));
   assert.ok(calls[0].init.signal instanceof AbortSignal);
+});
+
+test("OCR_PROMPT：要抄日期旁的維護後／維護前、同一行同一行", () => {
+  for (const k of ["維護後", "維護前", "同一行", "最小的字"]) assert.ok(OCR_PROMPT.includes(k), k);
+});
+
+test("writeScript：卡片少了 say 就 reject；攤平後 narration[i] 就是第 i 張卡片念的", async () => {
+  const noSay = { ...GOOD, cards: [{ big: "a", line: "b", shortsSay: "c" }] };
+  await assert.rejects(writeScript({ title: "T", startDate: "d", sourceText: "s", site: null },
+    { fetcher: respond({ output_text: JSON.stringify(noSay) }) }), /cards/);
+  const two = { ...GOOD, cards: [GOOD.cards[0], { big: "B", line: "L", say: "念B", shortsSay: "短B" }], moreShorts: ["多一句"] };
+  const s = await writeScript({ title: "T", startDate: "d", sourceText: "s", site: null }, { fetcher: respond({ output_text: JSON.stringify(two) }) });
+  assert.deepEqual(s.narration, ["11/4 起開賣", "念B", "補一句"]);
+  assert.deepEqual(s.shortsNarration, ["11/4 開賣", "短B", "多一句"]);
+  assert.deepEqual(s.cards, [{ big: "11/4", line: "起販售" }, { big: "B", line: "L" }]);
 });
