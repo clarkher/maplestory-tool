@@ -17,6 +17,8 @@
   },
   "services": [{ "binding": "ITEMS", "service": "maplehelper-items" }],
   "vars": { "APP_ENV": "production" },
+  // 贊助付款端點防灌（v2.25，cf/worker.ts donateBlocked）：同位址一分鐘 5 次；period 只能 10 或 60
+  "ratelimits": [{ "name": "DONATE_LIMITER", "namespace_id": "2501", "simple": { "limit": 5, "period": 60 } }],
   "observability": { "enabled": true },
   "env": {
     "dev": {
@@ -29,7 +31,8 @@
         "run_worker_first": ["/api/*", "/assets/items/*"]
       },
       "services": [{ "binding": "ITEMS", "service": "maplehelper-items-dev" }],
-      "vars": { "APP_ENV": "preview" }
+      "vars": { "APP_ENV": "preview" },
+      "ratelimits": [{ "name": "DONATE_LIMITER", "namespace_id": "2502", "simple": { "limit": 5, "period": 60 } }]
     }
   }
 }

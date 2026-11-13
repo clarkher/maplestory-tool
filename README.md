@@ -433,7 +433,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   測試機放沙盒（綠界公開測試商店 3002607、LINE Pay 沙盒 `~/.ecpay-secrets/_linepay-sandbox.json`），正式機放正式（`~/.ecpay-secrets/pipicards.json` 的 `payment`、`linepay`，跟姓名學同一組商店）；
   用 `node -e` 讀 JSON 直接 pipe 進 `wrangler secret put`，不印。`APP_ENV=production` 才打兩家正式網址，其他打沙盒。
   付款流程：`/support` 表單 POST `/api/donate/ecpay`（回自動送出頁到綠界 AIO）或 `/api/donate/linepay`（v3 request 拿付款網址 303 過去）；
-  綠界背景通知 `/api/donate/ecpay/notify` 驗章回 `1|OK`、付完導回 `/api/donate/ecpay/result`；LINE Pay 導回 `/api/donate/linepay/confirm` 打 confirm 才扣款。v2.24：confirm 失敗（付完重新整理、按上一頁又送一次）就查付款紀錄 `GET /v3/payments?transactionId=`，查得到算付好；導回 `/support` 帶 `?status=…&method=…`；兩個付款端點同一個位址一分鐘最多 5 次（Worker 記憶體計數，擋狂按，不是資安邊界）。
+  綠界背景通知 `/api/donate/ecpay/notify` 驗章回 `1|OK`、付完導回 `/api/donate/ecpay/result`；LINE Pay 導回 `/api/donate/linepay/confirm` 打 confirm 才扣款。v2.24：confirm 失敗（付完重新整理、按上一頁又送一次）就查付款紀錄 `GET /v3/payments?transactionId=`，查得到算付好；導回 `/support` 帶 `?status=…&method=…`；兩個付款端點同一個位址一分鐘最多 5 次——v2.25 起用 Cloudflare 限流綁定 `DONATE_LIMITER`（`wrangler.jsonc` 的 `ratelimits`、`cf/worker.ts` 的 `donateBlocked`；v2.24 放 Worker 記憶體，測試機連按 7 次都過，因為請求分到不同 isolate）。
   都回 `/support?status=thanks|issued|cancel|failed`。不存資料庫，對帳看兩家後台。
   資料庫 11/03 使用者拍板**重建、舊的（Vercel 整合的 Neon）捨棄**：新 Neon 專案 `cold-river-55616355`（新加坡 `aws-ap-southeast-1`，`npx neon claim create` 建的，
   11/03 已認領進使用者的 Neon 帳號）。測試機用 `main` 分支、正式機用 `production` 分支（v1.38 開的，各自一份資料，測試機寫壞也碰不到正式機）；

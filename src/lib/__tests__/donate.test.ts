@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { donateMethods, donateReturn, donateStatus, isPaidStatus, parseDonateAmount } from "../donate";
-import { backToSupport, clientIp, createRateLimiter } from "../donate/server/http";
+import { backToSupport } from "../donate/server/http";
 import { aioParams, autoSubmitPage, checkMacValue, ecpayResultStatus, newTradeNo, verifyCheckMac } from "../donate/server/ecpay";
 import { confirmPayment, linePayHeaders, requestBody, requestPayment } from "../donate/server/linepay";
 import { footerLinks } from "../footer-links";
@@ -163,18 +163,3 @@ describe("付完回來（v2.24）", () => {
   });
 });
 
-describe("防灌（v2.24）", () => {
-  it("同一個位址一分鐘最多 5 次，換位址、過一分鐘就重算", () => {
-    const limiter = createRateLimiter(5, 60_000);
-    for (let i = 0; i < 5; i++) expect(limiter.allow("1.1.1.1", 0)).toBe(true);
-    expect(limiter.allow("1.1.1.1", 1_000)).toBe(false);
-    expect(limiter.allow("2.2.2.2", 1_000)).toBe(true);
-    expect(limiter.allow("1.1.1.1", 60_001)).toBe(true);
-  });
-
-  it("位址：先看 Cloudflare 的 cf-connecting-ip，再看 x-forwarded-for", () => {
-    expect(clientIp(new Request("https://a", { headers: { "cf-connecting-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" } }))).toBe("9.9.9.9");
-    expect(clientIp(new Request("https://a", { headers: { "x-forwarded-for": "1.1.1.1, 2.2.2.2" } }))).toBe("1.1.1.1");
-    expect(clientIp(new Request("https://a"))).toBe("unknown");
-  });
-});
