@@ -5,7 +5,7 @@ import { withOpenGraph } from "@/lib/seo";
 
 export const metadata: Metadata = withOpenGraph({
   title: "贊助楓谷幫手",
-  description: "楓谷幫手不收費、不用登入。如果它幫你少走冤枉路，可以請我喝杯飲料。",
+  description: "楓谷幫手不收費、不用登入。如果它幫你少走冤枉路，可以請我喝杯珍奶。",
   alternates: { canonical: "/support" },
 });
 
@@ -15,13 +15,17 @@ export default function Page() {
   return (
     <article className="space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">贊助楓谷幫手</h1>
+      {methods.length > 0 ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src="/assets/support/hero.webp" alt="楓谷幫手的寫手們在夜市喝珍奶、吃雞排和漢堡" width={1536} height={864} fetchPriority="high" className="aspect-video w-full rounded-xl object-cover" />
+      ) : null}
       {methods.length === 0 ? (
         <p className="text-[15px] leading-relaxed ink-soft">目前沒有開放贊助。</p>
       ) : (
         <>
           <div className="space-y-2 text-[15px] leading-relaxed">
             <p className="text-lg font-black">楓谷幫手不收費、不用登入。</p>
-            <p className="ink-soft">如果它幫你少走冤枉路、少浪費楓幣，可以請我喝杯飲料。</p>
+            <p className="ink-soft">如果它幫你少走冤枉路、少浪費楓幣，可以請我喝杯珍奶。</p>
             <p className="ink-soft">贊助會用在：每天更新遊戲資料、主機費用、做新的工具。</p>
           </div>
 

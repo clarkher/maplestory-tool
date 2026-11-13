@@ -33,16 +33,21 @@ export function DonateForm({ methods }: { methods: DonateMethod[] }) {
 
       <fieldset className="space-y-2">
         <legend className="mb-2 text-[15px] font-bold">金額（新台幣）</legend>
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-3 gap-2 sm:max-w-xl sm:gap-3">
           {DONATE_PICKS.map(pick => (
             <button
-              key={pick}
+              key={pick.amount}
               type="button"
-              aria-pressed={amount === String(pick)}
-              onClick={() => setAmount(String(pick))}
-              className={`tap-safe rounded-md border px-4 text-[15px] font-bold tabular-nums ${amount === String(pick) ? OPTION_ON : OPTION_OFF}`}
+              aria-pressed={amount === String(pick.amount)}
+              onClick={() => setAmount(String(pick.amount))}
+              className={`flex flex-col overflow-hidden rounded-[var(--radius-card)] border-2 text-center ${amount === String(pick.amount) ? OPTION_ON : OPTION_OFF}`}
             >
-              {pick} 元
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={pick.image} alt="" width={512} height={512} loading="lazy" className="aspect-square w-full object-cover" />
+              <span className="block px-1 pb-2 pt-1.5 leading-tight">
+                <span className="block text-[14px] font-bold sm:text-[15px]">{pick.label}</span>
+                <span className="block text-[13px] tabular-nums">{pick.amount} 元</span>
+              </span>
             </button>
           ))}
         </div>
