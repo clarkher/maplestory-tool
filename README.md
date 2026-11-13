@@ -521,6 +521,13 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   **不自動改網站**。制裁公告不通知。看過的公告 id 記在 issue 內文最後的註解（最多 300 個）；第一次跑只開 issue 不留言。
   分類規則在 `pipeline/announce/lib/bulletin.mjs`（`node --test pipeline/announce/lib/bulletin.test.mjs`）。
   本機試跑：`DRY_RUN=true GH_TOKEN=$(gh auth token --user clarkher) node pipeline/announce/watch.mjs`。main 以外的分支一律 dry-run。
+- **官網公告做片**（v2.22）：`.github/workflows/announce-video.yml` → `pipeline/video/run.mjs`，接在「官網公告追蹤」成功跑完後面。
+  新公告是活動、商城外觀、改版／更新（維護、開機、關機、制裁不做）就自動做快報片：正片 1920×1080 `main.mp4`＋Shorts 1080×1920 `shorts.mp4`，
+  用使用者的複製聲（Inworld）配音、轉文字驗音；片裡每個數字日期都要在公告內文、官方圖抄字找得到，對不到整句拿掉；畫面上一律阿拉伯數字。
+  放 GitHub prerelease（tag `video-<公告id>`，標題「待審｜…」，另有 `cover.png`、`youtube.txt` 標題說明欄），在追蹤 issue 留言附封面圖跟下載連結，**使用者看完自己上傳 YouTube**。
+  失敗下一班再試，每則最多 3 次（第 3 次才留言說原因；只有標題沒內文的一次就放棄）；公告超過 7 天不補做。做完／失敗次數記在 issue 內文 `<!-- video:... -->`。
+  手動做一則（不留言、不改 issue 狀態）：`gh workflow run announce-video.yml -f bulletin_id=<id>`；本機出片：`node pipeline/video/make.mjs <id> --out <資料夾>`（要 ffmpeg）。
+  Actions secrets：`AZURE_OPENAI_KEY`（Azure officialpmswedencentral，寫稿、讀圖、轉文字）、`INWORLD_API_KEY`（配音）。設計：`docs/superpowers/specs/2026-11-13-announce-video-design.md`。
 
 ## 野王計時
 
