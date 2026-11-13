@@ -4,7 +4,7 @@
  * 用法：node pipeline/video/run.mjs
  * 環境變數：GH_TOKEN（contents、issues: write）、GITHUB_REPOSITORY、AZURE_OPENAI_KEY、INWORLD_API_KEY、
  *   VIDEO_OUT（產物資料夾，預設暫存資料夾底下）；
- *   YT_CLIENT_ID／YT_CLIENT_SECRET／YT_REFRESH_TOKEN（有就把正片＋Shorts 私人上傳到楓谷幫手頻道，失敗不擋 release）；
+ *   YT_CLIENT_ID／YT_CLIENT_SECRET／YT_REFRESH_TOKEN（有就把正片＋Shorts 公開上傳到楓谷幫手頻道，失敗不擋 release）；
  *   DRY_RUN=true 只印要做哪幾則；BULLETIN_ID=<id> 只做那一則＋建 release，不留言、不改 issue（手動測試用）。
  * 每則最多試 3 次（第 3 次還失敗才留言說原因）；「只有標題」這種再試也沒用的錯一次就記滿 3 次。
  */
@@ -50,13 +50,13 @@ export async function run({
   call ??= makeCall({ token: env.GH_TOKEN, api: env.GITHUB_API_URL });
   make ??= (await import("./make.mjs")).make;
   const yt = youtubeFromEnv(env);
-  // 傳 YouTube（私人）；失敗只記原因，不擋 release 跟留言
+  // 傳 YouTube（公開）；失敗只記原因，不擋 release 跟留言
   const toYoutube = async (res) => {
     if (!yt) return null;
     try {
       const ytFile = res.files.find((f) => /youtube\.txt$/.test(f));
       const ids = await uploadPair({ files: res.files, ytText: await readFile(ytFile, "utf8"), creds: yt, log });
-      log(`YouTube（私人）：正片 ${ids.main}、Shorts ${ids.shorts}`);
+      log(`YouTube（公開）：正片 ${ids.main}、Shorts ${ids.shorts}`);
       return ids;
     } catch (e) {
       log(`YouTube 上傳失敗（片照樣放 release）：${shortReason(e)}`);

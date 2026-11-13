@@ -36,7 +36,7 @@ test("getAccessToken：用 refresh token 換，失敗帶 status", async () => {
   await assert.rejects(getAccessToken({ clientId: "a", clientSecret: "b", refreshToken: "c", fetcher: bad }), (e) => e.status === 400);
 });
 
-test("uploadVideo：先開 resumable 再 PUT 檔案，預設私人、遊戲分類、非兒童", async () => {
+test("uploadVideo：先開 resumable 再 PUT 檔案，預設公開、遊戲分類、非兒童", async () => {
   const dir = await mkdtemp(join(tmpdir(), "yt-"));
   const file = join(dir, "main.mp4");
   await writeFile(file, Buffer.from("video"));
@@ -50,7 +50,7 @@ test("uploadVideo：先開 resumable 再 PUT 檔案，預設私人、遊戲分�
   assert.equal(id, "VID123");
   assert.match(calls[0].url, /uploadType=resumable/);
   const meta = JSON.parse(calls[0].init.body);
-  assert.equal(meta.status.privacyStatus, "private");
+  assert.equal(meta.status.privacyStatus, "public");
   assert.equal(meta.status.selfDeclaredMadeForKids, false);
   assert.equal(meta.snippet.categoryId, "20");
   assert.equal(meta.snippet.title, "標題");

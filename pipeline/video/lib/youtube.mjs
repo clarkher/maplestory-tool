@@ -1,7 +1,7 @@
-// 片做好直接上傳到「楓谷幫手」YouTube 頻道（一律私人，使用者在 YouTube 工作室看完再改公開）。
+// 片做好直接上傳到「楓谷幫手」YouTube 頻道（一律直接公開，11/13 使用者拍板「之後一律公開」）。
 // 秘密（Actions secrets）：YT_CLIENT_ID、YT_CLIENT_SECRET、YT_REFRESH_TOKEN（Google Cloud 專案 maplehelper-youtube，
 // 頻道帳號授權一次換來的）。缺任何一個就不上傳。
-// 注意：API 專案還沒過 YouTube 稽核前，API 上傳的片只能是私人、改不了公開。
+// 注意：官方文件說沒過稽核的 API 專案上傳會被鎖私人；11/13 實測沒鎖（工作室改公開成功），被鎖的話要送稽核。
 import { readFile } from "node:fs/promises";
 
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -47,7 +47,7 @@ export async function getAccessToken({ clientId, clientSecret, refreshToken, fet
 }
 
 /** resumable 上傳；回傳影片 id */
-export async function uploadVideo({ file, title, description, tags = TAGS, privacy = "private", token, fetcher = fetch }) {
+export async function uploadVideo({ file, title, description, tags = TAGS, privacy = "public", token, fetcher = fetch }) {
   const data = await readFile(file);
   const init = await fetcher(UPLOAD_URL, {
     method: "POST",
@@ -87,7 +87,7 @@ export async function setThumbnail({ videoId, file, token, fetcher = fetch }) {
 }
 
 /**
- * 正片＋Shorts 都傳（私人），正片設封面。回 { main, shorts } 影片 id。
+ * 正片＋Shorts 都傳（公開），正片設封面。回 { main, shorts } 影片 id。
  * 封面失敗不算整個失敗（新頻道沒驗證電話前不能自訂封面）。
  */
 export async function uploadPair({ files, ytText, creds, fetcher = fetch, log = console.log }) {
@@ -104,4 +104,5 @@ export async function uploadPair({ files, ytText, creds, fetcher = fetch, log = 
   return { main, shorts };
 }
 
+export const watchUrl = (id) => `https://www.youtube.com/watch?v=${id}`;
 export const studioUrl = (id) => `https://studio.youtube.com/video/${id}/edit`;
