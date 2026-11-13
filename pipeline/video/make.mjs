@@ -15,7 +15,7 @@ import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { fetchDetail, extractContent } from "./lib/detail.mjs";
 import { filterScript, isUsable } from "./lib/facts.mjs";
-import { sitePages, matchSitePage, utmUrl } from "./lib/site.mjs";
+import { sitePages, matchSitePage, utmUrl, withCta } from "./lib/site.mjs";
 import { ocrImage, writeScript, transcribe } from "./lib/llm.mjs";
 import { voiceLines, spokenDates } from "./lib/voice.mjs";
 import { composeProject } from "./lib/compose.mjs";
@@ -114,7 +114,7 @@ export async function make(id, { out = join(tmpdir(), "maplehelper-video-out", S
   const filtered = filterScript(arabicScript(raw), source);
   const dropped = filtered.dropped;
   // 比對過後才拿年份、換用語（11/05 跟 2026/11/05 比對時一樣，不影響有沒有據）
-  const script = screenScript(filtered.script, String(detail.startDate).slice(0, 4));
+  let script = screenScript(filtered.script, String(detail.startDate).slice(0, 4));
   await writeFile(join(work, "script.json"), JSON.stringify({ raw, script, dropped, source, page: page?.path ?? null }, null, 2));
   if (dropped.length) log(`對不到來源、拿掉 ${dropped.length} 句：${dropped.join("／")}`);
   if (!isUsable(script)) {
@@ -122,6 +122,9 @@ export async function make(id, { out = join(tmpdir(), "maplehelper-video-out", S
   }
   script.description = script.description.replace("{{LINK}}", utmUrl(page?.path ?? "/", id));
   if (!script.description.includes("maplehelper.tw")) script.description = `${utmUrl(page?.path ?? "/", id)}\n${script.description}`;
+  // 結尾那句（正片、Shorts、說明欄）由程式加這頁的 cta，模型不准自己寫網站有什麼
+  script = withCta(script, page);
+  await writeFile(join(work, "script-final.json"), JSON.stringify(script, null, 2));
 
   const voice = await voiceLines(script.narration, join(work, "vo-main"), { transcribe, spoken: spokenDates });
   const shortsLines = script.shortsNarration.length ? script.shortsNarration : script.narration.slice(0, 5);

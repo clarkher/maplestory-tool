@@ -208,3 +208,23 @@ test("cardLineHtml：去句尾句號；太長切兩行、斷在標點，不留�
   assert.deepEqual(lines, ["想看穿搭效果", "楓谷幫手網站有紙娃娃頁面可參考"]);
   assert.ok(lines.every((l) => [...l].length >= 2));
 });
+
+test("splitCaption：沒標點時不切在兩個一樣的字中間、不切開楓谷幫手網站（84140 Shorts 實例）", () => {
+  // Shorts 字幕一行約 13 字
+  const a = splitCaption("閃亮彗星新外觀是喵喵管家跟軟綿綿雪兔", 13);
+  assert.equal(a.length, 2);
+  assert.ok(!(a[0].endsWith("喵") && a[1].startsWith("喵")), a.join("|"));
+  assert.ok(!(a[0].endsWith("綿") && a[1].startsWith("綿")), a.join("|"));
+  assert.deepEqual(a, ["閃亮彗星新外觀是", "喵喵管家跟軟綿綿雪兔"]);
+  const b = splitCaption("想先看效果，楓谷幫手網站的紙娃娃可以先試穿", 13);
+  // 標點後斷的話第二行放不下，退而斷在「的」後面，楓谷幫手網站整個留在同一行
+  assert.deepEqual(b, ["想先看效果，楓谷幫手網站的", "紙娃娃可以先試穿"]);
+  const c = splitCaption("楓谷幫手網站的紙娃娃可以先試穿看看喔", 13);
+  assert.ok(c.join("|").includes("楓谷幫手網站"), c.join("|"));
+});
+
+test("splitCaption：不切開 11/21、13:00、KKTIX 這類英數串", () => {
+  const lines = splitCaption("售票從10/31 13:00開始KKTIX跟全家都能買票", 12);
+  const j = lines.join("|");
+  for (const tok of ["10/31", "13:00", "KKTIX"]) assert.ok(lines.some((l) => l.includes(tok)), j);
+});
