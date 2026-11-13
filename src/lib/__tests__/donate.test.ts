@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { donateMethods, donateStatus, parseDonateAmount } from "../donate";
+import { donateMethods, donateReturn, donateStatus, isPaidStatus, parseDonateAmount } from "../donate";
+import { backToSupport, clientIp, createRateLimiter } from "../donate/server/http";
 import { aioParams, autoSubmitPage, checkMacValue, ecpayResultStatus, newTradeNo, verifyCheckMac } from "../donate/server/ecpay";
 import { confirmPayment, linePayHeaders, requestBody, requestPayment } from "../donate/server/linepay";
 import { footerLinks } from "../footer-links";
@@ -116,5 +117,64 @@ describe("LINE Pay v3", () => {
     expect(fetchMock).toHaveBeenCalledWith("https://sandbox-api-pay.line.me/v3/payments/2026111300000001/confirm", expect.anything());
     expect(await confirmPayment("https://sandbox-api-pay.line.me", keys, "../x", 100)).toBe(false);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("v2.24 confirm 失敗（重新整理、按上一頁又送一次）就查付款紀錄，查得到算付好了", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      url.includes("/confirm") ? Response.json({ returnCode: "1172" }) : Response.json({ returnCode: "0000", info: [{ transactionId: 2026111300000001 }] }));
+    vi.stubGlobal("fetch", fetchMock);
+    expect(await confirmPayment("https://sandbox-api-pay.line.me", keys, "2026111300000001", 100)).toBe(true);
+    const [detailUrl, detailInit] = fetchMock.mock.calls[1] as unknown as [string, RequestInit];
+    expect(detailUrl).toBe("https://sandbox-api-pay.line.me/v3/payments?transactionId=2026111300000001");
+    expect(detailInit.method).toBe("GET");
+    // GET 的簽章是 secret + 路徑 + 查詢字串 + nonce
+    const headers = detailInit.headers as Record<string, string>;
+    expect(headers["X-LINE-Authorization"]).toBe(linePayHeaders(keys, "/v3/payments", "transactionId=2026111300000001", headers["X-LINE-Authorization-Nonce"])["X-LINE-Authorization"]);
+  });
+
+  it("v2.24 confirm 失敗、查不到付款紀錄才算沒成功", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("/confirm") ? Response.json({ returnCode: "1150" }) : Response.json({ returnCode: "0000", info: [] })));
+    expect(await confirmPayment("https://sandbox-api-pay.line.me", keys, "2026111300000001", 100)).toBe(false);
+    vi.stubGlobal("fetch", vi.fn(async (url: string) =>
+      url.includes("/confirm") ? Response.json({ returnCode: "1150" }) : Response.json({ returnCode: "1150" })));
+    expect(await confirmPayment("https://sandbox-api-pay.line.me", keys, "2026111300000001", 100)).toBe(false);
+  });
+});
+
+describe("付完回來（v2.24）", () => {
+  it("回 /support 帶 status 跟付款方式", () => {
+    const res = backToSupport(new Request("https://maplehelper.tw/api/donate/linepay/confirm"), "thanks", "linepay");
+    expect(res.status).toBe(303);
+    expect(res.headers.get("location")).toBe("https://maplehelper.tw/support?status=thanks&method=linepay");
+  });
+
+  it("donateReturn：讀 status 跟 method，method 不認得就不帶", () => {
+    expect(donateReturn("?status=thanks&method=ecpay")).toEqual({ status: "thanks", method: "ecpay" });
+    expect(donateReturn("?status=issued&method=x")).toEqual({ status: "issued", method: null });
+    expect(donateReturn("?method=ecpay")).toBeNull();
+  });
+
+  it("付好了（thanks、issued）才算 paid", () => {
+    expect(isPaidStatus("thanks")).toBe(true);
+    expect(isPaidStatus("issued")).toBe(true);
+    expect(isPaidStatus("cancel")).toBe(false);
+    expect(isPaidStatus("failed")).toBe(false);
+  });
+});
+
+describe("防灌（v2.24）", () => {
+  it("同一個位址一分鐘最多 5 次，換位址、過一分鐘就重算", () => {
+    const limiter = createRateLimiter(5, 60_000);
+    for (let i = 0; i < 5; i++) expect(limiter.allow("1.1.1.1", 0)).toBe(true);
+    expect(limiter.allow("1.1.1.1", 1_000)).toBe(false);
+    expect(limiter.allow("2.2.2.2", 1_000)).toBe(true);
+    expect(limiter.allow("1.1.1.1", 60_001)).toBe(true);
+  });
+
+  it("位址：先看 Cloudflare 的 cf-connecting-ip，再看 x-forwarded-for", () => {
+    expect(clientIp(new Request("https://a", { headers: { "cf-connecting-ip": "9.9.9.9", "x-forwarded-for": "1.1.1.1" } }))).toBe("9.9.9.9");
+    expect(clientIp(new Request("https://a", { headers: { "x-forwarded-for": "1.1.1.1, 2.2.2.2" } }))).toBe("1.1.1.1");
+    expect(clientIp(new Request("https://a"))).toBe("unknown");
   });
 });
