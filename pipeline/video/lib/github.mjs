@@ -69,6 +69,19 @@ export async function upsertRelease(id, title, files, { call, repo }) {
   return { htmlUrl: release.html_url, assetUrls };
 }
 
+/** 這個 tag 的發布頁是不是已經做完（四個檔都在）；404 → false，其他錯照丟 */
+export async function releaseExists(tag, { call, repo }) {
+  let release;
+  try {
+    release = await call("GET", `/repos/${repo}/releases/tags/${tag}`);
+  } catch (err) {
+    if (/HTTP 404/.test(err.message)) return false;
+    throw err;
+  }
+  const names = new Set((release?.assets ?? []).map((a) => a.name));
+  return ["main.mp4", "shorts.mp4", "cover.png", "youtube.txt"].every((n) => names.has(n));
+}
+
 export function renderVideoComment({ title, row, release }) {
   const u = release.assetUrls;
   return [

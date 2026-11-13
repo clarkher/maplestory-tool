@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { classify, newRows, readSeen, renderComment, writeSeen } from "./bulletin.mjs";
+import { classify, fetchBulletins, newRows, readSeen, renderComment, writeSeen } from "./bulletin.mjs";
 
 const row = (id, title, startDate = "2026/11/10") => ({ bullentinId: id, title, startDate });
 
@@ -66,4 +66,11 @@ test("留言：每則有連結、日期、要看哪裡；制裁不列", () => {
 
 test("留言：全部都不用通知時回空字串", () => {
   assert.equal(renderComment([row("1", "《遊戲異常行為制裁公告》")]), "");
+});
+
+test("fetchBulletins：請求帶逾時 signal", async () => {
+  let init;
+  const fetcher = async (_u, i) => { init = i; return { ok: true, json: async () => ({ data: { myDataSet: { table: [{ bullentinId: 1, title: "a", startDate: "2026/11/01" }] } } }) }; };
+  await fetchBulletins({ fetcher });
+  assert.ok(init.signal);
 });

@@ -14,6 +14,7 @@ export async function fetchBulletins({ pageSize = 30, fetcher = fetch } = {}) {
     method: "POST",
     headers: { "Content-Type": "application/json", "User-Agent": UA, Referer: "https://maplestoryclassic.beanfun.com/bulletin" },
     body: JSON.stringify({ pageSize, kind: 0, page: 1, method: 6 }),
+    signal: AbortSignal.timeout(60_000),
   });
   if (!response.ok) throw new Error(`公告列表 HTTP ${response.status}`);
   const rows = (await response.json())?.data?.myDataSet?.table;

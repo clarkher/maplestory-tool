@@ -56,7 +56,7 @@ test("synth：請求網址、標頭、body 與回傳", async () => {
 test("synth：非 2xx 帶狀態碼、不含金鑰", async () => {
   process.env.INWORLD_API_KEY = "SECRETKEY";
   const fetcher = async () => ({ ok: false, status: 403, text: async () => "nope" });
-  await assert.rejects(() => synth("嗨", { fetcher }), (e) => /403/.test(e.message) && !/SECRETKEY/.test(e.message));
+  await assert.rejects(() => synth("嗨", { fetcher }), (e) => /403/.test(e.message) && !/SECRETKEY/.test(e.message) && e.status === 403);
 });
 
 test("voiceLines：第 1 次聽錯、第 2 次對，用第 2 次，synth 呼叫 2 次", async () => {

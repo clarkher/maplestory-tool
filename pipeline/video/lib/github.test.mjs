@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { upsertRelease, renderVideoComment, renderSkipComment } from "./github.mjs";
+import { releaseExists, upsertRelease, renderVideoComment, renderSkipComment } from "./github.mjs";
 
 const REPO = "clarkher/maplestory-tool";
 const DL = (n) => `https://github.com/${REPO}/releases/download/video-84140/${n}`;
@@ -102,4 +102,19 @@ test("renderSkipComment：寫公告、原因、手動重跑的指令", () => {
   assert.ok(c.includes(row.title));
   assert.ok(c.includes("只有標題，沒有內文可以做片"));
   assert.ok(c.includes("gh workflow run announce-video.yml -f bulletin_id=84140"));
+});
+
+test("releaseExists：404 → false；四個檔都在 → true；缺檔（做到一半）→ false", async () => {
+  const mk = (res) => async (method, url) => {
+    assert.equal(method, "GET");
+    assert.ok(url.endsWith("/releases/tags/video-9"));
+    if (res === 404) throw new Error("GET → HTTP 404：Not Found");
+    if (res === 500) throw new Error("GET → HTTP 500：boom");
+    return res;
+  };
+  const full = { assets: ["main.mp4", "shorts.mp4", "cover.png", "youtube.txt"].map((name) => ({ name })) };
+  assert.equal(await releaseExists("video-9", { call: mk(404), repo: REPO }), false);
+  assert.equal(await releaseExists("video-9", { call: mk(full), repo: REPO }), true);
+  assert.equal(await releaseExists("video-9", { call: mk({ assets: [{ name: "main.mp4" }] }), repo: REPO }), false);
+  await assert.rejects(() => releaseExists("video-9", { call: mk(500), repo: REPO }), /500/);
 });

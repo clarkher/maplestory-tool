@@ -81,7 +81,7 @@ test("writeScript：缺欄位或型別錯 reject", async () => {
 });
 
 test("非 OK 回應 reject，含狀態碼", async () => {
-  await assert.rejects(ocrImage("u", { fetcher: respond("boom", false, 429) }), /429.*boom/s);
+  await assert.rejects(ocrImage("u", { fetcher: respond("boom", false, 429) }), (e) => e.status === 429 && /429.*boom/s.test(e.message));
 });
 
 test("transcribe：multipart 帶 prompt，回傳 text", async () => {

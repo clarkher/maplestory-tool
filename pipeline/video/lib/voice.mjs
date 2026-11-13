@@ -29,7 +29,9 @@ export async function synth(text, { fetcher = fetch } = {}) {
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`Inworld TTS 失敗 ${res.status}：${String(body).slice(0, 300)}`);
+    const e = new Error(`Inworld TTS 失敗 ${res.status}：${String(body).slice(0, 300)}`);
+    e.status = res.status; // run.mjs 靠它分辨「額度／權限」錯誤
+    throw e;
   }
   const j = await res.json();
   if (!j?.audioContent) throw new Error("Inworld TTS 回應沒有 audioContent");

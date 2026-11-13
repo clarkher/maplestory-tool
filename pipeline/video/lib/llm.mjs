@@ -17,7 +17,11 @@ const TIMEOUT_MS = 120_000;
 
 async function call(fetcher, url, init) {
   const res = await fetcher(url, { ...init, signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!res.ok) throw new Error(`Azure ${res.status}: ${String(await res.text()).slice(0, 300)}`);
+  if (!res.ok) {
+    const e = new Error(`Azure ${res.status}: ${String(await res.text()).slice(0, 300)}`);
+    e.status = res.status; // run.mjs 靠它分辨「額度／權限」錯誤
+    throw e;
+  }
   return res.json();
 }
 

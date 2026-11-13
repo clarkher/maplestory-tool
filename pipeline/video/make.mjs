@@ -43,6 +43,24 @@ export function pickAvatars(files, id) {
   return list.length === 1 ? [list[0]] : [list[k], list[(k + 1) % list.length]];
 }
 
+/** 說明欄：{{LINK}} 不管在哪都拿掉，utm 連結永遠是第一行 */
+export function buildDescription(description, link) {
+  const lines = String(description ?? "")
+    .split(/\r?\n/)
+    .flatMap((l) => {
+      if (!l.includes("{{LINK}}")) return [l];
+      const t = l.replaceAll("{{LINK}}", "").trim();
+      return t ? [t] : [];
+    });
+  return [link, ...lines].join("\n").trim();
+}
+
+/** YouTube 標題上限 100 字 */
+export function capTitle(t, max = 100) {
+  const a = [...String(t ?? "")];
+  return a.length <= max ? a.join("") : `${a.slice(0, max - 1).join("")}…`;
+}
+
 export function youtubeText(script) {
   return `${script.ytTitle}\n\n${script.description.trim()}\n\n${HASHTAGS}\n`;
 }
@@ -120,8 +138,8 @@ export async function make(id, { out = join(tmpdir(), "maplehelper-video-out", S
   if (!isUsable(script)) {
     throw new Error(`稿子能用的太少（卡片 ${script.cards.length} 張、旁白 ${script.narration.length} 句；對不到來源拿掉 ${dropped.length} 句）`);
   }
-  script.description = script.description.replace("{{LINK}}", utmUrl(page?.path ?? "/", id));
-  if (!script.description.includes("maplehelper.tw")) script.description = `${utmUrl(page?.path ?? "/", id)}\n${script.description}`;
+  script.description = buildDescription(script.description, utmUrl(page?.path ?? "/", id));
+  script.ytTitle = capTitle(script.ytTitle);
   // 卡片後的補充句只留有數字日期的、最多 2 句（沒事實的多是空話）；都拿掉時結尾那句的畫面自然換成官方圖
   const trimmed = trimExtras(script);
   script = trimmed.script;
