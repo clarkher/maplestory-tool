@@ -108,7 +108,7 @@ function buildLine(group: Quest[]): QuestLine {
 }
 
 /** 照前置順序排（同時能做的照 id）；前置繞圈（資料錯）的照 id 收掉，不卡死 */
-function topoOrder(list: Quest[], pres: (quest: Quest) => string[]): Quest[] {
+export function topoOrder(list: Quest[], pres: (quest: Quest) => string[]): Quest[] {
   const ids = new Set(list.map(quest => quest.id));
   const done = new Set<string>();
   const out: Quest[] = [];
