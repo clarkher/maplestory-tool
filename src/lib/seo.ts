@@ -43,9 +43,69 @@ export function levelText(min?: number, max?: number): string | null {
   return null;
 }
 
+/** 玩家實際搜過、跟遊戲名不一樣的叫法（Search Console 11/13）；只收查得到的，不自己編 */
+const NAME_NICKNAMES: Record<string, string[]> = { 王冠之地: ["皇冠之地"], 爸爸精靈: ["精靈爸爸"] };
+const ROMAN = ["Ⅰ", "Ⅱ", "Ⅲ", "Ⅳ", "Ⅴ", "Ⅵ", "Ⅶ", "Ⅷ", "Ⅸ", "Ⅹ"];
+const ROMAN_ASCII = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+const CHINESE_DIGITS = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
+
+/**
+ * 同一張圖、同一隻怪玩家會換寫法搜：「巫婆森林ii」「巫婆森林2」「第一軍營」「精靈爸爸」。
+ * 遊戲名的羅馬數字補阿拉伯數字（全形的再補英文字母），「第1」補「第一」，加上查得到的俗稱。
+ */
+export function nameAliases(name: string): string[] {
+  const out: string[] = [];
+  const roman = ROMAN.findIndex(char => name.endsWith(char));
+  if (roman >= 0) {
+    const base = name.slice(0, -1);
+    out.push(`${base}${roman + 1}`, `${base}${ROMAN_ASCII[roman]}`);
+  } else {
+    // 中文後面接英文字母的羅馬數字（猴子森林I）
+    const ascii = name.match(/^(.*[^\sA-Za-z])(I{1,3}|IV|V|VI{1,3}|IX|X)$/);
+    if (ascii) out.push(`${ascii[1]}${ROMAN_ASCII.indexOf(ascii[2]) + 1}`);
+  }
+  const ordinal = name.match(/第(10|[1-9])/);
+  if (ordinal) out.push(name.replace(ordinal[0], `第${CHINESE_DIGITS[Number(ordinal[1])]}`));
+  out.push(...(NAME_NICKNAMES[name] ?? []));
+  return [...new Set(out)].filter(alias => alias !== name);
+}
+
+/** 「（也叫巫婆森林2、巫婆森林II）」，沒有別名就是空字串 */
+export function aliasNote(name: string): string {
+  const aliases = nameAliases(name);
+  return aliases.length ? `（也叫${aliases.join("、")}）` : "";
+}
+
+/**
+ * 怪物頁標題：直接給答案（11/13 拍板 C）。原本「哪裡最多、在哪打、數值、掉落物」只是列項目，
+ * 怪物頁點閱率 1.4% 全站最低；改成「嫩寶在哪打？最多在南方森林｜Lv.1、掉落物」。
+ */
+export function monsterTitle(monster: Monster, maps: Record<string, MapRecord>): string {
+  const { rows } = monsterMaps(monster, maps);
+  const tail = [monster.lv ? `Lv.${monster.lv}` : "", monster.drops.length ? "掉落物" : ""].filter(Boolean);
+  if (!rows.length) return `${monster.n}｜${[monster.lv ? `Lv.${monster.lv} 數值` : "數值", monster.drops.length ? "掉落物" : ""].filter(Boolean).join("、")}`;
+  const first = maps[String(rows[0].id)].zh;
+  const where = rows[0].spawns ? `最多在${first}` : rows.length > 1 ? `${first}等 ${rows.length} 張圖` : first;
+  return `${monster.n}在哪打？${where}${tail.length ? `｜${tail.join("、")}` : ""}`;
+}
+
+/**
+ * 地圖頁標題：寫得出路線就給答案「巫婆森林Ⅱ怎麼去？從魔法森林走 6 張圖｜巫婆 27 隻」（11/13 拍板 C，地圖頁點閱率 1.8%）；
+ * 寫不出路線（城鎮自己、走不到）就列有什麼。mobs 照數量多到少排好再傳進來。
+ */
+export function mapTitle(name: string, mobs: { n: string; k: number }[], route: { from: string; steps: number } | null): string {
+  const [mob] = mobs;
+  const mobText = mob ? `${mob.n} ${mob.k} 隻` : "";
+  // 只隔一張圖寫「走 1 張圖」不像人話
+  const how = route && (route.steps === 1 ? `就在${route.from}隔壁` : `從${route.from}走 ${route.steps} 張圖`);
+  if (how) return `${name}怎麼去？${how}${mobText ? `｜${mobText}` : ""}`;
+  return `${name}｜${mobText ? `${mobText}、` : "怪物、"}NPC、傳送門`;
+}
+
 /** 怪物：等級、HP、經驗，再寫刷怪點最多的三張開放地圖 */
 export function monsterSummary(monster: Monster, maps: Record<string, MapRecord>): string {
-  const head = monster.lv ? `${monster.n}是 Lv.${monster.lv} 的怪物` : monster.n;
+  const name = `${monster.n}${aliasNote(monster.n)}`;
+  const head = monster.lv ? `${name}是 Lv.${monster.lv} 的怪物` : name;
   const stats = `${head}，HP ${formatNumber(monster.hp)}、經驗 ${formatNumber(monster.exp)}。`;
   const { rows } = monsterMaps(monster, maps);
   if (!rows.length) return stats;

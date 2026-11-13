@@ -5,7 +5,10 @@ import {
   jobGuideSummary,
   jobTitleName,
   jobTopPick,
+  mapTitle,
   monsterSummary,
+  monsterTitle,
+  nameAliases,
   questSummary,
   skillSummary,
   SITE_URL,
@@ -124,5 +127,36 @@ describe("seo：給搜尋引擎跟 AI 讀的那一段話", () => {
         { "@type": "ListItem", position: 3, name: "嫩寶", item: `${SITE_URL}/db/monsters/100100` },
       ],
     });
+  });
+
+  it("別名：羅馬數字補阿拉伯數字跟英文字母、第1補第一、玩家實際搜過的俗稱（Search Console 11/13）", () => {
+    expect(nameAliases("巫婆森林Ⅱ")).toEqual(["巫婆森林2", "巫婆森林II"]);
+    expect(nameAliases("猴子森林I")).toEqual(["猴子森林1"]);
+    expect(nameAliases("第1軍營")).toEqual(["第一軍營"]);
+    expect(nameAliases("王冠之地")).toEqual(["皇冠之地"]);
+    expect(nameAliases("爸爸精靈")).toEqual(["精靈爸爸"]);
+    expect(nameAliases("嫩寶")).toEqual([]);
+  });
+
+  it("怪物：俗稱寫在名字後面，搜「精靈爸爸」也對得上", () => {
+    expect(monsterSummary({ ...monster, n: "爸爸精靈", maps: [], sp: [] }, maps)).toBe("爸爸精靈（也叫精靈爸爸）是 Lv.1 的怪物，HP 8、經驗 3。");
+  });
+
+  it("怪物標題：直接寫最多在哪張圖、幾等、有沒有掉落物", () => {
+    expect(monsterTitle({ ...monster, drops: [2000000] }, maps)).toBe("嫩寶在哪打？最多在南方森林｜Lv.1、掉落物");
+    expect(monsterTitle(monster, maps)).toBe("嫩寶在哪打？最多在南方森林｜Lv.1");
+    expect(monsterTitle({ ...monster, sp: [] }, maps)).toBe("嫩寶在哪打？嫩寶狩獵場等 2 張圖｜Lv.1");
+    expect(monsterTitle({ ...monster, sp: [], maps: [1] }, maps)).toBe("嫩寶在哪打？嫩寶狩獵場｜Lv.1");
+    expect(monsterTitle({ ...monster, sp: [], maps: [3], drops: [2000000] }, maps)).toBe("嫩寶｜Lv.1 數值、掉落物");
+    expect(monsterTitle({ ...monster, lv: null, sp: [], maps: [] }, maps)).toBe("嫩寶｜數值");
+  });
+
+  it("地圖標題：寫從哪出發、走幾張圖，再寫最多的怪；寫不出路線就列有什麼", () => {
+    const mobs = [{ n: "巫婆", k: 27 }, { n: "殭屍猴王", k: 1 }];
+    expect(mapTitle("巫婆森林Ⅱ", mobs, { from: "魔法森林", steps: 6 })).toBe("巫婆森林Ⅱ怎麼去？從魔法森林走 6 張圖｜巫婆 27 隻");
+    expect(mapTitle("巫婆森林Ⅱ", [], { from: "魔法森林", steps: 6 })).toBe("巫婆森林Ⅱ怎麼去？從魔法森林走 6 張圖");
+    expect(mapTitle("弓箭手村東部小山", mobs, { from: "弓箭手村", steps: 1 })).toBe("弓箭手村東部小山怎麼去？就在弓箭手村隔壁｜巫婆 27 隻");
+    expect(mapTitle("弓箭手村", mobs, null)).toBe("弓箭手村｜巫婆 27 隻、NPC、傳送門");
+    expect(mapTitle("弓箭手村", [], null)).toBe("弓箭手村｜怪物、NPC、傳送門");
   });
 });
