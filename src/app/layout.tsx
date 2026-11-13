@@ -73,6 +73,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
         {/* 瀏覽器自己還原捲動位置（上一頁、重新整理）不經過 Next：這段跟 HistoryScrollJump 讓它直接跳回原位 */}
         <script dangerouslySetInnerHTML={{ __html: restoreScrollBootstrap }} />
+        {/* RSS（v2.23）：Google App 的「追蹤」跟閱讀器靠這行找到訂閱檔；寫在這裡每一頁都有（各頁的 alternates 會整包蓋掉 layout 的） */}
+        <link rel="alternate" type="application/rss+xml" title="楓谷幫手｜楓之谷經典版攻略" href="/feed.xml" />
       </head>
       <body className="antialiased">
         <HistoryScrollJump />
