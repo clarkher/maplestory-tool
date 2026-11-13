@@ -1,5 +1,5 @@
 /**
- * 地區任務懶人包的產生器（v2.26）：一區一篇，列這區所有一般任務；楓之島照接的順序、其他照等級分段，標必解跟系列文。
+ * 地區任務懶人包的產生器（v2.27）：一區一篇，列這區所有一般任務；楓之島照接的順序、其他照等級分段，標必解跟系列文。
  */
 import { describe, expect, it } from "vitest";
 import { isLineQuest, questLines } from "@/lib/guide-gen/quest-lines";

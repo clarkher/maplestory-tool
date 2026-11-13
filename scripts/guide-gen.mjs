@@ -1,5 +1,5 @@
 /**
- * 系列任務、地區懶人包、職業配點攻略文（v2.26）的表格：從 public/data 產，寫進 md 的 <!-- gen:<key> --> 到 <!-- /gen --> 之間。
+ * 系列任務、地區懶人包、職業配點攻略文（v2.27）的表格：從 public/data 產，寫進 md 的 <!-- gen:<key> --> 到 <!-- /gen --> 之間。
  *
  * 用法：
  *   npm run guide:gen                              全部重產（資料更新後跑；guide-gen.test.ts 不一致會紅）

@@ -1,5 +1,5 @@
 /**
- * 系列任務文章的產生器（v2.26，docs/superpowers/specs/2026-11-13-article-batch-quests-builds-design.md）：
+ * 系列任務文章的產生器（v2.27，docs/superpowers/specs/2026-11-13-article-batch-quests-builds-design.md）：
  * 用前置任務把一般任務串成系列，5 個以上或有人搜的才收；主線照前置順序，分叉另成段。
  */
 import { describe, expect, it } from "vitest";
