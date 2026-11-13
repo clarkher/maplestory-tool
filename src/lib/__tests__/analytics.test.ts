@@ -80,6 +80,15 @@ describe("自己人不算流量、單獨頁點去工具（v2.08）", () => {
       params: { from: "db/monsters", page: "/db/monsters", to: "/db/monsters/100100", label: "看完整刷怪點與相關任務" },
     });
   });
+  it("贊助連結（v2.22）：記在哪點的，method=page；位置不認得不送", () => {
+    expect(linkClick("donate", "/guides/hunter-31-50", "/support", "贊助", "guide_end")).toEqual({
+      name: "donate_click",
+      params: { placement: "guide_end", method: "page" },
+    });
+    expect(linkClick("donate", "/", "/support", "贊助楓谷幫手", "footer")?.params).toEqual({ placement: "footer", method: "page" });
+    expect(linkClick("donate", "/", "/support", "x", "home")).toBeNull();
+    expect(linkClick("donate", "/", "/support", "x")).toBeNull();
+  });
   it("沒標的連結不送", () => {
     expect(linkClick(undefined, "/", "/db", "x")).toBeNull();
     expect(linkClick("other", "/", "/db", "x")).toBeNull();

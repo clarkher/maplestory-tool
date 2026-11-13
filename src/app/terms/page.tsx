@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <article className="space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">服務條款</h1>
-      <p className="ink-soft">最後更新：2026 年 8 月 4 日</p>
+      <p className="ink-soft">最後更新：2026 年 11 月 13 日</p>
 
       <Block title="這是什麼">
         楓谷幫手是玩家自製的免費查詢工具，幫你決定要去哪練功、接什麼任務、想要的東西去哪打。
@@ -30,6 +30,12 @@ export default function Page() {
 
       <Block title="服務可用性">
         本站是免費提供的個人專案，不保證持續可用，也可能隨時修改或停止服務。
+      </Block>
+
+      <Block title="贊助">
+        <p>贊助完全自願，不是購買商品或服務：不提供任何對價，也不會解鎖功能，沒贊助的人能用的東西一樣多。</p>
+        <p className="mt-2">付款由綠界科技、LINE Pay 處理，付款過程的問題（扣款、繳費期限、發卡行）請先找該付款平台。</p>
+        <p className="mt-2">贊助原則上不退款；如果遇到重複扣款、金額錯誤這類問題，請到 <a className="font-bold text-[color:var(--maple)]" href="/contact">聯絡我們</a> 寫信，附上付款時間跟金額，我們會處理。</p>
       </Block>
 
       <Block title="免責">
