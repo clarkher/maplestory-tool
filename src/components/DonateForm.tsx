@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { track } from "@/lib/analytics";
 import {
   DONATE_DEFAULT, DONATE_MAX, DONATE_METHOD_LABEL, DONATE_MIN, DONATE_PICKS, DONATE_STATUS_TEXT,
-  donateStatus, parseDonateAmount, type DonateMethod, type DonateStatus,
+  parseDonateAmount, type DonateMethod, type DonateStatus,
 } from "@/lib/donate";
 import { OPTION_OFF, OPTION_ON } from "./option-style";
 
@@ -12,21 +12,16 @@ const ACTION: Record<DonateMethod, string> = { ecpay: "/api/donate/ecpay", linep
 
 /**
  * /support 的金額＋付款按鈕（v2.22）。一般表單 POST 到 /api/donate/<method>，由 Worker 轉去綠界／LINE Pay 付款頁。
- * 付完回來網址帶 ?status=，這裡讀出來顯示謝謝／取消／沒成功。
+ * 付完回來的 ?status= 由 SupportBody 讀（v2.24）；付好了在頁面最上面謝謝，這裡只顯示取消／沒成功。
  */
-export function DonateForm({ methods }: { methods: DonateMethod[] }) {
+export function DonateForm({ methods, status }: { methods: DonateMethod[]; status: DonateStatus | null }) {
   const [amount, setAmount] = useState(String(DONATE_DEFAULT));
-  const [status, setStatus] = useState<DonateStatus | null>(null);
   const valid = parseDonateAmount(amount) !== null;
-
-  useEffect(() => {
-    setStatus(donateStatus(window.location.search));
-  }, []);
 
   return (
     <form method="post" className="space-y-4">
       {status ? (
-        <p role="status" className={`rounded-md border px-3 py-2 text-[15px] font-bold ${status === "thanks" || status === "issued" ? OPTION_ON : "border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)]"}`}>
+        <p role="status" className="rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--paper-deep)] px-3 py-2 text-[15px] font-bold">
           {DONATE_STATUS_TEXT[status]}
         </p>
       ) : null}
@@ -63,10 +58,10 @@ export function DonateForm({ methods }: { methods: DonateMethod[] }) {
             className="tap-safe w-28 rounded-md border border-[color:var(--paper-edge)] bg-[color:var(--paper)] px-3 text-[15px] font-bold tabular-nums"
           />
           <span className="ink-soft">元</span>
+          <span id="donate-range" className={`text-[13px] ${valid ? "ink-faint" : "font-bold text-[color:var(--maple)]"}`}>
+            （{DONATE_MIN}～{DONATE_MAX.toLocaleString("en-US")}）
+          </span>
         </label>
-        <p id="donate-range" className={`text-[13px] ${valid ? "ink-faint" : "font-bold text-[color:var(--maple)]"}`}>
-          {DONATE_MIN}～{DONATE_MAX.toLocaleString("en-US")} 元
-        </p>
       </fieldset>
 
       <div className="flex flex-col gap-2.5 sm:flex-row">
