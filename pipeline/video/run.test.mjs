@@ -203,7 +203,7 @@ async function ytFiles() {
 }
 const YT_ENV = { YT_CLIENT_ID: "a", YT_CLIENT_SECRET: "b", YT_REFRESH_TOKEN: "c" };
 
-test("run：有 YouTube 秘密 → 私人上傳，留言附 YouTube 工作室連結", async () => {
+test("run：有 YouTube 秘密 → 公開上傳，留言附觀看與工作室連結", async () => {
   const files = await ytFiles();
   const d = deps({ body: "x\n\n<!-- seen:84003 -->", env: YT_ENV });
   d.opts.fetchBulletins = async () => [ROWS[2]];
