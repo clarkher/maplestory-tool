@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <article className="prose-page space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">隱私權政策</h1>
-      <p className="ink-soft">最後更新：2026 年 11 月 6 日</p>
+      <p className="ink-soft">最後更新：2026 年 11 月 13 日</p>
 
       <Block title="我們不需要你的帳號">
         本站不提供註冊、不需要登入，也沒有任何帳號系統。你不用給我們電子郵件、電話或任何個人身分資料（練功測速的角色 ID 是遊戲裡的名字，不是帳號，填不填由你）。
@@ -79,6 +79,11 @@ export default function Page() {
           你可以到 <ExternalLink href="https://adssettings.google.com">Google 廣告設定</ExternalLink> 停用個人化廣告，
           或到 <ExternalLink href="https://www.aboutads.info">www.aboutads.info</ExternalLink> 停用部分第三方供應商的個人化廣告 Cookie。
         </p>
+      </Block>
+
+      <Block title="贊助">
+        贊助的付款由綠界科技或 LINE Pay 處理，卡號、帳戶、付款人資料都在它們那邊輸入，本站不收集也拿不到；本站也不存贊助紀錄（金額、訂單編號只轉交給付款平台）。
+        網站分析只會記錄「點了贊助按鈕」這個事件（在哪點的、選哪種付款方式），不記金額，也不知道你最後有沒有付。
       </Block>
 
       <Block title="第三方">

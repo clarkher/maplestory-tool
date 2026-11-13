@@ -24,3 +24,6 @@ chrome-profile*/
 .cf-stash/
 .cf-items/
 .wrangler/
+
+# wrangler dev 的本機秘密（贊助沙盒金鑰）
+.dev.vars*

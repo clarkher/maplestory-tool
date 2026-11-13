@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cardDate } from "@/lib/guide-catalog";
 import type { GuideCard } from "@/lib/guide-catalog";
 import type { Block, GuideDoc, Inline } from "@/lib/guide-markdown";
+import { DonateCard } from "./DonateCard";
 import { ReadNext } from "./GuideRelated";
 import { SeoPage } from "./SeoPage";
 
@@ -119,6 +120,7 @@ export function GuideDocView({ doc, hero, jsonLd, related }: { doc: GuideDoc; he
         <Blocks blocks={doc.blocks} />
       </article>
       {related ? <ReadNext related={related} /> : null}
+      <DonateCard />
     </SeoPage>
   );
 }
