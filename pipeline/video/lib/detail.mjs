@@ -31,7 +31,7 @@ const decode = s =>
   });
 
 // 固定法務段：整段丟掉（開頭可帶「1.」編號）
-const LEGAL = /^(?:\d+[.、]\s*)?(?:此為機會中獎商品|圖片與文案僅供參考|詳細道具資訊請依遊戲中)/;
+const LEGAL = /^(?:\d+[.、]\s*)?(?:此為機會中獎商品|圖片與文案僅供參考|詳細道具資訊請依遊戲中|若有任何特殊異動)/;
 
 export function extractContent(html) {
   if (!html) return { text: "", images: [] };
@@ -41,8 +41,7 @@ export function extractContent(html) {
     .split(/<\/p>|<br\s*\/?>|<\/div>|<\/li>/i)
     .map(p => decode(p.replace(/<[^>]*>/g, "")).replace(/\s+/g, " ").trim())
     .filter(Boolean);
-  // 「注意事項」標題以下全是法務：從那裡截斷；沒標題時只丟已知開頭的段落
-  const cut = paras.findIndex(p => /^注意事項[：:]?$/.test(p));
-  const kept = (cut >= 0 ? paras.slice(0, cut) : paras).filter(p => !LEGAL.test(p));
+  // 只丟「注意事項」標題行與法務開頭段落；標題底下的活動期間等規則是來源，要留
+  const kept = paras.filter(p => !/^注意事項[：:]?$/.test(p) && !LEGAL.test(p));
   return { text: kept.join("\n"), images };
 }
