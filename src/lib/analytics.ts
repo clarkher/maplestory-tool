@@ -43,7 +43,8 @@ export type EventName =
   | "avatar_showcase_click"
   | "guild_download"
   | "guild_random"
-  | "share";
+  | "share"
+  | "donate_click";
 
 type Params = Record<string, string | number | boolean | undefined>;
 
@@ -59,11 +60,15 @@ export function track(name: EventName, params: Params = {}) {
 /** 連結上標 data-ga 的種類：tool＝單獨頁底下連到工具那顆、detail_page＝查資料卡片底下連到單獨頁那行 */
 const LINK_EVENTS: Record<string, EventName> = { tool: "tool_click", detail_page: "detail_page_click" };
 
+const DONATE_PLACEMENTS = new Set(["footer", "guide_end", "support_page"]);
+
 /**
  * 點了標過的連結要送什麼（v2.08）：from＝從哪一類頁（db/monsters、jobs…），page＝那一頁，to＝點去哪（不帶 ?#，報表才不會散成上千列），label＝按鈕字。
  * 沒標、標錯回 null。GoogleAnalytics 元件在整頁聽點擊，伺服器元件（SeoPage）不用改成 client。
  */
-export function linkClick(kind: string | undefined, pathname: string, href: string, label: string): { name: EventName; params: Params } | null {
+export function linkClick(kind: string | undefined, pathname: string, href: string, label: string, placement?: string): { name: EventName; params: Params } | null {
+  // v2.22 贊助：頁尾、攻略文結尾連到 /support 的連結標 data-ga="donate" data-placement="…"；method=page＝只是進 /support
+  if (kind === "donate") return placement && DONATE_PLACEMENTS.has(placement) ? { name: "donate_click", params: { placement, method: "page" } } : null;
   const name = kind ? LINK_EVENTS[kind] : undefined;
   if (!name) return null;
   const segments = pathname.split("/").filter(Boolean);

@@ -56,8 +56,12 @@ describe("Cloudflare Worker 分流", () => {
     expect(await response.text()).toBe("");
   });
 
-  it("六支 API 都有接上", async () => {
+  it("十一支 API 都有接上（v2.22 加贊助五支）", async () => {
     const { ROUTES } = await import("./worker");
-    expect(Object.keys(ROUTES).sort()).toEqual(["/api/avatar/share", "/api/boss/events", "/api/boss/intervals", "/api/boss/rooms", "/api/speed/board", "/api/speed/runs"]);
+    expect(Object.keys(ROUTES).sort()).toEqual([
+      "/api/avatar/share", "/api/boss/events", "/api/boss/intervals", "/api/boss/rooms",
+      "/api/donate/ecpay", "/api/donate/ecpay/notify", "/api/donate/ecpay/result", "/api/donate/linepay", "/api/donate/linepay/confirm",
+      "/api/speed/board", "/api/speed/runs",
+    ]);
   });
 });

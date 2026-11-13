@@ -6,6 +6,7 @@ import type { JobSeries } from "@/lib/guide-related";
 import { articleDamageHref, assumptionLines, avgText, featuredMonsters, hitLvText, pinnedSections, stepImageAlt, tableGearLine, withOneTargetCell, FEATURED_LIMIT, TAG_LABEL, type ArticleAnswer, type ArticleImages, type ArticleSection, type CalcTable, type ClaimTag, type JobArticle } from "@/lib/job-article";
 import type { MapRecord, Monster } from "@/lib/types";
 import { AdSlot } from "./AdSlot";
+import { DonateCard } from "./DonateCard";
 import { ReadNext, SeriesStrip } from "./GuideRelated";
 import { ExpandRows, Fold } from "./ArticleFold";
 import { SeoLinks, SeoPage } from "./SeoPage";
@@ -418,6 +419,7 @@ export function JobArticleView({
           </div>
 
           {related ? <ReadNext next={related.next} related={related.related} /> : null}
+          <DonateCard />
 
           <SeoLinks
             links={[
