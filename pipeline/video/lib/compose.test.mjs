@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, writeFile, readFile, readdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { composeProject, computeTimings, segmentPlan, splitCaption, layoutDims } from "./compose.mjs";
+import { composeProject, computeTimings, segmentPlan, splitCaption, layoutDims, cardLineHtml } from "./compose.mjs";
 
 const SCRIPT = {
   title: "楓葉商會 11/19 開跑",
@@ -198,4 +198,13 @@ test("composeProject：GSAP 用本機 assets/gsap.min.js（含授權註記），
   const js = await readFile(join(out, "assets", "gsap.min.js"), "utf8");
   assert.match(js.slice(0, 400), /@license/);
   assert.match(html, /"hasAvatars":false/);
+});
+
+test("cardLineHtml：去句尾句號；太長切兩行、斷在標點，不留單一個字的尾行", () => {
+  const spec = { size: 46, maxW: 864 }; // Shorts：一行約 18 字
+  assert.equal(cardLineHtml("打怪掉楓葉硬幣。", spec), '<span class="ln">打怪掉楓葉硬幣</span>');
+  const html = cardLineHtml("想看穿搭效果，楓谷幫手網站有紙娃娃頁面可參考。", spec);
+  const lines = [...html.matchAll(/<span class="ln">([^<]*)<\/span>/g)].map((m) => m[1]);
+  assert.deepEqual(lines, ["想看穿搭效果", "楓谷幫手網站有紙娃娃頁面可參考"]);
+  assert.ok(lines.every((l) => [...l].length >= 2));
 });

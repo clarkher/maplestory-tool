@@ -141,6 +141,10 @@ body {
   color: var(--ink-soft);
   text-shadow: 0 4px 18px rgba(0, 0, 0, 0.6);
 }
+.card .line .ln {
+  display: block;
+  white-space: nowrap;
+}
 
 /* 官方圖 */
 .imgbox {

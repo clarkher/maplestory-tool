@@ -28,7 +28,7 @@ const base = () => ({
   title: "標題", subtitle: "副標", ticker: ["11/19 開跑", "12/20 結束"],
   cards: [{ big: "11/19", line: "開跑" }, { big: "12/20", line: "結束" }, { big: "好康", line: "送 5 個" }],
   narration: ["11/19 開跑。", "12/20 結束。", "歡迎來玩。"],
-  shortsNarration: ["12/20 截止"], ytTitle: "t", description: "11/19 開跑\n12/20 結束\n歡迎", images: [],
+  shortsNarration: ["11/19 開跑", "12/20 截止"], ytTitle: "t", description: "11/19 開跑\n12/20 結束\n歡迎", images: [],
 });
 
 test("filterScript：丟編造的句子並記錄", () => {
@@ -36,7 +36,7 @@ test("filterScript：丟編造的句子並記錄", () => {
   assert.deepEqual(script.cards, [{ big: "11/19", line: "開跑" }, { big: "好康", line: "送 5 個" }]);
   assert.deepEqual(script.narration, ["11/19 開跑。", "歡迎來玩。"]);
   assert.deepEqual(script.ticker, ["11/19 開跑"]);
-  assert.deepEqual(script.shortsNarration, []);
+  assert.deepEqual(script.shortsNarration, ["11/19 開跑"]);
   assert.equal(script.description, "11/19 開跑\n歡迎");
   assert.ok(dropped.includes("12/20 結束。") && dropped.includes("12/20 截止") && dropped.includes("12/20 結束"));
 });
@@ -75,4 +75,28 @@ test("filterScript：ytTitle 編造換成（已過濾的）title", () => {
   const { script, dropped } = filterScript(s, "活動 11/19 起，送 5 個");
   assert.equal(script.ytTitle, "標題");
   assert.ok(dropped.includes("12/20 結束！"));
+});
+
+test("filterScript：卡片 i 跟旁白 i 成對，一邊對不到兩邊一起拿掉；卡片後面的旁白各自判斷", () => {
+  const s = {
+    title: "t", subtitle: "", ticker: [], ytTitle: "t", description: "", images: [],
+    cards: [{ big: "新外觀", line: "喵喵管家" }, { big: "12/20", line: "結束" }, { big: "先看", line: "試穿" }],
+    narration: ["新外觀是喵喵管家", "活動到 12/20", "3 張圖", "先試穿", "最後一句 9 個"],
+    shortsNarration: ["新外觀", "12/20 結束"],
+  };
+  const { script, dropped } = filterScript(s, "喵喵管家 11/19 3 張");
+  // 卡片 2（12/20）沒據 → 旁白 2、Shorts 2 一起拿掉；第 3 組都有據留著；卡片後面的旁白各自判斷
+  assert.deepEqual(script.cards.map((c) => c.big), ["新外觀", "先看"]);
+  assert.deepEqual(script.narration, ["新外觀是喵喵管家", "3 張圖", "先試穿"]);
+  assert.deepEqual(script.shortsNarration, ["新外觀"]);
+  assert.ok(dropped.includes("12/20 結束") && dropped.includes("活動到 12/20") && dropped.includes("最後一句 9 個"));
+});
+
+test("filterScript：旁白對不到來源 → 配的卡片也拿掉", () => {
+  const s = { title: "t", subtitle: "", ticker: [], ytTitle: "t", description: "", images: [], shortsNarration: [],
+    cards: [{ big: "開跑", line: "打怪掉硬幣" }, { big: "換武器", line: "楓葉武器" }],
+    narration: ["12/31 開跑", "硬幣換楓葉武器"] };
+  const { script } = filterScript(s, "11/19");
+  assert.deepEqual(script.cards.map((c) => c.big), ["換武器"]);
+  assert.deepEqual(script.narration, ["硬幣換楓葉武器"]);
 });

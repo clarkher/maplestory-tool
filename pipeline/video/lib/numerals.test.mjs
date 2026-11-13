@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cnToInt, arabicNumerals, arabicScript } from "./numerals.mjs";
+import { cnToInt, arabicNumerals, arabicScript, dropYear, plainWords, screenScript } from "./numerals.mjs";
+import { grounded } from "./facts.mjs";
 
 test("cnToInt：常見寫法", () => {
   assert.equal(cnToInt("十"), 10);
@@ -21,7 +22,7 @@ test("arabicNumerals：日期、多字數字、帶單位的數字換成阿拉伯
 });
 
 test("arabicNumerals：一般用語不動", () => {
-  for (const s of ["一起去", "一定要", "一次看完", "十分划算", "三轉以後", "一個好機會", "一下子", "楓葉商會"]) {
+  for (const s of ["一起去", "一定要", "一次看完", "十分划算", "三轉以後", "一個好機會", "一下子", "楓葉商會", "萬一錯過", "千萬別錯過", "一點點", "萬萬不可"]) {
     assert.equal(arabicNumerals(s), s);
   }
 });
@@ -38,4 +39,28 @@ test("arabicScript：畫面上每個欄位都換", () => {
   assert.deepEqual(s.narration, ["11月19日"]);
   assert.equal(s.description, "{{LINK}}\n30天");
   assert.deepEqual(s.images, ["https://x/一.jpg"]);
+});
+
+test("arabicNumerals：一萬、三千還是數字", () => {
+  assert.equal(arabicNumerals("一萬楓幣"), "10000楓幣");
+  assert.equal(arabicNumerals("送兩千"), "送2000");
+});
+
+test("dropYear：公告那年或隔年拿掉，其他年份留著；比對照樣過", () => {
+  assert.equal(dropYear("2026/11/05 維護後～2026/11/19 維護前", 2026), "11/05 維護後～11/19 維護前");
+  assert.equal(dropYear("到 2027/01/05", 2026), "到 01/05");
+  assert.equal(dropYear("2024/11/05 舊活動", 2026), "2024/11/05 舊活動");
+  assert.equal(dropYear("2026年11月5日開跑", 2026), "11月5日開跑");
+  assert.equal(dropYear("時間 23:59、機率 1.5%", 2026), "時間 23:59、機率 1.5%");
+  assert.equal(grounded(dropYear("2026/11/05 開賣", 2026), "活動 2026/11/05 維護後"), true);
+});
+
+test("plainWords、screenScript：站內換楓谷幫手網站，卡片補充句去句號", () => {
+  assert.equal(plainWords("站內有紙娃娃"), "楓谷幫手網站有紙娃娃");
+  const s = screenScript({ title: "t", subtitle: "", ticker: ["2026/11/05 維護後開賣"], cards: [{ big: "2026/11/19", line: "維護前結束。" }],
+    narration: ["站內可以試穿"], shortsNarration: [], ytTitle: "y", description: "到 2026/11/19", images: [] }, 2026);
+  assert.deepEqual(s.ticker, ["11/05 維護後開賣"]);
+  assert.deepEqual(s.cards, [{ big: "11/19", line: "維護前結束" }]);
+  assert.deepEqual(s.narration, ["楓谷幫手網站可以試穿"]);
+  assert.equal(s.description, "到 11/19");
 });

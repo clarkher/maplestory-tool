@@ -93,3 +93,12 @@ test("transcribe：multipart 帶 prompt，回傳 text", async () => {
   assert.ok(init.body.get("file") instanceof Blob);
   assert.ok(!Object.keys(init.headers).some((k) => k.toLowerCase() === "content-type"));
 });
+
+test("writeScript：prompt 寫卡片旁白成對、跑馬燈日期＋事件、維護後／前、禁用「站內」，請求帶逾時", async () => {
+  const { f, calls } = capture({ output_text: JSON.stringify(GOOD) });
+  await writeScript({ title: "T", startDate: "d", sourceText: "s", site: { path: "/x", title: "紙娃娃", keywords: [], summary: "試穿" } }, { fetcher: f });
+  const text = JSON.parse(calls[0].init.body).input[0].content[0].text;
+  for (const k of ["成對", "跑馬燈", "維護後", "禁用字詞：站內", "楓谷幫手網站", "阿拉伯數字"]) assert.ok(text.includes(k), k);
+  assert.ok(!/延伸閱讀（站內頁）/.test(text));
+  assert.ok(calls[0].init.signal instanceof AbortSignal);
+});

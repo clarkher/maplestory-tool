@@ -57,3 +57,11 @@ test("pendingVideos：排除 done、n=3、8 天前、不做片的；舊的先", 
   const state = new Map([["3", { n: 1, done: true }], ["4", { n: 3, done: false }]]);
   assert.deepEqual(pendingVideos(rows, state, now).map(x => x.bullentinId), ["7", "2", "5"]);
 });
+
+test("writeVideoState：最多留 id 最新的 200 則", () => {
+  const state = new Map();
+  for (let i = 1; i <= 250; i++) state.set(String(80000 + i), { n: 0, done: true });
+  const back = readVideoState(writeVideoState("x", state));
+  assert.equal(back.size, 200);
+  assert.ok(back.has("80250") && back.has("80051") && !back.has("80050") && !back.has("80001"));
+});

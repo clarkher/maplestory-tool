@@ -19,7 +19,7 @@ import { sitePages, matchSitePage, utmUrl } from "./lib/site.mjs";
 import { ocrImage, writeScript, transcribe } from "./lib/llm.mjs";
 import { voiceLines, spokenDates } from "./lib/voice.mjs";
 import { composeProject } from "./lib/compose.mjs";
-import { arabicNumerals, arabicScript } from "./lib/numerals.mjs";
+import { arabicNumerals, arabicScript, screenScript } from "./lib/numerals.mjs";
 
 const execFileP = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -53,7 +53,7 @@ function imgExt(url) {
 }
 
 async function download(url, file) {
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(120_000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   await writeFile(file, Buffer.from(await res.arrayBuffer()));
 }
@@ -99,17 +99,22 @@ export async function make(id, { out = join(tmpdir(), "maplehelper-video-out", S
     }
   }
   if (!text.trim() && !ocrs.length) {
-    const e = new Error("只有標題，沒有內文可以做片");
-    e.permanent = true;
+    // 公告本來就沒字沒圖才是永久的；有圖但下載或讀圖失敗可能只是一時的，照 3 次重試
+    const e = new Error(images.length ? "官方圖讀不到字（下載或讀圖失敗），內文也是空的" : "只有標題，沒有內文可以做片");
+    if (!images.length) e.permanent = true;
     throw e;
   }
 
   const page = matchSitePage(detail.title, text, sitePages());
-  const base = [text, ...ocrs].filter(Boolean).join("\n");
-  const source = [base, page?.summary].filter(Boolean).join("\n");
+  // 來源（給寫稿跟比對的）跟稿子都換成阿拉伯數字，兩邊一樣才比得準；畫面上一律 11月19日
+  const base = arabicNumerals([text, ...ocrs].filter(Boolean).join("\n"));
+  const source = arabicNumerals([base, page?.summary].filter(Boolean).join("\n"));
 
   const raw = await writeScript({ title: detail.title, startDate: detail.startDate, sourceText: base, site: page, images: [...local.keys()] });
-  const { script, dropped } = filterScript(arabicScript(raw), source);
+  const filtered = filterScript(arabicScript(raw), source);
+  const dropped = filtered.dropped;
+  // 比對過後才拿年份、換用語（11/05 跟 2026/11/05 比對時一樣，不影響有沒有據）
+  const script = screenScript(filtered.script, String(detail.startDate).slice(0, 4));
   await writeFile(join(work, "script.json"), JSON.stringify({ raw, script, dropped, source, page: page?.path ?? null }, null, 2));
   if (dropped.length) log(`對不到來源、拿掉 ${dropped.length} 句：${dropped.join("／")}`);
   if (!isUsable(script)) {
