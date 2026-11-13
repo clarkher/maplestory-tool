@@ -4,6 +4,7 @@
 import { readFile } from "node:fs/promises";
 import { basename, extname } from "node:path";
 import { bulletinUrl } from "../../announce/lib/bulletin.mjs";
+import { studioUrl } from "./youtube.mjs";
 
 const TYPES = { ".mp4": "video/mp4", ".png": "image/png", ".txt": "text/plain; charset=utf-8", ".json": "application/json" };
 
@@ -82,7 +83,17 @@ export async function releaseExists(tag, { call, repo }) {
   return ["main.mp4", "shorts.mp4", "cover.png", "youtube.txt"].every((n) => names.has(n));
 }
 
-export function renderVideoComment({ title, row, release }) {
+function youtubeLines(youtube) {
+  if (!youtube) return ["看完上傳到楓谷幫手頻道，標題說明欄在 youtube.txt。"];
+  if (youtube.error) return [`YouTube 自動上傳失敗：${youtube.error}`, "", "看完手動上傳到楓谷幫手頻道，標題說明欄在 youtube.txt。"];
+  return [
+    "已經用「私人」傳到楓谷幫手頻道，看完在 YouTube 工作室改成公開：",
+    `- 正片：${studioUrl(youtube.main)}`,
+    `- Shorts：${studioUrl(youtube.shorts)}`,
+  ];
+}
+
+export function renderVideoComment({ title, row, release, youtube = null }) {
   const u = release.assetUrls;
   return [
     `### 做好片了：${title}`,
@@ -96,7 +107,7 @@ export function renderVideoComment({ title, row, release }) {
     `- 標題跟說明欄：[youtube.txt](${u["youtube.txt"]})`,
     `- 整包：${release.htmlUrl}`,
     "",
-    "看完上傳到楓谷幫手頻道，標題說明欄在 youtube.txt。",
+    ...youtubeLines(youtube),
   ].join("\n");
 }
 

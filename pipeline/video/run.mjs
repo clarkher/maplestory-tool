@@ -4,6 +4,7 @@
  * 用法：node pipeline/video/run.mjs
  * 環境變數：GH_TOKEN（contents、issues: write）、GITHUB_REPOSITORY、AZURE_OPENAI_KEY、INWORLD_API_KEY、
  *   VIDEO_OUT（產物資料夾，預設暫存資料夾底下）；
+ *   YT_CLIENT_ID／YT_CLIENT_SECRET／YT_REFRESH_TOKEN（有就把正片＋Shorts 私人上傳到楓谷幫手頻道，失敗不擋 release）；
  *   DRY_RUN=true 只印要做哪幾則；BULLETIN_ID=<id> 只做那一則＋建 release，不留言、不改 issue（手動測試用）。
  * 每則最多試 3 次（第 3 次還失敗才留言說原因）；「只有標題」這種再試也沒用的錯一次就記滿 3 次。
  */
@@ -12,6 +13,8 @@ import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { fetchBulletins as realFetchBulletins } from "../announce/lib/bulletin.mjs";
 import { pendingVideos, readVideoState, writeVideoState } from "./lib/pick.mjs";
+import { readFile } from "node:fs/promises";
+import { youtubeFromEnv, uploadPair as realUploadPair } from "./lib/youtube.mjs";
 import { makeCall, releaseExists as realReleaseExists, upsertRelease as realUpsert, renderVideoComment, renderSkipComment } from "./lib/github.mjs";
 
 const LABEL = "官方公告";
@@ -38,6 +41,7 @@ export async function run({
   clock = Date.now,
   budgetMs = BUDGET_MS,
   log = console.log,
+  uploadPair = realUploadPair,
 } = {}) {
   const started = clock();
   const repo = env.GITHUB_REPOSITORY ?? "clarkher/maplestory-tool";
@@ -45,6 +49,20 @@ export async function run({
   const outBase = resolve(env.VIDEO_OUT ?? join(tmpdir(), "maplehelper-video-out"));
   call ??= makeCall({ token: env.GH_TOKEN, api: env.GITHUB_API_URL });
   make ??= (await import("./make.mjs")).make;
+  const yt = youtubeFromEnv(env);
+  // 傳 YouTube（私人）；失敗只記原因，不擋 release 跟留言
+  const toYoutube = async (res) => {
+    if (!yt) return null;
+    try {
+      const ytFile = res.files.find((f) => /youtube\.txt$/.test(f));
+      const ids = await uploadPair({ files: res.files, ytText: await readFile(ytFile, "utf8"), creds: yt, log });
+      log(`YouTube（私人）：正片 ${ids.main}、Shorts ${ids.shorts}`);
+      return ids;
+    } catch (e) {
+      log(`YouTube 上傳失敗（片照樣放 release）：${shortReason(e)}`);
+      return { error: shortReason(e) };
+    }
+  };
 
   // 手動測試：只做指定那則，不看 pending、不留言、不改 issue 狀態
   if (env.BULLETIN_ID) {
@@ -109,11 +127,12 @@ export async function run({
           continue;
         }
         const res = await make(id, { out: join(outBase, id) });
+        const youtube = await toYoutube(res);
         const release = await upsertRelease(id, res.title, res.files, { call, repo });
         state.set(id, { n: 0, done: true });
         log(`${id} 做好了：${release.htmlUrl}`);
         try {
-          await call("POST", `/repos/${repo}/issues/${issue.number}/comments`, { body: renderVideoComment({ title: res.title, row, release }) });
+          await call("POST", `/repos/${repo}/issues/${issue.number}/comments`, { body: renderVideoComment({ title: res.title, row, release, youtube }) });
         } catch (err) {
           log(`${id} 留言失敗（片已放在 release）：${shortReason(err)}`);
         }
