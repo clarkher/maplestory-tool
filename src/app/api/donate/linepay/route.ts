@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request): Promise<Response> {
   const keys = linePayKeys();
   const amount = parseDonateAmount((await formFields(request))?.amount);
-  if (!keys || amount === null) return backToSupport(request, "failed");
+  if (!keys || amount === null) return backToSupport(request, "failed", "linepay");
   const url = await requestPayment(linePayApi(isProduction()), keys, { tradeNo: newTradeNo(), amount, origin: originOf(request) });
-  return url ? Response.redirect(url, 303) : backToSupport(request, "failed");
+  return url ? Response.redirect(url, 303) : backToSupport(request, "failed", "linepay");
 }

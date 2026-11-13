@@ -17,6 +17,26 @@ describe("Cloudflare Worker 分流", () => {
     expect(env.ASSETS.fetch).not.toHaveBeenCalled();
   });
 
+  it("v2.25 贊助付款端點走 Cloudflare 限流：超過回 /support?status=failed，不碰 route；沒綁限流就照常", async () => {
+    const hit = vi.fn(async () => new Response("pay"));
+    const routes = { "/api/donate/linepay": { POST: hit }, "/api/donate/ecpay/notify": { POST: hit } };
+    const blocked = { limit: vi.fn(async () => ({ success: false })) };
+    const post = (path: string) => new Request(`https://maplehelper.tw${path}`, { method: "POST", headers: { "cf-connecting-ip": "1.2.3.4" } });
+
+    const response = await handle(post("/api/donate/linepay"), { ASSETS: fetcher("assets"), DONATE_LIMITER: blocked }, routes);
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("https://maplehelper.tw/support?status=failed&method=linepay");
+    expect(blocked.limit).toHaveBeenCalledWith({ key: "1.2.3.4" });
+    expect(hit).not.toHaveBeenCalled();
+
+    // 綠界背景通知不能被限流擋（綠界會一直重送）
+    expect(await (await handle(post("/api/donate/ecpay/notify"), { ASSETS: fetcher("assets"), DONATE_LIMITER: blocked }, routes)).text()).toBe("pay");
+    // 沒綁（本機、測試）照常
+    expect(await (await handle(post("/api/donate/linepay"), { ASSETS: fetcher("assets") }, routes)).text()).toBe("pay");
+    const open = { limit: vi.fn(async () => ({ success: true })) };
+    expect(await (await handle(post("/api/donate/linepay"), { ASSETS: fetcher("assets"), DONATE_LIMITER: open }, routes)).text()).toBe("pay");
+  });
+
   it("API 不支援的方法回 405 並列出可用方法", async () => {
     const routes = { "/api/boss/rooms": { POST: async () => new Response("ok") } };
     const response = await handle(new Request("https://maplehelper.tw/api/boss/rooms"), { ASSETS: fetcher("assets") }, routes);

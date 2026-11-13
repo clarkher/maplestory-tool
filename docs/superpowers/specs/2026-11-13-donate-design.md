@@ -98,3 +98,15 @@ export function donateMethods(): ("ecpay" | "linepay")[] { ... } // 回傳有填
   測試機打綠界／LINE Pay 沙盒，正式機打正式。細節見 README「秘密」那段、`src/lib/donate.ts`。
 - 因為有 API，`/support` 可以選金額（50／100／300 或自己填 30～10,000），兩家都不用另外產生連結；LINE Pay 不再卡「只能出 QR」。
 - 「連結空就不畫」改成 `DONATE_ENABLED` 開關，行為一樣。
+- 後來（ef48fe64）金額改成「一杯珍奶 60／珍奶＋雞排 150／一頓麥當勞 200」（預設 150），上面那行 50／100／300 已經不是現況；文案從「請我喝杯飲料」改「請楓谷幫手喝杯珍奶」。
+
+## v2.24 上線後修（11/13 使用者「全部照推薦改」）
+
+1. **LINE Pay 付完重新整理／按上一頁會顯示「沒有扣款」**：confirm 被送第二次，LINE Pay 回錯誤碼。改成 confirm 失敗時再打付款紀錄 `GET /v3/payments?transactionId=`，查得到就算付好了。
+2. **手機第一屏看不到付款按鈕**：手機主圖改扁（3:1），說明縮成兩行，金額卡跟付款按鈕進第一屏（375×812 量）。
+3. **付完回來的「謝謝」放最上面**：thanks／issued 時把請人贊助的說明換成謝謝那一塊；取消、失敗的訊息照舊在金額上面。讀完 status 就用 `replaceState(null, …)` 把網址的 `?status=` 拿掉，重新整理不會再算一次。
+4. **GA 新增 `donate_paid`**（`status`＝thanks／issued、`method`＝ecpay／linepay）：付完導回來才送，跟 `donate_click` 一起看「點了 → 真的付」的比例。導回網址多帶 `&method=`。網址可以手打，所以數字要跟綠界／LINE Pay 後台對過才當真。
+5. 文案統一「請楓谷幫手喝杯珍奶」。
+6. 不做：工具頁入口（使用者照推薦，先不放）。
+7. **防灌**：`/api/donate/ecpay`、`/api/donate/linepay` 同一個位址一分鐘最多 5 次，超過回 `/support?status=failed`。計數放 Worker 記憶體（同一台機器內有效、不保證全域），擋的是狂按產生一堆過期付款單，不是資安邊界。
+8. **v2.25 防灌改用 Cloudflare 限流**：v2.24 的記憶體計數上測試機實測連按 7 次都過（每個請求可能落在不同 isolate），改成 `wrangler.jsonc` 的 `ratelimits` 綁定 `DONATE_LIMITER`，在 `cf/worker.ts` 擋開付款單的兩支；綠界背景通知、付完導回不擋。

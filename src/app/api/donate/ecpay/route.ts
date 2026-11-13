@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request): Promise<Response> {
   const keys = ecpayKeys();
   const amount = parseDonateAmount((await formFields(request))?.amount);
-  if (!keys || amount === null) return backToSupport(request, "failed");
+  if (!keys || amount === null) return backToSupport(request, "failed", "ecpay");
   const params = aioParams({ keys, tradeNo: newTradeNo(), amount, origin: originOf(request) });
   return new Response(autoSubmitPage(ecpayCheckoutUrl(isProduction()), params), {
     headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "X-Robots-Tag": "noindex" },
