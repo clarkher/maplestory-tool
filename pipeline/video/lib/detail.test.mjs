@@ -40,3 +40,11 @@ test("fetchDetail：code 不是 1 就丟錯", async () => {
   const fetcher = async () => ({ ok: true, json: async () => ({ code: -2 }) });
   await assert.rejects(() => fetchDetail("1", { fetcher }), /-2/);
 });
+
+test("注意事項標題只丟標題本身，底下的活動期間要留", () => {
+  const { text } = extractContent("<p>【限定活動】</p><p>注意事項：</p><p>1.活動期間：11/19～12/16</p><p>2.此為機會中獎商品，請見說明</p><p>3.若有任何特殊異動將另行公告</p>");
+  assert.match(text, /1\.活動期間：11\/19～12\/16/);
+  assert.doesNotMatch(text, /注意事項/);
+  assert.doesNotMatch(text, /此為機會中獎商品/);
+  assert.doesNotMatch(text, /特殊異動/);
+});
