@@ -128,10 +128,10 @@ export const levelText = (quest: Pick<Quest, "minLv">) => (quest.minLv === undef
 const segText = (segs: StepSeg[]) => segs.map(seg => (typeof seg === "string" ? seg : `[${seg.t}](${seg.href})`)).join("");
 
 function questBlock(quest: Quest, index: number, ctx: QuestStepContext): string {
-  const steps = questSteps(quest, ctx).map(step => {
-    const body = step.lines.map(segText).join(" ");
-    return `- **${step.title}**：${body}${step.go ? ` [帶我去](${step.go})` : ""}`;
-  });
+  // 一步有好幾行（要交好幾樣道具）時一行一個項目，第一行帶標題；帶我去接在第一行後面
+  const steps = questSteps(quest, ctx).flatMap(step =>
+    step.lines.map((line, index) => `- ${index ? "" : `**${step.title}**：`}${segText(line)}${!index && step.go ? ` [帶我去](${step.go})` : ""}`),
+  );
   return [`### ${index}. [${quest.n}](/db/quests/${quest.id})（${levelText(quest)}）`, "", ...steps].join("\n");
 }
 
