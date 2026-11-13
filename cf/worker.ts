@@ -18,7 +18,23 @@ import * as speedRuns from "../src/app/api/speed/runs/route";
 
 type Handler = (request: Request) => Promise<Response>;
 type Fetcher = { fetch: (request: Request) => Promise<Response> };
-export type Env = { ASSETS: Fetcher; ITEMS?: Fetcher };
+type RateLimit = { limit: (options: { key: string }) => Promise<{ success: boolean }> };
+export type Env = { ASSETS: Fetcher; ITEMS?: Fetcher; DONATE_LIMITER?: RateLimit };
+
+/**
+ * 贊助付款端點防灌（v2.25）：wrangler.jsonc 的 ratelimits 綁定 DONATE_LIMITER（同位址一分鐘 5 次）。
+ * v2.24 原本放 Worker 記憶體，測試機實測連按 7 次都過（請求分到不同 isolate），改用 Cloudflare 的限流。
+ * 只擋開付款單的兩支；綠界背景通知、付完導回不擋。沒綁（本機、測試）就不限。
+ */
+const DONATE_START: Record<string, "ecpay" | "linepay"> = { "/api/donate/ecpay": "ecpay", "/api/donate/linepay": "linepay" };
+
+async function donateBlocked(request: Request, path: string, env: Env): Promise<Response | null> {
+  const method = DONATE_START[path];
+  if (!method || !env.DONATE_LIMITER) return null;
+  const key = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const { success } = await env.DONATE_LIMITER.limit({ key });
+  return success ? null : Response.redirect(`${new URL(request.url).origin}/support?status=failed&method=${method}`, 303);
+}
 
 export const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   "/api/avatar/share": avatarShare,
@@ -46,10 +62,15 @@ function withClientIp(request: Request): Request {
 export async function handle(request: Request, env: Env, routes = ROUTES): Promise<Response> {
   const { pathname } = new URL(request.url);
   if (pathname.startsWith("/assets/items/")) return env.ITEMS ? env.ITEMS.fetch(request) : env.ASSETS.fetch(request);
-  const route = routes[pathname.replace(/\/$/, "")];
+  const path = pathname.replace(/\/$/, "");
+  const route = routes[path];
   if (!route) return env.ASSETS.fetch(request);
   const handler = route[request.method];
   if (!handler) return new Response(null, { status: 405, headers: { Allow: Object.keys(route).filter(k => /^[A-Z]+$/.test(k)).join(", ") } });
+  if (request.method === "POST") {
+    const blocked = await donateBlocked(request, path, env);
+    if (blocked) return blocked;
+  }
   return handler(withClientIp(request));
 }
 
