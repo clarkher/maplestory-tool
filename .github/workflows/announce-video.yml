@@ -1,0 +1,81 @@
+name: 官網公告做片
+
+# 官網新公告（活動、商城外觀、改版／更新；維護、開機、制裁不做）自動做快報片：
+# 正片 1920×1080＋Shorts 1080×1920，用使用者的複製聲配音，放 GitHub prerelease（tag video-<公告id>，標題「待審｜…」），
+# 在「官網公告追蹤」issue 留言附封面圖跟下載連結，請使用者看完再自己上傳 YouTube。程式：pipeline/video/run.mjs。v2.22。
+# 接在「官網公告追蹤」（announce-watch.yml）成功跑完後面；每則最多試 3 次，公告超過 7 天不補做。
+# 手動做一則（不留言、不改 issue 狀態）：gh workflow run announce-video.yml -f bulletin_id=<id>
+
+on:
+  workflow_run:
+    workflows: ["官網公告追蹤"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      bulletin_id:
+        description: "只做這一則公告（測試用；不留言、不改 issue 狀態）"
+        type: string
+        required: false
+      dry_run:
+        description: "測試用：只印要做哪幾則"
+        type: boolean
+        default: false
+
+concurrency:
+  group: announce-video
+  cancel-in-progress: false
+
+jobs:
+  video:
+    if: >-
+      github.repository == 'clarkher/maplestory-tool' &&
+      (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      issues: write
+    env:
+      VIDEO_OUT: ${{ github.workspace }}/video-out
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # pipeline/video 只用 Node 內建模組＋npx hyperframes，不用 npm ci
+      - name: 裝 ffmpeg 跟中文字型
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk
+
+      - name: 字型快取
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/maplehelper-video
+          key: maplehelper-video-fonts-v1
+
+      - name: 做片
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
+          INWORLD_API_KEY: ${{ secrets.INWORLD_API_KEY }}
+          BULLETIN_ID: ${{ inputs.bulletin_id }}
+          # main 以外的分支沒指定 bulletin_id 一律 dry-run，不在測試時亂留言、亂改 issue
+          DRY_RUN: ${{ (inputs.dry_run || (github.ref != 'refs/heads/main' && github.event_name == 'workflow_dispatch' && !inputs.bulletin_id)) && 'true' || 'false' }}
+        # 字型下載到 VIDEO_CACHE/fonts（上一步快取這個資料夾）
+        run: |
+          export VIDEO_CACHE="$HOME/.cache/maplehelper-video"
+          node pipeline/video/run.mjs
+
+      - name: 產物備份
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-out
+          path: video-out
+          if-no-files-found: ignore
+          retention-days: 14

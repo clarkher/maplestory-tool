@@ -66,7 +66,19 @@ async function ffprobeSec(file) {
   return sec;
 }
 
-export async function voiceLines(lines, dir, { synth: doSynth = synth, transcribe, tries = 3, probe = ffprobeSec } = {}) {
+const okMD = (m, d) => m >= 1 && m <= 12 && d >= 1 && d <= 31;
+
+/** 念的時候把 M/D、YYYY/M/D 換成「M月D日」（字幕照原文；時間 23:59、小數 1.5 不動） */
+export function spokenDates(text) {
+  return String(text)
+    .replace(/(?<![\d/])\d{4}\/(\d{1,2})\/(\d{1,2})(?![\d/])/g, (m, mo, d) => (okMD(+mo, +d) ? `${+mo}月${+d}日` : m))
+    .replace(/(?<![\d/.])(\d{1,2})\/(\d{1,2})(?![\d/])/g, (m, mo, d) => (okMD(+mo, +d) ? `${+mo}月${+d}日` : m));
+}
+
+/**
+ * 逐句配音。spoken(text) 是實際送去念、拿來比對轉文字的字（例如把日期換成念法）；回傳的 text 保留原文給字幕用。
+ */
+export async function voiceLines(lines, dir, { synth: doSynth = synth, transcribe, tries = 3, probe = ffprobeSec, spoken = (t) => t } = {}) {
   const absDir = resolve(dir);
   await mkdir(absDir, { recursive: true });
   const out = [];
@@ -75,9 +87,10 @@ export async function voiceLines(lines, dir, { synth: doSynth = synth, transcrib
     const file = join(absDir, `line-${String(i + 1).padStart(2, "0")}.mp3`);
     let ok = false;
     for (let t = 0; t < tries && !ok; t++) {
-      const buf = await doSynth(text);
+      const say = spoken(text);
+      const buf = await doSynth(say);
       await writeFile(file, buf);
-      ok = heardOk(text, await transcribe(file));
+      ok = heardOk(say, await transcribe(file));
     }
     if (!ok) throw new Error(`第 ${i + 1} 句配音不過：${text}`);
     out.push({ file, text, sec: await probe(file) });

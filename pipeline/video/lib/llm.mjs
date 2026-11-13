@@ -63,7 +63,8 @@ const RULES = `你是「楓谷幫手」YouTube 頻道的公告快報編輯，觀
 5. 不寫來源沒有的玩家評價或比較。
 6. description 第一行固定為 {{LINK}}（程式會換成連結），其後是簡短說明。
 7. images 只能從「可用圖片」清單挑，沒有就回空陣列。
-8. 若有「延伸閱讀」，可在旁白或說明提一次站內有這一頁可看，不帶任何數字；沒有「延伸閱讀」就完全不要提站內頁。`;
+8. 若有「延伸閱讀」，可在旁白或說明提一次站內有這一頁可看，不帶任何數字；沒有「延伸閱讀」就完全不要提站內頁。
+9. 日期、數字一律寫阿拉伯數字（例：11/19、11月19日、3 張），不寫國字數字。`;
 
 export async function writeScript({ title, startDate, sourceText, site, images = [] }, { fetcher = fetch } = {}) {
   const ext = site ? `\n\n延伸閱讀（站內頁）：${site.title}——${site.summary}` : "";
