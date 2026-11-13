@@ -80,19 +80,19 @@ const RULES = `你是「楓谷幫手」YouTube 頻道的公告快報編輯，觀
 4. 卡片跟旁白成對：每張卡片的 say 是這張卡片在畫面上時念的那句話，講的就是這張卡片的事（shortsSay 同理，給 Shorts）。卡片講完之後要再念的放 moreNarration／moreShorts（畫面放官方圖），補充細節。
    例：cards = [{big:"喵喵管家登場", line:"閃亮彗星新外觀", say:"閃亮彗星換新外觀了，這次是喵喵管家跟軟綿綿雪兔", shortsSay:"閃亮彗星新外觀，喵喵管家來了"},
                 {big:"11/19 維護前結束", line:"想要的別拖", say:"11/19 維護前就收掉，想要的別拖", shortsSay:"11/19 維護前結束"}]
-5. 正片總共（卡片 say＋moreNarration）4～12 句、每句不超過 28 字；Shorts 總共（卡片 shortsSay＋moreShorts）4～6 句。來源資訊多就寫到 8～12 句，資訊少就寫少，不要用「這次重點就是…」這種重複前面的空話湊句數。
+5. 正片總共（卡片 say＋moreNarration）4～12 句；Shorts 總共（卡片 shortsSay＋moreShorts）4～6 句。每句 say 不超過 22 字，超過 14 字的要有一個逗號；每句 shortsSay 不超過 16 字。來源資訊多就寫到 8～12 句，資訊少就寫少，不要用「這次重點就是…」這種重複前面的空話湊句數。
 6. 第一句直接講最大的重點，像 YouTuber 開場（例：「閃亮彗星換新外觀了，這次是喵喵管家跟軟綿綿雪兔」）。不要講「這次是快報」「歡迎收看」這種空話。台灣口語、短句、親切自然。
 7. ticker（跑馬燈）2～4 則，每則是「日期＋發生什麼」，例：「11/05 維護後開賣」「11/19 維護前結束」。不要放關鍵字清單。
-8. 繁體中文台灣用字，講玩家拿得到什麼，不講機制。禁用字詞：站內、快報、本公告、敬請期待。提到我們的網站一律寫「楓谷幫手網站」或「楓谷幫手的○○」。
+8. 繁體中文台灣用字，講玩家拿得到什麼，不講機制。禁用字詞：站內、快報、本公告、敬請期待。
+   say、shortsSay、moreNarration、moreShorts、description 都完全不要提「楓谷幫手」、網站、站內（結尾那句由程式自己加）。
 9. 不寫來源沒有的玩家評價或比較。
 10. description 第一行固定為 {{LINK}}（程式會換成連結），其後是簡短說明。
-11. images 只能從「可用圖片」清單挑，沒有就回空陣列。
-12. 若有「楓谷幫手網站可以看的頁面」，可在最後一兩句旁白或說明提一次，講好處（例：「想先看穿起來的樣子，楓谷幫手的紙娃娃可以直接試穿」），不帶任何數字；只照那一頁的說明講它能做什麼，不要說網站已經整理了這則公告；沒有就完全不要提網站。`;
+11. images 只能從「可用圖片」清單挑，沒有就回空陣列。`;
 
-export async function writeScript({ title, startDate, sourceText, site, images = [] }, { fetcher = fetch } = {}) {
-  const ext = site ? `\n\n楓谷幫手網站可以看的頁面：${site.title}——${site.summary}` : "";
+// site 只留著相容舊呼叫：網站那句由 make.mjs 用 site.mjs 的 cta 補，不給模型寫（11/13 模型自己編出「攻略能直接看重點」）
+export async function writeScript({ title, startDate, sourceText, images = [] }, { fetcher = fetch } = {}) {
   const imgs = images.length ? `\n\n可用圖片：\n${images.join("\n")}` : "";
-  const text = `${RULES}\n\n公告標題：${title}\n公告日期：${startDate}\n\n來源：\n${sourceText}${ext}${imgs}`;
+  const text = `${RULES}\n\n公告標題：${title}\n公告日期：${startDate}\n\n來源：\n${sourceText}${imgs}`;
   const raw = await respond([{ type: "input_text", text }],
     { type: "json_schema", name: "script", schema: SCRIPT_SCHEMA, strict: true }, fetcher);
   let s;

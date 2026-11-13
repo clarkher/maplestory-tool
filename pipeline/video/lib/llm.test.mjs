@@ -53,7 +53,7 @@ test("ocrImage：沒有 output_text 時串 output[].content[]", async () => {
   assert.equal(await ocrImage("u", { fetcher: f }), "甲乙");
 });
 
-test("writeScript：解析 output_text JSON，prompt 含來源與延伸閱讀，schema strict", async () => {
+test("writeScript：解析 output_text JSON，prompt 含來源、不給模型網站頁面，schema strict", async () => {
   const { f, calls } = capture({ output_text: JSON.stringify(GOOD) });
   const s = await writeScript({ title: "T", startDate: "2026-11-04", sourceText: "來源文字ABC",
     site: { path: "/plan/avatar", title: "紙娃娃", keywords: [], summary: "先看看" } }, { fetcher: f });
@@ -62,7 +62,7 @@ test("writeScript：解析 output_text JSON，prompt 含來源與延伸閱讀，
   assert.equal(body.text.format.type, "json_schema");
   assert.equal(body.text.format.strict, true);
   const text = body.input[0].content[0].text;
-  assert.ok(text.includes("來源文字ABC") && text.includes("紙娃娃") && text.includes("{{LINK}}") && text.includes("楓之谷經典版"));
+  assert.ok(text.includes("來源文字ABC") && !text.includes("先看看") && text.includes("{{LINK}}") && text.includes("楓之谷經典版"));
 });
 
 test("writeScript：site 可為 null", async () => {
@@ -104,7 +104,7 @@ test("writeScript：prompt 寫卡片旁白成對、跑馬燈日期＋事件、�
   const { f, calls } = capture({ output_text: JSON.stringify(GOOD) });
   await writeScript({ title: "T", startDate: "d", sourceText: "s", site: { path: "/x", title: "紙娃娃", keywords: [], summary: "試穿" } }, { fetcher: f });
   const text = JSON.parse(calls[0].init.body).input[0].content[0].text;
-  for (const k of ["成對", "跑馬燈", "維護後", "禁用字詞：站內", "楓谷幫手網站", "阿拉伯數字"]) assert.ok(text.includes(k), k);
+  for (const k of ["成對", "跑馬燈", "維護後", "禁用字詞：站內", "完全不要提「楓谷幫手」", "阿拉伯數字", "不超過 22 字", "不超過 16 字"]) assert.ok(text.includes(k), k);
   assert.ok(!/延伸閱讀（站內頁）/.test(text));
   assert.ok(calls[0].init.signal instanceof AbortSignal);
 });

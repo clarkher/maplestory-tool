@@ -144,8 +144,16 @@ export function vlen(s) {
   return n;
 }
 
+// 不能從中間切開的詞（長的放前面）
+export const PROTECTED = ["楓之谷經典版", "楓谷幫手網站", "楓谷幫手", "maplehelper.tw"];
+// 斷在這些字後面比較自然（沒有標點時次選）
+const SOFT_AFTER = /[的是跟和在就也還都到從]/;
+const CJK = /[\u3400-\u9fff]/;
+
 /**
- * 字幕／標題斷行：放得下就一行；不然切兩行，優先斷在標點或空白後面，不把數字、英文字切開。
+ * 字幕／標題斷行：放得下就一行；不然切兩行。
+ * 優先斷在標點或空白後面（離中間最近）；沒有就挑離中間最近、而且
+ * 不在英數串中間（11/21、13:00、KKTIX）、不在兩個一樣的字中間（喵／喵）、不切開 PROTECTED 詞的位置。
  * @returns {string[]}
  */
 export function splitCaption(text, maxChars) {
@@ -153,23 +161,34 @@ export function splitCaption(text, maxChars) {
   if (vlen(t) <= maxChars) return [t];
   const chars = [...t];
   const total = vlen(t);
+  // 受保護詞涵蓋的字元位置（k 落在 (start, end) 之間就不准斷）
+  const inside = new Set();
+  for (const term of PROTECTED) {
+    const tc = [...term];
+    for (let i = 0; i + tc.length <= chars.length; i++) {
+      if (chars.slice(i, i + tc.length).join("") === term) for (let k = i + 1; k < i + tc.length; k++) inside.add(k);
+    }
+  }
   const cands = [];
   for (let k = 1; k < chars.length; k++) {
     const a = chars[k - 1];
     const b = chars[k];
     if (TOKEN.test(a) && TOKEN.test(b)) continue;
     if (NO_LINE_START.test(b)) continue;
+    if (inside.has(k)) continue;
+    if (a === b && CJK.test(a)) continue;
     const left = chars.slice(0, k).join("").trimEnd();
     const right = chars.slice(k).join("").trimStart();
     if (!left || !right) continue;
     const lv = vlen(left);
     const rv = vlen(right);
-    cands.push({ left, right, punct: BREAK_AFTER.test(a) || b === " ", fits: lv <= maxChars && rv <= maxChars, diff: Math.abs(lv - rv) });
+    cands.push({ left, right, punct: BREAK_AFTER.test(a) || b === " ", soft: SOFT_AFTER.test(a), fits: lv <= maxChars && rv <= maxChars, diff: Math.abs(lv - rv) });
   }
   if (!cands.length) return [t];
   const pick = (list) => list.sort((x, y) => x.diff - y.diff)[0];
   const best =
     pick(cands.filter((c) => c.fits && c.punct)) ||
+    pick(cands.filter((c) => c.fits && c.soft && c.diff <= total * 0.3)) ||
     pick(cands.filter((c) => c.fits)) ||
     pick(cands.filter((c) => c.punct && c.diff <= total * 0.25)) ||
     pick(cands);
