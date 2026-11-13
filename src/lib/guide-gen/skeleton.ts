@@ -1,5 +1,5 @@
 /**
- * 新文章骨架（v2.27，npm run guide:gen -- new <quest-line|quests|skill-build> <任務 id｜地區｜二轉職業代碼>）。
+ * 新文章骨架（v2.28，npm run guide:gen -- new <quest-line|quests|skill-build> <任務 id｜地區｜二轉職業代碼>）。
  * 設定區、標題照設計文件的格式；產生區塊留標記（guide:gen 會填）；人寫的段落留 <!-- 寫： --> 註解提醒，註解不上頁面。
  */
 import { JOB_SLUGS } from "../job-article";

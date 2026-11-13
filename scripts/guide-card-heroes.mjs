@@ -47,7 +47,7 @@ const RULES =
  */
 const SCENES = [
   {
-    // v2.27 波達系列：天空之城，波達等主人豪克
+    // v2.28 波達系列：天空之城，波達等主人豪克
     slug: "quest-line-3053",
     base: { render: 200000000, crop: [400, 200, 480, 270], fill: "#cfe6f7" },
     sprites: [
@@ -62,7 +62,7 @@ const SCENES = [
     ].join(" "),
   },
   {
-    // v2.27 珍的挑戰：維多利亞港，煉金術士珍跟黑肥肥
+    // v2.28 珍的挑戰：維多利亞港，煉金術士珍跟黑肥肥
     slug: "quest-line-2010",
     base: { render: 104000000, crop: [380, 60, 480, 270], fill: "#9fd3f0" },
     sprites: [
@@ -77,7 +77,7 @@ const SCENES = [
     ].join(" "),
   },
   {
-    // v2.27 維多利亞島任務總整理：弓箭手村一帶
+    // v2.28 維多利亞島任務總整理：弓箭手村一帶
     slug: "quests-victoria",
     base: { render: 104000000, crop: [0, 40, 540, 304], fill: "#9fd3f0" },
     sprites: [
@@ -91,7 +91,7 @@ const SCENES = [
     ].join(" "),
   },
   {
-    // v2.27 龍騎士配點：龍穴，龍騎士對青龍
+    // v2.28 龍騎士配點：龍穴，龍騎士對青龍
     slug: "skill-build-spearman",
     base: { render: 105090300, crop: [300, 900, 480, 270], fill: "#3b4a3a" },
     sprites: [{ file: "monster_frames/5130100.png", x: 0.74, y: 0.88, h: 0.42 }],

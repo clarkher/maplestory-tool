@@ -20,7 +20,7 @@
 - 不編造：文字只寫資料查得到的；沒有就不寫。UI 不准 emoji。不准真實品牌名。
 - 每篇在 `RELATED_RULES` 登記；每篇主圖用 `scripts/guide-card-heroes.mjs`（不准有字，自己用眼睛看）。
 - 改了 `public/data` 才要動 `meta.json` builtAt；這批只加 md 跟圖，不動 public/data。
-- 只進 dev；commit 以 `v2.27:` 開頭（開分支前 `git fetch` 看 origin/dev、origin/main 有沒有被佔走，被佔就往上跳）。
+- 只進 dev；commit 以 `v2.28:` 開頭（開分支前 `git fetch` 看 origin/dev、origin/main 有沒有被佔走，被佔就往上跳）。
 - 每輪 PR 合併前 `gh pr checks` 三條（單元測試、建置、第一格）都出現且綠。
 
 ## Review Focus
@@ -51,7 +51,7 @@
 - [ ] **Step 2:** `npx vitest run src/lib/__tests__/guide-markdown.test.ts` → 新測試 FAIL。
 - [ ] **Step 3:** 實作（`parseInline` 的 pattern 加一支 `\{\{src:(game|calc|legacy)\}\}`）。
 - [ ] **Step 4:** 同指令全 PASS；`npm test` 全綠（既有文章沒連 npcs/maps/skills 壞頁）。
-- [ ] **Step 5: Commit** `v2.27: 一般攻略文可以標資料來源；文章連 NPC、地圖、技能單獨頁也擋 404`
+- [ ] **Step 5: Commit** `v2.28: 一般攻略文可以標資料來源；文章連 NPC、地圖、技能單獨頁也擋 404`
 
 ---
 
@@ -84,7 +84,7 @@
 - [ ] **Step 2:** `npx vitest run src/lib/__tests__/guide-gen-quest-lines.test.ts` → FAIL。
 - [ ] **Step 3:** 實作。`steps` 每個任務：`### <n>. <任務名>（<幾等>）`，下面用 `questSteps`＋`stepText` 組成清單（`StepSeg` 的連結轉 `[字](href)`），最後一行 `經驗 <exp>｜獎勵 …` 加 `{{src:game}}`。分支各一段 `### 做完「X」之後也可以接`。
 - [ ] **Step 4:** 測試 PASS。
-- [ ] **Step 5: Commit** `v2.27: 系列任務產生器（用前置任務串成系列、主線＋分支、每步照任務單獨頁的寫法）`
+- [ ] **Step 5: Commit** `v2.28: 系列任務產生器（用前置任務串成系列、主線＋分支、每步照任務單獨頁的寫法）`
 
 ---
 
@@ -107,7 +107,7 @@
 - [ ] **Step 2:** 跑測試 FAIL。
 - [ ] **Step 3:** 實作。
 - [ ] **Step 4:** PASS。
-- [ ] **Step 5: Commit** `v2.27: 地區任務懶人包產生器（楓之島照接的順序、其他照等級、標必解跟系列文）`
+- [ ] **Step 5: Commit** `v2.28: 地區任務懶人包產生器（楓之島照接的順序、其他照等級、標必解跟系列文）`
 
 ---
 
@@ -135,7 +135,7 @@
 - [ ] **Step 2:** FAIL。
 - [ ] **Step 3:** 實作。
 - [ ] **Step 4:** PASS。
-- [ ] **Step 5: Commit** `v2.27: 職業配點產生器（照首頁升級路線那套主流點法，換算成第幾等點到幾級）`
+- [ ] **Step 5: Commit** `v2.28: 職業配點產生器（照首頁升級路線那套主流點法，換算成第幾等點到幾級）`
 
 ---
 
@@ -161,7 +161,7 @@
 - [ ] **Step 2:** FAIL。
 - [ ] **Step 3:** 實作。
 - [ ] **Step 4:** PASS；README「攻略文」段補 `guide:gen` 用法（同一個 commit）。
-- [ ] **Step 5: Commit** `v2.27: npm run guide:gen 產系列任務、懶人包、配點的表格，測試擋資料變了沒重產`
+- [ ] **Step 5: Commit** `v2.28: npm run guide:gen 產系列任務、懶人包、配點的表格，測試擋資料變了沒重產`
 
 ---
 
@@ -178,13 +178,13 @@
 - [ ] **Step 3:** 對照 `src/data/job-articles/130-*.json`、`131-71-90.json` 的「技能怎麼點」段落跟配點表；不一致改職業攻略的文字（不動 json），列在 PR 內文。
 - [ ] **Step 4:** `node scripts/guide-card-heroes.mjs <4 個 slug> --ai`，每張自己看（不准有字、怪認得出來）。
 - [ ] **Step 5:** `npm test` 全綠、`npx next build` 過。
-- [ ] **Step 6: Commit** `v2.27: 4 篇樣本——波達系列、珍的挑戰、維多利亞島任務總整理、龍騎士配點`
+- [ ] **Step 6: Commit** `v2.28: 4 篇樣本——波達系列、珍的挑戰、維多利亞島任務總整理、龍騎士配點`
 
 ---
 
 ### Task 7: 第一輪交付（PR 進 dev＋測試機驗收）
 
-- [ ] **Step 1:** `git fetch origin`；看 origin/dev、origin/main 最新版號，v2.27 被佔就整批改號。開 PR 進 dev，內文寫：這輪 4 篇、跟哪篇職業攻略改了文字、沒做的（量產在下一輪）。
+- [ ] **Step 1:** `git fetch origin`；看 origin/dev、origin/main 最新版號，v2.28 被佔就整批改號。開 PR 進 dev，內文寫：這輪 4 篇、跟哪篇職業攻略改了文字、沒做的（量產在下一輪）。
 - [ ] **Step 2:** `gh pr checks <N>` 三條出現且綠 → `--match-head-commit` 合併；確認 Workers Builds 測試機部署成功。
 - [ ] **Step 3:** 測試機實際打開 4 篇（電腦＋375 寬手機）截圖；/guides 攻略專區看得到 4 張卡；文末相關卡有 3 張。
 - [ ] **Step 4:** 以台灣第一次玩的手機用戶角度派 agent 打分（1–5，要有分佈）＋自己挑 ≥10 點優化。
@@ -198,7 +198,7 @@
 - [ ] **Step 2:** `npm run guide:gen -- new quest-line <id>` 建其餘約 22 篇＋`quests-maple-island`、`quests-el-nath`；人寫段落照樣本格式。
 - [ ] **Step 3:** `RELATED_RULES` 登記、`SCENES` 加圖、跑 `--ai` 每張看過。
 - [ ] **Step 4:** `npm test`、`npx next build` 綠 → PR 進 dev → 三條綠 → 測試機抽 5 篇＋2 篇懶人包截圖驗收。
-- [ ] **Step 5: Commit/PR** `v2.27: 系列任務 N 篇＋楓之島、冰原雪域任務總整理`（版號開工時再確認）。
+- [ ] **Step 5: Commit/PR** `v2.28: 系列任務 N 篇＋楓之島、冰原雪域任務總整理`（版號開工時再確認）。
 
 ---
 

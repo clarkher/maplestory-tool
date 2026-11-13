@@ -1,5 +1,5 @@
 /**
- * 系列任務文章的表格（v2.27，docs/superpowers/specs/2026-11-13-article-batch-quests-builds-design.md）。
+ * 系列任務文章的表格（v2.28，docs/superpowers/specs/2026-11-13-article-batch-quests-builds-design.md）。
  * 用前置任務（pre）把一般任務串成系列：5 個以上，或有人搜的（QUEST_LINE_EXTRA）才收。
  * 主線：最長那條路，加上終點要先做的任務（兩個起點都要做的系列，兩個都進主線）；沒走到的變分支（做完 X 之後也可以接），
  * 跟主線沒有前置關係的另一個起點也是分支（after 不填）。轉職那串（推薦職業、X轉職、X之路）不算。

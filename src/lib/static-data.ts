@@ -56,7 +56,7 @@ export function staticGuideJobs(): number[] {
 }
 
 export const staticGuide = (job: number) => read<GuideJob>(`guides/${job}`);
-/** 攻略研究的共用資料（必解、經驗表；v2.27 地區懶人包標必解用） */
+/** 攻略研究的共用資料（必解、經驗表；v2.28 地區懶人包標必解用） */
 export const staticGuideCommon = () => read<GuideCommon>("guides/common");
 
 /** 道具單獨頁要查的怪物、任務名字（只算有自己頁面的） */

@@ -1,7 +1,7 @@
 /**
  * 一般攻略文（v1.88 起，不是「職業×等級」那種）：src/content/guides/<slug>.md，建置時讀成區塊再畫。
  * 只認站上文章會用到的 Markdown：開頭 --- 設定 ---、## ### 標題、段落、- 1. 清單、| 表格 |、> 引言框、![圖](路徑)、---、**粗體**、[連結](網址)。
- * 站上自己的寫法：{{src:game}}／{{src:calc}}／{{src:legacy}} 畫成資料來源標籤（v2.27，遊戲資料／站上計算／參考舊版資料）。
+ * 站上自己的寫法：{{src:game}}／{{src:calc}}／{{src:legacy}} 畫成資料來源標籤（v2.28，遊戲資料／站上計算／參考舊版資料）。
  * 不認的寫法照原文當段落，不會吃掉字；<!-- 註解 --> 拿掉。新文章丟一個 .md 進資料夾，攻略列表、sitemap 自動列。
  */
 export type Inline =
@@ -11,7 +11,7 @@ export type Inline =
   | { t: "img"; src: string; alt: string }
   | { t: "src"; tag: SourceTag };
 
-/** 資料來源標籤（v2.27）：跟職業攻略文的三色同一套顏色，字樣是一般文章用的 */
+/** 資料來源標籤（v2.28）：跟職業攻略文的三色同一套顏色，字樣是一般文章用的 */
 export type SourceTag = "game" | "calc" | "legacy";
 export const SOURCE_LABEL: Record<SourceTag, string> = { game: "遊戲資料", calc: "站上計算", legacy: "參考舊版資料" };
 
