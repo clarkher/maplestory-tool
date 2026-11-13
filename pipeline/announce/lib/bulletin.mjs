@@ -5,7 +5,8 @@
  */
 
 const API = "https://maplestoryclassic.beanfun.com/api/Bulletin/FindBulletin";
-const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+export const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36";
+export const REFERER = "https://maplestoryclassic.beanfun.com/bulletin";
 export const bulletinUrl = id => `https://maplestoryclassic.beanfun.com/bulletin?Bid=${id}`;
 
 export async function fetchBulletins({ pageSize = 30, fetcher = fetch } = {}) {
