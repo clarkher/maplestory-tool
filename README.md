@@ -576,6 +576,7 @@ ChatGPT 查網路主要靠 Bing；IndexNow 讓 Bing（跟 Yandex 等）不用等
 - **單筆靜態頁**：`/db/monsters/<id>`、`/db/quests/<id>`、`/db/skills/<id>`、`/jobs/<職業>`，建置時從 `public/data` 讀（`src/lib/static-data.ts`）
   先畫好，不跑 JavaScript 也讀得到。開頭那段話在 `src/lib/seo.ts`，只用資料裡有的欄位組句子。查資料清單、卡片照舊用 `?id=`。
 - **固定頁清單**：`src/lib/site-pages.ts`，`sitemap.xml` 跟 `/llms.txt`（給 AI 讀的網站說明）共用；**新增頁面要加在這裡**。
+- **RSS 訂閱檔**（v2.23）：`/feed.xml`（`src/app/feed.xml/route.ts`＋`src/lib/feed.ts`），自動列職業攻略文、一般攻略文、改版整理，新的在前、最多 50 篇、有主圖帶 `media:content`。Google App 的「追蹤」網站靠它把新文章推到追蹤者的 Google 探索；`layout.tsx` 的 `<head>` 有 `<link rel="alternate">` 讓每一頁都找得到。
 - **robots**：明列 AI 爬蟲（GPTBot、ClaudeBot、PerplexityBot…）允許，`/api/` 不給爬（只開 `/api/avatar/share`，紙娃娃分享連結要給爬蟲讀 og 標籤；爬蟲取最長規則，那頁自己回 `x-robots-tag: noindex`）。
 - **結構化資料**：全站 WebSite 放 `<body>`（`<head>` 的 script 會被 `scroll-behavior.test.ts` 當程式跑），單筆頁另有麵包屑跟 WebPage。
 - 查資料四頁讀取時伺服器先畫標題（`DbFallback`，標題字在 `src/lib/db-heads.ts`）。
