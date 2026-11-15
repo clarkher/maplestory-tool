@@ -32,6 +32,20 @@ describe("questSteps（真資料）", () => {
     expect(bad).toEqual([]);
   });
 
+  it("道具哪隻怪掉：同一區（接任務那張圖的世界地圖）的怪排前面，不叫天空之城的人回維多利亞島（波達「妖精的號角」）", () => {
+    const found = all.find(({ quest }) => quest.id === "3054")!;
+    const items = found.steps.find(step => step.kind === "items")!;
+    const region = ctx.maps["200000000"].rg;
+    for (const line of items.lines) {
+      const firstMap = line.find((seg): seg is { t: string; href: string } => typeof seg !== "string" && seg.href.startsWith("/db/maps/"));
+      if (!firstMap) continue;
+      const id = firstMap.href.split("/").pop()!;
+      const record = ctx.maps[id];
+      const rg = record.rg ?? ctx.maps[String(record.ret)]?.rg;
+      expect(rg, `${stepText(items).join(" / ")}`).toBe(region);
+    }
+  });
+
   it.runIf(process.env.QUEST_STEP_STATS)("統計", () => {
     const count = new Map<number, number>();
     const kinds = new Map<string, number>();
