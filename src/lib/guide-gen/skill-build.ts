@@ -29,9 +29,29 @@ export function buildRows(job: number, build: GuideBuild, guideOf: (job: number)
     .map(step => ({ id: step.id, name: step.name, text: stepText(step), to: step.to, note: step.note, end: step.end, level: reachLevel(job, step.end) }));
 }
 
-/** 「雙修（我流，板上玩家…）」→「雙修」：表上只放點法的名字，出處細節不進文章 */
-const shortLabel = (label: string) => label.split(/[（(]/)[0].replace(/^(舊版主流點法|舊版|主流)[：:・]\s*/, "").trim() || label;
-const cell = (text = "") => text.replace(/\|/g, "／").replace(/\n/g, " ");
+/** 資料來源的網站名、社群名、玩家暱稱：不進文章（文章不寫真實品牌名，讀者也不知道「作者」是誰） */
+const SOURCE_NAME = /波波|楓錄|Threads|噗貓|巴哈姆特|鏢賊心得/;
+/** 「雙修（我流，板上玩家…）」→「雙修」、「波波攻略島：精準→…」→「精準→…」：表上只放點法的名字，出處細節不進文章 */
+const shortLabel = (label: string) => {
+  const [head, ...rest] = label.split("：");
+  const named = rest.length && !/[（(]/.test(head) && SOURCE_NAME.test(head) ? rest.join("：") : label;
+  // 「楓錄通用版」→「通用版」
+  return named.split(/[（(]/)[0].replace(/^(舊版主流點法|舊版|主流)[：:・]\s*/, "").replace(/波波攻略島|波波|楓錄|噗貓|Threads/g, "").replace(/^[／\s]+/, "").trim() || label;
+};
+/** 說明欄：出處換成一般說法（「波波核算」→「核算」、「作者：」→「整理的玩家：」） */
+const cleanNote = (note: string) =>
+  note
+    .replace(/[（(][^）)]*(?:波波|楓錄|噗貓)[^）)]*[）)]/g, "")
+    .replace(/〈鏢賊心得〉/g, "另一份心得")
+    .replace(/噗貓順序/g, "另一位玩家的順序")
+    .replace(/楓錄此表/g, "這套")
+    .replace(/楓錄版/g, "另一份整理")
+    .replace(/楓錄寫/g, "另一份整理寫")
+    .replace(/波波(註|核算)/g, "$1")
+    .replace(/攻略作者/g, "寫攻略的玩家")
+    .replace(/作者/g, "整理的玩家")
+    .trim();
+const cell = (text = "") => cleanNote(text).replace(/\|/g, "／").replace(/\n/g, " ");
 
 function stageTable(job: number, build: GuideBuild, guideOf: (job: number) => GuideJob | undefined, prefer: string, skillHref: (id: number) => string | undefined): string {
   const rows = buildRows(job, build, guideOf, prefer).filter((row): row is BuildRow & { level: number } => row.level !== null);
@@ -61,7 +81,9 @@ export function skillBuildMarkdown(
     const build = guide ? mainBuild(guide.builds, prefer) : undefined;
     if (!guide || !build) continue;
     out[key] = stageTable(job, build, guideOf, prefer, skillHref);
-    for (const other of guide.builds.filter(entry => entry.main && entry !== build)) {
+    // 一轉共用的點法裡標「槍手線」的，打手文章不列（只看自己這條二轉線）
+    const siblings = BUILD_LINES.filter(other => other !== line && other - (other % 100) === stages.first).flatMap(other => guideOf(other)?.name ?? []);
+    for (const other of guide.builds.filter(entry => entry.main && entry !== build && !siblings.some(name => entry.label.includes(`${name}線`)))) {
       // 短名字跟主推或前面一套撞名（槍騎兵三套都叫「雙修」）就寫第幾套；完整名字有玩家暱稱，不進文章
       const short = `${guide.name}・${shortLabel(other.label)}`;
       const same = (shortLabel(build.label) === shortLabel(other.label) ? 1 : 0) + others.filter(line => line.startsWith(`- ${short}`)).length;

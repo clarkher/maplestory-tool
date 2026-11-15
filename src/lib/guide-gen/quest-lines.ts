@@ -22,6 +22,7 @@ const QUEST_LINE_NAME: Record<string, string> = {
   "2001": "酋長蓋房子",
   "3044": "艾斯達的甜蜜果漿",
   "2090": "好無聊",
+  "3004": "古代之書",
 };
 
 const MIN_SIZE = 5;
@@ -30,8 +31,8 @@ const EXCLUDED_CATS = new Set(["活動", "組隊任務", "稱號", "職業", "�
 /** 系列文章只收一般任務 */
 export const isLineQuest = (quest: Quest) => !EXCLUDED_CATS.has(quest.cat) && !/萬聖節|冒險家的戒指/.test(quest.n) && !/^推薦職業$|轉職$|之路$/.test(quest.n);
 
-/** 「好無聊1」「尋找女兒 1」「(1)」這類尾巴拿掉 */
-const baseName = (name: string) => name.replace(/\s*(\(\d+\)|\d+|[Ⅰ-Ⅻ])$/u, "").trim();
+/** 「好無聊1」「尋找女兒 1」「(1)」「幫助貝恩。」這類尾巴拿掉 */
+const baseName = (name: string) => name.replace(/[。．.！!？?，,、]+$/u, "").replace(/\s*(\(\d+\)|\d+|[Ⅰ-Ⅻ])$/u, "").trim();
 
 export function questLines(quests: Quest[]): QuestLine[] {
   const pool = quests.filter(isLineQuest);
@@ -124,6 +125,14 @@ export function topoOrder(list: Quest[], pres: (quest: Quest) => string[]): Ques
 
 export const levelText = (quest: Pick<Quest, "minLv">) => (quest.minLv === undefined ? "不限等級" : `${quest.minLv} 等`);
 
+const CLASS_NAMES: Record<number, string> = { 1: "劍士", 2: "法師", 3: "弓箭手", 4: "盜賊", 5: "海盜" };
+/** 只有某幾個職業能接：「弓箭手」「劍士、法師」；五個職業都能接、或只限初心者（楓之島本來就是）回 undefined */
+export function jobLimit(quest: Pick<Quest, "jobs">): string | undefined {
+  const classes = [...new Set((quest.jobs ?? []).filter(job => job < 1000).map(job => Math.floor(job / 100)))].sort();
+  if (!classes.length || classes.includes(0) || classes.length >= 5) return undefined;
+  return classes.map(id => CLASS_NAMES[id]).join("、");
+}
+
 /** StepSeg → Markdown（連結變 [字](網址)） */
 const segText = (segs: StepSeg[]) => segs.map(seg => (typeof seg === "string" ? seg : `[${seg.t}](${seg.href})`)).join("");
 
@@ -132,7 +141,8 @@ function questBlock(quest: Quest, index: number, ctx: QuestStepContext): string 
   const steps = questSteps(quest, ctx).flatMap(step =>
     step.lines.map((line, index) => `- ${index ? "" : `**${step.title}**：`}${segText(line)}${!index && step.go ? ` [帶我去](${step.go})` : ""}`),
   );
-  return [`### ${index}. [${quest.n}](/db/quests/${quest.id})（${levelText(quest)}）`, "", ...steps].join("\n");
+  const limit = jobLimit(quest);
+  return [`### ${index}. [${quest.n}](/db/quests/${quest.id})（${levelText(quest)}）`, "", ...(limit ? [`- **職業**：限${limit}接，其他職業看不到這個任務。`] : []), ...steps].join("\n");
 }
 
 export function questLineMarkdown(line: QuestLine, ctx: QuestStepContext): Record<"summary" | "steps", string> {

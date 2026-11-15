@@ -102,6 +102,419 @@ const SCENES = [
       "Epic but clean, strong rim light on the knight, cool blue and green palette.",
     ].join(" "),
   },
+  // v2.30 第二輪：其餘系列任務＋楓之島、冰原雪域任務總整理（sprite 用系列裡最常出現的 NPC、怪）
+  {
+    slug: "quest-line-1037",
+    base: { render: 50000, crop: [360, 182, 480, 270], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/12100.png", x: 0.28, y: 0.9, h: 0.3 },
+      { file: "monster_frames/210100.png", x: 0.66, y: 0.9, h: 0.14 },
+      { file: "monster_frames/130100.png", x: 0.8, y: 0.9, h: 0.2 },
+    ],
+    idea: [
+      "Turn the scene into a cheerful little starter island village: grassy hills, small wooden houses with round roofs, a calm sea in the background, soft morning sun.",
+      "On the left the friendly villager from the sprite, keep the look exactly like the sprite, points toward the field. On the right the small green slime and the little walking tree stump from the sprites, keep their look exactly like the sprites, hop around.",
+      "A young beginner adventurer with short brown hair in a plain shirt holds a small wooden sword, eager and a little nervous. Bright, cozy, first-day-of-adventure mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-1009",
+    base: { render: 1010000, crop: [360, 59, 480, 270], fill: "#9fd3f0" },
+    sprites: [{ file: "npcs/12101.png", x: 0.62, y: 0.9, h: 0.32 }],
+    idea: [
+      "Turn the scene into a sunny training path on a small starter island: wooden fences, flowers, gentle slopes and a few practice targets.",
+      "On the right the instructor from the sprite, keep the look exactly like the sprite, stands with arms crossed giving a friendly test. On the left a young beginner adventurer with short brown hair in a plain shirt jumps over a little gap, determined.",
+      "Light, encouraging, playful mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2089",
+    base: { render: 103000000, crop: [360, 174, 480, 270], fill: "#5b5560" },
+    sprites: [
+      { file: "npcs/1052106.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "npcs/1032106.png", x: 0.78, y: 0.9, h: 0.26 },
+    ],
+    idea: [
+      "Split the scene softly between a gritty city of stone buildings and pipes on the left and a magical forest with giant mushrooms on the right, joined by a dirt road.",
+      "On the left the bored young man from the sprite, keep the look exactly like the sprite, slumps on a crate yawning. On the right the small fairy from the sprite, keep the look exactly like the sprite, floats with a curious smile.",
+      "A young adventurer with short brown hair in a light tunic walks between them carrying a bundle of slime drops and twigs. Light-hearted, comedic mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2162",
+    base: { render: 120000100, crop: [442, 0, 315, 177], fill: "#2c3f57" },
+    sprites: [
+      { file: "npcs/1092007.png", x: 0.26, y: 0.9, h: 0.34 },
+      { file: "monster_frames/7130100.png", x: 0.76, y: 0.9, h: 0.4 },
+    ],
+    idea: [
+      "Turn the scene into the deck and cabin of a big wooden pirate ship docked at night, lanterns glowing, a sealed letter lying on a barrel.",
+      "On the left the blindfolded swordsman from the sprite, keep the look exactly like the sprite, sits calmly listening. On the right the huge horned bull-headed monster from the sprite, keep the look exactly like the sprite, looms in the shadows.",
+      "A young adventurer with short brown hair in a light tunic picks up the old letter, determined. Mysterious, slightly tense mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2082",
+    base: { render: 102000000, crop: [360, 700, 480, 270], fill: "#8a6a4a" },
+    sprites: [
+      { file: "npcs/1022007.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "monster_frames/130100.png", x: 0.64, y: 0.9, h: 0.2 },
+      { file: "monster_frames/6220000.png", x: 0.84, y: 0.9, h: 0.34 },
+    ],
+    idea: [
+      "Turn the scene into a rocky highland village at the edge of a dark swamp, dead trees and mist in the distance.",
+      "On the left the worried villager from the sprite, keep the look exactly like the sprite, hides behind a rock. In the middle the walking tree stump and on the right the giant swamp crocodile from the sprites, keep their look exactly like the sprites.",
+      "A young adventurer with short brown hair in a light tunic stands between them shielding the villager. Brave, slightly spooky but fun mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2171",
+    base: { render: 120000300, crop: [446, 0, 308, 173], fill: "#2c3f57" },
+    sprites: [
+      { file: "npcs/1092002.png", x: 0.3, y: 0.9, h: 0.34 },
+      { file: "monster_frames/1210100.png", x: 0.72, y: 0.9, h: 0.16 },
+    ],
+    idea: [
+      "Turn the scene into the inside of a pirate ship training deck: ropes, cannons, wooden crates, sunlight through portholes.",
+      "On the left the young pirate from the sprite, keep the look exactly like the sprite, waves for help. On the right the little pink pig from the sprite, keep the look exactly like the sprite, runs around.",
+      "A young adventurer with short brown hair in a light tunic chases the pig with a sack. Cheerful, slapstick mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2029",
+    base: { render: 103000000, crop: [360, 174, 480, 270], fill: "#5b5560" },
+    sprites: [
+      { file: "npcs/1052103.png", x: 0.26, y: 0.9, h: 0.3 },
+      { file: "monster_frames/3210800.png", x: 0.7, y: 0.9, h: 0.22 },
+      { file: "monster_frames/2230102.png", x: 0.86, y: 0.9, h: 0.2 },
+    ],
+    idea: [
+      "Turn the scene into a gritty city street of stone walls and pipes opening onto a jungle path.",
+      "On the left the character from the sprite, keep the look exactly like the sprite, holds out a list with a pleading look. On the right the mischievous monkey and the black boar from the sprites, keep their look exactly like the sprites.",
+      "A young adventurer with short brown hair in a light tunic nods and rolls up a sleeve. Friendly, busy mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2002",
+    base: { render: 104000000, crop: [380, 60, 480, 270], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/1012101.png", x: 0.22, y: 0.9, h: 0.3 },
+      { file: "npcs/1022002.png", x: 0.5, y: 0.9, h: 0.3 },
+      { file: "monster_frames/3220000.png", x: 0.82, y: 0.9, h: 0.38 },
+    ],
+    idea: [
+      "Turn the scene into a sunny harbor town by the sea: wooden docks, sailing ships, red-roofed houses, sparkling water.",
+      "On the left a sick-looking character from the sprite resting on a bench, in the middle the character from the sprite holding a medicine recipe, keep both looks exactly like the sprites. On the right the big tree monster from the sprite, keep its look exactly like the sprite, in a forest edge behind the town.",
+      "A young adventurer with short brown hair in a light tunic runs off with a bag of herbs. Warm, caring mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2065",
+    base: { render: 101000000, crop: [360, 1700, 480, 270], fill: "#3f6b46" },
+    sprites: [
+      { file: "npcs/1032104.png", x: 0.26, y: 0.9, h: 0.3 },
+      { file: "monster_frames/2130100.png", x: 0.74, y: 0.9, h: 0.24 },
+    ],
+    idea: [
+      "Turn the scene into a deep magical forest with giant tree trunks, glowing mushrooms and an old dig site with fossil bones in the dirt.",
+      "On the left the scholar from the sprite, keep the look exactly like the sprite, kneels brushing dirt off a fossil. On the right the dark axe-carrying tree stump monster from the sprite, keep its look exactly like the sprite.",
+      "A young adventurer with short brown hair in a light tunic holds up a fossil fragment proudly. Curious, discovery mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2014",
+    base: { render: 100000000, crop: [395, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/1012003.png", x: 0.24, y: 0.9, h: 0.32 },
+      { file: "npcs/1052000.png", x: 0.74, y: 0.9, h: 0.32 },
+    ],
+    idea: [
+      "Turn the scene into a peaceful village of tall trees and tree houses at sunset.",
+      "On the left the old village elder from the sprite, keep the look exactly like the sprite, frowns with arms folded. On the right the character from the sprite, keep the look exactly like the sprite, gestures earnestly asking for something.",
+      "A young adventurer with short brown hair in a light tunic stands in the middle as a go-between, holding a letter. Calm, diplomatic mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2019",
+    base: { render: 101020001, crop: [360, 2600, 480, 270], fill: "#3f6b46" },
+    sprites: [
+      { file: "npcs/1061004.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "monster_frames/5220002.png", x: 0.78, y: 0.9, h: 0.38 },
+    ],
+    idea: [
+      "Turn the scene into a misty ancient forest with an old stone library ruin, a glowing mysterious book on a pedestal.",
+      "On the left the robed character from the sprite, keep the look exactly like the sprite, points at the book. On the right the undead monkey king from the sprite, keep its look exactly like the sprite, lurks among ruins.",
+      "A young adventurer with short brown hair in a light tunic reaches for the glowing book. Mysterious, adventurous mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2144",
+    base: { render: 101030404, crop: [360, 600, 480, 270], fill: "#6b5a3a" },
+    sprites: [
+      { file: "npcs/1022006.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "monster_frames/3220000.png", x: 0.78, y: 0.9, h: 0.38 },
+    ],
+    idea: [
+      "Turn the scene into a dusty excavation site between rocky cliffs and a forest, wooden scaffolds and crates.",
+      "On the left the archaeologist from the sprite, keep the look exactly like the sprite, whispers behind a hand as if sharing a rumor. On the right the big tree monster from the sprite, keep its look exactly like the sprite.",
+      "A young adventurer with short brown hair in a light tunic listens skeptically. Intriguing, investigative mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2222",
+    base: { render: 910100000, crop: [360, 204, 480, 270], fill: "#2f2a3a" },
+    sprites: [
+      { file: "npcs/1040002.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "monster_frames/5300100.png", x: 0.76, y: 0.9, h: 0.36 },
+    ],
+    idea: [
+      "Turn the scene into a dark haunted forest at dusk: twisted trees, purple fog, floating wisps of light.",
+      "On the left the villager from the sprite, keep the look exactly like the sprite, holds a lantern nervously. On the right the witch from the sprite, keep the look exactly like the sprite, hovers casting a spell.",
+      "A young adventurer with short brown hair in a light tunic steps forward with a raised weapon. Spooky but heroic mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2157",
+    base: { render: 110040000, crop: [360, 282, 480, 270], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/1081100.png", x: 0.22, y: 0.9, h: 0.3 },
+      { file: "monster_frames/5220000.png", x: 0.74, y: 0.9, h: 0.4 },
+    ],
+    idea: [
+      "Turn the scene into a bright tropical beach: palm trees, white sand, turquoise waves, a small altar with offerings near the shore.",
+      "On the left the islander from the sprite, keep the look exactly like the sprite, prays at the altar. On the right the giant hermit crab from the sprite, keep its look exactly like the sprite, rises from the waves.",
+      "A young adventurer with short brown hair in a light tunic carries a basket of shells as an offering. Sunny, slightly mystical mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2213",
+    base: { render: 107000300, crop: [360, 179, 480, 270], fill: "#3e4a36" },
+    sprites: [
+      { file: "npcs/1052002.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "monster_frames/6220000.png", x: 0.76, y: 0.9, h: 0.36 },
+    ],
+    idea: [
+      "Turn the scene into a gloomy swamp at the edge of a dark city, rotting logs, murky water, a knocked-over trash can with papers spilling out.",
+      "On the left the shady character from the sprite, keep the look exactly like the sprite, peeks from behind a wall holding a secret note. On the right the giant swamp crocodile from the sprite, keep its look exactly like the sprite, emerges from the water.",
+      "A young adventurer with short brown hair in a light tunic reads the crumpled note, alarmed. Conspiratorial, tense mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-2000",
+    base: { render: 102000000, crop: [360, 700, 480, 270], fill: "#8a6a4a" },
+    sprites: [
+      { file: "npcs/1020000.png", x: 0.26, y: 0.9, h: 0.32 },
+      { file: "monster_frames/5130101.png", x: 0.76, y: 0.9, h: 0.38 },
+    ],
+    idea: [
+      "Turn the scene into a rocky highland warrior village with a half-built wooden house, logs, stones and tools lying around.",
+      "On the left the village chief from the sprite, keep the look exactly like the sprite, proudly points at the unfinished house. On the right the stone golem from the sprite, keep its look exactly like the sprite, lumbers nearby.",
+      "A young adventurer with short brown hair in a light tunic carries a stack of building materials. Sturdy, hardworking, cheerful mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-3044",
+    base: { render: 200000200, crop: [360, 700, 480, 270], fill: "#cfe6f7" },
+    sprites: [
+      { file: "npcs/2012018.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "monster_frames/4230105.png", x: 0.76, y: 0.9, h: 0.3 },
+    ],
+    idea: [
+      "Turn the scene into a floating sky city garden above the clouds: white stone, flower beds, a jar of sweet golden syrup on a table.",
+      "On the left the character from the sprite, keep the look exactly like the sprite, stirs a pot of syrup happily. On the right the man-eating flower monster from the sprite, keep its look exactly like the sprite, snaps at a bee.",
+      "A young adventurer with short brown hair in a light tunic brings a handful of flower nectar. Sweet, bright mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-3086",
+    base: { render: 200050001, crop: [160, 330, 480, 270], fill: "#cfe6f7" },
+    sprites: [
+      { file: "npcs/2032000.png", x: 0.24, y: 0.9, h: 0.3 },
+      { file: "monster_frames/5120000.png", x: 0.74, y: 0.9, h: 0.3 },
+    ],
+    idea: [
+      "Turn the scene into a quiet library tower above the clouds, tall bookshelves, a crystal ball glowing with a prophecy.",
+      "On the left the assistant from the sprite, keep the look exactly like the sprite, holds a scroll. On the right the glowing sun fairy from the sprite, keep its look exactly like the sprite, floats near a window.",
+      "A young adventurer with short brown hair in a light tunic gazes into the crystal ball. Mystical, calm mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-3000",
+    base: { render: 211050000, crop: [360, 293, 480, 270], fill: "#dfeaf3" },
+    sprites: [
+      { file: "npcs/2030002.png", x: 0.26, y: 0.9, h: 0.3 },
+      { file: "npcs/2030001.png", x: 0.72, y: 0.9, h: 0.3 },
+    ],
+    idea: [
+      "Turn the scene into a snowy military outpost in icy mountains, a wooden watchtower, footprints leading into a blizzard.",
+      "On the left the young soldier from the sprite, keep the look exactly like the sprite, salutes worriedly. On the right the officer from the sprite, keep the look exactly like the sprite, studies a map.",
+      "A young adventurer with short brown hair in a warm cloak follows the footprints into the snow. Cold, determined search mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-3004",
+    base: { render: 211000100, crop: [360, 49, 480, 270], fill: "#dfeaf3" },
+    sprites: [
+      { file: "npcs/2020005.png", x: 0.24, y: 0.9, h: 0.32 },
+      { file: "monster_frames/7130200.png", x: 0.76, y: 0.9, h: 0.36 },
+    ],
+    idea: [
+      "Turn the scene into a snowy mountain town with a warm-lit study full of ancient books, one huge old tome open with glowing pages.",
+      "On the left the scholar from the sprite, keep the look exactly like the sprite, reads the ancient tome. On the right the werewolf from the sprite, keep its look exactly like the sprite, prowls outside in the snow.",
+      "A young adventurer with short brown hair in a warm cloak carries a stack of old books. Epic, scholarly, long-journey mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quest-line-3105",
+    base: { render: 211040102, crop: [168, 600, 480, 270], fill: "#dfeaf3" },
+    sprites: [
+      { file: "npcs/2020012.png", x: 0.22, y: 0.9, h: 0.34 },
+      { file: "monster_frames/8220001.png", x: 0.74, y: 0.9, h: 0.42 },
+    ],
+    idea: [
+      "Turn the scene into a frozen snowfield under a pale sky, ice cliffs and drifting snow.",
+      "On the left the snow spirit statue from the sprite, keep the look exactly like the sprite, glows faintly. On the right the huge furry snow beast from the sprite, keep its look exactly like the sprite, roars.",
+      "A young adventurer with short brown hair in a warm cloak braces against the wind. Grand, wintry, epic mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quests-maple-island",
+    base: { render: 1010000, crop: [360, 59, 480, 270], fill: "#9fd3f0" },
+    sprites: [
+      { file: "npcs/12100.png", x: 0.2, y: 0.9, h: 0.26 },
+      { file: "monster_frames/210100.png", x: 0.62, y: 0.9, h: 0.12 },
+      { file: "monster_frames/1210102.png", x: 0.8, y: 0.9, h: 0.16 },
+    ],
+    idea: [
+      "Turn the scene into a wide view of a small green starter island: grassy hills, a tiny village, a harbor with a boat waiting to sail to a bigger island.",
+      "Keep the villager, the green slime and the little mushroom from the sprites, same look as the sprites.",
+      "In the foreground a young beginner adventurer with short brown hair in a plain shirt holds a checklist scroll, looking at the boat. Bright, hopeful, beginning-of-journey mood.",
+    ].join(" "),
+  },
+  {
+    slug: "quests-el-nath",
+    base: { render: 211000000, crop: [360, 57, 480, 270], fill: "#dfeaf3" },
+    sprites: [
+      { file: "npcs/2012010.png", x: 0.2, y: 0.9, h: 0.28 },
+      { file: "monster_frames/5140000.png", x: 0.8, y: 0.9, h: 0.3 },
+    ],
+    idea: [
+      "Turn the scene into a panoramic view combining a snowy mountain town on the right and a floating white sky city among clouds on the left, linked by a tall tower.",
+      "Keep the housekeeper from the sprite on the left and the white wolf from the sprite on the right, same look as the sprites.",
+      "In the foreground a young adventurer with short brown hair in a warm cloak holds a long quest list scroll. Grand, adventurous mood.",
+    ].join(" "),
+  },
+  // v2.30 第三輪：其餘 11 條職業線配點（主角穿該職業的打扮，對面是那段等級常打的怪）
+  {
+    slug: "skill-build-berserker",
+    base: { render: 102020000, crop: [360, 500, 480, 270], fill: "#8a6a4a" },
+    sprites: [{ file: "monster_frames/5130101.png", x: 0.74, y: 0.9, h: 0.42 }],
+    idea: [
+      "Turn the scene into a rocky canyon with dust and broken boulders, warm afternoon light.",
+      "On the right the stone golem from the sprite, keep its look exactly like the sprite, stomps forward.",
+      "On the left a young fighter with short dark hair in red and steel armor swings a big two-handed sword in a wide arc, a red energy aura around the blade. Powerful, fierce mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-page",
+    base: { render: 102000000, crop: [360, 700, 480, 270], fill: "#8a6a4a" },
+    sprites: [{ file: "monster_frames/2230100.png", x: 0.74, y: 0.9, h: 0.3 }],
+    idea: [
+      "Turn the scene into a rocky highland at sunset with a stone fortress in the distance.",
+      "On the right the fire one-eyed monster from the sprite, keep its look exactly like the sprite, breathes small flames.",
+      "On the left a young knight with short light hair in white and silver armor holds a large blunt hammer and a shield, a cool icy glow on the weapon. Noble, steady mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-fire-poison-wizard",
+    base: { render: 107000300, crop: [360, 179, 480, 270], fill: "#3e4a36" },
+    sprites: [{ file: "monster_frames/3110100.png", x: 0.74, y: 0.9, h: 0.3 }],
+    idea: [
+      "Turn the scene into a murky swamp with dead trees, green poison mist and glowing embers.",
+      "On the right the crocodile from the sprite, keep its look exactly like the sprite, snaps its jaws.",
+      "On the left a young wizard with messy dark hair in a deep red robe raises a staff, casting a fireball while green poison mist curls around the crocodile. Intense, slightly unhinged confident grin.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-ice-lightning-wizard",
+    base: { render: 211040102, crop: [168, 600, 480, 270], fill: "#dfeaf3" },
+    sprites: [{ file: "monster_frames/8220001.png", x: 0.74, y: 0.9, h: 0.42 }],
+    idea: [
+      "Turn the scene into a frozen snowfield with ice crystals and storm clouds above.",
+      "On the right the huge furry snow beast from the sprite, keep its look exactly like the sprite, half frozen in ice.",
+      "On the left a young wizard with silver hair in a blue and white robe holds up a staff, crackling lightning bolts striking down while ice spikes rise from the ground. Cool, electric, dramatic mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-priest",
+    base: { backdrop: "ruins" },
+    sprites: [{ file: "monster_frames/5220002.png", x: 0.74, y: 0.9, h: 0.42 }],
+    idea: [
+      "Turn the scene into ancient stone ruins at twilight with ivy and broken pillars.",
+      "On the right the undead monkey king from the sprite, keep its look exactly like the sprite, recoils from holy light.",
+      "On the left a young priest with soft light hair in a white and gold robe raises a staff, a warm golden healing light bursting outward. Holy, gentle but powerful mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-hunter",
+    base: { backdrop: "monkey-forest" },
+    sprites: [{ file: "monster_frames/4230101.png", x: 0.76, y: 0.9, h: 0.3 }],
+    idea: [
+      "Turn the scene into a lush jungle with tall trees, vines and sun rays.",
+      "On the right the winged monkey from the sprite, keep its look exactly like the sprite, flutters in the branches.",
+      "On the left a young archer with short brown hair in a green hooded tunic draws a longbow, an arrow glowing with light, calm focused eyes. Agile, sharp mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-crossbowman",
+    base: { render: 211000100, crop: [360, 49, 480, 270], fill: "#dfeaf3" },
+    sprites: [{ file: "monster_frames/5140000.png", x: 0.76, y: 0.9, h: 0.3 }],
+    idea: [
+      "Turn the scene into a snowy mountain slope with pine trees and falling snow.",
+      "On the right the white wolf from the sprite, keep its look exactly like the sprite, lunges.",
+      "On the left a young crossbow archer with dark hair in a brown leather coat and scarf aims a heavy crossbow, the bolt trailing frost. Precise, cool mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-assassin",
+    base: { render: 107000300, crop: [360, 179, 480, 270], fill: "#3e4a36" },
+    sprites: [{ file: "monster_frames/5130103.png", x: 0.74, y: 0.9, h: 0.3 }],
+    idea: [
+      "Turn the scene into a misty swamp at night with moonlight on the water.",
+      "On the right the black crocodile from the sprite, keep its look exactly like the sprite, snarls.",
+      "On the left a young assassin with dark hair in a black hooded outfit leaps in the air throwing a spread of glowing throwing stars. Swift, sharp mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-bandit",
+    base: { backdrop: "canyon" },
+    sprites: [{ file: "monster_frames/7130100.png", x: 0.74, y: 0.9, h: 0.42 }],
+    idea: [
+      "Turn the scene into a dusty canyon with tall red rock walls.",
+      "On the right the huge horned bull-headed monster from the sprite, keep its look exactly like the sprite, swings its weapon.",
+      "On the left a young thief with spiky hair in a dark vest and bandana dashes forward with a dagger, coins scattering in the air. Daring, roguish mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-brawler",
+    base: { render: 110040000, crop: [360, 282, 480, 270], fill: "#9fd3f0" },
+    sprites: [{ file: "monster_frames/5220000.png", x: 0.74, y: 0.9, h: 0.4 }],
+    idea: [
+      "Turn the scene into a bright tropical beach with palm trees and crashing waves.",
+      "On the right the giant hermit crab from the sprite, keep its look exactly like the sprite, raises its claws.",
+      "On the left a young pirate brawler with short hair in a sleeveless sailor outfit throws a powerful punch with knuckle gloves, a golden energy shockwave. Energetic, bold mood.",
+    ].join(" "),
+  },
+  {
+    slug: "skill-build-gunslinger",
+    base: { backdrop: "beach" },
+    sprites: [{ file: "monster_frames/4230104.png", x: 0.74, y: 0.9, h: 0.26 }],
+    idea: [
+      "Turn the scene into a sunny beach near a docked pirate ship.",
+      "On the right the blue crab from the sprite, keep its look exactly like the sprite, scuttles sideways.",
+      "On the left a young pirate gunslinger with a tricorn hat and long coat fires a pistol, bright muzzle flash and a trail of bullets. Cool, swashbuckling mood.",
+    ].join(" "),
+  },
   {
     slug: "third-job",
     base: { render: 211000001, crop: [48, 330, 768, 432], fill: "#5a3e2b" },

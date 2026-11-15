@@ -81,6 +81,11 @@ describe("regionMarkdown", () => {
     expect(row).not.toMatch(/等 \d+ 樣/);
   });
 
+  it("只有某些職業能接的任務名字後面寫（限法師）", () => {
+    const row = md("victoria").table.split("\n").find(line => line.includes("/db/quests/2036)"))!;
+    expect(row).toContain("（限法師）");
+  });
+
   it("summary 寫這區幾個任務、幾個必解", () => {
     expect(md("victoria").summary).toMatch(/\*\*\d+ 個任務\*\*/);
     expect(md("victoria").summary).toContain("必解");
