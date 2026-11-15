@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { cardDate } from "@/lib/guide-catalog";
 import type { GuideCard } from "@/lib/guide-catalog";
-import type { Block, GuideDoc, Inline } from "@/lib/guide-markdown";
+import { SOURCE_LABEL, type Block, type GuideDoc, type Inline } from "@/lib/guide-markdown";
+import { TAG_TONE } from "./JobArticleView";
 import { DonateCard } from "./DonateCard";
 import { ReadNext } from "./GuideRelated";
 import { SeoPage } from "./SeoPage";
@@ -34,6 +35,11 @@ function Text({ nodes }: { nodes: Inline[] }) {
         if (node.t === "text") return node.v;
         if (node.t === "b") return <strong key={index} className="text-[color:var(--ink)]"><Text nodes={node.c} /></strong>;
         if (node.t === "img") return <Img key={index} src={node.src} alt={node.alt} inline />;
+        if (node.t === "src") {
+          // 顏色跟職業攻略文的來源標籤同一套（舊版＝灰），字樣用一般文章的
+          const tone = TAG_TONE[node.tag];
+          return <span key={index} className={`inline-block whitespace-nowrap rounded px-2 align-[1px] text-[12px] font-bold leading-[1.5] ${tone.wash} ${tone.ink}`}>{SOURCE_LABEL[node.tag]}</span>;
+        }
         const internal = node.href.startsWith("/");
         return internal ? (
           <Link key={index} href={node.href} className="text-[color:var(--sky)] underline underline-offset-4"><Text nodes={node.c} /></Link>

@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { GuideDocView } from "@/components/GuideDocView";
 import { GUIDE_CATEGORIES } from "@/lib/guide-catalog";
 import { guideImages, guideProblems, guideText, parseGuide, parseInline } from "@/lib/guide-markdown";
-import { staticGuideCards, staticGuideDocs, staticItemPages, staticMonsters, staticQuests } from "@/lib/static-data";
+import { staticAtlasMaps, staticGuideCards, staticGuideDocs, staticItemPages, staticMonsters, staticNpcs, staticQuests, staticSkills } from "@/lib/static-data";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const exists = (publicPath: string) => fs.existsSync(path.join(ROOT, "public", publicPath));
@@ -53,6 +53,22 @@ heroAlt: 主圖
 
 ---
 `;
+
+const LINK_KINDS = /"href":"\/db\/(items|quests|monsters|npcs|maps|skills)\/([^"?#]+)"/g;
+
+describe("來源標籤（v2.28）", () => {
+  it("行內 {{src:legacy}} 變成標籤，不認的 {{src:xx}} 照原文", () => {
+    expect(parseInline("點法 {{src:legacy}}")).toEqual([{ t: "text", v: "點法 " }, { t: "src", tag: "legacy" }]);
+    expect(parseInline("{{src:xx}}")).toEqual([{ t: "text", v: "{{src:xx}}" }]);
+  });
+
+  it("頁面畫出「參考舊版資料」「遊戲資料」「站上計算」，純文字不含標籤字", () => {
+    const doc = parseGuide("src-tag", SAMPLE.replace("楓之谷經典版的第一段", "楓之谷經典版的第一段 {{src:legacy}} {{src:game}} {{src:calc}}"));
+    const html = renderToString(createElement(GuideDocView, { doc, hero: null, jsonLd: [] }));
+    for (const label of ["參考舊版資料", "遊戲資料", "站上計算"]) expect(html).toContain(label);
+    expect(guideText(doc.blocks)).not.toContain("{{src");
+  });
+});
 
 describe("讀 Markdown", () => {
   const doc = parseGuide("sample", SAMPLE.replace(/\n/g, "\r\n"));
@@ -228,14 +244,18 @@ describe("站上的文章（src/content/guides）", () => {
     expect(icon).toContain("max-w-none");
   });
 
-  it("文章連到 /db/items、/db/quests、/db/monsters 單獨頁的，那一頁都要真的有（v1.98，404 會被 Google 抓）", () => {
+  it("文章連到 /db 單獨頁（道具、任務、怪物，v2.28 加 NPC、地圖、技能）的，那一頁都要真的有（v1.98，404 會被 Google 抓）", () => {
     const pages = {
       items: new Set(staticItemPages().map(item => String(item.id))),
       quests: new Set(staticQuests().map(quest => quest.id)),
       monsters: new Set(staticMonsters().map(monster => String(monster.id))),
+      npcs: new Set(staticNpcs().map(npc => String(npc.id))),
+      maps: new Set(staticAtlasMaps().map(map => String(map.id))),
+      skills: new Set(staticSkills().map(skill => String(skill.id))),
     };
+    expect(LINK_KINDS.test('"href":"/db/npcs/1"')).toBe(true);
     for (const doc of docs) {
-      for (const [, kind, id] of JSON.stringify(doc.blocks).matchAll(/"href":"\/db\/(items|quests|monsters)\/([^"?#]+)"/g)) {
+      for (const [, kind, id] of JSON.stringify(doc.blocks).matchAll(LINK_KINDS)) {
         expect(pages[kind as keyof typeof pages].has(id), `${doc.slug} → /db/${kind}/${id}`).toBe(true);
       }
     }
