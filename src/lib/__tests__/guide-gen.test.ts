@@ -56,6 +56,8 @@ describe("文章裡的產生區塊跟資料一致", () => {
       // 人寫的字（標題、開頭、一分鐘看懂）提到「N 個任務」的，要跟 summary 算的一樣，資料變了才看得出來
       const count = /\*\*(\d+) 個任務\*\*/.exec(want!.summary ?? "")?.[1];
       if (count) for (const [, n] of text.replace(/<!-- gen:[\s\S]*?<!-- \/gen -->/g, "").matchAll(/(\d+) 個(?:一般)?任務/g)) expect(n, `${slug} 人寫的「${n} 個任務」跟資料（${count}）對不上`).toBe(count);
+      const mustCount = /必解 (\d+) 個/.exec(want!.summary ?? "")?.[1];
+      if (mustCount) for (const [, n] of text.replace(/<!-- gen:[\s\S]*?<!-- \/gen -->/g, "").matchAll(/推薦先解的 (\d+) 個/g)) expect(n, `${slug} 人寫的必解「${n} 個」跟資料（${mustCount}）對不上`).toBe(mustCount);
       for (const key of Object.keys(want!)) {
         expect(got[key], `${slug} 的 gen:${key} 跟現在資料不一樣，跑 npm run guide:gen 重產`).toBe(want![key]);
       }

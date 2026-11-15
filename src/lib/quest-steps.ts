@@ -117,23 +117,36 @@ function mobStep(quest: Quest, ctx: QuestStepContext): QuestStep | null {
   return { kind: "mobs", title: "要打的怪", lines };
 }
 
-/** 道具從哪拿：怪掉（等級低的排前面）、常駐楓幣店、別的任務給；都沒有就只寫名字跟數量 */
+/** 一張圖在哪個世界地圖區域（自己沒寫就看回城點） */
+function regionOf(map: number | undefined, ctx: QuestStepContext): string | undefined {
+  if (!map) return undefined;
+  const record = ctx.maps[String(map)];
+  return record?.rg ?? (record?.ret ? ctx.maps[String(record.ret)]?.rg : undefined);
+}
+
+/** 道具從哪拿：怪掉（同一區、等級跟任務接近的排前面）、常駐楓幣店、別的任務給；都沒有就只寫名字跟數量 */
 function itemSources(id: number, quest: Quest, ctx: QuestStepContext): StepSeg[][] {
   const item = ctx.item(id);
   if (!item) return [];
   const sources: StepSeg[][] = [];
+  const level = questLevel(quest);
+  // 同一區（接任務那張圖的世界地圖）的怪排前面，同區裡照等級跟任務接近的排前面：不叫天空之城的人回維多利亞島打肥肥
+  const home = regionOf(quest.sNpc?.map, ctx);
   const drops = (item.dm ?? [])
     .map(mobId => ({ id: mobId, monster: ctx.monster(mobId) }))
     .filter((row): row is { id: number; monster: NonNullable<ReturnType<QuestStepContext["monster"]>> } => Boolean(row.monster))
-    .sort((a, b) => (a.monster.lv ?? 0) - (b.monster.lv ?? 0) || a.id - b.id);
+    .map(row => ({ ...row, top: monsterMaps(row.monster, ctx.maps).rows.find(place => !belowGate(ctx.maps[String(place.id)], level)) }))
+    .sort(
+      (a, b) =>
+        Number(!home || regionOf(b.top?.id, ctx) === home) - Number(!home || regionOf(a.top?.id, ctx) === home) ||
+        Math.abs((a.monster.lv ?? 0) - level) - Math.abs((b.monster.lv ?? 0) - level) ||
+        a.id - b.id,
+    );
   if (drops.length) {
-    const level = questLevel(quest);
     const hunted = new Set((quest.needMobs ?? []).map(mob => mob.id));
     // 怪後面括號寫刷怪點最多的那張開放圖；任務本來就要打的怪上一步寫過了，不重複
     const shown = drops.slice(0, ITEM_DROPS).map(row => {
-      const top = hunted.has(row.id)
-        ? undefined
-        : monsterMaps(row.monster, ctx.maps).rows.find(place => !belowGate(ctx.maps[String(place.id)], level));
+      const top = hunted.has(row.id) ? undefined : row.top;
       const name = link(row.monster.n, ctx.monsterHref(row.id));
       return top ? [name, "（", link(ctx.maps[String(top.id)].zh, ctx.mapHref(top.id)), "）"] : [name];
     });

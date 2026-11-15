@@ -57,6 +57,24 @@ describe("regionMarkdown", () => {
     }
   });
 
+  it("必解只標每組推薦的主任務（不是整條系列每一個都標），維多利亞島 40 個以內", () => {
+    const heads = new Set(staticGuideCommon().mustDo.map(rec => rec.q));
+    const marked = [...md("victoria").table.matchAll(/\/db\/quests\/(\d+)\) \*\*必解\*\*/g)].map(match => match[1]);
+    expect(marked.length).toBeLessThanOrEqual(40);
+    for (const id of marked) expect(heads.has(id), id).toBe(true);
+  });
+
+  it("每段有必解的，表格上面先寫「這段先解」（最多 5 個，連到任務）", () => {
+    const text = md("victoria").table;
+    const sections = text.split(/^### /m).slice(1);
+    for (const section of sections) {
+      const hasMust = /\*\*必解\*\*/.test(section);
+      const pick = /^這段先解：(.+)$/m.exec(section);
+      expect(Boolean(pick), section.split("\n")[0]).toBe(hasMust);
+      if (pick) expect((pick[1].match(/\]\(\/db\/quests\//g) ?? []).length).toBeLessThanOrEqual(5);
+    }
+  });
+
   it("隨機給一樣的獎勵寫「隨機一樣（共 N 種）」，不寫成全部都給（珍和黑肥肥）", () => {
     const row = md("victoria").table.split("\n").find(line => line.includes("/db/quests/2010)"))!;
     expect(row).toMatch(/隨機一樣（共 \d+ 種）/);
