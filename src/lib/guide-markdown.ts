@@ -1,13 +1,19 @@
 /**
  * 一般攻略文（v1.88 起，不是「職業×等級」那種）：src/content/guides/<slug>.md，建置時讀成區塊再畫。
  * 只認站上文章會用到的 Markdown：開頭 --- 設定 ---、## ### 標題、段落、- 1. 清單、| 表格 |、> 引言框、![圖](路徑)、---、**粗體**、[連結](網址)。
+ * 站上自己的寫法：{{src:game}}／{{src:calc}}／{{src:legacy}} 畫成資料來源標籤（v2.28，遊戲資料／站上計算／參考舊版資料）。
  * 不認的寫法照原文當段落，不會吃掉字；<!-- 註解 --> 拿掉。新文章丟一個 .md 進資料夾，攻略列表、sitemap 自動列。
  */
 export type Inline =
   | { t: "text"; v: string }
   | { t: "b"; c: Inline[] }
   | { t: "a"; href: string; c: Inline[] }
-  | { t: "img"; src: string; alt: string };
+  | { t: "img"; src: string; alt: string }
+  | { t: "src"; tag: SourceTag };
+
+/** 資料來源標籤（v2.28）：跟職業攻略文的三色同一套顏色，字樣是一般文章用的 */
+export type SourceTag = "game" | "calc" | "legacy";
+export const SOURCE_LABEL: Record<SourceTag, string> = { game: "遊戲資料", calc: "站上計算", legacy: "參考舊版資料" };
 
 export type Block =
   | { t: "h"; level: 2 | 3; id: string; c: Inline[] }
@@ -42,7 +48,7 @@ export function parseInline(text: string): Inline[] {
     if (last?.t === "text") last.v += v;
     else out.push({ t: "text", v });
   };
-  const pattern = /!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*/;
+  const pattern = /!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]+)\]\(([^)\s]+)\)|\*\*(.+?)\*\*|\{\{src:(game|calc|legacy)\}\}/;
   while (rest) {
     const m = pattern.exec(rest);
     if (!m) {
@@ -52,6 +58,7 @@ export function parseInline(text: string): Inline[] {
     push(rest.slice(0, m.index));
     if (m[2] !== undefined) out.push({ t: "img", alt: m[1], src: m[2] });
     else if (m[4] !== undefined) out.push({ t: "a", href: m[4], c: parseInline(m[3]) });
+    else if (m[6] !== undefined) out.push({ t: "src", tag: m[6] as SourceTag });
     else out.push({ t: "b", c: parseInline(m[5]) });
     rest = rest.slice(m.index + m[0].length);
   }
@@ -178,7 +185,7 @@ export function parseGuide(slug: string, source: string): GuideDoc {
 /** 文章裡用到的所有圖（檢查檔案存在用） */
 export function guideImages(blocks: Block[]): string[] {
   const out: string[] = [];
-  const inline = (nodes: Inline[]) => nodes.forEach(node => (node.t === "img" ? out.push(node.src) : "c" in node ? inline(node.c) : null));
+  const inline = (nodes: Inline[]): void => nodes.forEach(node => (node.t === "img" ? out.push(node.src) : "c" in node ? inline(node.c) : null));
   for (const block of blocks) {
     if (block.t === "img") out.push(block.src);
     else if (block.t === "quote") out.push(...guideImages(block.c));
@@ -191,7 +198,7 @@ export function guideImages(blocks: Block[]): string[] {
 
 /** 全文純文字（檢查「楓之谷經典版」有沒有寫到內文用） */
 export function guideText(blocks: Block[]): string {
-  const inline = (nodes: Inline[]): string => nodes.map(node => (node.t === "text" ? node.v : node.t === "img" ? "" : inline(node.c))).join("");
+  const inline = (nodes: Inline[]): string => nodes.map(node => (node.t === "text" ? node.v : node.t === "img" || node.t === "src" ? "" : inline(node.c))).join("");
   return blocks
     .map(block => {
       if (block.t === "quote") return guideText(block.c);
