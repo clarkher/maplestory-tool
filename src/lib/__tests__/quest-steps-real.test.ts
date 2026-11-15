@@ -46,6 +46,20 @@ describe("questSteps（真資料）", () => {
     }
   });
 
+  it("要打的怪：同一區有這隻怪就先寫同一區的圖（楓之島麥加要的綠水靈、肥肥不叫人去維多利亞島）", () => {
+    const rgOf = (id: string) => ctx.maps[id]?.rg ?? ctx.maps[String(ctx.maps[id]?.ret)]?.rg;
+    for (const id of ["1043", "1044", "1041", "1042"]) {
+      const mobs = all.find(({ quest }) => quest.id === id)!.steps.find(step => step.kind === "mobs")!;
+      const firstMap = mobs.lines[0].find((seg): seg is { t: string; href: string } => typeof seg !== "string" && seg.href.startsWith("/db/maps/"));
+      expect(firstMap && rgOf(firstMap.href.split("/").pop()!), `${id} ${stepText(mobs).join(" / ")}`).toBe("WorldMap000");
+    }
+  });
+
+  it("別的任務會給：不列開發測試用的任務（9999）", () => {
+    const bad = all.filter(({ steps }) => steps.some(step => step.lines.flat().some(seg => typeof seg !== "string" && seg.href === "/db/quests/9999"))).map(({ quest }) => quest.id);
+    expect(bad).toEqual([]);
+  });
+
   it.runIf(process.env.QUEST_STEP_STATS)("統計", () => {
     const count = new Map<number, number>();
     const kinds = new Map<string, number>();

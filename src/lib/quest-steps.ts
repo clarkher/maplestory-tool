@@ -106,8 +106,7 @@ function mobStep(quest: Quest, ctx: QuestStepContext): QuestStep | null {
     const line: StepSeg[] = [link(mob.n, ctx.monsterHref(mob.id)), mob.c ? ` ${formatNumber(mob.c)} 隻` : ""];
     const monster = ctx.monster(mob.id);
     if (!monster) return [...line, "。"];
-    // 49 等以下不推傑夫後面的圖（maps.json 的 g）
-    const rows = monsterMaps(monster, ctx.maps).rows.filter(row => !belowGate(ctx.maps[String(row.id)], level)).slice(0, MOB_MAPS);
+    const rows = huntMaps(monster, quest, ctx).slice(0, MOB_MAPS);
     if (!rows.length) return [...line, "。"];
     // 只照怪多到少排，不寫隻數（新手看不懂「同時幾隻」）
     const places = rows.map(row => [link(ctx.maps[String(row.id)].zh, ctx.mapHref(row.id))]);
@@ -124,6 +123,14 @@ function regionOf(map: number | undefined, ctx: QuestStepContext): string | unde
   return record?.rg ?? (record?.ret ? ctx.maps[String(record.ret)]?.rg : undefined);
 }
 
+/** 去哪打這隻怪：49 等以下不推傑夫後面的圖（maps.json 的 g）；跟接任務同一區的圖排前面（楓之島的任務不叫人去維多利亞島），同區照怪多到少 */
+function huntMaps(monster: NonNullable<ReturnType<QuestStepContext["monster"]>>, quest: Quest, ctx: QuestStepContext) {
+  const level = questLevel(quest);
+  const home = regionOf(quest.sNpc?.map, ctx);
+  const rows = monsterMaps(monster, ctx.maps).rows.filter(row => !belowGate(ctx.maps[String(row.id)], level));
+  return home ? [...rows.filter(row => regionOf(row.id, ctx) === home), ...rows.filter(row => regionOf(row.id, ctx) !== home)] : rows;
+}
+
 /** 道具從哪拿：怪掉（同一區、等級跟任務接近的排前面）、常駐楓幣店、別的任務給；都沒有就只寫名字跟數量 */
 function itemSources(id: number, quest: Quest, ctx: QuestStepContext): StepSeg[][] {
   const item = ctx.item(id);
@@ -135,7 +142,7 @@ function itemSources(id: number, quest: Quest, ctx: QuestStepContext): StepSeg[]
   const drops = (item.dm ?? [])
     .map(mobId => ({ id: mobId, monster: ctx.monster(mobId) }))
     .filter((row): row is { id: number; monster: NonNullable<ReturnType<QuestStepContext["monster"]>> } => Boolean(row.monster))
-    .map(row => ({ ...row, top: monsterMaps(row.monster, ctx.maps).rows.find(place => !belowGate(ctx.maps[String(place.id)], level)) }))
+    .map(row => ({ ...row, top: huntMaps(row.monster, quest, ctx)[0] }))
     .sort(
       (a, b) =>
         Number(!home || regionOf(b.top?.id, ctx) === home) - Number(!home || regionOf(a.top?.id, ctx) === home) ||
@@ -159,7 +166,8 @@ function itemSources(id: number, quest: Quest, ctx: QuestStepContext): StepSeg[]
     const head = places.slice(0, 2).join("、");
     sources.push([`${head}${places.length > 2 ? `等 ${places.length} 個地方` : ""}買得到${shops.some(row => row.o === 1) ? "（參考舊版資料）" : ""}`]);
   }
-  const givers = (item.qr ?? []).filter(other => other !== quest.id).flatMap(other => {
+  // 9999「開發測試用」是遊戲裡的測試任務，玩家接不到
+  const givers = (item.qr ?? []).filter(other => other !== quest.id && other !== "9999").flatMap(other => {
     const name = ctx.questName(other);
     return name ? [[link(`「${name}」`, `/db/quests/${encodeURIComponent(other)}`)]] : [];
   });

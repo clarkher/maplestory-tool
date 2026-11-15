@@ -70,4 +70,18 @@ describe("skillBuildMarkdown", () => {
   it("others 列同一轉的其他主流點法（槍騎兵二轉有 3 套主流）", () => {
     expect(skillBuildMarkdown(130, guideOf, skillHref).others.split("\n").filter(line => line.startsWith("- ")).length).toBeGreaterThanOrEqual(2);
   });
+
+  it("文章裡不出現資料來源的網站名、社群名（點法名稱前面的「波波攻略島：」「楓錄／Threads 整理：」要拿掉）", () => {
+    for (const job of BUILD_LINES) {
+      const md = Object.values(skillBuildMarkdown(job, guideOf, skillHref)).join("\n");
+      expect(md, String(job)).not.toMatch(/波波|楓錄|Threads|噗貓|巴哈姆特|bobo/i);
+      // 「作者標必點」：讀者不知道作者是誰
+      expect(md, String(job)).not.toMatch(/作者/);
+    }
+  });
+
+  it("其他點法不列另一條二轉線的一轉點法（打手文章不出現槍手線）", () => {
+    expect(skillBuildMarkdown(510, guideOf, skillHref).others).not.toContain("槍手線");
+    expect(skillBuildMarkdown(520, guideOf, skillHref).others).not.toContain("打手線");
+  });
 });

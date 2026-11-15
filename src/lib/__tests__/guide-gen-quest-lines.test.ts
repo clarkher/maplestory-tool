@@ -82,6 +82,10 @@ describe("questLines：挑哪些系列", () => {
       expect(line.totalExp).toBe(all(line).reduce((sum, quest) => sum + (quest.exp ?? 0), 0));
     }
   });
+
+  it("系列名尾巴不帶標點（「幫助貝恩。」寫成幫助貝恩，標題才不會變「幫助貝恩。系列任務」）", () => {
+    for (const line of lines) expect(line.name, line.id).not.toMatch(/[。．.！!？?，,、]$/u);
+  });
 });
 
 describe("questLineMarkdown：寫進文章的表格段落", () => {
@@ -96,6 +100,13 @@ describe("questLineMarkdown：寫進文章的表格段落", () => {
   it("steps 每個任務一個 ###、最後有遊戲資料標籤", () => {
     expect(md.steps.match(/^### /gm)).toHaveLength(11);
     expect(md.steps).toContain("{{src:game}}");
+  });
+
+  it("只有某些職業能接的任務寫「限 X 接」（瑪亞的收集品限弓箭手），大家都能接的不寫", () => {
+    const text = questLineMarkdown(lineOf("2040")!, ctx).steps;
+    const block = text.split(/^### /m).find(part => part.includes("/db/quests/2040)"))!;
+    expect(block).toContain("限弓箭手接");
+    expect(md.steps).not.toContain("**職業**");
   });
 
   it("沒寫接取等級的寫「不限等級」，不寫 0 等", () => {

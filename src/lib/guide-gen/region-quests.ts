@@ -4,7 +4,7 @@
  * 必解照攻略研究的必解索引（mustDoIndex，跟首頁升級路線同一份），只標每組的主任務、每段上面列「這段先解」；系列有文章才連過去（lineHref 回 undefined 就只寫名字）。
  */
 import type { GuideMustDo, Quest } from "../types";
-import { isLineQuest, topoOrder, type QuestLine } from "./quest-lines";
+import { isLineQuest, jobLimit, topoOrder, type QuestLine } from "./quest-lines";
 
 export type Region = { slug: string; cat: string; name: string; order: "chain" | "level" };
 
@@ -56,7 +56,8 @@ export function regionMarkdown(
     const exp = quest.exp ? quest.exp.toLocaleString("en-US") : "";
     // 只標每組推薦的主任務；同一條系列的其他任務不標（不然 181 個標了 125 個，等於沒篩）
     const must = isHead(quest) ? " **必解**" : "";
-    return `| [${quest.n}](/db/quests/${quest.id})${must} | ${quest.minLv === undefined ? "不限" : quest.minLv} | ${who} | ${exp} | ${rewardCell(quest)} | ${series} |`;
+    const limit = jobLimit(quest);
+    return `| [${quest.n}](/db/quests/${quest.id})${limit ? `（限${limit}）` : ""}${must} | ${quest.minLv === undefined ? "不限" : quest.minLv} | ${who} | ${exp} | ${rewardCell(quest)} | ${series} |`;
   };
   const table = (list: Quest[]) => ["| 任務 | 等級 | 誰給 | 經驗 | 獎勵 | 系列 |", "|---|---|---|---|---|---|", ...list.map(row)].join("\n");
 
