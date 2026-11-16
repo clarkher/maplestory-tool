@@ -16,8 +16,8 @@ describe("贊助設定（v2.22）", () => {
   });
 
   it("頁尾：兩個都沒開就沒有贊助連結，有開排在聯絡我們後面", () => {
-    expect(footerLinks(false).map(link => link.href)).toEqual(["/about", "/privacy", "/terms", "/contact"]);
-    expect(footerLinks(true).map(link => link.href)).toEqual(["/about", "/privacy", "/terms", "/contact", "/support"]);
+    expect(footerLinks(false).map(link => link.href)).toEqual(["/videos", "/about", "/privacy", "/terms", "/contact"]);
+    expect(footerLinks(true).map(link => link.href)).toEqual(["/videos", "/about", "/privacy", "/terms", "/contact", "/support"]);
     expect(footerLinks(true).at(-1)?.text).toBe("贊助楓谷幫手");
   });
 
