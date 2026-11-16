@@ -11,7 +11,7 @@ export default function Page() {
   return (
     <article className="prose-page space-y-5 py-6">
       <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">隱私權政策</h1>
-      <p className="ink-soft">最後更新：2026 年 11 月 13 日</p>
+      <p className="ink-soft">最後更新：2026 年 11 月 16 日</p>
 
       <Block title="我們不需要你的帳號">
         本站不提供註冊、不需要登入，也沒有任何帳號系統。你不用給我們電子郵件、電話或任何個人身分資料（練功測速的角色 ID 是遊戲裡的名字，不是帳號，填不填由你）。
@@ -88,6 +88,7 @@ export default function Page() {
 
       <Block title="YouTube 頻道">
         楓谷幫手的 YouTube 頻道用 YouTube API 服務上傳我們自己做的影片。這個上傳工具只碰我們自己的頻道，不會讀取或保存你的 YouTube 資料。
+        「影片」頁跟攻略專區放了這些影片：沒按播放前只顯示本站自己的封面圖，不會連到 YouTube；按了播放才載入 YouTube 的播放器（用 youtube-nocookie.com 隱私加強模式），之後由 YouTube 處理。
         使用 YouTube 時適用 <ExternalLink href="https://www.youtube.com/t/terms">YouTube 服務條款</ExternalLink> 與{" "}
         <ExternalLink href="https://policies.google.com/privacy">Google 隱私權政策</ExternalLink>。
       </Block>

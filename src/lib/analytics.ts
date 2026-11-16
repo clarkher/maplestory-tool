@@ -45,7 +45,8 @@ export type EventName =
   | "guild_random"
   | "share"
   | "donate_click"
-  | "donate_paid";
+  | "donate_paid"
+  | "video_play";
 
 type Params = Record<string, string | number | boolean | undefined>;
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { ArticleList } from "@/components/ArticleList";
+import { ShortsRow } from "@/components/VideoLists";
 import type { ArticleEntry } from "@/lib/article-entry";
 import { GUIDE_CATEGORIES, GUIDE_TAG_FILTERS, browseOrder, cardDate, cardExcerpt, filterCards, pageCount, type GuideCard, type GuideCategory } from "@/lib/guide-catalog";
 import { EventStatus } from "./EventStatus";
@@ -109,6 +110,17 @@ export function GuidesHub({
           直接找你的職業、等級
         </a>
       </header>
+
+      {/* v2.32 影片區：最新 4 支短影音，點了就地播 */}
+      <section aria-label="最新影片" className="space-y-2">
+        <div className="flex items-baseline justify-between px-1">
+          <h2 className="text-sm font-bold ink-soft">最新影片</h2>
+          <Link href="/videos" className="text-[14px] font-bold text-[color:var(--sky)] underline underline-offset-4">
+            看全部影片
+          </Link>
+        </div>
+        <ShortsRow builtAt={builtAt} page="guides" limit={4} />
+      </section>
 
       <nav aria-label="分類" className="scroll-x -mx-1 flex gap-2 px-1 pb-1">
         <button type="button" className={pill(category === null)} aria-pressed={category === null} onClick={() => setCategory(null)}>
