@@ -1,4 +1,4 @@
-// 楓谷幫手在 Cloudflare（v1.33）。網頁是 out/ 的靜態檔（npm run build:cf 產生），API 跟道具圖轉發在 cf/worker.ts。
+// 楓谷幫手在 Cloudflare（v1.33）。網頁是 out/ 的靜態檔（npm run build:cf 產生），API、道具圖、分享預覽圖（v2.31）轉發在 cf/worker.ts。
 // 正式機：maplehelper（APP_ENV=production）；測試機：--env dev → maplehelper-dev（APP_ENV=preview，練功測速／野王的資料跟正式機分開）。
 // 秘密（不進版控）：DATABASE_URL、SPEED_SALT 用 `wrangler secret put <名稱> [--env dev]` 設。
 {
@@ -13,9 +13,9 @@
     "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/api/*", "/assets/items/*"]
+    "run_worker_first": ["/api/*", "/assets/items/*", "/og/*"]
   },
-  "services": [{ "binding": "ITEMS", "service": "maplehelper-items" }],
+  "services": [{ "binding": "ITEMS", "service": "maplehelper-items" }, { "binding": "OG", "service": "maplehelper-og" }],
   "vars": { "APP_ENV": "production" },
   // 贊助付款端點防灌（v2.25，cf/worker.ts donateBlocked）：同位址一分鐘 5 次；period 只能 10 或 60
   "ratelimits": [{ "name": "DONATE_LIMITER", "namespace_id": "2501", "simple": { "limit": 5, "period": 60 } }],
@@ -28,9 +28,9 @@
         "binding": "ASSETS",
         "html_handling": "auto-trailing-slash",
         "not_found_handling": "404-page",
-        "run_worker_first": ["/api/*", "/assets/items/*"]
+        "run_worker_first": ["/api/*", "/assets/items/*", "/og/*"]
       },
-      "services": [{ "binding": "ITEMS", "service": "maplehelper-items-dev" }],
+      "services": [{ "binding": "ITEMS", "service": "maplehelper-items-dev" }, { "binding": "OG", "service": "maplehelper-og-dev" }],
       "vars": { "APP_ENV": "preview" },
       "ratelimits": [{ "name": "DONATE_LIMITER", "namespace_id": "2502", "simple": { "limit": 5, "period": 60 } }]
     }
