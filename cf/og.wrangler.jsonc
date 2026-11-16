@@ -1,0 +1,11 @@
+// 每頁的分享預覽圖（v2.31，約 3,600 張）單獨一個只放靜態檔的 Worker：主站一版 2 萬檔已經用到 1.8 萬，道具圖那個也快滿。
+// 檔案在 .cf-og/og（npm run build:cf 產好從 out/ 搬過來），網址維持 /og/<頁面路徑>.jpg，經主站 Worker 的 service binding 轉。
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "maplehelper-og",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "../.cf-og" },
+  "env": {
+    "dev": { "name": "maplehelper-og-dev", "assets": { "directory": "../.cf-og" } }
+  }
+}

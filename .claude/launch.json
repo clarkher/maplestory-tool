@@ -20,6 +20,8 @@
         "wrangler.jsonc",
         "-c",
         "cf/items.wrangler.jsonc",
+        "-c",
+        "cf/og.wrangler.jsonc",
         "--env",
         "dev",
         "--port",

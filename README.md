@@ -426,6 +426,13 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **道具圖拆出去**：免費方案一個 Worker 版本最多 20,000 檔，道具圖約 1.7 萬張放另一個只有靜態檔的 Worker（`cf/items.wrangler.jsonc`，
   檔案在 `.cf-items/`），網址不變。測試機經 service binding 轉；正式網域要加路由 `maplehelper.tw/assets/items/*` 直接打那個 Worker
   （路由的 Worker 比自訂網域先跑），不然每張圖都算一次 Worker 請求（免費一天 10 萬次）。11/02 量到 `out/` 15,743 檔，超過 19,500 建置會失敗。
+- **每頁自己的分享預覽圖（v2.31）**：全站預設 `public/og.jpg`（AI 重畫的菇菇村＋真的怪、紙娃娃，底圖 `scripts/og/bg.jpg`）。
+  單筆資料頁、職業頁、改版頁、攻略專區、`withOpenGraph` 包的工具頁，`og:image` 指 `/og/<頁面路徑>.jpg`（`src/lib/seo.ts` 的 `ogImages`）；
+  攻略文照舊用自己的主圖。`npm run build:cf` 建完、道具圖搬走前跑 `scripts/og/build-og.mjs`：掃 `out/` 每頁 html 的 og 標籤，
+  照那頁的標題、說明畫卡片，配那筆資料的遊戲圖（怪、NPC、道具、技能、地圖；任務用接任務的 NPC），字型是 `scripts/og/fonts` 的思源黑體（OFL）。
+  約 3,600 張放第三個只有靜態檔的 Worker（`cf/og.wrangler.jsonc`，`maplehelper-og`／`maplehelper-og-dev`，檔案在 `.cf-og/`），
+  主站 Worker 經 service binding `OG` 轉（`/og/*` 先跑 Worker）。只有分享、爬蟲會抓，不另外開路由。
+  單獨產：`node scripts/og/build-og.mjs out`。改卡片版面看 `cf/og.test.ts`。
 - **環境**：`wrangler.jsonc` 預設是正式機 `maplehelper`（`APP_ENV=production`），`--env dev` 是測試機 `maplehelper-dev`（`APP_ENV=preview`）。
   `speedEnv()` 先看 `APP_ENV` 再看 `VERCEL_ENV`，練功測速／野王的資料照環境分開；`NEXT_PUBLIC_VERCEL_ENV` 也改從 `APP_ENV` 來（名字先沿用）。
 - **秘密**：`DATABASE_URL`、`SPEED_SALT`，用 `npx wrangler secret put <名稱> [--env dev]` 設，不進版控。
@@ -442,7 +449,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **Claude Code 的 Neon 工具**（v1.35）：`.mcp.json` 接 Neon MCP（`https://mcp.neon.tech/mcp`，OAuth，第一次用時跳 Neon 登入，檔案裡沒有金鑰）；
   `.claude/skills/neon/` 是 Neon 官方 agent skill（`skills-lock.json` 記來源與雜湊，`neon skills status`／`neon skills update -y` 檢查更新；裝的時候要 Node 22.20 以上）。
 - **搜尋引擎**：測試機（`APP_ENV` 不是 production）的 `_headers` 整站加 `X-Robots-Tag: noindex`。
-- **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖再網頁。
+- **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖、預覽圖再網頁（網頁綁了另外兩個，第一次部署它們要先在）。
   **測試機自動部署（v1.36，11/03 接好）**：Cloudflare Workers Builds 連 GitHub，`dev` 有新 commit 就建（跟 Vercel 一樣誰推的都算，資料自動更新用 github.token 推的也會建）。
   設定在 Cloudflare 後台 `maplehelper-dev` → Settings → Builds：分支 `dev`、Build `npm run build:cf`、Deploy `npm run deploy:cf:dev`、
   建置變數 `APP_ENV=preview`、`NODE_VERSION=22`；「Builds for Preview branches」關掉（不然 fx-data、price-data 也會建）。
@@ -454,7 +461,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   `main` 有新 commit 就建（跟 Vercel 正式機同一個觸發點）：後台 `maplehelper` → Settings → Builds，分支 `main`、Build `npm run build:cf`、
   Deploy `npm run deploy:cf`、變數 `APP_ENV=production`、`NODE_VERSION=22`、Preview builds 關掉。11/03 #194 合進 main 第一次自動建成功、秘密還在、cf-shot 13/13。
   手動部署：`APP_ENV=production npm run build:cf && npm run deploy:cf`。這個網址沒加 noindex，但每頁 canonical 都指 `https://maplehelper.tw`，搜尋引擎會算在正式網域；切完網域把 workers.dev 網址關掉。
-- **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
+- **本機跑**：`npm run build:cf` 後 `npx wrangler dev -c wrangler.jsonc -c cf/items.wrangler.jsonc -c cf/og.wrangler.jsonc --env dev --port 8791`（`.claude/launch.json` 的 `cf-local`）；
   驗收 `node scripts/verify/cf-shot.mjs`（埠 9493）＋`node scripts/verify/speed-shot.mjs <輸出> http://localhost:8791`。
 - **正式網域切換（11/05 完成）**：網域註冊留在 Vercel（剛買 60 天內不能轉，Cloudflare 也不賣 .tw），只換名稱伺服器。
   - 00:34 在 Vercel 網域頁改成 `kelly.ns.cloudflare.com`、`vasilii.ns.cloudflare.com`，01:04 開始由 Cloudflare 回應。

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { OG_BASE } from "@/lib/seo";
+import { OG_BASE, ogImages } from "@/lib/seo";
 import { staticArticleEntries, staticGuide, staticGuideCards, staticGuideJobs } from "@/lib/static-data";
 import { GuidesHub } from "./GuidesHub";
 
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   alternates: { canonical: "/guides" },
   // 頁面自己的 openGraph 會整包蓋掉 layout 的：沒寫的話分享出去是首頁的標題跟網址
-  openGraph: { ...OG_BASE, title: `${TITLE}｜楓谷幫手`, description: DESCRIPTION, url: "/guides" },
+  openGraph: { ...OG_BASE, title: `${TITLE}｜楓谷幫手`, description: DESCRIPTION, url: "/guides", images: ogImages("/guides", TITLE) },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 

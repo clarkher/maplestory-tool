@@ -18,11 +18,19 @@ export const SITE_NAME = "楓谷幫手";
 export const OG_BASE = { type: "website" as const, locale: "zh_TW", siteName: SITE_NAME, images: [{ url: "/og.jpg", width: 1200, height: 630, alt: SITE_NAME }] };
 
 /**
+ * 每頁自己的分享預覽圖（v2.31）：/og/<頁面路徑>.jpg。圖是建置時 scripts/og/build-og.mjs 照這頁的 og:title、og:description 畫的，
+ * 放在另一個 Worker（maplehelper-og，主站一版 2 萬檔放不下）。首頁、攻略文（有自己的主圖）不用這個。
+ */
+export const ogImageFor = (path: string) => `/og${path}.jpg`;
+export const ogImages = (path: string, alt: string) => [{ url: ogImageFor(path), width: 1200, height: 630, alt }];
+
+/**
  * 固定頁（工具頁、清單頁）的 metadata 補上自己的 openGraph：沒寫的頁會沿用 layout 那份，
- * 分享出去 og:title、og:url 都是首頁的（11/12 盤點 29 頁）。og 標題照單筆頁的寫法加站名，網址用 canonical。
+ * 分享出去 og:title、og:url 都是首頁的（11/12 盤點 29 頁）。og 標題照單筆頁的寫法加站名，網址用 canonical，預覽圖用這頁自己的。
  */
 export function withOpenGraph<T extends Metadata & { title: string; description: string; alternates: { canonical: string } }>(meta: T): Metadata {
-  return { ...meta, openGraph: { ...OG_BASE, title: `${meta.title}｜${SITE_NAME}`, description: meta.description, url: meta.alternates.canonical } };
+  const url = meta.alternates.canonical;
+  return { ...meta, openGraph: { ...OG_BASE, title: `${meta.title}｜${SITE_NAME}`, description: meta.description, url, images: ogImages(url, meta.title) } };
 }
 
 /** 文章日期 YYYY-MM-DD 加上台灣時區：只寫日期的話，搜尋引擎照自己的時區讀，可能差一天。給 og、JSON-LD；sitemap 的 lastmod、畫面照舊寫日期 */

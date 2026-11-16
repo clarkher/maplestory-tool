@@ -48,11 +48,22 @@ describe("有自己標題的頁，分享出去是自己的標題跟網址", () =
     expect(missing).toEqual([]);
   });
 
-  it("withOpenGraph：og 標題加站名、網址用 canonical、帶全站預覽圖", async () => {
+  it("withOpenGraph：og 標題加站名、網址用 canonical、預覽圖用這頁自己的（v2.31）", async () => {
     const { OG_BASE, withOpenGraph } = await import("@/lib/seo");
     const meta = withOpenGraph({ title: "傷害計算機｜兩套點法", description: "比打怪", alternates: { canonical: "/plan/damage" } });
     expect(meta.title).toBe("傷害計算機｜兩套點法");
-    expect(meta.openGraph).toEqual({ ...OG_BASE, title: "傷害計算機｜兩套點法｜楓谷幫手", description: "比打怪", url: "/plan/damage" });
+    expect(meta.openGraph).toEqual({
+      ...OG_BASE,
+      title: "傷害計算機｜兩套點法｜楓谷幫手",
+      description: "比打怪",
+      url: "/plan/damage",
+      images: [{ url: "/og/plan/damage.jpg", width: 1200, height: 630, alt: "傷害計算機｜兩套點法" }],
+    });
+  });
+
+  it("單筆資料頁、職業頁、改版頁、攻略專區都帶自己的預覽圖（ogImages）", () => {
+    const files = ["db/items/[id]", "db/maps/[id]", "db/monsters/[id]", "db/npcs/[id]", "db/quests/[id]", "db/skills/[id]", "jobs/[id]", "updates/[version]", "updates", "guides"];
+    for (const file of files) expect(fs.readFileSync(path.join(APP, file, "page.tsx"), "utf8"), file).toMatch(/images: ogImages\(/);
   });
 
   it("layout 的 twitter 不寫標題、說明：不然每一頁的 twitter:title 都是首頁那句（X 會改讀 og:title）", () => {

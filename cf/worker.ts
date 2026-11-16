@@ -4,6 +4,8 @@
 //  - /api/*：直接 import src/app/api 的 route handler（跟 Vercel 上同一份程式）
 //  - /assets/items/*：道具圖在另一個 Worker（一版 2 萬檔上限拆出去的），經 service binding 轉過去。
 //    正式網域改走路由直接打到那個 Worker，不經過這裡（這裡每張圖都算一次請求）
+//  - /og/*：每頁的分享預覽圖（v2.31，約 3,600 張）也放不下，在 maplehelper-og Worker，經 service binding 轉過去。
+//    只有分享、爬蟲會抓，量很小，不另外開路由
 import * as avatarShare from "../src/app/api/avatar/share/route";
 import * as bossEvents from "../src/app/api/boss/events/route";
 import * as bossIntervals from "../src/app/api/boss/intervals/route";
@@ -19,7 +21,7 @@ import * as speedRuns from "../src/app/api/speed/runs/route";
 type Handler = (request: Request) => Promise<Response>;
 type Fetcher = { fetch: (request: Request) => Promise<Response> };
 type RateLimit = { limit: (options: { key: string }) => Promise<{ success: boolean }> };
-export type Env = { ASSETS: Fetcher; ITEMS?: Fetcher; DONATE_LIMITER?: RateLimit };
+export type Env = { ASSETS: Fetcher; ITEMS?: Fetcher; OG?: Fetcher; DONATE_LIMITER?: RateLimit };
 
 /**
  * 贊助付款端點防灌（v2.25）：wrangler.jsonc 的 ratelimits 綁定 DONATE_LIMITER（同位址一分鐘 5 次）。
@@ -62,6 +64,7 @@ function withClientIp(request: Request): Request {
 export async function handle(request: Request, env: Env, routes = ROUTES): Promise<Response> {
   const { pathname } = new URL(request.url);
   if (pathname.startsWith("/assets/items/")) return env.ITEMS ? env.ITEMS.fetch(request) : env.ASSETS.fetch(request);
+  if (pathname.startsWith("/og/")) return env.OG ? env.OG.fetch(request) : env.ASSETS.fetch(request);
   const path = pathname.replace(/\/$/, "");
   const route = routes[path];
   if (!route) return env.ASSETS.fetch(request);

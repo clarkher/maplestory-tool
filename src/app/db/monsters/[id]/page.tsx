@@ -5,7 +5,7 @@ import { mapHref } from "@/lib/atlas-view";
 import { monsterImage } from "@/lib/asset-paths";
 import { elementalNotes, formatNumber } from "@/lib/format";
 import { monsterMaps } from "@/lib/monster-view";
-import { breadcrumbLd, clip, monsterSummary, monsterTitle, OG_BASE, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, monsterSummary, monsterTitle, OG_BASE, ogImages, webPageLd } from "@/lib/seo";
 import { staticAtlasIndex, staticItemHref, staticItemNames, staticMaps, staticModified, staticMonsters, staticQuests } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: monsterTitle(monster, staticMaps()),
     description,
     alternates: { canonical: path },
-    openGraph: { ...OG_BASE, title: `${monster.n}｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${monster.n}｜楓谷幫手`, description, url: path, images: ogImages(path, monster.n) },
   };
 }
 
