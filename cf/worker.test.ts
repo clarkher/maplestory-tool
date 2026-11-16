@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
+import path from "node:path";
 
 vi.mock("@neondatabase/serverless", () => ({ neon: vi.fn() }));
 const { handle } = await import("./worker");
@@ -49,6 +51,21 @@ describe("Cloudflare Worker 分流", () => {
     const request = new Request("https://maplehelper.tw/assets/items/1302020.png");
     expect(await (await handle(request, { ASSETS: fetcher("assets"), ITEMS: items })).text()).toBe("items /assets/items/1302020.png");
     expect(await (await handle(request, { ASSETS: fetcher("assets") })).text()).toBe("assets /assets/items/1302020.png");
+  });
+
+  it("分享預覽圖（/og/*）轉給預覽圖 Worker；沒綁就退回靜態檔（v2.31）", async () => {
+    const request = new Request("https://maplehelper.tw/og/db/monsters/1210102.jpg");
+    expect(await (await handle(request, { ASSETS: fetcher("assets"), OG: fetcher("og") })).text()).toBe("og /og/db/monsters/1210102.jpg");
+    expect(await (await handle(request, { ASSETS: fetcher("assets") })).text()).toBe("assets /og/db/monsters/1210102.jpg");
+    // 全站預設圖 /og.jpg 還在主站
+    expect(await (await handle(new Request("https://maplehelper.tw/og.jpg"), { ASSETS: fetcher("assets"), OG: fetcher("og") })).text()).toBe("assets /og.jpg");
+  });
+
+  it("wrangler 設定：正式機、測試機都綁 OG、/og/* 先跑 Worker", () => {
+    const text = fs.readFileSync(path.resolve("wrangler.jsonc"), "utf8");
+    expect(text).toContain('{ "binding": "OG", "service": "maplehelper-og" }');
+    expect(text).toContain('{ "binding": "OG", "service": "maplehelper-og-dev" }');
+    expect(text.match(/"run_worker_first": \[[^\]]*"\/og\/\*"/g)).toHaveLength(2);
   });
 
   it("其他路徑交給靜態檔", async () => {

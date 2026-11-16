@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { SeoLinks, SeoPage, SeoSection } from "@/components/SeoPage";
 import { levelRange, sourceLabels } from "@/lib/format";
 import { articlePath, articleRangeLabel } from "@/lib/job-article";
-import { breadcrumbLd, clip, jobGuideSummary, jobTitleName, jobTopPick, OG_BASE, webPageLd } from "@/lib/seo";
+import { breadcrumbLd, clip, jobGuideSummary, jobTitleName, jobTopPick, OG_BASE, ogImages, webPageLd } from "@/lib/seo";
 import { staticGuide, staticGuideJobs, staticJobArticleRanges, staticModified, staticMonsters, staticSkills } from "@/lib/static-data";
 
 type Props = { params: Promise<{ id: string }> };
@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${jobTitleName(guide.job, guide.name)}配點、技能點法｜各等級練功地圖`,
     description,
     alternates: { canonical: path },
-    openGraph: { ...OG_BASE, title: `${guide.name}攻略｜楓谷幫手`, description, url: path },
+    openGraph: { ...OG_BASE, title: `${guide.name}攻略｜楓谷幫手`, description, url: path, images: ogImages(path, `${guide.name}攻略`) },
   };
 }
 

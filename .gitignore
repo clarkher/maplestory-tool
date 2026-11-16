@@ -27,3 +27,4 @@ chrome-profile*/
 
 # wrangler dev 的本機秘密（贊助沙盒金鑰）
 .dev.vars*
+.cf-og/
