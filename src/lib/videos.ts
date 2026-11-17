@@ -69,6 +69,14 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "cv5GbqNr37w",
     tool: { href: "/updates", text: "改版整理" },
   },
+  {
+    title: "30 等打火獨眼獸要幾下？",
+    summary: "狂戰士、火毒巫師、獵人、刺客 4 職業實算，刺客全幸 10 分鐘經驗多約 21%。",
+    publishAt: "2026-11-18T11:00:00.000Z",
+    main: "ijH97mpMgwo",
+    shorts: "5s9DXu7a8Jc",
+    tool: { href: "/plan/damage?job=410&level=30&mob=2230100", text: "算傷害" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
