@@ -46,8 +46,8 @@ export async function getAccessToken({ clientId, clientSecret, refreshToken, fet
   return (await res.json()).access_token;
 }
 
-/** resumable 上傳；回傳影片 id */
-export async function uploadVideo({ file, title, description, tags = TAGS, privacy = "public", token, fetcher = fetch }) {
+/** resumable 上傳；回傳影片 id。給 publishAt（ISO）＝私人＋排程公開（YouTube 規定排程要 private） */
+export async function uploadVideo({ file, title, description, tags = TAGS, privacy = "public", publishAt = null, token, fetcher = fetch }) {
   const data = await readFile(file);
   const init = await fetcher(UPLOAD_URL, {
     method: "POST",
@@ -59,7 +59,9 @@ export async function uploadVideo({ file, title, description, tags = TAGS, priva
     },
     body: JSON.stringify({
       snippet: { title, description, tags, categoryId: "20", defaultLanguage: "zh-TW", defaultAudioLanguage: "zh-TW" },
-      status: { privacyStatus: privacy, selfDeclaredMadeForKids: false },
+      status: publishAt
+        ? { privacyStatus: "private", publishAt, selfDeclaredMadeForKids: false }
+        : { privacyStatus: privacy, selfDeclaredMadeForKids: false },
     }),
     signal: AbortSignal.timeout(60_000),
   });

@@ -536,6 +536,9 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
   手動做一則（不留言、不改 issue 狀態）：`gh workflow run announce-video.yml -f bulletin_id=<id>`；本機出片：`node pipeline/video/make.mjs <id> --out <資料夾>`（要 ffmpeg）。
   Actions secrets：`AZURE_OPENAI_KEY`（Azure officialpmswedencentral，寫稿、讀圖、轉文字）、`INWORLD_API_KEY`（配音）。
   **自動上傳 YouTube**（v2.24，v2.27 起直接公開）：有 `YT_CLIENT_ID`、`YT_CLIENT_SECRET`、`YT_REFRESH_TOKEN` 就把正片＋Shorts 直接公開傳到楓谷幫手頻道（@maplehelpertw），留言附觀看與 YouTube 工作室連結，失敗不擋發布頁。Google Cloud 專案 `maplehelper-youtube`（clark042007@gmail.com，OAuth 已發布正式版，refresh token 不會 7 天過期）。坑：官方文件說沒過 YouTube 稽核的 API 專案上傳會被鎖私人，11/13 實測沒被鎖（被鎖就送稽核，草稿 `docs/youtube/2026-11-13-api-audit-draft.md`）；頻道沒做電話驗證前不能自訂封面（封面失敗只記 log）。重新授權：`~/.youtube-maplehelper-client.json` 跑一次本機 OAuth 換 refresh token 再 `gh secret set YT_REFRESH_TOKEN`。設計：`docs/superpowers/specs/2026-11-13-announce-video-design.md`。
+- **每日影片**（v2.35，11/17 使用者「一天至少 2 長片 6 短片」）：`.github/workflows/daily-video.yml`（每天台灣 21:30）→ `pipeline/video/daily.mjs`，做隔天那批：「在哪打」（怪物頁）、「怎麼去」（地圖導航）各 1 集正片＋短影音、各 2 個只做短影音，排程隔天 09:00～21:00 公開，再開 PR 把這批加進官網影片區（`src/lib/videos.ts`，base dev，要自己合）。
+  稿子跟畫面都從正式站那一頁來（`series/shoot.mjs` 開無頭 Chrome 讀 `main` 的字、截卡片；`series/facts.mjs` 照字產稿，不用 LLM 寫）；題目順序 `series/topics.mjs`（怪物照被幾張練功圖推薦、地圖照練功效率，出發點＝最近的城鎮，路線超過 8 段的跳過）；做過的從頻道說明欄 `utm_campaign=mob-<id>／go-<id>` 認，不另外存狀態；同一天重跑看 `made.json` 跳過傳好的時段。
+  本機做一個題目：`node pipeline/video/series/make.mjs mob-210100 [--shorts-only] --out <資料夾>`；看明天會挑哪些：`node pipeline/video/daily.mjs --dry-run`。11/17 實測一天傳 10 支（電話驗證後）沒碰到上限。坑：Actions 用 `GITHUB_TOKEN` 開的 PR 不會自動跑「測試」，要手動合。
 
 ## 野王計時
 

@@ -69,6 +69,58 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "cv5GbqNr37w",
     tool: { href: "/updates", text: "改版整理" },
   },
+  {
+    title: "30 等打火獨眼獸要幾下？",
+    summary: "狂戰士、火毒巫師、獵人、刺客 4 職業實算，刺客全幸 10 分鐘經驗多約 21%。",
+    publishAt: "2026-11-18T11:00:00.000Z",
+    main: "ijH97mpMgwo",
+    shorts: "5s9DXu7a8Jc",
+    tool: { href: "/plan/damage?job=410&level=30&mob=2230100", text: "算傷害" },
+  },
+  {
+    title: "地鐵二號線[地區02]怎麼去？",
+    summary: "從墮落城市出發 5 段、經過 6 張圖，每段走哪個門。",
+    publishAt: "2026-11-18T04:00:00.000Z",
+    main: "3Gpk23J3xG4",
+    shorts: "K6Db5yXQKnQ",
+    tool: { href: "/go?to=103000201&from=103000000", text: "地圖導航" },
+  },
+  {
+    title: "綠水靈在哪打？",
+    summary: "最多在大木林Ⅱ（53 個刷怪點），一共出現在 54 張圖。",
+    publishAt: "2026-11-18T11:00:00.000Z",
+    main: "UvP2ze5sBX4",
+    shorts: "yGQDEbBgN38",
+    tool: { href: "/db/monsters/210100", text: "綠水靈資料" },
+  },
+  {
+    title: "紅寶在哪打？",
+    summary: "最多在墮落城市北方工地（24 個刷怪點），一共出現在 42 張圖。",
+    publishAt: "2026-11-18T01:00:00.000Z",
+    shorts: "Q2RiiOMIC5c",
+    tool: { href: "/db/monsters/130101", text: "紅寶資料" },
+  },
+  {
+    title: "地鐵一號線[地區03]怎麼去？",
+    summary: "從墮落城市出發 5 段、經過 6 張圖，每段走哪個門。",
+    publishAt: "2026-11-18T07:00:00.000Z",
+    shorts: "WDB_G2-8Pac",
+    tool: { href: "/go?to=103000104&from=103000000", text: "地圖導航" },
+  },
+  {
+    title: "藍寶在哪打？",
+    summary: "最多在維多利亞港郊外（25 個刷怪點），一共出現在 40 張圖。",
+    publishAt: "2026-11-18T09:00:00.000Z",
+    shorts: "_pGQ4qzYxO8",
+    tool: { href: "/db/monsters/100101", text: "藍寶資料" },
+  },
+  {
+    title: "森林迷宮V怎麼去？",
+    summary: "從奇幻村出發 5 段、經過 6 張圖，每段走哪個門。",
+    publishAt: "2026-11-18T13:00:00.000Z",
+    shorts: "5ZwaNVsvtCg",
+    tool: { href: "/go?to=105040305&from=105040300", text: "地圖導航" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
