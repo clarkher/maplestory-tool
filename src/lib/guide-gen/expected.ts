@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { JOB_SLUGS } from "../job-article";
 import { mustDoIndex } from "../route-planner";
-import { staticGuide, staticGuideCommon, staticQuestStepContext, staticQuests, staticSkills } from "../static-data";
+import { staticGuide, staticGuideCommon, staticMaps, staticNpcs, staticQuestStepContext, staticQuests, staticSkills } from "../static-data";
 import { questLineMarkdown, questLines } from "./quest-lines";
 import { REGIONS, regionMarkdown } from "./region-quests";
 import { BUILD_LINES, skillBuildMarkdown } from "./skill-build";
@@ -26,7 +26,7 @@ export function expectedSections(slug: string): Record<string, string> | null {
     const region = REGIONS.find(entry => `quests-${entry.slug}` === slug);
     if (!region) return null;
     const lineHref = (id: string) => (hasArticle(`quest-line-${id}`) ? `/guides/quest-line-${id}` : undefined);
-    return regionMarkdown(region, quests, questLines(quests), mustDoIndex(staticGuideCommon()), lineHref);
+    return regionMarkdown(region, quests, questLines(quests), mustDoIndex(staticGuideCommon()), lineHref, npcPlaceIn());
   }
   if (slug.startsWith("skill-build-")) {
     const line = BUILD_LINES.find(job => `skill-build-${JOB_SLUGS[job]}` === slug);
@@ -35,4 +35,16 @@ export function expectedSections(slug: string): Record<string, string> | null {
     return skillBuildMarkdown(line, job => staticGuide(job), id => (skills.has(id) ? `/db/skills/${id}` : undefined));
   }
   return null;
+}
+
+/** 站在好幾張圖的 NPC（楓之谷GM）：寫這區裡那張圖的名字（地圖的 st＝地區名），不然任務資料可能寫成別區（v2.36） */
+function npcPlaceIn(): (npcId: number, cat: string) => string | undefined {
+  const maps = staticMaps();
+  const npcs = new Map(staticNpcs().map(npc => [npc.id, npc]));
+  return (npcId, cat) => {
+    const npc = npcs.get(npcId);
+    if (!npc?.maps || npc.maps.length < 2) return undefined;
+    const map = npc.maps.map(id => maps[String(id)]).find(entry => entry?.st === cat && entry.zh);
+    return map?.zh;
+  };
 }

@@ -1,6 +1,6 @@
 /**
  * 楓葉武器適合哪些職業、用到幾等（攻略文 /guides/maple-leaf-weapon-jobs，v2.18）。
- * 用傷害計算機的預設角色（defaultState）打木樁：楓葉武器衝完（武器攻擊 +12，懶人包平均 +11.6 取整）
+ * 用傷害計算機的預設角色（defaultState）打木樁：楓葉武器衝完（武器攻擊 +12，懶人包平均 +11.6 取整；法師另外智力 +6）
  * 跟同等級拿得到最好的乾淨武器（weaponChoices：商店、打怪掉、任務、製作）比每秒傷害；出手時間查不到的（海盜）比一下的傷害。
  * 文章裡的數字由 __tests__/leaf-weapons.test.ts 用這裡重算對答案，資料更新、公式改了測試會紅。
  */
@@ -13,6 +13,8 @@ export const LEAF_WEAPON_IDS = [1302020, 1302030, 1412011, 1422014, 1432012, 144
 
 /** 懶人包走完的平均（+11.6）取整 */
 export const LEAF_SCROLL_BONUS = 12;
+/** 法師的卷另外加智力：懶人包走完平均 +6.1 取整（v2.36，巴哈網友指正；智力加在角色能力值上，計算機照常算進魔力） */
+export const LEAF_INT_BONUS = 6;
 
 /** 比到幾等（三轉以後技能、武器都換一輪，另外看） */
 export const LEAF_LEVELS = { from: 35, to: 70 };
@@ -67,7 +69,9 @@ function leafJob(data: CalcData, leafIds: Set<number>, job: number, tab: string 
     const stats = state.groups[0].stats;
     const score = (weapon: GearWeapon, bonus: number) => {
       const atk = (magic ? weapon.mag : weapon.atk) ?? 0;
-      const result = computeGroup(data, state.shared, { ...state.groups[0], weaponId: weapon.id, weaponAtk: atk + bonus }, null);
+      const intBonus = magic && bonus > 0 ? LEAF_INT_BONUS : 0;
+      const group = { ...state.groups[0], weaponId: weapon.id, weaponAtk: atk + bonus, stats: { ...stats, INT: stats.INT + intBonus } };
+      const result = computeGroup(data, state.shared, group, null);
       if (!result.ok) return null;
       return result.speed ? (result.expectedUse * 1000) / result.speed.ms : result.expectedUse;
     };
@@ -91,6 +95,43 @@ function leafJob(data: CalcData, leafIds: Set<number>, job: number, tab: string 
     row.until = lose ? (lose.lv > row.perLevel[0].lv ? lose.lv - 1 : null) : LEAF_LEVELS.to;
   }
   return { job, tab, weapons: rows };
+}
+
+export type MageCompare = { job: number; lv: number; ratio: number; otherName: string };
+
+/**
+ * 全智法拿衝完的楓葉法杖，對上裝備法拿那一級穿得上最好的乾淨武器（v2.36，巴哈網友問「這樣比才公平」）。
+ * 兩邊都用計算機那套點法那一級的預設能力值；裝備法的對手跟 leafJob 一樣不衝卷。
+ */
+export function mageBuildCompare(base: CalcData, items: Item[], levels: number[]): MageCompare[] {
+  const leaf = leafGear(items);
+  const leafIds = new Set(LEAF_WEAPON_IDS);
+  const data: CalcData = { ...base, gear: { ...base.gear, weapons: [...base.gear.weapons, ...leaf] } };
+  const staff = leaf.find(weapon => weapon.n === "楓葉法杖")!;
+  const out: MageCompare[] = [];
+  for (const job of [210, 220, 230]) {
+    const choices = weaponChoices(data.gear, job);
+    for (const lv of levels) {
+      const value = (tab: string, weapon: GearWeapon, bonus: number) => {
+        const state = defaultState(data, job, lv, tab);
+        const stats = state.groups[0].stats;
+        const group = { ...state.groups[0], weaponId: weapon.id, weaponAtk: (weapon.mag ?? 0) + bonus, stats: { ...stats, INT: stats.INT + (bonus > 0 ? LEAF_INT_BONUS : 0) } };
+        const result = computeGroup(data, state.shared, group, null);
+        if (!result.ok) return null;
+        return result.speed ? (result.expectedUse * 1000) / result.speed.ms : result.expectedUse;
+      };
+      const equipStats = defaultState(data, job, lv, "裝備法").groups[0].stats;
+      let best: { weapon: GearWeapon; value: number } | null = null;
+      for (const weapon of choices) {
+        if (leafIds.has(weapon.id) || weapon.lv > lv || !canWear(weapon, equipStats)) continue;
+        const v = value("裝備法", weapon, 0);
+        if (v !== null && (!best || v > best.value)) best = { weapon, value: v };
+      }
+      const mine = value("全智", staff, LEAF_SCROLL_BONUS);
+      if (best && mine !== null) out.push({ job, lv, ratio: mine / best.value, otherName: best.weapon.n });
+    }
+  }
+  return out;
 }
 
 /** 比例寫成文章用的字：強 38%／差 6%／打平（差不到 1%） */

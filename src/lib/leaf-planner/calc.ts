@@ -2,6 +2,7 @@
  * 楓葉武器衝卷規劃器的計算（v2.18）：三種衝法，精確列舉，不是模擬，每次數字一樣。
  * 規則照台服 11/12 公告：一天最多 100 枚、掉幣 21 天（2,100 枚）；武器 35 級 100 枚、43 級 200 枚，可衝 7 次；
  * 卷軸一張 100 枚（70%、15% 另付 30 萬楓幣）：100% +1、70% +2、15% +5。失敗只扣次數、不會爆。
+ * 法師的卷另外加智力（v2.36）：gain 傳 INT_GAIN 算智力、MAGE_TOTAL_GAIN 算魔攻＋智力合計（推薦衝法平均 +17.774）。
  *
  * 楓谷幫手推薦（＝攻略文的懶人包）：每把先賭兩張 15%，中了剩下全衝 70%；兩張都沒中換一把新的。
  * 剩下的幣只夠「一把＋7 張」時，那把直接全衝 70%。43 級算出來平均 +11.642、+12 以上 52.6%（單元測試對答案）。
@@ -49,17 +50,26 @@ export const PAID_MESO = 300_000;
 /** 每把賭幾張 15%（攻略文那支 session 算過：一把一把來的規則裡兩張最高） */
 export const GAMBLE = 2;
 
-const SCROLL: Record<Rate, [p: number, add: number]> = { 100: [1, 1], 70: [0.7, 2], 15: [0.15, 5] };
+const P: Record<Rate, number> = { 100: 1, 70: 0.7, 15: 0.15 };
+
+/** 每種卷中了加多少：預設算攻擊力（法師是魔攻） */
+export type Gain = Record<Rate, number>;
+export const ATK_GAIN: Gain = { 100: 1, 70: 2, 15: 5 };
+/** 法師卷軸順帶加的智力（70% INT +1、15% INT +3） */
+export const INT_GAIN: Gain = { 100: 0, 70: 1, 15: 3 };
+/** 法師魔攻＋智力合計：智力 1 點進魔力的算法跟武器魔攻 1 點一樣（傷害計算機 magicPower = INT + 武器魔攻） */
+export const MAGE_TOTAL_GAIN: Gain = { 100: 1, 70: 3, 15: 8 };
 
 function addTo(target: Dist, key: number, p: number) {
   if (p > 0) target.set(key, (target.get(key) ?? 0) + p);
 }
 
 /** 一把照順序衝完這些卷 → 加攻擊的分布 */
-export function scrollDist(rates: Rate[]): Dist {
+export function scrollDist(rates: Rate[], gain: Gain = ATK_GAIN): Dist {
   let dist: Dist = new Map([[0, 1]]);
   for (const rate of rates) {
-    const [p, add] = SCROLL[rate];
+    const p = P[rate];
+    const add = gain[rate];
     const next: Dist = new Map();
     for (const [k, v] of dist) {
       addTo(next, k + add, v * p);
@@ -81,13 +91,13 @@ function schedule(steps: Omit<PlanStep, "day">[]): PlanStep[] {
   });
 }
 
-export function buildPlan(strategy: Strategy, weaponCost: 100 | 200): Plan {
+export function buildPlan(strategy: Strategy, weaponCost: 100 | 200, gain: Gain = ATK_GAIN): Plan {
   if (strategy !== "pick") {
     const rate: Rate = strategy === "s70" ? 70 : 100;
     const raw: Omit<PlanStep, "day">[] = [{ kind: "weapon", target: 1, coins: weaponCost }];
     for (let i = 0; i < SLOTS; i++) raw.push({ kind: "scroll", rate, target: 1, coins: SCROLL_COINS });
     const paid = rate === 100 ? 0 : SLOTS;
-    return { steps: schedule(raw), outcome: scrollDist(Array(SLOTS).fill(rate)), paidScrolls: { mean: paid, max: paid }, coinsMax: weaponCost + SLOTS * SCROLL_COINS, tries: 0 };
+    return { steps: schedule(raw), outcome: scrollDist(Array(SLOTS).fill(rate), gain), paidScrolls: { mean: paid, max: paid }, coinsMax: weaponCost + SLOTS * SCROLL_COINS, tries: 0 };
   }
 
   // 賭一把最多花「武器＋兩張 15%」；賭完還要留得下最後那把「武器＋7 張 70%」
@@ -105,20 +115,20 @@ export function buildPlan(strategy: Strategy, weaponCost: 100 | 200): Plan {
   raw.push({ kind: "weapon", target: last, coins: weaponCost, ifMiss: true });
   for (let i = 0; i < SLOTS; i++) raw.push({ kind: "scroll", rate: 70, target: last, coins: SCROLL_COINS, ifMiss: true });
 
-  // 第 t 把第 i 張 15% 中了：+5，剩下 7-i 次全 70%；之前全沒中的機率是 0.85^(之前賭過幾張)
+  // 第 t 把第 i 張 15% 中了：+gain[15]，剩下 7-i 次全 70%；之前全沒中的機率是 0.85^(之前賭過幾張)
   const outcome: Dist = new Map();
   const paid: Dist = new Map();
   let miss = 1;
   for (let t = 0; t < tries; t++) {
     for (let i = 1; i <= GAMBLE; i++) {
       const reach = miss * 0.15;
-      for (const [k, v] of scrollDist(Array(SLOTS - i).fill(70))) addTo(outcome, k + 5, reach * v);
+      for (const [k, v] of scrollDist(Array(SLOTS - i).fill(70), gain)) addTo(outcome, k + gain[15], reach * v);
       // 這把中了：之前每把賭的兩張＋這把 7 張
       addTo(paid, GAMBLE * t + SLOTS, reach);
       miss *= 0.85;
     }
   }
-  for (const [k, v] of scrollDist(Array(SLOTS).fill(70))) addTo(outcome, k, miss * v);
+  for (const [k, v] of scrollDist(Array(SLOTS).fill(70), gain)) addTo(outcome, k, miss * v);
   addTo(paid, GAMBLE * tries + SLOTS, miss);
 
   const mean = [...paid].reduce((sum, [n, p]) => sum + n * p, 0);
@@ -191,7 +201,7 @@ export function maxDist(dists: Dist[]): Dist {
   return out;
 }
 
-export function evaluate(items: PlanItem[], weaponCost: 100 | 200): Evaluation {
+export function evaluate(items: PlanItem[], weaponCost: 100 | 200, gain: Gain = ATK_GAIN): Evaluation {
   const sorted = sortItems(items);
   const weapons = new Map<number, { target: number; day: number; rates: Rate[] }>();
   const invalid: PlanItem[] = [];
@@ -224,7 +234,7 @@ export function evaluate(items: PlanItem[], weaponCost: 100 | 200): Evaluation {
     if (spent > income) short = { day, lack: spent - income };
   }
 
-  const list = [...weapons.values()].sort((a, b) => a.target - b.target).map(w => ({ ...w, dist: scrollDist(w.rates) }));
+  const list = [...weapons.values()].sort((a, b) => a.target - b.target).map(w => ({ ...w, dist: scrollDist(w.rates, gain) }));
   return { weapons: list, outcome: list.length ? maxDist(list.map(w => w.dist)) : null, paidScrolls, coinsUsed, short, invalid };
 }
 

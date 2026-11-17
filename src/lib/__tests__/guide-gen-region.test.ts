@@ -2,7 +2,7 @@
  * 地區任務懶人包的產生器（v2.28）：一區一篇，列這區所有一般任務；楓之島照接的順序、其他照等級分段，標必解跟系列文。
  */
 import { describe, expect, it } from "vitest";
-import { isLineQuest, questLines } from "@/lib/guide-gen/quest-lines";
+import { isGeneralQuest, questLines } from "@/lib/guide-gen/quest-lines";
 import { REGIONS, regionMarkdown } from "@/lib/guide-gen/region-quests";
 import { mustDoIndex } from "@/lib/route-planner";
 import { staticGuideCommon, staticQuests } from "@/lib/static-data";
@@ -12,8 +12,10 @@ const lines = questLines(quests);
 const mustDo = mustDoIndex(staticGuideCommon());
 const region = (slug: string) => REGIONS.find(entry => entry.slug === slug)!;
 const linked = new Set(["3053"]);
+/** 楓之谷GM 站在很多城鎮，楓之島那篇要寫楓之島上那張圖 */
+const npcPlace = (npcId: number, cat: string) => (npcId === 9010000 && cat === "楓之島" ? "楓之港" : undefined);
 const lineHref = (lineId: string) => (linked.has(lineId) ? `/guides/quest-line-${lineId}` : undefined);
-const md = (slug: string) => regionMarkdown(region(slug), quests, lines, mustDo, lineHref);
+const md = (slug: string) => regionMarkdown(region(slug), quests, lines, mustDo, lineHref, npcPlace);
 const rows = (text: string) => [...text.matchAll(/^\| \[([^\]]+)\]\(\/db\/quests\/(\d+)\)/gm)].map(match => match[2]);
 
 describe("regionMarkdown", () => {
@@ -23,11 +25,17 @@ describe("regionMarkdown", () => {
 
   it("每區列的任務＝資料裡這區的一般任務，不多不少不重複", () => {
     for (const entry of REGIONS) {
-      const want = quests.filter(quest => quest.cat === entry.cat && isLineQuest(quest)).map(quest => quest.id).sort();
+      const want = quests.filter(quest => quest.cat === entry.cat && isGeneralQuest(quest)).map(quest => quest.id).sort();
       const got = rows(md(entry.slug).table);
       expect(new Set(got).size, entry.cat).toBe(got.length);
       expect([...got].sort(), entry.cat).toEqual(want);
     }
+  });
+
+  it("楓之島要列 GM 的推薦職業跟五個轉職任務，寫楓之島上的地圖（v2.36，巴哈網友指正）", () => {
+    const table = md("maple-island").table;
+    for (const id of ["1048", "1049", "1050", "1051", "1052", "1053"]) expect(rows(table), id).toContain(id);
+    expect(table).toMatch(/\| \[推薦職業\]\(\/db\/quests\/1048\)[^|]*\| [^|]* \| 楓之谷GM（楓之港） \|/);
   });
 
   it("楓之島照接的順序：前置排在前面", () => {
