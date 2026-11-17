@@ -1,0 +1,84 @@
+name: 每日影片
+
+# v2.35（11/17 使用者「一天至少 2 長片 6 短片」照推薦）：每天晚上做隔天的一批——「在哪打」「怎麼去」各 1 集正片＋短影音、
+# 另外各 2 個只做短影音（2 長 6 短），畫面跟事實都來自正式站那一頁，排程隔天 09:00～21:00 公開，再開 PR 把這批加進官網影片區（dev）。
+# 程式：pipeline/video/daily.mjs。題目挑法：pipeline/video/series/topics.mjs；做過的從頻道說明欄認，不另外存狀態。
+# YouTube 上傳一天有額度（一支約 1,600 點、預設一天 10,000 點）：傳不上去的題目下一班會再挑到。
+# 手動跑：gh workflow run daily-video.yml（可帶 -f date=2026-11-18、-f dry_run=true）
+
+on:
+  schedule:
+    - cron: "30 13 * * *" # 台灣 21:30（GitHub 排程常晚，公開最早是隔天 09:00，晚幾小時沒關係）
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "哪一天公開（台灣時間 YYYY-MM-DD，空白＝明天）"
+        type: string
+        required: false
+      dry_run:
+        description: "只印要做哪幾個題目"
+        type: boolean
+        default: false
+
+concurrency:
+  group: daily-video
+  cancel-in-progress: false
+
+jobs:
+  video:
+    if: github.repository == 'clarkher/maplestory-tool'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      VIDEO_OUT: ${{ github.workspace }}/video-out
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 裝 ffmpeg、中文字型（截圖用；片裡的字型由 ensureFonts 下載）
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-noto-cjk
+
+      - name: 字型快取
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/maplehelper-video
+          key: maplehelper-video-fonts-v1
+
+      - name: 做片、上傳、開官網 PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
+          INWORLD_API_KEY: ${{ secrets.INWORLD_API_KEY }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          CHROME_PATH: /usr/bin/google-chrome
+          DATE: ${{ inputs.date }}
+          DRY: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          export VIDEO_CACHE="$HOME/.cache/maplehelper-video"
+          node pipeline/video/daily.mjs ${DATE:+--date "$DATE"} $DRY
+
+      - name: 產物備份
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: daily-video
+          path: |
+            video-out/**/*.mp4
+            video-out/**/youtube.txt
+            video-out/made.json
+          retention-days: 7
+          if-no-files-found: ignore
