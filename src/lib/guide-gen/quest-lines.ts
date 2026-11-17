@@ -28,8 +28,11 @@ const QUEST_LINE_NAME: Record<string, string> = {
 const MIN_SIZE = 5;
 const EXCLUDED_CATS = new Set(["活動", "組隊任務", "稱號", "職業", "其他任務"]);
 
-/** 系列文章只收一般任務 */
-export const isLineQuest = (quest: Quest) => !EXCLUDED_CATS.has(quest.cat) && !/萬聖節|冒險家的戒指/.test(quest.n) && !/^推薦職業$|轉職$|之路$/.test(quest.n);
+/** 一般任務：不收活動、組隊、稱號、職業分類（地區懶人包列這些） */
+export const isGeneralQuest = (quest: Quest) => !EXCLUDED_CATS.has(quest.cat) && !/萬聖節|冒險家的戒指/.test(quest.n);
+
+/** 系列文章再拿掉轉職那幾條（推薦職業、○○轉職、○○之路） */
+export const isLineQuest = (quest: Quest) => isGeneralQuest(quest) && !/^推薦職業$|轉職$|之路$/.test(quest.n);
 
 /** 「好無聊1」「尋找女兒 1」「(1)」「幫助貝恩。」這類尾巴拿掉 */
 const baseName = (name: string) => name.replace(/[。．.！!？?，,、]+$/u, "").replace(/\s*(\(\d+\)|\d+|[Ⅰ-Ⅻ])$/u, "").trim();

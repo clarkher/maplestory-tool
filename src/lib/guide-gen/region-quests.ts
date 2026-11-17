@@ -1,10 +1,10 @@
 /**
- * 地區任務懶人包的表格（v2.28）：一區一篇，列這區所有一般任務（跟系列文同一個 isLineQuest）。
+ * 地區任務懶人包的表格（v2.28）：一區一篇，列這區所有一般任務（isGeneralQuest；v2.36 起推薦職業、轉職也列，系列文才拿掉）。
  * 楓之島 52 個有 45 個沒寫接取等級，整篇照接的順序（前置）排；其他兩區照等級每 10 級一段，沒寫等級的放「不限等級」。
  * 必解照攻略研究的必解索引（mustDoIndex，跟首頁升級路線同一份），只標每組的主任務、每段上面列「這段先解」；系列有文章才連過去（lineHref 回 undefined 就只寫名字）。
  */
 import type { GuideMustDo, Quest } from "../types";
-import { isLineQuest, jobLimit, topoOrder, type QuestLine } from "./quest-lines";
+import { isGeneralQuest, jobLimit, topoOrder, type QuestLine } from "./quest-lines";
 
 export type Region = { slug: string; cat: string; name: string; order: "chain" | "level" };
 
@@ -37,8 +37,10 @@ export function regionMarkdown(
   lines: QuestLine[],
   mustDo: Map<string, GuideMustDo>,
   lineHref: (lineId: string) => string | undefined,
+  /** 給任務的 NPC 站在很多張圖（楓之谷GM）時，這區裡那張的名字；沒有就照任務資料寫的 */
+  npcPlace: (npcId: number, cat: string) => string | undefined = () => undefined,
 ): Record<"summary" | "table", string> {
-  const pool = quests.filter(quest => quest.cat === region.cat && isLineQuest(quest));
+  const pool = quests.filter(quest => quest.cat === region.cat && isGeneralQuest(quest));
   const lineOf = new Map(lines.flatMap(line => [...line.quests, ...line.branches.flatMap(branch => branch.quests)].map(quest => [quest.id, line] as const)));
   const pres = (quest: Quest) => quest.pre ?? [];
   const isHead = (quest: Quest) => mustDo.get(quest.id)?.q === quest.id;
@@ -52,7 +54,8 @@ export function regionMarkdown(
     const line = lineOf.get(quest.id);
     const href = line && lineHref(line.id);
     const series = line ? (href ? `[${line.name}](${href})` : line.name) : "";
-    const who = quest.sNpc ? `${quest.sNpc.n}${quest.sNpc.mapName ? `（${quest.sNpc.mapName}）` : ""}` : "";
+    const place = quest.sNpc ? (npcPlace(quest.sNpc.id, region.cat) ?? quest.sNpc.mapName) : undefined;
+    const who = quest.sNpc ? `${quest.sNpc.n}${place ? `（${place}）` : ""}` : "";
     const exp = quest.exp ? quest.exp.toLocaleString("en-US") : "";
     // 只標每組推薦的主任務；同一條系列的其他任務不標（不然 181 個標了 125 個，等於沒篩）
     const must = isHead(quest) ? " **必解**" : "";

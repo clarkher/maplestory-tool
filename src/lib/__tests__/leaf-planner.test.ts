@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { coinRange, dropsCoin, planCoinFarm } from "@/lib/leaf-planner/farm";
 import type { MapRecord, Monster, TrainingRow } from "@/lib/types";
-import { affordable, buildPlan, evaluate, statsOf, toItems, type PlanItem } from "@/lib/leaf-planner/calc";
+import { affordable, buildPlan, evaluate, INT_GAIN, MAGE_TOTAL_GAIN, statsOf, toItems, type PlanItem } from "@/lib/leaf-planner/calc";
 import { dateOfDay, dayOf, LEAF_DAYS } from "@/lib/leaf-planner/calendar";
 import { LEAF_WEAPONS } from "@/lib/leaf-planner/weapons";
 
@@ -19,6 +19,20 @@ describe("楓葉武器衝卷規劃器（v2.18）：三種衝法精確算", () =>
     expect(s.worst).toBe(0);
     expect(s.mode).toBe(13);
     near(s.modeP, 0.2122, 3);
+  });
+
+  it("法師卷軸另外加智力（v2.36，巴哈網友指正）：推薦衝法智力平均 +6.132，魔攻＋智力合計 +17.774", () => {
+    near(statsOf(buildPlan("pick", 200, INT_GAIN).outcome).mean, 6.132);
+    const total = statsOf(buildPlan("pick", 200, MAGE_TOTAL_GAIN).outcome);
+    near(total.mean, 17.774);
+    expect(total.best).toBe(26);
+    // 合計＝魔攻＋智力（同一串中沒中，平均可以直接加）
+    near(total.mean, statsOf(buildPlan("pick", 200).outcome).mean + statsOf(buildPlan("pick", 200, INT_GAIN).outcome).mean);
+  });
+
+  it("法師自己排也算得出合計：一把 7 張 70%＝每張 +3 × 0.7 × 7 = +14.7", () => {
+    const items: PlanItem[] = [{ day: 2, kind: "weapon", target: 1 }, ...Array.from({ length: 7 }, (_, i) => ({ day: 3 + i, kind: "scroll" as const, rate: 70 as const, target: 1 }))];
+    near(statsOf(evaluate(items, 200, MAGE_TOTAL_GAIN).outcome!).mean, 14.7);
   });
 
   it("楓谷幫手推薦：卷軸平均 10.24 張（楓幣 307 萬）、最多 13 張（390 萬），硬幣最多 2,100 枚", () => {

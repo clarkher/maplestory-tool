@@ -1,7 +1,7 @@
 // 攻略文 maple-leaf-weapon-jobs 的每個數字都要跟傷害計算機重算的一樣：資料更新、公式改了這裡會紅，文章要跟著改
 import fs from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
-import { leafWeaponReport, ratioAt, ratioText, untilText, type LeafJob } from "../leaf-weapons";
+import { leafWeaponReport, mageBuildCompare, ratioAt, ratioText, untilText, type LeafJob } from "../leaf-weapons";
 import { staticCalcData } from "../static-data";
 
 const article = fs.readFileSync("src/content/guides/maple-leaf-weapon-jobs.md", "utf8").replace(/\r\n?/g, "\n");
@@ -65,6 +65,21 @@ describe("楓葉武器攻略文對答案", () => {
       }
     }
   });
+
+  it("全智法拿楓葉法杖 對 裝備法拿最好的武器（v2.36）：每一列的武器跟強幾 %", () => {
+    const body = article.split("### 全智法跟裝備法比\n")[1].split("\n## ")[0];
+    const found = rows(body.split("\n\n").map(part => part.trim()).find(part => part.startsWith("|"))!);
+    expect(found.length).toBe(4);
+    const levels = found.map(([lv]) => Number(lv.replace(" 等", "")));
+    const compare = mageBuildCompare(staticCalcData(), JSON.parse(fs.readFileSync("public/data/items.json", "utf8")), levels);
+    for (const [lvText, other, text] of found) {
+      const lv = Number(lvText.replace(" 等", ""));
+      const mine = compare.filter(entry => entry.lv === lv);
+      expect(mine.length, `${lv} 等三個法師都算得出來`).toBe(3);
+      expect([...new Set(mine.map(entry => entry.otherName))], `${lv} 等裝備法的武器`).toEqual([other]);
+      expect(cellText(mine.map(entry => entry.ratio)), `${lv} 等`).toBe(text);
+    }
+  }, 300000);
 
   it("每段的強弱 %：43、50、60 等", () => {
     for (const section of SECTION_HEADINGS) {
