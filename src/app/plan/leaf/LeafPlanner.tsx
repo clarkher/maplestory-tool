@@ -7,7 +7,7 @@ import { OPTION_ON } from "@/components/option-style";
 import { track } from "@/lib/analytics";
 import { itemImage } from "@/lib/asset-paths";
 import {
-  affordable, buildPlan, COIN_DAYS, DAILY_COINS, evaluate, PAID_MESO, SCROLL_COINS, SLOTS, sortItems, statsOf, toItems, TOTAL_COINS,
+  affordable, buildPlan, COIN_DAYS, DAILY_COINS, evaluate, MAGE_TOTAL_GAIN, PAID_MESO, SCROLL_COINS, SLOTS, sortItems, statsOf, toItems, TOTAL_COINS,
   type Dist, type Plan, type PlanItem, type PlanStep, type Rate, type Strategy,
 } from "@/lib/leaf-planner/calc";
 import { dateOfDay, dayOf, LEAF_DAYS, LEAF_FIRST_SHOP_DAY, LEAF_LAST_SHOP_DAY, WEEKDAYS } from "@/lib/leaf-planner/calendar";
@@ -104,6 +104,12 @@ export function LeafPlanner() {
   const ev = useMemo(() => (mode === "custom" ? evaluate(custom, weapon.cost) : null), [mode, custom, weapon.cost]);
   const outcome: Dist | null = plan ? plan.outcome : ev!.outcome;
   const stats = useMemo(() => (outcome ? statsOf(outcome) : null), [outcome]);
+  // 法師的卷另外加智力（v2.36）：魔攻＋智力合計另外算一行
+  const mageTotal = useMemo(() => {
+    if (!weapon.magic) return null;
+    const out = mode === "custom" ? evaluate(custom, weapon.cost, MAGE_TOTAL_GAIN).outcome : buildPlan(mode, weapon.cost, MAGE_TOTAL_GAIN).outcome;
+    return out ? statsOf(out).mean : null;
+  }, [weapon.magic, weapon.cost, mode, custom]);
   const byDay = useMemo(() => {
     const map = new Map<number, Row[]>();
     for (const row of rows) map.set(row.day, [...(map.get(row.day) ?? []), row]);
@@ -221,6 +227,11 @@ export function LeafPlanner() {
               <Stat label="最常拿到" value={String(weapon.atk + stats.mode)} sub={`+${stats.mode}・${pct(stats.modeP)}`} />
               <MesoStat plan={plan} paid={ev?.paidScrolls ?? 0} />
             </div>
+            {mageTotal !== null && (
+              <p className="mt-2 text-[13px] leading-relaxed">
+                卷軸另外加智力：<b>魔攻＋智力合計平均 +{one(mageTotal)}</b>（智力 1 點跟魔攻 1 點一樣算進魔力）
+              </p>
+            )}
             <h3 className="mt-4 text-[15px] font-black">衝到這個{atkWord}以上的機會</h3>
             <AtLeastList stats={stats} base={weapon.atk} />
           </>
@@ -228,7 +239,7 @@ export function LeafPlanner() {
           <p className="mt-3 text-[14px] ink-soft">還沒換武器。點日曆的一天，按「換一把」開始排。</p>
         )}
         <CoinLine plan={plan} ev={ev} lastDay={lastDay} />
-        <p className="mt-2 text-[12px] leading-relaxed ink-soft">精確算出來的，不是模擬。只算{atkWord}，卷軸順帶加的屬性不算。</p>
+        <p className="mt-2 text-[12px] leading-relaxed ink-soft">精確算出來的，不是模擬。{weapon.magic ? "上面的數字只算魔攻，智力算在合計那行。" : "只算攻擊，卷軸順帶加的屬性不算。"}</p>
       </aside>
     </div>
     <CoinFarm />
