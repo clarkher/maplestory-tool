@@ -43,9 +43,10 @@ import {
   skillRow,
 } from "./damage-skills";
 import { actionMs, BOOSTERS, boosterSteps, DRAGON_ROAR, dragonRoarStunMs, expPerSecond, fixedMs, MAGIC_TIER, skillBaseMs, type Booster } from "./damage-speed";
-import { isMagicJob, kitStats, obtainableBy, statShortfall, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
+import { canWear, isMagicJob, kitStats, obtainableBy, statShortfall, weaponTypesFor, type GearAmmo, type GearData, type GearWeapon, type StatKey } from "./gear";
 import { gearPlan, tabsFor } from "./gear-view";
 import { canJobUse } from "./item-view";
+import { LEAF_INT_BONUS, LEAF_SCROLL_BONUS } from "./leaf-bonus";
 import { jobOption, jobTier, LEVEL_CAP, minLevelFor, previousJob, SECOND_JOB_LEVEL, stageJob, THIRD_JOB_LEVEL, tierStartLevel } from "./jobs";
 import { BOSS_SPAWN_MAX } from "./now-plan";
 import { jobLineage, planTraining } from "./planner";
@@ -119,7 +120,49 @@ export type CalcData = {
   training: TrainingRow[];
   /** 升級經驗表（guides/common.json 的 expTable.toNext）：[n]＝Lv.n 升到 n+1 要的經驗，算 10 分鐘經驗占這一級幾 % */
   expToNext: number[];
+  /** 全幸、全智的預設換成楓葉武器對雨傘／狼牙（leafPair）；只有計算機頁打開（withLeafWeapons），攻略文、推薦卡照舊 */
+  leafDefault?: boolean;
 };
+
+/**
+ * 計算機頁用（v2.37）：楓葉商會的武器（gear.json 的 leaf）併進武器選單，標 ev 讓挑主推那套不看它們，
+ * 全幸、全智的預設改成左組楓葉、右組雨傘／狼牙（使用者 11/18 拍板 A）。
+ */
+export function withLeafWeapons(data: CalcData): CalcData {
+  const leaf = data.gear.leaf ?? [];
+  if (!leaf.length) return data;
+  const weapons = [...data.gear.weapons, ...leaf.map(weapon => ({ ...weapon, ev: "楓葉商會" }))];
+  return { ...data, leafDefault: true, gear: { ...data.gear, weapons } };
+}
+
+/** 預設拿楓葉武器的點法 */
+const LEAF_TABS = ["全幸", "全智"];
+/** 全幸刺客右組的對照：狼牙（敏捷要 50，全幸湊不到會寫「穿不上」照樣算） */
+const WOLF_FANG = 1472007;
+
+/**
+ * 全幸、全智的兩組預設：左＝這一級拿得到等級最高的楓葉武器、衝完（攻擊 +12，法師另外智力 +6）；
+ * 右＝同一套點法拿乾淨的雨傘（全智：穿得上、魔攻最高那把）或狼牙（全幸刺客；俠盜拿不了拳套，照原本主推）。
+ * 楓葉武器還不到等級（35 以下、俠盜 43 以下）、不是這兩套點法、或沒打開 leafDefault 回 null（照原本的預設）。
+ */
+function leafPair(data: CalcData, job: number, level: number, tab: string | null): [GroupConfig, GroupConfig] | null {
+  if (!data.leafDefault || !tab || !LEAF_TABS.includes(tab)) return null;
+  const base = defaultGroup(data, job, level, tab);
+  const magic = isMagicJob(job);
+  const power = (weapon: GearWeapon) => (magic ? weapon.mag : weapon.atk) ?? 0;
+  const choices = weaponChoices(data.gear, job).filter(weapon => weapon.lv <= base.level);
+  const leaf = choices.filter(weapon => weapon.ev).sort((a, b) => b.lv - a.lv || power(b) - power(a))[0];
+  if (!leaf) return null;
+  const left: GroupConfig = {
+    ...withWeapon(data, base, leaf),
+    weaponAtk: power(leaf) + LEAF_SCROLL_BONUS,
+    stats: magic ? { ...base.stats, INT: base.stats.INT + LEAF_INT_BONUS } : { ...base.stats },
+  };
+  const rival = magic
+    ? choices.filter(weapon => weapon.n.includes("雨傘") && canWear(weapon, base.stats)).sort((a, b) => power(b) - power(a))[0]
+    : choices.find(weapon => weapon.id === WOLF_FANG);
+  return [left, rival ? withWeapon(data, base, rival) : base];
+}
 
 export type GroupConfig = {
   /** 點法標籤（「一般點法」「全幸」）；這個職業沒有第二套是 null */
@@ -762,8 +805,9 @@ export function defaultSkill(data: CalcData, job: number, group: GroupConfig): {
 export function defaultState(data: CalcData, job: number, level: number, buildTab: string | null): CalcState {
   const tabs = tabsFor(data.gear.rules, job);
   const leftTab = buildTab && tabs.some(entry => entry.tab === buildTab) ? buildTab : tabs[0]?.tab ?? null;
-  const left = defaultGroup(data, job, level, leftTab);
-  const right = rightGroup(data, job, left, defaultGroup(data, job, left.level, otherTabOf(data, job, left.tab) ?? leftTab));
+  const leaf = leafPair(data, job, level, leftTab);
+  const left = leaf?.[0] ?? defaultGroup(data, job, level, leftTab);
+  const right = leaf?.[1] ?? rightGroup(data, job, left, defaultGroup(data, job, left.level, otherTabOf(data, job, left.tab) ?? leftTab));
   return { shared: { job, ...defaultSkill(data, job, left), monsterId: defaultMonster(data, job, left.level) }, groups: [left, right] };
 }
 
@@ -784,15 +828,23 @@ function withWeapon(data: CalcData, group: GroupConfig, weapon: GearWeapon): Gro
   return { ...group, weaponId: weapon.id, weaponAtk: null, ammoId: ammo?.id ?? null };
 }
 
-/** 換點法、換等級：能力值、武器、彈藥、技能等級重設成那套那級的預設；其他攻擊、增益、充能、開加速留著 */
-export function regroup(data: CalcData, job: number, group: GroupConfig, change: { tab?: string | null; level?: number }): GroupConfig {
-  const fresh = defaultGroup(data, job, change.level ?? group.level, change.tab !== undefined ? change.tab : group.tab);
+/**
+ * 換點法、換等級：能力值、武器、彈藥、技能等級重設成那套那級的預設；其他攻擊、增益、充能、開加速留著。
+ * side＝左組 0、右組 1：換成全幸、全智時左組拿楓葉、右組拿雨傘／狼牙（leafPair）
+ */
+export function regroup(data: CalcData, job: number, group: GroupConfig, change: { tab?: string | null; level?: number }, side: number = 0): GroupConfig {
+  const level = change.level ?? group.level;
+  const tab = change.tab !== undefined ? change.tab : group.tab;
+  const fresh = leafPair(data, job, level, tab)?.[side ? 1 : 0] ?? defaultGroup(data, job, level, tab);
   return { ...fresh, extra: group.extra, buffs: group.buffs, charge: group.charge, booster: group.booster };
 }
 
 /** 兩組照各自的點法、在這一級的預設（右組照預設的規則挑武器） */
 function defaultsAt(data: CalcData, job: number, groups: CalcState["groups"], level: number): [GroupConfig, GroupConfig] {
-  const left = defaultGroup(data, job, level, groups[0].tab);
+  // 左組全幸／全智拿楓葉；右組跟左組同一套才是雨傘／狼牙（defaultState 給的那組），換成別套就照那套的預設
+  const leaf = leafPair(data, job, level, groups[0].tab);
+  const left = leaf?.[0] ?? defaultGroup(data, job, level, groups[0].tab);
+  if (leaf && groups[1].tab === groups[0].tab) return [left, leaf[1]];
   return [left, rightGroup(data, job, left, defaultGroup(data, job, level, groups[1].tab))];
 }
 
@@ -804,7 +856,8 @@ const sameStats = (a: Record<StatKey, number>, b: Record<StatKey, number>) => ST
  */
 function carry(data: CalcData, group: GroupConfig, before: GroupConfig, after: GroupConfig): GroupConfig {
   const weaponType = (id: number | null) => data.gear.weapons.find(weapon => weapon.id === id)?.s;
-  const keepWeapon = group.weaponId !== before.weaponId || group.weaponAtk !== null;
+  // 楓葉武器的預設本來就帶衝完的攻擊（before.weaponAtk），跟預設一樣才算沒動過
+  const keepWeapon = group.weaponId !== before.weaponId || group.weaponAtk !== before.weaponAtk;
   const weaponId = keepWeapon ? group.weaponId : after.weaponId;
   const type = weaponType(weaponId);
   const keepAmmo = group.ammoId !== before.ammoId && type === weaponType(group.weaponId);
@@ -817,7 +870,7 @@ function carry(data: CalcData, group: GroupConfig, before: GroupConfig, after: G
   return {
     ...after,
     weaponId,
-    weaponAtk: keepWeapon ? group.weaponAtk : null,
+    weaponAtk: keepWeapon ? group.weaponAtk : after.weaponAtk,
     ammoId,
     stats: sameStats(group.stats, before.stats) ? after.stats : { ...group.stats },
     levels,

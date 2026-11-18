@@ -22,6 +22,7 @@ import {
   parseState,
   relevel,
   withMonster,
+  withLeafWeapons,
   withSkill,
   type CalcData,
   type CalcState,
@@ -114,7 +115,8 @@ export function DamageCalculator() {
   const [buildTab] = useBuildChoice(Math.max(job, 0));
   const guides = useGuides(job);
   const data: CalcData | null = useMemo(
-    () => (base && guides ? { ...base, guides } : null),
+    // 楓葉商會的武器只在計算機併進選單；全幸、全智預設楓葉對雨傘／狼牙（withLeafWeapons）
+    () => (base && guides ? withLeafWeapons({ ...base, guides }) : null),
     [base, guides],
   );
   const startLevel = Math.max(linkStartLevel(job, profile.level || 0, link), job > 0 ? minLevelFor(job) : 1);
@@ -136,7 +138,8 @@ export function DamageCalculator() {
     if (savedState) return savedState;
     // 連結是要對答案的：開出來要跟表一樣，第二套點法也不套；沒帶連結就接上這個職業上次設好的
     const fresh =
-      link?.job === job ? applyDamageLink(defaultState(data, job, startLevel, null), data, link) : stored ?? defaultState(data, job, startLevel, buildTab);
+      // 攻略文的連結照文章那套（不換楓葉預設），右組才對得上文章比的那把
+      link?.job === job ? applyDamageLink(defaultState({ ...data, leafDefault: false }, job, startLevel, null), data, link) : stored ?? defaultState(data, job, startLevel, buildTab);
     // 練功測速的「算傷害」帶 ?mob=：這次瀏覽還沒動過計算機時先選好那隻怪
     const mob = Number(searchParams.get("mob"));
     return mob ? withMonster(fresh, data, mob) : fresh;
