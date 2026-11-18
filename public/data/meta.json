@@ -6,7 +6,7 @@
   "ingest": {
     "origin": "upstream",
     "ref": "https://github.com/morrisrrrrrrr-svg/morrisrrrrrrr-svg.github.io.git",
-    "fetchedAt": "2026-10-22T04:08:50.511Z"
+    "fetchedAt": "2026-11-18T01:52:39.248Z"
   },
   "parts": {
     "data.js": {
@@ -84,7 +84,7 @@
     "routeNote": "路線來自客戶端傳送門資料。跨大陸需搭乘遊戲內交通工具，會標成獨立一步。"
   },
   "counts": {
-    "monsters": 116,
+    "monsters": 113,
     "items": 14082,
     "quests": 526,
     "skills": 238,
@@ -94,14 +94,14 @@
     "towns": 343,
     "regions": 40,
     "walkableAreas": 4046,
-    "trainingMaps": 273,
-    "farmableItems": 1392,
+    "trainingMaps": 272,
+    "farmableItems": 1377,
     "buyQuests": 100
   },
   "coverage": {
-    "monstersWithSpawnData": 104,
-    "monstersWithoutSpawnData": 12,
+    "monstersWithSpawnData": 103,
+    "monstersWithoutSpawnData": 10,
     "largestWalkableArea": 294
   },
-  "builtAt": "2026-11-11T17:11:44.388Z"
+  "builtAt": "2026-11-18T02:08:53.359Z"
 }

@@ -568,7 +568,7 @@ export function GroupEditor({ data, state, result, active, onActive, onGroup }: 
       <div role="tabpanel" id={panelId} aria-labelledby={tabId(active)}>
         {tabs.length > 1 ? (
           <div className="py-2">
-            <ChoiceGroup label="點法" options={tabs.map(entry => entry.tab)} value={group.tab ?? tabs[0].tab} onChange={tab => onGroup(active, regroup(data, job, group, { tab }))} />
+            <ChoiceGroup label="點法" options={tabs.map(entry => entry.tab)} value={group.tab ?? tabs[0].tab} onChange={tab => onGroup(active, regroup(data, job, group, { tab }, active))} />
           </div>
         ) : null}
         {tabs.length > 1 ? <p className="pb-1 text-right text-[11px] ink-faint">換點法會把能力值、武器重設成那套的預設</p> : null}

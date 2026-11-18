@@ -76,6 +76,8 @@ export type GearWeapon = {
   src: GearSource;
   /** 所有來源都是 V002 → "2026-10-15" */
   o?: string;
+  /** 活動武器（楓葉商會）：傷害計算機的選單才有，挑主推、需求點數、更強那把都不看（damage-view 的 withLeafWeapons 標的） */
+  ev?: string;
 };
 
 /** 彈藥（pipeline/lib/gear.mjs 的 buildAmmo）：kind 照道具 id 前四碼，atk／lv 從道具說明抽，src 同武器 */
@@ -180,6 +182,8 @@ export type GearData = {
   armor?: GearArmor[];
   /** 彈藥，傷害計算機用 */
   ammo?: GearAmmo[];
+  /** 楓葉商會的活動武器（v2.37）：只給傷害計算機的武器選單，不在 weapons 裡 */
+  leaf?: GearWeapon[];
   rules: StatRule[];
   before?: { t: string; s: string[]; v: "tw" | "community" | "legacy" };
   notes: GearNote[];
@@ -419,7 +423,8 @@ export function canWear(item: Wearable, targets: Record<StatKey, number>): boole
  * 比的是魔攻不是種類（火毒巫師 40 等主流武器是黃色雨傘，不是短杖／長杖）。
  */
 function candidatePool(weapons: GearWeapon[], job: number, magic: boolean, only?: string[]): GearWeapon[] {
-  const usable = (w: GearWeapon) => canJobUse(w.job, job) === true && obtainableBy(w.src, job);
+  // 活動武器（楓葉商會）不當主推：計算機的全幸、全智另外照拍板預設（damage-view 的 leafPair）
+  const usable = (w: GearWeapon) => !w.ev && canJobUse(w.job, job) === true && obtainableBy(w.src, job);
   if (magic) return weapons.filter(w => (w.mag ?? 0) > 0 && usable(w));
   // 點法指定了武器種類（一轉海盜「指虎需求」）就只看那幾種，不然力量流會被推火槍
   const types = new Set(weaponTypesFor(job).filter(type => !only?.length || only.includes(type)));
@@ -557,7 +562,7 @@ export function equipRequirement(
 ): Partial<Record<StatKey, number>> {
   const secondaryStat = rule.secondary?.stat;
   const otherKeys = STAT_KEYS.filter(key => key !== rule.main && key !== secondaryStat);
-  const candidates = weapons.filter(w => otherKeys.every(key => (w.req?.[key] ?? 0) <= STAT_FLOOR));
+  const candidates = weapons.filter(w => !w.ev && otherKeys.every(key => (w.req?.[key] ?? 0) <= STAT_FLOOR));
 
   const result: Partial<Record<StatKey, number>> = {};
   for (let l = 1; l <= level; l++) {
