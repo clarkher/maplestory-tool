@@ -45,6 +45,7 @@ import {
   sortArmor,
 } from "./lib/gear.mjs";
 import { buildScrollSim } from "./lib/scroll-sim.mjs";
+import { buildLeafGear } from "./lib/leaf-shop.mjs";
 import { avatarCoverage, buildAvatar, SLOT_KEYS } from "./lib/avatar.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
@@ -136,6 +137,8 @@ function main() {
   const gear = {
     builtAt: new Date().toISOString(),
     weapons,
+    // 楓葉商會的活動武器（11/19～12/16）：只給傷害計算機的武器選單，不進上面的 weapons（見 lib/leaf-shop.mjs）
+    leaf: buildLeafGear(items),
     scrolls,
     armor,
     ammo,

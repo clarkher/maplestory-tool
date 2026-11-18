@@ -7,14 +7,13 @@
 import { computeGroup, defaultState, weaponChoices, type CalcData } from "./damage-view";
 import { canWear, type GearWeapon } from "./gear";
 import { tabsFor } from "./gear-view";
+import { LEAF_INT_BONUS, LEAF_SCROLL_BONUS } from "./leaf-bonus";
 
 /** 楓葉商會的 19 把楓葉武器 */
 export const LEAF_WEAPON_IDS = [1302020, 1302030, 1412011, 1422014, 1432012, 1442024, 1382009, 1382012, 1452016, 1452022, 1462014, 1462019, 1472030, 1472032, 1332025, 1482020, 1482021, 1492020, 1492021];
 
-/** 懶人包走完的平均（+11.6）取整 */
-export const LEAF_SCROLL_BONUS = 12;
-/** 法師的卷另外加智力：懶人包走完平均 +6.1 取整（v2.36，巴哈網友指正；智力加在角色能力值上，計算機照常算進魔力） */
-export const LEAF_INT_BONUS = 6;
+/** 衝完加多少：跟傷害計算機共用（leaf-bonus.ts） */
+export { LEAF_INT_BONUS, LEAF_SCROLL_BONUS };
 
 /** 比到幾等（三轉以後技能、武器都換一輪，另外看） */
 export const LEAF_LEVELS = { from: 35, to: 70 };

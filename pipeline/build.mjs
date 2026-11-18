@@ -28,6 +28,8 @@ import { compactElemental } from "./lib/elemental.mjs";
 import { readJson, writeJson, humanBytes } from "./lib/http.mjs";
 import { HELD_BACK_MAPS, officialName } from "./lib/map-names.mjs";
 import { copyMissingFrames } from "./lib/monster-frames.mjs";
+import { monsterReleasedMaps } from "./lib/monster-maps.mjs";
+import { withLeafShop } from "./lib/leaf-shop.mjs";
 import { gateLevels, npcWarpEdges } from "./lib/npc-warps.mjs";
 import { buildPaths } from "./lib/build-paths.mjs";
 import { shopPrice, shopRows } from "./lib/shops.mjs";
@@ -503,8 +505,9 @@ function buildMonsters(artale, spawns, maps, canonItem) {
 
   let withSpawnData = 0;
   const list = (artale.monsters || [])
-    // 只有出現在已開放地圖上的怪才算進得去；其餘是客戶端裡尚未開放的內容
-    .filter(monster => (monster.maps || []).some(map => released.has(Number(map.id))))
+    // 只有出現在已開放地圖上的怪才算進得去；其餘是客戶端裡尚未開放的內容。
+    // 只在「楓葉世界全地區」（活動怪的假地圖，例：聖誕節小雪人）的不算，潛水企鵝王（水世界）整隻不算（lib/monster-maps.mjs）
+    .filter(monster => monsterReleasedMaps((monster.maps || []).map(map => Number(map.id)), [], released, Number(monster.id)).listed)
     // 地圖開放不代表圖裡的怪都在等級上限內：廢礦區的代表地圖「殘暴炎魔祭壇」開放後，
     // 跟著漏進 22 隻 Lv.140 的殘暴炎魔／混沌殘暴炎魔（遠超 V002 上限 120），這是之後才會解鎖的首領戰內容。
     // 比照任務（quest.minLevel ≤ RELEASE.levelCap）同樣用等級上限把關，地圖本身照樣收錄（REGION_SENTINELS 要看得到它有中文名）。
@@ -512,8 +515,11 @@ function buildMonsters(artale, spawns, maps, canonItem) {
     .map(monster => {
     const id = Number(monster.id);
     const stats = monster.stats || {};
-    const declaredMaps = (monster.maps || []).map(map => Number(map.id)).filter(Number.isFinite);
-    const spawnRows = spawnOf.get(id) || [];
+    // 出現地點、刷怪點只留已開放的圖：潛水企鵝王、獨眼蝙蝠的水世界那幾張不帶進來
+    const open = monsterReleasedMaps(
+      (monster.maps || []).map(map => Number(map.id)).filter(Number.isFinite), spawnOf.get(id) || [], released);
+    const declaredMaps = open.maps;
+    const spawnRows = open.sp;
     if (spawnRows.length) withSpawnData += 1;
 
     const record = {
@@ -581,7 +587,8 @@ function buildItems(artale, monsters, maps) {
       qq: pluckStrings(sources.questRequirements, "questId"),
       sh: sources.shops?.length || undefined,
       // 哪裡買得到：只列經典版已經開放的地方；NPC 商店大多是舊版資料，前端會標出來（見 lib/shops.mjs）
-      sp: shopRows(sources.shops, { openRegions: RELEASE.mapRegions, mapRecords: maps.records }),
+      // 楓葉武器上游沒有店家，照台服公告補楓葉商會（活動店，見 lib/leaf-shop.mjs）
+      sp: withLeafShop(Number(item.id), shopRows(sources.shops, { openRegions: RELEASE.mapRegions, mapRecords: maps.records })),
       cf: pluckIds(sources.crafts, "recipeId"),
       // 商店最高售價，拿來估「撿了值不值得」。這是 NPC 店家的標價，不是玩家間的行情。
       price: shopPrice(sources.shops),
