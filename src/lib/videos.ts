@@ -218,6 +218,14 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "GD_z0PSQ91c",
     tool: { href: "/db/monsters/1110100", text: "綠菇菇資料" },
   },
+  {
+    title: "殭屍菇菇在哪打？",
+    summary: "最多在螞蟻洞Ⅲ（62 個刷怪點），一共出現在 10 張圖。",
+    publishAt: "2026-11-22T11:00:00.000Z",
+    main: "pu55L0bf8_w",
+    shorts: "1l7ZRB_xDYc",
+    tool: { href: "/db/monsters/2230101", text: "殭屍菇菇資料" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
