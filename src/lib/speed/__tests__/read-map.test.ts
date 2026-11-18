@@ -249,13 +249,12 @@ describe("地圖名樣板（public/data/speed-names.json）", () => {
 
 describe("街道名是空的地圖（雲彩公園、天空階梯、冰原雪域）", () => {
   // 上游 2.0.0（2026-10-15）起雲彩公園、天空階梯、冰雪山丘有街道名了（天空之城、艾納斯島），
-  // 下面照 2.0.0 前的樣子（街道空白）測「街道不用比」這條規則——現在還有別的練功圖街道是空的
+  // 下面照 2.0.0 前的樣子（街道空白）測「街道不用比」這條規則。最後一張街道空白的練功圖（天空之塔<地下2樓>）
+  // 只刷潛水企鵝王，v2.37 牠拿掉後練功圖裡就沒有了；規則留著，上游哪天又出現空白街道照樣認得到
   const emptyStreet = (id: number) => ({ ...maps[String(id)], st: "" });
   const oldMaps: Record<string, MapRecord> = { ...maps, 200010000: emptyStreet(200010000), 200010200: emptyStreet(200010200), 211000200: emptyStreet(211000200) };
 
-  it("資料裡現在還有街道名是空的練功地圖（有中文名）；雲彩公園Ⅰ、冰雪山丘 2.0.0 起有街道名", () => {
-    const empty = [...trainingIds].filter(id => maps[String(id)]?.zh && !maps[String(id)].st);
-    expect(empty.length).toBeGreaterThan(0);
+  it("雲彩公園Ⅰ、冰雪山丘 2.0.0 起有街道名，而且是練功圖", () => {
     for (const id of [200010000, 211000200]) {
       expect(maps[String(id)].st).not.toBe("");
       expect(trainingIds.has(id)).toBe(true);
