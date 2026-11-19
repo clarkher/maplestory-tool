@@ -29,6 +29,22 @@ export function tomorrowTw(now = Date.now()) {
   return new Date(now + 8 * 3600_000 + 86400_000).toISOString().slice(0, 10);
 }
 
+/**
+ * 這一班要做哪一天：照理 21:30 跑、做明天；但 GitHub 排程曾晚 8 小時（11/18 晚上的班 11/19 05:30 才跑），
+ * 用「現在」算明天會整天跳過 → 往回推 12 小時再算（中午以前跑都算今天）
+ */
+export function targetDateTw(now = Date.now()) {
+  return tomorrowTw(now - 12 * 3600_000);
+}
+
+/** 公開時間已經過了（或 20 分鐘內）就不排程、傳好直接公開；YouTube 不收過去的排程時間 */
+export function publishTime(at, now = Date.now()) {
+  return Date.parse(at) > now + 20 * 60_000 ? at : null;
+}
+
+/** 配音點數／額度用完：換題目也沒用，整班停下來 */
+export const isOutOfCredit = (msg) => /\b(402|429)\b|no credits|quota/i.test(String(msg));
+
 /** 說明欄裡的 utm_campaign=mob-123 / go-456 → 做過的題目 */
 export function doneFromDescriptions(descs) {
   const done = new Set(MADE_BY_HAND);
@@ -140,7 +156,7 @@ export function addToSite(made, { date, log = console.log } = {}) {
   }
 }
 
-export async function daily({ date = tomorrowTw(), dryRun = false, site = true, env = process.env, log = console.log } = {}) {
+export async function daily({ date = targetDateTw(), dryRun = false, site = true, env = process.env, log = console.log } = {}) {
   const creds = youtubeFromEnv(env);
   if (!creds) throw new Error("缺 YT_CLIENT_ID／YT_CLIENT_SECRET／YT_REFRESH_TOKEN");
   const token = await getAccessToken(creds);
@@ -166,6 +182,7 @@ export async function daily({ date = tomorrowTw(), dryRun = false, site = true, 
   }
   const made = [];
   mkdirSync(outRoot, { recursive: true });
+  let stop = null;
   for (const j of jobs) {
     let res = null;
     for (let t = take(j.cands); t; t = take(j.cands)) {
@@ -175,17 +192,20 @@ export async function daily({ date = tomorrowTw(), dryRun = false, site = true, 
         break;
       } catch (e) {
         log(`${t.key} 跳過：${e.message.split("\n")[0]}`);
+        if (isOutOfCredit(e.message)) { stop = e.message.split("\n")[0]; break; }
       }
     }
+    if (stop) { log(`配音或額度用完，這班停下來：${stop}`); break; }
     if (!res) continue;
     const { title, description } = parseYoutubeTxt(readFileSync(res.files.youtube, "utf8"));
+    const publishAt = publishTime(j.at);
     let main = null;
     try {
       if (!j.shortsOnly) {
-        main = await uploadVideo({ file: res.files.main, title, description, tags: SERIES_TAGS, publishAt: j.at, token });
+        main = await uploadVideo({ file: res.files.main, title, description, tags: SERIES_TAGS, publishAt, token });
         try { await setThumbnail({ videoId: main, file: res.files.cover, token }); } catch (e) { log(`封面沒設成：${e.message}`); }
       }
-      const shorts = await uploadVideo({ file: res.files.shorts, title: shortsTitle(title), description, tags: SERIES_TAGS, publishAt: j.at, token });
+      const shorts = await uploadVideo({ file: res.files.shorts, title: shortsTitle(title), description, tags: SERIES_TAGS, publishAt, token });
       made.push({ key: res.key, title: res.script.site.title, at: j.at, main, shorts, out: res.outDir });
       log(`傳好 ${res.key}：${main ? `正片 ${main}、` : ""}短影音 ${shorts}（${j.at} 公開）`);
     } catch (e) {
@@ -206,6 +226,12 @@ export async function daily({ date = tomorrowTw(), dryRun = false, site = true, 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const a = process.argv.slice(2);
   const di = a.indexOf("--date");
-  const made = await daily({ date: di >= 0 ? a[di + 1] : undefined, dryRun: a.includes("--dry-run"), site: !a.includes("--no-site") });
+  const dryRun = a.includes("--dry-run");
+  const made = await daily({ date: di >= 0 ? a[di + 1] : undefined, dryRun, site: !a.includes("--no-site") });
   console.log(`完成：${made.length} 個題目`);
+  // 一支都沒做出來要讓排程變紅燈（11/18、11/19 配音點數用完卻顯示成功，沒人發現）
+  if (!dryRun && !made.length) {
+    console.error("一支都沒做出來");
+    process.exitCode = 1;
+  }
 }
