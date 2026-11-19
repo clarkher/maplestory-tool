@@ -6,6 +6,6 @@
   "main": "cron.ts",
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
-  "triggers": { "crons": ["55 */2 * * *", "10 0,12 * * *"] },
+  "triggers": { "crons": ["55 */2 * * *", "10 0,12 * * *", "30 13 * * *"] },
   "observability": { "enabled": true }
 }

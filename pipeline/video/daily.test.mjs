@@ -37,3 +37,26 @@ test("nextVersion：dev 的 commit 跟開著的 PR 取最大再加 1", async () 
   assert.equal(nextVersion("v2.09: a"), "v2.10");
   assert.equal(nextVersion("沒有版號"), "v0.00");
 });
+
+test("targetDateTw：21:30 跑做明天；排程晚到隔天清晨也做當天，不整天跳過", async () => {
+  const { targetDateTw } = await import("./daily.mjs");
+  assert.equal(targetDateTw(Date.parse("2026-11-18T13:30:00Z")), "2026-11-19"); // 台灣 11/18 21:30
+  assert.equal(targetDateTw(Date.parse("2026-11-18T21:30:00Z")), "2026-11-19"); // 台灣 11/19 05:30（11/18 那班晚 8 小時）
+  assert.equal(targetDateTw(Date.parse("2026-11-18T16:30:00Z")), "2026-11-19"); // 台灣 11/19 00:30
+});
+
+test("publishTime：時間還沒到才排程，過了（或 20 分鐘內）直接公開", async () => {
+  const { publishTime } = await import("./daily.mjs");
+  const now = Date.parse("2026-11-19T01:00:00Z");
+  assert.equal(publishTime("2026-11-19T04:00:00.000Z", now), "2026-11-19T04:00:00.000Z");
+  assert.equal(publishTime("2026-11-19T01:00:00.000Z", now), null);
+  assert.equal(publishTime("2026-11-19T01:10:00.000Z", now), null);
+});
+
+test("isOutOfCredit：Inworld 402、額度 429 要整班停；一般錯誤不停、題目編號裡的數字不算", async () => {
+  const { isOutOfCredit } = await import("./daily.mjs");
+  assert.ok(isOutOfCredit('Inworld TTS 失敗 402：{"message":"You have no credits remaining."}'));
+  assert.ok(isOutOfCredit("HTTP 429 quotaExceeded"));
+  assert.ok(!isOutOfCredit("go-105090311 不適合做（20 段）"));
+  assert.ok(!isOutOfCredit("mob-1402000 找不到刷怪點"));
+});
