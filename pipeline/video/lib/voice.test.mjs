@@ -122,3 +122,27 @@ test("heardOk：短句裡的數字念成國字也算過", () => {
   assert.equal(heardOk("11月19日開始", "十一月十九日開始"), true);
   assert.equal(heardOk("10點 開放入場", "十點開放入場十點開放入場十點開放入場"), false);
 });
+
+// 這個測試會把整個模組切到 Gemini（同一次執行之後都用 Gemini），放最後
+test("synth：Inworld 402 點數用完 → 改用 Gemini，之後都用 Gemini；金鑰放標頭不放網址", async () => {
+  process.env.INWORLD_API_KEY = "dGVzdA==";
+  process.env.GEMINI_API_KEY = "GKEY";
+  const urls = [];
+  let gemBody;
+  const fetcher = async (url, init) => {
+    urls.push(url);
+    if (url.includes("inworld")) return { ok: false, status: 402, text: async () => '{"message":"You have no credits remaining."}' };
+    gemBody = JSON.parse(init.body);
+    assert.equal(init.headers["x-goog-api-key"], "GKEY");
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from("PCM").toString("base64") } }] } }] }) };
+  };
+  const toMp3 = async (pcm) => Buffer.from("MP3:" + pcm.toString());
+  const { voiceName } = await import("./voice.mjs");
+  assert.equal((await synth("你好", { fetcher, toMp3 })).toString(), "MP3:PCM");
+  assert.ok(urls[1].includes("gemini-3.8-flash-tts:generateContent") && !urls[1].includes("GKEY"));
+  assert.ok(gemBody.contents[0].parts[0].text.endsWith("你好"));
+  assert.equal(gemBody.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Puck");
+  await synth("第二句", { fetcher, toMp3 });
+  assert.equal(urls.filter((u) => u.includes("inworld")).length, 1); // 第二句直接 Gemini
+  assert.equal(voiceName(), "gemini:Puck");
+});
