@@ -540,7 +540,7 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **每日影片**（v2.35，11/17 使用者「一天至少 2 長片 6 短片」）：`.github/workflows/daily-video.yml`（每天台灣 21:30）→ `pipeline/video/daily.mjs`，做隔天那批：「在哪打」（怪物頁）、「怎麼去」（地圖導航）各 1 集正片＋短影音、各 2 個只做短影音，排程隔天 09:00～21:00 公開，再開 PR 把這批加進官網影片區（`src/lib/videos.ts`，base dev，要自己合）。
   稿子跟畫面都從正式站那一頁來（`series/shoot.mjs` 開無頭 Chrome 讀 `main` 的字、截卡片；`series/facts.mjs` 照字產稿，不用 LLM 寫）；題目順序 `series/topics.mjs`（怪物照被幾張練功圖推薦、地圖照練功效率，出發點＝最近的城鎮，路線超過 8 段的跳過）；做過的從頻道說明欄 `utm_campaign=mob-<id>／go-<id>` 認，不另外存狀態；同一天重跑看 `made.json` 跳過傳好的時段。
   本機做一個題目：`node pipeline/video/series/make.mjs mob-210100 [--shorts-only] --out <資料夾>`；看明天會挑哪些：`node pipeline/video/daily.mjs --dry-run`。11/17 實測一天傳 10 支（電話驗證後）沒碰到上限。坑：Actions 用 `GITHUB_TOKEN` 開的 PR 不會自動跑「測試」，要手動合。
-  v2.38：排程晚到隔天清晨也做當天（往回推 12 小時算日期），公開時間已過的直接公開；配音點數／額度用完（402、429）整班停下來，**一支都沒做出來就紅燈**（11/18、11/19 Inworld 點數用完卻顯示成功）。配音點數用完要到 Inworld 後台加值，加完 `gh workflow run daily-video.yml` 補跑。
+  v2.38：排程晚到隔天清晨也做當天（往回推 12 小時算日期），公開時間已過的直接公開；配音點數／額度用完（402、429）整班停下來，**一支都沒做出來就紅燈**（11/18、11/19 Inworld 點數用完卻顯示成功）。配音點數用完要到 Inworld 後台加值，加完 `gh workflow run daily-video.yml` 補跑。 v2.39（11/19 使用者「先換別的 AI 聲音」）：Inworld 回 402 就自動改用 Gemini（`gemini-3.8-flash-tts`、聲音 Puck，`pipeline/video/lib/voice.mjs`），同一次執行之後都用 Gemini、不會一支片兩種聲音；加值後下一次自動回到使用者的聲音。`TTS_PROVIDER=gemini` 可直接指定。公告片、每日影片都吃這條（Actions secret `GEMINI_API_KEY`）。
 
 ## 野王計時
 
