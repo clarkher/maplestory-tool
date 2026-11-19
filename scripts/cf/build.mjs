@@ -9,6 +9,7 @@
  *   - Cloudflare 免費方案一個 Worker 版本最多 20,000 個靜態檔：道具圖（約 1.7 萬張）拆去 .cf-items/、預覽圖（約 3,600 張）拆去 .cf-og/，
  *     任一邊超過 19,500 檔就失敗
  *   - 預覽圖（scripts/og/build-og.mjs）要在道具圖搬走前產：道具頁的預覽圖要用 out/assets/items 的圖
+ *   - 字太少的資料單獨頁改 noindex、退出 sitemap（v2.43，scripts/cf/thin-pages.mjs）
  *   - 快取規則（cache-headers.mjs ＋ /_next/static 長快取）寫成 out/_headers；不是 production 的再加整站 X-Robots-Tag: noindex
  */
 import { spawnSync } from "node:child_process";
@@ -17,6 +18,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CACHE_HEADERS } from "../../cache-headers.mjs";
 import { buildOgImages } from "../og/build-og.mjs";
+import { hideThinPages } from "./thin-pages.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const API = join(ROOT, "src", "app", "api");
@@ -95,6 +97,8 @@ async function main() {
   }
   if (status !== 0) process.exit(status ?? 1);
 
+  const thin = hideThinPages(OUT);
+  console.log(`[build:cf] 資料單獨頁 ${thin.checked} 頁，字太少不給收錄 ${thin.hidden.length} 頁`);
   const trimmed = trimItemPageFiles(OUT);
   console.log(`[build:cf] 道具單獨頁 ${trimmed} 頁只留 html`);
   const og = await buildOgImages(OUT);
