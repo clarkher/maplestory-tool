@@ -21,6 +21,8 @@ export const RELATED_RULES: Record<string, RelatedRule> = {
   // v2.18（#329）的新文章；還沒合進來時這行不作用（pickRelated 只挑攻略專區找得到的頁）
   "/guides/maple-leaf-weapon-jobs": { from: 30, to: 70, rank: 0, until: "2026-12-17T00:00:00+08:00" },
   "/event/halloween": { from: 10, to: 120, rank: 0, until: HALLOWEEN.ends },
+  // v2.38 11/19 更新整理：活動（皇家美容院、閃亮彗星）到 12/3，之後照一般文排
+  "/guides/update-1119": { from: 10, to: 120, rank: 0, until: "2026-12-03T14:00:00+08:00" },
   // 轉職、新手：照等級最該看的
   "/guide": { from: 1, to: 30, rank: 1 },
   "/guides/third-job": { from: 31, to: 90, rank: 1 },
