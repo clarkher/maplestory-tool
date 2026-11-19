@@ -449,6 +449,10 @@ Vercel 免費方案不能商用（要放 AdSense），Pro 一個月 US$20；改�
 - **Claude Code 的 Neon 工具**（v1.35）：`.mcp.json` 接 Neon MCP（`https://mcp.neon.tech/mcp`，OAuth，第一次用時跳 Neon 登入，檔案裡沒有金鑰）；
   `.claude/skills/neon/` 是 Neon 官方 agent skill（`skills-lock.json` 記來源與雜湊，`neon skills status`／`neon skills update -y` 檢查更新；裝的時候要 Node 22.20 以上）。
 - **搜尋引擎**：測試機（`APP_ENV` 不是 production）的 `_headers` 整站加 `X-Robots-Tag: noindex`。
+- **薄頁不給收錄**（v2.43，11/19 AdSense 以「缺乏價值的內容」退件，拍板 A）：`next build` 後 `scripts/cf/thin-pages.mjs` 量每個資料單獨頁
+  （`out/db/<類別>/<編號>.html`）`<main>` 看得到的字，不到 300 字的 robots 改 `noindex, follow`、從 `sitemap.xml` 拿掉；頁面照常能看、站內照常連。
+  量的是建好的頁，資料變厚下次建置自動放回去。量現況：`npm run build:cf` 後 `node scripts/cf/thin-pages.mjs --dry-run`（已藏的會再算一次）。
+  Vercel 的 `next build` 沒跑這步（正式機在 Cloudflare）。
 - **部署**：`npm run deploy:cf:dev`（測試機）／`npm run deploy:cf`（正式機），先道具圖、預覽圖再網頁（網頁綁了另外兩個，第一次部署它們要先在）。
   **測試機自動部署（v1.36，11/03 接好）**：Cloudflare Workers Builds 連 GitHub，`dev` 有新 commit 就建（跟 Vercel 一樣誰推的都算，資料自動更新用 github.token 推的也會建）。
   設定在 Cloudflare 後台 `maplehelper-dev` → Settings → Builds：分支 `dev`、Build `npm run build:cf`、Deploy `npm run deploy:cf:dev`、
