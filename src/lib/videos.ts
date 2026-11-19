@@ -121,6 +121,14 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "5ZwaNVsvtCg",
     tool: { href: "/go?to=105040305&from=105040300", text: "地圖導航" },
   },
+  {
+    title: "月妙組隊 4 關怎麼過？",
+    summary: "收種子、種種子、保護月妙、交年糕，種子位置照這樣種。",
+    publishAt: "2026-11-23T11:00:00.000Z",
+    main: "-cvelY-eAZQ",
+    shorts: "iK6xhM0UgnY",
+    tool: { href: "/plan/pq?pq=moon", text: "組隊指揮" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
