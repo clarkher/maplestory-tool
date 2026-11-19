@@ -8,7 +8,7 @@ name: 每日影片
 
 on:
   schedule:
-    - cron: "30 13 * * *" # 台灣 21:30（GitHub 排程常晚，公開最早是隔天 09:00，晚幾小時沒關係）
+    - cron: "30 13 * * *" # 台灣 21:30；GitHub 排程會晚（11/18 晚 8 小時），準時的叫醒在 cf/cron.ts，這行留著當備援
   workflow_dispatch:
     inputs:
       date:
@@ -59,6 +59,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
           INWORLD_API_KEY: ${{ secrets.INWORLD_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
