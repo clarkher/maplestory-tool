@@ -121,6 +121,36 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "5ZwaNVsvtCg",
     tool: { href: "/go?to=105040305&from=105040300", text: "地圖導航" },
   },
+  {
+    title: "地鐵二號線[地區03]怎麼去？",
+    summary: "從墮落城市出發 6 段、經過 7 張圖，每段走哪個門。",
+    publishAt: "2026-11-19T04:00:00.000Z",
+    main: "LpXrzfP2-iw",
+    shorts: "VITL4MA86mA",
+    tool: { href: "/go?to=103000202&from=103000000", text: "地圖導航" },
+  },
+  {
+    title: "菇菇寶貝在哪打？",
+    summary: "最多在可疑的山丘（20 個刷怪點），一共出現在 24 張圖。",
+    publishAt: "2026-11-19T11:00:00.000Z",
+    main: "LaukYcq3RF4",
+    shorts: "RI6uoudT3Bk",
+    tool: { href: "/db/monsters/1210102", text: "菇菇寶貝資料" },
+  },
+  {
+    title: "黑木妖在哪打？",
+    summary: "最多在東方岩石山Ⅱ（28 個刷怪點），一共出現在 24 張圖。",
+    publishAt: "2026-11-19T01:00:00.000Z",
+    shorts: "DU9HCBAffwc",
+    tool: { href: "/db/monsters/1110101", text: "黑木妖資料" },
+  },
+  {
+    title: "巨人之林怎麼去？",
+    summary: "從奇幻村出發 6 段、經過 7 張圖，每段走哪個門。",
+    publishAt: "2026-11-19T07:00:00.000Z",
+    shorts: "PQU5YSN1B9w",
+    tool: { href: "/go?to=105040306&from=105040300", text: "地圖導航" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
