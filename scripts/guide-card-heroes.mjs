@@ -566,6 +566,17 @@ const SCENES = [
     ].join(" "),
   },
   {
+    slug: "update-1119",
+    base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [],
+    idea: [
+      "Turn the scene into a festive mushroom village in early winter: light snow falling, red and orange maple leaves still on the trees, soft blue sky.",
+      "In the middle stands a cute shop with a big round mirror and hair-styling chairs seen through its open front, a young adventurer with long silver hair tied to one side admiring her new hairstyle in the mirror.",
+      "On the left, a young adventurer with white hair dressed in a white snow-angel outfit with small feathered wings and glittering snowflakes around him; on the right, a cheerful adventurer wearing a fluffy yellow baby-chick hat, followed by three tiny yellow chicks hopping on the snow.",
+      "Bright, cozy, celebratory mood.",
+    ].join(" "),
+  },
+  {
     slug: "halloween",
     base: { backdrop: "snow" },
     sprites: [{ file: "monster_frames/9602795.png", x: 0.66, y: 0.9, h: 0.62 }],
