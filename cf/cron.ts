@@ -13,6 +13,8 @@ export const JOBS: Record<string, string> = {
   "55 */2 * * *": "fx-collect.yml",
   // 台灣時間 08:10、20:10 看官方公告
   "10 0,12 * * *": "announce-watch.yml",
+  // 台灣時間 21:30 做隔天的每日影片（v2.38：GitHub 自己的排程 11/18 晚了 8 小時）
+  "30 13 * * *": "daily-video.yml",
 };
 
 const REPO = "clarkher/maplestory-tool";
