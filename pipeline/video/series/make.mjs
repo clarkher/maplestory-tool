@@ -6,11 +6,13 @@
  */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { existsSync } from "node:fs";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { voiceLines, spokenDates } from "../lib/voice.mjs";
+import { makeCover } from "../lib/cover.mjs";
 import { transcribe } from "../lib/llm.mjs";
 import { composeProject } from "../lib/compose.mjs";
 import { buildDescription, capTitle, pickAvatars, youtubeText } from "../make.mjs";
@@ -20,7 +22,7 @@ import { mobTopics, goTopics } from "./topics.mjs";
 
 const execFileP = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
-const AVATAR_DIR = resolve(HERE, "../../../public/avatar-showcase");
+const AVATAR_DIR = resolve(HERE, "../cast"); // v2.40 挑過的整套穿搭
 const RENDER_TIMEOUT = 20 * 60 * 1000;
 const BAR = { mob: { red: "在哪打", yel: "楓谷幫手" }, go: { red: "怎麼去", yel: "楓谷幫手" } };
 const run = (cmd, args, timeout) =>
@@ -32,6 +34,17 @@ export function findTopic(key) {
   const t = [...mobTopics(), ...goTopics()].find((x) => x.key === key);
   if (!t) throw new Error(`沒有這個題目：${key}`);
   return t;
+}
+
+/** 封面的主角圖跟字：怪物圖／目的地整張地圖畫面（站上 public 裡同一份），找不到就用這集第一張截圖 */
+export function coverOf(topic, script, facts) {
+  const PUB = resolve(HERE, "../../../public");
+  if (topic.kind === "mob") {
+    const img = join(PUB, "assets/monster_frames", `${topic.id}.png`);
+    return { title: `${facts.name}在哪打？`, sub: script.subtitle, tag: "在哪打", hero: existsSync(img) ? img : script.images[0], pixel: existsSync(img) };
+  }
+  const img = join(PUB, "assets/map_renders", `${topic.id}.webp`);
+  return { title: `${facts.to}怎麼去？`, sub: script.subtitle, tag: "怎麼去", hero: existsSync(img) ? img : script.images[0], fill: existsSync(img) };
 }
 
 /** 開頁讀事實＋截圖；回傳稿子跟每句旁白配的圖 */
@@ -122,7 +135,13 @@ export async function makeTopic(key, { out = join(tmpdir(), "maplehelper-daily",
   }
   if (!shortsOnly) {
     files.cover = join(outDir, "cover.png");
-    await run("ffmpeg", ["-y", "-v", "error", "-ss", "1.5", "-i", files.main, "-frames:v", "1", files.cover], 60_000);
+    // 封面：在哪打放怪物、怎麼去放目的地小地圖（站上同一份圖），放大＋標題（v2.40）；做不出來才退回正片第 1.5 秒
+    try {
+      await makeCover({ ...coverOf(topic, script, facts), avatar: avatars[0], out: files.cover, work: join(work, "cover") });
+    } catch (e) {
+      log(`${key} 封面改用影片畫面：${e.message}`);
+      await run("ffmpeg", ["-y", "-v", "error", "-ss", "1.5", "-i", files.main, "-frames:v", "1", files.cover], 60_000);
+    }
   }
   await writeFile(files.youtube, youtubeText(script));
   const tool = topic.kind === "mob" ? { href: topic.path, text: `${facts.name}資料` } : { href: topic.path, text: "地圖導航" };
