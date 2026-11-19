@@ -9,7 +9,7 @@ import { join } from "node:path";
 export const SITE = "https://maplehelper.tw";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function chromePath() {
+export function chromePath() {
   if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
   const guess = [
     "C:/Program Files/Google/Chrome/Application/chrome.exe",

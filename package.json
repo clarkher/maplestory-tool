@@ -22,6 +22,7 @@
     "verify:db": "node scripts/verify-db.mjs",
     "speed:glyphs": "vitest run -c vitest.gen.config.ts src/lib/speed/gen",
     "avatar:showcase": "vitest run -c vitest.gen.config.ts src/lib/avatar/showcase.gen.ts",
+    "video:cast": "vitest run -c vitest.gen.config.ts src/lib/avatar/video-cast.gen.ts",
     "article:table": "node scripts/job-article-table.mjs",
     "article:check": "node scripts/job-article-check.mjs",
     "article:show": "node scripts/job-article-show.mjs",
