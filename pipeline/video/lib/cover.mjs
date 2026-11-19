@@ -57,10 +57,11 @@ export async function makeCover({ title, sub, tag, hero, pixel = false, fill = f
   await writeFile(html, coverHtml({ title, sub, tag, hero: heroName, pixel, fill, avatar: avName }, await ensureFonts()));
   await new Promise((ok, bad) => {
     const p = spawn(chromePath(), [
-      "--headless=new", "--no-sandbox", "--hide-scrollbars", "--disable-gpu", "--force-device-scale-factor=1",
+      // 自己一個設定資料夾：用預設的會跟正在開的 Chrome 搶（11/19 本機做 84254 封面逾時）
+      "--headless=new", `--user-data-dir=${join(dir, "chrome")}`, "--no-sandbox", "--hide-scrollbars", "--disable-gpu", "--force-device-scale-factor=1",
       "--window-size=1280,720", "--virtual-time-budget=4000", `--screenshot=${resolve(out)}`, pathToFileURL(html).href,
     ], { stdio: "ignore" });
-    const t = setTimeout(() => { p.kill(); bad(new Error("封面截圖逾時")); }, 60_000);
+    const t = setTimeout(() => { p.kill(); bad(new Error("封面截圖逾時")); }, 120_000);
     p.on("error", bad);
     p.on("close", (c) => { clearTimeout(t); c === 0 ? ok() : bad(new Error(`封面截圖失敗 ${c}`)); });
   });
