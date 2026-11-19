@@ -1,6 +1,7 @@
 /**
  * 每日影片（v2.35，11/17 使用者「一天至少 2 長片 6 短片」照推薦）：做隔天要公開的一批，排程公開，加進官網影片區。
- * 一天：「在哪打」1 集＋「怎麼去」1 集（各有正片＋短影音），另外各 2 個題目只做短影音 → 2 長 6 短。
+ * 一天：「在哪打」1 集＋「怎麼去」1 集（各有正片＋短影音），另外各 1 個題目只做短影音 → 2 長 4 短（6 支）。
+ * v2.42（11/19 使用者「公告優先，每日縮量」）：YouTube 一天大約只給傳 10 支（11/19 撞到 uploadLimitExceeded），縮成 2 長 4 短（一天 6 支），留 4 支給官網公告片（一則 2 支）。
  * 題目照 series/topics.mjs 的順序挑還沒做過的；做過的從頻道上傳過的片說明欄 utm_campaign 認，不另外存狀態。
  * 上傳失敗（額度用完）就停：沒傳上去的題目下一班會再挑到。
  * 用法：node pipeline/video/daily.mjs [--date 2026-11-18] [--dry-run] [--no-site]
@@ -21,7 +22,7 @@ const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const SERIES_TAGS = ["楓之谷經典版", "楓谷幫手", "新楓之谷", "楓之谷攻略"];
 
 /** 公開時間（台灣時間）：正片跟它的短影音一起出；只有短影音的錯開 */
-export const SLOTS = { full: ["12:00", "19:00"], shorts: ["09:00", "15:00", "17:00", "21:00"] };
+export const SLOTS = { full: ["12:00", "19:00"], shorts: ["09:00", "21:00"] };
 export const twIso = (date, hhmm) => new Date(`${date}T${hhmm}:00+08:00`).toISOString();
 
 /** 台灣時間的明天（YYYY-MM-DD） */
@@ -65,8 +66,6 @@ export function planDay(date, done, { mobs = mobTopics(), gos = goTopics(), pool
     shorts: [
       { cands: m, at: twIso(date, SLOTS.shorts[0]) },
       { cands: g, at: twIso(date, SLOTS.shorts[1]) },
-      { cands: m, at: twIso(date, SLOTS.shorts[2]) },
-      { cands: g, at: twIso(date, SLOTS.shorts[3]) },
     ],
   };
 }
