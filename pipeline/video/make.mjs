@@ -18,12 +18,14 @@ import { filterScript, isUsable, trimExtras } from "./lib/facts.mjs";
 import { sitePages, matchSitePage, utmUrl, withCta } from "./lib/site.mjs";
 import { ocrImage, writeScript, transcribe } from "./lib/llm.mjs";
 import { voiceLines, spokenDates } from "./lib/voice.mjs";
+import { makeCover } from "./lib/cover.mjs";
 import { composeProject } from "./lib/compose.mjs";
 import { arabicNumerals, arabicScript, screenScript } from "./lib/numerals.mjs";
 
 const execFileP = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
-const AVATAR_DIR = resolve(HERE, "../../public/avatar-showcase");
+// 影片角色用挑過的整套穿搭（v2.40，src/lib/avatar/video-cast.gen.ts 產），不用首頁輪播那批全隨機的
+const AVATAR_DIR = resolve(HERE, "cast");
 const HYPERFRAMES = "hyperframes@0.9.40";
 const RENDER_TIMEOUT = 15 * 60 * 1000;
 export const HASHTAGS = "#楓之谷經典版 #楓谷幫手";
@@ -168,7 +170,13 @@ export async function make(id, { out = join(tmpdir(), "maplehelper-video-out", S
   };
   await render(main.dir, files.main, log);
   await render(shorts.dir, files.shorts, log);
-  await runCmd("ffmpeg", ["-y", "-v", "error", "-ss", "1.5", "-i", files.main, "-frames:v", "1", files.cover], 60_000);
+  // 封面：這則公告最重要的官方圖放大＋標題（v2.40）；做不出來才退回正片第 1.5 秒
+  try {
+    await makeCover({ title: script.title, sub: script.subtitle, tag: "快報", hero: imgFiles[0], avatar: avatars[0], out: files.cover, work: join(work, "cover") });
+  } catch (e) {
+    log(`封面改用影片畫面：${e.message}`);
+    await runCmd("ffmpeg", ["-y", "-v", "error", "-ss", "1.5", "-i", files.main, "-frames:v", "1", files.cover], 60_000);
+  }
   await writeFile(files.youtube, youtubeText(script));
 
   return { id: String(id), title: script.title, ytTitle: script.ytTitle, outDir, files: Object.values(files), dropped };
