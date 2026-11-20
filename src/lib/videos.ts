@@ -151,6 +151,43 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "PQU5YSN1B9w",
     tool: { href: "/go?to=105040306&from=105040300", text: "地圖導航" },
   },
+  {
+    title: "一天 100 枚楓葉商會硬幣要打多久？",
+    summary: "57 等鏢賊實機打黑鱷魚，100 枚拿滿花了 1 小時 35 分，還噴了一張手套攻擊卷 60%。",
+    publishAt: "2026-11-20T06:50:00.000Z",
+    main: "-a-1uWcQCP4",
+    shorts: "AGlAeBNQpK0",
+    tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
+  },
+  {
+    title: "楓葉商會硬幣 繞整張圖 vs 守最下層",
+    summary: "52 等冰雷實機打月光精靈：守最下層 20 分 48 秒拿滿 50 枚，比繞整張圖快 11 分鐘。",
+    publishAt: "2026-11-20T06:50:00.000Z",
+    main: "OnUvjdYFRXU",
+    shorts: "t_2h4HIgyNQ",
+    tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
+  },
+  {
+    title: "打楓葉商會硬幣 沼澤巨鱷自己跑出來",
+    summary: "鱷魚潭Ⅱ打幣打到一半，65 等沼澤巨鱷出現，噴了一張手套攻擊卷軸 60%。",
+    publishAt: "2026-11-20T06:50:00.000Z",
+    shorts: "wsNkggtYeRQ",
+    tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
+  },
+  {
+    title: "終於出了超懷舊的楓葉武器",
+    summary: "200 枚楓葉商會硬幣換楓葉拳套：43 等、攻擊 23、迴避 20、可衝 7 次。",
+    publishAt: "2026-11-20T06:50:00.000Z",
+    shorts: "088_ecL7_hA",
+    tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
+  },
+  {
+    title: "守最下層 50 枚楓葉商會硬幣要多久？",
+    summary: "52 等冰雷只守雲彩公園Ⅳ最下層，20 分 48 秒拿滿 50 枚。",
+    publishAt: "2026-11-20T06:50:00.000Z",
+    shorts: "YvXpOftfdwI",
+    tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
