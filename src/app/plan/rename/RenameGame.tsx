@@ -19,7 +19,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { monsterImage } from "@/lib/asset-paths";
 import { initialCtx, next, RESULT_PAGE2_LINES, RUNNING_LINES, type Action, type Ctx, type Step } from "@/lib/rename/flow";
-import { introLines, resultLines } from "@/lib/rename/lines";
+import { introLines, replayLines } from "@/lib/rename/lines";
 import type { Result } from "@/lib/rename/match";
 import { loadShapes, runMatch, type MatchIn, type MatchOut, type WorkerReply, type WorkerRequest } from "@/lib/rename/run";
 import { drawStage, TIMELINE } from "@/lib/rename/stage";
@@ -169,6 +169,34 @@ export function RenameGame({ replay }: { replay?: Replay }) {
     setDebug(new URLSearchParams(window.location.search).get("debug") === "1");
   }, []);
 
+  /**
+   * 分享頁沒辦法重播（hash 解不開，或重播比對失敗）：畫那隻怪的靜態結果卡＋［換我寫］，不給登記書。
+   * 怪名從 shapes 查；查不到就當一坨。回傳的函式呼叫後就不再更新（卸載時用）。
+   */
+  const showStill = useCallback((): (() => void) => {
+    if (!replay) return () => {};
+    let live = true;
+    const shown = (n: string | null) => {
+      if (!live) return;
+      setPlay(null);
+      setStill({ id: replay.id, n });
+      const r: Result =
+        replay.id === "poop" || !n
+          ? { kind: "poop", score: 0 }
+          : { kind: "monster", id: replay.id, n, kept: [], score: 0, xf: { sx: 1, sy: 1, dx: 0, dy: 0 } };
+      setState({ step: "result", ctx: { ...initialCtx(), lines: replayLines(r), result: r } });
+    };
+    if (replay.id === "poop") shown(null);
+    else
+      match({ type: "shape", id: replay.id }).then(
+        out => shown(out.n),
+        () => shown(null),
+      );
+    return () => {
+      live = false;
+    };
+  }, [replay, match]);
+
   const start = useCallback(
     async (msg: MatchIn, segs: Stroke[]) => {
       const id = ++runId.current;
@@ -178,18 +206,23 @@ export function RenameGame({ replay }: { replay?: Replay }) {
         out = await match(msg);
       } catch {
         // Worker 跟主執行緒都算不出來：回登記書請他再簽一次，不要卡在比對中
-        if (id === runId.current) dispatch({ type: "fail" });
+        // 分享頁重播失敗：改顯示靜態結果卡，不給登記書
+        if (id === runId.current) {
+          if (replay) showStill();
+          else dispatch({ type: "fail" });
+        }
         return;
       }
       if (id !== runId.current) return;
       const result: Result = out.result ?? { kind: "empty" };
       if (result.kind === "empty") {
-        dispatch({ type: "done", result });
+        if (replay) showStill();
+        else dispatch({ type: "done", result });
         return;
       }
       setPlay({ segs, result, shape: out.pts ? { pts: out.pts } : undefined });
     },
-    [dispatch, match],
+    [dispatch, match, replay, showStill],
   );
 
   // 分享連結重播
@@ -205,25 +238,8 @@ export function RenameGame({ replay }: { replay?: Replay }) {
       };
     }
     // 解不開：靜態結果卡
-    const shown = (n: string | null) => {
-      setStill({ id: replay.id, n });
-      const r: Result =
-        replay.id === "poop" || !n
-          ? { kind: "poop", score: 0 }
-          : { kind: "monster", id: replay.id, n, kept: [], score: 0, xf: { sx: 1, sy: 1, dx: 0, dy: 0 } };
-      setState({ step: "result", ctx: { ...initialCtx(), lines: resultLines(r), result: r } });
-    };
-    let live = true;
-    if (replay.id === "poop") shown(null);
-    else
-      match({ type: "shape", id: replay.id }).then(
-        out => live && shown(out.n),
-        () => live && shown(null),
-      );
-    return () => {
-      live = false;
-    };
-  }, [replay, start, match]);
+    return showStill();
+  }, [replay, start, showStill]);
 
   const submit = useCallback(
     (raw: Stroke[]) => {
@@ -262,8 +278,16 @@ export function RenameGame({ replay }: { replay?: Replay }) {
     else if (b === "next") dispatch({ type: "page" });
   };
 
-  const right: DlgButton[] = step === "intro" ? ["no", "yes"] : step === "result" && ctx.page === 0 ? ["next"] : [];
-  const lines = step === "result" && ctx.page > 0 ? RESULT_PAGE2_LINES : step === "intro" ? introLines(ctx.declines) : ctx.lines;
+  // 分享頁（看別人的登記書）：結果用 replayLines、一頁講完，不放［下頁］
+  const right: DlgButton[] = step === "intro" ? ["no", "yes"] : step === "result" && ctx.page === 0 && !replay ? ["next"] : [];
+  const lines =
+    step === "result" && replay && result
+      ? replayLines(result)
+      : step === "result" && ctx.page > 0
+        ? RESULT_PAGE2_LINES
+        : step === "intro"
+          ? introLines(ctx.declines)
+          : ctx.lines;
   const stats =
     step === "result" && ctx.page === 0 && result?.kind === "monster" && play
       ? `筆畫 ${play.segs.length}→${result.kept.length}　像度 ${result.score}%`

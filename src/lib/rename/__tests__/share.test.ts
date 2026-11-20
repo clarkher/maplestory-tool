@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { pickVideoType, recordVideo, shareUrl, VIDEO } from "../share";
+import { canRecordVideo, pickVideoType, recordVideo, shareUrl, VIDEO } from "../share";
 import { shareOgTitle, sharePageIds, sharePageName } from "../share-pages";
 import { decodeShare, type Stroke } from "../strokes";
 import shapesJson from "../shapes.json";
@@ -42,6 +42,32 @@ describe("recordVideo", () => {
   });
   it("規格：720×1280、30fps", () => {
     expect(VIDEO).toMatchObject({ w: 720, h: 1280, fps: 30 });
+  });
+});
+
+describe("canRecordVideo（決定要不要放「存影片」）", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const canvasWith = (capture: boolean) => vi.stubGlobal("HTMLCanvasElement", { prototype: capture ? { captureStream: () => ({}) } : {} });
+
+  it("沒有 MediaRecorder → false", () => {
+    canvasWith(true);
+    vi.stubGlobal("MediaRecorder", undefined);
+    expect(canRecordVideo()).toBe(false);
+  });
+  it("有 MediaRecorder 但沒有支援的格式 → false", () => {
+    canvasWith(true);
+    vi.stubGlobal("MediaRecorder", Object.assign(class {}, { isTypeSupported: () => false }));
+    expect(canRecordVideo()).toBe(false);
+  });
+  it("畫布不能 captureStream → false", () => {
+    canvasWith(false);
+    vi.stubGlobal("MediaRecorder", Object.assign(class {}, { isTypeSupported: () => true }));
+    expect(canRecordVideo()).toBe(false);
+  });
+  it("都有 → true", () => {
+    canvasWith(true);
+    vi.stubGlobal("MediaRecorder", Object.assign(class {}, { isTypeSupported: (t: string) => t.startsWith("video/webm") }));
+    expect(canRecordVideo()).toBe(true);
   });
 });
 

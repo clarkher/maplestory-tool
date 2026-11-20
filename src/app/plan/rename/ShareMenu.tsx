@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import { track } from "@/lib/analytics";
 import { monsterImage } from "@/lib/asset-paths";
 import type { Result } from "@/lib/rename/match";
-import { copyText, deliver, fileExt, recordVideo, shareUrl, stageImage, VIDEO } from "@/lib/rename/share";
+import { canRecordVideo, copyText, deliver, fileExt, recordVideo, shareUrl, stageImage, VIDEO } from "@/lib/rename/share";
 import { drawStage } from "@/lib/rename/stage";
 import type { Pt, Stroke } from "@/lib/rename/strokes";
 import { BTN_PLAIN, BTN_PRIMARY } from "./SignPad";
@@ -22,6 +22,8 @@ export type ShareRound = {
 };
 
 type Busy = null | "video" | "image";
+
+const FAILED = "沒存成功，再按一次試試";
 
 /** 怪圖載好（或載不到）才往下；最多等 4 秒 */
 function loadMob(id: number): Promise<HTMLImageElement | undefined> {
@@ -46,7 +48,12 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
   const [busy, setBusy] = useState<Busy>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+  /** 錄得了影片才放「存影片」；伺服器端先當不行，畫面出來再查 */
+  const [canRecord, setCanRecord] = useState(false);
   const live = useRef(true);
+  useEffect(() => {
+    setCanRecord(canRecordVideo());
+  }, []);
   useEffect(() => {
     live.current = true;
     return () => {
@@ -93,6 +100,8 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
       if (!blob) return say("這台瀏覽器做不出圖");
       const how = await deliver(blob, `${fileBase}.png`);
       if (how === "download") say("圖存好了（在下載資料夾）");
+    } catch {
+      say(FAILED);
     } finally {
       if (live.current) setBusy(null);
     }
@@ -126,6 +135,8 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
       if (!blob) return say("這台瀏覽器錄不了影片，可以改存圖");
       const how = await deliver(blob, `${fileBase}.${fileExt(blob.type)}`);
       if (how === "download") say("影片存好了（在下載資料夾）");
+    } catch {
+      say(FAILED);
     } finally {
       if (live.current) setBusy(null);
     }
@@ -151,13 +162,15 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
       {open ? (
         <div data-share-menu className="space-y-2">
           {showNotice && !shared ? <p className="text-center text-[14px] ink-soft">連結裡會帶你寫的字</p> : null}
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid gap-2 ${canRecord ? "grid-cols-3" : "grid-cols-2"}`}>
             <button type="button" data-share="link" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void copyLink()}>
               複製連結
             </button>
-            <button type="button" data-share="video" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void saveVideo()}>
-              {busy === "video" ? "錄影中…" : "存影片"}
-            </button>
+            {canRecord ? (
+              <button type="button" data-share="video" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void saveVideo()}>
+                {busy === "video" ? "錄影中…" : "存影片"}
+              </button>
+            ) : null}
             <button type="button" data-share="image" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void saveImage()}>
               {busy === "image" ? "做圖中…" : "存圖"}
             </button>

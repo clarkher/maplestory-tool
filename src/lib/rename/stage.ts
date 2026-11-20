@@ -207,7 +207,11 @@ export function drawStage(ctx: CanvasRenderingContext2D, s: StageInput): void {
       const dw = iw * sc;
       const dh = ih * sc;
       ctx.globalAlpha = ease((mp - 0.35) / 0.65);
+      // 點陣怪圖放大不要平滑：畫面、存圖、影片都要像素清楚
+      ctx.save();
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(mob, ox + (bx + bw / 2) * k - dw / 2, oy + (by + bh / 2) * k - dh / 2, dw, dh);
+      ctx.restore();
     }
 
     segs.forEach((seg, i) => {

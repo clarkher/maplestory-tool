@@ -90,3 +90,25 @@ describe("drawStage", () => {
     }
   });
 });
+
+describe("怪圖不平滑", () => {
+  it("drawImage 當下 imageSmoothingEnabled 是 false，畫完還原", () => {
+    const c = createCanvas(360, 480);
+    const ctx = c.getContext("2d") as unknown as CanvasRenderingContext2D;
+    const seen: boolean[] = [];
+    const orig = ctx.drawImage.bind(ctx) as (...a: unknown[]) => void;
+    (ctx as unknown as { drawImage: (...a: unknown[]) => void }).drawImage = (...a: unknown[]) => {
+      seen.push(ctx.imageSmoothingEnabled);
+      orig(...a);
+    };
+    const mob = createCanvas(40, 30) as unknown as CanvasImageSource;
+    drawStage(ctx, {
+      w: 360, h: 480, segs, kept: [0, 2], mob,
+      result: { kind: "monster", id: 1, n: "嫩寶", kept: [0, 2], score: 77, xf: { sx: 1, sy: 1, dx: 0, dy: 0 } },
+      shape: { pts: [[5, 5], [60, 5], [60, 60], [5, 60]] }, ms: 5500, caption: true,
+    });
+    expect(seen.length).toBeGreaterThan(0);
+    expect(seen.every((v) => v === false)).toBe(true);
+    expect(ctx.imageSmoothingEnabled).toBe(true);
+  });
+});

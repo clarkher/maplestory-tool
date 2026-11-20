@@ -30,6 +30,14 @@ export function introLines(declines: number): Seg[][] {
 
 export const EMPTY_LINES: Seg[][] = [[{ t: "還沒簽喔。在登記書上寫你的 ID 吧。" }]];
 
+/** 看別人的分享連結（重播頁、解不開的靜態卡）時 NPC 說的 */
+export function replayLines(r: Result): Seg[][] {
+  const head: Seg[] = [{ t: "這是別的冒險者的登記書。" }];
+  const tail: Seg[] = [{ t: "換你簽簽看？" }];
+  if (r.kind === "monster") return [head, [{ t: "他從那天起是" }, { t: `「${r.n}」`, c: "blue" }], tail];
+  return [head, [{ t: "拉完了，測出來是一坨。" }], tail];
+}
+
 export function resultLines(r: Result): Seg[][] {
   if (r.kind === "empty") return EMPTY_LINES;
   if (r.kind === "poop") return [[{ t: "拉完了，測出來是一坨。建議換個暱稱。" }]];

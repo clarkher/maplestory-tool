@@ -37,6 +37,15 @@ export function pickVideoType(supported: (type: string) => boolean): string | nu
   return null;
 }
 
+/** 這個瀏覽器錄得了影片嗎（有 MediaRecorder、有支援的格式、畫布能 captureStream）；不行就不放「存影片」 */
+export function canRecordVideo(): boolean {
+  const Ctor = (globalThis as { MediaRecorder?: RecorderCtor }).MediaRecorder;
+  if (typeof Ctor !== "function" || typeof Ctor.isTypeSupported !== "function") return false;
+  const Canvas = (globalThis as { HTMLCanvasElement?: { prototype: { captureStream?: unknown } } }).HTMLCanvasElement;
+  if (!Canvas || typeof Canvas.prototype.captureStream !== "function") return false;
+  return pickVideoType(t => Ctor.isTypeSupported!(t)) !== null;
+}
+
 type Recorder = {
   start(timeslice?: number): void;
   stop(): void;

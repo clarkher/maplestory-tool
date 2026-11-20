@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_LINES, introLines, resultLines, type Seg } from "../lines";
+import { EMPTY_LINES, introLines, replayLines, resultLines, type Seg } from "../lines";
 
 const flat = (rows: Seg[][]) => rows.map((r) => r.map((s) => s.t).join(""));
 
@@ -40,5 +40,16 @@ describe("resultLines", () => {
   it("empty", () => {
     expect(resultLines({ kind: "empty" })).toEqual(EMPTY_LINES);
     expect(flat(EMPTY_LINES)).toEqual(["還沒簽喔。在登記書上寫你的 ID 吧。"]);
+  });
+});
+
+describe("replayLines（看別人的分享）", () => {
+  it("怪物逐字、怪名藍字", () => {
+    const rows = replayLines({ kind: "monster", id: 100100, n: "嫩寶", kept: [], score: 60, xf: { sx: 1, sy: 1, dx: 0, dy: 0 } });
+    expect(flat(rows)).toEqual(["這是別的冒險者的登記書。", "他從那天起是「嫩寶」", "換你簽簽看？"]);
+    expect(rows[1].find((s) => s.t === "「嫩寶」")?.c).toBe("blue");
+  });
+  it("一坨逐字", () => {
+    expect(flat(replayLines({ kind: "poop", score: 10 }))).toEqual(["這是別的冒險者的登記書。", "拉完了，測出來是一坨。", "換你簽簽看？"]);
   });
 });
