@@ -30,7 +30,7 @@ describe("introLines", () => {
 
 describe("resultLines", () => {
   it("怪物", () => {
-    const rows = resultLines({ kind: "monster", id: 1, n: "藍蝸牛", kept: [], score: 80 });
+    const rows = resultLines({ kind: "monster", id: 1, n: "藍蝸牛", kept: [], score: 80, xf: { sx: 1, sy: 1, dx: 0, dy: 0 } });
     expect(flat(rows)).toEqual(["簽好了。多的筆畫我收下囉。", "從今天起，你的名字是「藍蝸牛」"]);
     expect(rows[1][1]).toEqual({ t: "「藍蝸牛」", c: "blue" });
   });

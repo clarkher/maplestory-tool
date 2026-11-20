@@ -94,7 +94,6 @@ function partial(pts: Pt[], frac: number): Pt[] {
   return out;
 }
 
-type Xf = { sx: number; sy: number; dx: number; dy: number };
 type Bbox = { x: number; y: number; w: number; h: number };
 
 const bboxCache = new WeakMap<object, Bbox>();
@@ -181,18 +180,8 @@ export function drawStage(ctx: CanvasRenderingContext2D, s: StageInput): void {
 
   const plan = isPoop ? poopPlan(segs) : null;
   const outline = isMonster && shape && shape.pts.length ? shape.pts : null;
-  // 比對的仿射；沒有就把所有留下的段整體貼進輪廓外框（等比縮放置中）
-  let xf: Xf | null = (result.kind === "monster" && (result as { xf?: Xf }).xf) || null;
-  if (!xf && outline && shape && isMonster && kept.length) {
-    const kp: Pt[] = [];
-    for (const i of kept) if (segs[i]) kp.push(...segs[i]);
-    if (kp.length) {
-      const kb = bboxOf(kp);
-      const sb = bboxOf(outline, shape);
-      const sc = Math.min(sb.w / Math.max(kb.w, 1e-6), sb.h / Math.max(kb.h, 1e-6));
-      xf = { sx: sc, sy: sc, dx: sb.x + sb.w / 2 - (kb.x + kb.w / 2) * sc, dy: sb.y + sb.h / 2 - (kb.y + kb.h / 2) * sc };
-    }
-  }
+  // 比對的仿射（match.ts 的 Result 必有）
+  const xf = result.kind === "monster" ? result.xf : null;
 
   if (phase === "write") {
     // 依序寫出：每段佔 1/n 的時間

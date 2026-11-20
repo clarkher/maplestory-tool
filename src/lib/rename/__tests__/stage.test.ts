@@ -30,7 +30,7 @@ describe("drawStage", () => {
       expect(() =>
         drawStage(ctx, {
           w: 360, h: 480, segs, kept: [0, 2],
-          result: { kind: "monster", id: 1, n: "嫩寶", kept: [0, 2], score: 77 },
+          result: { kind: "monster", id: 1, n: "嫩寶", kept: [0, 2], score: 77, xf: { sx: 1, sy: 1, dx: 0, dy: 0 } },
           shape: { pts: outline }, ms, caption: true,
         }),
       ).not.toThrow();
