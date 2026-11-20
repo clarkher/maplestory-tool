@@ -8,7 +8,7 @@
  *     （名字橫寫是一條扁帶，只靠等比會一直配到最扁的那隻怪）
  * 全部怪比完用 z = (raw − 基準平均)/基準標準差 排名（基準在 shapes.json 的 base，
  * 由 base.gen.ts 用假手寫名字離線算好），避免點少、外形特殊的怪每次都贏。
- * 沒有任何一隻像度到門檻（poopBelow：輸入不到 16 段 40、其他 50）就出大便（在亂數之前決定）；否則像度過關的怪裡照 z 排，
+ * 沒有任何一隻像度到門檻（poopBelow：輸入不到 16 段 40、其他 56）就出大便（在亂數之前決定）；否則像度過關的怪裡照 z 排，
  * 前 3 名裡 z 跟第 1 名差 ≤ 0.15 的隨機挑一隻。
  */
 import type { Pt, Stroke } from "./strokes";
@@ -43,7 +43,7 @@ const TOP_N = 3;
 /** z 跟第 1 名差多少內算平手 */
 const TIE_Z = 0.15;
 /** 像度低於這個出大便 */
-const POOP_BELOW = 50;
+const POOP_BELOW = 56;
 /** 段數少（英數 ID 常見）時的門檻：段少蓋得到的輪廓本來就少 */
 const POOP_BELOW_FEW = 40;
 /** 輸入不到這麼多段（splitAtCorners 之後、非空）算段數少 */
@@ -302,7 +302,7 @@ export function fitShape(segs: Stroke[], shape: Shape): FitXf {
 
 /**
  * raw → 0–99 整數像度（單調遞增）。
- * 2026-11-20 用真筆畫手寫樣本校正（__fixtures__/hand.json＋60 組報告）：raw 約 0.41 以下像度 < 50 出一坨，
+ * 2026-11-20 用真筆畫手寫樣本校正（__fixtures__/hand.json＋60 組報告）：像度門檻見 poopBelow（不到 16 段 40、其他 56），
  * 60 組裡一坨約 1 成（原本 0.15／0.55 時門檻 raw 0.357，10 組 0 坨、60 組約 5%）；raw 0.70 以上 99。
  */
 export function displayScore(raw: number): number {
@@ -317,7 +317,7 @@ function zOf(raw: number, shape: Shape): number {
   return (raw - mean) / Math.max(MIN_STD, std);
 }
 
-/** 出大便的像度門檻：輸入段數 < 16 用 40，其他 50（2026-11-20 裁示：英數 ID 段少（Clark 10 段、8591 12 段），同樣門檻四成變一坨） */
+/** 出大便的像度門檻：輸入段數 < 16 用 40，其他 56（60 組手寫樣本一坨拉回 1 成的最小整數；2026-11-20 裁示：英數 ID 段少（Clark 10 段、8591 12 段），同樣門檻四成變一坨） */
 export function poopBelow(segCount: number): number {
   return segCount < FEW_SEGS ? POOP_BELOW_FEW : POOP_BELOW;
 }

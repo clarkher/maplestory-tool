@@ -56,21 +56,21 @@ describe("手寫樣本校正", () => {
     expect(poop).toBeLessThanOrEqual(2);
   }, 60_000);
 
-  it("一坨門檻看段數：不到 16 段 40 分就過、16 段以上要 50", () => {
+  it("一坨門檻看段數：不到 16 段 40 分就過、16 段以上要 56", () => {
     const set = hand as unknown as HandSet;
     const segsOf = (id: string, k?: number) =>
       normalize(splitAtCorners(set.ids.find(x => x.id === id)!.strokes).slice(0, k)).filter(s => s.length > 0);
-    // 「雪吉拉」只留前 15 段：最高像度 49，在 40～50 之間 → 段少用 40，出怪
+    // 「雪吉拉」只留前 15 段：最高像度 49，在 40～56 之間 → 段少用 40，出怪
     const few = segsOf("雪吉拉", 15);
     expect(few).toHaveLength(15);
     expect(poopBelow(few.length)).toBe(40);
     const a = pickResult(few, shapes, seeded(1));
     expect(a.kind).toBe("monster");
     if (a.kind === "monster") expect(a.score).toBeGreaterThanOrEqual(40);
-    // 前 16 段：最高像度一樣 49 → 用 50，一坨
+    // 前 16 段：最高像度一樣 49 → 用 56，一坨
     const many = segsOf("雪吉拉", 16);
     expect(many).toHaveLength(16);
-    expect(poopBelow(many.length)).toBe(50);
+    expect(poopBelow(many.length)).toBe(56);
     const b = pickResult(many, shapes, seeded(1));
     expect(b.kind).toBe("poop");
     if (b.kind === "poop") expect(b.score).toBeGreaterThanOrEqual(40);

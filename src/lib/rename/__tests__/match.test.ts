@@ -78,12 +78,12 @@ describe("displayScore", () => {
 });
 
 describe("poopBelow", () => {
-  it("不到 16 段 40、16 段以上 50", () => {
+  it("不到 16 段 40、16 段以上 56", () => {
     expect(poopBelow(0)).toBe(40);
     expect(poopBelow(1)).toBe(40);
     expect(poopBelow(15)).toBe(40);
-    expect(poopBelow(16)).toBe(50);
-    expect(poopBelow(120)).toBe(50);
+    expect(poopBelow(16)).toBe(56);
+    expect(poopBelow(120)).toBe(56);
   });
 });
 
