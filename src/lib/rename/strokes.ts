@@ -10,9 +10,12 @@ export type Stroke = Pt[];
 /** 最多保留幾段（防手寫或惡意資料灌爆） */
 export const MAX_SEGMENTS = 120;
 /** 分享編碼單段最多幾點 */
-const MAX_POINTS = 200;
+const MAX_POINTS = 64;
 /** 分享座標格數 */
 const GRID = 64;
+/** 編碼後最壞位元組數：標頭 6 + 每段(1+2*點數) + 保留(1+段數)；解碼字串長度上限由此推出 */
+const MAX_BYTES = 6 + MAX_SEGMENTS * (1 + 2 * MAX_POINTS) + 1 + MAX_SEGMENTS;
+const MAX_ENCODED = Math.ceil((MAX_BYTES * 4) / 3) + 4;
 
 function polyLen(s: Stroke): number {
   let sum = 0;
@@ -60,8 +63,18 @@ export function splitAtCorners(strokes: Stroke[], angleDeg = 60): Stroke[] {
 export function normalize(strokes: Stroke[], grid = 64, box = 56): Stroke[] {
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const s of strokes) for (const [x, y] of s) {
-    if (x < x0) x0 = x; if (x > x1) x1 = x;
-    if (y < y0) y0 = y; if (y > y1) y1 = y;
+    if (x < x0) {
+      x0 = x;
+    }
+    if (x > x1) {
+      x1 = x;
+    }
+    if (y < y0) {
+      y0 = y;
+    }
+    if (y > y1) {
+      y1 = y;
+    }
   }
   if (!isFinite(x0)) return [];
   const longest = Math.max(x1 - x0, y1 - y0);
@@ -115,23 +128,41 @@ export function encodeShare(r: Share): string {
   const id = r.id === "poop" ? POOP : Math.max(0, Math.min(POOP - 1, Math.floor(r.id) || 0));
   b.push((id >>> 24) & 255, (id >>> 16) & 255, (id >>> 8) & 255, id & 255);
   b.push(Math.max(0, Math.min(99, Math.round(r.score) || 0)));
-  const all = r.all.slice(0, MAX_SEGMENTS);
+  // 空筆畫解碼端會拒絕，先丟掉並把 kept 索引重新對應；kept 去重
+  const remap = new Map<number, number>();
+  const all: Stroke[] = [];
+  r.all.slice(0, MAX_SEGMENTS).forEach((st, i) => {
+    if (st.length > 0) {
+      remap.set(i, all.length);
+      all.push(st);
+    }
+  });
   b.push(all.length);
-  for (const s of all) {
-    const pts = s.slice(0, MAX_POINTS);
+  for (const st of all) {
+    const pts = st.slice(0, MAX_POINTS);
     b.push(pts.length);
-    for (const [x, y] of pts) b.push(q(x), q(y));
+    for (const [x, y] of pts) {
+      b.push(q(x), q(y));
+    }
   }
-  const kept = r.kept.filter(i => Number.isInteger(i) && i >= 0 && i < all.length);
+  const kept: number[] = [];
+  for (const i of r.kept) {
+    const j = remap.get(i);
+    if (j !== undefined && !kept.includes(j)) {
+      kept.push(j);
+    }
+  }
   b.push(kept.length);
-  for (const i of kept) b.push(i);
+  for (const i of kept) {
+    b.push(i);
+  }
   return toB64Url(b);
 }
 
 /** 不信任輸入：任何格式不對、超量、多餘位元組都回 null，絕不丟例外 */
 export function decodeShare(s: string): Share | null {
   try {
-    if (typeof s !== "string" || s.length === 0 || s.length > 20000) return null;
+    if (typeof s !== "string" || s.length === 0 || s.length > MAX_ENCODED) return null;
     const b = fromB64Url(s);
     if (!b || b.length < 7) return null;
     let p = 0;

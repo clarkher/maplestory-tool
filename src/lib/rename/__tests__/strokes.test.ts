@@ -103,4 +103,22 @@ describe("encodeShare / decodeShare", () => {
     expect(s.length).toBeLessThan(1000);
     expect(decodeShare(s)?.all.length).toBe(40);
   });
+
+  it("空筆畫與重複 kept：編出來的一定解得開", () => {
+    const x = { id: 3, score: 10, all: [[[1, 1], [2, 2]] as Stroke, [] as Stroke, [[5, 5], [9, 9]] as Stroke], kept: [2, 2, 1, 0] };
+    const back = decodeShare(encodeShare(x));
+    expect(back).not.toBeNull();
+    expect(back?.all).toEqual([[[1, 1], [2, 2]], [[5, 5], [9, 9]]]);
+    expect(back?.kept).toEqual([1, 0]);
+  });
+
+  it("手工拼的壞位元組全回 null", () => {
+    const enc = (bytes: number[]) => Buffer.from(bytes).toString("base64url");
+    const head = [0, 0, 0, 1, 50]; // id=1 score=50
+    expect(decodeShare(enc([...head, 121]))).toBeNull(); // 段數 > 120
+    expect(decodeShare(enc([...head, 1, 1, 64, 0, 0]))).toBeNull(); // 座標 >= 64
+    expect(decodeShare(enc([...head, 1, 1, 0, 0, 1, 1]))).toBeNull(); // kept 索引越界
+    expect(decodeShare(enc([...head, 1, 1, 0, 0, 0, 7]))).toBeNull(); // 尾巴多餘位元組
+    expect(decodeShare(enc([...head, 1, 1, 0, 0, 0]))).not.toBeNull(); // 對照：合法的
+  });
 });
