@@ -296,9 +296,13 @@ export function fitShape(segs: Stroke[], shape: Shape): FitXf {
   return fitWith(simple, uniformVariants(simple), ink, shape);
 }
 
-/** raw → 0–99 整數像度（單調遞增；Task 8 用實際手寫校正） */
+/**
+ * raw → 0–99 整數像度（單調遞增）。
+ * 2026-11-20 用真筆畫手寫樣本校正（__fixtures__/hand.json＋60 組報告）：raw 約 0.41 以下像度 < 50 出一坨，
+ * 60 組裡一坨約 1 成（原本 0.15／0.55 時門檻 raw 0.357，10 組 0 坨、60 組約 5%）；raw 0.70 以上 99。
+ */
 export function displayScore(raw: number): number {
-  const x = Math.min(1, Math.max(0, (raw - 0.15) / 0.55));
+  const x = Math.min(1, Math.max(0, (raw - 0.24) / 0.46));
   return Math.round(99 * Math.pow(x, 0.7));
 }
 
