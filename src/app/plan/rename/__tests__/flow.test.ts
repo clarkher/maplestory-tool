@@ -37,6 +37,14 @@ describe("flow.next", () => {
     expect(r.ctx.lines).toEqual(EMPTY_LINES);
   });
 
+  it("連按兩次空的簽好了：台詞每次是新的陣列（對話框靠 lines 換了才捲回來）", () => {
+    const sign = next("intro", { type: "accept" }, initialCtx());
+    const r1 = next(sign.step, { type: "submit", segs: 0 }, sign.ctx);
+    const r2 = next(r1.step, { type: "submit", segs: 0 }, r1.ctx);
+    expect(r2.ctx.lines).toEqual(EMPTY_LINES);
+    expect(r2.ctx.lines).not.toBe(r1.ctx.lines);
+  });
+
   it("sign + submit → running", () => {
     const sign = next("intro", { type: "accept" }, initialCtx());
     const r = next(sign.step, { type: "submit", segs: 5 }, sign.ctx);

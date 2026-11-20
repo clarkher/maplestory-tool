@@ -1,7 +1,4 @@
-import { existsSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { staticMonsters } from "../../static-data";
 import shapesJson from "../shapes.json";
 
 type Shape = { id: number; n: string; alt?: { id: number; n: string }[]; pts: [number, number][]; base?: [number, number] };
@@ -28,16 +25,23 @@ describe("怪物輪廓資料", () => {
     expect(data.shapes.length).toBeGreaterThanOrEqual(70); // 已開放怪物只有 113 隻、換色怪去重後 76 隻（原訂 100 不可能）
   });
 
-  it("每筆 id 在已開放怪物、圖存在、沒重複、點數合理", () => {
-    const ids = new Set(staticMonsters().map(m => m.id));
+  // 只驗 shapes.json 自己：不比現在的怪物資料（資料自動更新增減怪會讓這裡紅、擋住更新 PR）。
+  // 拿掉的怪：結果卡「在哪打／怎麼去」靠 liveShapeIds 不放連結（share.test.ts 有測）。
+  it("每筆結構合理、id（含 alt）沒重複", () => {
     const seen = new Set<number>();
     for (const s of data.shapes) {
-      expect(ids.has(s.id), `id ${s.id}`).toBe(true);
-      expect(existsSync(path.join(process.cwd(), "public/assets/monster_frames", `${s.id}.png`)), `圖 ${s.id}`).toBe(true);
-      expect(seen.has(s.id), `重複 ${s.id}`).toBe(false);
-      seen.add(s.id);
+      for (const id of [s.id, ...(s.alt ?? []).map(a => a.id)]) {
+        expect(Number.isInteger(id) && id > 0, `id ${id}`).toBe(true);
+        expect(seen.has(id), `重複 ${id}`).toBe(false);
+        seen.add(id);
+      }
+      expect(s.n.length, `名字 ${s.id}`).toBeGreaterThan(0);
+      for (const a of s.alt ?? []) expect(a.n.length, `alt 名字 ${a.id}`).toBeGreaterThan(0);
       expect(s.pts.length).toBeGreaterThanOrEqual(40);
       expect(s.pts.length).toBeLessThanOrEqual(400);
+      for (const [x, y] of s.pts) {
+        expect(x >= 0 && x <= data.grid && y >= 0 && y <= data.grid, `${s.id} 點超出格子`).toBe(true);
+      }
       expect(s.base?.length).toBe(2);
     }
   });
@@ -51,17 +55,5 @@ describe("怪物輪廓資料", () => {
         expect(d, `${a.id} 與 ${b.id} 太像`).toBeGreaterThanOrEqual(1.0);
       }
     }
-  });
-
-  it("每隻有圖的已開放怪物在 id + alt 裡剛好出現一次", () => {
-    // 圖沒有可用輪廓（太小或點數不足）的怪，沒有輪廓可比，明列於此
-    const NO_OUTLINE = new Set([9300003]); // 超級綠水靈
-    const count = new Map<number, number>();
-    for (const s of data.shapes) for (const id of [s.id, ...(s.alt ?? []).map(a => a.id)]) count.set(id, (count.get(id) ?? 0) + 1);
-    for (const m of staticMonsters()) {
-      if (!existsSync(path.join(process.cwd(), "public/assets/monster_frames", `${m.id}.png`))) continue;
-      expect(count.get(m.id) ?? 0, `${m.id} ${m.n}`).toBe(NO_OUTLINE.has(m.id) ? 0 : 1);
-    }
-    for (const s of data.shapes) for (const a of s.alt ?? []) expect(a.n.length).toBeGreaterThan(0);
   });
 });

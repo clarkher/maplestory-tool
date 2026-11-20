@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { shareOgTitle, sharePageIds, sharePageName } from "@/lib/rename/share-pages";
+import { liveShapeIds, shareOgTitle, sharePageIds, sharePageName } from "@/lib/rename/share-pages";
 import { OG_BASE, ogImages } from "@/lib/seo";
+import { staticMonsters } from "@/lib/static-data";
 import { RenameGame } from "../../RenameGame";
 
 /**
@@ -44,7 +45,7 @@ export default async function Page({ params }: Props) {
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">名字變怪物</h1>
       </header>
-      <RenameGame replay={{ id: id === "poop" ? "poop" : Number(id) }} />
+      <RenameGame replay={{ id: id === "poop" ? "poop" : Number(id) }} where={liveShapeIds(staticMonsters().map(m => m.id))} />
     </div>
   );
 }

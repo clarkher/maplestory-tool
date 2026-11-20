@@ -31,6 +31,17 @@ export function sharePageName(id: string): string | null | undefined {
   return undefined;
 }
 
+/**
+ * 結果卡「{怪}在哪打／怎麼去 →」連 /db/monsters/<id>：那一頁照現在的遊戲資料產，資料更新拿掉的怪會 404。
+ * 頁面（伺服器）把現在資料的怪 id 丟進來，回 shapes.json 裡（本尊＋alt）還在的那些，傳給 RenameGame；不在的就不放連結。
+ */
+export function liveShapeIds(live: Iterable<number>): number[] {
+  const have = new Set(live);
+  const out: number[] = [];
+  for (const s of SHAPES) for (const id of [s.id, ...(s.alt ?? []).map(a => a.id)]) if (have.has(id)) out.push(id);
+  return out;
+}
+
 /** og:title：建置產預覽圖時「｜」前面是大標、後面是副標 */
 export function shareOgTitle(n: string | null): string {
   return n ? `我從今天起是「${n}」｜名字變怪物` : "測出來是一坨｜名字變怪物";

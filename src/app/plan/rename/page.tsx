@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { liveShapeIds } from "@/lib/rename/share-pages";
 import { withOpenGraph } from "@/lib/seo";
+import { staticMonsters } from "@/lib/static-data";
 import { RenameGame } from "./RenameGame";
 
 export const metadata: Metadata = withOpenGraph({
@@ -14,7 +16,7 @@ export default function Page() {
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">名字變怪物</h1>
       </header>
-      <RenameGame />
+      <RenameGame where={liveShapeIds(staticMonsters().map(m => m.id))} />
     </div>
   );
 }

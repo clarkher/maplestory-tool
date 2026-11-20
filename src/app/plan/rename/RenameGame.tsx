@@ -6,11 +6,11 @@
  *   sign：對話框下面出現登記書（SignPad）
  *   running：切段＋正規化後丟 Worker 比對，回來就播演出（stage.ts：寫字→收筆畫→變形→標題）；
  *            變形播完（標題開始）才切 result，NPC 說結果
- *   result：演出停在最後一格＋［分享（ShareMenu：複製連結／存影片／存圖）］［再寫一次］＋「{怪}在哪打／怎麼去 →」
+ *   result：演出停在最後一格＋［分享（ShareMenu：複製連結／存影片／存圖）］［再寫一次］＋「{怪}在哪打／怎麼去 →」（只對 where 裡還有單獨頁的怪放）
  * 狀態轉換在 src/lib/rename/flow.ts（純函式、有測試）。
  *
  * replay（/plan/rename/m/[id] 分享頁）：一開場就從 location.hash 的 #r=... 解出筆畫重播；
- * 解不開就畫那隻怪的靜態結果卡＋［換我寫］（沒有筆畫可分享，不放［分享］）。
+ * 重播或解不開畫的靜態結果卡，都只放［換我寫］、不放［分享］（那是別人的那一輪）。
  * GA：按接受送 rename_start、自己那輪出結果送 rename_result（看別人的重播不送）、分享選一個送 rename_share（在 ShareMenu）。
  */
 import Link from "next/link";
@@ -111,7 +111,8 @@ function StageCanvas({ play, onReveal }: { play: Play; onReveal: (r: Result) => 
   );
 }
 
-export function RenameGame({ replay }: { replay?: Replay }) {
+/** where：現在資料還有單獨頁的怪 id（伺服器頁面給）；結果卡只對這些放「在哪打／怎麼去」，資料更新拿掉的怪不連 404 */
+export function RenameGame({ replay, where }: { replay?: Replay; where: number[] }) {
   const router = useRouter();
   const match = useMatcher();
   const [state, setState] = useState<{ step: Step; ctx: Ctx }>(() =>
@@ -255,7 +256,7 @@ export function RenameGame({ replay }: { replay?: Replay }) {
       ? `筆畫 ${play.segs.length}→${result.kept.length}　像度 ${result.score}%`
       : null;
 
-  // 有演出（自己寫的或解得開的重播）才能分享；靜態結果卡沒有筆畫
+  // 自己寫的那一輪才能分享（重播頁不放）；靜態結果卡沒有筆畫
   const round: ShareRound | null = play && play.result.kind !== "empty" ? { segs: play.segs, result: play.result, shape: play.shape } : null;
   const other = replay ? (
     <Link href="/plan/rename" data-act="mine" className={BTN_PLAIN}>
@@ -298,14 +299,15 @@ export function RenameGame({ replay }: { replay?: Replay }) {
 
       {step === "result" ? (
         <>
-          {round ? (
-            <ShareMenu round={round} showNotice={!replay}>
+          {/* 看別人的重播不放［分享］（那不是自己的那一輪），只留［換我寫］ */}
+          {round && !replay ? (
+            <ShareMenu round={round} showNotice>
               {other}
             </ShareMenu>
           ) : (
             <div className="grid grid-cols-1">{other}</div>
           )}
-          {result?.kind === "monster" ? (
+          {result?.kind === "monster" && where.includes(result.id) ? (
             <p className="text-center">
               <Link href={`/db/monsters/${result.id}`} data-act="where" className="text-[15px] font-extrabold text-[color:var(--maple)] underline-offset-4 hover:underline">
                 {result.n}在哪打／怎麼去 →

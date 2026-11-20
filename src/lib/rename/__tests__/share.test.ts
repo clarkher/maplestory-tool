@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { canRecordVideo, pickVideoType, recordVideo, shareableFile, shareFile, shareUrl, VIDEO } from "../share";
-import { shareOgTitle, sharePageIds, sharePageName } from "../share-pages";
+import { liveShapeIds, shareOgTitle, sharePageIds, sharePageName } from "../share-pages";
 import { decodeShare, type Stroke } from "../strokes";
 import shapesJson from "../shapes.json";
 
@@ -111,6 +111,18 @@ describe("pickVideoType", () => {
     expect(pickVideoType(t => t.startsWith("video/mp4"))).toMatch(/^video\/mp4/);
     expect(pickVideoType(t => t.startsWith("video/webm"))).toMatch(/^video\/webm/);
     expect(pickVideoType(() => false)).toBeNull();
+  });
+});
+
+describe("結果卡「在哪打／怎麼去」只連還在的怪（v2.44：資料更新拿掉的怪不連 404）", () => {
+  it("只留 shapes.json 裡（本尊＋alt）而且還在現在資料裡的 id", () => {
+    const first = (shapesJson as { shapes: { id: number; alt?: { id: number }[] }[] }).shapes[0];
+    const second = (shapesJson as { shapes: { id: number }[] }).shapes[1];
+    const got = liveShapeIds([first.id, 999999999, ...(first.alt ?? []).map(a => a.id)]);
+    expect(got).toContain(first.id);
+    for (const a of first.alt ?? []) expect(got).toContain(a.id);
+    expect(got).not.toContain(999999999);
+    expect(got).not.toContain(second.id);
   });
 });
 

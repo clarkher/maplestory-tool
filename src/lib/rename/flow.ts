@@ -62,13 +62,14 @@ export function next(step: Step, action: Action, ctx: Ctx): { step: Step; ctx: C
       return stay;
     case "sign":
       if (action.type === "submit") {
-        if (action.segs <= 0) return { step: "sign", ctx: { ...ctx, lines: EMPTY_LINES } };
+        // 每次給新陣列：連按兩次空的，對話框才認得「台詞換了」把台詞捲回畫面
+        if (action.segs <= 0) return { step: "sign", ctx: { ...ctx, lines: [...EMPTY_LINES] } };
         return { step: "running", ctx: { ...ctx, lines: RUNNING_LINES, result: null } };
       }
       return stay;
     case "running":
       if (action.type === "done") {
-        if (action.result.kind === "empty") return { step: "sign", ctx: { ...ctx, lines: EMPTY_LINES, result: null } };
+        if (action.result.kind === "empty") return { step: "sign", ctx: { ...ctx, lines: [...EMPTY_LINES], result: null } };
         return { step: "result", ctx: { ...ctx, lines: resultLines(action.result), result: action.result, page: 0 } };
       }
       if (action.type === "fail") return { step: "sign", ctx: { ...ctx, lines: RETRY_LINES, result: null } };
