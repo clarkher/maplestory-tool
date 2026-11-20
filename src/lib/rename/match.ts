@@ -42,7 +42,7 @@ const MIN_GAIN = 0.01;
 const TOP_N = 3;
 /** z 跟第 1 名差多少內算平手 */
 const TIE_Z = 0.15;
-/** 像度低於這個出大便 */
+/** 段數 16 以上時，像度低於這個出大便（真正的門檻看 poopBelow()，段少用 POOP_BELOW_FEW） */
 const POOP_BELOW = 56;
 /** 段數少（英數 ID 常見）時的門檻：段少蓋得到的輪廓本來就少 */
 const POOP_BELOW_FEW = 40;
