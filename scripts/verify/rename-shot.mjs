@@ -1,5 +1,5 @@
 // 名字變怪物（/plan/rename，v2.44）驗收：手機 390×844，NPC 問要不要登錄 → 接受 → 把手寫樣本畫進登記書 → 簽好了 → 等演出播完 → 截圖；
-// 三組會出怪的＋一組一坨（8591：像度在亂數之前決定，一定是一坨），最後打開分享選單截圖。任何一項沒過 exit 1
+// 三組會出怪的＋一組一坨（阿明：23 段、最高像度 53，低於 56 的門檻；像度在亂數之前決定，一定是一坨），最後打開分享選單截圖。任何一項沒過 exit 1
 // 用法：node scripts/verify/rename-shot.mjs [網址，預設 http://localhost:3473] [輸出資料夾] [DevTools 埠，預設 9631]
 //   例：npx next dev --webpack -p 3473   （另一個視窗先開本機 dev）
 //       node scripts/verify/rename-shot.mjs http://localhost:3473 "$TEMP/rename-shot"
@@ -8,7 +8,8 @@
 // 每組等比縮進簽名格（寬 88%、高 60%，放在簽名線上面），用滑鼠事件（Input.dispatchMouseEvent）一點一點畫，跟真人拖曳一樣走 pointer events。
 // 出怪還是一坨看演出畫布 data-stage 的 aria-label（「筆畫變成某隻怪」／「筆畫掉下來堆成一坨」），像度看對話框那行「像度 N%」。
 // 頁面上的東西用 data-bt="yes"（接受）、data-pad（簽名格）、data-act="submit"／"again"／"share"、data-share="link" 找，改版面時這幾個屬性要留著。
-// 輸出：rename-intro.png（接任務）、rename-sign.png（簽好還沒送）、rename-<ID>.png（每組結果，整頁）、rename-share.png（分享選單）、results.json
+// 最後按「複製連結」打開那個分享網址，看重播頁只有［換我寫］、沒有［分享］。
+// 輸出：rename-intro.png（接任務）、rename-sign.png（簽好還沒送）、rename-<ID>.png（每組結果，整頁）、rename-share.png（分享選單）、rename-replay.png（重播頁）、results.json
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -21,8 +22,9 @@ const PORT = chromePort(9631, process.argv[4]);
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const HAND = JSON.parse(fs.readFileSync(path.join(ROOT, "src/lib/rename/__fixtures__/hand.json"), "utf8"));
 /** 三組出怪＋一組一坨（最後一組） */
-const PICK = ["小樹", "黑騎士", "喵喵", "8591"];
-const POOP_ID = "8591";
+// 出怪的挑離門檻遠的（2026-11-20 本機：小樹 58、黑騎士 72、王小明 65；喵喵剛好 56 在門檻上、8591 是 12 段門檻 40 會出怪，都不用）
+const PICK = ["小樹", "黑騎士", "王小明", "阿明"];
+const POOP_ID = "阿明";
 
 const results = { base: BASE, port: PORT, rounds: [], checks: [] };
 const record = (name, ok, detail) => {
@@ -150,6 +152,28 @@ try {
     record("分享選單：有複製連結、存圖", opts.includes("link") && opts.includes("image"), opts);
   } catch (error) {
     record("分享選單", false, String(error?.message ?? error).slice(0, 300));
+  }
+
+  // 重播頁（看別人的分享）：按「複製連結」拿到網址（攔 clipboard.writeText），打開 → 重播播完 → 只有［換我寫］、沒有［分享］
+  try {
+    await evaluate(`(() => { navigator.clipboard.writeText = t => { window.__copied = t; return Promise.resolve(); }; return true; })()`);
+    await click("複製連結", "[data-share='link']");
+    await wait("複製好的網址", `window.__copied`, 5000);
+    const link = await evaluate(`window.__copied`);
+    results.replayLink = link;
+    await navigate(link);
+    await wait("重播的［換我寫］", `document.querySelector("[data-act='mine']")`, 60000);
+    await sleep(1500);
+    const rp = await evaluate(`(() => ({
+      stage: document.querySelector("[data-stage]")?.getAttribute("aria-label") ?? null,
+      share: Boolean(document.querySelector("[data-act='share']")),
+      mine: Boolean(document.querySelector("[data-act='mine']")),
+      scrollW: document.documentElement.scrollWidth,
+    }))()`);
+    await fullShot("rename-replay.png");
+    record("重播頁：有演出、只有［換我寫］沒有［分享］", Boolean(rp.stage) && rp.mine && !rp.share, rp);
+  } catch (error) {
+    record("重播頁", false, String(error?.message ?? error).slice(0, 300));
   }
 
   const monsters = results.rounds.filter(r => !r.poop).length;
