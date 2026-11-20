@@ -46,7 +46,10 @@ export type EventName =
   | "share"
   | "donate_click"
   | "donate_paid"
-  | "video_play";
+  | "video_play"
+  | "rename_start"
+  | "rename_result"
+  | "rename_share";
 
 type Params = Record<string, string | number | boolean | undefined>;
 
@@ -101,4 +104,46 @@ export function trackSettled(key: string, name: EventName, params: Params = {}) 
 export function jobParams(job: number, level: number): Params {
   const low = Math.floor((Math.max(1, level) - 1) / 10) * 10 + 1;
   return { job: job < 0 ? "未選" : (jobOption(job)?.name ?? (job === 0 ? "初心者" : String(job))), level, level_band: `${low}-${low + 9}` };
+}
+
+/** 送給 GA 的網址：只留網域＋路徑＋查詢字串，# 後面一律不送（v2.44：名字變怪物分享連結的結果放在 #r=，不能進 GA） */
+export function gaPageLocation(loc: { origin: string; pathname: string; search: string }): string {
+  return loc.origin + loc.pathname + loc.search;
+}
+
+type GaWindow = {
+  location: { origin: string; pathname: string; search: string; hostname: string };
+  history: Pick<History, "pushState" | "replaceState">;
+  addEventListener(type: "popstate" | "hashchange", fn: () => void): void;
+  removeEventListener(type: "popstate" | "hashchange", fn: () => void): void;
+  gtag: (...args: unknown[]) => void;
+};
+
+/**
+ * 開 GA：先 set page_location（之後所有事件、加強型評估換頁自動送的 page_view 都用它）再 config。
+ * 站內換頁（pushState／replaceState／上一頁／改 #）都重設一次，網址一樣不帶 #。回傳拆掉監聽的函式。
+ */
+export function bootGa(w: GaWindow): () => void {
+  const sync = () => w.gtag("set", { page_location: gaPageLocation(w.location) });
+  sync();
+  w.gtag("js", new Date());
+  w.gtag("config", GA_ID, {
+    page_location: gaPageLocation(w.location),
+    ...(w.location.hostname === PRODUCTION_HOST ? {} : { debug_mode: true }),
+  });
+  const { pushState, replaceState } = w.history;
+  w.history.pushState = function (...args: Parameters<History["pushState"]>) {
+    pushState.apply(this, args);
+    sync();
+  };
+  w.history.replaceState = function (...args: Parameters<History["replaceState"]>) {
+    replaceState.apply(this, args);
+    sync();
+  };
+  w.addEventListener("popstate", sync);
+  w.addEventListener("hashchange", sync);
+  return () => {
+    w.removeEventListener("popstate", sync);
+    w.removeEventListener("hashchange", sync);
+  };
 }

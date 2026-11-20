@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { GA_ID, GA_OFF_KEY, gaEnabledFor, gaOptOut, linkClick, track } from "@/lib/analytics";
+import { bootGa, GA_ID, GA_OFF_KEY, gaEnabledFor, gaOptOut, linkClick, track } from "@/lib/analytics";
 
 /** 讀、寫「這台不送 GA」；localStorage 被擋（無痕、關掉網站資料）當沒設 */
 function optedOut(search: string): boolean {
@@ -44,8 +44,14 @@ export function GoogleAnalytics() {
       // eslint-disable-next-line prefer-rest-params
       w.dataLayer.push(arguments);
     };
-    w.gtag("js", new Date());
-    w.gtag("config", GA_ID, window.location.hostname === "maplehelper.tw" ? {} : { debug_mode: true });
+    // 網址只送網域＋路徑＋查詢字串，# 不送（名字變怪物的分享結果在 #r=）；站內換頁也跟著重設。監聽跟著整頁活，不拆
+    bootGa({
+      location: window.location,
+      history: window.history,
+      addEventListener: (type, fn) => window.addEventListener(type, fn),
+      removeEventListener: (type, fn) => window.removeEventListener(type, fn),
+      gtag: w.gtag,
+    });
     const script = document.createElement("script");
     script.async = true;
     script.src = `https://www.googletagmanager.com/gtag/js?id=${GA_ID}`;
