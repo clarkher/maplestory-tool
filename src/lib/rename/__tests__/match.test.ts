@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayScore, fitShape, pickResult, type Shape } from "../match";
+import { displayScore, fitShape, pickResult, poopBelow, type Shape } from "../match";
 import type { Stroke } from "../strokes";
 import shapesJson from "../shapes.json";
 import { seeded, synthSet } from "../synth";
@@ -74,6 +74,16 @@ describe("displayScore", () => {
     expect(displayScore(0)).toBe(0);
     expect(displayScore(1)).toBe(99);
     expect(displayScore(-5)).toBe(0);
+  });
+});
+
+describe("poopBelow", () => {
+  it("不到 10 段 40、10 段以上 50", () => {
+    expect(poopBelow(0)).toBe(40);
+    expect(poopBelow(1)).toBe(40);
+    expect(poopBelow(9)).toBe(40);
+    expect(poopBelow(10)).toBe(50);
+    expect(poopBelow(120)).toBe(50);
   });
 });
 

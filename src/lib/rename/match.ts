@@ -8,7 +8,7 @@
  *     （名字橫寫是一條扁帶，只靠等比會一直配到最扁的那隻怪）
  * 全部怪比完用 z = (raw − 基準平均)/基準標準差 排名（基準在 shapes.json 的 base，
  * 由 base.gen.ts 用假手寫名字離線算好），避免點少、外形特殊的怪每次都贏。
- * 沒有任何一隻像度 ≥ 50 就出大便（在亂數之前決定）；否則像度過關的怪裡照 z 排，
+ * 沒有任何一隻像度到門檻（poopBelow：輸入不到 10 段 40、其他 50）就出大便（在亂數之前決定）；否則像度過關的怪裡照 z 排，
  * 前 3 名裡 z 跟第 1 名差 ≤ 0.15 的隨機挑一隻。
  */
 import type { Pt, Stroke } from "./strokes";
@@ -44,6 +44,10 @@ const TOP_N = 3;
 const TIE_Z = 0.15;
 /** 像度低於這個出大便 */
 const POOP_BELOW = 50;
+/** 段數少（英數 ID 常見）時的門檻：段少蓋得到的輪廓本來就少 */
+const POOP_BELOW_FEW = 40;
+/** 輸入不到這麼多段（splitAtCorners 之後、非空）算段數少 */
+const FEW_SEGS = 10;
 /** 拉伸時每軸最多放大／縮小幾倍 */
 const MAX_STRETCH = 2.5;
 /** 標準差下限，避免基準幾乎不動的怪 z 爆掉 */
@@ -313,6 +317,11 @@ function zOf(raw: number, shape: Shape): number {
   return (raw - mean) / Math.max(MIN_STD, std);
 }
 
+/** 出大便的像度門檻：輸入段數 < 10 用 40，其他 50（2026-11-20 裁示：英數 ID 段少，同樣門檻一半變一坨） */
+export function poopBelow(segCount: number): number {
+  return segCount < FEW_SEGS ? POOP_BELOW_FEW : POOP_BELOW;
+}
+
 /** 全部怪比完挑結果；rand 注入方便測試與分享重現 */
 export function pickResult(segs: Stroke[], shapes: Shape[], rand: () => number): Result {
   // 空段不參與，但 kept 索引要對回原本的 segs
@@ -325,8 +334,9 @@ export function pickResult(segs: Stroke[], shapes: Shape[], rand: () => number):
     const f = fitWith(real, uniform, ink, shape);
     return { i, ...f, score: f.kept.length > 0 ? displayScore(f.raw) : 0, z: zOf(f.raw, shape) };
   });
-  // 大便：沒有任何一隻像度到 50（只看分數，亂數翻不了）
-  const ok = fits.filter(f => f.kept.length > 0 && f.score >= POOP_BELOW);
+  // 大便：沒有任何一隻像度到門檻（只看分數，亂數翻不了）
+  const bar = poopBelow(real.length);
+  const ok = fits.filter(f => f.kept.length > 0 && f.score >= bar);
   if (ok.length === 0) return { kind: "poop", score: Math.max(...fits.map(f => f.score)) };
   // 像度過關的怪裡用 z 排名；前 3 名跟第 1 名差 ≤ 0.15 的隨機挑
   ok.sort((x, y) => y.z - x.z || x.i - y.i);

@@ -109,7 +109,8 @@ export function NpcDialog({
               height={148}
               className="block h-[148px] w-[128px] max-w-none -scale-x-100 [image-rendering:pixelated] sm:h-[296px] sm:w-[256px]"
             />
-            <figcaption className="-mt-1 whitespace-nowrap rounded-[5px] bg-[rgb(30_30_40/0.8)] px-2 py-0.5 text-[12px] font-bold text-white sm:text-[13px]">
+            {/* 名牌是遊戲畫面的固定色（深底白字，深色主題也一樣），不是主題的實心按鈕：不用 --on-accent（深色主題會變深字），白字寫成色碼 */}
+            <figcaption className="-mt-1 whitespace-nowrap rounded-[5px] bg-[rgb(30_30_40/0.8)] px-2 py-0.5 text-[12px] font-bold text-[#fff] sm:text-[13px]">
               公會櫃台 米菈
             </figcaption>
           </figure>

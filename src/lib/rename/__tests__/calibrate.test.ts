@@ -10,7 +10,7 @@
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { pickResult, type Result, type Shape } from "../match";
+import { pickResult, poopBelow, type Result, type Shape } from "../match";
 import { normalize, splitAtCorners, type Stroke } from "../strokes";
 import { seeded } from "../synth";
 import shapesJson from "../shapes.json";
@@ -57,10 +57,38 @@ describe("手寫樣本校正", () => {
     expect(poop).toBeLessThanOrEqual(2);
   }, 60_000);
 
+  it("一坨門檻看段數：不到 10 段 40 分就過、10 段以上要 50", () => {
+    const set = hand as unknown as HandSet;
+    const segsOf = (id: string, k?: number) =>
+      normalize(splitAtCorners(set.ids.find(x => x.id === id)!.strokes).slice(0, k)).filter(s => s.length > 0);
+    // 「小樹」只留前 9 段：最高像度 48，在 40～50 之間 → 段少用 40，出怪
+    const few = segsOf("小樹", 9);
+    expect(few).toHaveLength(9);
+    expect(poopBelow(few.length)).toBe(40);
+    const a = pickResult(few, shapes, seeded(1));
+    expect(a.kind).toBe("monster");
+    if (a.kind === "monster") expect(a.score).toBeGreaterThanOrEqual(40);
+    // 「Clark」10 段：最高像度 47 → 用 50，一坨
+    const ten = segsOf("Clark");
+    expect(ten).toHaveLength(10);
+    expect(poopBelow(ten.length)).toBe(50);
+    const b = pickResult(ten, shapes, seeded(1));
+    expect(b.kind).toBe("poop");
+    if (b.kind === "poop") expect(b.score).toBeGreaterThanOrEqual(40);
+  }, 60_000);
+
   it.runIf(process.env.RENAME_CALIB)("大樣本報告（RENAME_CALIB 指到 --calib 產的檔）", () => {
     const set = JSON.parse(readFileSync(process.env.RENAME_CALIB!, "utf8")) as HandSet;
     const rows = run(set);
     const { poop, wins, top } = summarize(rows);
+    const latin = (id: string) => /^[0-9A-Za-z]+$/.test(id);
+    const split = (pick: (id: string) => boolean) => {
+      const sub = rows.filter(x => pick(x.id));
+      const p = sub.filter(x => x.r.kind === "poop").length;
+      const segs = sub.map(x => x.segs).sort((a, b) => a - b);
+      return `${p}/${sub.length}（${sub.length ? ((p / sub.length) * 100).toFixed(1) : "-"}%），段數 ${segs[0]}～${segs[segs.length - 1]}`;
+    };
+    console.log(`[calibrate 分組] 中文一坨 ${split(id => !latin(id))}；英數一坨 ${split(latin)}`);
     const scores = rows.map(x => ("score" in x.r ? x.r.score : 0)).sort((a, b) => a - b);
     console.log(
       `[calibrate ${rows.length}]\n${rows.map(line).join("\n")}\n` +
