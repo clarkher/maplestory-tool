@@ -120,6 +120,18 @@ function fromB64Url(s: string): number[] | null {
   return out;
 }
 
+/** 超過 max 點就等距取樣縮減，保留頭尾點 */
+function resample(st: Stroke, max: number): Stroke {
+  if (st.length <= max) {
+    return st;
+  }
+  const out: Stroke = [];
+  for (let i = 0; i < max; i++) {
+    out.push(st[Math.round((i * (st.length - 1)) / (max - 1))]);
+  }
+  return out;
+}
+
 const q = (v: number) => Math.min(GRID - 1, Math.max(0, Math.round(v) || 0));
 
 /** 版本 1 位元組格式：id(4) score(1) 段數(1) [點數(1) (x,y)(2)*]* 保留數(1) 保留索引(1)* */
@@ -139,7 +151,7 @@ export function encodeShare(r: Share): string {
   });
   b.push(all.length);
   for (const st of all) {
-    const pts = st.slice(0, MAX_POINTS);
+    const pts = resample(st, MAX_POINTS);
     b.push(pts.length);
     for (const [x, y] of pts) {
       b.push(q(x), q(y));
@@ -162,9 +174,13 @@ export function encodeShare(r: Share): string {
 /** 不信任輸入：任何格式不對、超量、多餘位元組都回 null，絕不丟例外 */
 export function decodeShare(s: string): Share | null {
   try {
-    if (typeof s !== "string" || s.length === 0 || s.length > MAX_ENCODED) return null;
+    if (typeof s !== "string" || s.length === 0 || s.length > MAX_ENCODED) {
+      return null;
+    }
     const b = fromB64Url(s);
-    if (!b || b.length < 7) return null;
+    if (!b || b.length < 7) {
+      return null;
+    }
     let p = 0;
     const id32 = ((b[0] << 24) | (b[1] << 16) | (b[2] << 8) | b[3]) >>> 0;
     p = 4;

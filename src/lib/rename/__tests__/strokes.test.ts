@@ -112,10 +112,20 @@ describe("encodeShare / decodeShare", () => {
     expect(back?.kept).toEqual([1, 0]);
   });
 
+  it("超過 64 點的筆畫等距縮減並保留頭尾", () => {
+    const long: Stroke = Array.from({ length: 300 }, (_, i) => [i % 64, Math.floor(i / 5) % 64] as [number, number]);
+    const back = decodeShare(encodeShare({ id: 1, score: 1, all: [long], kept: [0] }));
+    expect(back).not.toBeNull();
+    const st = back!.all[0];
+    expect(st.length).toBe(64);
+    expect(st[0]).toEqual(long[0]);
+    expect(st[63]).toEqual(long[299]);
+  });
+
   it("手工拼的壞位元組全回 null", () => {
     const enc = (bytes: number[]) => Buffer.from(bytes).toString("base64url");
     const head = [0, 0, 0, 1, 50]; // id=1 score=50
-    expect(decodeShare(enc([...head, 121]))).toBeNull(); // 段數 > 120
+    expect(decodeShare(enc([...head, 121, 0]))).toBeNull(); // 段數 > 120
     expect(decodeShare(enc([...head, 1, 1, 64, 0, 0]))).toBeNull(); // 座標 >= 64
     expect(decodeShare(enc([...head, 1, 1, 0, 0, 1, 1]))).toBeNull(); // kept 索引越界
     expect(decodeShare(enc([...head, 1, 1, 0, 0, 0, 7]))).toBeNull(); // 尾巴多餘位元組
