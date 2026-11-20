@@ -20,7 +20,7 @@ import { monsterImage } from "@/lib/asset-paths";
 import { initialCtx, next, RESULT_PAGE2_LINES, RUNNING_LINES, type Action, type Ctx, type Step } from "@/lib/rename/flow";
 import { introLines, resultLines } from "@/lib/rename/lines";
 import type { Result } from "@/lib/rename/match";
-import { loadShapes, runMatch, type MatchIn, type MatchOut } from "@/lib/rename/run";
+import { loadShapes, runMatch, type MatchIn, type MatchOut, type WorkerReply, type WorkerRequest } from "@/lib/rename/run";
 import { drawStage, TIMELINE } from "@/lib/rename/stage";
 import { decodeShare, normalize, splitAtCorners, type Pt, type Stroke } from "@/lib/rename/strokes";
 import { NpcDialog, type DlgButton } from "./NpcDialog";
@@ -33,27 +33,61 @@ const TOTAL_MS = REVEAL_MS + TIMELINE.title;
 type Play = { segs: Stroke[]; result: Result; shape: { pts: Pt[] } | undefined };
 type Replay = { id: number | "poop" };
 
-/** 比對：先用 Worker；Worker 起不來或出錯就在主執行緒算（慢一點但不會卡死在 running） */
+/**
+ * 比對：先用 Worker；Worker 起不來或出錯就在主執行緒算。主執行緒也失敗才丟例外（呼叫端轉 fail）。
+ * 每個請求帶 id，回覆照 id 對回自己的 promise（同時有兩個請求也不會互相搶）。
+ * 卸載時 terminate 並清成 null：React 嚴格模式會卸載再掛一次，下次用到再重開一個。
+ */
+type Pending = { resolve: (o: MatchOut) => void; reject: (e: Error) => void };
+
 function useMatcher() {
   const worker = useRef<Worker | null>(null);
-  useEffect(() => () => worker.current?.terminate(), []);
+  const pending = useRef(new Map<number, Pending>());
+  const seq = useRef(0);
 
-  return useCallback(async (msg: MatchIn): Promise<MatchOut> => {
-    try {
-      worker.current ??= new Worker(new URL("./match.worker.ts", import.meta.url), { type: "module" });
-      const w = worker.current;
-      return await new Promise<MatchOut>((resolve, reject) => {
-        w.onmessage = (e: MessageEvent<MatchOut | { error: true }>) =>
-          "error" in e.data ? reject(new Error("worker")) : resolve(e.data);
-        w.onerror = () => reject(new Error("worker"));
-        w.postMessage(msg);
-      });
-    } catch {
-      worker.current?.terminate();
-      worker.current = null;
-      return runMatch(msg, await loadShapes(), Math.random);
-    }
+  const drop = useCallback((why: string) => {
+    worker.current?.terminate();
+    worker.current = null;
+    const all = [...pending.current.values()];
+    pending.current.clear();
+    for (const p of all) p.reject(new Error(why));
   }, []);
+
+  useEffect(() => () => drop("unmount"), [drop]);
+
+  const getWorker = useCallback((): Worker => {
+    if (worker.current) return worker.current;
+    const w = new Worker(new URL("./match.worker.ts", import.meta.url), { type: "module" });
+    w.onmessage = (e: MessageEvent<WorkerReply>) => {
+      const p = pending.current.get(e.data.rid);
+      if (!p) return;
+      pending.current.delete(e.data.rid);
+      if ("error" in e.data) p.reject(new Error("worker"));
+      else p.resolve(e.data.out);
+    };
+    // Worker 檔載不進來或整個掛掉：等著的全部改走主執行緒
+    w.onerror = () => drop("worker");
+    worker.current = w;
+    return w;
+  }, [drop]);
+
+  return useCallback(
+    async (msg: MatchIn): Promise<MatchOut> => {
+      try {
+        const w = getWorker();
+        const rid = ++seq.current;
+        return await new Promise<MatchOut>((resolve, reject) => {
+          pending.current.set(rid, { resolve, reject });
+          w.postMessage({ rid, msg } satisfies WorkerRequest);
+        });
+      } catch (e) {
+        // 卸載了就不用再算
+        if ((e as Error).message === "unmount") throw e;
+        return runMatch(msg, await loadShapes(), Math.random);
+      }
+    },
+    [getWorker],
+  );
 }
 
 /** 演出畫布（4:5）：play 換了就從 0 開始播，播到 TOTAL_MS 停在最後一格；到 REVEAL_MS 呼叫 onReveal 一次 */
@@ -137,7 +171,14 @@ export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?:
     async (msg: MatchIn, segs: Stroke[]) => {
       const id = ++runId.current;
       setPlay(null);
-      const out = await match(msg);
+      let out: MatchOut;
+      try {
+        out = await match(msg);
+      } catch {
+        // Worker 跟主執行緒都算不出來：回登記書請他再簽一次，不要卡在比對中
+        if (id === runId.current) dispatch({ type: "fail" });
+        return;
+      }
       if (id !== runId.current) return;
       const result: Result = out.result ?? { kind: "empty" };
       if (result.kind === "empty") {
@@ -156,7 +197,10 @@ export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?:
     const share = m ? decodeShare(m[1]) : null;
     if (share && share.id === replay.id && share.all.length > 0) {
       void start({ type: "replay", segs: share.all, id: share.id, kept: share.kept, score: share.score }, share.all);
-      return;
+      // 卸載（含嚴格模式卸載再掛）就作廢這一輪，晚到的結果不會蓋掉新的
+      return () => {
+        runId.current++;
+      };
     }
     // 解不開：靜態結果卡
     const shown = (n: string | null) => {
@@ -167,8 +211,16 @@ export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?:
           : { kind: "monster", id: replay.id, n, kept: [], score: 0, xf: { sx: 1, sy: 1, dx: 0, dy: 0 } };
       setState({ step: "result", ctx: { ...initialCtx(), lines: resultLines(r), result: r } });
     };
+    let live = true;
     if (replay.id === "poop") shown(null);
-    else void match({ type: "shape", id: replay.id }).then(out => shown(out.n));
+    else
+      match({ type: "shape", id: replay.id }).then(
+        out => live && shown(out.n),
+        () => live && shown(null),
+      );
+    return () => {
+      live = false;
+    };
   }, [replay, start, match]);
 
   const submit = useCallback(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialCtx, next, RUNNING_LINES, SIGN_LINES, type Ctx } from "@/lib/rename/flow";
+import { initialCtx, next, RETRY_LINES, RUNNING_LINES, SIGN_LINES, type Ctx } from "@/lib/rename/flow";
 import { EMPTY_LINES, introLines, resultLines } from "@/lib/rename/lines";
 import type { Result } from "@/lib/rename/match";
 
@@ -60,6 +60,14 @@ describe("flow.next", () => {
     const r = next("running", { type: "done", result: { kind: "empty" } }, initialCtx());
     expect(r.step).toBe("sign");
     expect(r.ctx.lines).toEqual(EMPTY_LINES);
+    expect(r.ctx.result).toBeNull();
+  });
+
+  it("running + fail（比對出錯）→ 回 sign、NPC 請再簽一次", () => {
+    const r = next("running", { type: "fail" }, { ...initialCtx(), lines: RUNNING_LINES });
+    expect(r.step).toBe("sign");
+    expect(r.ctx.lines).toEqual(RETRY_LINES);
+    expect(r.ctx.lines.map(row => row.map(s => s.t).join(""))).toEqual(["剛剛沒看清楚，再簽一次好嗎？"]);
     expect(r.ctx.result).toBeNull();
   });
 

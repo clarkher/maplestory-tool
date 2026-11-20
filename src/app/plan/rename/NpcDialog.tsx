@@ -4,9 +4,12 @@
  * 經典版 NPC 對話框：深藍灰外框、淺色內框、白底文字區、底下一條淺灰按鈕列。
  * NPC 在左邊（原圖朝左，翻成朝右看著台詞）、腳下黑底白字名牌；台詞在右，關鍵字藍／紅。
  * 按鈕用客戶端原圖（public/rename/bt-*.png，scripts/client/dlg-buttons.py 抽的），
- * 手機 1.5 倍、寬螢幕 2 倍，pixelated 放大；滑過、按下換客戶端那兩張。
+ * 一律整數 2 倍、pixelated 放大；滑過、按下換客戶端那兩張。手機放不下一排：上排靠右［拒絕］［接受］（或［下頁］）、
+ * 下排靠左［停止對話］；sm 以上一排。NPC 手機原尺寸、sm 以上 2 倍。
+ * 台詞換了而對話框不在畫面裡（例：簽名格往下捲了按簽好了），捲回來讓人看到 NPC 說什麼。
  * 對話框顏色寫死（遊戲畫面），深色主題也一樣。
  */
+import { useEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { Seg } from "@/lib/rename/lines";
 
@@ -39,7 +42,7 @@ function GameButton({ kind, onClick }: { kind: DlgButton; onClick: () => void })
       title={b.label}
       onClick={onClick}
       style={style}
-      className="block h-[calc(var(--h)*1.5)] w-[calc(var(--w)*1.5)] flex-none bg-[length:100%_100%] bg-no-repeat [background-image:var(--n)] hover:[background-image:var(--o)] active:[background-image:var(--d)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ea6a2e] sm:h-[calc(var(--h)*2)] sm:w-[calc(var(--w)*2)]"
+      className="block h-[calc(var(--h)*2)] w-[calc(var(--w)*2)] flex-none bg-[length:100%_100%] bg-no-repeat [background-image:var(--n)] hover:[background-image:var(--o)] active:[background-image:var(--d)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ea6a2e]"
     />
   );
 }
@@ -78,19 +81,33 @@ export function NpcDialog({
   right: DlgButton[];
   onButton: (b: DlgButton) => void;
 }) {
+  const box = useRef<HTMLElement>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    const el = box.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    // 台詞那一塊被導覽列蓋住（--header-offset，導覽列收起來時是 0）、或在畫面下面，就捲回來（scroll-mt 讓開導覽列）
+    const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 0;
+    if (r.top < header || r.top > window.innerHeight - 80) el.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [lines]);
   return (
-    <section data-dialog className="rounded-[10px] bg-[#4e5c78] p-1 shadow-sm">
+    <section ref={box} data-dialog className="scroll-mt-[calc(var(--header-h,64px)+8px)] rounded-[10px] bg-[#4e5c78] p-1 shadow-sm">
       <div className="rounded-[8px] bg-[#bec8d7] p-1.5">
-        <div className="flex min-h-[210px] gap-2 bg-white px-2 pb-2 pt-3 sm:min-h-[260px] sm:gap-4 sm:px-4">
-          <figure className="flex w-[120px] flex-none flex-col items-center justify-end sm:w-[176px]">
-            {/* 原圖 128×148，四邊各 4px 透明；手機原尺寸、寬螢幕 1.375 倍 */}
+        <div className="flex min-h-[210px] gap-2 bg-white px-2 pb-2 pt-3 sm:min-h-[330px] sm:gap-4 sm:px-4">
+          <figure className="flex w-[120px] flex-none flex-col items-center justify-end sm:w-[256px]">
+            {/* 原圖 128×148，四邊各 4px 透明；手機原尺寸、sm 以上 2 倍 */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/rename/npc.png"
               alt=""
               width={128}
               height={148}
-              className="block h-[148px] w-[128px] max-w-none -scale-x-100 [image-rendering:pixelated] sm:h-[203px] sm:w-[176px]"
+              className="block h-[148px] w-[128px] max-w-none -scale-x-100 [image-rendering:pixelated] sm:h-[296px] sm:w-[256px]"
             />
             <figcaption className="-mt-1 whitespace-nowrap rounded-[5px] bg-[rgb(30_30_40/0.8)] px-2 py-0.5 text-[12px] font-bold text-white sm:text-[13px]">
               公會櫃台 米菈
@@ -101,17 +118,20 @@ export function NpcDialog({
             {extra ? <p className="mt-3 text-[#6e6e6e]">{extra}</p> : null}
           </div>
         </div>
-        <div className="mt-1 flex items-center justify-between gap-2 bg-[#e6eaf0] px-1.5 py-1.5 sm:px-3">
+        {/* 手機：上排靠右（拒絕／接受／下頁）、下排靠左（停止對話）；sm 以上一排 */}
+        <div className="mt-1 flex flex-col-reverse gap-1.5 bg-[#e6eaf0] px-1.5 py-1.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-3">
           <div className="flex gap-2">
             {left.map(b => (
               <GameButton key={b} kind={b} onClick={() => onButton(b)} />
             ))}
           </div>
-          <div className="flex gap-2">
-            {right.map(b => (
-              <GameButton key={b} kind={b} onClick={() => onButton(b)} />
-            ))}
-          </div>
+          {right.length > 0 ? (
+            <div className="flex justify-end gap-2">
+              {right.map(b => (
+                <GameButton key={b} kind={b} onClick={() => onButton(b)} />
+              ))}
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

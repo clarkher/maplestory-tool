@@ -1,7 +1,7 @@
 /**
  * 名字變怪物：畫面狀態機（純函式，方便測）。
  * intro（NPC 問要不要登錄，拒絕＝鬼打牆）→ sign（登記書簽名）→ running（Worker 比對＋演出）→ result（結果，可翻第 2 頁）。
- * 空的登記書按簽好了、或比對說一筆都沒有，都留在 sign 並讓 NPC 說 EMPTY_LINES。
+ * 空的登記書按簽好了、或比對說一筆都沒有，都留在 sign 並讓 NPC 說 EMPTY_LINES；比對出錯回 sign 說 RETRY_LINES。
  */
 import { EMPTY_LINES, introLines, resultLines, type Seg } from "./lines";
 import type { Result } from "./match";
@@ -14,6 +14,8 @@ export type Action =
   /** segs＝切段後有幾段（0 就是空的） */
   | { type: "submit"; segs: number }
   | { type: "done"; result: Result }
+  /** 比對出錯（Worker 跟主執行緒退路都失敗） */
+  | { type: "fail" }
   | { type: "again" }
   /** 結果對話框按［下頁］ */
   | { type: "page" };
@@ -34,6 +36,9 @@ export const SIGN_LINES: Seg[][] = [
 
 /** 比對＋收筆畫演出時 NPC 說的 */
 export const RUNNING_LINES: Seg[][] = [[{ t: "嗯……" }], [{ t: "多的筆畫我先" }, { t: "收著", c: "red" }, { t: "。" }]];
+
+/** 比對出錯時 NPC 說的 */
+export const RETRY_LINES: Seg[][] = [[{ t: "剛剛沒看清楚，再簽一次好嗎？" }]];
 
 /** 結果第 2 頁 */
 export const RESULT_PAGE2_LINES: Seg[][] = [
@@ -66,6 +71,7 @@ export function next(step: Step, action: Action, ctx: Ctx): { step: Step; ctx: C
         if (action.result.kind === "empty") return { step: "sign", ctx: { ...ctx, lines: EMPTY_LINES, result: null } };
         return { step: "result", ctx: { ...ctx, lines: resultLines(action.result), result: action.result, page: 0 } };
       }
+      if (action.type === "fail") return { step: "sign", ctx: { ...ctx, lines: RETRY_LINES, result: null } };
       return stay;
     case "result":
       if (action.type === "again") return { step: "sign", ctx: { ...ctx, lines: SIGN_LINES, result: null, page: 0 } };

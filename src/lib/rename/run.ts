@@ -15,6 +15,10 @@ export type MatchIn =
 
 export type MatchOut = { result: Result | null; pts: Pt[] | null; n: string | null };
 
+/** Worker 的信封：rid 讓回覆對回發出去的那個請求 */
+export type WorkerRequest = { rid: number; msg: MatchIn };
+export type WorkerReply = { rid: number; out: MatchOut } | { rid: number; error: true };
+
 let shapesP: Promise<Shape[]> | null = null;
 /** shapes.json 第一次用到才載 */
 export function loadShapes(): Promise<Shape[]> {
