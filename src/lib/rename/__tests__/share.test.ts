@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canRecordVideo, pickVideoType, recordVideo, shareUrl, VIDEO } from "../share";
+import { canRecordVideo, pickVideoType, recordVideo, shareableFile, shareFile, shareUrl, VIDEO } from "../share";
 import { shareOgTitle, sharePageIds, sharePageName } from "../share-pages";
 import { decodeShare, type Stroke } from "../strokes";
 import shapesJson from "../shapes.json";
@@ -68,6 +68,41 @@ describe("canRecordVideo（決定要不要放「存影片」）", () => {
     canvasWith(true);
     vi.stubGlobal("MediaRecorder", Object.assign(class {}, { isTypeSupported: (t: string) => t.startsWith("video/webm") }));
     expect(canRecordVideo()).toBe(true);
+  });
+});
+
+describe("shareableFile（錄完影片才決定放「分享影片」還是直接下載）", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const env = (touch: boolean, canShare?: (d: { files: File[] }) => boolean) => {
+    vi.stubGlobal("matchMedia", () => ({ matches: touch }));
+    vi.stubGlobal("navigator", canShare ? { canShare, share: async () => {} } : {});
+  };
+  const blob = new Blob(["x"], { type: "video/mp4" });
+
+  it("手機、能分享檔案 → 回檔案（名字、格式照給的）", () => {
+    env(true, () => true);
+    const f = shareableFile(blob, "a.mp4");
+    expect(f?.name).toBe("a.mp4");
+    expect(f?.type).toBe("video/mp4");
+  });
+  it("電腦（不是手指操作）→ null，直接下載", () => {
+    env(false, () => true);
+    expect(shareableFile(blob, "a.mp4")).toBeNull();
+  });
+  it("沒有 canShare 或不收檔案 → null", () => {
+    env(true);
+    expect(shareableFile(blob, "a.mp4")).toBeNull();
+    env(true, () => false);
+    expect(shareableFile(blob, "a.mp4")).toBeNull();
+  });
+  it("shareFile：按取消回 cancel、其他錯誤回 error、成功回 share", async () => {
+    const f = new File(["x"], "a.mp4", { type: "video/mp4" });
+    vi.stubGlobal("navigator", { share: async () => {} });
+    await expect(shareFile(f)).resolves.toBe("share");
+    vi.stubGlobal("navigator", { share: async () => { throw Object.assign(new Error("x"), { name: "AbortError" }); } });
+    await expect(shareFile(f)).resolves.toBe("cancel");
+    vi.stubGlobal("navigator", { share: async () => { throw Object.assign(new Error("x"), { name: "NotAllowedError" }); } });
+    await expect(shareFile(f)).resolves.toBe("error");
   });
 });
 

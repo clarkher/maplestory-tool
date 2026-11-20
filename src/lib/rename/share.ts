@@ -4,7 +4,8 @@
  *   shareUrl(r)              → "/plan/rename/m/<id>#r=<筆畫>"（一坨是 /m/poop）；# 後面不會送到伺服器
  *   recordVideo(canvas, draw) → 用 MediaRecorder 把畫布錄成影片（支援 mp4 就 mp4，不然 webm）；不支援回 null
  *   stageImage(draw)          → 1080×1350 png
- *   deliver(blob, name)       → 手機能分享檔案就叫系統分享，不然下載
+ *   deliver(blob, name)       → 手機能分享檔案就叫系統分享，不然下載（存圖用）
+ *   shareableFile(blob, name) → 影片錄完先問能不能分享；能就放「分享影片」讓使用者再按一次 shareFile（錄 6 秒，原本那次點擊已過期）
  *
  * 錄影是照真的時間錄（MediaRecorder 錄的是牆上時間），所以 draw 由 requestAnimationFrame 照經過的毫秒數畫。
  */
@@ -139,21 +140,28 @@ export function fileExt(type: string): string {
 }
 
 /**
- * 交出檔案：手機、平板（手指操作）能分享檔案就叫系統分享；電腦或不支援就下載。
- * 使用者在分享面板按取消回 "cancel"。
+ * 手機、平板（手指操作）而且系統分享收得了這個檔案 → 回包好的檔案；電腦或不支援回 null（就下載）。
+ * 影片錄 6 秒，錄完時「按下去」那次的使用者動作已經過期，navigator.share 會被擋；
+ * 所以影片先用這個判斷，能分享就另外放一顆「分享影片」讓使用者再按一次（v2.44）。
  */
-export async function deliver(blob: Blob, name: string): Promise<"share" | "download" | "cancel"> {
+export function shareableFile(blob: Blob, name: string): File | null {
   const file = new File([blob], name, { type: blob.type });
   const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
-  if (touch && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file] });
-      return "share";
-    } catch (e) {
-      if ((e as Error)?.name === "AbortError") return "cancel";
-      // 其他錯誤（權限、格式）改下載
-    }
+  return touch && navigator.canShare?.({ files: [file] }) ? file : null;
+}
+
+/** 叫系統分享面板；使用者按取消回 "cancel"，其他錯誤（權限、格式）回 "error"（呼叫的地方改下載） */
+export async function shareFile(file: File): Promise<"share" | "cancel" | "error"> {
+  try {
+    await navigator.share({ files: [file] });
+    return "share";
+  } catch (e) {
+    return (e as Error)?.name === "AbortError" ? "cancel" : "error";
   }
+}
+
+/** 下載到下載資料夾 */
+export function downloadBlob(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -162,6 +170,19 @@ export async function deliver(blob: Blob, name: string): Promise<"share" | "down
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/**
+ * 交出檔案（存圖用，做圖很快、按下去的動作還有效）：能分享就叫系統分享，電腦或不支援就下載。
+ * 使用者在分享面板按取消回 "cancel"。
+ */
+export async function deliver(blob: Blob, name: string): Promise<"share" | "download" | "cancel"> {
+  const file = shareableFile(blob, name);
+  if (file) {
+    const how = await shareFile(file);
+    if (how !== "error") return how;
+  }
+  downloadBlob(blob, name);
   return "download";
 }
 

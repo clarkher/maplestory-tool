@@ -3,6 +3,7 @@
 /**
  * 名字變怪物的［分享］：點開三選一——複製連結／存影片／存圖。
  * 連結裡帶的是正規化後的筆畫（#r=...，不會送到伺服器）；第一次分享前在選單上寫明「連結裡會帶你寫的字」。
+ * 手機錄完影片（約 6 秒）按下去那次的動作已過期、系統分享會被擋，所以錄好先放一顆「分享影片」讓使用者再按一次；電腦直接下載。
  * 影片 720×1280、圖 1080×1350，都用演出的 drawStage（caption: true，片尾帶站名網址）畫，在瀏覽器裡做。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -10,7 +11,7 @@ import type { ReactNode } from "react";
 import { track } from "@/lib/analytics";
 import { monsterImage } from "@/lib/asset-paths";
 import type { Result } from "@/lib/rename/match";
-import { canRecordVideo, copyText, deliver, fileExt, recordVideo, shareUrl, stageImage, VIDEO } from "@/lib/rename/share";
+import { canRecordVideo, copyText, deliver, downloadBlob, fileExt, recordVideo, shareableFile, shareFile, shareUrl, stageImage, VIDEO } from "@/lib/rename/share";
 import { drawStage } from "@/lib/rename/stage";
 import type { Pt, Stroke } from "@/lib/rename/strokes";
 import { BTN_PLAIN, BTN_PRIMARY } from "./SignPad";
@@ -48,6 +49,8 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
   const [busy, setBusy] = useState<Busy>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
+  /** 手機錄好、等使用者再按一次「分享影片」的檔案 */
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   /** 錄得了影片才放「存影片」；伺服器端先當不行，畫面出來再查 */
   const [canRecord, setCanRecord] = useState(false);
   const live = useRef(true);
@@ -112,6 +115,7 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
     setShared(true);
     setBusy("video");
     setMsg(null);
+    setVideoFile(null);
     try {
       const img = await mob();
       const c = document.createElement("canvas");
@@ -133,12 +137,32 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
         }),
       );
       if (!blob) return say("這台瀏覽器錄不了影片，可以改存圖");
-      const how = await deliver(blob, `${fileBase}.${fileExt(blob.type)}`);
-      if (how === "download") say("影片存好了（在下載資料夾）");
+      const fileName = `${fileBase}.${fileExt(blob.type)}`;
+      const file = shareableFile(blob, fileName);
+      if (file) {
+        if (live.current) setVideoFile(file);
+        return say("影片錄好了，按「分享影片」傳出去");
+      }
+      downloadBlob(blob, fileName);
+      say("影片存好了（在下載資料夾）");
     } catch {
       say(FAILED);
     } finally {
       if (live.current) setBusy(null);
+    }
+  };
+
+  /** 新的一次點擊才叫系統分享；分享不了（權限、格式）改下載 */
+  const sendVideo = async () => {
+    const file = videoFile;
+    if (!file) return;
+    const how = await shareFile(file);
+    if (how === "error") {
+      downloadBlob(file, file.name);
+      say("分享不了，影片改存到下載資料夾");
+    } else if (how === "share") {
+      if (live.current) setVideoFile(null);
+      say("影片分享出去了");
     }
   };
 
@@ -175,6 +199,11 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
               {busy === "image" ? "做圖中…" : "存圖"}
             </button>
           </div>
+          {videoFile && busy === null ? (
+            <button type="button" data-share="video-send" className={`${BTN_PRIMARY} w-full`} onClick={() => void sendVideo()}>
+              分享影片
+            </button>
+          ) : null}
           {busy === "video" ? <p className="text-center text-[14px] ink-soft">影片照演出錄，大約 6 秒</p> : null}
           {msg ? (
             <p role="status" data-share-msg className="text-center text-[14px] ink-soft">
