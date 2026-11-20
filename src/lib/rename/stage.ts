@@ -94,21 +94,44 @@ function partial(pts: Pt[], frac: number): Pt[] {
   return out;
 }
 
-function nearest(p: Pt, outline: [number, number][]): Pt {
-  let best = outline[0];
-  let bd = Infinity;
-  for (const q of outline) {
-    const d = (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2;
-    if (d < bd) {
-      bd = d;
-      best = q;
-    }
+type Xf = { sx: number; sy: number; dx: number; dy: number };
+type Bbox = { x: number; y: number; w: number; h: number };
+
+const bboxCache = new WeakMap<object, Bbox>();
+function bboxOf(pts: Pt[], key?: object): Bbox {
+  const hit = key && bboxCache.get(key);
+  if (hit) return hit;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const [x, y] of pts) {
+    x0 = Math.min(x0, x); y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x); y1 = Math.max(y1, y);
   }
-  return best;
+  const b = { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  if (key) bboxCache.set(key, b);
+  return b;
+}
+
+/** 落地壓扁係數：t 0.7→1 平滑由 1 壓到 0.25，跟下落連續（不會一格跳掉） */
+export function squashAt(t: number): number {
+  return 1 - 0.75 * ease((t - 0.7) / 0.3);
+}
+/** 大便某段在 ms 的下落進度 t（1＝剛落地） */
+export function fallT(ms: number, delay: number): number {
+  const cp = phaseAt(ms).phase === "collect" ? phaseAt(ms).p : phaseAt(ms).phase === "write" ? 0 : 1;
+  return clamp01((cp - delay) / 0.55);
 }
 
 /** 大便：每段的落地資料（固定種子，跟 ms 無關） */
-function poopPlan(segs: Stroke[]): { delay: number; dy: number; dx: number; maxY: number }[] {
+type Plan = { delay: number; dy: number; dx: number; maxY: number }[];
+const planCache = new WeakMap<Stroke[], Plan>();
+function poopPlan(segs: Stroke[]): Plan {
+  const hit = planCache.get(segs);
+  if (hit) return hit;
+  const r = buildPlan(segs);
+  planCache.set(segs, r);
+  return r;
+}
+function buildPlan(segs: Stroke[]): Plan {
   const rand = rng(20261120);
   const heights = new Array(8).fill(0); // 8 欄堆疊高度（格）
   return segs.map((s, i) => {
@@ -158,6 +181,18 @@ export function drawStage(ctx: CanvasRenderingContext2D, s: StageInput): void {
 
   const plan = isPoop ? poopPlan(segs) : null;
   const outline = isMonster && shape && shape.pts.length ? shape.pts : null;
+  // 比對的仿射；沒有就把所有留下的段整體貼進輪廓外框（等比縮放置中）
+  let xf: Xf | null = (result.kind === "monster" && (result as { xf?: Xf }).xf) || null;
+  if (!xf && outline && shape && isMonster && kept.length) {
+    const kp: Pt[] = [];
+    for (const i of kept) if (segs[i]) kp.push(...segs[i]);
+    if (kp.length) {
+      const kb = bboxOf(kp);
+      const sb = bboxOf(outline, shape);
+      const sc = Math.min(sb.w / Math.max(kb.w, 1e-6), sb.h / Math.max(kb.h, 1e-6));
+      xf = { sx: sc, sy: sc, dx: sb.x + sb.w / 2 - (kb.x + kb.w / 2) * sc, dy: sb.y + sb.h / 2 - (kb.y + kb.h / 2) * sc };
+    }
+  }
 
   if (phase === "write") {
     // 依序寫出：每段佔 1/n 的時間
@@ -173,13 +208,9 @@ export function drawStage(ctx: CanvasRenderingContext2D, s: StageInput): void {
       let by = 0;
       let bw = GRID;
       let bh = GRID;
-      if (outline) {
-        const xs = outline.map((q) => q[0]);
-        const ys = outline.map((q) => q[1]);
-        bx = Math.min(...xs);
-        by = Math.min(...ys);
-        bw = Math.max(...xs) - bx;
-        bh = Math.max(...ys) - by;
+      if (outline && shape) {
+        const bb = bboxOf(outline, shape);
+        bx = bb.x; by = bb.y; bw = bb.w; bh = bb.h;
       }
       const iw = (mob as { width?: number }).width || 1;
       const ih = (mob as { height?: number }).height || 1;
@@ -196,7 +227,7 @@ export function drawStage(ctx: CanvasRenderingContext2D, s: StageInput): void {
         const q = plan[i];
         const t = clamp01((cp - q.delay) / 0.55);
         const fall = q.dy * t * t;
-        const squash = t >= 1 ? 0.25 : 1;
+        const squash = squashAt(t);
         stroke(seg, 1, (pt) => [
           ox + (pt[0] + q.dx * t) * k,
           oy + (q.maxY + fall - (q.maxY - pt[1]) * squash) * k,
@@ -204,11 +235,10 @@ export function drawStage(ctx: CanvasRenderingContext2D, s: StageInput): void {
         return;
       }
       if (isMonster && keptSet.has(i)) {
-        // 留下的段：收集時不動；morph 時貼到輪廓最近點
+        // 留下的段：整段仿射（平移＋縮放）從原位插值到比對位置，形狀不變
         const e = ease(mp);
         stroke(seg, 1 - 0.4 * e, (pt) => {
-          if (!outline || mp <= 0) return map(pt);
-          const t = nearest(pt, outline);
+          const t = xf ? [pt[0] * xf.sx + xf.dx, pt[1] * xf.sy + xf.dy] : pt;
           return map([pt[0] + (t[0] - pt[0]) * e, pt[1] + (t[1] - pt[1]) * e]);
         });
         return;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createCanvas } from "@napi-rs/canvas";
-import { TIMELINE, drawStage, phaseAt } from "../stage";
+import { TIMELINE, drawStage, fallT, phaseAt, squashAt } from "../stage";
 import type { Stroke } from "../strokes";
 
 const segs: Stroke[] = [
@@ -58,5 +58,35 @@ describe("drawStage", () => {
     drawStage(rec, { w: 360, h: 480, segs, kept: [], result: { kind: "poop", score: 10 }, ms: 5400, caption: true });
     expect(ys.length).toBeGreaterThan(0);
     expect(Math.min(...ys)).toBeGreaterThan(480 / 2);
+  });
+  it("morph 結束時留下的段 = xf 變換後的點（誤差 1px 內）", () => {
+    const pts: [number, number, string][] = [];
+    const rec = new Proxy({} as Record<string, unknown>, {
+      get(_t, k: string) {
+        if (k === "moveTo" || k === "lineTo") return (x: number, y: number) => { pts.push([x, y, k]); };
+        if (k === "measureText") return () => ({ width: 10 });
+        return () => undefined;
+      },
+      set() { return true; },
+    }) as unknown as CanvasRenderingContext2D;
+    const xf = { sx: 0.5, sy: 0.7, dx: 10, dy: 6 };
+    const result = { kind: "monster" as const, id: 1, n: "嫩寶", kept: [2], score: 77, xf };
+    drawStage(rec, { w: 360, h: 480, segs, kept: [2], result, shape: { pts: outline }, ms: 4200, caption: false });
+    const S = Math.min(360 * 0.88, 480 * 0.66), ox = (360 - S) / 2, oy = 480 * 0.07, k = S / 64;
+    expect(pts.length).toBe(segs[2].length);
+    segs[2].forEach(([x, y], i) => {
+      expect(Math.abs(pts[i][0] - (ox + (x * xf.sx + xf.dx) * k))).toBeLessThan(1);
+      expect(Math.abs(pts[i][1] - (oy + (y * xf.sy + xf.dy) * k))).toBeLessThan(1);
+    });
+  });
+  it("落地壓扁跟下落連續：相鄰 33ms 差 < 0.2", () => {
+    for (const delay of [0, 0.2, 0.35]) {
+      let prev = squashAt(fallT(1200, delay));
+      for (let ms = 1233; ms <= 4200; ms += 33) {
+        const cur = squashAt(fallT(ms, delay));
+        expect(Math.abs(cur - prev)).toBeLessThan(0.2);
+        prev = cur;
+      }
+    }
   });
 });
