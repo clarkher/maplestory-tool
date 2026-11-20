@@ -683,6 +683,8 @@ ChatGPT 查網路主要靠 Bing；IndexNow 讓 Bing（跟 Yandex 等）不用等
 
 GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/lib/analytics.ts`）。`GoogleAnalytics` 元件畫面出來後才載，**只有正式網域載**；測試機、分支預覽、本機網址加 `?ga_debug=1` 才載（帶 `debug_mode`，在 GA「管理 → DebugView」看）。新增、改名事件要一起改這張表。
 
+**網址不送 `#` 後面（v2.44）**：`bootGa` 先 `set page_location`（網域＋路徑＋查詢字串）再 `config`，站內換頁（pushState／replaceState／上一頁／改 #）都重設；名字變怪物的分享結果放在 `#r=`，送進 GA 會外洩寫的名字。
+
 | 事件 | 什麼時候送 | 參數 |
 |---|---|---|
 | `profile_set` | 存角色（拉等級停 1.5 秒才送一次） | `job`（職業名）、`level`、`level_band`（1-10、11-20…） |
