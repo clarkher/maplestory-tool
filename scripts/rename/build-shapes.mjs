@@ -5,7 +5,9 @@
  * 流程：怪物圖 alpha>64 當實心 → 裁邊、等比縮進 56×56 置中於 64 格
  * → 取最大塊的外輪廓 → 沿輪廓每 1.5 格取一點 → 外形太像（Chamfer < 1.0 格）的只留一隻，
  * 其餘（換色怪）收進留下那隻的 alt（{ id, n }），之後比對贏了可從 id + alt 隨機挑名字。
+ * 寫完輪廓接著跑 src/lib/rename/base.gen.ts，用假手寫名字算每隻怪的比對基準 base = [平均, 標準差]。
  */
+import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -146,5 +148,14 @@ for (const s of all) {
   if (hit) { (hit.alt ??= []).push({ id: s.id, n: s.n }); folded++; } else kept.push(s);
 }
 
-writeFileSync(path.join(root, "src/lib/rename/shapes.json"), JSON.stringify({ v: 1, grid: GRID, shapes: kept }));
+// area 只在這裡去重用，不寫進 shapes.json
+const shapes = kept.map(({ area, ...s }) => s);
+writeFileSync(path.join(root, "src/lib/rename/shapes.json"), JSON.stringify({ v: 1, grid: GRID, shapes }));
 console.log(`怪物 ${monsters.length}，可用 ${all.length}，併入 alt ${folded}，留下 ${kept.length}`);
+
+// 比對基準（TypeScript，借 vitest 跑；跟網站同一份 match.ts、synth.ts）
+const r = spawnSync("npx", ["vitest", "run", "-c", "vitest.gen.config.ts", "src/lib/rename/base.gen.ts"], { cwd: root, stdio: "inherit", shell: true });
+if (r.status !== 0) {
+  console.error("base.gen.ts 失敗，shapes.json 沒有 base");
+  process.exit(1);
+}

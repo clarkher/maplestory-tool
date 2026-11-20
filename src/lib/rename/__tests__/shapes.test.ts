@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import { staticMonsters } from "../../static-data";
 import shapesJson from "../shapes.json";
 
-type Shape = { id: number; n: string; alt?: { id: number; n: string }[]; pts: [number, number][]; area: number };
-const data = shapesJson as { v: number; grid: number; shapes: Shape[] };
+type Shape = { id: number; n: string; alt?: { id: number; n: string }[]; pts: [number, number][]; base?: [number, number] };
+const data = shapesJson as unknown as { v: number; grid: number; shapes: Shape[] };
 
 /** 單向：A 每點到 B 最近點的平均距離 */
 function oneWay(a: [number, number][], b: [number, number][]): number {
@@ -38,7 +38,7 @@ describe("怪物輪廓資料", () => {
       seen.add(s.id);
       expect(s.pts.length).toBeGreaterThanOrEqual(40);
       expect(s.pts.length).toBeLessThanOrEqual(400);
-      expect(s.area).toBeGreaterThan(0);
+      expect(s.base?.length).toBe(2);
     }
   });
 
@@ -47,8 +47,6 @@ describe("怪物輪廓資料", () => {
     for (let i = 0; i < list.length; i++) {
       for (let j = i + 1; j < list.length; j++) {
         const a = list[i], b = list[j];
-        // 面積差太多一定不像，先略過省時間
-        if (Math.abs(a.area - b.area) > 0.25 * Math.max(a.area, b.area)) continue;
         const d = (oneWay(a.pts, b.pts) + oneWay(b.pts, a.pts)) / 2;
         expect(d, `${a.id} 與 ${b.id} 太像`).toBeGreaterThanOrEqual(1.0);
       }

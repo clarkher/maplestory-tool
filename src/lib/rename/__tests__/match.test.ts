@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { displayScore, fitShape, pickResult, type Shape } from "../match";
 import type { Stroke } from "../strokes";
 import shapesJson from "../shapes.json";
+import { seeded, synthSet } from "../synth";
 
 const shapes = (shapesJson as unknown as { shapes: Shape[] }).shapes;
 
@@ -16,18 +17,6 @@ function outlineAsStrokes(s: Shape, n = 8): Stroke[] {
   return out;
 }
 
-/** 固定種子的亂數（mulberry32） */
-function seeded(seed: number): () => number {
-  let a = seed >>> 0;
-  return () => {
-    a = (a + 0x6d2b79f5) >>> 0;
-    let t = a;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
 describe("fitShape", () => {
   it("怪物自己的輪廓切 8 段 → 這隻 raw 最高、像度 ≥ 80", () => {
     for (const idx of [0, Math.floor(shapes.length / 2), shapes.length - 1]) {
@@ -39,6 +28,23 @@ describe("fitShape", () => {
       for (const other of shapes) {
         if (other === target) continue;
         expect(fitShape(segs, other).raw).toBeLessThanOrEqual(own.raw);
+      }
+    }
+  });
+
+  it("xf 把留下的段搬到輪廓上（2 格內）", () => {
+    for (const target of [shapes[0], shapes[20]]) {
+      const segs = outlineAsStrokes(target);
+      const r = pickResult(segs, shapes, () => 0);
+      expect(r.kind).toBe("monster");
+      if (r.kind !== "monster") continue;
+      const shape = shapes.find(s => s.id === r.id || s.alt?.some(a => a.id === r.id))!;
+      for (const k of r.kept) {
+        for (const [x, y] of segs[k]) {
+          const mx = x * r.xf.sx + r.xf.dx, my = y * r.xf.sy + r.xf.dy;
+          const d = Math.min(...shape.pts.map(([u, v]) => Math.hypot(u - mx, v - my)));
+          expect(d).toBeLessThanOrEqual(2);
+        }
       }
     }
   });
@@ -81,19 +87,22 @@ describe("pickResult", () => {
     expect(r.kept.length).toBeGreaterThan(0);
   });
 
-  it("換色怪：rand 決定顯示代表輪廓或 alt", () => {
+  it("換色怪：alt 裡的怪真的抽得到", () => {
     const withAlt = shapes.find(s => s.alt && s.alt.length > 0)!;
     const segs = outlineAsStrokes(withAlt);
-    // 候選前 3 名只有自己時，第二次 rand 決定 id；收集所有可能結果都屬於這組
-    const allowed = new Set([withAlt.id, ...withAlt.alt!.map(a => a.id)]);
+    const altIds = new Set(withAlt.alt!.map(a => a.id));
     const seen = new Set<number>();
-    for (const v of [0, 0.3, 0.6, 0.99]) {
-      const r = pickResult(segs, shapes, () => v);
-      if (r.kind === "monster") seen.add(r.id);
+    // 第一次 rand 挑平手候選、第二次挑 id／alt；掃一輪 rand 值
+    for (let a = 0; a < 10; a++) {
+      for (let b = 0; b < 10; b++) {
+        const vals = [a / 10, b / 10];
+        let k = 0;
+        const r = pickResult(segs, shapes, () => vals[k++ % 2]);
+        if (r.kind === "monster") seen.add(r.id);
+      }
     }
-    expect(seen.size).toBeGreaterThan(0);
-    // 至少有一個結果落在這組（別的怪若平手也可能被抽到）
-    expect([...seen].some(id => allowed.has(id))).toBe(true);
+    expect([...seen].some(id => altIds.has(id))).toBe(true);
+    expect(seen.has(withAlt.id)).toBe(true);
   });
 
   it("完全在輪廓外的一條短線 → poop", () => {
@@ -133,5 +142,35 @@ describe("pickResult", () => {
     const ms = performance.now() - t0;
     console.log(`[match perf] 120 段 × ${shapes.length} 隻：${ms.toFixed(0)} ms`);
     expect(ms).toBeLessThan(1500);
+  });
+
+  it("300 個假手寫名字：不會每次都配到同幾隻怪", () => {
+    // 種子跟 base.gen.ts 算基準的不同，避免只對那批調好
+    const names = synthSet(7, 300);
+    const rand = seeded(99);
+    const wins = new Map<string, number>();
+    let poop = 0;
+    for (const segs of names) {
+      const r = pickResult(segs, shapes, rand);
+      if (r.kind === "poop") poop++;
+      else if (r.kind === "monster") {
+        // 換色怪算同一組（用代表輪廓的名字）
+        const g = shapes.find(s => s.id === r.id || s.alt?.some(a => a.id === r.id))!;
+        wins.set(g.n, (wins.get(g.n) ?? 0) + 1);
+      }
+    }
+    const top = [...wins.entries()].sort((a, b) => b[1] - a[1]);
+    console.log(`[match dist] 大便 ${poop}/300、贏過的怪 ${wins.size} 組、前 5：${JSON.stringify(top.slice(0, 5))}`);
+    expect(top[0][1] / 300).toBeLessThanOrEqual(0.2);
+    expect(wins.size).toBeGreaterThanOrEqual(15);
+    expect(poop / 300).toBeGreaterThanOrEqual(0.05);
+    expect(poop / 300).toBeLessThanOrEqual(0.35);
+  }, 120_000);
+
+  it("每隻怪都有基準 base", () => {
+    for (const s of shapes) {
+      expect(s.base, `${s.id}`).toBeDefined();
+      expect(s.base![1]).toBeGreaterThan(0);
+    }
   });
 });
