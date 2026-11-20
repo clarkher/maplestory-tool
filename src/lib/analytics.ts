@@ -46,7 +46,10 @@ export type EventName =
   | "share"
   | "donate_click"
   | "donate_paid"
-  | "video_play";
+  | "video_play"
+  | "rename_start"
+  | "rename_result"
+  | "rename_share";
 
 type Params = Record<string, string | number | boolean | undefined>;
 

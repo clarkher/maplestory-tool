@@ -6,16 +6,17 @@
  *   sign：對話框下面出現登記書（SignPad）
  *   running：切段＋正規化後丟 Worker 比對，回來就播演出（stage.ts：寫字→收筆畫→變形→標題）；
  *            變形播完（標題開始）才切 result，NPC 說結果
- *   result：演出停在最後一格＋［分享（shareSlot，Task 7 填）］［再寫一次］＋「{怪}在哪打／怎麼去 →」
+ *   result：演出停在最後一格＋［分享（ShareMenu：複製連結／存影片／存圖）］［再寫一次］＋「{怪}在哪打／怎麼去 →」
  * 狀態轉換在 src/lib/rename/flow.ts（純函式、有測試）。
  *
- * replay（Task 7 的 /plan/rename/m/[id]）：一開場就從 location.hash 的 #r=... 解出筆畫重播；
- * 解不開就畫那隻怪的靜態結果卡＋［換我寫］。
+ * replay（/plan/rename/m/[id] 分享頁）：一開場就從 location.hash 的 #r=... 解出筆畫重播；
+ * 解不開就畫那隻怪的靜態結果卡＋［換我寫］（沒有筆畫可分享，不放［分享］）。
+ * GA：按接受送 rename_start、自己那輪出結果送 rename_result（看別人的重播不送）、分享選一個送 rename_share（在 ShareMenu）。
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import { track } from "@/lib/analytics";
 import { monsterImage } from "@/lib/asset-paths";
 import { initialCtx, next, RESULT_PAGE2_LINES, RUNNING_LINES, type Action, type Ctx, type Step } from "@/lib/rename/flow";
 import { introLines, resultLines } from "@/lib/rename/lines";
@@ -24,6 +25,7 @@ import { loadShapes, runMatch, type MatchIn, type MatchOut, type WorkerReply, ty
 import { drawStage, TIMELINE } from "@/lib/rename/stage";
 import { decodeShare, normalize, splitAtCorners, type Pt, type Stroke } from "@/lib/rename/strokes";
 import { NpcDialog, type DlgButton } from "./NpcDialog";
+import { ShareMenu, type ShareRound } from "./ShareMenu";
 import { BTN_PLAIN, SignPad } from "./SignPad";
 
 /** 標題開始的時間點：這時 NPC 改說結果 */
@@ -147,7 +149,7 @@ function StageCanvas({ play, onReveal }: { play: Play; onReveal: (r: Result) => 
   );
 }
 
-export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?: ReactNode }) {
+export function RenameGame({ replay }: { replay?: Replay }) {
   const router = useRouter();
   const match = useMatcher();
   const [state, setState] = useState<{ step: Step; ctx: Ctx }>(() =>
@@ -232,7 +234,13 @@ export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?:
     [dispatch, start],
   );
 
-  const reveal = useCallback((r: Result) => dispatch({ type: "done", result: r }), [dispatch]);
+  const reveal = useCallback(
+    (r: Result) => {
+      if (!replay && r.kind !== "empty") track("rename_result", { result: r.kind === "monster" ? r.id : "poop", score: r.score });
+      dispatch({ type: "done", result: r });
+    },
+    [dispatch, replay],
+  );
 
   const again = useCallback(() => {
     runId.current++;
@@ -247,7 +255,10 @@ export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?:
   const onButton = (b: DlgButton) => {
     if (b === "close") router.push("/");
     else if (b === "no") dispatch({ type: "decline" });
-    else if (b === "yes") dispatch({ type: "accept" });
+    else if (b === "yes") {
+      if (step === "intro") track("rename_start");
+      dispatch({ type: "accept" });
+    }
     else if (b === "next") dispatch({ type: "page" });
   };
 
@@ -257,6 +268,18 @@ export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?:
     step === "result" && ctx.page === 0 && result?.kind === "monster" && play
       ? `筆畫 ${play.segs.length}→${result.kept.length}　像度 ${result.score}%`
       : null;
+
+  // 有演出（自己寫的或解得開的重播）才能分享；靜態結果卡沒有筆畫
+  const round: ShareRound | null = play && play.result.kind !== "empty" ? { segs: play.segs, result: play.result, shape: play.shape } : null;
+  const other = replay ? (
+    <Link href="/plan/rename" data-act="mine" className={BTN_PLAIN}>
+      換我寫
+    </Link>
+  ) : (
+    <button type="button" data-act="again" className={BTN_PLAIN} onClick={again}>
+      再寫一次
+    </button>
+  );
 
   return (
     <div className="space-y-3.5">
@@ -289,18 +312,13 @@ export function RenameGame({ replay, shareSlot }: { replay?: Replay; shareSlot?:
 
       {step === "result" ? (
         <>
-          <div className="grid grid-cols-2 gap-2">
-            {shareSlot}
-            {replay ? (
-              <Link href="/plan/rename" data-act="mine" className={`${BTN_PLAIN} ${shareSlot ? "" : "col-span-2"}`}>
-                換我寫
-              </Link>
-            ) : (
-              <button type="button" data-act="again" className={`${BTN_PLAIN} ${shareSlot ? "" : "col-span-2"}`} onClick={again}>
-                再寫一次
-              </button>
-            )}
-          </div>
+          {round ? (
+            <ShareMenu round={round} showNotice={!replay}>
+              {other}
+            </ShareMenu>
+          ) : (
+            <div className="grid grid-cols-1">{other}</div>
+          )}
           {result?.kind === "monster" ? (
             <p className="text-center">
               <Link href={`/db/monsters/${result.id}`} data-act="where" className="text-[15px] font-extrabold text-[color:var(--maple)] underline-offset-4 hover:underline">
