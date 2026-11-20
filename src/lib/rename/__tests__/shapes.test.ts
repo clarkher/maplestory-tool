@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { staticMonsters } from "../../static-data";
 import shapesJson from "../shapes.json";
 
-type Shape = { id: number; n: string; pts: [number, number][]; area: number };
+type Shape = { id: number; n: string; alt?: { id: number; n: string }[]; pts: [number, number][]; area: number };
 const data = shapesJson as { v: number; grid: number; shapes: Shape[] };
 
 /** 單向：A 每點到 B 最近點的平均距離 */
@@ -53,5 +53,17 @@ describe("怪物輪廓資料", () => {
         expect(d, `${a.id} 與 ${b.id} 太像`).toBeGreaterThanOrEqual(1.0);
       }
     }
+  });
+
+  it("每隻有圖的已開放怪物在 id + alt 裡剛好出現一次", () => {
+    // 圖沒有可用輪廓（太小或點數不足）的怪，沒有輪廓可比，明列於此
+    const NO_OUTLINE = new Set([9300003]); // 超級綠水靈
+    const count = new Map<number, number>();
+    for (const s of data.shapes) for (const id of [s.id, ...(s.alt ?? []).map(a => a.id)]) count.set(id, (count.get(id) ?? 0) + 1);
+    for (const m of staticMonsters()) {
+      if (!existsSync(path.join(process.cwd(), "public/assets/monster_frames", `${m.id}.png`))) continue;
+      expect(count.get(m.id) ?? 0, `${m.id} ${m.n}`).toBe(NO_OUTLINE.has(m.id) ? 0 : 1);
+    }
+    for (const s of data.shapes) for (const a of s.alt ?? []) expect(a.n.length).toBeGreaterThan(0);
   });
 });

@@ -3,7 +3,8 @@
  * 用法：node scripts/rename/build-shapes.mjs
  *
  * 流程：怪物圖 alpha>64 當實心 → 裁邊、等比縮進 56×56 置中於 64 格
- * → 取最大塊的外輪廓 → 沿輪廓每 1.5 格取一點 → 外形太像（Chamfer < 1.0 格）的只留一隻。
+ * → 取最大塊的外輪廓 → 沿輪廓每 1.5 格取一點 → 外形太像（Chamfer < 1.0 格）的只留一隻，
+ * 其餘（換色怪）收進留下那隻的 alt（{ id, n }），之後比對贏了可從 id + alt 隨機挑名字。
  */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -139,11 +140,11 @@ for (const m of monsters) {
 
 // 去重：先看到的留下（id 小的優先），面積差太多的一定不像，略過比對
 const kept = [];
-let dropped = 0;
+let folded = 0;
 for (const s of all) {
-  const dup = kept.some(k => Math.abs(k.area - s.area) <= 0.25 * Math.max(k.area, s.area) && chamfer(k.pts, s.pts) < DUP);
-  if (dup) { dropped++; if (process.env.DBG) console.log("drop", s.id, s.n); } else kept.push(s);
+  const hit = kept.find(k => Math.abs(k.area - s.area) <= 0.25 * Math.max(k.area, s.area) && chamfer(k.pts, s.pts) < DUP);
+  if (hit) { (hit.alt ??= []).push({ id: s.id, n: s.n }); folded++; } else kept.push(s);
 }
 
 writeFileSync(path.join(root, "src/lib/rename/shapes.json"), JSON.stringify({ v: 1, grid: GRID, shapes: kept }));
-console.log(`怪物 ${monsters.length}，可用 ${all.length}，去掉近似 ${dropped}，留下 ${kept.length}`);
+console.log(`怪物 ${monsters.length}，可用 ${all.length}，併入 alt ${folded}，留下 ${kept.length}`);
