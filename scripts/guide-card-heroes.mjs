@@ -566,6 +566,72 @@ const SCENES = [
     ].join(" "),
   },
   {
+    // v2.46 11/21 發佈會整理：冰原雪域通往廢棄礦坑、遠方殘暴炎魔、聖誕燈
+    slug: "classic-roadmap-1121",
+    base: { backdrop: "snow" },
+    sprites: [{ file: "monster_frames/8800002.png", x: 0.78, y: 0.82, h: 0.5 }],
+    idea: [
+      "Turn the scene into a snowy mountain valley at dusk: a dark abandoned mine entrance in the cliff glowing with a red crack of light, a frozen path leading to it, deep blue sky with the first stars, small strings of warm Christmas lights on a wooden fence in the foreground.",
+      "In the far right background a giant stone idol boss looms over the mountains: keep it instantly recognizable as the same creature as the sprite, a towering rock golem with a golden sun-ray crown, a carved stone face and big stone fists, same shape and colors.",
+      "In the foreground a party of four young adventurers (a warrior with a sword, a mage with a staff, an archer with a bow, a thief with throwing stars) holding torches, looking toward the mine with excitement. Epic, anticipating, new-season mood.",
+    ].join(" "),
+  },
+  {
+    // v2.46 殘暴炎魔：熔岩祭壇、遠征隊
+    slug: "zakum-1217",
+    base: { backdrop: "cave" },
+    sprites: [{ file: "monster_frames/8800002.png", x: 0.62, y: 0.9, h: 0.78 }],
+    idea: [
+      "Turn the scene into a huge underground lava altar: rivers of glowing orange lava, dark volcanic rock walls, embers floating in the hot air, a stone platform in the middle.",
+      "The boss is a towering stone idol: keep it instantly recognizable as the same creature as the sprite, a rock golem body with a golden sun-ray crown, a carved stone face, stone fists and a dark red cape, same shape and colors. Add several extra stone arms raised around it.",
+      "On the left a large expedition party of many small adventurers of different classes lined up on the rock ledge, weapons raised, a mage casting a glowing spell. Epic raid boss battle mood, dramatic lighting.",
+    ].join(" "),
+  },
+  {
+    // v2.46 昏暗坑道：礦坑、礦車、信號燈、提燈魔物
+    slug: "dim-tunnel-pq",
+    base: { backdrop: "cave" },
+    sprites: [],
+    idea: [
+      "Turn the scene into a dim old mine tunnel: wooden support beams, rails with a rusty mine cart, scattered crates and barrels, glowing red ore crystals in the walls, a row of round signal lamps on a wooden board shining red, yellow and green.",
+      "Four young adventurers (a warrior, a mage, an archer and a thief) walk carefully along the rails holding lanterns, one of them pushing the mine cart.",
+      "Deep in the darkness at the right, a huge shadowy monster made of broken wooden planks and iron bands, carrying a glowing red lantern, opens its glowing red eyes. Tense but adventurous mood, warm lantern light against cold darkness.",
+    ].join(" "),
+  },
+  {
+    // v2.46 侵蝕地帶調查：雪地裡的紅色裂縫、三人隊
+    slug: "erosion-zone",
+    base: { backdrop: "snow" },
+    sprites: [],
+    idea: [
+      "Turn the scene into a snowy cliff with frosty pine trees under a pale winter sky. On the right, a large round swirling rift portal glows deep crimson red and black, cracking the air around it.",
+      "Out of the rift crawl a few familiar cute fantasy monsters covered in dark red smoke and glowing red eyes, as if corrupted.",
+      "On the left stand exactly three young adventurers as a small party (a warrior with a shield, a mage with a staff, an archer with a bow) ready to fight. Mysterious, slightly dark but still bright and game-like mood.",
+    ].join(" "),
+  },
+  {
+    // v2.46 手機版 Beta：菇菇村屋頂上滑手機
+    slug: "mobile-beta",
+    base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [],
+    idea: [
+      "Turn the scene into a bright sunny mushroom village with mushroom-cap houses, green grass and fluffy clouds.",
+      "A cheerful young adventurer with short brown hair sits on top of a big orange mushroom-cap roof, holding a smartphone in both hands and playing, the screen glowing softly on her smiling face (the screen shows only bright colors, no text).",
+      "A small orange mushroom monster peeks curiously over her shoulder at the phone. Relaxed, cozy, play-anywhere mood.",
+    ].join(" "),
+  },
+  {
+    // v2.46 泰里送好禮：弓箭手村大樹下發禮物
+    slug: "teri-gift-2026",
+    base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [{ file: "items/2000005.png", x: 0.66, y: 0.86, h: 0.12 }],
+    idea: [
+      "Turn the scene into a warm autumn village square under a big tree, red and orange leaves, soft afternoon light, small festive ribbons hanging from the branches.",
+      "On the right, a cute chubby hamster merchant with round glasses sits behind a big cloth sack overflowing with wrapped gift boxes, handing out a glowing purple potion vial and blue potion bottles like the sprite.",
+      "On the left a happy young adventurer with short brown hair in a light tunic reaches out with both hands to receive the gifts, eyes sparkling. Generous, celebratory, cozy mood.",
+    ].join(" "),
+  },
+  {
     slug: "update-1119",
     base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
     sprites: [],

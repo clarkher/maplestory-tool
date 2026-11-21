@@ -23,6 +23,13 @@ export const RELATED_RULES: Record<string, RelatedRule> = {
   "/event/halloween": { from: 10, to: 120, rank: 0, until: HALLOWEEN.ends },
   // v2.38 11/19 更新整理：活動（皇家美容院、閃亮彗星）到 12/3，之後照一般文排
   "/guides/update-1119": { from: 10, to: 120, rank: 0, until: "2026-12-03T14:00:00+08:00" },
+  // v2.46 11/21 發佈會：時間表、各新內容（排程到 1/28，開放後補內容；活動到期就照一般文排）
+  "/guides/classic-roadmap-1121": { from: 10, to: 120, rank: 0, until: "2027-01-29T00:00:00+08:00" },
+  "/guides/teri-gift-2026": { from: 10, to: 120, rank: 0, until: "2027-02-18T00:00:00+08:00" },
+  "/guides/mobile-beta": { from: 1, to: 120, rank: 1 },
+  "/guides/zakum-1217": { from: 50, to: 120, rank: 1 },
+  "/guides/dim-tunnel-pq": { from: 80, to: 105, rank: 1 },
+  "/guides/erosion-zone": { from: 25, to: 120, rank: 1 },
   // 轉職、新手：照等級最該看的
   "/guide": { from: 1, to: 30, rank: 1 },
   "/guides/third-job": { from: 31, to: 90, rank: 1 },

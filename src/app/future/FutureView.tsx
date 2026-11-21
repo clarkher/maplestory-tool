@@ -200,7 +200,7 @@ export function FutureView({ crafts, notNow, fourthJob, itemHrefs }: {
 
       <header className="space-y-1.5">
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">未來視</h1>
-        <p className="text-[15px] leading-relaxed ink-soft">下一版大概什麼時候、會開什麼，現在先把東西準備好。官方還沒公布，下面都是推估，有消息就換掉。常提到的 Artale 是另一個早就開到四轉的經典服，台服不一定照它。</p>
+        <p className="text-[15px] leading-relaxed ink-soft">接下來什麼時候、會開什麼，現在先把東西準備好。標「官方」的是 11/21 發佈會公布的日期；四轉還沒公布，只能推估。常提到的 Artale 是另一個早就開到四轉的經典服，台服不一定照它。</p>
         <p className="text-xs ink-faint">整理於 {FORECAST_UPDATED.replaceAll("-", "/")}</p>
       </header>
 
