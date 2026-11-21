@@ -18,12 +18,21 @@ describe("未來視：預測的時間", () => {
     expect(staleNotice(Date.parse("2026-11-21T12:59:00+08:00"), "2026-11-06")).toBeNull();
     expect(staleNotice(Date.parse("2026-11-21T13:00:00+08:00"), "2026-11-06")).toContain("發佈會");
     expect(staleNotice(Date.parse("2026-11-22T13:00:00+08:00"), "2026-11-22")).toBeNull();
+    expect(staleNotice(Date.parse("2026-11-22T13:00:00+08:00"))).toBeNull(); // 11/21 已照發佈會更新
+  });
+
+  it("發佈會公布的日期都是例行維護日（週四），標「官方」", () => {
+    for (const [id, day] of [["next", "2026-12-17"], ["newyear", "2026-12-31"], ["jan", "2027-01-07"], ["lantern", "2027-01-28"]] as const) {
+      const station = STATIONS.find(s => s.id === id)!;
+      expect(station.certainty, id).toBe("官方");
+      expect(new Date(`${day}T00:00:00Z`).getUTCDay(), id).toBe(4);
+    }
   });
 
   it("預估窗過了標比預估晚，官方那站沒有窗", () => {
     const next = STATIONS.find(s => s.id === "next")!;
-    expect(isLate(next, Date.parse("2027-01-31T12:00:00+08:00"))).toBe(false);
-    expect(isLate(next, Date.parse("2027-02-01T00:00:00+08:00"))).toBe(true);
+    expect(isLate(next, Date.parse("2026-12-18T12:00:00+08:00"))).toBe(false);
+    expect(isLate(next, Date.parse("2026-12-19T00:00:00+08:00"))).toBe(true);
     expect(isLate(STATIONS.find(s => s.id === "party")!, Date.parse("2030-01-01"))).toBe(false);
   });
 });
