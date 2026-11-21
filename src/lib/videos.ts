@@ -202,6 +202,22 @@ export const EPISODES: VideoEpisode[] = [
     main: "6nbCENFUjzo",
     shorts: "LONi3Yhk4Tg",
   },
+  {
+    title: "地鐵二號線[01]怎麼去？",
+    summary: "從墮落城市出發 4 段、經過 5 張圖，每段走哪個門。",
+    publishAt: "2026-11-22T04:00:00.000Z",
+    main: "jDiQBXqxMbU",
+    shorts: "y-DpRSA8VGs",
+    tool: { href: "/go?to=103000200&from=103000000", text: "地圖導航" },
+  },
+  {
+    title: "綠菇菇在哪打？",
+    summary: "最多在北部森林訓練場Ⅵ（33 個刷怪點），一共出現在 34 張圖。",
+    publishAt: "2026-11-22T11:00:00.000Z",
+    main: "69mg0dL9IRA",
+    shorts: "GD_z0PSQ91c",
+    tool: { href: "/db/monsters/1110100", text: "綠菇菇資料" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
