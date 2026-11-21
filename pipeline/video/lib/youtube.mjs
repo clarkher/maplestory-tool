@@ -106,5 +106,16 @@ export async function uploadPair({ files, ytText, creds, fetcher = fetch, log = 
   return { main, shorts };
 }
 
+/** 把片改成私人（不刪，工作室改得回公開）；重做的公告片換掉舊片用（v2.49） */
+export async function hideVideo({ videoId, token, fetcher = fetch }) {
+  const res = await fetcher("https://www.googleapis.com/youtube/v3/videos?part=status", {
+    method: "PUT",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ id: videoId, status: { privacyStatus: "private", selfDeclaredMadeForKids: false } }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!res.ok) throw fail("YouTube 改私人", res.status, await res.text());
+}
+
 export const watchUrl = (id) => `https://www.youtube.com/watch?v=${id}`;
 export const studioUrl = (id) => `https://studio.youtube.com/video/${id}/edit`;

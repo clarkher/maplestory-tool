@@ -5,6 +5,8 @@ name: 官網公告做片
 # 同時公開上傳到楓谷幫手 YouTube 頻道（v2.24），在「官網公告追蹤」issue 留言附封面圖、下載連結跟 YouTube 工作室連結，使用者看完改公開。程式：pipeline/video/run.mjs。v2.22。
 # 接在「官網公告追蹤」（announce-watch.yml）成功跑完後面；每則最多試 3 次，公告超過 7 天不補做。
 # 手動做一則（不留言、不改 issue 狀態）：gh workflow run announce-video.yml -f bulletin_id=<id>
+# 驗過聲音後補傳（v2.49，不重新 render、傳的就是那份 release；舊片改私人不刪）：
+#   gh workflow run announce-video.yml -f upload_release=<id> -f hide=<舊正片id>,<舊Shorts id>
 
 on:
   workflow_run:
@@ -21,16 +23,52 @@ on:
         description: "測試用：只印要做哪幾則"
         type: boolean
         default: false
+      upload_release:
+        description: "不做片：把 release video-<id> 原封不動公開上傳 YouTube"
+        type: string
+        required: false
+      hide:
+        description: "跟 upload_release 一起用：要改私人的舊片 id，逗號分隔"
+        type: string
+        required: false
 
 concurrency:
   group: announce-video
   cancel-in-progress: false
 
 jobs:
+  upload:
+    if: github.repository == 'clarkher/maplestory-tool' && github.event_name == 'workflow_dispatch' && inputs.upload_release != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: 下載 release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ inputs.upload_release }}
+        run: |
+          [[ "$RELEASE_ID" =~ ^[0-9]+$ ]] || { echo "upload_release 要是數字"; exit 1; }
+          gh release download "video-$RELEASE_ID" -R "$GITHUB_REPOSITORY" -D "$RUNNER_TEMP/rel"
+      - name: 上傳
+        env:
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          HIDE: ${{ inputs.hide }}
+        run: node pipeline/video/upload-release.mjs "$RUNNER_TEMP/rel" "$HIDE"
+
   video:
     if: >-
       github.repository == 'clarkher/maplestory-tool' &&
-      (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && inputs.upload_release == '' ||
        (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
     timeout-minutes: 60
