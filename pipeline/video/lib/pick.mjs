@@ -11,11 +11,11 @@ const TPE = 8 * 3600000;
 const VIDEO = /\n*<!-- video:[0-9a-z=,]* -->/;
 const SEEN_AT_END = /\n*(<!-- seen:[0-9,]* -->\s*)$/;
 
-/** 維護、開機、關機、制裁不做；商城外觀、活動、改版／更新做 */
+/** 維護、開機、關機、制裁不做；商城外觀、活動、改版／更新、手機版／Beta／搶先體驗（v2.48）做 */
 export function shouldMakeVideo(title) {
   if (/維護|異常|補償|開機|關機|制裁/.test(title)) return false;
   const { kind } = classify(title);
-  return kind === "event" || kind === "cash" || /改版|更新/.test(title);
+  return kind === "event" || kind === "cash" || /改版|更新|手機|Beta|搶先體驗/i.test(title);
 }
 
 export function readVideoState(body) {

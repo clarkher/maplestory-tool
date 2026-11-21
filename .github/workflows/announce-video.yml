@@ -65,7 +65,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           AZURE_OPENAI_KEY: ${{ secrets.AZURE_OPENAI_KEY }}
           INWORLD_API_KEY: ${{ secrets.INWORLD_API_KEY }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Inworld 點數用完（402）改用 GPT shimmer 配音（v2.48）
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           # 有這三個就把片公開上傳到楓谷幫手頻道（Google Cloud 專案 maplehelper-youtube）
           YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
