@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseYoutubeTxt, shortsTitle, youtubeFromEnv, getAccessToken, uploadVideo, setThumbnail } from "./youtube.mjs";
+import { parseYoutubeTxt, shortsTitle, youtubeFromEnv, getAccessToken, uploadVideo, setThumbnail, hideVideo } from "./youtube.mjs";
 
 test("parseYoutubeTxt：第一行是標題，空行後面是說明欄", () => {
   assert.deepEqual(parseYoutubeTxt("標題｜11/21 登場\n\nhttps://maplehelper.tw/x\n第二行\n\n#楓之谷經典版\n"), {
@@ -79,4 +79,19 @@ test("setThumbnail：上傳 png 到 thumbnails/set", async () => {
   await setThumbnail({ videoId: "VID", file: png, token: "AT", fetcher });
   assert.match(seen.url, /thumbnails\/set\?videoId=VID/);
   assert.equal(seen.init.headers["content-type"], "image/png");
+});
+
+test("hideVideo：舊片改成私人（不刪，改得回來），只送 status", async () => {
+  let req;
+  const fetcher = async (url, init) => { req = { url, init }; return { ok: true, json: async () => ({ id: "OLD" }) }; };
+  await hideVideo({ videoId: "OLD", token: "T", fetcher });
+  assert.equal(req.url, "https://www.googleapis.com/youtube/v3/videos?part=status");
+  assert.equal(req.init.method, "PUT");
+  assert.equal(req.init.headers.authorization, "Bearer T");
+  assert.deepEqual(JSON.parse(req.init.body), { id: "OLD", status: { privacyStatus: "private", selfDeclaredMadeForKids: false } });
+});
+
+test("hideVideo：失敗帶狀態碼", async () => {
+  const fetcher = async () => ({ ok: false, status: 404, text: async () => "videoNotFound" });
+  await assert.rejects(() => hideVideo({ videoId: "X", token: "T", fetcher }), /404/);
 });
