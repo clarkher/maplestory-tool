@@ -13,6 +13,12 @@ test("shouldMakeVideo：商城外觀、活動、改版做；維護、開機、�
   assert.equal(shouldMakeVideo("系統說明"), false);
 });
 
+test("shouldMakeVideo：手機版、Beta、搶先體驗這種新平台消息也做（11/21 手機 Beta 公告漏做）", () => {
+  assert.equal(shouldMakeVideo("新楓之谷：經典版《手機Beta版本搶先體驗公告》"), true);
+  assert.equal(shouldMakeVideo("新楓之谷：經典版《iOS 手機版上線公告》"), true);
+  assert.equal(shouldMakeVideo("新楓之谷：經典版《手機版臨時維護公告》"), false);
+});
+
 test("shouldMakeVideo：只要有「維護」「異常」「補償」都不做，即使有改版／更新", () => {
   assert.equal(shouldMakeVideo("V003 改版維護公告"), false);
   assert.equal(shouldMakeVideo("改版更新緊急維護"), false);

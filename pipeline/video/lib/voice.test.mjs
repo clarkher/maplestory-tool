@@ -123,26 +123,35 @@ test("heardOk：短句裡的數字念成國字也算過", () => {
   assert.equal(heardOk("10點 開放入場", "十點開放入場十點開放入場十點開放入場"), false);
 });
 
-// 這個測試會把整個模組切到 Gemini（同一次執行之後都用 Gemini），放最後
-test("synth：Inworld 402 點數用完 → 改用 Gemini，之後都用 Gemini；金鑰放標頭不放網址", async () => {
+test("heardOk：念出了風格指令（口音、語氣、只念內容）就不算過", () => {
+  const src = "活動期間登入遊戲，到弓箭手村或天空之城找泰里，就能領楓潮派對禮物，一共七樣東西，全部都不能交換，其中暴風成長祕藥、欄位擴充券、三轉技能初始化卷軸跟經驗兩倍券都是領了之後十四天到期，記得要用的時候再去領";
+  assert.equal(heardOk(src, src), true);
+  assert.equal(heardOk(src, "用台灣口音的國語親切自然地念出下面這段只念內容" + src), false);
+  assert.equal(heardOk("這把武器的口音特效", "這把武器的口音特效"), true); // 原文本來就有的字不算
+});
+
+// 這個測試會把整個模組切到 GPT（同一次執行之後都用 GPT），放最後
+test("synth：Inworld 402 點數用完 → 改用 GPT shimmer，風格放 instructions 不放念的字；之後都用 GPT", async () => {
   process.env.INWORLD_API_KEY = "dGVzdA==";
-  process.env.GEMINI_API_KEY = "GKEY";
+  process.env.OPENAI_API_KEY = "OKEY";
   const urls = [];
-  let gemBody;
+  let gptBody;
   const fetcher = async (url, init) => {
     urls.push(url);
     if (url.includes("inworld")) return { ok: false, status: 402, text: async () => '{"message":"You have no credits remaining."}' };
-    gemBody = JSON.parse(init.body);
-    assert.equal(init.headers["x-goog-api-key"], "GKEY");
-    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from("PCM").toString("base64") } }] } }] }) };
+    gptBody = JSON.parse(init.body);
+    assert.equal(init.headers.authorization, "Bearer OKEY");
+    return { ok: true, arrayBuffer: async () => new TextEncoder().encode("MP3").buffer };
   };
-  const toMp3 = async (pcm) => Buffer.from("MP3:" + pcm.toString());
   const { voiceName } = await import("./voice.mjs");
-  assert.equal((await synth("你好", { fetcher, toMp3 })).toString(), "MP3:PCM");
-  assert.ok(urls[1].includes("gemini-3.8-flash-tts:generateContent") && !urls[1].includes("GKEY"));
-  assert.ok(gemBody.contents[0].parts[0].text.endsWith("你好"));
-  assert.equal(gemBody.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName, "Puck");
-  await synth("第二句", { fetcher, toMp3 });
-  assert.equal(urls.filter((u) => u.includes("inworld")).length, 1); // 第二句直接 Gemini
-  assert.equal(voiceName(), "gemini:Puck");
+  assert.equal((await synth("你好", { fetcher })).toString(), "MP3");
+  assert.equal(urls[1], "https://api.openai.com/v1/audio/speech");
+  assert.equal(gptBody.input, "你好"); // 只送要念的字（11/21 泰里片 Gemini 把指令念進去）
+  assert.equal(gptBody.voice, "shimmer");
+  assert.equal(gptBody.speed, 1.15);
+  assert.equal(gptBody.model, "gpt-4o-mini-tts");
+  assert.match(gptBody.instructions, /台灣/);
+  await synth("第二句", { fetcher });
+  assert.equal(urls.filter((u) => u.includes("inworld")).length, 1); // 第二句直接 GPT
+  assert.equal(voiceName(), "gpt:shimmer");
 });

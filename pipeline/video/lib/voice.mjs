@@ -12,61 +12,44 @@ const VOICE_ID = "default-bwzn5blyrrl-d_slygqzww__clark_20260630";
 const MODEL_ID = "inworld-tts-2";
 const PREFIX = "[以台灣口音，親切自然的語氣] ";
 
-// 備援（v2.38，11/19 使用者「先換別的 AI 聲音」）：Inworld 點數用完（402）就改用 Gemini 念，同一次執行之後都用 Gemini，
-// 不會一支片兩種聲音；加值後下一次執行自動回到使用者的聲音。TTS_PROVIDER=gemini 可以直接指定。
-const GEMINI_TTS = "gemini-3.8-flash-tts";
-const GEMINI_VOICE = "Puck";
-const GEMINI_STYLE = "用台灣口音的國語，親切自然、語速稍快地念出下面這段，只念內容：";
-let useGemini = false;
+// 備援（v2.48）：Inworld 點數用完（402）就改用 GPT gpt-4o-mini-tts 的 shimmer 念（11/20 使用者試聽 13 個聲音選的、語速 1.15），
+// 同一次執行之後都用 GPT，不會一支片兩種聲音；加值後下一次執行自動回到使用者的聲音。TTS_PROVIDER=gpt 可以直接指定。
+// 口音、語氣放 instructions，不跟要念的字混在一起——v2.38 的 Gemini 備援把「用台灣口音…只念內容」整句念進 11/21 泰里片。
+const GPT_TTS = "https://api.openai.com/v1/audio/speech";
+const GPT_VOICE = "shimmer";
+const GPT_SPEED = 1.15;
+const GPT_INSTRUCTIONS = "用台灣口音的國語（台灣腔，不要大陸腔），語氣像輕鬆的遊戲實況主，親切自然。";
+let useGpt = false;
 
-export const voiceName = () => (useGemini || process.env.TTS_PROVIDER === "gemini" ? `gemini:${GEMINI_VOICE}` : "inworld:clark");
+export const voiceName = () => (useGpt || process.env.TTS_PROVIDER === "gpt" ? `gpt:${GPT_VOICE}` : "inworld:clark");
 
-/** Gemini 回 24kHz 16-bit 單聲道 PCM → 用 ffmpeg 轉 mp3（跟 Inworld 一樣的檔案格式） */
-export async function geminiSynth(text, { fetcher = fetch, toMp3 = pcmToMp3 } = {}) {
-  const key = process.env.GEMINI_API_KEY;
-  if (!key) throw new Error("缺少環境變數 GEMINI_API_KEY");
-  const res = await fetcher(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS}:generateContent`, {
+export async function gptSynth(text, { fetcher = fetch } = {}) {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error("缺少環境變數 OPENAI_API_KEY");
+  const res = await fetcher(GPT_TTS, {
     method: "POST",
-    headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ role: "user", parts: [{ text: GEMINI_STYLE + text }] }],
-      generationConfig: { responseModalities: ["AUDIO"], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: GEMINI_VOICE } } } },
-    }),
+    headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
+    body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: GPT_VOICE, input: text, instructions: GPT_INSTRUCTIONS, speed: GPT_SPEED, response_format: "mp3" }),
     signal: AbortSignal.timeout(120_000),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    const e = new Error(`Gemini TTS 失敗 ${res.status}：${String(body).slice(0, 300)}`);
+    const e = new Error(`GPT TTS 失敗 ${res.status}：${String(body).slice(0, 300)}`);
     e.status = res.status;
     throw e;
   }
-  const j = await res.json();
-  const data = j?.candidates?.[0]?.content?.parts?.find((p) => p.inlineData)?.inlineData?.data;
-  if (!data) throw new Error("Gemini TTS 回應沒有聲音");
-  return toMp3(Buffer.from(data, "base64"));
-}
-
-async function pcmToMp3(pcm) {
-  const { spawn } = await import("node:child_process");
-  return new Promise((ok, bad) => {
-    const p = spawn("ffmpeg", ["-v", "error", "-f", "s16le", "-ar", "24000", "-ac", "1", "-i", "pipe:0", "-b:a", "128k", "-f", "mp3", "pipe:1"]);
-    const out = [];
-    p.stdout.on("data", (d) => out.push(d));
-    p.on("error", bad);
-    p.on("close", (c) => (c === 0 ? ok(Buffer.concat(out)) : bad(new Error(`ffmpeg 轉 mp3 失敗 ${c}`))));
-    p.stdin.end(pcm);
-  });
+  return Buffer.from(await res.arrayBuffer());
 }
 
 export async function synth(text, opts = {}) {
-  if (useGemini || process.env.TTS_PROVIDER === "gemini") return geminiSynth(text, opts);
+  if (useGpt || process.env.TTS_PROVIDER === "gpt") return gptSynth(text, opts);
   try {
     return await inworldSynth(text, opts);
   } catch (e) {
-    if (e.status !== 402 || !process.env.GEMINI_API_KEY) throw e;
-    useGemini = true;
-    console.log("Inworld 配音點數用完，這次改用 Gemini 的聲音");
-    return geminiSynth(text, opts);
+    if (e.status !== 402 || !process.env.OPENAI_API_KEY) throw e;
+    useGpt = true;
+    console.log("Inworld 配音點數用完，這次改用 GPT 的聲音（shimmer）");
+    return gptSynth(text, opts);
   }
 }
 
@@ -110,11 +93,15 @@ function hasRepeat(s, len = 8) {
   return false;
 }
 
-// 只比長度比例與重複；轉文字偶爾回簡體，不做字形比對。
+// 念出風格指令的字（原文沒有卻聽到了）＝把指令念進去了
+const STYLE_WORDS = ["口音", "語氣", "语气", "只念內容", "只念内容", "念出下面"];
+
+// 只比長度比例、重複、有沒有念出風格指令；轉文字偶爾回簡體，不做字形比對。
 export function heardOk(src, heard) {
   const a = norm(src);
   const h = norm(heard);
   if (a.length === 0) return h.length <= 2;
+  if (STYLE_WORDS.some((w) => h.includes(w) && !a.includes(w))) return false;
   const ratio = h.length / a.length;
   if (ratio < 0.8 || ratio > 1.25) return false;
   return !hasRepeat(h);
