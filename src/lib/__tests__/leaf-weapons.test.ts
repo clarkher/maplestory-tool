@@ -1,7 +1,7 @@
 // 攻略文 maple-leaf-weapon-jobs 的每個數字都要跟傷害計算機重算的一樣：資料更新、公式改了這裡會紅，文章要跟著改
 import fs from "node:fs";
 import { beforeAll, describe, expect, it } from "vitest";
-import { leafWeaponReport, mageBuildCompare, ratioAt, ratioText, untilText, type LeafJob } from "../leaf-weapons";
+import { brawlerAllStrCompare, leafWeaponReport, mageBuildCompare, ratioAt, ratioText, untilText, type LeafJob } from "../leaf-weapons";
 import { staticCalcData } from "../static-data";
 
 const article = fs.readFileSync("src/content/guides/maple-leaf-weapon-jobs.md", "utf8").replace(/\r\n?/g, "\n");
@@ -79,6 +79,23 @@ describe("楓葉武器攻略文對答案", () => {
       expect([...new Set(mine.map(entry => entry.otherName))], `${lv} 等裝備法的武器`).toEqual([other]);
       expect(cellText(mine.map(entry => entry.ratio)), `${lv} 等`).toBe(text);
     }
+  }, 300000);
+
+  it("全力打手（v2.50）：每一列比的指虎、一般點法跟全力各強幾 %", () => {
+    const body = article.split("### 打手全點力量\n")[1].split("\n## ")[0];
+    const found = rows(body.split("\n\n").map(part => part.trim()).find(part => part.startsWith("|"))!);
+    expect(found.length).toBe(4);
+    const levels = found.map(([lv]) => Number(lv.replace(" 等", "")));
+    const compare = brawlerAllStrCompare(staticCalcData(), JSON.parse(fs.readFileSync("public/data/items.json", "utf8")), levels);
+    for (const [lvText, other, normal, allStr] of found) {
+      const entry = compare.find(row => row.lv === Number(lvText.replace(" 等", "")));
+      expect(entry, `${lvText} 算得出來`).toBeTruthy();
+      expect([entry!.otherName, ratioText(entry!.normal), ratioText(entry!.allStr)], lvText).toEqual([other, normal, allStr]);
+    }
+    // 文章說「全力到 70 等都還贏」：每一級都要真的贏
+    const all = brawlerAllStrCompare(staticCalcData(), JSON.parse(fs.readFileSync("public/data/items.json", "utf8")), Array.from({ length: 28 }, (_, i) => 43 + i));
+    expect(all.length).toBe(28);
+    for (const entry of all) expect(entry.allStr, `${entry.lv} 等全力還贏`).toBeGreaterThan(1.005);
   }, 300000);
 
   it("每段的強弱 %：43、50、60 等", () => {
