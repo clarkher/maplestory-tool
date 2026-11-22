@@ -133,6 +133,49 @@ export function mageBuildCompare(base: CalcData, items: Item[], levels: number[]
   return out;
 }
 
+/** 全力打手留的敏捷：海盜轉職要 20（guide-data 的轉職門檻） */
+export const ALL_STR_DEX = 20;
+
+export type AllStrCompare = { lv: number; leafName: string; otherName: string; normal: number; allStr: number };
+
+/**
+ * 全力打手（v2.50，使用者 11/22 問「打手可以全力嗎」）：楓葉指虎不看敏捷，敏捷只留轉職要的 20、其餘全點力量。
+ * 跟 leafJob 一樣對上一般點法那一級穿得上最好的乾淨指虎；normal＝一般點法拿衝完的楓葉指虎，allStr＝全力拿同一把。
+ * 查不到玩家這樣玩，文章寫明是站上自己算的；海盜出手時間查不到，比一下的傷害。
+ */
+export function brawlerAllStrCompare(base: CalcData, items: Item[], levels: number[]): AllStrCompare[] {
+  const leaf = leafGear(items);
+  const leafIds = new Set(LEAF_WEAPON_IDS);
+  const data: CalcData = { ...base, gear: { ...base.gear, weapons: [...base.gear.weapons, ...leaf] } };
+  const job = 510;
+  const choices = weaponChoices(data.gear, job);
+  const out: AllStrCompare[] = [];
+  for (const lv of levels) {
+    const state = defaultState(data, job, lv, null);
+    const stats = state.groups[0].stats;
+    const allStr = { ...stats, STR: stats.STR + stats.DEX - ALL_STR_DEX, DEX: ALL_STR_DEX };
+    const value = (weapon: GearWeapon, bonus: number, use: typeof stats) => {
+      const group = { ...state.groups[0], weaponId: weapon.id, weaponAtk: (weapon.atk ?? 0) + bonus, stats: use };
+      const result = computeGroup(data, state.shared, group, null);
+      return result.ok ? result.expectedUse : null;
+    };
+    let best: { weapon: GearWeapon; value: number } | null = null;
+    for (const weapon of choices) {
+      if (leafIds.has(weapon.id) || weapon.lv > lv || !canWear(weapon, stats)) continue;
+      const v = value(weapon, 0, stats);
+      if (v !== null && (!best || v > best.value)) best = { weapon, value: v };
+    }
+    // 這一級拿得到等級最高的楓葉指虎
+    const knuckle = choices.filter(weapon => leafIds.has(weapon.id) && weapon.s === "指虎" && weapon.lv <= lv).sort((a, b) => b.lv - a.lv)[0];
+    if (!best || !knuckle) continue;
+    const normal = value(knuckle, LEAF_SCROLL_BONUS, stats);
+    const strong = value(knuckle, LEAF_SCROLL_BONUS, allStr);
+    if (normal === null || strong === null) continue;
+    out.push({ lv, leafName: knuckle.n, otherName: best.weapon.n, normal: normal / best.value, allStr: strong / best.value });
+  }
+  return out;
+}
+
 /** 比例寫成文章用的字：強 38%／差 6%／打平（差不到 1%） */
 export function ratioText(ratio: number): string {
   const percent = Math.round((ratio - 1) * 100);
