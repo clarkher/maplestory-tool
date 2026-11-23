@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * 冒險者登記書：3:2 的簽名格，手指／滑鼠／觸控筆都能寫（pointer events、touch-action: none 不讓頁面跟著捲）。
+ * 冒險者登記書：3:2 的簽名格，手指／滑鼠／觸控筆都能寫（pointer events、touch-action: none＋收下觸控，不讓頁面跟著捲）。
  * 筆畫存畫面座標（CSS px），交出去前由 RenameGame 切段＋正規化，所以格子大小不影響比對。
  * 畫布照 devicePixelRatio 開解析度，格子大小變了（轉向、縮放）就照存的筆畫重畫。
  * debug（網址 ?debug=1）多一顆「匯出筆畫」：把原始筆畫（切段前）JSON 複製到剪貼簿，Task 8 校正用。
@@ -67,6 +67,22 @@ export function SignPad({ onSubmit, debug }: { onSubmit: (strokes: Stroke[]) => 
     ro.observe(c);
     return () => ro.disconnect();
   }, [redraw]);
+
+  // 手指碰到格子就把觸控收下：touch-action 只擋得住瀏覽器自己的捲動，
+  // App 內建瀏覽器外面那層（下拉關閉、下拉更新）要看 preventDefault。React 的 onTouch 是 passive，要自己掛
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    const take = (e: TouchEvent) => {
+      if (e.cancelable) e.preventDefault();
+    };
+    c.addEventListener("touchstart", take, { passive: false });
+    c.addEventListener("touchmove", take, { passive: false });
+    return () => {
+      c.removeEventListener("touchstart", take);
+      c.removeEventListener("touchmove", take);
+    };
+  }, []);
 
   const at = (e: PointerEvent | ReactPointerEvent<HTMLCanvasElement>): Pt => {
     const r = canvasRef.current!.getBoundingClientRect();

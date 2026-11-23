@@ -19,14 +19,14 @@ node scripts/verify/<腳本>.mjs <輸出資料夾> <網址> …
 - 環境變數（都在 `config.mjs`）：
   - `CHROME_PATH`：Chrome（或 Edge、Chromium）在哪，預設 `C:/Program Files/Google/Chrome/Application/chrome.exe`。
   - `CHROME_PORT`：DevTools 的埠。命令列有給埠就用命令列的，都沒給就用各支的預設值。
-- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，speed-confirm 是 9533，speed-manual 是 9535，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，future-shot 是 9511，nav-fit 是 9513，go-door-shot 是 9541，guild-shot 是 9621（本機 dev 用 9620），rename-shot 是 9631（本機 dev 用 3473），updates-shot 是 9526（本機 start 用 9525），
+- **埠不能撞，別的 session 正在跑的也算**：scroll-proof 是 9333，reload-open 是 9363，gear-source-shot 是 9365，build-variants-shot 是 9371，contrast-audit 是 9375，article-calc-link 是 9395，hash-back 是 9373，page-cls 是 9392，back-all 和 card-shot 都是 9347，reload-all 是 9367，damage-shot 是 9383，speed-shot 是 9391，speed-confirm 是 9533，speed-manual 是 9535，scroll-shot 是 9302（本機 dev 用 9301），atlas-shot 是 9304（本機 dev 用 9303），pq-shot 是 9432（本機 dev 用 9431），avatar-shot 是 9382（本機 dev 用 9381），shop-shot 是 9389，fx-shot 是 9481，cf-shot 是 9493（v1.33 Cloudflare 搬家，本機 wrangler dev 用 8791），cf-segments 是 9497，article-layout 是 9499，article-page 是 9503，job-road-shot 是 9507，future-shot 是 9511，nav-fit 是 9513，go-door-shot 是 9541，guild-shot 是 9621（本機 dev 用 9620），rename-shot 是 9631（本機 dev 用 3473），rename-touch 是 9633（本機 dev 用 3473），updates-shot 是 9526（本機 start 用 9525），
   border-* 和 home-first-frame 在 9400–9799 隨機挑。埠被佔走時，腳本會連進別人的 Chrome、操作別人的分頁。
   不確定就用埠參數或 `CHROME_PORT` 指定沒人用的埠（先 `netstat -ano | findstr :<埠>` 看一下有沒有人在用）。
 - **在 Git Bash 裡跑**：`/plan/farm` 這種斜線開頭的參數會被自動改成 Windows 路徑。例如 back-all 的「只跑某頁」
   會一頁都對不到，`results.json` 是空的。指令前面加 `MSYS_NO_PATHCONV=1`，或改用 PowerShell。
 - 大多數腳本不判 PASS／FAIL，只把逐格紀錄、截圖、`results.json` 留下來讓人看。
   check-first-frame 會判、沒過就 exit 1（GitHub Actions「測試 / 第一格」跑的就是它）。
-  speed-shot、speed-confirm、speed-manual、scroll-shot、avatar-shot、guild-shot、rename-shot 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
+  speed-shot、speed-confirm、speed-manual、scroll-shot、avatar-shot、guild-shot、rename-shot、rename-touch 也會判、沒過 exit 1（不在 CI 裡跑，要手動）。
 - 測試機實測時間（2026-10-07）：scroll-proof 45 秒、crossdoc（plain）75 秒、
   after-back 35 秒、m13-select 20 秒、navtop2 20 秒、chart 15 秒、back-all 只跑一頁 12 秒、card-shot 一個網址 5 秒、
   gear-source-shot 三個角色 13 秒。
@@ -721,6 +721,17 @@ node scripts/verify/rename-shot.mjs [網址，預設 http://localhost:3473] [輸
 - 出哪隻怪頁面用 `Math.random` 挑平手的，每次跑可能不一樣；只判出怪還是一坨。找東西用 `data-bt="yes"`、`data-pad`、`data-act`、`data-share`、`data-stage`（aria-label），改版面時要留著。
 - 整頁截圖前先捲回頁首（不然固定的導覽列會畫在頁面中間）。本機 dev 已編譯過約 30 秒（2026-11-20）。
 - 輸出：`rename-intro.png`、`rename-sign.png`、`rename-<ID>.png`（四組結果）、`rename-share.png`、`rename-replay.png`、`results.json`（`replayLink` 是複製到的分享網址）。
+
+#### `rename-touch.mjs`：名字變怪物簽名格用手指寫（v2.61，埠 9633）
+
+```bash
+node scripts/verify/rename-touch.mjs [網址，預設 http://localhost:3473] [輸出] [DevTools 埠，預設 9633]
+```
+
+- rename-shot 用滑鼠畫，驗不到手指。這支開手機觸控（390×600），在格子裡往上、下、左、右、寫出格子外各拖一次：頁面不准捲、筆畫不准被切斷（pointercancel 0 次），touchstart／touchmove 每一次都要 `defaultPrevented`；最後手指點［擦掉重寫］要會清掉。任何一項沒過 exit 1。
+- 對照組是在格子外滑，頁面真的會捲；不會捲的話其他項等於沒驗。
+- 看 `defaultPrevented` 是因為社群 App 內建瀏覽器外層的下拉關閉／下拉更新不看 touch-action（2026-11-23 巴哈回報一直滑掉）。修之前五個方向全是 0/15，一般手機 Chrome 則都不捲。**App 內建瀏覽器跟 iPhone 這支測不到。**
+- 輸出：`rename-touch.png`。
 
 #### `updates-shot.mjs`：改版整理 `/updates`、`/updates/2.0.0`（v1.94，埠 9526）
 
