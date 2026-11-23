@@ -707,7 +707,7 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `video_play` | 影片區（v2.32）：/videos 或攻略專區那排短影音，按封面開始播 | `kind`（main 正片／shorts 短影音）、`id`（YouTube id）、`page`（videos／guides） |
 | `rename_start` | 名字變怪物（v2.44）：NPC 問要不要登錄名冊時按「接受」 | — |
 | `rename_result` | 名字變怪物自己寫的那輪演完、出結果（點分享連結看別人那輪不送） | `result`（怪物 id；配不出來是 `poop`）、`score`（像度 0–99） |
-| `rename_share` | 名字變怪物按分享後選一個 | `via`（link 複製連結／video 存影片／image 存圖） |
+| `rename_share` | 名字變怪物按分享那幾顆之一（v2.60 起攤開、多一顆大的） | `via`（send 傳給朋友／link 複製連結／video 存影片／image 存圖） |
 | `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃、公會徽章分享 | `page`（boss／speed／avatar／guild）、`method`（野王計時、紙娃娃、公會徽章 copy_link 複製連結；紙娃娃、公會徽章 share 系統分享（只有手機、平板；電腦一律 copy_link）；練功測速 copy_image／download_image） |
 
 外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。

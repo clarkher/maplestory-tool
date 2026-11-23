@@ -73,6 +73,7 @@ export function NpcDialog({
   left,
   right,
   onButton,
+  follow = true,
 }: {
   lines: Seg[][];
   /** 台詞下面再加一行（例：筆畫 21→6　像度 81%） */
@@ -80,6 +81,8 @@ export function NpcDialog({
   left: DlgButton[];
   right: DlgButton[];
   onButton: (b: DlgButton) => void;
+  /** 台詞換了要不要捲回對話框（演出在最上面時不捲） */
+  follow?: boolean;
 }) {
   const box = useRef<HTMLElement>(null);
   const first = useRef(true);
@@ -89,12 +92,12 @@ export function NpcDialog({
       return;
     }
     const el = box.current;
-    if (!el) return;
+    if (!el || !follow) return;
     const r = el.getBoundingClientRect();
     // 台詞那一塊被導覽列蓋住（--header-offset，導覽列收起來時是 0）、或在畫面下面，就捲回來（scroll-mt 讓開導覽列）
     const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 0;
     if (r.top < header || r.top > window.innerHeight - 80) el.scrollIntoView({ block: "start", behavior: "smooth" });
-  }, [lines]);
+  }, [lines, follow]);
   return (
     <section ref={box} data-dialog className="scroll-mt-[calc(var(--header-h,64px)+8px)] rounded-[10px] bg-[#4e5c78] p-1 shadow-sm">
       <div className="rounded-[8px] bg-[#bec8d7] p-1.5">
