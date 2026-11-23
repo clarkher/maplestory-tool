@@ -218,6 +218,37 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "GD_z0PSQ91c",
     tool: { href: "/db/monsters/1110100", text: "綠菇菇資料" },
   },
+  {
+    title: "殭屍菇菇在哪打？",
+    summary: "最多在螞蟻洞Ⅲ（62 個刷怪點），一共出現在 10 張圖。",
+    publishAt: "2026-11-22T11:00:00.000Z",
+    main: "pu55L0bf8_w",
+    shorts: "1l7ZRB_xDYc",
+    tool: { href: "/db/monsters/2230101", text: "殭屍菇菇資料" },
+  },
+  {
+    title: "月妙組隊 4 關怎麼過？",
+    summary: "收種子、種種子、保護月妙、交年糕，種子位置照這樣種。",
+    publishAt: "2026-11-23T11:00:00.000Z",
+    main: "-cvelY-eAZQ",
+    shorts: "iK6xhM0UgnY",
+    tool: { href: "/plan/pq?pq=moon", text: "組隊指揮" },
+  },
+  {
+    title: "紅寶在哪打？",
+    summary: "最多在墮落城市北方工地（24 個刷怪點），一共出現在 42 張圖。",
+    publishAt: "2026-11-23T11:00:00.000Z",
+    main: "wsQ48mvNnO8",
+    shorts: "DR_9zTv487o",
+    tool: { href: "/db/monsters/130101", text: "紅寶資料" },
+  },
+  {
+    title: "黑斧木妖在哪打？",
+    summary: "最多在東方岩石山Ⅴ（21 個刷怪點），一共出現在 25 張圖。",
+    publishAt: "2026-11-23T01:00:00.000Z",
+    shorts: "psY4z7NYKms",
+    tool: { href: "/db/monsters/2130100", text: "黑斧木妖資料" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
