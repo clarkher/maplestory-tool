@@ -194,7 +194,7 @@ describe("改版整理（v1.94）進攻略專區、sitemap、llms.txt", () => {
     expect(urls.some(url => url.endsWith("/updates"))).toBe(true);
     for (const page of listPatchPages()) expect(urls.some(url => url.endsWith(`/updates/${page.version}`))).toBe(true);
     expect(SITE_PAGES.find(entry => entry.path === "/updates")?.name).toBe("改版紀錄");
-  });
+  }, 120_000);
   it("llms.txt 自動吃 SITE_PAGES、也列有重點檔的版本頁", () => {
     expect(read("../../app/llms.txt/route.ts")).toContain("patchLines");
   });

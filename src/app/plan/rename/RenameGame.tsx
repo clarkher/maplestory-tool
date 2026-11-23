@@ -6,7 +6,8 @@
  *   sign：對話框下面出現登記書（SignPad）
  *   running：切段＋正規化後丟 Worker 比對，回來就播演出（stage.ts：寫字→收筆畫→變形→標題）；
  *            變形播完（標題開始）才切 result，NPC 說結果
- *   result：演出停在最後一格＋［分享（ShareMenu：複製連結／存影片／存圖）］［再寫一次］＋「{怪}在哪打／怎麼去 →」（只對 where 裡還有單獨頁的怪放）
+ *   running、result 演出放最上面、NPC 移到下面（v2.60 使用者選 D）：手機一個畫面看得到變成什麼、按得到分享
+ *   result：演出停在最後一格＋ShareMenu（傳給朋友、複製連結、存圖、存影片）＋［再寫一次］＋「{怪}在哪打／怎麼去 →」（只對 where 裡還有單獨頁的怪放）
  * 狀態轉換在 src/lib/rename/flow.ts（純函式、有測試）。
  *
  * replay（/plan/rename/m/[id] 分享頁）：一開場就從 location.hash 的 #r=... 解出筆畫重播；
@@ -241,6 +242,14 @@ export function RenameGame({ replay, where }: { replay?: Replay; where: number[]
     else if (b === "next") dispatch({ type: "page" });
   };
 
+  // 演出跟結果放最上面（NPC 移到下面）：手機一個畫面就看得到變成什麼、按得到分享
+  const top = step === "running" || step === "result";
+  const stageTop = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // 看別人的重播一開頁就在最上面，不捲
+    if (top && !replay) stageTop.current?.scrollIntoView({ block: "start", behavior: "instant" });
+  }, [top, play, replay]);
+
   // 分享頁（看別人的登記書）：結果用 replayLines、一頁講完，不放［下頁］
   const right: DlgButton[] = step === "intro" ? ["no", "yes"] : step === "result" && ctx.page === 0 && !replay ? ["next"] : [];
   const lines =
@@ -269,31 +278,37 @@ export function RenameGame({ replay, where }: { replay?: Replay; where: number[]
   );
 
   return (
-    <div className="space-y-3.5">
-      <NpcDialog lines={lines} extra={stats} left={["close"]} right={right} onButton={onButton} />
+    <div className="flex flex-col gap-3.5 [overflow-anchor:none]">
+      <div className={top ? "order-last" : ""}>
+        <NpcDialog lines={lines} extra={stats} left={["close"]} right={right} onButton={onButton} follow={!top} />
+      </div>
 
       {step === "intro" ? <p className="text-center text-[14px] ink-soft">按「接受」才會拿到登記書</p> : null}
 
       {step === "sign" ? <SignPad key={padKey} onSubmit={submit} debug={debug} /> : null}
 
-      {(step === "running" || step === "result") && play ? <StageCanvas play={play} onReveal={reveal} /> : null}
-      {step === "running" && !play ? (
-        <div role="status" className="grid aspect-[4/5] w-full place-items-center rounded-[var(--radius-card)] border border-[#d8ccb4] bg-[#fbf6ea] text-[14px] text-[#7a6a58]">
-          比對中…
-        </div>
-      ) : null}
-
-      {step === "result" && still ? (
-        <div
-          data-still
-          className="grid aspect-[4/5] w-full place-items-center rounded-[var(--radius-card)] border border-[#d8ccb4] bg-[#fbf6ea]"
-        >
-          {still.id !== "poop" && still.n ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={monsterImage(still.id)} alt={still.n} className="max-h-[60%] max-w-[70%] object-contain [image-rendering:pixelated]" />
-          ) : (
-            <p className="text-[18px] font-bold text-[#3c3028]">測出來是一坨</p>
-          )}
+      {top ? (
+        // 寬度照畫面高度收，演出下面一定留得下分享那兩排按鈕
+        <div ref={stageTop} className="mx-auto w-[min(100%,max(240px,calc((100dvh_-_210px)*0.8)))] scroll-mt-[calc(var(--header-h,64px)+8px)]">
+          {play ? (
+            <StageCanvas play={play} onReveal={reveal} />
+          ) : still ? (
+            <div
+              data-still
+              className="grid aspect-[4/5] w-full place-items-center rounded-[var(--radius-card)] border border-[#d8ccb4] bg-[#fbf6ea]"
+            >
+              {still.id !== "poop" && still.n ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={monsterImage(still.id)} alt={still.n} className="max-h-[60%] max-w-[70%] object-contain [image-rendering:pixelated]" />
+              ) : (
+                <p className="text-[18px] font-bold text-[#3c3028]">測出來是一坨</p>
+              )}
+            </div>
+          ) : step === "running" ? (
+            <div role="status" className="grid aspect-[4/5] w-full place-items-center rounded-[var(--radius-card)] border border-[#d8ccb4] bg-[#fbf6ea] text-[14px] text-[#7a6a58]">
+              比對中…
+            </div>
+          ) : null}
         </div>
       ) : null}
 

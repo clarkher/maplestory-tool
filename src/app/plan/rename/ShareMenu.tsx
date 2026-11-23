@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * 名字變怪物的［分享］：點開三選一——複製連結／存影片／存圖。
- * 連結裡帶的是正規化後的筆畫（#r=...，不會送到伺服器）；第一次分享前在選單上寫明「連結裡會帶你寫的字」。
+ * 名字變怪物的分享：大顆［傳給朋友］按一下就跳系統分享（電腦複製連結），下面一排攤開複製連結／存圖／存影片
+ * （v2.60；以前要先點開選單、按鈕在手機畫面外，上線當天半小時玩 66 次只分享 2 次）。
+ * 連結裡帶的是正規化後的筆畫（#r=...，不會送到伺服器）；第一次分享前在按鈕下面寫明「連結裡會帶你寫的字」。
  * 手機錄完影片（約 6 秒）按下去那次的動作已過期、系統分享會被擋，所以錄好先放一顆「分享影片」讓使用者再按一次；電腦直接下載。
  * 影片 720×1280、圖 1080×1350，都用演出的 drawStage（caption: true，片尾帶站名網址）畫，在瀏覽器裡做。
  */
@@ -11,10 +12,10 @@ import type { ReactNode } from "react";
 import { track } from "@/lib/analytics";
 import { monsterImage } from "@/lib/asset-paths";
 import type { Result } from "@/lib/rename/match";
-import { canRecordVideo, copyText, deliver, downloadBlob, fileExt, recordVideo, shareableFile, shareFile, shareUrl, stageImage, VIDEO } from "@/lib/rename/share";
+import { canRecordVideo, copyText, deliver, downloadBlob, fileExt, recordVideo, shareableFile, sendText, shareFile, shareLink, shareUrl, stageImage, VIDEO } from "@/lib/rename/share";
 import { drawStage } from "@/lib/rename/stage";
 import type { Pt, Stroke } from "@/lib/rename/strokes";
-import { BTN_PLAIN, BTN_PRIMARY } from "./SignPad";
+import { BTN_PLAIN, BTN_PRIMARY, BTN_SEND } from "./SignPad";
 
 export type ShareRound = {
   segs: Stroke[];
@@ -43,9 +44,8 @@ function loadMob(id: number): Promise<HTMLImageElement | undefined> {
   });
 }
 
-/** children：跟［分享］並排的另一顆（再寫一次／換我寫）；選單開在這一排下面 */
+/** children：跟［傳給朋友］並排的另一顆（再寫一次） */
 export function ShareMenu({ round, showNotice, children }: { round: ShareRound; showNotice: boolean; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<Busy>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [shared, setShared] = useState(false);
@@ -78,6 +78,16 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
     setShared(true);
     const url = `${window.location.origin}${shareUrl({ id: result.kind === "monster" ? result.id : "poop", score: result.score, all: segs, kept })}`;
     say((await copyText(url)) ? "連結複製好了，貼給朋友就能看你這一輪" : "複製不了，請長按網址列自己複製");
+  };
+
+  /** 主按鈕：手機、平板直接跳系統分享（帶連結），電腦或不支援就複製連結；按取消什麼都不說 */
+  const send = async () => {
+    track("rename_share", { via: "send" });
+    setShared(true);
+    const url = `${window.location.origin}${shareUrl({ id: result.kind === "monster" ? result.id : "poop", score: result.score, all: segs, kept })}`;
+    const how = await shareLink({ text: sendText(result), url });
+    if (how === "copy") say("連結複製好了，貼給朋友就能看你這一輪");
+    else if (how === "error") say("分享不了，按「複製連結」貼給朋友");
   };
 
   const saveImage = async () => {
@@ -168,49 +178,37 @@ export function ShareMenu({ round, showNotice, children }: { round: ShareRound; 
 
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          data-act="share"
-          aria-expanded={open}
-          className={BTN_PRIMARY}
-          onClick={() => {
-            setOpen(o => !o);
-            setMsg(null);
-          }}
-        >
-          分享
+      <div className="grid grid-cols-[2fr_1fr] gap-2">
+        <button type="button" data-act="share" className={BTN_SEND} disabled={busy !== null} onClick={() => void send()}>
+          傳給朋友
         </button>
         {children}
       </div>
-      {open ? (
-        <div data-share-menu className="space-y-2">
-          {showNotice && !shared ? <p className="text-center text-[14px] ink-soft">連結裡會帶你寫的字</p> : null}
-          <div className={`grid gap-2 ${canRecord ? "grid-cols-3" : "grid-cols-2"}`}>
-            <button type="button" data-share="link" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void copyLink()}>
-              複製連結
-            </button>
-            {canRecord ? (
-              <button type="button" data-share="video" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void saveVideo()}>
-                {busy === "video" ? "錄影中…" : "存影片"}
-              </button>
-            ) : null}
-            <button type="button" data-share="image" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void saveImage()}>
-              {busy === "image" ? "做圖中…" : "存圖"}
-            </button>
-          </div>
-          {videoFile && busy === null ? (
-            <button type="button" data-share="video-send" className={`${BTN_PRIMARY} w-full`} onClick={() => void sendVideo()}>
-              分享影片
-            </button>
-          ) : null}
-          {busy === "video" ? <p className="text-center text-[14px] ink-soft">影片照演出錄，大約 6 秒</p> : null}
-          {msg ? (
-            <p role="status" data-share-msg className="text-center text-[14px] ink-soft">
-              {msg}
-            </p>
-          ) : null}
-        </div>
+      <div className={`grid gap-2 ${canRecord ? "grid-cols-3" : "grid-cols-2"}`}>
+        <button type="button" data-share="link" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void copyLink()}>
+          複製連結
+        </button>
+        <button type="button" data-share="image" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void saveImage()}>
+          {busy === "image" ? "做圖中…" : "存圖"}
+        </button>
+        {canRecord ? (
+          <button type="button" data-share="video" className={BTN_PLAIN} disabled={busy !== null} onClick={() => void saveVideo()}>
+            {busy === "video" ? "錄影中…" : "存影片"}
+          </button>
+        ) : null}
+      </div>
+      {videoFile && busy === null ? (
+        <button type="button" data-share="video-send" className={`${BTN_PRIMARY} w-full`} onClick={() => void sendVideo()}>
+          分享影片
+        </button>
+      ) : null}
+      {busy === "video" ? <p className="text-center text-[14px] ink-soft">影片照演出錄，大約 6 秒</p> : null}
+      {msg ? (
+        <p role="status" data-share-msg className="text-center text-[14px] ink-soft">
+          {msg}
+        </p>
+      ) : showNotice && !shared ? (
+        <p className="text-center text-[13px] ink-soft">連結裡會帶你寫的字</p>
       ) : null}
     </div>
   );

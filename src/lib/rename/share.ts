@@ -4,6 +4,7 @@
  *   shareUrl(r)              → "/plan/rename/m/<id>#r=<筆畫>"（一坨是 /m/poop）；# 後面不會送到伺服器
  *   recordVideo(canvas, draw) → 用 MediaRecorder 把畫布錄成影片（支援 mp4 就 mp4，不然 webm）；不支援回 null
  *   stageImage(draw)          → 1080×1350 png
+ *   shareLink({ text, url })  → ［傳給朋友］：手機跳系統分享、電腦複製連結（v2.60）
  *   deliver(blob, name)       → 手機能分享檔案就叫系統分享，不然下載（存圖用）
  *   shareableFile(blob, name) → 影片錄完先問能不能分享；能就放「分享影片」讓使用者再按一次 shareFile（錄 6 秒，原本那次點擊已過期）
  *
@@ -207,4 +208,26 @@ export async function copyText(text: string): Promise<boolean> {
       return false;
     }
   }
+}
+
+/** ［傳給朋友］系統分享面板帶的那句話 */
+export function sendText(r: { kind: "monster"; n: string } | { kind: "poop" }): string {
+  return r.kind === "monster" ? `我的 ID 簽一簽變成「${r.n}」，換你簽` : "我的 ID 測出來是一坨，換你簽";
+}
+
+/**
+ * 分享連結：手機、平板（手指操作）叫系統分享面板，電腦或沒有系統分享就複製。
+ * 使用者在面板按取消回 "cancel"；面板叫不出來改複製，連複製都不行回 "error"。
+ */
+export async function shareLink(data: { text: string; url: string }): Promise<"share" | "copy" | "cancel" | "error"> {
+  const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  if (touch && typeof navigator.share === "function") {
+    try {
+      await navigator.share(data);
+      return "share";
+    } catch (e) {
+      if ((e as Error)?.name === "AbortError") return "cancel";
+    }
+  }
+  return (await copyText(data.url)) ? "copy" : "error";
 }

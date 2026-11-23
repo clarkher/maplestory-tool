@@ -14,13 +14,13 @@ import { JOB_OPTIONS, consistentJob, jobOption, stageJob } from "@/lib/jobs";
 import {
   BOSS_SPAWN_MAX, CEILING_GAP, bandQuests, canGo, effectiveLevels, goChecker, laterMaterials, lineFor, longRunNow, mainPick, nowQuests, partsText, townRoute,
   type BandQuest, type Ceiling, type LongRunTask, type MainPick, type NowQuest,
+  pqJustClosed,
 } from "@/lib/now-plan";
 import { LEVEL_CAP } from "@/lib/profile";
 import { findRoute, suggestStart } from "@/lib/route";
 import { type Band, bandsFor, isIslandBand, isIslandMap, spawnIndex, type Material } from "@/lib/route-planner";
 import { pickTitle, timelinePlans, type TrainRow } from "@/lib/timeline";
 import type { GuideCommon, GuideJob, MapRecord, Meta, Monster, PortalEdge, Quest, TrainingRow } from "@/lib/types";
-import { GODDESS_PQ, goddessNoteFor } from "@/lib/v002-notes";
 
 const DATA = fileURLToPath(new URL("../../../public/data/", import.meta.url));
 const read = <T,>(name: string): T => JSON.parse(fs.readFileSync(`${DATA}${name}`, "utf8")) as T;
@@ -37,6 +37,8 @@ type Combo = {
   active: { label?: string; first?: TrainRow; usable: number; blocked: boolean };
   /** 升級路線你在的那段每一列（含替代）給了「去」的地圖 */
   activeGo: number[];
+  /** 主推卡跟升級路線每一段練功列的名字 */
+  titles: string[];
   /** 升級路線每一段的必解（你在的那段照畫面一樣扣掉先解列過的段），activeIndex 是你在的那段 */
   mustDo: BandQuest[][];
   activeIndex: number;
@@ -155,6 +157,7 @@ beforeAll(() => {
           blocked: timeline.plans[timeline.activeIndex].blocked,
         },
         activeGo: [...timeline.plans[timeline.activeIndex].rows, ...timeline.plans[timeline.activeIndex].fallback].flatMap(row => (row.go === undefined ? [] : [row.go])),
+        titles: [...(pick?.kind === "pq" ? [pick.pq.name] : []), ...timeline.plans.flatMap(plan => [...plan.rows, ...plan.fallback].map(row => row.title))],
         mustDo,
         activeIndex: timeline.activeIndex,
         later: bands.map((_, index) => (index + 1 < bands.length ? laterMaterials({ next: plain[index + 1], listed: [...todo, ...mustDo[index]], monsters }) : [])),
@@ -213,18 +216,12 @@ describe("真資料：首頁每個組合", () => {
     expectNone("組隊任務範圍超出遊戲限制", bad);
   });
 
-  it("女神的痕跡：主推是它的組合不再多放一行舊提示；其他 51～70 等的組合照舊放（v1.08）", () => {
-    const goddessCombos = combos.filter(combo => combo.pick?.kind === "pq" && combo.pick.pq.quest === GODDESS_PQ.quest);
-    // 劍士三職、刺客、俠盜、僧侶 51～70 主推它：至少有這幾條職業線
-    expect(new Set(goddessCombos.map(combo => combo.job)).size).toBeGreaterThanOrEqual(6);
-    const bad = combos.flatMap(combo => {
-      const note = goddessNoteFor(combo.level, combo.pick);
-      const isGoddessPick = goddessCombos.includes(combo);
-      const inRange = combo.level >= GODDESS_PQ.minLv && combo.level <= GODDESS_PQ.maxLv;
-      const shouldShow = inRange && !isGoddessPick;
-      return Boolean(note) === shouldShow ? [] : [`${combo.tag}：${note ? "放了" : "沒放"}女神提示`];
-    });
-    expectNone("女神提示跟主推卡重複或漏放", bad);
+  it("女神組隊不推薦：主推卡、每一段的練功列都沒有它（v2.59 使用者：效率太差）", () => {
+    const bad = combos.filter(combo => combo.titles.some(title => title.includes("女神組隊"))).map(combo => combo.tag);
+    expectNone("還在推女神組隊", bad);
+    // 過了 70 等也不提「女神組隊任務只開放到 70 等」；月妙、超綠照舊
+    expect(pqJustClosed(common, 110, 71, quests)).toBeUndefined();
+    expect(pqJustClosed(common, 110, 31, quests)?.pq.key).toBe("kerning");
   });
 
   it("主推卡給「帶我去」時，/go 真的找得到從城鎮走過去的路", () => {

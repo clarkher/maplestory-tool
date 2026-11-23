@@ -1,5 +1,5 @@
-// 名字變怪物（/plan/rename，v2.44）驗收：手機 390×844，NPC 問要不要登錄 → 接受 → 把手寫樣本畫進登記書 → 簽好了 → 等演出播完 → 截圖；
-// 三組會出怪的＋一組一坨（阿明：23 段、最高像度 53，低於 56 的門檻；像度在亂數之前決定，一定是一坨），最後打開分享選單截圖。任何一項沒過 exit 1
+// 名字變怪物（/plan/rename，v2.44）驗收：手機 390×664（扣掉瀏覽器上下列），NPC 問要不要登錄 → 接受 → 把手寫樣本畫進登記書 → 簽好了 → 等演出播完 → 截圖；
+// 三組會出怪的＋一組一坨（阿明：23 段、最高像度 53，低於 56 的門檻；像度在亂數之前決定，一定是一坨），最後截分享那兩排。任何一項沒過 exit 1
 // 用法：node scripts/verify/rename-shot.mjs [網址，預設 http://localhost:3473] [輸出資料夾] [DevTools 埠，預設 9631]
 //   例：npx next dev --webpack -p 3473   （另一個視窗先開本機 dev）
 //       node scripts/verify/rename-shot.mjs http://localhost:3473 "$TEMP/rename-shot"
@@ -9,7 +9,7 @@
 // 出怪還是一坨看演出畫布 data-stage 的 aria-label（「筆畫變成某隻怪」／「筆畫掉下來堆成一坨」），像度看對話框那行「像度 N%」。
 // 頁面上的東西用 data-bt="yes"（接受）、data-pad（簽名格）、data-act="submit"／"again"／"share"、data-share="link" 找，改版面時這幾個屬性要留著。
 // 最後按「複製連結」打開那個分享網址，看重播頁只有［換我寫］、沒有［分享］。
-// 輸出：rename-intro.png（接任務）、rename-sign.png（簽好還沒送）、rename-<ID>.png（每組結果，整頁）、rename-share.png（分享選單）、rename-replay.png（重播頁）、results.json
+// 輸出：rename-intro.png（接任務）、rename-sign.png（簽好還沒送）、rename-<ID>.png（每組結果，整頁）、rename-share.png（分享那兩排）、rename-replay.png（重播頁）、results.json
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -112,9 +112,12 @@ async function round(id, first) {
     where: document.querySelector("[data-act='where']")?.textContent ?? null,
     scrollW: document.documentElement.scrollWidth,
   }))()`);
+  const fold = await evaluate(`(() => { const b = s => { const r = document.querySelector(s)?.getBoundingClientRect(); return r ? [Math.round(r.top), Math.round(r.bottom)] : null; }; return { stage: b("[data-stage]"), share: b("[data-act='share']"), link: b("[data-share='link']"), header: Math.round(parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--header-h")) || 0), h: innerHeight }; })()`);
+  const shot = await page.send("Page.captureScreenshot", { format: "png" });
+  fs.writeFileSync(path.join(OUT, `rename-${id}-fold.png`), Buffer.from(shot.data, "base64"));
   const file = await fullShot(`rename-${id}.png`);
   const poop = info.stage === "筆畫掉下來堆成一坨";
-  const r = { id, strokes: fx.strokes.length, padScale: Number(drawn.scale.toFixed(3)), ms, poop, ...info, file };
+  const r = { id, strokes: fx.strokes.length, padScale: Number(drawn.scale.toFixed(3)), ms, poop, ...info, fold, file };
   results.rounds.push(r);
   console.log(`  ${id}：${info.stage ?? "沒有演出畫布"}${info.stats ? `（${info.stats}）` : ""}，${ms} ms`);
   return r;
@@ -127,7 +130,7 @@ try {
     if (m.method === "Runtime.exceptionThrown") problems.exceptions.push(String(m.params.exceptionDetails?.exception?.description ?? m.params.exceptionDetails?.text).slice(0, 300));
     if (m.method === "Runtime.consoleAPICalled" && m.params.type === "error") problems.errors.push(m.params.args.map(a => a.value ?? a.description ?? "").join(" ").slice(0, 300));
   });
-  await page.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 2, mobile: false });
+  await page.send("Emulation.setDeviceMetricsOverride", { width: 390, height: 664, deviceScaleFactor: 2, mobile: false });
 
   for (const [i, id] of PICK.entries()) {
     let r = null;
@@ -139,19 +142,20 @@ try {
     }
     if (id === POOP_ID) record(`${id}：一坨`, r.poop, r.stage);
     else record(`${id}：出怪、有像度、有「在哪打」連結`, !r.poop && /^筆畫變成/.test(r.stage ?? "") && Boolean(r.stats) && Boolean(r.where), { stage: r.stage, stats: r.stats, where: r.where });
+    // v2.60：演出播完不用捲，整張演出跟分享兩排都在畫面裡
+    const f = r.fold;
+    record(`${id}：一個畫面看得到演出跟分享`, f.stage && f.share && f.link && f.stage[0] >= f.header && f.share[0] >= f.stage[1] && f.link[1] <= f.h, f);
     record(`${id}：390 寬不橫捲`, r.scrollW <= 390, r.scrollW);
   }
 
-  // 分享選單（停在最後一輪的結果上）
+  // 分享那兩排（停在最後一輪的結果上）：不用點開就在
   try {
-    await click("分享", "[data-act='share']");
-    await wait("分享選單", `document.querySelector("[data-share='link']")`, 5000);
-    await sleep(300);
+    await wait("分享那一排", `document.querySelector("[data-share='link']")`, 5000);
     await fullShot("rename-share.png");
     const opts = await evaluate(`[...document.querySelectorAll("[data-share]")].map(b => b.getAttribute("data-share"))`);
-    record("分享選單：有複製連結、存圖", opts.includes("link") && opts.includes("image"), opts);
+    record("分享：不用點開就有複製連結、存圖", opts.includes("link") && opts.includes("image"), opts);
   } catch (error) {
-    record("分享選單", false, String(error?.message ?? error).slice(0, 300));
+    record("分享那一排", false, String(error?.message ?? error).slice(0, 300));
   }
 
   // 重播頁（看別人的分享）：按「複製連結」拿到網址（攔 clipboard.writeText），打開 → 重播播完 → 只有［換我寫］、沒有［分享］

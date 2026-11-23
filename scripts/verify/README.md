@@ -485,7 +485,7 @@ node scripts/verify/pq-shot.mjs [網址，預設 http://localhost:9431] [輸出]
 - 檢查（32 項，任何一項沒過 exit 1）：`?pq=kerning` 選到超綠；跳木桶沒填名字／填了名字的喊話；「不對，下一組」只叫要換的人（123→124、126→134）；
   複製真的進剪貼簿、按鈕變「已複製」再變回來，複製完馬上換下一組新喊話不會寫「已複製」；重新整理還在同一組、名字還在；勾選；「過了」跳下一關、回去寫答案；重來只清進度不清名字；
   20 組都不對寫「全部試過了」；女神標舊版、8 關、拉桿喊話；壞存檔＋亂填網址照樣開月妙；手機 390 三個任務都不橫捲；
-  攻略頁 `#pq-moon`、`#pq-kerning` 有連結；首頁 58 等狂戰士的女神組隊卡有連結、點了進女神；console 沒有錯誤。
+  攻略頁 `#pq-moon`、`#pq-kerning` 有連結；首頁 58 等狂戰士不推女神組隊（v2.59）、首頁 25 等劍士的超綠組隊卡有連結、點了進超綠；console 沒有錯誤。
 - 輸出：`pq-390-light／dark.png`、`pq-1280-light／dark.png`、`pq-goddess-390.png`（整頁）、`results.json`。
 - 攻略頁的組隊段落平常收著，要帶 `#pq-moon` 進來才展開；同一頁只換 `#` 不會重新展開，中間要先開 `about:blank`。
 - 同一個輸出資料夾連跑兩次可能卡在上一次的 Chrome 設定檔（「DevTools 沒起來」），換資料夾或換埠。
@@ -716,11 +716,11 @@ node scripts/verify/rename-shot.mjs [網址，預設 http://localhost:3473] [輸
 ```
 
 - 本機先 `npx next dev --webpack -p 3473`，網址用 `localhost`。手寫筆畫讀**本機** `src/lib/rename/__fixtures__/hand.json`（`scripts/rename/build-hand-fixtures.mjs` 產的），等比縮進簽名格、用滑鼠事件一點一點畫。
-- 390×844：接受 → 畫「小樹」「黑騎士」「王小明」（要出怪、有「筆畫 N→M　像度 N%」、有「○○在哪打／怎麼去」）跟「阿明」（一定是一坨：23 段、最高像度 53 低於門檻 56，像度在亂數之前決定）→ 每組不橫捲 → 最後一輪打開分享選單（有複製連結、存圖）→ 按複製連結打開分享網址，重播頁有演出、只有［換我寫］沒有［分享］→ 整趟沒有 console 錯誤。任何一項沒過 exit 1。
+- 390×664（扣掉瀏覽器上下列）：接受 → 畫「小樹」「黑騎士」「王小明」（要出怪、有「筆畫 N→M　像度 N%」、有「○○在哪打／怎麼去」）跟「阿明」（一定是一坨：23 段、最高像度 53 低於門檻 56，像度在亂數之前決定）→ 每組不橫捲、不用捲就看得到整張演出跟分享兩排（v2.60）→ 最後一輪不用點開就有複製連結、存圖→ 按複製連結打開分享網址，重播頁有演出、只有［換我寫］沒有［分享］→ 整趟沒有 console 錯誤。任何一項沒過 exit 1。
 - 一坨門檻看段數（`poopBelow`：不到 16 段 40、其他 56）。8591 只有 12 段、像度 41 會出怪，喵喵剛好 56 在門檻上，都不拿來驗；換樣本先跑 `RENAME_CALIB_LOG=1 npx vitest run src/lib/rename/__tests__/calibrate.test.ts --silent=false` 看每組段數跟像度，挑離門檻遠的。
 - 出哪隻怪頁面用 `Math.random` 挑平手的，每次跑可能不一樣；只判出怪還是一坨。找東西用 `data-bt="yes"`、`data-pad`、`data-act`、`data-share`、`data-stage`（aria-label），改版面時要留著。
 - 整頁截圖前先捲回頁首（不然固定的導覽列會畫在頁面中間）。本機 dev 已編譯過約 30 秒（2026-11-20）。
-- 輸出：`rename-intro.png`、`rename-sign.png`、`rename-<ID>.png`（四組結果）、`rename-share.png`、`rename-replay.png`、`results.json`（`replayLink` 是複製到的分享網址）。
+- 輸出：`rename-intro.png`、`rename-sign.png`、`rename-<ID>.png`（四組結果）、`rename-<ID>-fold.png`（演出播完當下的畫面）、`rename-share.png`、`rename-replay.png`、`results.json`（`replayLink` 是複製到的分享網址）。
 
 #### `updates-shot.mjs`：改版整理 `/updates`、`/updates/2.0.0`（v1.94，埠 9526）
 

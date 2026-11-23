@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canRecordVideo, pickVideoType, recordVideo, shareableFile, shareFile, shareUrl, VIDEO } from "../share";
+import { canRecordVideo, pickVideoType, recordVideo, sendText, shareableFile, shareFile, shareLink, shareUrl, VIDEO } from "../share";
 import { liveShapeIds, shareOgTitle, sharePageIds, sharePageName } from "../share-pages";
 import { decodeShare, type Stroke } from "../strokes";
 import shapesJson from "../shapes.json";
@@ -103,6 +103,50 @@ describe("shareableFile（錄完影片才決定放「分享影片」還是直接
     await expect(shareFile(f)).resolves.toBe("cancel");
     vi.stubGlobal("navigator", { share: async () => { throw Object.assign(new Error("x"), { name: "NotAllowedError" }); } });
     await expect(shareFile(f)).resolves.toBe("error");
+  });
+});
+
+describe("［傳給朋友］（v2.60）", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const data = { text: "換你簽", url: "https://maplehelper.tw/plan/rename/m/poop#r=x" };
+  const env = (touch: boolean, share?: () => Promise<void>, write: () => Promise<void> = async () => {}) => {
+    const sent = vi.fn(share ?? (async () => {}));
+    const copied = vi.fn(write);
+    vi.stubGlobal("matchMedia", () => ({ matches: touch }));
+    vi.stubGlobal("navigator", { ...(share ? { share: sent } : {}), clipboard: { writeText: copied } });
+    return { sent, copied };
+  };
+  const fail = (name: string) => async () => {
+    throw Object.assign(new Error("x"), { name });
+  };
+
+  it("手機：系統分享帶那句話跟連結，不複製", async () => {
+    const { sent, copied } = env(true, async () => {});
+    await expect(shareLink(data)).resolves.toBe("share");
+    expect(sent).toHaveBeenCalledWith(data);
+    expect(copied).not.toHaveBeenCalled();
+  });
+  it("電腦、沒有系統分享的手機：只複製連結", async () => {
+    const pc = env(false, async () => {});
+    await expect(shareLink(data)).resolves.toBe("copy");
+    expect(pc.sent).not.toHaveBeenCalled();
+    expect(pc.copied).toHaveBeenCalledWith(data.url);
+    env(true);
+    await expect(shareLink(data)).resolves.toBe("copy");
+  });
+  it("按取消什麼都不做；面板叫不出來改複製；都不行回 error", async () => {
+    const { copied } = env(true, fail("AbortError"));
+    await expect(shareLink(data)).resolves.toBe("cancel");
+    expect(copied).not.toHaveBeenCalled();
+    env(true, fail("NotAllowedError"));
+    await expect(shareLink(data)).resolves.toBe("copy");
+    vi.stubGlobal("document", { createElement: () => { throw new Error("x"); } });
+    env(true, fail("NotAllowedError"), fail("NotAllowedError"));
+    await expect(shareLink(data)).resolves.toBe("error");
+  });
+  it("帶的話：出怪寫怪名、一坨寫一坨", () => {
+    expect(sendText({ kind: "monster", n: "嫩寶" })).toBe("我的 ID 簽一簽變成「嫩寶」，換你簽");
+    expect(sendText({ kind: "poop" })).toBe("我的 ID 測出來是一坨，換你簽");
   });
 });
 
