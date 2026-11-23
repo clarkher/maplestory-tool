@@ -4,7 +4,7 @@
 // 只看結構、不看時間（GitHub 的機器快慢不穩，時間門檻會偶發紅燈）：
 //   1 首頁站內換頁：首頁 → 查資料 → 我的路線，DOM 從頭到尾只有一個狀態，而且就是完整路線（角色、主推卡、升級路線、裝備卡）
 //   2 硬重新整理、存過角色：那句「你現在幾等、什麼職業？」一格都不出現（v0.54）
-//   3 硬重新整理、沒存過角色：第一格就看得到那句問題跟選職業的表單（不先放讀取中，v1.56）
+//   3 硬重新整理、沒存過角色：整頁讀完的第一格就看得到那句問題跟選職業的表單（不先放讀取中，v1.56、v2.56）
 //   4 首頁主推卡「帶我去」→ /go：只有一個狀態，就是路線
 //   5 查資料 → 練功地圖排行：只有一個狀態，就是排行
 //   7 刺客 35 選了全幸（ms-build {"400":"全幸"}）：硬重新整理、站內換頁進首頁，「能力值與裝備」卡第一次畫出來
@@ -120,6 +120,8 @@ const TOOLS = `
     const card = document.querySelector('section[aria-label="能力值與裝備"]:not([aria-busy])');
     return {
       path: location.pathname,
+      // 網頁還在邊下載邊讀的時候也會畫：main 後面的頁尾出現了，才算伺服器畫的版本整頁讀完（第 3 項）
+      parsed: q("footer"),
       loading: /讀取你的角色|幫你排路線|整理資料中|載入地圖資料|載入道具資料/.test(text),
       question: text.includes("你現在幾等、什麼職業"),
       // 硬重新整理時伺服器畫的版本就有角色列（存過角色的人藏著）：要看得到才算
@@ -228,8 +230,13 @@ try {
     const rec = await evaluate("window.__rec");
     await page.send("Page.removeScriptToEvaluateOnNewDocument", { identifier });
     await evaluate(`localStorage.setItem("ms-profile", ${JSON.stringify(BERSERKER_45)}); "ok"`);
-    const first = rec.frames.find(f => f.path === "/" && (f.question || f.loading || f.character));
-    check("3 硬重新整理、沒存過角色：第一格就看得到那句問題", Boolean(first?.question && first.form && !first.loading), { firstFrame: first ?? null });
+    // 11/23 起會抓到讀到一半的那一格（角色列剛開頭、還沒讀到輸入框，33 毫秒後就有），所以從整頁讀完那一格看；
+    // 讀到一半的格子照樣不准出現讀取中
+    const home = rec.frames.filter(f => f.path === "/");
+    const at = home.findIndex(f => f.parsed);
+    const first = home[at];
+    const half = home.slice(0, Math.max(at, 0));
+    check("3 硬重新整理、沒存過角色：第一格就看得到那句問題", Boolean(first?.question && first.form && !first.loading && half.every(f => !f.loading)), { firstFrame: first ?? null, half });
   });
 
   // 選了全幸的人：卡片一出現就要是全幸（選中「全幸」、有「要湊的敏捷裝備」），不能先畫一般點法、下一格才跳過去
