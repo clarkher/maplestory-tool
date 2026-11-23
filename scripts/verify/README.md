@@ -716,11 +716,11 @@ node scripts/verify/rename-shot.mjs [網址，預設 http://localhost:3473] [輸
 ```
 
 - 本機先 `npx next dev --webpack -p 3473`，網址用 `localhost`。手寫筆畫讀**本機** `src/lib/rename/__fixtures__/hand.json`（`scripts/rename/build-hand-fixtures.mjs` 產的），等比縮進簽名格、用滑鼠事件一點一點畫。
-- 390×844：接受 → 畫「小樹」「黑騎士」「王小明」（要出怪、有「筆畫 N→M　像度 N%」、有「○○在哪打／怎麼去」）跟「阿明」（一定是一坨：23 段、最高像度 53 低於門檻 56，像度在亂數之前決定）→ 每組不橫捲 → 最後一輪打開分享選單（有複製連結、存圖）→ 按複製連結打開分享網址，重播頁有演出、只有［換我寫］沒有［分享］→ 整趟沒有 console 錯誤。任何一項沒過 exit 1。
+- 390×664（扣掉瀏覽器上下列）：接受 → 畫「小樹」「黑騎士」「王小明」（要出怪、有「筆畫 N→M　像度 N%」、有「○○在哪打／怎麼去」）跟「阿明」（一定是一坨：23 段、最高像度 53 低於門檻 56，像度在亂數之前決定）→ 每組不橫捲、不用捲就看得到整張演出跟分享兩排（v2.60）→ 最後一輪不用點開就有複製連結、存圖→ 按複製連結打開分享網址，重播頁有演出、只有［換我寫］沒有［分享］→ 整趟沒有 console 錯誤。任何一項沒過 exit 1。
 - 一坨門檻看段數（`poopBelow`：不到 16 段 40、其他 56）。8591 只有 12 段、像度 41 會出怪，喵喵剛好 56 在門檻上，都不拿來驗；換樣本先跑 `RENAME_CALIB_LOG=1 npx vitest run src/lib/rename/__tests__/calibrate.test.ts --silent=false` 看每組段數跟像度，挑離門檻遠的。
 - 出哪隻怪頁面用 `Math.random` 挑平手的，每次跑可能不一樣；只判出怪還是一坨。找東西用 `data-bt="yes"`、`data-pad`、`data-act`、`data-share`、`data-stage`（aria-label），改版面時要留著。
 - 整頁截圖前先捲回頁首（不然固定的導覽列會畫在頁面中間）。本機 dev 已編譯過約 30 秒（2026-11-20）。
-- 輸出：`rename-intro.png`、`rename-sign.png`、`rename-<ID>.png`（四組結果）、`rename-share.png`、`rename-replay.png`、`results.json`（`replayLink` 是複製到的分享網址）。
+- 輸出：`rename-intro.png`、`rename-sign.png`、`rename-<ID>.png`（四組結果）、`rename-<ID>-fold.png`（演出播完當下的畫面）、`rename-share.png`、`rename-replay.png`、`results.json`（`replayLink` 是複製到的分享網址）。
 
 #### `updates-shot.mjs`：改版整理 `/updates`、`/updates/2.0.0`（v1.94，埠 9526）
 

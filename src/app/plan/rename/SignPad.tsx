@@ -15,6 +15,8 @@ const INK = "#2b2b2b";
 const BTN =
   "flex min-h-11 items-center justify-center rounded-[10px] border text-[15px] font-extrabold transition-colors active:scale-[0.98]";
 export const BTN_PRIMARY = `${BTN} border-2 border-[color:var(--maple-soft)] bg-[color:var(--maple-wash)] text-[color:var(--maple)]`;
+/** 實心橘：一個畫面只有一顆（傳給朋友） */
+export const BTN_SEND = `${BTN} border-[color:var(--maple)] bg-[color:var(--maple)] text-[color:var(--on-accent)]`;
 export const BTN_PLAIN = `${BTN} border-[color:var(--paper-edge)] bg-[color:var(--paper)] text-[color:var(--ink)]`;
 
 export function SignPad({ onSubmit, debug }: { onSubmit: (strokes: Stroke[]) => void; debug: boolean }) {
