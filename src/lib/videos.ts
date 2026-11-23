@@ -188,6 +188,36 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "YvXpOftfdwI",
     tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
   },
+  {
+    title: "泰里送好禮",
+    summary: "11/19～2/17 到弓箭手村或天空之城找泰里，領炎魔之手交換券、暴風成長祕藥、經驗 2 倍券。",
+    publishAt: "2026-11-21T17:20:17.000Z",
+    main: "tG0-ikrhl54",
+    shorts: "dDWlw5rTUpg",
+  },
+  {
+    title: "手機 Beta 開放",
+    summary: "Android 先開放，從官網公告下載 APK；不能組隊任務、商城、強化，要用帳號密碼或 OTP 登入。",
+    publishAt: "2026-11-21T17:20:49.000Z",
+    main: "6nbCENFUjzo",
+    shorts: "LONi3Yhk4Tg",
+  },
+  {
+    title: "地鐵二號線[01]怎麼去？",
+    summary: "從墮落城市出發 4 段、經過 5 張圖，每段走哪個門。",
+    publishAt: "2026-11-22T04:00:00.000Z",
+    main: "jDiQBXqxMbU",
+    shorts: "y-DpRSA8VGs",
+    tool: { href: "/go?to=103000200&from=103000000", text: "地圖導航" },
+  },
+  {
+    title: "綠菇菇在哪打？",
+    summary: "最多在北部森林訓練場Ⅵ（33 個刷怪點），一共出現在 34 張圖。",
+    publishAt: "2026-11-22T11:00:00.000Z",
+    main: "69mg0dL9IRA",
+    shorts: "GD_z0PSQ91c",
+    tool: { href: "/db/monsters/1110100", text: "綠菇菇資料" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
