@@ -751,6 +751,33 @@ const SCENES = [
       "In the middle stands a young adventurer with short brown hair in a light tunic, looking a little puzzled, holding several of the glowing heart tokens in both hands. Sweet, light-hearted, slightly curious mood.",
     ].join(" "),
   },
+  {
+    // v2.52 泰里送好禮：弓箭手村裡戴眼鏡的倉鼠發禮物，禮物是加倍券、炎魔之手、技能初始化卷軸
+    slug: "terry-gift",
+    base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [
+      { file: "items/2450064.png", x: 0.62, y: 0.55, h: 0.12 },
+      { file: "items/1702632.png", x: 0.74, y: 0.6, h: 0.2 },
+      { file: "items/2500007.png", x: 0.86, y: 0.55, h: 0.12 },
+    ],
+    idea: [
+      "A lively festival in a sunny mushroom village: colorful party flags, balloons and confetti in the air.",
+      "On the left a chubby cute hamster with round glasses, standing on its hind legs on top of a pile of wrapped gift boxes, cheerfully handing out presents.",
+      "In front of it a young adventurer with short brown hair in a light tunic, excitedly holding up a glowing purple potion bottle. The gift items from the sprites float above the boxes like a prize display, keep each one recognizable like its sprite: a coupon ticket, a big brown stone fist, and a golden scroll.",
+      "Happy, generous, celebratory mood.",
+    ].join(" "),
+  },
+  {
+    // v2.52 安卓手機版 Beta：冒險家從手機螢幕跳出來
+    slug: "android-beta",
+    base: { render: 100000000, crop: [0, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [],
+    idea: [
+      "A sunny mushroom village with mushroom-cap houses and green hills.",
+      "In the foreground a giant plain modern smartphone with no logo, lying tilted like a portal, its screen showing the same village; a young adventurer with short brown hair in a light tunic leaps out of the screen into the real village, sword raised, with sparkles around.",
+      "A small orange mushroom monster and a green slime peek curiously from behind the phone. Playful, exciting, 'play anywhere' mood.",
+    ].join(" "),
+  },
 ];
 
 /* ------------------------------------------------------------------ 參數 */
