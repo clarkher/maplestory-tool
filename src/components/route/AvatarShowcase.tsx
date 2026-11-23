@@ -48,21 +48,61 @@ export function AvatarShowcase({ className = "" }: { className?: string }) {
   return (
     // className（藏起來／顯示的規則）放外層
     <div className={className}>
-      <section aria-label="紙娃娃" className="overflow-hidden rounded-[var(--radius-card)] glass">
-        <div className="avatar-marquee flex h-[128px] items-end overflow-hidden pb-1.5 motion-reduce:overflow-x-auto sm:h-[166px]" style={{ "--loop": `${LOOP}s` } as CSSProperties}>
-          <Row />
-          <Row copy />
+      <section aria-label="紙娃娃" className="overflow-hidden rounded-[var(--radius-card)] glass sm:flex">
+        <div className="min-w-0 sm:flex-1">
+          <div className="avatar-marquee flex h-[128px] items-end overflow-hidden pb-1.5 motion-reduce:overflow-x-auto sm:h-[166px]" style={{ "--loop": `${LOOP}s` } as CSSProperties}>
+            <Row />
+            <Row copy />
+          </div>
+          <Link
+            href={DRAW_HREF}
+            onClick={() => track("avatar_showcase_click", { target: "draw" })}
+            className="flex items-center justify-between gap-3 border-t border-[color:var(--paper-edge)] px-4 py-2.5"
+          >
+            <span className="min-w-0 text-[15px] font-black leading-snug">
+              紙娃娃
+              <span className="block text-[13px] font-medium ink-soft">隨機穿搭，你會抽到什麼？</span>
+            </span>
+            <span className="inline-flex min-h-11 shrink-0 items-center rounded-md bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">抽一套</span>
+          </Link>
         </div>
+        {/* 切一格推名字變怪物（v2.53，使用者選 A）：電腦版在右邊一格（米菈 → 簽個名 → 怪），手機版疊在下面一條 */}
         <Link
-          href={DRAW_HREF}
-          onClick={() => track("avatar_showcase_click", { target: "draw" })}
-          className="flex items-center justify-between gap-3 border-t border-[color:var(--paper-edge)] px-4 py-2.5"
+          href="/plan/rename"
+          onClick={() => track("avatar_showcase_click", { target: "rename" })}
+          className="flex items-center gap-3 border-t border-[color:var(--paper-edge)] bg-[color-mix(in_srgb,var(--maple)_7%,transparent)] px-4 py-2 sm:w-[310px] sm:shrink-0 sm:flex-col sm:items-stretch sm:justify-end sm:gap-2.5 sm:border-l sm:border-t-0 sm:py-3"
         >
-          <span className="min-w-0 text-[15px] font-black leading-snug">
-            紙娃娃
-            <span className="block text-[13px] font-medium ink-soft">隨機穿搭，你會抽到什麼？</span>
+          <span className="flex shrink-0 items-end justify-center gap-1.5">
+            {/* 米菈的圖本來朝左，翻過來看著怪；手機 1 倍、電腦 1.5 倍（跟輪播的角色一樣大） */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/rename/npc.png"
+              alt=""
+              width={128}
+              height={148}
+              loading="lazy"
+              decoding="async"
+              className="block h-[74px] w-[64px] max-w-none -scale-x-100 [image-rendering:pixelated] sm:h-[111px] sm:w-[96px]"
+            />
+            <span className="mb-8 hidden whitespace-nowrap text-[13px] font-black text-[color:var(--maple)] sm:block">簽個名 →</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/monster_frames/1210100.png"
+              alt=""
+              width={68}
+              height={40}
+              loading="lazy"
+              decoding="async"
+              className="hidden h-[60px] w-[102px] max-w-none [image-rendering:pixelated] sm:block"
+            />
           </span>
-          <span className="inline-flex min-h-11 shrink-0 items-center rounded-md bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">抽一套</span>
+          <span className="flex min-w-0 flex-1 items-center justify-between gap-3 sm:flex-none">
+            <span className="min-w-0 text-[15px] font-black leading-snug">
+              名字變怪物
+              <span className="block text-[13px] font-medium ink-soft">簽個名，看你是哪隻怪</span>
+            </span>
+            <span className="inline-flex min-h-11 shrink-0 items-center rounded-md bg-[color:var(--maple)] px-5 text-[15px] font-black text-[color:var(--on-accent)]">去簽名</span>
+          </span>
         </Link>
       </section>
     </div>
