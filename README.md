@@ -698,7 +698,7 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `boss_room_create` | 野王計時開房間 | — |
 | `boss_room_join` | 加入房間 | `via`（code 打代碼／link 點連結） |
 | `avatar_download` | 紙娃娃按「下載」 | `gender`（男／女） |
-| `avatar_showcase_click` | 首頁紙娃娃輪播：點角色、按「抽一套」；入口清單點「做公會徽章」 | `target`（look 點角色／draw 抽一套／guild 做公會徽章，v1.97 起在入口清單） |
+| `avatar_showcase_click` | 首頁紙娃娃輪播：點角色、按「抽一套」、右邊那格「去簽名」；入口清單點「做公會徽章」 | `target`（look 點角色／draw 抽一套／rename 名字變怪物（v2.53）／guild 做公會徽章，v1.97 起在入口清單） |
 | `guild_download` | 公會徽章按「下載」 | — |
 | `guild_random` | 公會徽章按「隨機一個」 | — |
 | `donate_click` | 贊助（v2.22）：頁尾「贊助楓谷幫手」、攻略文結尾小卡「贊助」（進 /support）；/support 按付款按鈕 | `placement`（footer／guide_end／support_page）、`method`（ecpay／linepay；page＝只是進 /support）。轉換率＝`method` 是 ecpay／linepay 的次數 ÷ 同期間工作階段；有沒有真的付錢 GA 量不到，看綠界／LINE Pay 後台，報數字兩個分開寫 |
