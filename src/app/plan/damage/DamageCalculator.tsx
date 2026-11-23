@@ -63,9 +63,10 @@ export function DamageLoading() {
   return <Shell><LoadingBlock /></Shell>;
 }
 
+// min-h-dvh：讀取中、還沒選職業時很短，不撐住的話下面的問答會先在畫面裡、算好又被推走
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-3xl space-y-4 py-3 sm:py-6">
+    <div className="mx-auto min-h-dvh max-w-3xl space-y-4 py-3 sm:py-6">
       <header>
         <h1 className="text-[26px] font-black tracking-tight sm:text-[32px]">傷害計算機</h1>
         <p className="mt-1.5 text-[15px] leading-relaxed ink-soft">選武器、能力值、技能，看打一下多痛；兩套並排，直接看差多少。</p>
