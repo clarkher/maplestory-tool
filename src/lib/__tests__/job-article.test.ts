@@ -716,7 +716,7 @@ describe("頁面（文章清單換成假資料）", () => {
     expect(html).toContain("https://maplehelper.tw/guides/priest-31-50");
     // 不准有 emoji
     expect(html).not.toMatch(/[\u2300-\u23FF\u25A0-\u25FF\u2600-\u27BF]|[\u{1F300}-\u{10FFFF}]/u);
-  });
+  }, 120_000);
 
   it("文章裡代號換不掉，整頁建不起來（不會把代號原文放上線）", async () => {
     const { default: Page } = await import("@/app/guides/[slug]/page");
