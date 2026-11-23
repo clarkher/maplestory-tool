@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { DamageCalculator, DamageLoading } from "./DamageCalculator";
+import { DamageFaq } from "./DamageFaq";
 import { withOpenGraph } from "@/lib/seo";
 
 export const metadata: Metadata = withOpenGraph({
@@ -11,8 +12,11 @@ export const metadata: Metadata = withOpenGraph({
 
 export default function Page() {
   return (
-    <Suspense fallback={<DamageLoading />}>
-      <DamageCalculator />
-    </Suspense>
+    <>
+      <Suspense fallback={<DamageLoading />}>
+        <DamageCalculator />
+      </Suspense>
+      <DamageFaq />
+    </>
   );
 }
