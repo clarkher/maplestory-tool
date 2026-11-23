@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { GA_ID, gaEnabledFor, gaOptOut, jobParams, linkClick, track, trackSettled } from "../analytics";
+import { bootGa, GA_ID, gaEnabledFor, gaOptOut, gaPageLocation, jobParams, linkClick, track, trackSettled } from "../analytics";
 
 type Win = { gtag?: (...args: unknown[]) => void };
 
@@ -92,5 +92,68 @@ describe("自己人不算流量、單獨頁點去工具（v2.08）", () => {
   it("沒標的連結不送", () => {
     expect(linkClick(undefined, "/", "/db", "x")).toBeNull();
     expect(linkClick("other", "/", "/db", "x")).toBeNull();
+  });
+});
+
+describe("GA 網址不帶 #（v2.44：名字變怪物的分享連結把結果放在 #r=，不能送進 GA）", () => {
+  type Loc = { origin: string; pathname: string; search: string; hash: string; hostname: string };
+  function fakeWindow(href: string) {
+    const u = new URL(href);
+    const loc: Loc = { origin: u.origin, pathname: u.pathname, search: u.search, hash: u.hash, hostname: u.hostname };
+    const listeners: Record<string, (() => void)[]> = {};
+    const calls: unknown[][] = [];
+    const go = (url: string) => {
+      const n = new URL(url, loc.origin + loc.pathname);
+      Object.assign(loc, { pathname: n.pathname, search: n.search, hash: n.hash });
+    };
+    const w = {
+      location: loc,
+      history: {
+        pushState: (_s: unknown, _t: string, url?: string | URL | null) => url != null && go(String(url)),
+        replaceState: (_s: unknown, _t: string, url?: string | URL | null) => url != null && go(String(url)),
+      },
+      addEventListener: (type: string, fn: () => void) => (listeners[type] ??= []).push(fn),
+      removeEventListener: (type: string, fn: () => void) => (listeners[type] = (listeners[type] ?? []).filter((f) => f !== fn)),
+      gtag: (...args: unknown[]) => calls.push(args),
+    };
+    return { w, calls, go, fire: (type: string) => (listeners[type] ?? []).forEach((f) => f()) };
+  }
+  const sentLocations = (calls: unknown[][]) =>
+    calls.flatMap((c) => (c[0] === "set" || c[0] === "config" ? [(c[c.length - 1] as { page_location?: string }).page_location] : [])).filter(Boolean);
+
+  it("gaPageLocation 只留網域＋路徑＋查詢字串", () => {
+    expect(gaPageLocation({ origin: "https://maplehelper.tw", pathname: "/plan/rename/m/123", search: "?a=1" })).toBe("https://maplehelper.tw/plan/rename/m/123?a=1");
+  });
+  it("開頁送出的 page_location 沒有 #", () => {
+    const { w, calls } = fakeWindow("https://maplehelper.tw/plan/rename/m/123#r=abc");
+    bootGa(w);
+    const sent = sentLocations(calls);
+    expect(sent.length).toBeGreaterThan(0);
+    for (const s of sent) expect(s).toBe("https://maplehelper.tw/plan/rename/m/123");
+    expect(calls.some((c) => c[0] === "config" && c[1] === GA_ID)).toBe(true);
+  });
+  it("站內換頁（pushState、replaceState、上一頁、改 #）也跟著換、一樣不帶 #", () => {
+    const { w, calls, go, fire } = fakeWindow("https://maplehelper.tw/");
+    const stop = bootGa(w);
+    w.history.pushState(null, "", "/plan/rename/m/9#r=xyz");
+    w.history.replaceState(null, "", "/plan/rename?x=1#r=q");
+    go("/db#frag");
+    fire("popstate");
+    go("/db#other");
+    fire("hashchange");
+    const sent = sentLocations(calls);
+    expect(sent).toContain("https://maplehelper.tw/plan/rename/m/9");
+    expect(sent).toContain("https://maplehelper.tw/plan/rename?x=1");
+    expect(sent).toContain("https://maplehelper.tw/db");
+    for (const s of sent) expect(s).not.toContain("#");
+    stop();
+  });
+  it("正式網域不開 debug_mode，其他網域開", () => {
+    const a = fakeWindow("https://maplehelper.tw/x#y");
+    bootGa(a.w);
+    expect(a.calls.find((c) => c[0] === "config")?.[2]).not.toHaveProperty("debug_mode");
+    const b = fakeWindow("https://dev.example.com/x?ga_debug=1#y");
+    bootGa(b.w);
+    expect(b.calls.find((c) => c[0] === "config")?.[2]).toMatchObject({ debug_mode: true, page_location: "https://dev.example.com/x?ga_debug=1" });
   });
 });

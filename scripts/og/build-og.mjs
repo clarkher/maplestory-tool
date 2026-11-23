@@ -50,6 +50,9 @@ const LABELS = { monsters: "怪物", maps: "地圖", npcs: "NPC", items: "道具
 
 /** 頁面網址 → 配哪張遊戲圖（public 底下的相對路徑，前面的沒有就用下一個） */
 export function spriteFor(pagePath, quests) {
+  // 名字變怪物的分享頁（v2.44）：怪用跟怪物單獨頁同一張圖；一坨只有字
+  const rename = pagePath.match(/^\/plan\/rename\/m\/(\d+|poop)$/);
+  if (rename) return rename[1] === "poop" ? null : { kind: "sprite", files: [`assets/monster_frames/${rename[1]}.png`, `assets/monsters/${rename[1]}.png`] };
   const match = pagePath.match(/^\/db\/(monsters|maps|npcs|items|quests|skills)\/(\d+)$/);
   if (!match) return null;
   const [, type, id] = match;

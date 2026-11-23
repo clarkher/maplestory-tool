@@ -314,7 +314,7 @@ export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[
 /**
  * 首頁的入口清單（v1.97 照候選圖 A-home：一張卡多列、列之間 1px 線、右邊箭頭）。
  * 萬聖節只在活動期間出現（11/11 23:59 後不出現；手機導覽列放不下，從這裡進）、未來視導覽列之外首頁也放一張（v1.68 使用者選 A）、
- * 公會徽章本來是輪播下面那行字。
+ * 公會徽章本來是輪播下面那行字。名字變怪物（v2.44）接在公會徽章後面。
  * 存過角色的人硬重新整理時，上面的大標收起來、讀取區塊換成角色列，會把清單往上推（首頁跳一下）：還沒讀到本機角色（pending）時
  * 先藏著（只等讀本機角色，不等路線），第一次來的人第一眼照樣看得到；藏著的元素不算位移。
  */
@@ -323,6 +323,7 @@ function HomeLinks({ pending }: { pending: boolean }) {
     ...(halloweenOn(Date.now()) ? [{ href: "/event/halloween", title: "萬聖節面具祭典攻略", hint: "三章任務照順序、要打的怪去哪打" }] : []),
     { href: "/future", title: "未來視", hint: "下一版大概何時開、現在該先囤什麼" },
     { href: "/plan/guild", title: "做公會徽章", hint: "拼圖案、配顏色，下載照遊戲位置", guild: true },
+    { href: "/plan/rename", title: "名字變怪物", hint: "簽個名看你是哪隻怪" },
   ];
   return (
     <nav aria-label="其他入口" className={`divide-y divide-[color:var(--paper-edge)] overflow-hidden rounded-[var(--radius-card)] glass${pending ? " [[data-profile=saved]_&]:invisible" : ""}`}>
