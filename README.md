@@ -684,6 +684,8 @@ ChatGPT 查網路主要靠 Bing；IndexNow 讓 Bing（跟 Yandex 等）不用等
 
 GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/lib/analytics.ts`）。`GoogleAnalytics` 元件畫面出來後才載，**只有正式網域載**；測試機、分支預覽、本機網址加 `?ga_debug=1` 才載（帶 `debug_mode`，在 GA「管理 → DebugView」看）。新增、改名事件要一起改這張表。
 
+**網址不送 `#` 後面（v2.44）**：`bootGa` 先 `set page_location`（網域＋路徑＋查詢字串）再 `config`，站內換頁（pushState／replaceState／上一頁／改 #）都重設；名字變怪物的分享結果放在 `#r=`，送進 GA 會外洩寫的名字。
+
 | 事件 | 什麼時候送 | 參數 |
 |---|---|---|
 | `profile_set` | 存角色（拉等級停 1.5 秒才送一次） | `job`（職業名）、`level`、`level_band`（1-10、11-20…） |
@@ -697,12 +699,15 @@ GA4 資源「楓谷幫手 maplehelper.tw」，追蹤 ID `G-B0T3VGC7F2`（`src/li
 | `boss_room_create` | 野王計時開房間 | — |
 | `boss_room_join` | 加入房間 | `via`（code 打代碼／link 點連結） |
 | `avatar_download` | 紙娃娃按「下載」 | `gender`（男／女） |
-| `avatar_showcase_click` | 首頁紙娃娃輪播：點角色、按「抽一套」；入口清單點「做公會徽章」 | `target`（look 點角色／draw 抽一套／guild 做公會徽章，v1.97 起在入口清單） |
+| `avatar_showcase_click` | 首頁紙娃娃輪播：點角色、按「抽一套」、右邊那格「去簽名」；入口清單點「做公會徽章」 | `target`（look 點角色／draw 抽一套／rename 名字變怪物（v2.53）／guild 做公會徽章，v1.97 起在入口清單） |
 | `guild_download` | 公會徽章按「下載」 | — |
 | `guild_random` | 公會徽章按「隨機一個」 | — |
 | `donate_click` | 贊助（v2.22）：頁尾「贊助楓谷幫手」、攻略文結尾小卡「贊助」（進 /support）；/support 按付款按鈕 | `placement`（footer／guide_end／support_page）、`method`（ecpay／linepay；page＝只是進 /support）。轉換率＝`method` 是 ecpay／linepay 的次數 ÷ 同期間工作階段；有沒有真的付錢 GA 量不到，看綠界／LINE Pay 後台，報數字兩個分開寫 |
 | `donate_paid` | 贊助付完導回 /support（v2.24）：綠界付好或 ATM／超商取號、LINE Pay 確認成功；送完就把網址的 `?status=` 拿掉，重新整理不會重送 | `status`（thanks＝付完／issued＝取號了還沒繳）、`method`（ecpay／linepay／unknown）。「點了 → 真的付」＝`donate_paid` ÷ `donate_click`（method 是 ecpay／linepay）；網址可以手打，數字跟綠界／LINE Pay 後台對過才當真 |
 | `video_play` | 影片區（v2.32）：/videos 或攻略專區那排短影音，按封面開始播 | `kind`（main 正片／shorts 短影音）、`id`（YouTube id）、`page`（videos／guides） |
+| `rename_start` | 名字變怪物（v2.44）：NPC 問要不要登錄名冊時按「接受」 | — |
+| `rename_result` | 名字變怪物自己寫的那輪演完、出結果（點分享連結看別人那輪不送） | `result`（怪物 id；配不出來是 `poop`）、`score`（像度 0–99） |
+| `rename_share` | 名字變怪物按分享後選一個 | `via`（link 複製連結／video 存影片／image 存圖） |
 | `share` | 野王計時複製房間連結、練功測速複製／下載分享圖、紙娃娃、公會徽章分享 | `page`（boss／speed／avatar／guild）、`method`（野王計時、紙娃娃、公會徽章 copy_link 複製連結；紙娃娃、公會徽章 share 系統分享（只有手機、平板；電腦一律 copy_link）；練功測速 copy_image／download_image） |
 
 外連點擊、捲動、網頁瀏覽（含查資料 `?id=` 換網址）由 GA「加強型評估」自動收，不另外埋。

@@ -28,6 +28,25 @@ describe("首頁輪播、入口清單（v1.97）", () => {
     // 存過角色硬重新整理時清單先藏著（跟原本的入口卡同一招）
     expect(list).toContain("[[data-profile=saved]_&]:invisible");
   });
+
+  it("名字變怪物（v2.44）也在清單卡裡，副標照抄", () => {
+    const list = home.match(/function HomeLinks[\s\S]*?\r?\n}\r?\n/)?.[0] ?? "";
+    expect(list).toContain('href: "/plan/rename", title: "名字變怪物", hint: "簽個名看你是哪隻怪"');
+  });
+
+  it("輪播切一格推名字變怪物（v2.53，使用者選 A）：右邊一格、手機在下面一條，點了記 GA", () => {
+    expect(showcase).toContain('href="/plan/rename"');
+    expect(showcase).toContain("名字變怪物");
+    expect(showcase).toContain("簽個名，看你是哪隻怪");
+    expect(showcase).toContain("去簽名");
+    expect(showcase).toContain('target: "rename"');
+    // 米菈朝右看著怪、像素圖不糊
+    expect(showcase).toContain("/rename/npc.png");
+    expect(showcase).toContain("-scale-x-100");
+    // 電腦版並排、手機版疊下面
+    expect(showcase).toContain("sm:flex");
+    expect(showcase).toContain("sm:border-l");
+  });
 });
 
 describe("首頁橘色收斂（v1.97）", () => {

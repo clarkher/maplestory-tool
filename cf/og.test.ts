@@ -44,6 +44,10 @@ describe("配哪張遊戲圖", () => {
     expect(spriteFor("/db/maps/100000000", quests)).toEqual({ kind: "map", files: ["assets/map_renders/100000000.webp"] });
     expect(spriteFor("/db/quests/2136", quests)?.files).toEqual(["assets/npcs/1012100.png"]);
   });
+  it("名字變怪物分享頁：怪用怪圖、一坨只有字", () => {
+    expect(spriteFor("/plan/rename/m/210100", quests)).toEqual({ kind: "sprite", files: ["assets/monster_frames/210100.png", "assets/monsters/210100.png"] });
+    expect(spriteFor("/plan/rename/m/poop", quests)).toBeNull();
+  });
   it("工具頁、清單頁沒有遊戲圖", () => {
     expect(spriteFor("/plan/damage", quests)).toBeNull();
     expect(spriteFor("/db/quests/9", quests)).toBeNull();

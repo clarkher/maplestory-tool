@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SeoBars, SeoLinks, SeoPage, SeoSection, SeoStats } from "@/components/SeoPage";
 import { mapHref } from "@/lib/atlas-view";
@@ -111,6 +112,13 @@ export default async function Page({ params }: Props) {
           <SeoLinks links={quests.map(quest => ({ href: `/db/quests/${quest.id}`, text: quest.n }))} />
         </SeoSection>
       ) : null}
+
+      {/* 小遊戲入口（v2.44 名字變怪物） */}
+      <p className="text-sm">
+        <Link href="/plan/rename" className="font-bold text-[color:var(--sky)] underline-offset-4 hover:underline">
+          用你的 ID 變一隻看看 →
+        </Link>
+      </p>
     </SeoPage>
   );
 }
