@@ -686,6 +686,7 @@ export function instructors(): Instructor[] {
 export function pqFor(common: GuideCommon, job: number, level: number): { pq: GuidePq; window: [number, number]; job: number } | undefined {
   const keys = pqKeys(job, level);
   const hits = (common.pq ?? []).flatMap(pq => {
+    if (pq.noRoute) return [];
     const key = keys.find(code => pq.byJob[String(code)]);
     const window = key === undefined ? undefined : pq.byJob[String(key)];
     return key !== undefined && window && level >= window[0] && level <= window[1] ? [{ pq, window, job: key }] : [];
@@ -714,7 +715,7 @@ export function pqJustClosed(
   if (pqFor(common, job, level)) return undefined;
   const keys = pqKeys(job, level);
   for (const pq of common.pq ?? []) {
-    if (!pq.quest || !keys.some(code => pq.byJob[String(code)])) continue;
+    if (pq.noRoute || !pq.quest || !keys.some(code => pq.byJob[String(code)])) continue;
     const maxLv = quests.find(quest => quest.id === pq.quest)?.maxLv;
     if (maxLv !== undefined && level > maxLv && level <= maxLv + PQ_CLOSED_SPAN) return { pq, maxLv };
   }

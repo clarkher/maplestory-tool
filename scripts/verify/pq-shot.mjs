@@ -4,7 +4,7 @@
 //   例：node scripts/verify/pq-shot.mjs http://localhost:9431 "$TEMP/pq-shot"
 // 網址用 localhost，不要用 127.0.0.1（next dev 對 127.0.0.1 的互動不理）。第一次開頁 dev 要編譯，最多等 1 分鐘。
 // 輸出：pq-390-light／dark.png（超綠跳木桶、填了名字、試到第 5 組）、pq-1280-light／dark.png、pq-goddess-390.png（女神拉桿）、
-//       pq-home.png（首頁 58 等狂戰士的女神組隊卡）、results.json
+//       pq-home.png（首頁 25 等劍士的超綠組隊卡）、results.json
 import fs from "node:fs";
 import path from "node:path";
 import { chromePort, outDir } from "./config.mjs";
@@ -198,14 +198,18 @@ try {
   record("攻略頁超綠段落有組隊指揮連結", await until(`document.querySelector('a[href="/plan/pq?pq=kerning"]')`));
   await evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ job: 110, level: 58 })); true`);
   await navigate(`${BASE}/`);
-  const homeOk = await until(`document.querySelector('a[href="/plan/pq?pq=goddess"]')`);
-  record("首頁 58 等狂戰士：女神組隊卡有組隊指揮連結", homeOk);
+  await until(`document.body.innerText.includes("現在去這裡")`);
+  record("首頁 58 等狂戰士：不推女神組隊（v2.59）", !(await bodyText()).includes("女神"));
+  await evaluate(`localStorage.setItem("ms-profile", JSON.stringify({ job: 100, level: 25 })); true`);
+  await navigate(`${BASE}/`);
+  const homeOk = await until(`document.querySelector('a[href="/plan/pq?pq=kerning"]')`);
+  record("首頁 25 等劍士：超綠組隊卡有組隊指揮連結", homeOk);
   if (homeOk) {
-    await click(`document.querySelector('a[href="/plan/pq?pq=goddess"]')`);
+    await click(`document.querySelector('a[href="/plan/pq?pq=kerning"]')`);
     await until(`location.pathname === "/plan/pq"`);
     await until(`document.querySelector('nav[aria-label="關卡"][data-ready]')`);
     await sleep(600);
-    record("點了進組隊指揮女神", (await evaluate(`${button("女神")}?.getAttribute("aria-pressed") === "true"`)));
+    record("點了進組隊指揮超綠", (await evaluate(`${button("超綠")}?.getAttribute("aria-pressed") === "true"`)));
   }
 
   record("整趟 console 沒有例外或錯誤", problems.exceptions.length === 0 && problems.errors.length === 0, problems);

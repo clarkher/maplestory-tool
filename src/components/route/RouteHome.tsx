@@ -16,7 +16,6 @@ import { useProfile } from "@/lib/profile";
 import { sessionMemo } from "@/lib/session-memo";
 import { bandOf, bandsFor, isIslandMap } from "@/lib/route-planner";
 import type { Monster } from "@/lib/types";
-import { goddessNoteFor } from "@/lib/v002-notes";
 import { useVisitState } from "@/lib/visit-state";
 import { track } from "@/lib/analytics";
 import { AvatarShowcase } from "./AvatarShowcase";
@@ -161,8 +160,6 @@ export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[
     });
   }, [data, ready, effective, profile, stageGuide]);
 
-  // 女神的痕跡那一行：主推已經是女神組隊就不放（跟主推卡拿同一個 pick；攻略還在載時主推卡是骨架，這行也先不放）
-  const goddess = plan && !guideLoading ? goddessNoteFor(profile.level, plan.pick) : null;
   const article = articleFor(articles, profile.job, profile.level);
 
   if (error) {
@@ -230,16 +227,6 @@ export function RouteHome({ articles = [] }: { articles?: readonly ArticleEntry[
           ) : (
             <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">這個等級目前找不到適合的練功圖。</p>
           )}
-
-          {/* 女神的痕跡（v1.01 使用者選 1A）：官方確定的地點、人數、獎勵；v1.08 起 51～70 等有些職業主推就是它，那時這行不放 */}
-          {goddess ? (
-            <p className="rounded-xl bg-[color:var(--gold-wash)] px-3 py-2 text-[13px]">
-              {goddess.text}
-              <Link href={goddess.quest} className="ml-1 font-bold underline decoration-[color:var(--ink-faint)] underline-offset-4">
-                看任務
-              </Link>
-            </p>
-          ) : null}
 
           {/* 你這段等級的攻略文（v1.85 使用者選 A：本來只有職業頁底下連得到）；這個職業、等級沒有那篇就不放 */}
           {article ? (
