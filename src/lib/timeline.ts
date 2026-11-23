@@ -112,7 +112,8 @@ export function bandPlan(input: TimelineInput, band: Band, active: boolean): Ban
   const mobsOn = (map: number) => (spawns.get(map) ?? []).map(([id]) => id);
 
   // 先判斷職業規則（你在的這段用現在等級），同一張圖併成一組，再挑要列的（湊滿 3 張能用的就停）
-  const all = guide ? trainingForBand(band, guide.train) : [];
+  const hidden = new Set(pqs.filter(pq => pq.noRoute).map(pq => pq.key));
+  const all = guide ? trainingForBand(band, guide.train.filter(segment => !segment.pq || !hidden.has(segment.pq))) : [];
   const warnOf = (segment: GuideTrain): string | undefined => {
     if (!segment.map) return undefined;
     const fit = jobFit(stage, fitLevel(band, segment, active ? level : undefined), spawns.get(segment.map) ?? [], monsterIndex);
