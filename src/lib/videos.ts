@@ -249,6 +249,14 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "psY4z7NYKms",
     tool: { href: "/db/monsters/2130100", text: "黑斧木妖資料" },
   },
+  {
+    title: "森林迷宮V怎麼去？",
+    summary: "從奇幻村出發 5 段、經過 6 張圖，每段走哪個門。",
+    publishAt: "2026-11-25T04:00:00.000Z",
+    main: "7Kzc9k1Ggus",
+    shorts: "d-Q0yfG0hq4",
+    tool: { href: "/go?to=105040305&from=105040300", text: "地圖導航" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
