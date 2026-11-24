@@ -249,6 +249,22 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "psY4z7NYKms",
     tool: { href: "/db/monsters/2130100", text: "黑斧木妖資料" },
   },
+  {
+    title: "地鐵一號線[地區03]怎麼去？",
+    summary: "從墮落城市出發 5 段、經過 6 張圖，每段走哪個門。",
+    publishAt: "2026-11-24T04:00:00.000Z",
+    main: "hCPxTBoS4H8",
+    shorts: "mGy22OiNycA",
+    tool: { href: "/go?to=103000104&from=103000000", text: "地圖導航" },
+  },
+  {
+    title: "藍寶在哪打？",
+    summary: "最多在維多利亞港郊外（25 個刷怪點），一共出現在 40 張圖。",
+    publishAt: "2026-11-24T11:00:00.000Z",
+    main: "wa55zPvsTMI",
+    shorts: "n7sJiKPT6mg",
+    tool: { href: "/db/monsters/100101", text: "藍寶資料" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
