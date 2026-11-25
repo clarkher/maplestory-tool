@@ -18,7 +18,7 @@ import { composeProject } from "../lib/compose.mjs";
 import { buildDescription, capTitle, pickAvatars, youtubeText } from "../make.mjs";
 import { browser, pickSel, SITE } from "./shoot.mjs";
 import { parseMob, parseGo, mobScript, goScript, spokenFix } from "./facts.mjs";
-import { mobTopics, goTopics } from "./topics.mjs";
+import { mobTopics, goTopics, GO_STEPS } from "./topics.mjs";
 
 const execFileP = promisify(execFile);
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -95,7 +95,7 @@ export async function shootTopic(topic, imgDir, { port } = {}) {
 
 /** 片長要多長才做：段數 2～8、怪物至少 1 張圖 */
 export function worthMaking(topic, facts) {
-  if (topic.kind === "go") return facts.steps.length >= 2 && facts.steps.length <= 8;
+  if (topic.kind === "go") return facts.steps.length >= GO_STEPS.min && facts.steps.length <= GO_STEPS.max;
   return facts.maps.length >= 1;
 }
 
