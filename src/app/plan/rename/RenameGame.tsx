@@ -7,7 +7,7 @@
  *   running：切段＋正規化後丟 Worker 比對，回來就播演出（stage.ts：寫字→收筆畫→變形→標題）；
  *            變形播完（標題開始）才切 result，NPC 說結果
  *   running、result 演出放最上面、NPC 移到下面（v2.60 使用者選 D）：手機一個畫面看得到變成什麼、按得到分享
- *   result：演出停在最後一格＋ShareMenu（傳給朋友、複製連結、存圖、存影片）＋［再寫一次］＋「{怪}在哪打／怎麼去 →」（只對 where 裡還有單獨頁的怪放）
+ *   result：演出停在最後一格＋ShareMenu（發影片到社群、傳連結給朋友、複製連結、存圖）＋［再寫一次］＋「{怪}在哪打／怎麼去 →」（只對 where 裡還有單獨頁的怪放）
  * 狀態轉換在 src/lib/rename/flow.ts（純函式、有測試）。
  *
  * replay（/plan/rename/m/[id] 分享頁）：一開場就從 location.hash 的 #r=... 解出筆畫重播；
@@ -16,7 +16,7 @@
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { monsterImage } from "@/lib/asset-paths";
 import { initialCtx, next, RESULT_PAGE2_LINES, RUNNING_LINES, type Action, type Ctx, type Step } from "@/lib/rename/flow";
@@ -29,6 +29,7 @@ import { decodeShare, normalize, splitAtCorners, type Pt, type Stroke } from "@/
 import { NpcDialog, type DlgButton } from "./NpcDialog";
 import { ShareMenu, type ShareRound } from "./ShareMenu";
 import { BTN_PLAIN, SignPad } from "./SignPad";
+import { useRoundVideo } from "./useRoundVideo";
 
 /** 標題開始的時間點：這時 NPC 改說結果 */
 const REVEAL_MS = TIMELINE.write + TIMELINE.collect + TIMELINE.morph;
@@ -266,7 +267,12 @@ export function RenameGame({ replay, where }: { replay?: Replay; where: number[]
       : null;
 
   // 自己寫的那一輪才能分享（重播頁不放）；靜態結果卡沒有筆畫
-  const round: ShareRound | null = play && play.result.kind !== "empty" ? { segs: play.segs, result: play.result, shape: play.shape } : null;
+  const round = useMemo<ShareRound | null>(
+    () => (!replay && play && play.result.kind !== "empty" ? { segs: play.segs, result: play.result, shape: play.shape } : null),
+    [replay, play],
+  );
+  // 演出一開始就在背後錄，結果出來沒多久影片就好了
+  const video = useRoundVideo(round);
   const other = replay ? (
     <Link href="/plan/rename" data-act="mine" className={BTN_PLAIN}>
       換我寫
@@ -315,8 +321,8 @@ export function RenameGame({ replay, where }: { replay?: Replay; where: number[]
       {step === "result" ? (
         <>
           {/* 看別人的重播不放［分享］（那不是自己的那一輪），只留［換我寫］ */}
-          {round && !replay ? (
-            <ShareMenu round={round} showNotice>
+          {round ? (
+            <ShareMenu round={round} video={video} showNotice>
               {other}
             </ShareMenu>
           ) : (

@@ -2,11 +2,11 @@
  * 名字變怪物的分享（v2.44）：連結、影片、圖。全部在瀏覽器裡做，不打任何線上服務。
  *
  *   shareUrl(r)              → "/plan/rename/m/<id>#r=<筆畫>"（一坨是 /m/poop）；# 後面不會送到伺服器
- *   recordVideo(canvas, draw) → 用 MediaRecorder 把畫布錄成影片（支援 mp4 就 mp4，不然 webm）；不支援回 null
+ *   recordVideo(canvas, draw, signal) → 用 MediaRecorder 把畫布錄成影片（支援 mp4 就 mp4，不然 webm）；不支援、取消、沒播到底回 null
  *   stageImage(draw)          → 1080×1350 png
  *   shareLink({ text, url })  → ［傳給朋友］：手機跳系統分享、電腦複製連結（v2.60）
  *   deliver(blob, name)       → 手機能分享檔案就叫系統分享，不然下載（存圖用）
- *   shareableFile(blob, name) → 影片錄完先問能不能分享；能就放「分享影片」讓使用者再按一次 shareFile（錄 6 秒，原本那次點擊已過期）
+ *   sendVideo(blob, name, caption) → ［發影片到社群］：同一下複製文案、叫系統分享帶影片檔；收不了檔案就下載（v2.74，影片先在背後錄好）
  *
  * 錄影是照真的時間錄（MediaRecorder 錄的是牆上時間），所以 draw 由 requestAnimationFrame 照經過的毫秒數畫。
  */
@@ -39,7 +39,7 @@ export function pickVideoType(supported: (type: string) => boolean): string | nu
   return null;
 }
 
-/** 這個瀏覽器錄得了影片嗎（有 MediaRecorder、有支援的格式、畫布能 captureStream）；不行就不放「存影片」 */
+/** 這個瀏覽器錄得了影片嗎（有 MediaRecorder、有支援的格式、畫布能 captureStream）；不行就不錄、主按鈕放「傳給朋友」 */
 export function canRecordVideo(): boolean {
   const Ctor = (globalThis as { MediaRecorder?: RecorderCtor }).MediaRecorder;
   if (typeof Ctor !== "function" || typeof Ctor.isTypeSupported !== "function") return false;
@@ -60,9 +60,10 @@ type RecorderCtor = { new (stream: MediaStream, opts?: { mimeType?: string; vide
 
 /**
  * 錄 0..VIDEO.ms（再多停 tail）的演出。draw(ms) 每格畫一次到 canvas 上。
- * 沒有 MediaRecorder、畫布不能 captureStream、沒有支援的格式 → null。錄到一半壞掉也回 null。
+ * 沒有 MediaRecorder、畫布不能 captureStream、沒有支援的格式 → null。錄到一半壞掉、signal 取消、畫面卡住沒播到底也回 null。
  */
-export async function recordVideo(canvas: HTMLCanvasElement, draw: (ms: number) => void): Promise<Blob | null> {
+export async function recordVideo(canvas: HTMLCanvasElement, draw: (ms: number) => void, signal?: AbortSignal): Promise<Blob | null> {
+  if (signal?.aborted) return null;
   const Ctor = (globalThis as { MediaRecorder?: RecorderCtor }).MediaRecorder;
   const capture = (canvas as { captureStream?: (fps?: number) => MediaStream }).captureStream;
   if (typeof Ctor !== "function" || typeof capture !== "function") return null;
@@ -84,9 +85,12 @@ export async function recordVideo(canvas: HTMLCanvasElement, draw: (ms: number) 
     let raf = 0;
     let guard = 0;
     let done = false;
+    /** 播到最後一格才算數，半截的不給 */
+    let whole = false;
     const finish = (blob: Blob | null) => {
       if (done) return;
       done = true;
+      signal?.removeEventListener("abort", abort);
       cancelAnimationFrame(raf);
       clearTimeout(guard);
       for (const t of stream.getTracks?.() ?? []) t.stop();
@@ -95,20 +99,27 @@ export async function recordVideo(canvas: HTMLCanvasElement, draw: (ms: number) 
     rec.ondataavailable = e => {
       if (e.data && e.data.size > 0) chunks.push(e.data);
     };
-    rec.onstop = () => finish(chunks.length ? new Blob(chunks, { type: type.split(";")[0] }) : null);
+    rec.onstop = () => finish(whole && chunks.length ? new Blob(chunks, { type: type.split(";")[0] }) : null);
     rec.onerror = () => finish(null);
 
     const end = VIDEO.ms + VIDEO.tail;
     const stop = () => {
       if (rec.state !== "inactive") rec.stop();
     };
+    const abort = () => {
+      finish(null);
+      stop();
+    };
+    signal?.addEventListener("abort", abort);
     let t0 = 0;
     const frame = (now: number) => {
       if (!t0) t0 = now;
       const ms = now - t0;
       draw(Math.min(VIDEO.ms, ms));
-      if (ms >= end) stop();
-      else raf = requestAnimationFrame(frame);
+      if (ms >= end) {
+        whole = true;
+        stop();
+      } else raf = requestAnimationFrame(frame);
     };
     try {
       rec.start(250);
@@ -142,8 +153,6 @@ export function fileExt(type: string): string {
 
 /**
  * 手機、平板（手指操作）而且系統分享收得了這個檔案 → 回包好的檔案；電腦或不支援回 null（就下載）。
- * 影片錄 6 秒，錄完時「按下去」那次的使用者動作已經過期，navigator.share 會被擋；
- * 所以影片先用這個判斷，能分享就另外放一顆「分享影片」讓使用者再按一次（v2.44）。
  */
 export function shareableFile(blob: Blob, name: string): File | null {
   const file = new File([blob], name, { type: blob.type });
@@ -159,6 +168,25 @@ export async function shareFile(file: File): Promise<"share" | "cancel" | "error
   } catch (e) {
     return (e as Error)?.name === "AbortError" ? "cancel" : "error";
   }
+}
+
+/** 這台的系統分享收不收影片檔（手指操作、canShare 說可以）；決定主按鈕寫「發影片到社群」還是「下載影片」 */
+export function canSendVideo(): boolean {
+  const Ctor = (globalThis as { MediaRecorder?: RecorderCtor }).MediaRecorder;
+  const type = pickVideoType(t => Boolean(Ctor?.isTypeSupported?.(t)))?.split(";")[0];
+  return Boolean(type && shareableFile(new Blob(["x"], { type }), `x.${fileExt(type)}`));
+}
+
+/**
+ * ［發影片到社群］：複製文案跟叫系統分享要在同一次點擊裡做完，中間不能等（等了點擊就過期），所以影片要先錄好。
+ * 分享只帶影片檔：連文字一起帶，有的 App 會丟掉其中一樣。收不了檔案、面板叫不出來就下載；按取消什麼都不做。
+ */
+export async function sendVideo(blob: Blob, name: string, caption: string): Promise<{ how: "share" | "cancel" | "download"; copied: boolean }> {
+  const copying = copyText(caption);
+  const file = shareableFile(blob, name);
+  const how = file ? await shareFile(file) : "error";
+  if (how === "error") downloadBlob(blob, name);
+  return { how: how === "error" ? "download" : how, copied: await copying };
 }
 
 /** 下載到下載資料夾 */
