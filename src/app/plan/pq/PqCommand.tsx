@@ -90,6 +90,14 @@ function EntryCard({ pq, onReset }: { pq: PqInfo; onReset: () => void }) {
         <p className="text-[15px] font-black">{pq.name}</p>
         <p className="mt-0.5 text-[13px] leading-relaxed ink-soft">{pq.entry}</p>
         {pq.tip ? <p className="mt-1 text-[13px] leading-relaxed">{pq.tip}</p> : null}
+        {pq.extra ? (
+          <details className="mt-2">
+            <summary className="tap-safe cursor-pointer text-[13px] font-bold">{pq.extra.title}</summary>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-[13px] leading-relaxed ink-soft">
+              {pq.extra.lines.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          </details>
+        ) : null}
         {pq.old ? <p className="mt-1 text-[12px] font-bold text-[color:var(--maple)]">{OLD_NOTE}</p> : null}
         {guide ? (
           <Link href={guide} className="mt-1 inline-block text-[13px] font-bold text-[color:var(--sky)] underline decoration-[color:var(--ink-faint)] underline-offset-4">
