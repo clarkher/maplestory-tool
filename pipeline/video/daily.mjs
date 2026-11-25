@@ -3,9 +3,9 @@
  * 一天：「在哪打」1 集＋「怎麼去」1 集（各有正片＋短影音），另外各 1 個題目只做短影音 → 2 長 4 短（6 支）。
  * v2.42（11/19 使用者「公告優先，每日縮量」）：YouTube 一天大約只給傳 10 支（11/19 撞到 uploadLimitExceeded），縮成 2 長 4 短（一天 6 支），留 4 支給官網公告片（一則 2 支）。
  * 題目照 series/topics.mjs 的順序挑還沒做過的；做過的從頻道上傳過的片說明欄 utm_campaign 認，不另外存狀態。
- * 上傳失敗（額度用完）就停：沒傳上去的題目下一班會再挑到。
+ * 上傳失敗：額度用完、連不上就整班停，沒傳上去的題目下一班會再挑到；只是這支的標題或說明被退（v2.64）就換同一時段的下一個題目、後面照做。兩種都讓排程變紅燈。
  * 用法：node pipeline/video/daily.mjs [--date 2026-11-18] [--dry-run] [--no-site]
- *   --date：哪一天公開（台灣時間，預設明天）；--dry-run：只印要做哪幾個；--no-site：不開官網影片區的 PR。
+ *   --date：哪一天公開（台灣時間，預設明天）；--dry-run：讀頁面、寫稿、檢查標題跟說明合不合 YouTube 規定，不配音不上傳；--no-site：不開官網影片區的 PR。
  * 環境變數：YT_CLIENT_ID／YT_CLIENT_SECRET／YT_REFRESH_TOKEN、AZURE_OPENAI_KEY、INWORLD_API_KEY、
  *   GH_TOKEN（開 PR 到 dev 用；沒有就不開）、VIDEO_OUT（產物資料夾）。要有 Chrome、ffmpeg、npx、git、gh。
  */
@@ -14,9 +14,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { getAccessToken, uploadVideo, setThumbnail, parseYoutubeTxt, shortsTitle, youtubeFromEnv } from "./lib/youtube.mjs";
+import { getAccessToken, uploadVideo, setThumbnail, parseYoutubeTxt, shortsTitle, youtubeFromEnv, youtubeProblems, isVideoRejected } from "./lib/youtube.mjs";
 import { mobTopics, goTopics, nextTopics, MADE_BY_HAND } from "./series/topics.mjs";
-import { makeTopic } from "./series/make.mjs";
+import { draftTopic, makeTopic } from "./series/make.mjs";
+import { youtubeText } from "./make.mjs";
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 export const SERIES_TAGS = ["楓之谷經典版", "楓谷幫手", "新楓之谷", "楓之谷攻略"];
@@ -155,6 +156,51 @@ export function addToSite(made, { date, log = console.log } = {}) {
   }
 }
 
+/**
+ * 一個時段一個題目做過去。make 丟錯＝這個題目不適合，換下一個候選（配音點數、額度用完才整班停）；
+ * upload 丟錯＝記進 failed（整批紅燈）：這支的標題／說明被退就換下一個候選，其他的（傳片上限、登入失效、連不上）整班停。
+ * e.main＝正片已經傳上去：用 partial 記下來（頻道上已經有，下一班不會再挑），這個時段不再補。
+ */
+export async function runJobs({ jobs, done, make, upload, partial, log }) {
+  const used = new Set();
+  const made = [];
+  const failed = [];
+  const line = (e) => e.message.replace(/\s+/g, " ").slice(0, 160);
+  for (const j of jobs) {
+    let filled = false;
+    for (let t; !filled && (t = j.cands.find((c) => !used.has(c.key) && !done.has(c.key))); ) {
+      used.add(t.key);
+      let res;
+      try {
+        res = await make(t, j);
+      } catch (e) {
+        log(`${t.key} 跳過：${e.message.split("\n")[0]}`);
+        if (!isOutOfCredit(e.message)) continue;
+        log(`配音或額度用完，這班停下來：${e.message.split("\n")[0]}`);
+        failed.push({ key: t.key, why: line(e) });
+        return { made, failed };
+      }
+      try {
+        made.push(await upload(res, j));
+        filled = true;
+      } catch (e) {
+        failed.push({ key: t.key, why: e.reason || line(e) });
+        if (e.main) {
+          made.push(partial(res, j, e.main));
+          filled = true;
+        }
+        if (!isVideoRejected(e)) {
+          log(`上傳停在 ${t.key}：${e.message}`);
+          return { made, failed };
+        }
+        log(`${t.key} 被 YouTube 退（${e.reason}），${filled ? "做下一個時段" : "換下一個題目"}：${line(e)}`);
+      }
+    }
+    if (!filled) log(`${j.at} ${j.shortsOnly ? "短影音" : "正片＋短影音"}：沒有題目可做`);
+  }
+  return { made, failed };
+}
+
 export async function daily({ date = targetDateTw(), dryRun = false, site = true, env = process.env, log = console.log } = {}) {
   const creds = youtubeFromEnv(env);
   if (!creds) throw new Error("缺 YT_CLIENT_ID／YT_CLIENT_SECRET／YT_REFRESH_TOKEN");
@@ -167,67 +213,64 @@ export async function daily({ date = targetDateTw(), dryRun = false, site = true
   const madeFile = join(outRoot, "made.json");
   const before = existsSync(madeFile) ? JSON.parse(readFileSync(madeFile, "utf8")) : [];
   for (const v of before) done.add(v.key);
-  const used = new Set();
-  const take = (cands) => cands.find((t) => !used.has(t.key) && !done.has(t.key));
   const jobs = [...plan.full.map((p) => ({ ...p, shortsOnly: false })), ...plan.shorts.map((p) => ({ ...p, shortsOnly: true }))]
     .filter((j) => !before.some((v) => v.at === j.at));
   if (dryRun) {
-    for (const j of jobs) {
-      const t = take(j.cands);
-      if (t) used.add(t.key);
-      log(`${j.at} ${j.shortsOnly ? "短影音" : "正片＋短影音"} ${t?.key ?? "（沒題目了）"} ${t?.name ?? t?.path ?? ""}`);
-    }
-    return [];
+    // 乾跑：讀頁面、寫稿、檢查標題跟說明合不合 YouTube 規定；不配音、不 render、不上傳
+    const { failed } = await runJobs({
+      jobs, done, log,
+      make: (t) => draftTopic(t.key, join(outRoot, t.key, "work")),
+      upload: async ({ topic, script }, j) => {
+        const yt = parseYoutubeTxt(youtubeText(script));
+        log(`${j.at} ${j.shortsOnly ? "短影音" : "正片＋短影音"} ${topic.key} ${yt.title}（標題 ${[...yt.title].length} 字、說明 ${Buffer.byteLength(yt.description)} bytes）`);
+        const bad = youtubeProblems(yt);
+        if (bad.length) throw Object.assign(new Error(bad.join("、")), { status: 400, reason: "invalidDescription" });
+        return { key: topic.key };
+      },
+    });
+    return { made: [], failed };
   }
-  const made = [];
   mkdirSync(outRoot, { recursive: true });
-  let stop = null;
-  for (const j of jobs) {
-    let res = null;
-    for (let t = take(j.cands); t; t = take(j.cands)) {
-      used.add(t.key);
+  const { made, failed } = await runJobs({
+    jobs, done, log,
+    make: (t, j) => makeTopic(t.key, { out: join(outRoot, t.key), shortsOnly: j.shortsOnly, log }),
+    upload: async (res, j) => {
+      const { title, description } = parseYoutubeTxt(readFileSync(res.files.youtube, "utf8"));
+      const publishAt = publishTime(j.at);
+      let main = null;
       try {
-        res = await makeTopic(t.key, { out: join(outRoot, t.key), shortsOnly: j.shortsOnly, log });
-        break;
+        if (!j.shortsOnly) {
+          main = await uploadVideo({ file: res.files.main, title, description, tags: SERIES_TAGS, publishAt, token });
+          try { await setThumbnail({ videoId: main, file: res.files.cover, token }); } catch (e) { log(`封面沒設成：${e.message}`); }
+        }
+        const shorts = await uploadVideo({ file: res.files.shorts, title: shortsTitle(title), description, tags: SERIES_TAGS, publishAt, token });
+        log(`傳好 ${res.key}：${main ? `正片 ${main}、` : ""}短影音 ${shorts}（${j.at} 公開）`);
+        return { key: res.key, title: res.script.site.title, at: j.at, main, shorts, out: res.outDir };
       } catch (e) {
-        log(`${t.key} 跳過：${e.message.split("\n")[0]}`);
-        if (isOutOfCredit(e.message)) { stop = e.message.split("\n")[0]; break; }
+        throw Object.assign(e, { main });
       }
-    }
-    if (stop) { log(`配音或額度用完，這班停下來：${stop}`); break; }
-    if (!res) continue;
-    const { title, description } = parseYoutubeTxt(readFileSync(res.files.youtube, "utf8"));
-    const publishAt = publishTime(j.at);
-    let main = null;
-    try {
-      if (!j.shortsOnly) {
-        main = await uploadVideo({ file: res.files.main, title, description, tags: SERIES_TAGS, publishAt, token });
-        try { await setThumbnail({ videoId: main, file: res.files.cover, token }); } catch (e) { log(`封面沒設成：${e.message}`); }
-      }
-      const shorts = await uploadVideo({ file: res.files.shorts, title: shortsTitle(title), description, tags: SERIES_TAGS, publishAt, token });
-      made.push({ key: res.key, title: res.script.site.title, at: j.at, main, shorts, out: res.outDir });
-      log(`傳好 ${res.key}：${main ? `正片 ${main}、` : ""}短影音 ${shorts}（${j.at} 公開）`);
-    } catch (e) {
-      log(`上傳停在 ${res.key}：${e.message}`);
-      // 正片傳上去、短影音沒傳成：記下來（頻道上已經有，下一班不會再挑），官網影片區跳過它
-      if (main) made.push({ key: res.key, title: res.script.site.title, at: j.at, main, shorts: null, out: res.outDir });
-      break;
-    }
-  }
+    },
+    partial: (res, j, main) => ({ key: res.key, title: res.script.site.title, at: j.at, main, shorts: null, out: res.outDir }),
+  });
   const all = [...before, ...made];
   writeFileSync(madeFile, JSON.stringify(all, null, 2));
   if (site && env.GH_TOKEN && made.length) {
     try { addToSite(all, { date, log }); } catch (e) { log(`官網影片區 PR 沒開成：${e.message.split("\n")[0]}`); }
   }
-  return made;
+  return { made, failed };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
   const a = process.argv.slice(2);
   const di = a.indexOf("--date");
   const dryRun = a.includes("--dry-run");
-  const made = await daily({ date: di >= 0 ? a[di + 1] : undefined, dryRun, site: !a.includes("--no-site") });
+  const { made, failed } = await daily({ date: di >= 0 ? a[di + 1] : undefined, dryRun, site: !a.includes("--no-site") });
   console.log(`完成：${made.length} 個題目`);
+  // 有題目上傳被退或中途停下來也要紅燈（11/23～11/25 每晚說明被退、後面全沒做，卻因為第一支有傳成而顯示成功）
+  if (failed.length) {
+    console.error(`沒做成 ${failed.length} 個：${failed.map((f) => `${f.key}（${f.why}）`).join("、")}`);
+    process.exitCode = 1;
+  }
   // 一支都沒做出來要讓排程變紅燈（11/18、11/19 配音點數用完卻顯示成功，沒人發現）
   if (!dryRun && !made.length) {
     console.error("一支都沒做出來");

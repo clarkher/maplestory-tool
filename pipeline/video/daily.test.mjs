@@ -60,3 +60,53 @@ test("isOutOfCredit：Inworld 402、額度 429 要整班停；一般錯誤不停
   assert.ok(!isOutOfCredit("go-105090311 不適合做（20 段）"));
   assert.ok(!isOutOfCredit("mob-1402000 找不到刷怪點"));
 });
+
+const ytError = (status, reason, main) => Object.assign(new Error(`YouTube 開始上傳 → HTTP ${status}：${reason}`), { status, reason, main });
+const runWith = async (jobs, errs, makeErrs = {}) => {
+  const { runJobs } = await import("./daily.mjs");
+  const tried = [];
+  const r = await runJobs({
+    jobs,
+    done: new Set(),
+    make: async (t) => { if (makeErrs[t.key]) throw makeErrs[t.key]; return { key: t.key }; },
+    upload: async (res) => { tried.push(res.key); if (errs[res.key]) throw errs[res.key]; return { key: res.key }; },
+    partial: (res, j, main) => ({ key: res.key, main, shorts: null }),
+    log: () => {},
+  });
+  return { tried, made: r.made.map((v) => v.key), failed: r.failed.map((f) => f.key), raw: r };
+};
+const C = (...ks) => ks.map((key) => ({ key }));
+
+test("runJobs：一支的說明被 YouTube 退，換同一時段的下一個題目，後面的照做，但記成失敗（整批紅燈）", async () => {
+  const jobs = [{ cands: C("mob-1", "mob-2", "mob-3") }, { cands: C("mob-1", "mob-2", "mob-3") }, { cands: C("go-1") }];
+  const r = await runWith(jobs, { "mob-1": ytError(400, "invalidDescription") });
+  assert.deepEqual(r.tried, ["mob-1", "mob-2", "mob-3", "go-1"]);
+  assert.deepEqual(r.made, ["mob-2", "mob-3", "go-1"]);
+  assert.deepEqual(r.failed, ["mob-1"]);
+});
+
+test("runJobs：標題被退也是跳過那支", async () => {
+  const r = await runWith([{ cands: C("a", "b") }], { a: ytError(400, "invalidTitle") });
+  assert.deepEqual([r.made, r.failed], [["b"], ["a"]]);
+});
+
+test("runJobs：傳片上限、額度、登入失效換題目也沒用，整班停", async () => {
+  for (const e of [ytError(400, "uploadLimitExceeded"), ytError(403, "quotaExceeded"), ytError(401, "authError"), new Error("fetch failed")]) {
+    const r = await runWith([{ cands: C("a", "b") }, { cands: C("c") }], { a: e });
+    assert.deepEqual([r.tried, r.made, r.failed], [["a"], [], ["a"]]);
+  }
+});
+
+test("runJobs：正片傳上去、短影音被退：記下正片，不補題目，後面的時段照做", async () => {
+  const r = await runWith([{ cands: C("a", "b") }, { cands: C("c") }], { a: ytError(400, "invalidTitle", "MAIN") });
+  assert.deepEqual(r.tried, ["a", "c"]);
+  assert.deepEqual(r.raw.made[0], { key: "a", main: "MAIN", shorts: null });
+  assert.deepEqual([r.made, r.failed], [["a", "c"], ["a"]]);
+});
+
+test("runJobs：做片不適合的換下一個不算失敗；配音點數用完整班停、算失敗", async () => {
+  const a = await runWith([{ cands: C("a", "b") }], {}, { a: new Error("a 不適合做（20 段）") });
+  assert.deepEqual([a.made, a.failed], [["b"], []]);
+  const b = await runWith([{ cands: C("a", "b") }, { cands: C("c") }], {}, { a: new Error("Inworld TTS 失敗 402") });
+  assert.deepEqual([b.made, b.failed], [[], ["a"]]);
+});

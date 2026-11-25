@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseYoutubeTxt, shortsTitle, youtubeFromEnv, getAccessToken, uploadVideo, setThumbnail, hideVideo } from "./youtube.mjs";
+import { parseYoutubeTxt, shortsTitle, youtubeFromEnv, getAccessToken, uploadVideo, setThumbnail, hideVideo, youtubeProblems } from "./youtube.mjs";
 
 test("parseYoutubeTxt：第一行是標題，空行後面是說明欄", () => {
   assert.deepEqual(parseYoutubeTxt("標題｜11/21 登場\n\nhttps://maplehelper.tw/x\n第二行\n\n#楓之谷經典版\n"), {
@@ -94,4 +94,21 @@ test("hideVideo：舊片改成私人（不刪，改得回來），只送 status"
 test("hideVideo：失敗帶狀態碼", async () => {
   const fetcher = async () => ({ ok: false, status: 404, text: async () => "videoNotFound" });
   await assert.rejects(() => hideVideo({ videoId: "X", token: "T", fetcher }), /404/);
+});
+
+test("uploadVideo：退件原因帶在 e.reason（invalidDescription 要跟傳片上限分得開，回應很長也讀得到）", async () => {
+  const dir = await mkdtemp(join(tmpdir(), "yt-"));
+  const file = join(dir, "main.mp4");
+  await writeFile(file, "x");
+  const body = JSON.stringify({ error: { code: 400, message: "x".repeat(400), errors: [{ domain: "youtube.video", reason: "invalidDescription" }] } });
+  await assert.rejects(uploadVideo({ file, title: "t", description: "d", token: "AT", fetcher: async () => new Response(body, { status: 400 }) }), (e) => e.status === 400 && e.reason === "invalidDescription");
+  await assert.rejects(uploadVideo({ file, title: "t", description: "d", token: "AT", fetcher: async () => new Response("<html>", { status: 502 }) }), (e) => e.status === 502 && e.reason === "");
+});
+
+test("youtubeProblems：角括號、標題超過 100 字、說明超過 5,000 bytes", () => {
+  assert.deepEqual(youtubeProblems({ title: "好", description: "好" }), []);
+  assert.equal(youtubeProblems({ title: "第一次同行<獎勵>", description: "a>b" }).length, 2);
+  assert.equal(youtubeProblems({ title: "字".repeat(101), description: "字".repeat(1667) }).length, 2);
+  assert.deepEqual(youtubeProblems({ title: "字".repeat(100), description: "字".repeat(1666) }), []);
+  assert.equal(youtubeProblems({ title: "", description: "" }).length, 1);
 });

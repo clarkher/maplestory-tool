@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { buildDescription, capTitle, youtubeText } from "../make.mjs";
+import { parseYoutubeTxt, youtubeProblems } from "../lib/youtube.mjs";
 import { parseMob, parseGo, mobScript, goScript, pickDrops, spokenFix } from "./facts.mjs";
 
 const fx = (f) => readFileSync(join(import.meta.dirname, "__fixtures__", f), "utf8");
@@ -57,4 +59,13 @@ test("goScript：NPC 送的那一段", () => {
 
 test("spokenFix：羅馬數字、地鐵括號、趴、千分位", () => {
   assert.equal(spokenFix("螞蟻洞Ⅲ 地鐵二號線[地區02] 70% 2,100"), "螞蟻洞三 地鐵二號線 地區2  70趴 2100");
+});
+
+test("刺菇菇（11/25 正式站，出沒地圖有「組隊訓練場<獎金地點>」）：要傳上 YouTube 的標題、說明合規", () => {
+  const s = mobScript(parseMob(fx("mob-2110200.txt")), { link: "https://maplehelper.tw/db/monsters/2110200?utm_campaign=mob-2110200" });
+  assert.match(s.description, /組隊訓練場<獎金地點>/); // 頁面原文真的有角括號
+  const yt = parseYoutubeTxt(youtubeText({ ytTitle: capTitle(s.ytTitle), description: buildDescription(s.description, s.link) }));
+  assert.deepEqual(youtubeProblems(yt), []);
+  assert.match(yt.description, /組隊訓練場＜獎金地點＞ 24 個/);
+  assert.match(yt.description, /utm_campaign=mob-2110200/); // 認做過的題目靠這個
 });
