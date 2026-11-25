@@ -319,6 +319,13 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "Iug77WFvTIA",
     tool: { href: "/db/monsters/1130100", text: "斧木妖資料" },
   },
+  {
+    title: "43 等楓葉拳套衝到 34！",
+    summary: "原本攻擊 23，先中一張 15% 再衝四張 70% 中三張到 34，跟沒衝過的 70 等黃閃電甲一樣。",
+    publishAt: "2026-11-25T03:51:00.000Z",
+    shorts: "kFysUdWYSXQ",
+    tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
