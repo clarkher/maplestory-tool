@@ -55,6 +55,13 @@ export function doneFromDescriptions(descs) {
   return done;
 }
 
+/** 官網影片區（src/lib/videos.ts）已經有的題目：頻道上傳清單會漏，多一個來源，漏了也不會重做 */
+export function doneFromSite(src) {
+  const done = new Set();
+  for (const m of String(src).matchAll(/href: "\/(go\?to=|db\/monsters\/)(\d+)/g)) done.add(`${m[1].startsWith("go") ? "go" : "mob"}-${m[2]}`);
+  return done;
+}
+
 /** 這一天要做什麼：full＝正片＋短影音、shorts＝只有短影音，各配好公開時間 */
 export function planDay(date, done, { mobs = mobTopics(), gos = goTopics() } = {}) {
   // 還沒做過的全部當候選：題目不適合做時一路往後找（v2.65 以前只拿前 6 個，全不適合時段就空著）
@@ -82,13 +89,22 @@ export async function channelVideos(token, fetcher = fetch) {
   const ch = await get("channels?part=contentDetails&mine=true");
   const uploads = ch.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
   if (!uploads) throw new Error("讀不到頻道的上傳清單");
-  const ids = [];
-  let page = "";
-  do {
-    const j = await get(`playlistItems?part=contentDetails&maxResults=50&playlistId=${uploads}${page ? `&pageToken=${page}` : ""}`);
-    for (const it of j.items ?? []) if (it.contentDetails?.videoId) ids.push(it.contentDetails.videoId);
-    page = j.nextPageToken ?? "";
-  } while (page);
+  // YouTube 的上傳清單換頁會重疊、擠掉幾支（11/25：共 73 支，兩頁 73 列裡 5 支重複、5 支不見，黑木妖等被當沒做過）→
+  // 拿到的不重複支數不到總數，就換一頁幾支再讀一輪，邊界錯開補齊
+  const found = new Set();
+  let total = 0;
+  for (const size of [50, 37, 23, 11]) {
+    let page = "";
+    do {
+      const j = await get(`playlistItems?part=contentDetails&maxResults=${size}&playlistId=${uploads}${page ? `&pageToken=${page}` : ""}`);
+      for (const it of j.items ?? []) if (it.contentDetails?.videoId) found.add(it.contentDetails.videoId);
+      total = j.pageInfo?.totalResults ?? total;
+      page = j.nextPageToken ?? "";
+    } while (page);
+    if (found.size >= total) break;
+  }
+  if (found.size < total) console.warn(`頻道共 ${total} 支，只讀到 ${found.size} 支`);
+  const ids = [...found];
   const out = [];
   for (let i = 0; i < ids.length; i += 50) {
     const j = await get(`videos?part=snippet,status&maxResults=50&id=${ids.slice(i, i + 50).join(",")}`);
@@ -283,9 +299,10 @@ export async function daily({ date = targetDateTw(), dryRun = false, site = true
   const token = await getAccessToken(creds);
   const videos = await channelVideos(token);
   const done = doneFromDescriptions(videos.map((v) => v.snippet?.description));
+  for (const k of doneFromSite(readFileSync(join(REPO, "src/lib/videos.ts"), "utf8"))) done.add(k);
   const plan = planDay(date, done);
   const outRoot = resolve(env.VIDEO_OUT || join(tmpdir(), "maplehelper-daily", date));
-  log(`${date}：做過 ${done.size} 個題目`);
+  log(`${date}：頻道 ${videos.length} 支，做過 ${done.size} 個題目`);
   // 同一天第二班（或額度用完補傳）：頻道上已經有片的時段不再做；本機重跑另外看 made.json
   const madeFile = join(outRoot, "made.json");
   const before = existsSync(madeFile) ? JSON.parse(readFileSync(madeFile, "utf8")) : [];
