@@ -16,7 +16,7 @@ on:
         type: string
         required: false
       dry_run:
-        description: "只印要做哪幾個題目"
+        description: "乾跑：讀頁面、寫稿、檢查標題跟說明合不合規，不配音不上傳"
         type: boolean
         default: false
 
