@@ -12,8 +12,24 @@ export const TAGS = ["楓之谷經典版", "楓谷幫手", "新楓之谷", "官�
 function fail(what, status, text) {
   const e = new Error(`${what} → HTTP ${status}：${String(text).slice(0, 300)}`);
   e.status = status;
+  e.reason = "";
+  try { e.reason = JSON.parse(text).error?.errors?.[0]?.reason ?? ""; } catch {}
   return e;
 }
+
+/** 標題、說明哪裡不合 YouTube 規定（空陣列＝合規）：不能有 < >、標題 1～100 字、說明最多 5,000 bytes */
+export function youtubeProblems({ title, description }) {
+  const out = [];
+  if (!title || [...title].length > 100) out.push(`標題 ${[...String(title)].length} 字（要 1～100）`);
+  if (/[<>]/.test(title)) out.push("標題有 < 或 >");
+  if (/[<>]/.test(description)) out.push("說明有 < 或 >");
+  const bytes = Buffer.byteLength(description);
+  if (bytes > 5000) out.push(`說明 ${bytes} bytes（上限 5,000）`);
+  return out;
+}
+
+/** 退的是這一支的標題或說明：換一支就好，不用整班停（傳片上限、額度、登入失效都不算） */
+export const isVideoRejected = (e) => e?.status === 400 && /^invalid(Title|Description|VideoMetadata)$/.test(e.reason ?? "");
 
 /** youtube.txt（第一行標題、空行、說明欄）拆回標題跟說明 */
 export function parseYoutubeTxt(text) {
