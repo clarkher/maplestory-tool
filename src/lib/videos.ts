@@ -326,6 +326,36 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "kFysUdWYSXQ",
     tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
   },
+  {
+    title: "地鐵一號線[地區02]怎麼去？",
+    summary: "從墮落城市出發 4 段、經過 5 張圖，每段走哪個門。",
+    publishAt: "2026-11-26T04:00:00.000Z",
+    main: "ZYL-6ol_AAs",
+    shorts: "xp8Fe39rITM",
+    tool: { href: "/go?to=103000103&from=103000000", text: "地圖導航" },
+  },
+  {
+    title: "猴子在哪打？",
+    summary: "最多在猴子沼澤地Ⅰ（28 個刷怪點），一共出現在 21 張圖。",
+    publishAt: "2026-11-26T11:00:00.000Z",
+    main: "8scbjL5ZMvo",
+    shorts: "PeMHKxXTqMA",
+    tool: { href: "/db/monsters/3210800", text: "猴子資料" },
+  },
+  {
+    title: "青蛇在哪打？",
+    summary: "最多在青蛇濕地（23 個刷怪點），一共出現在 20 張圖。",
+    publishAt: "2026-11-26T01:00:00.000Z",
+    shorts: "rKOnv-mQHmw",
+    tool: { href: "/db/monsters/2130103", text: "青蛇資料" },
+  },
+  {
+    title: "結冰的平原Ⅰ怎麼去？",
+    summary: "從冰原雪域出發 3 段、經過 4 張圖，每段走哪個門。",
+    publishAt: "2026-11-26T13:00:00.000Z",
+    shorts: "U1SqdnEhFBQ",
+    tool: { href: "/go?to=211030000&from=211000000", text: "地圖導航" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
