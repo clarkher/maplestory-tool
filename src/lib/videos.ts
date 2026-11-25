@@ -304,6 +304,21 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "9gN9OMXBgw0",
     tool: { href: "/go?to=103000201&from=103000000", text: "地圖導航" },
   },
+  {
+    title: "刺菇菇在哪打？",
+    summary: "最多在螞蟻洞Ⅳ（42 個刷怪點），一共出現在 23 張圖。",
+    publishAt: "2026-11-25T11:00:00.000Z",
+    main: "Kk94iqW2PfA",
+    shorts: "RzCt9AA28RQ",
+    tool: { href: "/db/monsters/2110200", text: "刺菇菇資料" },
+  },
+  {
+    title: "斧木妖在哪打？",
+    summary: "最多在東方岩石山Ⅲ（26 個刷怪點），一共出現在 22 張圖。",
+    publishAt: "2026-11-25T01:00:00.000Z",
+    shorts: "Iug77WFvTIA",
+    tool: { href: "/db/monsters/1130100", text: "斧木妖資料" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
