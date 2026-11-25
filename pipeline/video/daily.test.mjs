@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { doneFromDescriptions, planDay, tomorrowTw, twIso } from "./daily.mjs";
@@ -236,6 +236,41 @@ test("channelVideos：上傳清單分頁讀完，再 50 支一批讀 status", as
   };
   assert.deepEqual((await channelVideos("t", fetcher)).map((v) => v.id), ids);
   assert.deepEqual(asked, [50, 10]);
+});
+
+test("channelVideos：上傳清單兩頁重疊、擠掉幾支（11/25 頻道 73 支只拿到 68 支）→ 換一頁幾支再讀，補齊、不重複", async () => {
+  const { channelVideos } = await import("./daily.mjs");
+  const ids = Array.from({ length: 73 }, (_, i) => `v${i}`);
+  const asked = [];
+  const fetcher = async (url) => {
+    const u = new URL(url);
+    let body;
+    if (u.pathname.endsWith("/channels")) body = { items: [{ contentDetails: { relatedPlaylists: { uploads: "UU" } } }] };
+    else if (u.pathname.endsWith("/playlistItems")) {
+      const size = Number(u.searchParams.get("maxResults"));
+      const p = Number(u.searchParams.get("pageToken") || 0);
+      // 一頁 50 支時第 2 頁前 5 列是重複的，v50～v54 哪一頁都沒有
+      const rows = size === 50 ? [...ids.slice(0, 50), ...ids.slice(10, 15), ...ids.slice(55)] : ids;
+      asked.push(size);
+      body = { pageInfo: { totalResults: 73 }, items: rows.slice(p, p + size).map((videoId) => ({ contentDetails: { videoId } })), ...(p + size < 73 ? { nextPageToken: String(p + size) } : {}) };
+    } else body = { items: u.searchParams.get("id").split(",").map((id) => ({ id, snippet: {}, status: {} })) };
+    return { ok: true, json: async () => body };
+  };
+  const got = (await channelVideos("t", fetcher)).map((v) => v.id);
+  assert.deepEqual([...got].sort(), [...ids].sort());
+  assert.ok(new Set(asked).size === 2, "補齊就不再換");
+});
+
+test("doneFromSite：官網影片區已經有的題目也算做過（頻道清單漏掉也不會重做），別的工具不算", async () => {
+  const { doneFromSite } = await import("./daily.mjs");
+  const src = [
+    '    tool: { href: "/go?to=103000202&from=103000000", text: "地圖導航" },',
+    '    tool: { href: "/db/monsters/1110101", text: "黑木妖資料" },',
+    '    tool: { href: "/plan/damage", text: "算傷害" },',
+  ].join("\n");
+  assert.deepEqual([...doneFromSite(src)].sort(), ["go-103000202", "mob-1110101"]);
+  const real = doneFromSite(readFileSync(join(import.meta.dirname, "../../src/lib/videos.ts"), "utf8"));
+  for (const k of ["go-103000202", "mob-1110101", "mob-2110200"]) assert.ok(real.has(k), k);
 });
 
 // 官網影片區：真的 git（本機裸倉庫當 origin），gh 跟 ffmpeg 換成假的
