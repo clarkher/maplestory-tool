@@ -63,8 +63,10 @@ export function capTitle(t, max = 100) {
   return a.length <= max ? a.join("") : `${a.slice(0, max - 1).join("")}…`;
 }
 
+/** youtube.txt；半形角括號換全形：YouTube 標題、說明都不收（地圖名「組隊訓練場<獎金地點>」害刺菇菇 11/23～11/25 被退 invalidDescription） */
 export function youtubeText(script) {
-  return `${script.ytTitle}\n\n${script.description.trim()}\n\n${HASHTAGS}\n`;
+  const text = `${script.ytTitle}\n\n${script.description.trim()}\n\n${HASHTAGS}\n`;
+  return text.replaceAll("<", "＜").replaceAll(">", "＞");
 }
 
 function imgExt(url) {

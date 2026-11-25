@@ -33,3 +33,8 @@ test("capTitle：YouTube 標題最多 100 字", () => {
   assert.equal([...capTitle("字".repeat(150))].length, 100);
   assert.ok(capTitle("字".repeat(150)).endsWith("…"));
 });
+
+test("youtubeText：半形角括號換全形（YouTube 標題、說明都不收 < >，11/25 刺菇菇被退 invalidDescription）", () => {
+  const t = youtubeText({ ytTitle: "第一次同行<獎勵>怎麼去？", description: "https://maplehelper.tw/?x\n組隊訓練場<獎金地點> 24 個" });
+  assert.equal(t, "第一次同行＜獎勵＞怎麼去？\n\nhttps://maplehelper.tw/?x\n組隊訓練場＜獎金地點＞ 24 個\n\n#楓之谷經典版 #楓谷幫手\n");
+});

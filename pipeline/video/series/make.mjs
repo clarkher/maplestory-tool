@@ -99,10 +99,9 @@ export function worthMaking(topic, facts) {
   return facts.maps.length >= 1;
 }
 
-export async function makeTopic(key, { out = join(tmpdir(), "maplehelper-daily", key), shortsOnly = false, log = console.log, port } = {}) {
+/** 讀頁面、截圖、寫稿（還沒配音、沒 render）；不適合做的丟錯。乾跑也走這裡 */
+export async function draftTopic(key, work, { port } = {}) {
   const topic = findTopic(key);
-  const outDir = resolve(out);
-  const work = join(outDir, "work");
   await mkdir(work, { recursive: true });
   const { script: s, facts } = await shootTopic(topic, join(work, "images"), { port });
   if (!worthMaking(topic, facts)) {
@@ -110,7 +109,13 @@ export async function makeTopic(key, { out = join(tmpdir(), "maplehelper-daily",
     e.skip = true;
     throw e;
   }
-  const script = { ...s, ytTitle: capTitle(s.ytTitle), description: buildDescription(s.description, s.link) };
+  return { topic, facts, script: { ...s, ytTitle: capTitle(s.ytTitle), description: buildDescription(s.description, s.link) } };
+}
+
+export async function makeTopic(key, { out = join(tmpdir(), "maplehelper-daily", key), shortsOnly = false, log = console.log, port } = {}) {
+  const outDir = resolve(out);
+  const work = join(outDir, "work");
+  const { topic, facts, script } = await draftTopic(key, work, { port });
   await writeFile(join(work, "script.json"), JSON.stringify(script, null, 2));
   log(`${key}：${script.title}，旁白 ${script.narration.length} 句`);
 
