@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { canRecordVideo, pickVideoType, recordVideo, sendText, shareableFile, shareFile, shareLink, shareUrl, VIDEO } from "../share";
+import { canRecordVideo, canSendVideo, pickVideoType, recordVideo, sendText, sendVideo, shareableFile, shareFile, shareLink, shareUrl, VIDEO } from "../share";
 import { liveShapeIds, shareOgTitle, sharePageIds, sharePageName } from "../share-pages";
 import { decodeShare, type Stroke } from "../strokes";
 import shapesJson from "../shapes.json";
@@ -39,6 +39,75 @@ describe("recordVideo", () => {
     vi.stubGlobal("MediaRecorder", class {});
     const canvas = { width: 720, height: 1280 } as unknown as HTMLCanvasElement;
     await expect(recordVideo(canvas, () => {})).resolves.toBeNull();
+  });
+  describe("錄到一半", () => {
+    /** 假的 MediaRecorder＋手動推的 requestAnimationFrame */
+    const setup = () => {
+      let frame: ((t: number) => void) | null = null;
+      vi.stubGlobal("requestAnimationFrame", (f: (t: number) => void) => {
+        frame = f;
+        return 1;
+      });
+      vi.stubGlobal("cancelAnimationFrame", () => {
+        frame = null;
+      });
+      vi.stubGlobal("window", { setTimeout: (f: () => void, ms: number) => setTimeout(f, ms) });
+      class Rec {
+        static isTypeSupported = () => true;
+        state = "inactive";
+        ondataavailable: ((e: { data: Blob }) => void) | null = null;
+        onstop: (() => void) | null = null;
+        onerror = null;
+        start() {
+          this.state = "recording";
+        }
+        stop() {
+          this.state = "inactive";
+          this.ondataavailable?.({ data: new Blob(["x"]) });
+          this.onstop?.();
+        }
+      }
+      vi.stubGlobal("MediaRecorder", Rec);
+      const track = { stop: vi.fn() };
+      const canvas = { captureStream: () => ({ getTracks: () => [track] }) } as unknown as HTMLCanvasElement;
+      const step = (t: number) => frame?.(t);
+      return { canvas, track, step, waiting: () => frame !== null };
+    };
+    it("播到底才有影片", async () => {
+      const s = setup();
+      const p = recordVideo(s.canvas, () => {});
+      s.step(1000);
+      s.step(1000 + VIDEO.ms + VIDEO.tail);
+      expect((await p)?.type).toBe("video/mp4");
+      expect(s.track.stop).toHaveBeenCalled();
+    });
+    it("signal 取消：回 null、不再畫、收掉串流", async () => {
+      const s = setup();
+      const ac = new AbortController();
+      const p = recordVideo(s.canvas, () => {}, ac.signal);
+      s.step(1000);
+      ac.abort();
+      await expect(p).resolves.toBeNull();
+      expect(s.waiting()).toBe(false);
+      expect(s.track.stop).toHaveBeenCalled();
+    });
+    it("一開始就取消了：回 null", async () => {
+      const s = setup();
+      await expect(recordVideo(s.canvas, () => {}, AbortSignal.abort())).resolves.toBeNull();
+    });
+    it("畫面卡住沒播到底：不給半截影片，回 null", async () => {
+      vi.useFakeTimers();
+      try {
+        const s = setup();
+        const p = recordVideo(s.canvas, () => {});
+        s.step(1000);
+        s.step(2000);
+        vi.advanceTimersByTime(VIDEO.ms + VIDEO.tail + 4000);
+        await expect(p).resolves.toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
   it("規格：720×1280、30fps", () => {
     expect(VIDEO).toMatchObject({ w: 720, h: 1280, fps: 30 });
@@ -103,6 +172,87 @@ describe("shareableFile（錄完影片才決定放「分享影片」還是直接
     await expect(shareFile(f)).resolves.toBe("cancel");
     vi.stubGlobal("navigator", { share: async () => { throw Object.assign(new Error("x"), { name: "NotAllowedError" }); } });
     await expect(shareFile(f)).resolves.toBe("error");
+  });
+});
+
+describe("［發影片到社群］（v2.74）", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const blob = new Blob(["x"], { type: "video/mp4" });
+  const caption = "換你簽 https://maplehelper.tw/plan/rename/m/poop#r=x";
+  const fail = (name: string) => async () => {
+    throw Object.assign(new Error("x"), { name });
+  };
+  /** order 記複製、分享、下載誰先誰後 */
+  const env = (o: { touch?: boolean; files?: boolean; share?: () => Promise<void>; write?: () => Promise<void> }) => {
+    const order: string[] = [];
+    let sent: ShareData | undefined;
+    vi.stubGlobal("matchMedia", () => ({ matches: o.touch ?? true }));
+    vi.stubGlobal("MediaRecorder", Object.assign(class {}, { isTypeSupported: (t: string) => t.startsWith("video/mp4") }));
+    vi.stubGlobal("navigator", {
+      ...(o.files === undefined ? {} : { canShare: () => o.files }),
+      share: (d: ShareData) => {
+        order.push("share");
+        sent = d;
+        return (o.share ?? (async () => {}))();
+      },
+      clipboard: {
+        writeText: (t: string) => {
+          order.push(`copy:${t}`);
+          return (o.write ?? (async () => {}))();
+        },
+      },
+    });
+    vi.stubGlobal("document", {
+      createElement: (tag: string) => {
+        if (tag === "textarea") throw new Error("x");
+        return { click: () => order.push("download"), remove: () => {} };
+      },
+      body: { appendChild: () => {} },
+    });
+    vi.stubGlobal("URL", { createObjectURL: () => "blob:x", revokeObjectURL: () => {} });
+    return { order, sent: () => sent };
+  };
+
+  it("canSendVideo：手指操作而且系統分享收得了影片檔才是", () => {
+    env({ files: true });
+    expect(canSendVideo()).toBe(true);
+    env({ files: false });
+    expect(canSendVideo()).toBe(false);
+    env({});
+    expect(canSendVideo()).toBe(false);
+    env({ touch: false, files: true });
+    expect(canSendVideo()).toBe(false);
+  });
+  it("手機：先複製文案再叫系統分享，同一下做完；只帶影片檔", async () => {
+    const e = env({ files: true });
+    const p = sendVideo(blob, "a.mp4", caption);
+    // 還沒等任何東西就都叫了（等了點擊就過期）
+    expect(e.order).toEqual([`copy:${caption}`, "share"]);
+    await expect(p).resolves.toEqual({ how: "share", copied: true });
+    expect(Object.keys(e.sent()!)).toEqual(["files"]);
+    expect(e.sent()!.files![0].name).toBe("a.mp4");
+  });
+  it("按取消：不下載，文案還是複製好了", async () => {
+    const e = env({ files: true, share: fail("AbortError") });
+    await expect(sendVideo(blob, "a.mp4", caption)).resolves.toEqual({ how: "cancel", copied: true });
+    expect(e.order).not.toContain("download");
+  });
+  it("系統分享叫不出來：改下載", async () => {
+    const e = env({ files: true, share: fail("NotAllowedError") });
+    await expect(sendVideo(blob, "a.mp4", caption)).resolves.toEqual({ how: "download", copied: true });
+    expect(e.order).toEqual([`copy:${caption}`, "share", "download"]);
+  });
+  it("電腦、App 內建瀏覽器：下載＋複製", async () => {
+    const pc = env({ touch: false, files: true });
+    await expect(sendVideo(blob, "a.mp4", caption)).resolves.toEqual({ how: "download", copied: true });
+    expect(pc.order).toEqual([`copy:${caption}`, "download"]);
+    const app = env({});
+    await expect(sendVideo(blob, "a.mp4", caption)).resolves.toEqual({ how: "download", copied: true });
+    expect(app.order).toEqual([`copy:${caption}`, "download"]);
+  });
+  it("複製不了照樣發影片，照實說沒複製", async () => {
+    env({ files: true, write: fail("NotAllowedError") });
+    await expect(sendVideo(blob, "a.mp4", caption)).resolves.toEqual({ how: "share", copied: false });
   });
 });
 
