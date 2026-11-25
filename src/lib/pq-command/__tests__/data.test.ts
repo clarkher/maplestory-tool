@@ -29,6 +29,13 @@ describe("組隊指揮內容", () => {
     }
   });
 
+  it("女神有溫莉好感的餵法：紅字、連餵 3 次、第 4 個選項都寫到；其他任務沒有", () => {
+    expect(PQS.filter((p) => p.extra).map((p) => p.key)).toEqual(["goddess"]);
+    const text = PQS.find((p) => p.key === "goddess")!.extra!.lines.join(" ");
+    for (const word of ["紅字", "最多連餵 3 次", "第 4 個選項", "約 5 萬楓幣"]) expect(text).toContain(word);
+    expect(EMOJI.test(text)).toBe(false);
+  });
+
   it("試組合的關：超綠繩 4 挑 3、平台 5 挑 3、桶 6 挑 3、女神拉桿 5 挑 2", () => {
     const specs = PQS.flatMap((p) => p.stages.filter((s) => s.combo).map((s) => [`${p.key}/${s.key}`, s.combo!.kind, s.combo!.n, s.combo!.k]));
     expect(specs).toEqual([
