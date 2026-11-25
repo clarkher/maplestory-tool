@@ -84,8 +84,9 @@ export function PqCommand() {
 function EntryCard({ pq, onReset }: { pq: PqInfo; onReset: () => void }) {
   const guide = pq.key === "goddess" ? null : `/guide#pq-${pq.key}`;
   return (
-    <section className={`${CARD} flex items-center gap-3`}>
-      <Image src={npcImage(pq.npcId)} alt="" width={48} height={48} className="size-12 shrink-0 object-contain" unoptimized />
+    <section className={CARD}>
+      <div className="flex items-center gap-3">
+        <Image src={npcImage(pq.npcId)} alt="" width={48} height={48} className="size-12 shrink-0 object-contain" unoptimized />
       <div className="min-w-0 flex-1">
         <p className="text-[15px] font-black">{pq.name}</p>
         <p className="mt-0.5 text-[13px] leading-relaxed ink-soft">{pq.entry}</p>
@@ -100,6 +101,15 @@ function EntryCard({ pq, onReset }: { pq: PqInfo; onReset: () => void }) {
       <button type="button" onClick={onReset} className="tap-safe shrink-0 rounded-lg border border-[color:var(--paper-edge)] px-3 py-1.5 text-[13px] font-bold ink-soft">
         重來
       </button>
+      </div>
+      {pq.extra ? (
+        <details className="mt-3 border-t border-[color:var(--paper-edge)] pt-2">
+          <summary className="tap-safe cursor-pointer text-[13px] font-bold">{pq.extra.title}</summary>
+          <ul className="mt-1 list-disc space-y-1 pl-5 text-[13px] leading-relaxed ink-soft">
+            {pq.extra.lines.map((line) => <li key={line}>{line}</li>)}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }
