@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { doneFromDescriptions, planDay, tomorrowTw, twIso } from "./daily.mjs";
 
 test("tomorrowTw：照台灣時間算明天", () => {
@@ -109,4 +113,222 @@ test("runJobs：做片不適合的換下一個不算失敗；配音點數用完�
   assert.deepEqual([a.made, a.failed], [["b"], []]);
   const b = await runWith([{ cands: C("a", "b") }, { cands: C("c") }], {}, { a: new Error("Inworld TTS 失敗 402") });
   assert.deepEqual([b.made, b.failed], [[], ["a"]]);
+});
+
+test("goTopics：段數不到 2 或超過 8 的先濾掉（11/25 前 6 個全是 15～21 段，兩個時段都空）", async () => {
+  const { goTopics } = await import("./series/topics.mjs");
+  const graph = {};
+  for (let i = 1; i < 12; i++) graph[i] = [[i + 1, "e"]];
+  const ids = [12, 10, 9, 3, 2, 99];
+  const training = ids.map((m, i) => ({ m, eff: 100 - i }));
+  const nearest = Object.fromEntries(ids.map((m) => [m, [1, 0]]));
+  assert.deepEqual(goTopics({ training, nearest, graph }).map((t) => t.key), ["go-9", "go-3"]); // 8 段、2 段；11、9、1 段跟走不到的不要
+});
+
+test("goTopics：站上真的資料，太長的不在清單、能做的還有很多", async () => {
+  const { goTopics } = await import("./series/topics.mjs");
+  const keys = goTopics().map((t) => t.key);
+  for (const k of ["go-105090311", "go-105090000", "go-211041600"]) assert.ok(!keys.includes(k), k);
+  assert.ok(keys.includes("go-211040000")); // 4 段，做過片
+  assert.ok(keys.length > 100);
+});
+
+test("planDay：候選不設上限，排在後面的也挑得到", () => {
+  const gos = Array.from({ length: 30 }, (_, i) => ({ key: `go-${i}` }));
+  const p = planDay("2026-11-26", new Set(), { mobs: [], gos });
+  assert.equal(p.full[0].cands.length, 30);
+  assert.equal(p.shorts[1].cands.length, 30);
+});
+
+test("runJobs：時段空著要記成失敗（紅燈）", async () => {
+  const r = await runWith([{ at: "2026-11-26T04:00:00.000Z", cands: C("a") }, { at: "2026-11-26T13:00:00.000Z", shortsOnly: true, cands: C("a") }], {});
+  assert.deepEqual(r.made, ["a"]);
+  assert.equal(r.raw.failed.length, 1);
+  assert.match(r.raw.failed[0].key, /2026-11-26T13:00/);
+  assert.match(r.raw.failed[0].why, /沒有題目可做/);
+});
+
+test("runJobs：不適合做的（skip）一路往後找", async () => {
+  const ks = Array.from({ length: 20 }, (_, i) => `t${i}`);
+  const skip = Object.fromEntries(ks.slice(0, 19).map((k) => [k, Object.assign(new Error("不適合做"), { skip: true })]));
+  assert.deepEqual((await runWith([{ at: "x", cands: C(...ks) }], {}, skip)).made, ["t19"]);
+});
+
+test("runJobs：做片失敗（截不到、配音不過）6 個就放棄這個時段，網站掛了不要試 200 個", async () => {
+  const ks = Array.from({ length: 20 }, (_, i) => `t${i}`);
+  const r = await runWith([{ at: "x", cands: C(...ks) }], {}, Object.fromEntries(ks.slice(0, 6).map((k) => [k, new Error("截不到")])));
+  assert.deepEqual(r.made, []);
+  assert.equal(r.raw.failed.length, 1);
+  const ok = await runWith([{ at: "x", cands: C(...ks) }], {}, Object.fromEntries(ks.slice(0, 5).map((k) => [k, new Error("截不到")])));
+  assert.deepEqual(ok.made, ["t5"]);
+});
+
+const vid = (id, key, { title = "在哪打", status = {}, publishedAt = "2026-11-23T13:40:00Z" } = {}) => ({
+  id,
+  snippet: { title, description: `https://maplehelper.tw/x?utm_campaign=${key}`, publishedAt },
+  status: { privacyStatus: "public", ...status },
+});
+const SCHED = (publishAt) => ({ privacyStatus: "private", publishAt });
+const A = (hhmm) => twIso("2026-11-24", hhmm);
+
+test("filledSlots：第一班排好的（還沒公開看 publishAt）認得出來，第二班只補缺的", async () => {
+  const { filledSlots, missingJobs } = await import("./daily.mjs");
+  const videos = [
+    vid("M", "go-1", { title: "甲怎麼去？", status: SCHED("2026-11-24T04:00:00Z") }),
+    vid("S", "go-1", { title: "甲怎麼去？ #Shorts", status: SCHED("2026-11-24T04:00:00Z") }),
+    vid("S2", "mob-2", { title: "乙在哪打？ #Shorts", status: SCHED("2026-11-24T01:00:00Z") }),
+  ];
+  const filled = filledSlots("2026-11-24", videos);
+  assert.deepEqual([...filled].sort(), [A("09:00"), A("12:00")].sort());
+  const left = missingJobs(planDay("2026-11-24", new Set(), { mobs: [], gos: [] }), filled);
+  assert.deepEqual(left.map((j) => [j.at, j.shortsOnly]), [[A("19:00"), false], [A("21:00"), true]]);
+});
+
+test("filledSlots：已經公開的看 publishedAt；時段過了才傳、直接公開的也算那一天那個時段", async () => {
+  const { filledSlots } = await import("./daily.mjs");
+  const f = filledSlots("2026-11-24", [
+    vid("M", "mob-3", { title: "丙在哪打？", publishedAt: "2026-11-24T11:00:04Z" }),
+    vid("S", "mob-3", { title: "丙在哪打？ #Shorts", publishedAt: "2026-11-24T11:00:04Z" }),
+    vid("G", "go-9", { title: "丁怎麼去？ #Shorts", publishedAt: "2026-11-24T14:10:00Z" }),
+  ]);
+  assert.deepEqual([...f].sort(), [A("19:00"), A("21:00")].sort());
+});
+
+test("filledSlots：別天的、私人沒排程的、公告片不算；只有正片傳成的也算（不再補一支）", async () => {
+  const { filledSlots } = await import("./daily.mjs");
+  const f = filledSlots("2026-11-24", [
+    vid("a", "go-1", { status: SCHED("2026-11-25T04:00:00Z") }),
+    vid("b", "go-2", { status: { privacyStatus: "private" }, publishedAt: "2026-11-24T04:00:00Z" }),
+    vid("c", "video-84077", { status: SCHED("2026-11-24T04:00:00Z") }),
+    vid("d", "mob-4", { title: "只有正片", status: SCHED("2026-11-24T11:00:00Z") }),
+    vid("e", "go-5", { title: "前一天台灣時間 23:59", publishedAt: "2026-11-23T15:59:00Z" }),
+  ]);
+  assert.deepEqual([...f], [A("19:00")]);
+});
+
+test("filledSlots：同一題正片前一天公開、短影音這天才排，不會誤認成只有短影音的時段", async () => {
+  const { filledSlots } = await import("./daily.mjs");
+  const f = filledSlots("2026-11-24", [
+    vid("a", "go-1", { title: "甲", publishedAt: "2026-11-23T04:00:00Z" }),
+    vid("b", "go-1", { title: "甲 #Shorts", status: SCHED("2026-11-24T04:00:00Z") }),
+  ]);
+  assert.deepEqual([...f], []);
+});
+
+test("channelVideos：上傳清單分頁讀完，再 50 支一批讀 status", async () => {
+  const { channelVideos } = await import("./daily.mjs");
+  const ids = Array.from({ length: 60 }, (_, i) => `v${i}`);
+  const asked = [];
+  const fetcher = async (url) => {
+    const u = new URL(url);
+    let body;
+    if (u.pathname.endsWith("/channels")) body = { items: [{ contentDetails: { relatedPlaylists: { uploads: "UU" } } }] };
+    else if (u.pathname.endsWith("/playlistItems")) {
+      const p = Number(u.searchParams.get("pageToken") || 0);
+      body = { items: ids.slice(p, p + 50).map((videoId) => ({ contentDetails: { videoId } })), ...(p + 50 < 60 ? { nextPageToken: String(p + 50) } : {}) };
+    } else {
+      const want = u.searchParams.get("id").split(",");
+      asked.push(want.length);
+      assert.match(u.searchParams.get("part"), /status/);
+      body = { items: want.map((id) => ({ id, snippet: { description: id }, status: {} })) };
+    }
+    return { ok: true, json: async () => body };
+  };
+  assert.deepEqual((await channelVideos("t", fetcher)).map((v) => v.id), ids);
+  assert.deepEqual(asked, [50, 10]);
+});
+
+// 官網影片區：真的 git（本機裸倉庫當 origin），gh 跟 ffmpeg 換成假的
+const sitePlayground = () => {
+  const root = mkdtempSync(join(tmpdir(), "addsite-"));
+  const g = (cwd, ...a) => execFileSync("git", a, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
+  const origin = join(root, "origin.git");
+  const repo = join(root, "repo");
+  g(root, "init", "-q", "--bare", origin);
+  g(root, "clone", "-q", origin, repo);
+  for (const [k, v] of [["user.name", "t"], ["user.email", "t@t"], ["commit.gpgsign", "false"], ["core.autocrlf", "false"]]) g(repo, "config", k, v);
+  mkdirSync(join(repo, "src/lib"), { recursive: true });
+  mkdirSync(join(repo, "public/videos"), { recursive: true });
+  writeFileSync(join(repo, "public/videos/.keep"), "");
+  writeFileSync(join(repo, "src/lib/videos.ts"), "export const EPISODES = [\n];\n");
+  g(repo, "checkout", "-q", "-b", "dev");
+  g(repo, "add", ".");
+  g(repo, "commit", "-q", "-m", "v2.64: 起頭");
+  g(repo, "push", "-q", "-u", "origin", "dev");
+  const calls = [];
+  let open = null; // 開著的 PR
+  const gh = (args) => {
+    calls.push(args);
+    if (args[1] === "list") return args.includes("--head") ? JSON.stringify(open ? [open] : []) : "";
+    if (args[1] === "create") {
+      if (open) throw new Error("a pull request already exists");
+      open = { number: 7, url: "https://x/pull/7", title: args[args.indexOf("--title") + 1], body: args[args.indexOf("--body") + 1] };
+      return open.url;
+    }
+    return "";
+  };
+  const make = (key, at) => {
+    const out = join(root, key);
+    mkdirSync(out, { recursive: true });
+    writeFileSync(join(out, "site.json"), JSON.stringify({ title: `${key} 怎麼去？`, summary: "s", tool: { href: "/go", text: "地圖導航" } }));
+    return { key, title: `${key} 怎麼去？`, at, main: `M${key}`, shorts: `S${key}`, out };
+  };
+  const run = async (made, date = "2026-11-24") => {
+    const { addToSite } = await import("./daily.mjs");
+    return addToSite(made, { date, log: () => {}, repo, gh, cover: (_, out) => writeFileSync(out, "webp") });
+  };
+  const show = (f) => g(origin, "show", `feat/daily-videos-2026-11-24:${f}`);
+  return { root, repo, origin, g, calls, make, run, show, close: () => { open = null; } };
+};
+
+test("addToSite：第二班在同一條分支上加，不蓋掉第一班的；PR 已經開著就不重開", async () => {
+  const p = sitePlayground();
+  const url1 = await p.run([p.make("a", A("12:00"))]);
+  const url2 = await p.run([p.make("b", A("19:00"))]);
+  assert.equal(url1, url2);
+  const ts = p.show("src/lib/videos.ts");
+  assert.match(ts, /"Sa"/);
+  assert.match(ts, /"Sb"/);
+  for (const id of ["Ma", "Sa", "Mb", "Sb"]) assert.equal(p.show(`public/videos/${id}.webp`), "webp");
+  assert.equal(p.calls.filter((c) => c[1] === "create").length, 1);
+  // PR 說明補上第二班的，第一班的留著
+  const patch = p.calls.find((c) => c[0] === "api").join(" ");
+  assert.match(patch, /a 怎麼去/);
+  assert.match(patch, /b 怎麼去/);
+  rmSync(p.root, { recursive: true, force: true });
+});
+
+test("addToSite：分支已經合進 dev、之後又補一支：從 dev 開，另開 PR", async () => {
+  const p = sitePlayground();
+  await p.run([p.make("a", A("12:00"))]);
+  p.g(p.repo, "fetch", "-q", "origin");
+  p.g(p.repo, "merge", "-q", "--no-ff", "-m", "Merge", "origin/feat/daily-videos-2026-11-24");
+  writeFileSync(join(p.repo, "new.txt"), "dev 後來的東西");
+  p.g(p.repo, "add", ".");
+  p.g(p.repo, "commit", "-q", "-m", "v2.70: 別的");
+  p.g(p.repo, "push", "-q", "origin", "dev");
+  p.close();
+  await p.run([p.make("b", A("19:00"))]);
+  assert.match(p.show("new.txt"), /後來/);
+  assert.equal(p.show("src/lib/videos.ts").match(/"Sa"/g).length, 1);
+  assert.match(p.show("src/lib/videos.ts"), /"Sb"/);
+  assert.equal(p.calls.filter((c) => c[1] === "create").length, 2);
+  rmSync(p.root, { recursive: true, force: true });
+});
+
+test("addToSite：全部都在影片區了就不開空的 commit", async () => {
+  const p = sitePlayground();
+  await p.run([p.make("a", A("12:00"))]);
+  const head = p.g(p.origin, "rev-parse", "feat/daily-videos-2026-11-24");
+  assert.equal(await p.run([p.make("a", A("12:00"))]), null);
+  assert.equal(p.g(p.origin, "rev-parse", "feat/daily-videos-2026-11-24"), head);
+  rmSync(p.root, { recursive: true, force: true });
+});
+
+test("exitProblems：時段都排好了（第二班沒事做）是綠燈；有失敗、或有時段要做卻一支都沒有是紅燈", async () => {
+  const { exitProblems } = await import("./daily.mjs");
+  assert.deepEqual(exitProblems({ jobs: 0, made: [], failed: [] }), []);
+  assert.equal(exitProblems({ jobs: 2, made: [], failed: [] }).length, 1);
+  assert.deepEqual(exitProblems({ jobs: 2, made: [], failed: [], dryRun: true }), []);
+  assert.match(exitProblems({ jobs: 2, made: [{}], failed: [{ key: "a", why: "w" }] })[0], /a（w）/);
 });

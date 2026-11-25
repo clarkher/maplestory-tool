@@ -20,8 +20,24 @@ export function mobTopics({ monsters = load("monsters.json"), training = load("t
     .map((m) => ({ key: `mob-${m.id}`, kind: "mob", id: m.id, name: m.n, path: `/db/monsters/${m.id}` }));
 }
 
-/** 地圖：練功推薦圖照效率排（同一張只做一次），出發點＝離它最近的城鎮；自己就是城鎮的不做 */
-export function goTopics({ training = load("training.json"), nearest = load("nearest-town.json") } = {}) {
+/** 「怎麼去」幾段才做片：太短沒東西講、太長沒人看完 */
+export const GO_STEPS = { min: 2, max: 8 };
+
+/** 從 from 走傳送門到 to 最少幾段（跟 /go 頁的 findRoute 同一個算法：照 graph.json 走最短）；走不到是 null */
+export function goHops(graph, from, to) {
+  const dist = new Map([[from, 0]]);
+  for (const cur of dist.keys()) {
+    if (cur === to) return dist.get(cur);
+    for (const [next] of graph[String(cur)] ?? []) if (!dist.has(next)) dist.set(next, dist.get(cur) + 1);
+  }
+  return null;
+}
+
+/**
+ * 地圖：練功推薦圖照效率排（同一張只做一次），出發點＝離它最近的城鎮；自己就是城鎮的不做。
+ * 段數不合的先濾掉（v2.65：11/25 前 6 個全是 15～21 段，兩個時段都空著）。
+ */
+export function goTopics({ training = load("training.json"), nearest = load("nearest-town.json"), graph = load("graph.json") } = {}) {
   const seen = new Set();
   const out = [];
   for (const t of [...training].sort((a, b) => b.eff - a.eff)) {
@@ -29,12 +45,14 @@ export function goTopics({ training = load("training.json"), nearest = load("nea
     seen.add(t.m);
     const town = nearest[String(t.m)]?.[0];
     if (!town || town === t.m) continue;
+    const hops = goHops(graph, town, t.m);
+    if (hops === null || hops < GO_STEPS.min || hops > GO_STEPS.max) continue;
     out.push({ key: `go-${t.m}`, kind: "go", id: t.m, from: town, path: `/go?to=${t.m}&from=${town}` });
   }
   return out;
 }
 
-/** 從 topics 挑前 n 個還沒做過的 */
-export function nextTopics(topics, done, n) {
-  return topics.filter((t) => !done.has(t.key)).slice(0, n);
+/** topics 裡還沒做過的 */
+export function nextTopics(topics, done) {
+  return topics.filter((t) => !done.has(t.key));
 }
