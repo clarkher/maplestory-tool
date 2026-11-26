@@ -372,6 +372,36 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "U1SqdnEhFBQ",
     tool: { href: "/go?to=211030000&from=211000000", text: "地圖導航" },
   },
+  {
+    title: "尖銳的絕壁Ⅱ怎麼去？",
+    summary: "從冰原雪域出發 8 段、經過 9 張圖，每段走哪個門。",
+    publishAt: "2026-11-27T04:00:00.000Z",
+    main: "w_3KvXUe4E0",
+    shorts: "soKJIWtSzZw",
+    tool: { href: "/go?to=211040400&from=211000000", text: "地圖導航" },
+  },
+  {
+    title: "肥肥在哪打？",
+    summary: "最多在海盜修練場（25 個刷怪點），一共出現在 19 張圖。",
+    publishAt: "2026-11-27T11:00:00.000Z",
+    main: "xrXju94Lodo",
+    shorts: "WMg8iUEb5sY",
+    tool: { href: "/db/monsters/1210100", text: "肥肥資料" },
+  },
+  {
+    title: "菇菇仔在哪打？",
+    summary: "最多在小菇菇（17 個刷怪點），一共出現在 17 張圖。",
+    publishAt: "2026-11-27T01:00:00.000Z",
+    shorts: "d-erB6_brDg",
+    tool: { href: "/db/monsters/120100", text: "菇菇仔資料" },
+  },
+  {
+    title: "鱷魚潭Ⅰ怎麼去？",
+    summary: "從墮落城市出發 4 段、經過 5 張圖，每段走哪個門。",
+    publishAt: "2026-11-27T13:00:00.000Z",
+    shorts: "kVuiylMgAUE",
+    tool: { href: "/go?to=107000300&from=103000000", text: "地圖導航" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
