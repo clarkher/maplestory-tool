@@ -203,6 +203,22 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "LONi3Yhk4Tg",
   },
   {
+    title: "轉蛋券上新：4 張椅子",
+    summary: "11/26 維護後～12/17 維護前，轉蛋券換成熊寶寶床、澎澎檜木桶、深藍色絨毛沙發、撒嬌貓咪椅。",
+    publishAt: "2026-11-26T06:13:01.000Z",
+    main: "NR5sxp_0b3Y",
+    shorts: "KpFTGCfLpMU",
+    tool: { href: "/guides/update-1126", text: "11/26 更新整理" },
+  },
+  {
+    title: "11/26 開機重點",
+    summary: "11/26 維護 14:00 開機，轉蛋券換新椅子，三筆禮物盒補償要記得領，楓點補償 11/30 到期。",
+    publishAt: "2026-11-26T06:21:09.000Z",
+    main: "ppPQ1GQPcS0",
+    shorts: "pe7soKeCOuw",
+    tool: { href: "/guides/update-1126", text: "11/26 更新整理" },
+  },
+  {
     title: "地鐵二號線[01]怎麼去？",
     summary: "從墮落城市出發 4 段、經過 5 張圖，每段走哪個門。",
     publishAt: "2026-11-22T04:00:00.000Z",
