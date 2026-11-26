@@ -246,4 +246,37 @@ export type BoardRow = {
   /** 自己＋其他隊員；單練是 1 */
   partySize: number;
   kills: number | null;
+  /** 加倍券倍率；沒開是 null（expPer10、kills 已經是扣掉加倍後的還原值，這兩欄只拿來標「加倍 1.5 倍・8 分」） */
+  couponMult: number | null;
+  /** 這段裡有開加倍券的分鐘數；沒開是 null */
+  couponMin: number | null;
 };
+
+/** 大家的實測、依地圖總覽的一列（/api/speed/overview，v2.79）：只算進得了排行的（練滿 10 分鐘） */
+export type OverviewMap = {
+  mapId: number;
+  /** 存的時候頁面送的圖名；頁面優先用自己的地圖表 */
+  mapName: string | null;
+  /** 這張圖幾筆（單練＋組隊） */
+  runs: number;
+  /** 其中有開加倍券的幾筆 */
+  couponRuns: number;
+  minLevel: number;
+  maxLevel: number;
+  /** 最新一筆的日期（台灣時間 YYYY-MM-DD） */
+  latest: string;
+  /** 單練最快那筆（還原值）；只有組隊紀錄的圖是 null */
+  best: { expPer10: number; job: number | null; level: number; couponMult: number | null; couponMin: number | null } | null;
+};
+
+const TAIPEI_OFFSET_MS = 8 * 3600 * 1000;
+
+/** 台灣時間的日期（台灣沒有夏令時間，固定 +8 小時）；半夜打的不會被算成前一天 */
+export function taipeiDate(value: string | Date): string {
+  return new Date(new Date(value).getTime() + TAIPEI_OFFSET_MS).toISOString().slice(0, 10);
+}
+
+/** 資料庫的 coupon_mult 是 real：1.1 讀回來會是 1.100000023841858，取回兩位小數（存的時候就是兩位） */
+export function couponMult(value: number | string | null | undefined): number | null {
+  return value === null || value === undefined ? null : Math.round(Number(value) * 100) / 100;
+}

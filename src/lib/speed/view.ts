@@ -312,3 +312,10 @@ export function couponNote(result: { ok: boolean; expPer10?: number; error?: str
   if (!coupon) return "記成沒開加倍券。";
   return `加倍券記好了：扣掉加倍，實際 10 分鐘 ${formatNumber(result.expPer10 ?? 0)} 經驗。`;
 }
+
+/** 有開加倍券的紀錄旁邊那個標籤（v2.79）：「加倍 1.5 倍・8 分」；沒開是 null。數字本身是扣掉加倍的還原值 */
+export function couponTag(mult: number | null, minutes: number | null): string | null {
+  if (mult === null) return null;
+  const times = `加倍 ${Number(mult.toFixed(2))} 倍`;
+  return minutes === null ? times : `${times}・${minutes} 分`;
+}

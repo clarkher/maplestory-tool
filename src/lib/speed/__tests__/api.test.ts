@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Monster, TrainingRow } from "@/lib/types";
 import monsterJson from "../../../../public/data/monsters.json";
 import trainingJson from "../../../../public/data/training.json";
-import { mapCap, toRow, type BoardRow, type Coupon, type RunPayload } from "../server/rules";
+import { mapCap, toRow, type BoardRow, type Coupon, type OverviewMap, type RunPayload } from "../server/rules";
 
 type Call = { text: string; values: unknown[]; tx?: number };
 const db = vi.hoisted(() => ({
@@ -69,8 +69,9 @@ async function load() {
   vi.resetModules();
   const runs = await import("@/app/api/speed/runs/route");
   const board = await import("@/app/api/speed/board/route");
+  const overview = await import("@/app/api/speed/overview/route");
   const dbModule = await import("@/lib/speed/server/db");
-  return { POST: runs.POST, PATCH: runs.PATCH, GET: board.GET, ...dbModule };
+  return { POST: runs.POST, PATCH: runs.PATCH, GET: board.GET, OVERVIEW: overview.GET, ...dbModule };
 }
 
 const MAP = 105040303;
@@ -574,10 +575,10 @@ describe("資料庫（假的）：排行", () => {
     const body = (await response.json()) as { open: boolean; solo: BoardRow[]; party: BoardRow[] };
     expect(body.open).toBe(true);
     expect(body.solo).toEqual([
-      { name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6 },
-      { name: null, job: null, level: 46, expPer10: 90000, minutes: 10, date: "2026-10-13", partySize: 1, kills: null },
+      { name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6, couponMult: null, couponMin: null },
+      { name: null, job: null, level: 46, expPer10: 90000, minutes: 10, date: "2026-10-13", partySize: 1, kills: null, couponMult: null, couponMin: null },
     ]);
-    expect(body.party).toEqual([{ name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 3, kills: 1866.6 }]);
+    expect(body.party).toEqual([{ name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 3, kills: 1866.6, couponMult: null, couponMin: null }]);
   });
 
   // 掛名要「上榜那一筆」跟「這個角色最新的一筆」都勾公開（10/13 使用者選 B）：
@@ -628,10 +629,10 @@ describe("資料庫（假的）：排行", () => {
     };
     const body = (await (await GET(get("?map=105040303"))).json()) as { solo: BoardRow[]; party: BoardRow[] };
     expect(body.solo).toEqual([
-      { name: null, job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6 },
-      { name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 90000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6 },
+      { name: null, job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6, couponMult: null, couponMin: null },
+      { name: "芙莉蓮熊芙莉", job: 220, level: 46, expPer10: 90000, minutes: 15, date: "2026-10-13", partySize: 1, kills: 1049.6, couponMult: null, couponMin: null },
     ]);
-    expect(body.party).toEqual([{ name: null, job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 3, kills: 1866.6 }]);
+    expect(body.party).toEqual([{ name: null, job: 220, level: 46, expPer10: 100000, minutes: 15, date: "2026-10-13", partySize: 3, kills: 1866.6, couponMult: null, couponMin: null }]);
   });
 
   it("沒 ID 的用網路位址雜湊分組（雜湊每天換：同一個位址同一天只留最好一筆）；位址雜湊不選出來、不會送到頁面", async () => {
@@ -1033,5 +1034,87 @@ describe("資料庫（假的）：結束後補地圖、角色 ID（PATCH fill，
     expect((await PATCH(patch({ id: "7", token: TOKEN, fill: { mapId: -3 } }))).status).toBe(400);
     expect((await PATCH(patch({ id: "7", token: TOKEN, fill: "x" }))).status).toBe(400);
     expect(db.calls.some(call => call.text.startsWith("UPDATE"))).toBe(false);
+  });
+});
+
+// 11/26 v2.79：一進來就看得到大家的實測（依地圖總覽，使用者選 A）；加倍券照還原值、旁邊標加倍（使用者選 1）
+describe("資料庫（假的）：排行標加倍券（v2.79）", () => {
+  beforeEach(() => {
+    process.env.DATABASE_URL = "postgres://fake";
+  });
+
+  it("有開加倍券的那筆帶倍率跟分鐘，數字照還原值（資料庫存的就是扣掉的）", async () => {
+    const { GET } = await load();
+    db.reply = text => {
+      if (text.includes("party_size = 1")) {
+        return [{
+          char_id: null, job: 220, level: 46, party_size: 1, exp_per_10min: "80000", kills_per_10min: null, duration_sec: 600,
+          created_at: new Date("2026-11-20T10:00:00.000Z"), best_public: false, latest_public: null, coupon_mult: 1.5, coupon_min: 8,
+        }];
+      }
+      return [];
+    };
+    const body = (await (await GET(get("?map=105040303"))).json()) as { solo: BoardRow[] };
+    expect(body.solo[0]).toMatchObject({ expPer10: 80000, couponMult: 1.5, couponMin: 8 });
+    // 兩份排行都要把加倍券欄位選出來
+    for (const query of db.calls.filter(call => call.text.startsWith("WITH"))) expect(query.text).toContain("coupon_mult, coupon_min");
+  });
+});
+
+describe("資料庫（假的）：依地圖總覽（v2.79）", () => {
+  beforeEach(() => {
+    process.env.DATABASE_URL = "postgres://fake";
+  });
+  const OTHER = training.find(row => row.m !== MAP)!.m;
+
+  it("沒資料庫：回 open false、空的", async () => {
+    delete process.env.DATABASE_URL;
+    const { OVERVIEW } = await load();
+    const body = await (await OVERVIEW()).json();
+    expect(body).toEqual({ open: false, maps: [] });
+  });
+
+  it("每張圖一列：筆數、加倍幾筆、等級範圍、最新日期、單練最快那筆（還原值＋加倍）；照筆數多到少排；沒練功資料的圖不列", async () => {
+    const { OVERVIEW } = await load();
+    db.reply = text => {
+      if (text.includes("GROUP BY map_id")) {
+        return [
+          { map_id: OTHER, map_name: "別張", runs: 2, coupon_runs: 0, min_level: 30, max_level: 35, latest_at: new Date("2026-11-25T17:00:00.000Z") },
+          { map_id: MAP, map_name: "森林迷宮III", runs: 5, coupon_runs: 2, min_level: 44, max_level: 52, latest_at: new Date("2026-11-20T10:00:00.000Z") },
+          { map_id: 999999999, map_name: "沒資料", runs: 9, coupon_runs: 0, min_level: 1, max_level: 1, latest_at: new Date("2026-11-20T10:00:00.000Z") },
+        ];
+      }
+      if (text.includes("DISTINCT ON (map_id)")) {
+        return [{ map_id: MAP, job: 220, level: 48, exp_per_10min: "123456", coupon_mult: 1.5, coupon_min: 8 }];
+      }
+      return [];
+    };
+    const response = await OVERVIEW();
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { open: boolean; maps: OverviewMap[] };
+    expect(body.open).toBe(true);
+    expect(body.maps).toEqual([
+      { mapId: MAP, mapName: "森林迷宮III", runs: 5, couponRuns: 2, minLevel: 44, maxLevel: 52, latest: "2026-11-20", best: { expPer10: 123456, job: 220, level: 48, couponMult: 1.5, couponMin: 8 } },
+      // 台灣時間：UTC 17:00 是隔天 01:00
+      { mapId: OTHER, mapName: "別張", runs: 2, couponRuns: 0, minLevel: 30, maxLevel: 35, latest: "2026-11-26", best: null },
+    ]);
+    // 只算進得了排行的（練滿 10 分鐘），而且只看這個環境的
+    for (const query of db.calls.filter(call => call.text.startsWith("SELECT"))) {
+      expect(query.text).toContain("ranked");
+      expect(query.text).toContain("env = ?");
+    }
+    // 位址雜湊、角色 ID 不選出來
+    for (const query of db.calls) {
+      expect(query.text).not.toMatch(/SELECT[^;]*ip_hash[^;]*FROM speed_runs WHERE env/);
+      expect(query.text).not.toMatch(/SELECT[^;]*char_id[^;]*FROM speed_runs WHERE env = \? AND ranked/);
+    }
+  });
+
+  it("資料庫壞掉：回 503、空的", async () => {
+    const { OVERVIEW } = await load();
+    db.reply = text => (text.includes("GROUP BY") ? new Error("連不上") : []);
+    const response = await OVERVIEW();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ open: false, maps: [] });
   });
 });
