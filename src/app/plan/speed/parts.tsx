@@ -200,11 +200,11 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
                       {tab === "party" ? ` · ${row.partySize} 人隊` : ""}
                     </span>
                   </span>
-                  {/* 手機放不下一行：加倍、數字、日期換到第二行靠右（v2.81，375 寬時名字被擠成 0、數字超出卡片） */}
-                  <span className="flex w-full items-baseline justify-end gap-2 sm:w-auto">
+                  {/* 手機放不下一行：加倍、數字、日期換到第二行、對齊名字、放不下再換行（v2.82；v2.81 靠右會往左溢出，375 寬時名字被擠成 0、數字超出卡片） */}
+                  <span className="flex w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-7 sm:w-auto sm:flex-nowrap sm:pl-0">
                   {couponTag(row.couponMult, row.couponMin) ? <CouponTag text={couponTag(row.couponMult, row.couponMin)!} /> : null}
                   <span className="shrink-0 font-bold tabular-nums">{tab === "party" ? `全隊 ${row.kills !== null ? formatNumber(Math.round(row.kills)) : "—"} 隻／10 分` : formatNumber(row.expPer10)}</span>
-                  <span className="w-[104px] shrink-0 text-right text-[12px] ink-soft">
+                  <span className="shrink-0 text-[12px] ink-soft sm:w-[104px] sm:text-right">
                     練 {row.minutes} 分 · {row.date.slice(5).replace("-", "/")}
                   </span>
                   </span>
