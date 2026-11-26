@@ -1,7 +1,7 @@
 // src/app/api/speed/board/route.ts
 import trainingJson from "../../../../../public/data/training.json";
 import { ensureSchema, getSql, speedEnv } from "@/lib/speed/server/db";
-import type { BoardRow } from "@/lib/speed/server/rules";
+import { couponMult, taipeiDate, type BoardRow } from "@/lib/speed/server/rules";
 import type { TrainingRow } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -24,14 +24,10 @@ type Raw = {
   best_public: boolean;
   /** 這個角色最新的一筆有沒有勾公開；沒填角色 ID 的不查（LEFT JOIN 出來是 null） */
   latest_public: boolean | null;
+  /** 加倍券（v2.79 起選出來標在排行上）；沒開是 null */
+  coupon_mult: number | null;
+  coupon_min: number | null;
 };
-
-const TAIPEI_OFFSET_MS = 8 * 3600 * 1000;
-
-/** 台灣時間的日期（台灣沒有夏令時間，固定 +8 小時）；半夜打的不會被算成前一天 */
-function taipeiDate(value: string | Date): string {
-  return new Date(new Date(value).getTime() + TAIPEI_OFFSET_MS).toISOString().slice(0, 10);
-}
 
 function toBoard(rows: Raw[]): BoardRow[] {
   return rows.map(row => ({
@@ -44,6 +40,8 @@ function toBoard(rows: Raw[]): BoardRow[] {
     date: taipeiDate(row.created_at),
     partySize: row.party_size,
     kills: row.kills_per_10min === null ? null : Number(row.kills_per_10min),
+    couponMult: couponMult(row.coupon_mult),
+    couponMin: row.coupon_min ?? null,
   }));
 }
 
@@ -77,7 +75,7 @@ export async function GET(request: Request): Promise<Response> {
     const [solo, party] = await Promise.all([
       sql`
         WITH best AS (
-          SELECT DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash)) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
+          SELECT DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash)) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at, coupon_mult, coupon_min
           FROM speed_runs
           WHERE env = ${env} AND map_id = ${map} AND ranked AND party_size = 1
           ORDER BY COALESCE(char_id, 'ip:' || ip_hash), exp_per_10min DESC, created_at, id
@@ -92,7 +90,7 @@ export async function GET(request: Request): Promise<Response> {
         ORDER BY leaders.exp_per_10min DESC, leaders.created_at, leaders.id`,
       sql`
         WITH best AS (
-          SELECT DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash)) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at
+          SELECT DISTINCT ON (COALESCE(char_id, 'ip:' || ip_hash)) id, char_id, is_public AS best_public, job, level, party_size, exp_per_10min, kills_per_10min, duration_sec, created_at, coupon_mult, coupon_min
           FROM speed_runs
           WHERE env = ${env} AND map_id = ${map} AND ranked AND party_size > 1 AND kills_per_10min IS NOT NULL
           ORDER BY COALESCE(char_id, 'ip:' || ip_hash), kills_per_10min DESC, created_at, id

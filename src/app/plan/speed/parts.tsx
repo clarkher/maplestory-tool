@@ -10,7 +10,7 @@ import { formatNumber } from "@/lib/format";
 import { monsterDrops } from "@/lib/monster-view";
 import { killExp, type Member } from "@/lib/speed/party-exp";
 import type { BoardRow } from "@/lib/speed/server/rules";
-import { jobName, partyKillLine } from "@/lib/speed/view";
+import { couponTag, jobName, partyKillLine } from "@/lib/speed/view";
 import type { Item, MapRecord, Monster, TrainingRow } from "@/lib/types";
 import { OPTION_OFF, OPTION_ON } from "@/components/option-style";
 
@@ -190,7 +190,7 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
             {rows.map((row, index) => {
               const job = jobName(row.job);
               return (
-                <li key={`${row.name ?? "匿名"}-${index}`} className="flex items-baseline gap-2 text-sm">
+                <li key={`${row.name ?? "匿名"}-${index}`} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-sm">
                   <span className="w-5 shrink-0 text-right font-black tabular-nums">{index + 1}</span>
                   <span className="min-w-0 flex-1 truncate">
                     <span className="font-bold">{row.name ?? "匿名玩家"}</span>
@@ -200,9 +200,13 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
                       {tab === "party" ? ` · ${row.partySize} 人隊` : ""}
                     </span>
                   </span>
+                  {/* 手機放不下一行：加倍、數字、日期換到第二行、對齊名字、放不下再換行（v2.82；v2.81 靠右會往左溢出，375 寬時名字被擠成 0、數字超出卡片） */}
+                  <span className="flex w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 pl-7 sm:w-auto sm:flex-nowrap sm:pl-0">
+                  {couponTag(row.couponMult, row.couponMin) ? <CouponTag text={couponTag(row.couponMult, row.couponMin)!} /> : null}
                   <span className="shrink-0 font-bold tabular-nums">{tab === "party" ? `全隊 ${row.kills !== null ? formatNumber(Math.round(row.kills)) : "—"} 隻／10 分` : formatNumber(row.expPer10)}</span>
-                  <span className="w-[104px] shrink-0 text-right text-[12px] ink-soft">
+                  <span className="shrink-0 text-[12px] ink-soft sm:w-[104px] sm:text-right">
                     練 {row.minutes} 分 · {row.date.slice(5).replace("-", "/")}
+                  </span>
                   </span>
                 </li>
               );
@@ -218,6 +222,13 @@ export const Leaderboard = memo(function Leaderboard({ board, tab, onTab }: { bo
     </Card>
   );
 });
+
+/** 有開加倍券的那筆旁邊的小標籤（v2.79）：數字已經扣掉加倍，這個只是讓人知道那筆有開 */
+export function CouponTag({ text }: { text: string }) {
+  return (
+    <span className="shrink-0 rounded border border-[color:var(--maple)] bg-[color:var(--maple-wash)] px-1.5 text-[12px] font-bold leading-5 text-[color:var(--ink)]">{text}</span>
+  );
+}
 
 export function Disclaimer() {
   return <p className="text-[13px] leading-relaxed ink-soft">這是玩家做的工具，不是官方的。只看你分享出來的畫面，不讀、不改遊戲程式。用不用由你決定。</p>;
