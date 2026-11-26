@@ -632,6 +632,16 @@ const SCENES = [
     ].join(" "),
   },
   {
+    slug: "update-1126",
+    base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
+    sprites: [],
+    idea: [
+      "Turn the scene into the cozy inside of a big mushroom house in early winter, warm lamp light, wooden floor and a small ladder between two floors.",
+      "Furniture to show: a round wooden bathtub with a tiny yellow rubber duck, a small blue baby bed with a fluffy blanket, a deep navy high-back velvet armchair, and a huge round sleepy orange cat used as a cushion.",
+      "In front, a cheerful young adventurer with short brown hair opens a glowing gift box with a ribbon, small sparkles flying out. Relaxed, cozy, happy mood.",
+    ].join(" "),
+  },
+  {
     slug: "update-1119",
     base: { render: 100000000, crop: [795, 0, 405, 228], fill: "#9fd3f0" },
     sprites: [],
