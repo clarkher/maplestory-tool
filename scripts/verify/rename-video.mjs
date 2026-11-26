@@ -79,6 +79,8 @@ async function tap(selector) {
 }
 async function sign() {
   await until("登記書", `document.querySelector("[data-pad]")`, 15000);
+  // 按再寫一次會平滑捲回 NPC：還在捲就量格子，後面的筆畫會落到格子外（正式機約 30 輪一次）
+  await evaluate(`(async () => { for (let still = 0, y = scrollY; still < 600; ) { await new Promise(r => setTimeout(r, 100)); if (scrollY === y) still += 100; else { y = scrollY; still = 0; } } })()`);
   const pad = await evaluate(`(() => { const el = document.querySelector("[data-pad]"); el.scrollIntoView({ block: "center", behavior: "instant" }); const r = el.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; })()`);
   const all = FX.flat();
   const [x0, x1] = [Math.min(...all.map(p => p[0])), Math.max(...all.map(p => p[0]))];
