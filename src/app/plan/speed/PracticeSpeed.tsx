@@ -42,6 +42,7 @@ import { ManualCard } from "./ManualCard";
 import { MesoCard, type PotionRow } from "./MesoCard";
 import { MiniWindow, pipSupported } from "./MiniWindow";
 import { PartyCard } from "./PartyCard";
+import { SpeedOverview } from "./Overview";
 import { BUTTON_LINE, BUTTON_MAIN, Card, Disclaimer, Leaderboard, MapChoices, MapPanel, type BoardState } from "./parts";
 import { ShareDialog } from "./ShareDialog";
 
@@ -885,6 +886,7 @@ export function PracticeSpeed() {
             還沒選職業，比不了以前練的：先到<Link href="/" className="mx-0.5 font-bold text-[color:var(--sky)] hover:underline">我的路線</Link>選職業，之後記的就會並排比較。
           </p>
         ) : null}
+        <SpeedOverview maps={base.maps} />
         <p className="text-[13px] ink-soft">用電腦的 Chrome 或 Edge 開，可以分享遊戲畫面自動算。</p>
         <Disclaimer />
       </Shell>
@@ -971,6 +973,8 @@ export function PracticeSpeed() {
   return (
     <Shell>
       {manualCard}
+      {/* 11/26 v2.79 使用者：一進來就要看得到大家的實測，不然沒得參考 */}
+      <SpeedOverview maps={data.maps} version={boardVersion} />
       <h2 className="pt-2 text-[17px] font-black">分享遊戲畫面，自動算</h2>
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-4">
