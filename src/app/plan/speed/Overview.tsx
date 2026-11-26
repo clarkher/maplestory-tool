@@ -64,7 +64,8 @@ export function OverviewList({
                     onClick={() => onToggle(row.mapId)}
                     className="flex w-full flex-wrap items-baseline gap-x-3 gap-y-1 py-2.5 text-left hover:bg-[color:var(--maple-wash)]"
                   >
-                    <span className="min-w-0 flex-1">
+                    {/* 手機：左邊圖名一整行，最快那筆換到下一行（v2.82，375 寬時左邊被擠成三行） */}
+                    <span className="min-w-0 w-full sm:w-auto sm:flex-1">
                       <span className="block font-bold">{nameOf(maps, row)}</span>
                       <span className="block text-[13px] ink-soft">
                         {row.minLevel === row.maxLevel ? `Lv.${row.minLevel}` : `Lv.${row.minLevel}～${row.maxLevel}`} · {row.runs} 筆
@@ -72,7 +73,7 @@ export function OverviewList({
                       </span>
                     </span>
                     {best ? (
-                      <span className="flex shrink-0 flex-col items-end">
+                      <span className="flex shrink-0 flex-col items-start sm:items-end">
                         <span className="flex items-baseline gap-1.5">
                           {tag ? <CouponTag text={tag} /> : null}
                           <span className="text-[13px] ink-soft">最快</span>
