@@ -23,6 +23,8 @@ export const RELATED_RULES: Record<string, RelatedRule> = {
   "/event/halloween": { from: 10, to: 120, rank: 0, until: HALLOWEEN.ends },
   // v2.38 11/19 更新整理：活動（皇家美容院、閃亮彗星）到 12/3，之後照一般文排
   "/guides/update-1119": { from: 10, to: 120, rank: 0, until: "2026-12-03T14:00:00+08:00" },
+  // v2.77 11/26 更新整理：補償最晚 12/31、轉蛋券到 12/17 維護前
+  "/guides/update-1126": { from: 10, to: 120, rank: 0, until: "2026-12-17T08:00:00+08:00" },
   // v2.46 11/21 發佈會：時間表、各新內容（排程到 1/28，開放後補內容；活動到期就照一般文排）
   "/guides/classic-roadmap-1121": { from: 10, to: 120, rank: 0, until: "2027-01-29T00:00:00+08:00" },
   "/guides/teri-gift-2026": { from: 10, to: 120, rank: 0, until: "2027-02-18T00:00:00+08:00" },
