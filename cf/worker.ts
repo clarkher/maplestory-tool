@@ -16,6 +16,7 @@ import * as donateEcpayResult from "../src/app/api/donate/ecpay/result/route";
 import * as donateLinePay from "../src/app/api/donate/linepay/route";
 import * as donateLinePayConfirm from "../src/app/api/donate/linepay/confirm/route";
 import * as speedBoard from "../src/app/api/speed/board/route";
+import * as speedOverview from "../src/app/api/speed/overview/route";
 import * as speedRuns from "../src/app/api/speed/runs/route";
 
 type Handler = (request: Request) => Promise<Response>;
@@ -49,6 +50,7 @@ export const ROUTES: Record<string, Partial<Record<string, Handler>>> = {
   "/api/donate/linepay": donateLinePay,
   "/api/donate/linepay/confirm": donateLinePayConfirm,
   "/api/speed/board": speedBoard,
+  "/api/speed/overview": speedOverview,
   "/api/speed/runs": speedRuns,
 };
 

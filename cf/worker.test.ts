@@ -93,12 +93,30 @@ describe("Cloudflare Worker 分流", () => {
     expect(await response.text()).toBe("");
   });
 
-  it("十一支 API 都有接上（v2.22 加贊助五支）", async () => {
+  it("十二支 API 都有接上（v2.22 加贊助五支、v2.79 加練功測速總覽）", async () => {
     const { ROUTES } = await import("./worker");
     expect(Object.keys(ROUTES).sort()).toEqual([
       "/api/avatar/share", "/api/boss/events", "/api/boss/intervals", "/api/boss/rooms",
       "/api/donate/ecpay", "/api/donate/ecpay/notify", "/api/donate/ecpay/result", "/api/donate/linepay", "/api/donate/linepay/confirm",
-      "/api/speed/board", "/api/speed/runs",
+      "/api/speed/board", "/api/speed/overview", "/api/speed/runs",
     ]);
+  });
+
+  // v2.79 教訓：新加的 API 只放 src/app/api，沒登記在 worker.ts，Cloudflare 上就是 404（單元測試、建置都綠）
+  it("src/app/api 底下每一支 route.ts 都登記在 ROUTES", async () => {
+    const { ROUTES } = await import("./worker");
+    const { readdirSync } = await import("node:fs");
+    const { join, relative, sep } = await import("node:path");
+    const root = join(process.cwd(), "src", "app");
+    const found: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) walk(path);
+        else if (entry.name === "route.ts") found.push("/" + relative(root, dir).split(sep).join("/"));
+      }
+    };
+    walk(join(root, "api"));
+    expect(found.sort()).toEqual(Object.keys(ROUTES).sort());
   });
 });
