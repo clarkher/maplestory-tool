@@ -380,6 +380,36 @@ export const EPISODES: VideoEpisode[] = [
     shorts: "U1SqdnEhFBQ",
     tool: { href: "/go?to=211030000&from=211000000", text: "地圖導航" },
   },
+  {
+    title: "青螃蟹海灘I怎麼去？",
+    summary: "從黃金海灘出發 3 段、經過 4 張圖，每段走哪個門。",
+    publishAt: "2026-11-28T04:00:00.000Z",
+    main: "ddPXxn9coQA",
+    shorts: "1qC-g18dlTI",
+    tool: { href: "/go?to=110030000&from=110000000", text: "地圖導航" },
+  },
+  {
+    title: "緞帶肥肥在哪打？",
+    summary: "最多在弓箭手村西部小山（15 個刷怪點），一共出現在 17 張圖。",
+    publishAt: "2026-11-28T11:00:00.000Z",
+    main: "DPA7XEa7shI",
+    shorts: "4DPNkPbQDeE",
+    tool: { href: "/db/monsters/1210101", text: "緞帶肥肥資料" },
+  },
+  {
+    title: "藍菇菇在哪打？",
+    summary: "最多在藍菇菇樹林（16 個刷怪點），一共出現在 17 張圖。",
+    publishAt: "2026-11-28T01:00:00.000Z",
+    shorts: "1VZuc9ZqdGI",
+    tool: { href: "/db/monsters/2220100", text: "藍菇菇資料" },
+  },
+  {
+    title: "雲彩公園Ⅵ怎麼去？",
+    summary: "從天空之城出發 8 段、經過 9 張圖，每段走哪個門。",
+    publishAt: "2026-11-28T13:00:00.000Z",
+    shorts: "BVunTL8berU",
+    tool: { href: "/go?to=200080000&from=200000000", text: "地圖導航" },
+  },
 ];
 
 /** 已經公開的集數，新的在前 */
