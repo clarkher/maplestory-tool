@@ -343,6 +343,14 @@ export const EPISODES: VideoEpisode[] = [
     tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
   },
   {
+    title: "楓葉拳套畢業全紀錄：攻擊 23 → 38",
+    summary: "57 等鏢賊打楓葉商會硬幣換楓葉拳套，7 張卷軸中 6 張，攻擊 38 比沒衝過的 70 等黃閃電甲還高 4 點。",
+    publishAt: "2026-11-27T04:30:00.000Z",
+    main: "xdoWWaJQLw8",
+    shorts: "P4pFFns75HY",
+    tool: { href: "/plan/leaf", text: "楓葉衝卷規劃器" },
+  },
+  {
     title: "地鐵一號線[地區02]怎麼去？",
     summary: "從墮落城市出發 4 段、經過 5 張圖，每段走哪個門。",
     publishAt: "2026-11-26T04:00:00.000Z",
